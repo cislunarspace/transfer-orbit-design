@@ -93,6 +93,26 @@ class Continuation:
         self.max_orbits = 100
         self.termination_reason = None
 
+    def reset(self):
+        """重置延拓器状态，清空轨道族数据"""
+        self.family_orbits = []
+        self.family_parameters = []
+        self.family_states = []
+        self.family_periods = []
+        self.current_orbit = None
+        self.current_parameter = None
+        self.previous_orbit = None
+        self.previous_parameter = None
+        self.tangent_vector = None
+        self.step_size = self.initial_step_size
+        self.step_size_history = []
+        self.continuation_stats = {
+            "total_steps": 0,
+            "successful_steps": 0,
+            "failed_steps": 0,
+        }
+        self.termination_reason = None
+
     def natural_continuation(self, seed_state, seed_t_half, n_orbits=50, 
                              param_index=None, verbose=True):
         """自然参数延拓
@@ -109,6 +129,8 @@ class Continuation:
         返回：
             dict: 包含轨道族数据的字典
         """
+        # 重置状态，防止多次调用累积
+        self.reset()
         if verbose:
             print(f"\n{'='*60}")
             print(f"开始自然参数延拓 (参数: {self.continuation_parameter})")
@@ -133,10 +155,18 @@ class Continuation:
         if param_index is None:
             param_index = self._infer_param_index()
 
+        # 方向符号: BOTH默认为FORWARD
+        direction_sign = self.direction.value if self.direction != ContinuationDirection.BOTH else 1
+
         current_state = seed_result['state'].copy()
         current_t_half = seed_result['t_half']
 
-        for i in range(n_orbits - 1):
+        consecutive_failures = 0
+        max_consecutive_failures = 5
+
+        i = 0
+        while len(self.family_orbits) < n_orbits:
+            i += 1
             self.continuation_stats["total_steps"] += 1
 
             # 预测步：沿延拓参数方向步进
@@ -144,9 +174,9 @@ class Continuation:
             predicted_t_half = current_t_half
 
             if param_index < 6:
-                predicted_state[param_index] += self.step_size * self.direction.value
+                predicted_state[param_index] += self.step_size * direction_sign
             elif param_index == 6:
-                predicted_t_half += self.step_size * self.direction.value
+                predicted_t_half += self.step_size * direction_sign
 
             # 修正步
             orbit, result = self.correction.correct_orbit(
@@ -162,10 +192,11 @@ class Continuation:
                 current_t_half = result['t_half']
 
                 self.continuation_stats["successful_steps"] += 1
+                consecutive_failures = 0
 
-                if verbose and (i + 1) % 10 == 0:
-                    print(f"  第 {i + 1}/{n_orbits - 1} 条轨道，"
-                          f"误差={result['error']:.2e}")
+                if verbose and len(self.family_orbits) % 10 == 0:
+                    print(f"  第 {len(self.family_orbits)}/{n_orbits} 条轨道，"
+                          f"误差={result['error']:.2e}, 迭代={result['iterations']}")
 
                 # 自适应步长
                 if self.step_size_adaptation:
@@ -181,17 +212,19 @@ class Continuation:
                         )
             else:
                 self.continuation_stats["failed_steps"] += 1
+                consecutive_failures += 1
 
-                # 步长减半重试
+                # 步长减半重试（不推进索引）
                 self.step_size *= self.step_reduction_factor
-                if self.step_size < self.min_step_size:
-                    self.termination_reason = "步长过小，延拓终止"
+                if self.step_size < self.min_step_size or consecutive_failures >= max_consecutive_failures:
+                    self.termination_reason = "步长过小或连续失败，延拓终止"
                     if verbose:
-                        print(f"\n步长过小，延拓终止于第 {len(self.family_orbits)} 条轨道")
+                        print(f"\n延拓终止于第 {len(self.family_orbits)} 条轨道")
                     break
 
                 if verbose:
-                    print(f"  第 {i + 1} 步修正失败，减小步长至 {self.step_size:.6f}")
+                    print(f"  步 {i} 修正失败，减小步长至 {self.step_size:.6f}")
+                continue  # 重试，不推进
 
             self.step_size_history.append(self.step_size)
 
@@ -217,6 +250,9 @@ class Continuation:
         返回：
             dict: 包含轨道族数据的字典
         """
+        # 重置状态
+        self.reset()
+
         if verbose:
             print(f"\n{'='*60}")
             print(f"开始伪弧长延拓")

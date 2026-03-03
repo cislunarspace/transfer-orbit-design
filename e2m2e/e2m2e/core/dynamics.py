@@ -162,7 +162,8 @@ class CR3BP_Dynamics:
         
         return derivative
 
-    def propagate(self, initial_state, t_span, t_eval=None, with_stm=False):
+    def propagate(self, initial_state, t_span, t_eval=None, with_stm=False,
+                  events=None):
         """传播轨迹
         
         参数：
@@ -170,9 +171,10 @@ class CR3BP_Dynamics:
         - t_span: 时间区间 [t0, tf]
         - t_eval: 评估时间点数组（可选）
         - with_stm: 是否计算状态转移矩阵
+        - events: 事件函数列表（用于检测穿越等），可选
         
         返回：
-        - 轨迹结果对象
+        - 轨迹结果字典
         """
         if with_stm:
             # 创建增广状态（初始STM为单位矩阵）
@@ -186,6 +188,7 @@ class CR3BP_Dynamics:
                 augmented_state,
                 method=self.integrator,
                 t_eval=t_eval,
+                events=events,
                 rtol=self.rtol,
                 atol=self.atol,
                 max_step=self.max_step
@@ -209,7 +212,9 @@ class CR3BP_Dynamics:
                 'states': states,
                 'stm': stm_matrices,
                 'jacobi': self.jacobi_history,
-                'jacobi_error': self.jacobi_error
+                'jacobi_error': self.jacobi_error,
+                'events': getattr(result, 't_events', None),
+                'raw_result': result,
             }
         else:
             # 积分普通状态方程
@@ -219,6 +224,7 @@ class CR3BP_Dynamics:
                 initial_state,
                 method=self.integrator,
                 t_eval=t_eval,
+                events=events,
                 rtol=self.rtol,
                 atol=self.atol,
                 max_step=self.max_step
@@ -238,8 +244,43 @@ class CR3BP_Dynamics:
                 'time': result.t,
                 'states': states,
                 'jacobi': self.jacobi_history,
-                'jacobi_error': self.jacobi_error
+                'jacobi_error': self.jacobi_error,
+                'events': getattr(result, 't_events', None),
+                'raw_result': result,
             }
+
+    @staticmethod
+    def y_crossing_event(direction=0):
+        """创建y=0平面穿越事件函数
+
+        参数：
+        - direction: 0=双向, 1=正向(y增), -1=负向(y减)
+
+        返回：
+        - 事件函数（可传入propagate的events参数）
+        """
+        def event(t, state):
+            return state[1]  # y = 0
+        event.terminal = False
+        event.direction = direction
+        return event
+
+    @staticmethod
+    def x_crossing_event(x_value=0.0, direction=0):
+        """创建x=x_value平面穿越事件函数
+
+        参数：
+        - x_value: x平面值
+        - direction: 0=双向, 1=正向(x增), -1=负向(x减)
+
+        返回：
+        - 事件函数
+        """
+        def event(t, state):
+            return state[0] - x_value
+        event.terminal = False
+        event.direction = direction
+        return event
 
     def compute_state_transition_matrix(self, initial_state, t):
         """计算状态转移矩阵

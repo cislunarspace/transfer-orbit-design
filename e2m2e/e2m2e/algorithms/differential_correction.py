@@ -39,6 +39,7 @@ class DifferentialCorrection:
         "3D_symmetric_x_fixed_x0",
         "3D_symmetric_xz_fixed_x0",
         "3D_symmetric_xz_fixed_z0",
+        "3D_symmetric_xz_fixed_t",
     ]
 
     def __init__(self, dynamics, target=None, free_vars=None):
@@ -239,6 +240,36 @@ class DifferentialCorrection:
         self._reset_history()
         return self
 
+    def setup_3D_symmetric_xz_fixed_t(self, t_half):
+        """配置空间XZ对称周期轨道搜索，固定半周期
+
+        固定半周期T/2，调整x0、z0和y_dot0使3D轨道满足约束。
+        适用于寻找特定共振比的3D共振轨道。
+
+        初始状态: [x0, 0, z0, 0, vy0, 0]
+        半周期约束: y(T/2)=0, vx(T/2)=0, vz(T/2)=0
+
+        参数:
+            t_half (float): 固定的半周期
+
+        返回:
+            self: 配置好的微分修正器实例
+        """
+        self.setup_type = "3D_symmetric_xz_fixed_t"
+        self.symmetry_condition = "xz_plane"
+        self.fixed_parameters = {"T_half": t_half}
+
+        self.free_variables = ["x0", "z0", "y_dot0"]
+        self.free_variable_indices = [0, 2, 4]
+
+        self.target_conditions = {"y": 0.0, "x_dot": 0.0, "z_dot": 0.0}
+        self.constraint_indices = [1, 3, 5]
+        self.constraint_weights = {"y": 1.0, "x_dot": 1.0, "z_dot": 1.0}
+        self.constraint_types = {"y": "equality", "x_dot": "equality", "z_dot": "equality"}
+
+        self._reset_history()
+        return self
+
     def _reset_history(self):
         """重置收敛历史"""
         self.convergence_history = []
@@ -268,8 +299,46 @@ class DifferentialCorrection:
 
         return constraints - targets
 
+    def _compute_jacobian_stm(self, current_state, current_time, final_state, stm):
+        """使用状态转移矩阵(STM)计算解析雅可比矩阵
+
+        比有限差分法快约6倍（无需额外积分），且精度更高。
+
+        雅可比矩阵的构建原理：
+        - 对于状态自由变量 j: ∂constraint_i/∂free_j = Φ(constraint_idx, free_idx)
+        - 对于时间自由变量: ∂constraint_i/∂T = f_i(X_final)（EOM在终点状态的值）
+
+        参数：
+            current_state: 当前初始状态
+            current_time: 当前半周期时间
+            final_state: 终点状态（积分结果）
+            stm: 状态转移矩阵 Φ(t_half, 0)，6×6矩阵
+
+        返回：
+            jacobian: 雅可比矩阵 (n_constraints × n_variables)
+        """
+        n_constraints = len(self.constraint_indices)
+        n_variables = len(self.free_variable_indices)
+        jacobian = np.zeros((n_constraints, n_variables))
+
+        # 计算终点状态的运动方程值（用于时间偏导数）
+        f_final = self.dynamics.equations_of_motion(current_time, final_state)
+
+        for j, var_idx in enumerate(self.free_variable_indices):
+            if var_idx < 6:
+                # 状态自由变量的偏导数：直接从STM列中提取
+                for i, c_idx in enumerate(self.constraint_indices):
+                    jacobian[i, j] = stm[c_idx, var_idx]
+            elif var_idx == 6:
+                # 时间自由变量的偏导数：∂X_f/∂T = f(X_f)
+                for i, c_idx in enumerate(self.constraint_indices):
+                    jacobian[i, j] = f_final[c_idx]
+
+        self.performance_stats["jacobian_evaluations"] += 1
+        return jacobian
+
     def _compute_jacobian_finite_diff(self, current_state, current_time):
-        """使用有限差分法计算雅可比矩阵
+        """使用有限差分法计算雅可比矩阵（备用方法）
 
         参数：
             current_state: 当前初始状态
@@ -284,8 +353,7 @@ class DifferentialCorrection:
         eps = self.finite_difference_step
 
         for j, var_idx in enumerate(self.free_variable_indices):
-            if var_idx < 6:  # 对初始状态的敏感性
-                # 正向扰动
+            if var_idx < 6:
                 state_fwd = current_state.copy()
                 state_fwd[var_idx] += eps
                 result_fwd = integrate.solve_ivp(
@@ -296,7 +364,6 @@ class DifferentialCorrection:
                 )
                 final_fwd = result_fwd.y[:, -1]
 
-                # 负向扰动
                 state_bwd = current_state.copy()
                 state_bwd[var_idx] -= eps
                 result_bwd = integrate.solve_ivp(
@@ -307,13 +374,11 @@ class DifferentialCorrection:
                 )
                 final_bwd = result_bwd.y[:, -1]
 
-                # 中心差分
                 sensitivity = (final_fwd - final_bwd) / (2 * eps)
                 for i, c_idx in enumerate(self.constraint_indices):
                     jacobian[i, j] = sensitivity[c_idx]
 
-            elif var_idx == 6:  # 对时间的敏感性
-                # 正向扰动
+            elif var_idx == 6:
                 t_fwd = current_time + eps
                 result_fwd = integrate.solve_ivp(
                     self.dynamics.equations_of_motion,
@@ -323,7 +388,6 @@ class DifferentialCorrection:
                 )
                 final_fwd = result_fwd.y[:, -1]
 
-                # 负向扰动
                 t_bwd = current_time - eps
                 result_bwd = integrate.solve_ivp(
                     self.dynamics.equations_of_motion,
@@ -333,7 +397,6 @@ class DifferentialCorrection:
                 )
                 final_bwd = result_bwd.y[:, -1]
 
-                # 中心差分
                 sensitivity = (final_fwd - final_bwd) / (2 * eps)
                 for i, c_idx in enumerate(self.constraint_indices):
                     jacobian[i, j] = sensitivity[c_idx]
@@ -370,14 +433,18 @@ class DifferentialCorrection:
         for iteration in range(self.max_iterations):
             self.iteration_count = iteration + 1
 
-            # 1. 积分到半周期
+            # 1. 积分到半周期（带STM用于解析雅可比矩阵）
             try:
+                # 构造增广状态 [state(6) + STM(36)]
+                initial_stm = np.eye(6).flatten()
+                augmented_state = np.concatenate([current_state, initial_stm])
+
                 result = integrate.solve_ivp(
-                    self.dynamics.equations_of_motion,
-                    (0, current_time), current_state,
+                    self.dynamics.equations_with_stm,
+                    (0, current_time), augmented_state,
                     method="DOP853",
-                    t_eval=np.linspace(0, current_time, 1000),
                     rtol=1e-12, atol=1e-12,
+                    dense_output=False,
                 )
                 if not result.success:
                     self.termination_reason = f"积分失败: {result.message}"
@@ -385,7 +452,9 @@ class DifferentialCorrection:
                         print(f"  积分失败: {result.message}")
                     return self._build_result(current_state, current_time)
 
-                final_state = result.y[:, -1]
+                final_augmented = result.y[:, -1]
+                final_state = final_augmented[:6]
+                final_stm = final_augmented[6:].reshape((6, 6))
                 self.performance_stats["stm_evaluations"] += 1
 
             except Exception as e:
@@ -425,10 +494,15 @@ class DifferentialCorrection:
                     print(f"\n✗ 迭代发散，误差 = {current_error:.2e}")
                 break
 
-            # 5. 计算雅可比矩阵
-            self.jacobian_matrix = self._compute_jacobian_finite_diff(
-                current_state, current_time
-            )
+            # 5. 计算雅可比矩阵（优先使用STM解析法）
+            if self.use_analytic_stm:
+                self.jacobian_matrix = self._compute_jacobian_stm(
+                    current_state, current_time, final_state, final_stm
+                )
+            else:
+                self.jacobian_matrix = self._compute_jacobian_finite_diff(
+                    current_state, current_time
+                )
 
             # 6. 计算修正量
             try:
