@@ -235,3 +235,6 @@ docs/_templates/
 # 测试相关
 test_output/
 test_results/
+
+# 轨道数据
+/out
