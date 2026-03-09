@@ -12,8 +12,9 @@ from matplotlib import pyplot as plt
 
 from Dynamics.CR3BP_Dynamics import CR3BP_Propagation
 from Funcs.CR3BP_get_libration_points import libration_points
-from Main.CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_X0 import \
-    CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_X0
+from Main.CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_X0 import (
+    CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_X0,
+)
 from Parameters.CR3BP_Parameters import get_CR3BP_EM_Constants
 
 
@@ -23,14 +24,16 @@ if __name__ == "__main__":
     tf_initial = 3.4725358862
 
     # 微分修正参数
-    tol = 5e-14          # 收敛容差
-    N = 10000            # 积分步数（用于微分修正内部传播）
-    maxiter = 300        # 最大迭代次数
-    N_Patch = 3          # 拼接点数量（包括起点和终点）
+    tol = 5e-14  # 收敛容差
+    N = 10000  # 积分步数（用于微分修正内部传播）
+    maxiter = 300  # 最大迭代次数
+    N_Patch = 3  # 拼接点数量（包括起点和终点）
 
     # 执行微分修正，获得高精度周期轨道初值和周期
-    SV0_corrected, tf_corrected = CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_X0(
-        SV0_initial, tf_initial, tol, N, maxiter
+    SV0_corrected, tf_corrected = (
+        CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_X0(
+            SV0_initial, tf_initial, tol, N, maxiter
+        )
     )
 
     # 完整积分一个周期用于绘图（积分半周期后对称延拓，此处直接积分全周期以验证闭合性）
@@ -73,14 +76,18 @@ if __name__ == "__main__":
 
     # 绘图
     plt.figure(figsize=(8, 6))
-    plt.plot(CR3BP_SV[0, :], CR3BP_SV[1, :], color="r", label="Periodic Orbit (e.g., DRO)")
+    plt.plot(
+        CR3BP_SV[0, :], CR3BP_SV[1, :], color="r", label="Periodic Orbit (e.g., DRO)"
+    )
     plt.xlabel("x (normalized)")
     plt.ylabel("y (normalized)")
 
     # 绘制拼接点
     for i in range(N_Patch):
         plt.scatter(CR3BP_SV_Patch[0, i], CR3BP_SV_Patch[1, i], color="g", s=30)
-    plt.scatter(CR3BP_SV_Patch[0, 0], CR3BP_SV_Patch[1, 0], color="g", label="Patch Points")
+    plt.scatter(
+        CR3BP_SV_Patch[0, 0], CR3BP_SV_Patch[1, 0], color="g", label="Patch Points"
+    )
 
     # 标注天体和拉格朗日点
     plt.text(earth[0], earth[1] - 0.04, "Earth")

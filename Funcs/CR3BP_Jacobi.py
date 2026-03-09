@@ -41,5 +41,6 @@ def jacobi(state, mu):
         raise Exception("State dimension wrong. State dimensions must be 3 or 6")
     return jacobi_cst
 
+
 if __name__ == "__main__":
     print("hello")

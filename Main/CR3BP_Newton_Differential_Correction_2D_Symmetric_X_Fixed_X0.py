@@ -76,10 +76,10 @@ def CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_X0(
         # 变量顺序：[y0_dot, tf_half]
         # STM[i, j] 表示终点第i个状态对初值第j个分量的偏导
         J = np.empty((2, 2))
-        J[0, 0] = final_STM[1, 4]      # ∂y/∂(y0_dot)
-        J[0, 1] = state_derivative[1]   # ∂y/∂t = y_dot
-        J[1, 0] = final_STM[3, 4]      # ∂(x_dot)/∂(y0_dot)
-        J[1, 1] = state_derivative[3]   # ∂(x_dot)/∂t = x_ddot
+        J[0, 0] = final_STM[1, 4]  # ∂y/∂(y0_dot)
+        J[0, 1] = state_derivative[1]  # ∂y/∂t = y_dot
+        J[1, 0] = final_STM[3, 4]  # ∂(x_dot)/∂(y0_dot)
+        J[1, 1] = state_derivative[3]  # ∂(x_dot)/∂t = x_ddot
 
         # 求解牛顿修正量：J * delta = constraint  =>  delta = J^{-1} * constraint
         try:

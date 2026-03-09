@@ -10,15 +10,18 @@ import copy
 import numpy as np
 import matplotlib.pyplot as plt
 
-from CR3BP_DifferentialCorrection import CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_X0
-from Main.CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_T import \
-    CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_T
+from CR3BP_DifferentialCorrection import (
+    CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_X0,
+)
+from Main.CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_T import (
+    CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_T,
+)
 from Funcs.CR3BP_Stability import Compute_Monodromy_Matrix, Compute_Stability_Index
 from Dynamics.CR3BP_Dynamics import CR3BP_Propagation
 
 
 def CR3BP_Single_Parameter_Continuation_2D_X0(
-        SV0_original, tf_original, beta, N_plus, N_minus
+    SV0_original, tf_original, beta, N_plus, N_minus
 ):
     """
     以 x0 为延拓参数，生成平面周期轨道族。
@@ -85,11 +88,11 @@ def CR3BP_Single_Parameter_Continuation_2D_X0(
 
     SV0_Family[:, :N_minus] = SV0_Family_minus
     SV0_Family[:, N_minus] = SV0_original
-    SV0_Family[:, N_minus + 1:] = SV0_Family_plus
+    SV0_Family[:, N_minus + 1 :] = SV0_Family_plus
 
     tf_Family[:N_minus] = tf_Family_minus
     tf_Family[N_minus] = tf_original
-    tf_Family[N_minus + 1:] = tf_Family_plus
+    tf_Family[N_minus + 1 :] = tf_Family_plus
 
     return (
         SV0_Family_plus,
@@ -102,7 +105,7 @@ def CR3BP_Single_Parameter_Continuation_2D_X0(
 
 
 def CR3BP_Single_Parameter_Continuation_2D_T(
-        SV0_original, tf_original, beta, N_plus, N_minus
+    SV0_original, tf_original, beta, N_plus, N_minus
 ):
     """
     以周期 T 为延拓参数，生成平面周期轨道族。
@@ -168,11 +171,11 @@ def CR3BP_Single_Parameter_Continuation_2D_T(
 
     SV0_Family[:, :N_minus] = SV0_Family_minus
     SV0_Family[:, N_minus] = SV0_original
-    SV0_Family[:, N_minus + 1:] = SV0_Family_plus
+    SV0_Family[:, N_minus + 1 :] = SV0_Family_plus
 
     tf_Family[:N_minus] = tf_Family_minus
     tf_Family[N_minus] = tf_original
-    tf_Family[N_minus + 1:] = tf_Family_plus
+    tf_Family[N_minus + 1 :] = tf_Family_plus
 
     return (
         SV0_Family_plus,
@@ -193,8 +196,10 @@ if __name__ == "__main__":
     tol = 1e-8
     N = 10000
     maxiter = 300
-    SV0_original, tf_original = CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_T(
-        SV0_initial, tf_initial, tol, N, maxiter
+    SV0_original, tf_original = (
+        CR3BP_Newton_Differential_Correction_2D_Symmetric_X_Fixed_T(
+            SV0_initial, tf_initial, tol, N, maxiter
+        )
     )
 
     # 延拓参数
@@ -250,38 +255,61 @@ if __name__ == "__main__":
 
     # 绘制稳定性随 x0 的变化
     plt.figure(1)
-    plt.plot(x0_list, nu_list, 'b-')
+    plt.plot(x0_list, nu_list, "b-")
     plt.xlabel(r"$x_0$")
     plt.ylabel(r"$\nu$ (Stability Index)")
     plt.grid(True)
 
     plt.figure(2)
-    plt.plot(x0_list, L_list, 'r-')
+    plt.plot(x0_list, L_list, "r-")
     plt.xlabel(r"$x_0$")
     plt.ylabel(r"$L$ (Multiplier Magnitude)")
     plt.grid(True)
 
     # 3D 轨道族可视化
     fig = plt.figure(3)
-    ax = fig.add_subplot(111, projection='3d')
+    ax = fig.add_subplot(111, projection="3d")
 
     # 原始轨道
     _, SV_original = CR3BP_Propagation(SV0_original, tf_original, 2 * N)
-    ax.plot(SV_original[0, :], SV_original[1, :], SV_original[2, :], color='red', linewidth=2, label='Reference')
+    ax.plot(
+        SV_original[0, :],
+        SV_original[1, :],
+        SV_original[2, :],
+        color="red",
+        linewidth=2,
+        label="Reference",
+    )
 
     # 正向轨道
     for i in range(N_plus):
-        _, SV_plus_i = CR3BP_Propagation(SV0_Family_plus[:, i], tf_Family_plus[i], 2 * N)
-        ax.plot(SV_plus_i[0, :], SV_plus_i[1, :], SV_plus_i[2, :], color='blue', linewidth=0.8)
+        _, SV_plus_i = CR3BP_Propagation(
+            SV0_Family_plus[:, i], tf_Family_plus[i], 2 * N
+        )
+        ax.plot(
+            SV_plus_i[0, :],
+            SV_plus_i[1, :],
+            SV_plus_i[2, :],
+            color="blue",
+            linewidth=0.8,
+        )
 
     # 负向轨道
     for j in range(N_minus):
-        _, SV_minus_j = CR3BP_Propagation(SV0_Family_minus[:, j], tf_Family_minus[j], 2 * N)
-        ax.plot(SV_minus_j[0, :], SV_minus_j[1, :], SV_minus_j[2, :], color='blue', linewidth=0.8)
+        _, SV_minus_j = CR3BP_Propagation(
+            SV0_Family_minus[:, j], tf_Family_minus[j], 2 * N
+        )
+        ax.plot(
+            SV_minus_j[0, :],
+            SV_minus_j[1, :],
+            SV_minus_j[2, :],
+            color="blue",
+            linewidth=0.8,
+        )
 
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('z')
-    ax.set_title('Periodic Orbit Family in CR3BP')
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_zlabel("z")
+    ax.set_title("Periodic Orbit Family in CR3BP")
     ax.legend()
     plt.show()

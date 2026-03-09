@@ -531,7 +531,8 @@ class DifferentialCorrection:
             from OOP.Orbit import Orbit
 
             corrected_orbit = Orbit(
-                states=CR3BP_SV.T, times=CR3BP_t  # 转置为 (n_points, 6) 格式
+                states=CR3BP_SV.T,
+                times=CR3BP_t,  # 转置为 (n_points, 6) 格式
             )
 
             print(f"\n{'=' * 60}")
@@ -567,7 +568,8 @@ class DifferentialCorrection:
             from OOP.Orbit import Orbit
 
             corrected_orbit = Orbit(
-                states=CR3BP_SV.T, times=CR3BP_t  # 转置为 (n_points, 6) 格式
+                states=CR3BP_SV.T,
+                times=CR3BP_t,  # 转置为 (n_points, 6) 格式
             )
 
             print(f"\n{'=' * 60}")

@@ -4,6 +4,7 @@ import spiceypy as spice
 
 spice.furnsh("../Spice/EarthMoon.mk")
 
+
 def get_CR3BP_EM_Constants():
     """确定圆型限制性三体模型下地月系统相关常数"""
 
@@ -15,6 +16,7 @@ def get_CR3BP_EM_Constants():
     mu = GM_Primary2 / (GM_Primary1 + GM_Primary2)
 
     return mu
+
 
 if __name__ == "__main__":
     print(get_CR3BP_EM_Constants())

@@ -112,4 +112,3 @@ def CR3BP_Newton_Differential_Correction_3D_Symmetric_X_Fixed_T(
     print("修正后的轨道周期为" + str(tf_corrected))
 
     return SV0_corrected, tf_corrected
-

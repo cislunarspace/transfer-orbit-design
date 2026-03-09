@@ -4,12 +4,13 @@ from scipy.integrate import solve_ivp
 from mpl_toolkits.mplot3d import Axes3D
 
 # 设置中文字体
-plt.rcParams['font.sans-serif'] = ['SimHei']  # 或者 ['Microsoft YaHei']、['KaiTi']等
-plt.rcParams['axes.unicode_minus'] = False    # 解决负号显示问题
+plt.rcParams["font.sans-serif"] = ["SimHei"]  # 或者 ['Microsoft YaHei']、['KaiTi']等
+plt.rcParams["axes.unicode_minus"] = False  # 解决负号显示问题
 
 # ============================================================
 # 1. CRTBP模型下的DRO轨道计算（平面轨道）
 # ============================================================
+
 
 class CRTBP_DRO:
     """圆形限制性三体问题下的DRO轨道计算类"""
@@ -39,9 +40,9 @@ class CRTBP_DRO:
         x, y, z = state[0], state[1], state[2]
 
         # 到地球的距离
-        r1 = np.sqrt((x - self.x1) ** 2 + y ** 2 + z ** 2)
+        r1 = np.sqrt((x - self.x1) ** 2 + y**2 + z**2)
         # 到月球的距离
-        r2 = np.sqrt((x - self.x2) ** 2 + y ** 2 + z ** 2)
+        r2 = np.sqrt((x - self.x2) ** 2 + y**2 + z**2)
 
         return r1, r2
 
@@ -59,16 +60,18 @@ class CRTBP_DRO:
         x, y, vx, vy = state
 
         # 计算距离
-        r1 = np.sqrt((x - self.x1) ** 2 + y ** 2)
-        r2 = np.sqrt((x - self.x2) ** 2 + y ** 2)
+        r1 = np.sqrt((x - self.x1) ** 2 + y**2)
+        r2 = np.sqrt((x - self.x2) ** 2 + y**2)
 
         # 防止除以零
         r1 = max(r1, 1e-10)
         r2 = max(r2, 1e-10)
 
         # 势函数导数
-        Omega_x = x - (1 - self.mu) * (x - self.x1) / r1 ** 3 - self.mu * (x - self.x2) / r2 ** 3
-        Omega_y = y - (1 - self.mu) * y / r1 ** 3 - self.mu * y / r2 ** 3
+        Omega_x = (
+            x - (1 - self.mu) * (x - self.x1) / r1**3 - self.mu * (x - self.x2) / r2**3
+        )
+        Omega_y = y - (1 - self.mu) * y / r1**3 - self.mu * y / r2**3
 
         # 运动方程（含科里奥利力和离心力）
         ax = 2 * vy + Omega_x
@@ -87,17 +90,19 @@ class CRTBP_DRO:
         x, y, z, vx, vy, vz = state
 
         # 计算距离
-        r1 = np.sqrt((x - self.x1) ** 2 + y ** 2 + z ** 2)
-        r2 = np.sqrt((x - self.x2) ** 2 + y ** 2 + z ** 2)
+        r1 = np.sqrt((x - self.x1) ** 2 + y**2 + z**2)
+        r2 = np.sqrt((x - self.x2) ** 2 + y**2 + z**2)
 
         # 防止除以零
         r1 = max(r1, 1e-10)
         r2 = max(r2, 1e-10)
 
         # 势函数导数
-        Omega_x = x - (1 - self.mu) * (x - self.x1) / r1 ** 3 - self.mu * (x - self.x2) / r2 ** 3
-        Omega_y = y - (1 - self.mu) * y / r1 ** 3 - self.mu * y / r2 ** 3
-        Omega_z = - (1 - self.mu) * z / r1 ** 3 - self.mu * z / r2 ** 3
+        Omega_x = (
+            x - (1 - self.mu) * (x - self.x1) / r1**3 - self.mu * (x - self.x2) / r2**3
+        )
+        Omega_y = y - (1 - self.mu) * y / r1**3 - self.mu * y / r2**3
+        Omega_z = -(1 - self.mu) * z / r1**3 - self.mu * z / r2**3
 
         # 运动方程
         ax = 2 * vy + Omega_x
@@ -120,17 +125,17 @@ class CRTBP_DRO:
             x, y, z, vx, vy, vz = state
 
         # 计算距离
-        r1 = np.sqrt((x - self.x1) ** 2 + y ** 2 + z ** 2)
-        r2 = np.sqrt((x - self.x2) ** 2 + y ** 2 + z ** 2)
+        r1 = np.sqrt((x - self.x1) ** 2 + y**2 + z**2)
+        r2 = np.sqrt((x - self.x2) ** 2 + y**2 + z**2)
 
         # 速度平方
-        v2 = vx ** 2 + vy ** 2 + vz ** 2
+        v2 = vx**2 + vy**2 + vz**2
 
         # 有效势
         U = (1 - self.mu) / r1 + self.mu / r2
 
         # Jacobi常数 C = 2U + (x^2 + y^2) - v^2
-        C = 2 * U + (x ** 2 + y ** 2) - v2
+        C = 2 * U + (x**2 + y**2) - v2
 
         return C
 
@@ -171,8 +176,10 @@ class CRTBP_DRO:
 # 2. DRO轨道计算与可视化
 # ============================================================
 
-def compute_dro_trajectory(mu=0.012155099, initial_state=None,
-                           T=10.0, n_points=10000, dim=2):
+
+def compute_dro_trajectory(
+    mu=0.012155099, initial_state=None, T=10.0, n_points=10000, dim=2
+):
     """
     计算DRO轨道
 
@@ -215,9 +222,15 @@ def compute_dro_trajectory(mu=0.012155099, initial_state=None,
         equations = crtbp.equations_3d
 
     # 数值积分
-    sol = solve_ivp(equations, t_span, initial_state,
-                    t_eval=t_eval, method='DOP853',
-                    rtol=1e-12, atol=1e-12)
+    sol = solve_ivp(
+        equations,
+        t_span,
+        initial_state,
+        t_eval=t_eval,
+        method="DOP853",
+        rtol=1e-12,
+        atol=1e-12,
+    )
 
     return sol.t, sol.y
 
@@ -257,44 +270,44 @@ def plot_dro_trajectory(t, states, mu=0.012155099, title="DRO轨道 (CRTBP)"):
 
         # 轨道图
         ax = axes[0, 0]
-        ax.plot(x, y, 'b-', linewidth=1, label='DRO轨道')
+        ax.plot(x, y, "b-", linewidth=1, label="DRO轨道")
         # 标记主天体
-        ax.plot(crtbp.x1, 0, 'ro', markersize=8, label=f'地球 (m1={1 - mu:.4f})')
-        ax.plot(crtbp.x2, 0, 'go', markersize=6, label=f'月球 (m2={mu:.4f})')
-        ax.set_xlabel('x (归一化单位)')
-        ax.set_ylabel('y (归一化单位)')
+        ax.plot(crtbp.x1, 0, "ro", markersize=8, label=f"地球 (m1={1 - mu:.4f})")
+        ax.plot(crtbp.x2, 0, "go", markersize=6, label=f"月球 (m2={mu:.4f})")
+        ax.set_xlabel("x (归一化单位)")
+        ax.set_ylabel("y (归一化单位)")
         ax.set_title(title)
-        ax.axis('equal')
+        ax.axis("equal")
         ax.grid(True, alpha=0.3)
         ax.legend()
 
         # 时间历程
         ax = axes[0, 1]
-        ax.plot(t, x, 'r-', label='x(t)')
-        ax.plot(t, y, 'b-', label='y(t)')
-        ax.set_xlabel('时间 (归一化单位)')
-        ax.set_ylabel('位置')
-        ax.set_title('位置随时间变化')
+        ax.plot(t, x, "r-", label="x(t)")
+        ax.plot(t, y, "b-", label="y(t)")
+        ax.set_xlabel("时间 (归一化单位)")
+        ax.set_ylabel("位置")
+        ax.set_title("位置随时间变化")
         ax.grid(True, alpha=0.3)
         ax.legend()
 
         # 速度
         vx, vy = states[2], states[3]
         ax = axes[1, 0]
-        ax.plot(t, vx, 'r--', label='vx(t)')
-        ax.plot(t, vy, 'b--', label='vy(t)')
-        ax.set_xlabel('时间 (归一化单位)')
-        ax.set_ylabel('速度')
-        ax.set_title('速度随时间变化')
+        ax.plot(t, vx, "r--", label="vx(t)")
+        ax.plot(t, vy, "b--", label="vy(t)")
+        ax.set_xlabel("时间 (归一化单位)")
+        ax.set_ylabel("速度")
+        ax.set_title("速度随时间变化")
         ax.grid(True, alpha=0.3)
         ax.legend()
 
         # Jacobi常数（守恒量验证）
         ax = axes[1, 1]
-        ax.plot(t, jacobi, 'k-', linewidth=1)
-        ax.set_xlabel('时间 (归一化单位)')
-        ax.set_ylabel('Jacobi常数 C')
-        ax.set_title(f'Jacobi常数 (变化: {jacobi.max() - jacobi.min():.2e})')
+        ax.plot(t, jacobi, "k-", linewidth=1)
+        ax.set_xlabel("时间 (归一化单位)")
+        ax.set_ylabel("Jacobi常数 C")
+        ax.set_title(f"Jacobi常数 (变化: {jacobi.max() - jacobi.min():.2e})")
         ax.grid(True, alpha=0.3)
 
         plt.tight_layout()
@@ -303,44 +316,44 @@ def plot_dro_trajectory(t, states, mu=0.012155099, title="DRO轨道 (CRTBP)"):
         fig = plt.figure(figsize=(15, 10))
 
         # 三维轨道
-        ax1 = fig.add_subplot(221, projection='3d')
-        ax1.plot(x, y, z, 'b-', linewidth=1)
-        ax1.scatter([crtbp.x1], [0], [0], color='red', s=100, label='地球')
-        ax1.scatter([crtbp.x2], [0], [0], color='green', s=80, label='月球')
-        ax1.set_xlabel('x')
-        ax1.set_ylabel('y')
-        ax1.set_zlabel('z')
+        ax1 = fig.add_subplot(221, projection="3d")
+        ax1.plot(x, y, z, "b-", linewidth=1)
+        ax1.scatter([crtbp.x1], [0], [0], color="red", s=100, label="地球")
+        ax1.scatter([crtbp.x2], [0], [0], color="green", s=80, label="月球")
+        ax1.set_xlabel("x")
+        ax1.set_ylabel("y")
+        ax1.set_zlabel("z")
         ax1.set_title(title)
         ax1.legend()
 
         # 投影到xy平面
         ax2 = fig.add_subplot(222)
-        ax2.plot(x, y, 'b-')
-        ax2.plot(crtbp.x1, 0, 'ro', markersize=8)
-        ax2.plot(crtbp.x2, 0, 'go', markersize=6)
-        ax2.set_xlabel('x')
-        ax2.set_ylabel('y')
-        ax2.set_title('xy平面投影')
-        ax2.axis('equal')
+        ax2.plot(x, y, "b-")
+        ax2.plot(crtbp.x1, 0, "ro", markersize=8)
+        ax2.plot(crtbp.x2, 0, "go", markersize=6)
+        ax2.set_xlabel("x")
+        ax2.set_ylabel("y")
+        ax2.set_title("xy平面投影")
+        ax2.axis("equal")
         ax2.grid(True, alpha=0.3)
 
         # 时间历程
         ax3 = fig.add_subplot(223)
-        ax3.plot(t, x, 'r-', label='x')
-        ax3.plot(t, y, 'g-', label='y')
-        ax3.plot(t, z, 'b-', label='z')
-        ax3.set_xlabel('时间')
-        ax3.set_ylabel('位置')
-        ax3.set_title('位置随时间变化')
+        ax3.plot(t, x, "r-", label="x")
+        ax3.plot(t, y, "g-", label="y")
+        ax3.plot(t, z, "b-", label="z")
+        ax3.set_xlabel("时间")
+        ax3.set_ylabel("位置")
+        ax3.set_title("位置随时间变化")
         ax3.legend()
         ax3.grid(True, alpha=0.3)
 
         # Jacobi常数
         ax4 = fig.add_subplot(224)
-        ax4.plot(t, jacobi, 'k-')
-        ax4.set_xlabel('时间')
-        ax4.set_ylabel('Jacobi常数 C')
-        ax4.set_title(f'Jacobi常数 (变化: {jacobi.max() - jacobi.min():.2e})')
+        ax4.plot(t, jacobi, "k-")
+        ax4.set_xlabel("时间")
+        ax4.set_ylabel("Jacobi常数 C")
+        ax4.set_title(f"Jacobi常数 (变化: {jacobi.max() - jacobi.min():.2e})")
         ax4.grid(True, alpha=0.3)
 
         plt.tight_layout()
@@ -353,6 +366,7 @@ def plot_dro_trajectory(t, states, mu=0.012155099, title="DRO轨道 (CRTBP)"):
 # ============================================================
 # 3. 轨道族系分析
 # ============================================================
+
 
 def plot_dro_family():
     """
@@ -376,28 +390,30 @@ def plot_dro_family():
         # 计算轨道
         init_state = [x0, 0.0, 0.0, y0_dot]
         t, states = compute_dro_trajectory(
-            initial_state=init_state, T=2 * np.pi * 2, n_points=2000, dim=2)
+            initial_state=init_state, T=2 * np.pi * 2, n_points=2000, dim=2
+        )
         x, y = states[0], states[1]
 
         # 绘制
         plt.plot(x, y, linewidth=1, label=label)
 
     # 标记主天体
-    plt.plot(crtbp.x1, 0, 'ro', markersize=8, label='地球')
-    plt.plot(crtbp.x2, 0, 'go', markersize=6, label='月球')
+    plt.plot(crtbp.x1, 0, "ro", markersize=8, label="地球")
+    plt.plot(crtbp.x2, 0, "go", markersize=6, label="月球")
 
-    plt.xlabel('x (归一化单位)')
-    plt.ylabel('y (归一化单位)')
-    plt.title('DRO轨道族系 (Family F, Broucke 1968)')
-    plt.axis('equal')
+    plt.xlabel("x (归一化单位)")
+    plt.ylabel("y (归一化单位)")
+    plt.title("DRO轨道族系 (Family F, Broucke 1968)")
+    plt.axis("equal")
     plt.grid(True, alpha=0.3)
-    plt.legend(loc='upper right', fontsize=8)
+    plt.legend(loc="upper right", fontsize=8)
     plt.show()
 
 
 # ============================================================
 # 4. 星历模型转换
 # ============================================================
+
 
 class EphemerisDRO:
     """星历模型下的DRO轨道计算类"""
@@ -446,11 +462,9 @@ class EphemerisDRO:
         cos_t = np.cos(tau)
         sin_t = np.sin(tau)
 
-        R_rot_to_inertial = np.array([
-            [cos_t, -sin_t, 0.0],
-            [sin_t, cos_t, 0.0],
-            [0.0, 0.0, 1.0]
-        ])
+        R_rot_to_inertial = np.array(
+            [[cos_t, -sin_t, 0.0], [sin_t, cos_t, 0.0], [0.0, 0.0, 1.0]]
+        )
 
         # 旋转系中的速度包含两部分：旋转系中的相对速度 + 由于旋转引起的速度
         omega = np.array([0.0, 0.0, 1.0])  # 旋转角速度（归一化单位）
@@ -494,8 +508,11 @@ class EphemerisDRO:
         """
         # 首先在CRTBP中积分
         t_crtbp, states_crtbp = compute_dro_trajectory(
-            initial_state=initial_state_crtbp, T=T_crtbp,
-            n_points=n_points, dim=3 if len(initial_state_crtbp) == 6 else 2)
+            initial_state=initial_state_crtbp,
+            T=T_crtbp,
+            n_points=n_points,
+            dim=3 if len(initial_state_crtbp) == 6 else 2,
+        )
 
         # 转换为物理单位
         positions = []
@@ -516,33 +533,33 @@ class EphemerisDRO:
         fig = plt.figure(figsize=(15, 5))
 
         # 3D轨道
-        ax1 = fig.add_subplot(131, projection='3d')
-        ax1.plot(positions[:, 0], positions[:, 1], positions[:, 2], 'b-', linewidth=1)
-        ax1.scatter([0], [0], [0], color='red', s=100, label='地球')
-        ax1.set_xlabel('X (km)')
-        ax1.set_ylabel('Y (km)')
-        ax1.set_zlabel('Z (km)')
-        ax1.set_title('三维轨道')
+        ax1 = fig.add_subplot(131, projection="3d")
+        ax1.plot(positions[:, 0], positions[:, 1], positions[:, 2], "b-", linewidth=1)
+        ax1.scatter([0], [0], [0], color="red", s=100, label="地球")
+        ax1.set_xlabel("X (km)")
+        ax1.set_ylabel("Y (km)")
+        ax1.set_zlabel("Z (km)")
+        ax1.set_title("三维轨道")
         ax1.legend()
 
         # XY平面投影
         ax2 = fig.add_subplot(132)
-        ax2.plot(positions[:, 0], positions[:, 1], 'b-', linewidth=1)
-        ax2.scatter(0, 0, color='red', s=100, label='地球')
-        ax2.set_xlabel('X (km)')
-        ax2.set_ylabel('Y (km)')
-        ax2.set_title('XY平面投影')
-        ax2.axis('equal')
+        ax2.plot(positions[:, 0], positions[:, 1], "b-", linewidth=1)
+        ax2.scatter(0, 0, color="red", s=100, label="地球")
+        ax2.set_xlabel("X (km)")
+        ax2.set_ylabel("Y (km)")
+        ax2.set_title("XY平面投影")
+        ax2.axis("equal")
         ax2.grid(True, alpha=0.3)
         ax2.legend()
 
         # 距离地球的变化
         ax3 = fig.add_subplot(133)
         r_earth = np.linalg.norm(positions, axis=1)
-        ax3.plot(times / 3600, r_earth, 'k-', linewidth=1)  # 转换为小时
-        ax3.set_xlabel('时间 (hours)')
-        ax3.set_ylabel('地心距离 (km)')
-        ax3.set_title('地心距离变化')
+        ax3.plot(times / 3600, r_earth, "k-", linewidth=1)  # 转换为小时
+        ax3.set_xlabel("时间 (hours)")
+        ax3.set_ylabel("地心距离 (km)")
+        ax3.set_title("地心距离变化")
         ax3.grid(True, alpha=0.3)
 
         plt.tight_layout()
@@ -554,6 +571,7 @@ class EphemerisDRO:
 # ============================================================
 # 主程序：演示DRO轨道计算
 # ============================================================
+
 
 def main():
     """主程序：演示DRO轨道计算"""
@@ -574,7 +592,8 @@ def main():
 
     # 计算轨道
     t, states = compute_dro_trajectory(
-        initial_state=init_state_2d, T=2 * np.pi * 3, n_points=5000, dim=2)
+        initial_state=init_state_2d, T=2 * np.pi * 3, n_points=5000, dim=2
+    )
 
     # 绘制
     plot_dro_trajectory(t, states, title="平面DRO轨道 (CRTBP模型)")
@@ -590,7 +609,8 @@ def main():
     init_state_3d = [x0, 0.0, 0.05, 0.0, y0_dot, 0.02]
 
     t_3d, states_3d = compute_dro_trajectory(
-        initial_state=init_state_3d, T=2 * np.pi * 3, n_points=5000, dim=3)
+        initial_state=init_state_3d, T=2 * np.pi * 3, n_points=5000, dim=3
+    )
 
     plot_dro_trajectory(t_3d, states_3d, title="三维DRO轨道 (CRTBP模型)")
 
@@ -601,7 +621,8 @@ def main():
 
     # 使用相同的初始条件
     positions, times = ephemeris.compute_ephemeris_dro(
-        init_state_3d, T_crtbp=2 * np.pi * 3, n_points=5000)
+        init_state_3d, T_crtbp=2 * np.pi * 3, n_points=5000
+    )
 
     ephemeris.plot_ephemeris_dro(positions, times)
 

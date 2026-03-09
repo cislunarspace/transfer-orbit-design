@@ -59,6 +59,7 @@ def Compute_Stability_Index(CR3BP_Monodromy_Matrix):
 
     return nu, L
 
+
 if __name__ == "__main__":
     SV0 = [0.00526294904293785, 0, 0, 0, 10.587955203878211, 0]
     tf = 6.307578859418398

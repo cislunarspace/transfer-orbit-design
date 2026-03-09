@@ -4,6 +4,7 @@
 # 功能：
 
 """"""
+
 import numpy as np
 
 from Funcs.CR3BP_Jacobi import jacobi
@@ -86,6 +87,7 @@ def libration_points(mu):
     state = np.concatenate((x, y, C), axis=0)
 
     return state
+
 
 if __name__ == "__main__":
     print("hello")

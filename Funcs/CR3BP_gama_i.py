@@ -120,6 +120,7 @@ def rtnewton(y, precision_gg, mu_p, number):
         gg_var = gg_var - f00 / df0
     return gg_var
 
+
 if __name__ == "__main__":
     a = init_libp(3, 0.000001, 0.0121505856)
     print(a)
