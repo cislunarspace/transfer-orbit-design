@@ -17,6 +17,8 @@ DRO是月球远距离逆行轨道（Broucke Family F），具有以下对称性�
   DU = 3.84405 × 10⁵ km, TU = 4.34811305 天
 """
 
+import datetime
+
 import matplotlib
 import e2m2e
 
@@ -103,13 +105,16 @@ def main():
     # 2. 生成DRO族
     # 设置初值：基于论文或前期计算结果
     x0 = 0.79188556619742  # 初始x坐标（无量纲）
+    vy0 = 0.53682  # 初始y方向速度（无量纲）
 
     # 初始状态向量：[x, y, z, vx, vy, vz]
     # 对于2D对称DRO：y=0, z=0, vx=0, vz=0, vy待修正
     states = [[x0, 0, 0, 0, 0, 0]]
 
     # 初始时间猜测（无量纲时间）
-    times = [3]
+    times = [
+        3
+    ]  # //TODO 这个时间参数好像是无效的，在后续e2m2e.core.Orbit的导入中是无效参数
 
     # 创建初始轨道猜测对象
     initial_guess = e2m2e.core.Orbit(states, times, system)
@@ -153,7 +158,12 @@ def main():
 
     # 后续步骤建议：
     # 1. 保存轨道数据到文件
-    # 2. 使用自然延拓法生成DRO轨道族
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    seed_DRO.save_to_file(
+        f"out/seed_DRO_{timestamp}.json"
+    )  # 将轨道数据保存为JSON文件
+    # 2. //TODO 使用自然延拓法生成DRO轨道族
+    print(1)
     # 3. 计算Jacobi常数和稳定性指标
     # 4. 寻找特定共振比（如2:1, 3:1）的DRO
 
