@@ -17,16 +17,10 @@ DRO是月球远距离逆行轨道（Broucke Family F），具有以下对称性�
   DU = 3.84405 × 10⁵ km, TU = 4.34811305 天
 """
 
-import numpy as np
 import matplotlib
-from e2m2e import DifferentialCorrection, CR3BP_Dynamics
+import e2m2e
 
 matplotlib.use("Agg")  # 非交互式后端
-import matplotlib.pyplot as plt
-from pathlib import Path
-import json
-
-import e2m2e
 
 # ============================================================
 # 系统参数（论文Table 1）
@@ -49,56 +43,21 @@ VU = 1023.23281  # Velocity unit m/s
 # ============================================================
 def main():
     # 1. 使用e2m2e库创建系统，为后续计算提供常数接口、数据存储等功能
-    system = e2m2e.core.system.CR3BP_System(
-        mu=MU, primary="earth", secondary="moon"
-    )  # 直接使用高精度常数
-    system.compute_libration_points()  # 根据系统常数计算拉格朗日点位置
-    system.info()
+    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
+    # system.compute_libration_points()  # 根据系统常数计算拉格朗日点位置
+    # system.info()
+    dynamic = e2m2e.core.dynamics.CR3BP_Dynamics(system)
+    corrector = e2m2e.algorithms.DifferentialCorrection(dynamic)
+    corrector.setup_2D_symmetric_x_fixed_x0()
     # 2. 生成DRO族
-    dynamic = CR3BP_Dynamics(system)
-    differentialcorrection = DifferentialCorrection(dynamic)
-    seed_DRO = differentialcorrection.setup_2D_symmetric_x_fixed_x0(0.79188556619742)
-    family_data = generate_dro_family(system, n_orbits=120, verbose=True)
-    if family_data is None:
-        print("DRO族生成失败！")
-        return
-
-    # 3. 计算Jacobi常数和稳定性
-    family_data = compute_jacobi_and_stability(family_data, verbose=True)
-
-    # 4. 识别目标DRO
-    family_data = identify_target_dros(family_data, verbose=True)
-
-    # 5. 精确修正目标DRO到精确共振周期
-    print(f"\n{'=' * 60}")
-    print("精确修正目标DRO")
-    print(f"{'=' * 60}")
-
-    for name, target_T in [("2:1 DRO", T_DRO_21), ("3:1 DRO", T_DRO_31)]:
-        key = "dro_21" if "2:1" in name else "dro_31"
-        guess_state = family_data[key]["state"]
-
-        orbit, result = refine_target_dro(system, target_T, guess_state, target_T / 2)
-        if orbit is not None:
-            print(f"\n{name} 精确修正成功:")
-            print(f"  T = {result['period']:.12f} (目标: {target_T:.12f})")
-            print(f"  x0 = {result['state'][0]:.12f}")
-            print(f"  vy0 = {result['state'][4]:.12f}")
-            print(f"  误差 = {result['error']:.2e}")
-            family_data[key]["refined_state"] = result["state"].copy()
-            family_data[key]["refined_period"] = result["period"]
-            family_data[key]["refined_orbit"] = orbit
-        else:
-            print(f"\n{name} 精确修正失败: {result['termination_reason']}")
-
-    # 6. 保存和绘图
-    output_dir = Path(__file__).parent.parent / "output" / "phase1_dro"
-    save_family_data(family_data, output_dir)
-    plot_dro_family(family_data, output_dir)
-
-    print(f"\n{'=' * 60}")
-    print("Phase 1 DRO族生成完成！")
-    print(f"{'=' * 60}")
+    # 设置初值
+    x0 = 0.79188556619742
+    states = [[x0, 0, 0, 0, 0, 0]]
+    times = [3]
+    initial_guess = e2m2e.core.Orbit(states, times, system)
+    initial_guess.period = 3.420385 # 这个值是刚刚计算出来的。计算出一次之后，其实就可以知道x0对应的period和vy0，然后在这个点上去使用自然延拓，就可给得到轨道组。
+    seed_DRO = corrector.iterate_correction(initial_guess)
+    print("计算完成...")
 
 
 if __name__ == "__main__":
