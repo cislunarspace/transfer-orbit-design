@@ -21,6 +21,8 @@ import datetime
 
 import matplotlib
 import e2m2e
+import numpy as np
+from e2m2e.algorithms.continuation import ContinuationDirection
 
 # matplotlib.use("Agg")  # 非交互式后端，用于服务器环境或批量处理时避免图形界面
 
@@ -100,32 +102,36 @@ def main():
 
     # 设置2D对称轨道修正模式：固定x0，修正其他参数
     # 这种模式适用于关于x轴对称的轨道，如DRO
-    corrector.setup_2D_symmetric_x_fixed_x0()
+    x0 = 0.79188556619742  # 初始x坐标（无量纲）
+    corrector.setup_2D_symmetric_x_fixed_x0(x0=x0)
 
     # 2. 生成DRO族
     # 设置初值：基于论文或前期计算结果
-    x0 = 0.79188556619742  # 初始x坐标（无量纲）
     vy0 = 0.53682  # 初始y方向速度（无量纲）
 
     # 初始状态向量：[x, y, z, vx, vy, vz]
-    # 对于2D对称DRO：y=0, z=0, vx=0, vz=0, vy待修正
-    states = [[x0, 0, 0, 0, 0, 0]]
+    # 对于2D对称DRO：y=0, z=0, vx=0, vz=0
+    seed_state = np.array([x0, 0.0, 0.0, 0.0, vy0, 0.0])
+    seed_period_guess = 3.420385
+    seed_t_half = seed_period_guess / 2
 
-    # 初始时间猜测（无量纲时间）
-    times = [
-        3
-    ]  # //TODO 这个时间参数好像是无效的，在后续e2m2e.core.Orbit的导入中是无效参数
+    # 先修正种子轨道，再把修正后的状态和半周期传给延拓器 //TODO 这里我没太看懂，correct_orbit函数的作用是什么？原来使用的是iterate_correction方法，现在AI改用了这个方法
+    seed_DRO, seed_result = corrector.correct_orbit(seed_state, seed_t_half, verbose=True)
+    if seed_DRO is None:
+      raise RuntimeError(f"种子DRO修正失败: {seed_result['termination_reason']}")
 
-    # 创建初始轨道猜测对象
-    initial_guess = e2m2e.core.Orbit(states, times, system)
+    continuation = e2m2e.algorithms.Continuation(corrector, param="x0", step=0.001)
+    continuation.direction = ContinuationDirection.FORWARD
+    continuation.max_step_size = 0.01
+    continuation.min_step_size = 1e-5
 
-    # 设置初始周期猜测（这个值通常通过前期计算或文献获得）
-    # 注意：这个值是刚刚计算出来的。计算出一次之后，就可以知道x0对应的period和vy0，
-    # 然后在这个点上去使用自然延拓，就可以得到整个轨道族。
-    initial_guess.period = 3.420385
-
-    # 执行微分修正迭代，将近似轨道修正为精确的周期轨道
-    seed_DRO = corrector.iterate_correction(initial_guess)
+    family_result = continuation.natural_continuation(
+      seed_result["state"],
+      seed_result["t_half"],
+      n_orbits=20,
+      param_index=0,
+      verbose=True,
+    )
 
     # 3. 可视化结果
     # 创建轨道可视化器
@@ -133,6 +139,15 @@ def main():
 
     # 绘制2D投影（XY平面）
     orbit_plotter.plot_2d_projection(seed_DRO, plane="xy", label="Seed DRO")
+
+    if family_result is not None:
+      sample_step = max(1, len(family_result["orbits"]) // 5)
+      for idx, orbit in enumerate(family_result["orbits"][1::sample_step], start=1):
+        orbit_plotter.plot_2d_projection(
+          orbit,
+          plane="xy",
+          label=f"Family Orbit {idx}",
+        )
 
     # 再次绘制XY平面投影（可设置不同颜色和标签）
     orbit_plotter.plot_2d_projection(
@@ -155,6 +170,9 @@ def main():
     print(
         f"  周期对应时间: {seed_DRO.period * TU if hasattr(seed_DRO, 'period') else 'N/A'} 天"
     )
+    if family_result is not None:
+      print(f"  自然延拓生成轨道数: {family_result['n_orbits']}")
+      print(f"  最后一条轨道周期: {family_result['periods'][-1]:.6f} TU")
 
     # 后续步骤建议：
     # 1. 保存轨道数据到文件
@@ -162,8 +180,10 @@ def main():
     seed_DRO.save_to_file(
         f"out/seed_DRO_{timestamp}.json"
     )  # 将轨道数据保存为JSON文件
-    # 2. //TODO 使用自然延拓法生成DRO轨道族
-    print(1)
+    if family_result is not None:
+      for index, orbit in enumerate(family_result["orbits"]):
+        orbit.save_to_file(f"out/dro_family_{timestamp}_{index:03d}.json")
+
     # 3. 计算Jacobi常数和稳定性指标
     # 4. 寻找特定共振比（如2:1, 3:1）的DRO
 
