@@ -116,9 +116,11 @@ def main():
     seed_t_half = seed_period_guess / 2
 
     # 先修正种子轨道，再把修正后的状态和半周期传给延拓器 //TODO 这里我没太看懂，correct_orbit函数的作用是什么？原来使用的是iterate_correction方法，现在AI改用了这个方法
-    seed_DRO, seed_result = corrector.correct_orbit(seed_state, seed_t_half, verbose=True)
+    seed_DRO, seed_result = corrector.correct_orbit(
+        seed_state, seed_t_half, verbose=True
+    )
     if seed_DRO is None:
-      raise RuntimeError(f"种子DRO修正失败: {seed_result['termination_reason']}")
+        raise RuntimeError(f"种子DRO修正失败: {seed_result['termination_reason']}")
 
     continuation = e2m2e.algorithms.Continuation(corrector, param="x0", step=0.001)
     continuation.direction = ContinuationDirection.FORWARD
@@ -126,11 +128,11 @@ def main():
     continuation.min_step_size = 1e-5
 
     family_result = continuation.natural_continuation(
-      seed_result["state"],
-      seed_result["t_half"],
-      n_orbits=20,
-      param_index=0,
-      verbose=True,
+        seed_result["state"],
+        seed_result["t_half"],
+        n_orbits=20,
+        param_index=0,
+        verbose=True,
     )
 
     # 3. 可视化结果
@@ -141,13 +143,13 @@ def main():
     orbit_plotter.plot_2d_projection(seed_DRO, plane="xy", label="Seed DRO")
 
     if family_result is not None:
-      sample_step = max(1, len(family_result["orbits"]) // 5)
-      for idx, orbit in enumerate(family_result["orbits"][1::sample_step], start=1):
-        orbit_plotter.plot_2d_projection(
-          orbit,
-          plane="xy",
-          label=f"Family Orbit {idx}",
-        )
+        sample_step = max(1, len(family_result["orbits"]) // 5)
+        for idx, orbit in enumerate(family_result["orbits"][1::sample_step], start=1):
+            orbit_plotter.plot_2d_projection(
+                orbit,
+                plane="xy",
+                label=f"Family Orbit {idx}",
+            )
 
     # 再次绘制XY平面投影（可设置不同颜色和标签）
     orbit_plotter.plot_2d_projection(
@@ -171,18 +173,16 @@ def main():
         f"  周期对应时间: {seed_DRO.period * TU if hasattr(seed_DRO, 'period') else 'N/A'} 天"
     )
     if family_result is not None:
-      print(f"  自然延拓生成轨道数: {family_result['n_orbits']}")
-      print(f"  最后一条轨道周期: {family_result['periods'][-1]:.6f} TU")
+        print(f"  自然延拓生成轨道数: {family_result['n_orbits']}")
+        print(f"  最后一条轨道周期: {family_result['periods'][-1]:.6f} TU")
 
     # 后续步骤建议：
     # 1. 保存轨道数据到文件
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    seed_DRO.save_to_file(
-        f"out/seed_DRO_{timestamp}.json"
-    )  # 将轨道数据保存为JSON文件
+    seed_DRO.save_to_file(f"out/seed_DRO_{timestamp}.json")  # 将轨道数据保存为JSON文件
     if family_result is not None:
-      for index, orbit in enumerate(family_result["orbits"]):
-        orbit.save_to_file(f"out/dro_family_{timestamp}_{index:03d}.json")
+        for index, orbit in enumerate(family_result["orbits"]):
+            orbit.save_to_file(f"out/dro_family_{timestamp}_{index:03d}.json")
 
     # 3. 计算Jacobi常数和稳定性指标
     # 4. 寻找特定共振比（如2:1, 3:1）的DRO
