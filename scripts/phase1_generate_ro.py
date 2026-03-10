@@ -21,13 +21,15 @@
 import numpy as np
 import matplotlib
 
+from e2m2e.algorithms import DifferentialCorrection
+from e2m2e.core import CR3BP_System, CR3BP_Dynamics
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from pathlib import Path
 import json
 
 import e2m2e
-from e2m2e import CR3BP_System, CR3BP_Dynamics, DifferentialCorrection, Continuation
 from e2m2e.algorithms.continuation import ContinuationDirection
 
 # ============================================================
@@ -165,7 +167,7 @@ def correct_ro_fixed_t(dynamics, x0_guess, vy0_guess, t_half, verbose=True):
     dc.max_iterations = 60
 
     state = np.array([x0_guess, 0.0, 0.0, 0.0, vy0_guess, 0.0])
-    orbit, result = dc.correct_orbit(state, t_half, verbose=verbose)
+    orbit, result = dc.iterate_correction(state, t_half, verbose=verbose)
     return orbit, result
 
 
@@ -177,7 +179,7 @@ def correct_ro_fixed_x0(dynamics, x0, vy0_guess, t_half_guess, verbose=True):
     dc.max_iterations = 60
 
     state = np.array([x0, 0.0, 0.0, 0.0, vy0_guess, 0.0])
-    orbit, result = dc.correct_orbit(state, t_half_guess, verbose=verbose)
+    orbit, result = dc.iterate_correction(state, t_half_guess, verbose=verbose)
     return orbit, result
 
 
@@ -338,7 +340,7 @@ def generate_ro_family(dynamics, seed_result, n_outward=30, n_inward=20, verbose
     dc_out.tolerance = 1e-12
     dc_out.max_iterations = 60
 
-    cont_out = Continuation(dc_out, param="x0", step=0.005)
+    cont_out = e2m2e.algorithms.Continuation(dc_out, param="x0", step=0.005)
     cont_out.direction = ContinuationDirection.FORWARD
     cont_out.max_step_size = 0.03
     cont_out.min_step_size = 1e-5
@@ -367,7 +369,7 @@ def generate_ro_family(dynamics, seed_result, n_outward=30, n_inward=20, verbose
     dc_in.tolerance = 1e-12
     dc_in.max_iterations = 60
 
-    cont_in = Continuation(dc_in, param="x0", step=0.005)
+    cont_in = e2m2e.algorithms.Continuation(dc_in, param="x0", step=0.005)
     cont_in.direction = ContinuationDirection.BACKWARD
     cont_in.max_step_size = 0.02
     cont_in.min_step_size = 1e-5
