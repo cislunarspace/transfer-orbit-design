@@ -103,7 +103,7 @@ def main():
     # 设置2D对称轨道修正模式：固定x0，修正其他参数
     # 这种模式适用于关于x轴对称的轨道，如DRO
     x0 = 0.79188556619742  # 初始x坐标（无量纲）
-    corrector.setup_2D_symmetric_x_fixed_x0(x0=x0)
+    corrector.setup_2D_symmetric_x_fixed_x0(x0)
 
     # 2. 生成DRO族
     # 设置初值：基于论文或前期计算结果
@@ -115,33 +115,48 @@ def main():
     seed_period_guess = 3.420385
     seed_t_half = seed_period_guess / 2
 
-    # 先修正种子轨道，再把修正后的状态和半周期传给延拓器 //TODO 这里我没太看懂，correct_orbit函数的作用是什么？原来使用的是iterate_correction方法，现在AI改用了这个方法
-    seed_DRO, seed_result = corrector.correct_orbit(
-        seed_state, seed_t_half, verbose=True
-    )
+    # 先修正种子轨道，再把修正后的状态和半周期传给延拓器
+    seed_DRO = corrector.iterate_correction(seed_state, seed_t_half, verbose=True)
     if seed_DRO is None:
-        raise RuntimeError(f"种子DRO修正失败: {seed_result['termination_reason']}")
+        raise RuntimeError(f"种子DRO修正失败: {seed_DRO['termination_reason']}")
 
-    continuation = e2m2e.algorithms.Continuation(corrector, param="x0", step=0.001)
+    continuation = e2m2e.algorithms.Continuation(corrector, param="x0", step=0.02)
     continuation.direction = ContinuationDirection.FORWARD
-    continuation.max_step_size = 0.01
+    continuation.max_step_size = 0.02
     continuation.min_step_size = 1e-5
 
+    # //TODO 这里延拓算法的参数我还没太看懂
     family_result = continuation.natural_continuation(
-        seed_result["state"],
-        seed_result["t_half"],
-        n_orbits=20,
+        seed_DRO["state"],
+        seed_DRO["t_half"],
+        n_orbits=5,
         param_index=0,
         verbose=True,
     )
 
     # 3. 可视化结果
     # 创建轨道可视化器
-    orbit_plotter = e2m2e.visualization.OrbitVisualizer(system)
+    orbit_plotter = e2m2e.visualization.plotting.OrbitVisualizer(system)
 
-    # 绘制2D投影（XY平面）
-    orbit_plotter.plot_2d_projection(seed_DRO, plane="xy", label="Seed DRO")
+    # 自定义天体颜色：地球蓝色，月球白色
+    orbit_plotter.primary_body_color = "blue"
+    orbit_plotter.secondary_body_color = "white"
 
+    # 统一拉格朗日点样式：灰色小三角
+    orbit_plotter.libration_point_colors = ["gray"] * 5
+    orbit_plotter.libration_point_markers = ["^"] * 5
+    orbit_plotter.libration_point_sizes = [60] * 5
+
+    # family_result["orbits"][0] 就是种子DRO的完整Orbit对象
+    seed_orbit = family_result["orbits"][0] if family_result is not None else None
+
+    # 绘制种子DRO
+    if seed_orbit is not None:
+        orbit_plotter.plot_2d_projection(
+            seed_orbit, plane="xy", color="red", label="Seed DRO"
+        )
+
+    # 绘制延拓轨道族（采样）
     if family_result is not None:
         sample_step = max(1, len(family_result["orbits"]) // 5)
         for idx, orbit in enumerate(family_result["orbits"][1::sample_step], start=1):
@@ -151,16 +166,18 @@ def main():
                 label=f"Family Orbit {idx}",
             )
 
-    # 再次绘制XY平面投影（可设置不同颜色和标签）
-    orbit_plotter.plot_2d_projection(
-        seed_DRO, plane="xy", color="red", label="XY Projection"
-    )
-
     # 添加主次天体（地球和月球）到图中
     orbit_plotter.plot_primary_bodies(ax=orbit_plotter.axes)
 
     # 添加拉格朗日点（平动点）到图中
     orbit_plotter.plot_libration_points(ax=orbit_plotter.axes)
+
+    # 坐标轴标签和图例
+    ax = orbit_plotter.axes
+    ax.set_xlabel("X (nondimensional)", fontsize=12)
+    ax.set_ylabel("Y (nondimensional)", fontsize=12)
+    ax.set_title("DRO Family in Earth-Moon CR3BP (XY Plane)", fontsize=14)
+    ax.legend(loc="upper right", fontsize=8)
 
     # 显示图形
     orbit_plotter.show()
@@ -168,10 +185,9 @@ def main():
     print("计算完成...")
     print(f"DRO轨道参数：")
     print(f"  初始x坐标: {x0}")
-    print(f"  轨道周期: {seed_DRO.period if hasattr(seed_DRO, 'period') else 'N/A'} TU")
-    print(
-        f"  周期对应时间: {seed_DRO.period * TU if hasattr(seed_DRO, 'period') else 'N/A'} 天"
-    )
+    if seed_orbit is not None:
+        print(f"  轨道周期: {seed_orbit.period} TU")
+        print(f"  周期对应时间: {seed_orbit.period * TU} 天")
     if family_result is not None:
         print(f"  自然延拓生成轨道数: {family_result['n_orbits']}")
         print(f"  最后一条轨道周期: {family_result['periods'][-1]:.6f} TU")
@@ -179,7 +195,8 @@ def main():
     # 后续步骤建议：
     # 1. 保存轨道数据到文件
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    seed_DRO.save_to_file(f"out/seed_DRO_{timestamp}.json")  # 将轨道数据保存为JSON文件
+    if seed_orbit is not None:
+        seed_orbit.save_to_file(f"out/seed_DRO_{timestamp}.json")
     if family_result is not None:
         for index, orbit in enumerate(family_result["orbits"]):
             orbit.save_to_file(f"out/dro_family_{timestamp}_{index:03d}.json")
