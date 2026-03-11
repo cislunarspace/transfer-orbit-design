@@ -178,9 +178,9 @@ def compute_dro_family(system):
     # 使用param_range参数进行参数区间延拓
     family_result = continuation.natural_continuation(
         seed_DRO,
-        (0.75, 0.85),  # x0参数范围
+        (0.7, 0.79188556619742),  # x0参数范围 //TODO 目前这里无法区分正向延拓和反向延拓，步长只能在原有基础上增加，不能减小
         0.001,  # 延拓步长
-        True,
+        False,
     )
 
     return seed_DRO, family_result
