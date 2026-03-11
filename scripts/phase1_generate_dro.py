@@ -15,13 +15,20 @@ DRO是月球远距离逆行轨道（Broucke Family F），具有以下对称性�
 论文参数：
   μ = 1.21506683 × 10⁻² (地月系统质量比)
   DU = 3.84405 × 10⁵ km, TU = 4.34811305 天
+
+用法：
+  python phase1_generate_dro.py           # 默认：重新计算
+  python phase1_generate_dro.py --load    # 加载已有数据
+  python phase1_generate_dro.py --load dro_family_20260311  # 加载指定数据
 """
 
+import argparse
 import datetime
+import os
 
 import matplotlib
 import e2m2e
-from e2m2e.core import Orbit
+from e2m2e.core import Orbit, OrbitFamily
 import numpy as np
 
 # matplotlib.use("Agg")  # 非交互式后端，用于服务器环境或批量处理时避免图形界面
@@ -50,6 +57,165 @@ TU = 4.34811305  # Time unit days
 # 速度单位：1 VU = 1023.23281 m/s，基于DU和TU计算得出
 VU = 1023.23281  # Velocity unit m/s
 
+# 输出目录配置
+OUTPUT_DIR = "output/phase1_dro"
+FAMILY_FILENAME = "dro_family.json"  # 轨道族统一文件名
+
+
+# ============================================================
+# 辅助函数
+# ============================================================
+def ensure_output_dir():
+    """确保输出目录存在"""
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+
+def get_latest_family_file():
+    """获取最新的轨道族数据文件"""
+    if not os.path.exists(OUTPUT_DIR):
+        return None
+
+    family_path = os.path.join(OUTPUT_DIR, FAMILY_FILENAME)
+    if os.path.exists(family_path):
+        return family_path
+
+    # 兼容旧格式：查找带时间戳的文件夹
+    dirs = [
+        d for d in os.listdir(OUTPUT_DIR) if os.path.isdir(os.path.join(OUTPUT_DIR, d))
+    ]
+    if not dirs:
+        return None
+
+    # 按修改时间排序，返回最新的
+    dirs.sort(key=lambda x: os.path.getmtime(os.path.join(OUTPUT_DIR, x)), reverse=True)
+    latest_dir = dirs[0]
+    return os.path.join(OUTPUT_DIR, latest_dir, FAMILY_FILENAME)
+
+
+def load_or_compute(args):
+    """加载或计算轨道族
+
+    参数：
+        args: 命令行参数
+
+    返回：
+        system: CR3BP_System对象
+        family_result: OrbitFamily对象或None
+    """
+    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
+
+    # 加载模式
+    if args.load:
+        if args.load == True:
+            # 未指定具体文件，查找最新的
+            family_path = get_latest_family_file()
+        else:
+            # 指定了文件名（可能是完整路径或相对路径）
+            if os.path.isabs(args.load):
+                family_path = args.load
+            else:
+                # 可能是 output/phase1_dro/xxx 或直接文件名
+                if os.path.exists(args.load):
+                    family_path = args.load
+                else:
+                    family_path = os.path.join(OUTPUT_DIR, args.load, FAMILY_FILENAME)
+
+        if family_path and os.path.exists(family_path):
+            print(f"加载轨道族数据: {family_path}")
+            family_result = OrbitFamily.load_from_file(family_path, system)
+            print(f"已加载 {len(family_result)} 条轨道")
+            return system, family_result
+        else:
+            print(f"未找到数据文件: {family_path}")
+            print("将重新计算...")
+
+    return system, None
+
+
+def compute_dro_family(system):
+    """计算DRO轨道族
+
+    参数：
+        system: CR3BP_System对象
+
+    返回：
+        seed_DRO: 修正后的种子轨道
+        family_result: OrbitFamily对象
+    """
+    # 创建动力学模型，用于计算状态转移矩阵和微分方程
+    dynamic = e2m2e.core.dynamics.CR3BP_Dynamics(system)
+
+    # 创建微分修正器，用于将近似轨道修正为精确周期轨道
+    corrector = e2m2e.algorithms.DifferentialCorrection(dynamic)
+
+    # 设置2D对称轨道修正模式：固定x0，修正其他参数
+    # 这种模式适用于关于x轴对称的轨道，如DRO
+    x0 = 0.79188556619742  # 初始x坐标（无量纲）
+    corrector.setup_2D_symmetric_x_fixed_x0(x0)
+
+    # 2. 生成DRO族
+    # 设置初值：基于论文或前期计算结果
+    vy0 = 0.53682  # 初始y方向速度（无量纲）
+
+    # 初始状态向量：[x, y, z, vx, vy, vz]
+    # 对于2D对称DRO：y=0, z=0, vx=0, vz=0
+    initial_state = [x0, 0.0, 0.0, 0.0, vy0, 0.0]
+    times = [
+        0
+    ]  # Orbit对象初始化所需的时间与对应索引的state一一对应。在实际数据处理中，times的元素为时间历元格式，此处用0表示第一个历元。
+    seed_state = Orbit([initial_state], times)
+    seed_state.period = (
+        3.472526005624708  # 初始半周期猜测（无量纲时间），基于论文或前期计算结果
+    )
+
+    # 修正种子轨道后，将修正后的状态和半周期传递给延拓器
+    seed_DRO = corrector.iterate_correction(seed_state)
+    if seed_DRO is None:
+        raise RuntimeError("种子DRO修正失败")
+
+    continuation = e2m2e.algorithms.Continuation(corrector, param="x0", step=0.02)
+
+    # 使用param_range参数进行参数区间延拓
+    family_result = continuation.natural_continuation(
+        seed_DRO,
+        (0.75, 0.85),  # x0参数范围
+        0.001,  # 延拓步长
+        True,
+    )
+
+    return seed_DRO, family_result
+
+
+def save_family(system, family_result, seed_orbit=None):
+    """保存轨道族到文件
+
+    参数：
+        system: CR3BP_System对象
+        family_result: OrbitFamily对象
+        seed_orbit: 种子轨道（可选）
+    """
+    ensure_output_dir()
+
+    # 生成时间戳作为子目录名
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    family_dir = os.path.join(OUTPUT_DIR, timestamp)
+    os.makedirs(family_dir, exist_ok=True)
+
+    # 保存轨道族（统一文件）
+    family_path = os.path.join(family_dir, FAMILY_FILENAME)
+    family_result.save_to_file(family_path)
+    print(f"轨道族已保存: {family_path}")
+
+    # 同时保存到 latest 链接（创建符号链接的替代方案：复制）
+    latest_path = os.path.join(OUTPUT_DIR, FAMILY_FILENAME)
+    import shutil
+
+    shutil.copy(family_path, latest_path)
+    print(f"最新轨道族: {latest_path}")
+
+    return family_dir
+
+
 # 目标DRO
 # 论文中作者是通过初值猜测和延拓法得到了DRO轨道组，然后在轨道族中找到了周期接近2:1和3:1的DRO。
 # 我们也将采用同样的策略。
@@ -74,7 +240,7 @@ VU = 1023.23281  # Velocity unit m/s
 # ============================================================
 # 主程序
 # ============================================================
-def main():
+def main(args=None):
     """
     主函数：生成DRO轨道族
 
@@ -85,53 +251,55 @@ def main():
     4. 进行微分修正得到精确的DRO轨道
     5. 可视化结果
     """
+    # 解析命令行参数
+    if args is None:
+        parser = create_parser()
+        args = parser.parse_args()
 
-    # 1. 使用e2m2e库创建系统，为后续计算提供常数接口、数据存储等功能
-    # 创建圆形限制性三体问题（CR3BP）系统，指定质量比和主次天体
-    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
+    # 确保输出目录存在
+    ensure_output_dir()
 
-    # 可选：计算拉格朗日点位置（平动点）
-    # system.compute_libration_points()  # 根据系统常数计算拉格朗日点位置
-    # system.info()  # 打印系统信息
+    # 加载或计算轨道族
+    system, family_result = load_or_compute(args)
 
-    # 创建动力学模型，用于计算状态转移矩阵和微分方程
-    dynamic = e2m2e.core.dynamics.CR3BP_Dynamics(system)
+    # 如果没有加载到数据，则计算
+    if family_result is None:
+        print("开始计算DRO轨道族...")
+        seed_DRO, family_result = compute_dro_family(system)
+        print(f"计算完成，共生成 {len(family_result)} 条轨道")
 
-    # 创建微分修正器，用于将近似轨道修正为精确周期轨道
-    corrector = e2m2e.algorithms.DifferentialCorrection(dynamic)
+        # 保存结果
+        seed_orbit = family_result[0] if len(family_result) > 0 else None
+        save_family(system, family_result, seed_orbit)
+    else:
+        # 使用加载的数据
+        seed_orbit = family_result[0] if len(family_result) > 0 else None
 
-    # 设置2D对称轨道修正模式：固定x0，修正其他参数
-    # 这种模式适用于关于x轴对称的轨道，如DRO
-    x0 = 0.79188556619742  # 初始x坐标（无量纲）
-    corrector.setup_2D_symmetric_x_fixed_x0(x0)
-
-    # 2. 生成DRO族
-    # 设置初值：基于论文或前期计算结果
-    vy0 = 0.53682  # 初始y方向速度（无量纲）
-
-    # 初始状态向量：[x, y, z, vx, vy, vz]
-    # 对于2D对称DRO：y=0, z=0, vx=0, vz=0
-    initial_state = [x0, 0.0, 0.0, 0.0, vy0, 0.0]
-    times = [0] # Orbit对象初始化所需的时间与对应索引的state一一对应。在实际数据处理中，times的元素为时间历元格式，此处用0表示第一个历元。
-    seed_state = Orbit([initial_state],times)
-    seed_state.period = 3.472526005624708 # 初始半周期猜测（无量纲时间），基于论文或前期计算结果
-
-    # 修正种子轨道后，将修正后的状态和半周期传递给延拓器
-    seed_DRO = corrector.iterate_correction(seed_state)
-    if seed_DRO is None:
-        raise RuntimeError("种子DRO修正失败")
-
-    continuation = e2m2e.algorithms.Continuation(corrector, param="x0", step=0.02)
-
-    # 使用param_range参数进行参数区间延拓
-    family_result = continuation.natural_continuation(
-        seed_DRO,
-        (0.75, 0.85),  # x0参数范围
-        0.001, # 延拓步长
-        True,
-    )
+    # 打印轨道信息
+    print(f"\nDRO轨道族信息：")
+    print(f"  轨道数量: {len(family_result)}")
+    if seed_orbit is not None:
+        print(
+            f"  种子轨道周期: {seed_orbit.period:.6f} TU ({seed_orbit.period * TU:.4f} 天)"
+        )
+    if len(family_result) > 0:
+        print(
+            f"  最后一轨周期: {family_result.periods[-1]:.6f} TU ({family_result.periods[-1] * TU:.4f} 天)"
+        )
 
     # 3. 可视化结果
+    visualize_orbits(system, family_result)
+
+    print("\n处理完成!")
+
+
+def visualize_orbits(system, family_result):
+    """可视化轨道族
+
+    参数：
+        system: CR3BP_System对象
+        family_result: OrbitFamily对象
+    """
     # 创建轨道可视化器
     orbit_plotter = e2m2e.visualization.plotting.OrbitVisualizer(system)
 
@@ -144,39 +312,33 @@ def main():
     orbit_plotter.libration_point_markers = ["^"] * 5
     orbit_plotter.libration_point_sizes = [60] * 5
 
-    # family_result 现在是 OrbitFamily 对象
-    # 需要重新积分生成完整的Orbit对象用于可视化
-    seed_state = family_result.states[0] if family_result is not None and len(family_result) > 0 else None
-    seed_period = family_result.periods[0] if family_result is not None and len(family_result) > 0 else None
+    # 获取颜色映射
+    n_orbits = len(family_result) if family_result is not None else 0
 
-    # 绘制种子DRO
-    if seed_state is not None:
-        # 从状态向量重新积分生成完整轨道用于可视化
-        full_propagation = dynamic.propagate(seed_state, [0, seed_period], t_eval=np.linspace(0, seed_period, 500))
-        seed_orbit = Orbit(
-            states=full_propagation["states"],
-            times=full_propagation["time"],
-            system=system
-        )
-        seed_orbit.period = seed_period
+    # family_result 现在是 OrbitFamily 对象
+    # 延拓后的 Orbit 对象已经包含完整积分的轨道数据，可以直接用于可视化
+    # 绘制种子DRO（使用延拓结果的第一条轨道）
+    if family_result is not None and n_orbits > 0:
+        seed_orbit = family_result[0]
         orbit_plotter.plot_2d_projection(
             seed_orbit, plane="xy", color="red", label="Seed DRO"
         )
 
-    # 绘制延拓轨道族（采样）
-    if family_result is not None and len(family_result) > 0:
-        sample_step = max(1, len(family_result.states) // 5)
-        for idx in range(1, len(family_result.states), sample_step):
-            state = family_result.states[idx]
-            period = family_result.periods[idx]
-            # 重新积分生成完整轨道
-            prop = dynamic.propagate(state, [0, period], t_eval=np.linspace(0, period, 500))
-            orbit = Orbit(states=prop["states"], times=prop["time"], system=system)
-            orbit.period = period
+    # 绘制延拓轨道族（所有轨道）
+    if family_result is not None and n_orbits > 1:
+        import matplotlib.pyplot as plt
+        cmap = plt.cm.get_cmap("viridis")
+
+        # 从第2条轨道开始绘制（第1条是种子轨道）
+        for idx in range(1, n_orbits):
+            orbit = family_result[idx]
+            # 使用颜色映射，每条轨道使用不同的颜色
+            color = cmap(idx / max(n_orbits - 1, 1))
             orbit_plotter.plot_2d_projection(
                 orbit,
                 plane="xy",
-                label=f"Family Orbit {idx}",
+                color=color,
+                show_start=False,  # 关闭起点标记，避免图例过于拥挤
             )
 
     # 添加主次天体（地球和月球）到图中
@@ -189,33 +351,36 @@ def main():
     ax = orbit_plotter.axes
     ax.set_xlabel("X (nondimensional)", fontsize=12)
     ax.set_ylabel("Y (nondimensional)", fontsize=12)
-    ax.set_title("DRO Family in Earth-Moon CR3BP (XY Plane)", fontsize=14)
+    ax.set_title(f"DRO Family in Earth-Moon CR3BP (XY Plane) - {n_orbits} orbits", fontsize=14)
     ax.legend(loc="upper right", fontsize=8)
 
     # 显示图形
     orbit_plotter.show()
 
-    print("计算完成...")
-    print(f"DRO轨道参数：")
-    print(f"  初始x坐标: {x0}")
-    if seed_orbit is not None:
-        print(f"  轨道周期: {seed_orbit.period} TU")
-        print(f"  周期对应时间: {seed_orbit.period * TU} 天")
-    if family_result is not None:
-        print(f"  自然延拓生成轨道数: {family_result['n_orbits']}")
-        print(f"  最后一条轨道周期: {family_result['periods'][-1]:.6f} TU")
 
-    # 后续步骤建议：
-    # 1. 保存轨道数据到文件
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    if seed_orbit is not None:
-        seed_orbit.save_to_file(f"out/seed_DRO_{timestamp}.json")
-    if family_result is not None:
-        for index, orbit in enumerate(family_result["orbits"]):
-            orbit.save_to_file(f"out/dro_family_{timestamp}_{index:03d}.json")
-
-    # 3. 计算Jacobi常数和稳定性指标
-    # 4. 寻找特定共振比（如2:1, 3:1）的DRO
+def create_parser():
+    """创建命令行参数解析器"""
+    parser = argparse.ArgumentParser(
+        description="阶段一：DRO轨道族生成",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  python phase1_generate_dro.py           # 重新计算DRO轨道族
+  python phase1_generate_dro.py --load     # 加载最新的轨道数据
+  python phase1_generate_dro.py --load 20260311_120000  # 加载指定日期的数据
+        """,
+    )
+    parser.add_argument(
+        "--load",
+        nargs="?",
+        const=True,
+        default=False,
+        help="加载已有数据，不重新计算。可指定具体日期时间戳",
+    )
+    parser.add_argument(
+        "--output-dir", default=OUTPUT_DIR, help=f"输出目录 (默认: {OUTPUT_DIR})"
+    )
+    return parser
 
 
 if __name__ == "__main__":
@@ -223,4 +388,6 @@ if __name__ == "__main__":
     程序入口点
     当直接运行此脚本时执行main()函数
     """
-    main()
+    parser = create_parser()
+    args = parser.parse_args()
+    main(args)
