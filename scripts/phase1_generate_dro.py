@@ -21,8 +21,8 @@ import datetime
 
 import matplotlib
 import e2m2e
+from e2m2e.core import Orbit
 import numpy as np
-from e2m2e.algorithms.continuation import ContinuationDirection
 
 # matplotlib.use("Agg")  # 非交互式后端，用于服务器环境或批量处理时避免图形界面
 
@@ -111,27 +111,24 @@ def main():
 
     # 初始状态向量：[x, y, z, vx, vy, vz]
     # 对于2D对称DRO：y=0, z=0, vx=0, vz=0
-    seed_state = np.array([x0, 0.0, 0.0, 0.0, vy0, 0.0])
-    seed_period_guess = 3.420385
-    seed_t_half = seed_period_guess / 2
+    initial_state = [x0, 0.0, 0.0, 0.0, vy0, 0.0]
+    times = [0] # Orbit对象初始化所需的时间与对应索引的state一一对应。在实际数据处理中，times的元素为时间历元格式，此处用0表示第一个历元。
+    seed_state = Orbit([initial_state],times)
+    seed_state.period = 3.472526005624708 # 初始半周期猜测（无量纲时间），基于论文或前期计算结果
 
-    # 先修正种子轨道，再把修正后的状态和半周期传给延拓器
-    seed_DRO = corrector.iterate_correction(seed_state, seed_t_half, verbose=True)
+    # 修正种子轨道后，将修正后的状态和半周期传递给延拓器
+    seed_DRO = corrector.iterate_correction(seed_state)
     if seed_DRO is None:
-        raise RuntimeError(f"种子DRO修正失败: {seed_DRO['termination_reason']}")
+        raise RuntimeError("种子DRO修正失败")
 
     continuation = e2m2e.algorithms.Continuation(corrector, param="x0", step=0.02)
-    continuation.direction = ContinuationDirection.FORWARD
-    continuation.max_step_size = 0.02
-    continuation.min_step_size = 1e-5
 
-    # //TODO 这里延拓算法的参数我还没太看懂
+    # 使用param_range参数进行参数区间延拓
     family_result = continuation.natural_continuation(
-        seed_DRO["state"],
-        seed_DRO["t_half"],
-        n_orbits=5,
-        param_index=0,
-        verbose=True,
+        seed_DRO,
+        (0.75, 0.85),  # x0参数范围
+        0.001, # 延拓步长
+        True,
     )
 
     # 3. 可视化结果
@@ -147,19 +144,35 @@ def main():
     orbit_plotter.libration_point_markers = ["^"] * 5
     orbit_plotter.libration_point_sizes = [60] * 5
 
-    # family_result["orbits"][0] 就是种子DRO的完整Orbit对象
-    seed_orbit = family_result["orbits"][0] if family_result is not None else None
+    # family_result 现在是 OrbitFamily 对象
+    # 需要重新积分生成完整的Orbit对象用于可视化
+    seed_state = family_result.states[0] if family_result is not None and len(family_result) > 0 else None
+    seed_period = family_result.periods[0] if family_result is not None and len(family_result) > 0 else None
 
     # 绘制种子DRO
-    if seed_orbit is not None:
+    if seed_state is not None:
+        # 从状态向量重新积分生成完整轨道用于可视化
+        full_propagation = dynamic.propagate(seed_state, [0, seed_period], t_eval=np.linspace(0, seed_period, 500))
+        seed_orbit = Orbit(
+            states=full_propagation["states"],
+            times=full_propagation["time"],
+            system=system
+        )
+        seed_orbit.period = seed_period
         orbit_plotter.plot_2d_projection(
             seed_orbit, plane="xy", color="red", label="Seed DRO"
         )
 
     # 绘制延拓轨道族（采样）
-    if family_result is not None:
-        sample_step = max(1, len(family_result["orbits"]) // 5)
-        for idx, orbit in enumerate(family_result["orbits"][1::sample_step], start=1):
+    if family_result is not None and len(family_result) > 0:
+        sample_step = max(1, len(family_result.states) // 5)
+        for idx in range(1, len(family_result.states), sample_step):
+            state = family_result.states[idx]
+            period = family_result.periods[idx]
+            # 重新积分生成完整轨道
+            prop = dynamic.propagate(state, [0, period], t_eval=np.linspace(0, period, 500))
+            orbit = Orbit(states=prop["states"], times=prop["time"], system=system)
+            orbit.period = period
             orbit_plotter.plot_2d_projection(
                 orbit,
                 plane="xy",
