@@ -178,9 +178,9 @@ def compute_dro_family(system):
     # 使用param_range参数进行参数区间延拓
     family_result = continuation.natural_continuation(
         seed_DRO,
-        (0.7, 0.79188556619742),  # x0参数范围 //TODO 目前这里无法区分正向延拓和反向延拓，步长只能在原有基础上增加，不能减小
+        (x0 - 0.1, 0.9),  # x0参数范围
         0.001,  # 延拓步长
-        False,
+        False,  # //TODO natural_continuation函数里面调用iterate_correction时，verbose参数的设置不统一，需要修改
     )
 
     return seed_DRO, family_result
@@ -327,7 +327,10 @@ def visualize_orbits(system, family_result):
     # 绘制延拓轨道族（所有轨道）
     if family_result is not None and n_orbits > 1:
         import matplotlib.pyplot as plt
-        cmap = plt.cm.get_cmap("viridis")
+
+        cmap = plt.cm.get_cmap(
+            "viridis"
+        )  # //TODO 这里存在Bug，需要使用MatplotLib的新用法
 
         # 从第2条轨道开始绘制（第1条是种子轨道）
         for idx in range(1, n_orbits):
@@ -351,7 +354,9 @@ def visualize_orbits(system, family_result):
     ax = orbit_plotter.axes
     ax.set_xlabel("X (nondimensional)", fontsize=12)
     ax.set_ylabel("Y (nondimensional)", fontsize=12)
-    ax.set_title(f"DRO Family in Earth-Moon CR3BP (XY Plane) - {n_orbits} orbits", fontsize=14)
+    ax.set_title(
+        f"DRO Family in Earth-Moon CR3BP (XY Plane) - {n_orbits} orbits", fontsize=14
+    )
     ax.legend(loc="upper right", fontsize=8)
 
     # 显示图形
