@@ -293,6 +293,56 @@ def main(args=None):
     print("\n处理完成!")
 
 
+def compute_stability_for_family(family_result, system):
+    """计算轨道族的稳定性指数
+
+    参数：
+        family_result: OrbitFamily对象
+        system: CR3BP_System对象
+
+    返回：
+        stability_values: 稳定性指数列表
+    """
+    import e2m2e
+
+    # 创建动力学模型
+    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system)
+
+    stability_values = []
+    print("\n计算轨道稳定性指数...")
+
+    for i, orbit in enumerate(family_result):
+        # 确保orbit关联system
+        if orbit.system is None:
+            orbit.system = system
+
+        try:
+            # 计算单值矩阵
+            if orbit.period is None:
+                stability_values.append(1.0)  # 默认值
+                continue
+
+            monodromy = dynamics.compute_state_transition_matrix(orbit.states[0], orbit.period)
+
+            # 计算特征值
+            eigenvalues = np.linalg.eigvals(monodromy)
+            magnitudes = np.abs(eigenvalues)
+
+            # 稳定性指数：最大特征值模长与1的偏离程度
+            # 1.0 表示临界稳定，>1.0 表示不稳定
+            stability_idx = np.max(magnitudes)
+            stability_values.append(stability_idx)
+        except Exception as e:
+            stability_values.append(1.0)
+            print(f"  轨道 {i}: 稳定性计算失败 ({e})")
+
+        if (i + 1) % 10 == 0:
+            print(f"  已处理 {i + 1}/{len(family_result)} 条轨道")
+
+    print(f"稳定性指数范围: {min(stability_values):.6f} ~ {max(stability_values):.6f}")
+    return stability_values
+
+
 def visualize_orbits(system, family_result):
     """可视化轨道族
 
@@ -315,26 +365,75 @@ def visualize_orbits(system, family_result):
     # 获取颜色映射
     n_orbits = len(family_result) if family_result is not None else 0
 
+    # 计算每条轨道的Jacobi常数
+    # 使用OrbitFamily的get_jacobi_constants方法
+    jacobi_values = []
+    if family_result is not None and n_orbits > 0:
+        # 确保family_result关联system（如果OrbitFamily.system为None，需要手动设置）
+        if family_result.system is None:
+            family_result.system = system
+        
+        # 同时确保所有轨道也关联system（兼容旧版本Orbit对象）
+        for orbit in family_result:
+            if orbit.system is None:
+                orbit.system = system
+
+        # 获取所有Jacobi常数
+        jacobi_values = family_result.get_jacobi_constants().tolist()
+
+        # 打印Jacobi常数范围
+        if jacobi_values:  # 确保列表不为空
+            print(f"\nJacobi常数范围: {min(jacobi_values):.6f} ~ {max(jacobi_values):.6f}")
+        else:
+            print("\n警告: 无法计算Jacobi常数（system未正确关联）")
+
+    # 计算稳定性指数
+    stability_values = []
+    if family_result is not None and n_orbits > 0:
+        stability_values = compute_stability_for_family(family_result, system)
+
+    # 打印轨道信息摘要
+    print(f"\n轨道族信息摘要:")
+    print(f"  轨道数量: {n_orbits}")
+    if jacobi_values:
+        print(f"  Jacobi常数: {min(jacobi_values):.6f} ~ {max(jacobi_values):.6f}")
+    if stability_values:
+        print(f"  稳定性指数: {min(stability_values):.6f} ~ {max(stability_values):.6f}")
+
     # family_result 现在是 OrbitFamily 对象
     # 延拓后的 Orbit 对象已经包含完整积分的轨道数据，可以直接用于可视化
     # 绘制种子DRO（使用延拓结果的第一条轨道）
     if family_result is not None and n_orbits > 0:
         seed_orbit = family_result[0]
+        seed_jacobi = jacobi_values[0] if jacobi_values else None
+        seed_stability = stability_values[0] if stability_values else None
+        label = f"Seed DRO"
+        if seed_jacobi is not None:
+            label += f" (C={seed_jacobi:.4f})"
+        if seed_stability is not None:
+            label += f", λmax={seed_stability:.4f}"
         orbit_plotter.plot_2d_projection(
-            seed_orbit, plane="xy", color="red", label="Seed DRO"
+            seed_orbit, plane="xy", color="red", label=label
         )
 
     # 绘制延拓轨道族（所有轨道）
     if family_result is not None and n_orbits > 1:
         import matplotlib.pyplot as plt
 
-        cmap = matplotlib.colormaps["viridis"]
+        # 使用coolwarm颜色映射，Jacobi常数从低到高（能量高到能量低）
+        cmap = matplotlib.colormaps["coolwarm"]
+
+        # 归一化Jacobi常数到[0, 1]范围
+        jacobi_min = min(jacobi_values)
+        jacobi_max = max(jacobi_values)
+        jacobi_range = jacobi_max - jacobi_min if jacobi_max != jacobi_min else 1.0
 
         # 从第2条轨道开始绘制（第1条是种子轨道）
         for idx in range(1, n_orbits):
             orbit = family_result[idx]
-            # 使用颜色映射，每条轨道使用不同的颜色
-            color = cmap(idx / max(n_orbits - 1, 1))
+            # 使用Jacobi常数映射颜色
+            norm_jacobi = (jacobi_values[idx] - jacobi_min) / jacobi_range
+            color = cmap(norm_jacobi)
             orbit_plotter.plot_2d_projection(
                 orbit,
                 plane="xy",
@@ -348,17 +447,111 @@ def visualize_orbits(system, family_result):
     # 添加拉格朗日点（平动点）到图中
     orbit_plotter.plot_libration_points(ax=orbit_plotter.axes)
 
+    # 添加颜色条（显示Jacobi常数与颜色的对应关系）
+    if jacobi_values:
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=jacobi_min, vmax=jacobi_max))
+        sm.set_array([])
+        cbar = plt.colorbar(sm, ax=orbit_plotter.axes, shrink=0.8)
+        cbar.set_label("Jacobi Constant", fontsize=12)
+
     # 坐标轴标签和图例
     ax = orbit_plotter.axes
     ax.set_xlabel("X (nondimensional)", fontsize=12)
     ax.set_ylabel("Y (nondimensional)", fontsize=12)
     ax.set_title(
-        f"DRO Family in Earth-Moon CR3BP (XY Plane) - {n_orbits} orbits", fontsize=14
+        f"DRO Family in Earth-Moon CR3BP (XY Plane) - {n_orbits} orbits\n"
+        f"C = [{jacobi_min:.4f}, {jacobi_max:.4f}], lambda_max = [{min(stability_values):.4f}, {max(stability_values):.4f}]",
+        fontsize=12
     )
-    ax.legend(loc="upper right", fontsize=8)
+    # 调整图例：增大标记大小，增加行间距
+    legend = ax.legend(loc="upper right", fontsize=10, markerscale=1.0, framealpha=0.9)
+    # 调整图例行间距
+    for patch in legend.get_patches():
+        patch.set_height(20)  # 增加图例条目高度
+        patch.set_y(patch.get_y() + 2)
 
     # 显示图形
     orbit_plotter.show()
+
+    # ============================================================
+    # 绘制局部放大图（近月区域）
+    # ============================================================
+    # 创建新的图形用于局部放大图
+    import matplotlib.pyplot as plt
+    
+    fig_zoom, ax_zoom = plt.subplots(figsize=(10, 8))
+    
+    # 设置局部放大区域（聚焦在DRO靠近月球的区域）
+    # 根据轨道数据，x范围约 0.79-1.19，y范围约 ±0.28
+    # 放大区域设置为能包含所有DRO轨道，同时比全局图小一些以展示细节
+    zoom_center_x = 0.99   # 放大区域中心x
+    zoom_center_y = 0.0    # 放大区域中心y
+    zoom_range = 0.40      # 放大范围（x: 0.59~1.39, y: ±0.40）
+    
+    # 重新绘制轨道到局部放大图
+    cmap = matplotlib.colormaps["coolwarm"]
+    jacobi_min = min(jacobi_values)
+    jacobi_max = max(jacobi_values)
+    jacobi_range = jacobi_max - jacobi_min if jacobi_max != jacobi_min else 1.0
+    
+    # 绘制种子轨道
+    if family_result is not None and n_orbits > 0:
+        seed_orbit = family_result[0]
+        seed_jacobi = jacobi_values[0] if jacobi_values else None
+        label = f"Seed DRO"
+        if seed_jacobi is not None:
+            label += f" (C={seed_jacobi:.4f})"
+        orbit_plotter.plot_2d_projection(
+            seed_orbit, plane="xy", color="red", label=label, ax=ax_zoom
+        )
+    
+    # 绘制其他轨道
+    for idx in range(1, n_orbits):
+        orbit = family_result[idx]
+        norm_jacobi = (jacobi_values[idx] - jacobi_min) / jacobi_range
+        color = cmap(norm_jacobi)
+        orbit_plotter.plot_2d_projection(
+            orbit,
+            plane="xy",
+            color=color,
+            show_start=False,
+            ax=ax_zoom
+        )
+    
+    # 添加主次天体
+    orbit_plotter.plot_primary_bodies(ax=ax_zoom)
+    
+    # 添加拉格朗日点
+    orbit_plotter.plot_libration_points(ax=ax_zoom)
+    
+    # 设置坐标轴范围（局部放大）
+    ax_zoom.set_xlim(zoom_center_x - zoom_range, zoom_center_x + zoom_range)
+    ax_zoom.set_ylim(zoom_center_y - zoom_range, zoom_center_y + zoom_range)
+    
+    # 坐标轴标签和标题
+    ax_zoom.set_xlabel("X (nondimensional)", fontsize=12)
+    ax_zoom.set_ylabel("Y (nondimensional)", fontsize=12)
+    ax_zoom.set_title(
+        f"DRO Family (Zoomed View near Moon)\n"
+        f"X: [{zoom_center_x - zoom_range:.2f}, {zoom_center_x + zoom_range:.2f}], Y: [±{zoom_range:.2f}]",
+        fontsize=12
+    )
+    
+    # 添加颜色条
+    if jacobi_values:
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=jacobi_min, vmax=jacobi_max))
+        sm.set_array([])
+        cbar = plt.colorbar(sm, ax=ax_zoom, shrink=0.8)
+        cbar.set_label("Jacobi Constant", fontsize=12)
+    
+    # 图例
+    legend_zoom = ax_zoom.legend(loc="upper right", fontsize=10, markerscale=1.0, framealpha=0.9)
+    for patch in legend_zoom.get_patches():
+        patch.set_height(20)
+        patch.set_y(patch.get_y() + 2)
+    
+    plt.tight_layout()
+    plt.show()
 
 
 def create_parser():
