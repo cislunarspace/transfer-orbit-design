@@ -178,9 +178,9 @@ def compute_dro_family(system):
     # 使用param_range参数进行参数区间延拓
     family_result = continuation.natural_continuation(
         seed_DRO,
-        (x0 - 0.6, 0.9),  # x0参数范围
+        (x0, 0.9),  # x0参数范围
         0.01,  # 延拓步长
-        False,
+        True,
     )
 
     return seed_DRO, family_result
@@ -328,9 +328,7 @@ def visualize_orbits(system, family_result):
     if family_result is not None and n_orbits > 1:
         import matplotlib.pyplot as plt
 
-        cmap = plt.cm.get_cmap(
-            "viridis"
-        )  # //TODO 这里存在Bug，需要使用MatplotLib的新用法
+        cmap = matplotlib.colormaps["viridis"]
 
         # 从第2条轨道开始绘制（第1条是种子轨道）
         for idx in range(1, n_orbits):
