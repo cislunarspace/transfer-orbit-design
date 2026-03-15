@@ -27,6 +27,7 @@ import datetime
 import os
 
 import matplotlib
+import matplotlib.pyplot as plt
 import e2m2e
 from e2m2e.core import Orbit, OrbitFamily
 import numpy as np
@@ -418,8 +419,6 @@ def visualize_orbits(system, family_result):
 
     # 绘制延拓轨道族（所有轨道）
     if family_result is not None and n_orbits > 1:
-        import matplotlib.pyplot as plt
-
         # 使用coolwarm颜色映射，Jacobi常数从低到高（能量高到能量低）
         cmap = matplotlib.colormaps["coolwarm"]
 
@@ -474,11 +473,9 @@ def visualize_orbits(system, family_result):
     orbit_plotter.show()
 
     # ============================================================
-    # 绘制局部放大图（近月区域）
+    # 绘制局部放大图（近月区域）- 2D视图
     # ============================================================
     # 创建新的图形用于局部放大图
-    import matplotlib.pyplot as plt
-    
     fig_zoom, ax_zoom = plt.subplots(figsize=(10, 8))
     
     # 设置局部放大区域（聚焦在DRO靠近月球的区域）
@@ -549,6 +546,103 @@ def visualize_orbits(system, family_result):
     for patch in legend_zoom.get_patches():
         patch.set_height(20)
         patch.set_y(patch.get_y() + 2)
+    
+    plt.tight_layout()
+    plt.show()
+
+    # ============================================================
+    # 绘制全局三维视图
+    # ============================================================
+    # 创建新的图形用于3D视图
+    fig_3d, ax_3d = plt.subplots(figsize=(12, 10), subplot_kw={'projection': '3d'})
+    
+    # 全局3D视图中心设为地球和月球的中点，半径覆盖整个轨道族范围
+    # 地球在(0,0)，月球在(1,0)，所以中心设为(0.5,0)使地球在左、月球在右
+    global_center_x = 0.5   # 全局中心x（地球和月球的中点）
+    global_center_y = 0.0  # 全局中心y
+    global_center_z = 0.0  # 全局中心z
+    global_radius = 0.65   # 全局范围（覆盖从-0.15到1.15的x范围）
+    
+    # 绘制种子轨道
+    if family_result is not None and n_orbits > 0:
+        seed_orbit = family_result[0]
+        seed_jacobi = jacobi_values[0] if jacobi_values else None
+        label_3d = f"Seed DRO"
+        if seed_jacobi is not None:
+            label_3d += f" (C={seed_jacobi:.4f})"
+        orbit_plotter.plot_3d_orbit(
+            seed_orbit, color="red", label=label_3d, ax=ax_3d, show_start=True
+        )
+    
+    # 绘制其他轨道
+    if family_result is not None and n_orbits > 1:
+        cmap = matplotlib.colormaps["coolwarm"]
+        for idx in range(1, n_orbits):
+            orbit = family_result[idx]
+            norm_jacobi = (jacobi_values[idx] - jacobi_min) / jacobi_range
+            color = cmap(norm_jacobi)
+            orbit_plotter.plot_3d_orbit(
+                orbit, color=color, ax=ax_3d, show_start=False
+            )
+    
+    # 设置坐标轴范围（全局视图）
+    ax_3d.set_xlim(global_center_x - global_radius, global_center_x + global_radius)
+    ax_3d.set_ylim(global_center_y - global_radius, global_center_y + global_radius)
+    ax_3d.set_zlim(global_center_z - global_radius, global_center_z + global_radius)
+    
+    # 添加主次天体到3D图
+    orbit_plotter.plot_primary_bodies(ax=ax_3d, is_3d=True)
+    orbit_plotter.plot_libration_points(ax=ax_3d, show_labels=True, is_3d=True)
+    
+    # 坐标轴标签
+    ax_3d.set_xlabel("X (nondimensional)", fontsize=12)
+    ax_3d.set_ylabel("Y (nondimensional)", fontsize=12)
+    ax_3d.set_zlabel("Z (nondimensional)", fontsize=12)
+    
+    # 标题
+    ax_3d.set_title(
+        f"DRO Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
+        f"C = [{jacobi_min:.4f}, {jacobi_max:.4f}], lambda_max = [{min(stability_values):.4f}, {max(stability_values):.4f}]",
+        fontsize=12
+    )
+    
+    # 添加颜色条
+    if jacobi_values:
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=jacobi_min, vmax=jacobi_max))
+        sm.set_array([])
+        cbar = plt.colorbar(sm, ax=ax_3d, shrink=0.6, pad=0.1)
+        cbar.set_label("Jacobi Constant", fontsize=11)
+    
+    # 图例
+    legend_3d = ax_3d.legend(loc="upper right", fontsize=10)
+    
+    # 调整视角：地球在左侧、月球在右侧
+    # 从 -Y 方向看过去（azim=-90），X轴正向指向右，地球在(0,0)在左边，月球在(1,0)在右边
+    # elev=0 表示平视，这样可以清楚看到地球和月球的相对位置
+    ax_3d.view_init(elev=0, azim=-90)
+    
+    plt.tight_layout()
+    plt.show()
+
+    # ============================================================
+    # 绘制局部放大图的三维版本
+    # ============================================================
+    # 设置3D视图参数（与2D放大图一致）
+    seed_label_3d = f"Seed DRO (C={jacobi_values[0]:.4f})" if jacobi_values else "Seed DRO"
+    ax_3d_zoom = orbit_plotter.plot_3d_orbit_family(
+        family_result,
+        jacobi_values=jacobi_values,
+        center=(zoom_center_x, 0.0, 0.0),
+        radius=zoom_range,
+        show_colorbar=True,
+        show_legend=True,
+        seed_label=seed_label_3d,
+    )
+    
+    # 调整视角：地球在左侧、月球在右侧
+    # 从 -Y 方向看过去（azim=-90），X轴正向指向右，地球在(0,0)在左边，月球在(1,0)在右边
+    # elev=0 表示平视，这样可以清楚看到地球和月球的相对位置
+    ax_3d_zoom.view_init(elev=0, azim=-90)
     
     plt.tight_layout()
     plt.show()
