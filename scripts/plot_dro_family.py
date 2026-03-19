@@ -94,7 +94,9 @@ ax_global_2d.legend(loc="upper right", fontsize=10, markerscale=1.0, framealpha=
 ax_global_2d.set_aspect("equal")
 
 plt.tight_layout()
-plt.savefig(f"output/dro/{family_name}_global_2d_view.png", dpi=300, bbox_inches="tight")
+plt.savefig(
+    f"output/dro/{family_name}_global_2d_view.png", dpi=300, bbox_inches="tight"
+)
 plt.show()
 
 
@@ -157,7 +159,9 @@ ax_global_3d.legend(loc="upper right", fontsize=10)
 ax_global_3d.view_init(elev=0, azim=-90)
 
 plt.tight_layout()
-plt.savefig(f"output/dro/{family_name}_global_3d_view.png", dpi=300, bbox_inches="tight")
+plt.savefig(
+    f"output/dro/{family_name}_global_3d_view.png", dpi=300, bbox_inches="tight"
+)
 plt.show()
 
 
@@ -210,7 +214,11 @@ ax1.legend(lines, labels_str, loc="upper right", fontsize=10)
 ax1.grid(True, alpha=0.3)
 
 plt.tight_layout()
-plt.savefig(f"output/dro/{family_name}_jacobi_period_stability.png", dpi=300, bbox_inches="tight")
+plt.savefig(
+    f"output/dro/{family_name}_jacobi_period_stability.png",
+    dpi=300,
+    bbox_inches="tight",
+)
 plt.show()
 
 
@@ -390,7 +398,9 @@ fig_overview.suptitle(
     fontweight="bold",
 )
 plt.tight_layout()
-plt.savefig(f"output/dro/{family_name}_dro_family_overview.png", dpi=300, bbox_inches="tight")
+plt.savefig(
+    f"output/dro/{family_name}_dro_family_overview.png", dpi=300, bbox_inches="tight"
+)
 plt.show()
 
 
