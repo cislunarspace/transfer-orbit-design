@@ -70,7 +70,10 @@
 - [x] 自然参数延拓（`e2m2e/algorithms/continuation.py`）
 - [x] DRO 族生成（`scripts/phase1_generate_dro.py`）✅
 - [x] 生成完整 DRO 族并计算 Jacobi 常数与稳定性指标 ✅
-- [ ] 自然参数延拓（生成 3:2 RO 和 3:1 RO 族）`scripts/phase1_generate_ro.py`
+- [x] RO 族种子搜索（`scripts/phase1_generate_ro.py`）✅
+  - 3:2 RO 种子: x0=-1.1453, y0=0.4633, vy0=0.6124, T=12.47 TU
+  - 3:1 RO 种子: x0=-0.8805, y0=0.3921, vy0=-0.0283, T=4.86 TU
+  - [ ] 完整 RO 族延拓（延拓参数和范围待确定）
 - [ ] 切分岔计算（生成 3D RRO 和 ARO 族）`scripts/phase1_generate_3d_ro.py`
 
 ### 阶段二：CR3BP 中的转移设计

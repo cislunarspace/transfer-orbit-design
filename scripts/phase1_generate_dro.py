@@ -23,7 +23,6 @@ DRO是月球远距离逆行轨道（Broucke Family F），具有以下对称性�
 """
 
 import argparse
-import datetime
 import os
 
 import matplotlib
@@ -32,105 +31,19 @@ import e2m2e
 from e2m2e.core import Orbit, OrbitFamily
 import numpy as np
 
-# matplotlib.use("Agg")  # 非交互式后端，用于服务器环境或批量处理时避免图形界面
-
-# ============================================================
-# 系统参数（论文Table 1）
-# ============================================================
-# 地月系统质量比，μ = m2/(m1+m2)，其中m1为地球质量，m2为月球质量
-MU = 1.21506683e-2  # Mass ratio of the Earth–moon system
-
-# 太阳的无量纲质量，用于后续考虑太阳引力摄动
-M_SUN = 3.28900541e5  # Nondimensional mass of the sun
-
-# 太阳的无量纲角速度，描述太阳在旋转坐标系中的运动
-OMEGA_SUN = 9.25195985e-1  # Nondimensional angular velocity of the sun
-
-# 太阳到地月系统的无量纲距离
-RHO = 3.88811143e2  # Nondimensional sun–(Earth–moon) distance
-
-# 距离单位：1 DU = 384405 km，地月平均距离
-DU = 3.84405000e5  # Distance unit km
-
-# 时间单位：1 TU = 4.34811305 天，地月系统的特征时间尺度
-TU = 4.34811305  # Time unit days
-
-# 速度单位：1 VU = 1023.23281 m/s，基于DU和TU计算得出
-VU = 1023.23281  # Velocity unit m/s
+from utils import (
+    MU,
+    DU,
+    TU,
+    VU,
+    ensure_output_dir,
+    load_or_compute,
+    save_family_to_file,
+)
 
 # 输出目录配置
 OUTPUT_DIR = "output/phase1_dro"
 FAMILY_FILENAME = "dro_family.json"  # 轨道族统一文件名
-
-
-# ============================================================
-# 辅助函数
-# ============================================================
-def ensure_output_dir():
-    """确保输出目录存在"""
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-
-
-def get_latest_family_file():
-    """获取最新的轨道族数据文件"""
-    if not os.path.exists(OUTPUT_DIR):
-        return None
-
-    family_path = os.path.join(OUTPUT_DIR, FAMILY_FILENAME)
-    if os.path.exists(family_path):
-        return family_path
-
-    # 兼容旧格式：查找带时间戳的文件夹
-    dirs = [
-        d for d in os.listdir(OUTPUT_DIR) if os.path.isdir(os.path.join(OUTPUT_DIR, d))
-    ]
-    if not dirs:
-        return None
-
-    # 按修改时间排序，返回最新的
-    dirs.sort(key=lambda x: os.path.getmtime(os.path.join(OUTPUT_DIR, x)), reverse=True)
-    latest_dir = dirs[0]
-    return os.path.join(OUTPUT_DIR, latest_dir, FAMILY_FILENAME)
-
-
-def load_or_compute(args):
-    """加载或计算轨道族
-
-    参数：
-        args: 命令行参数
-
-    返回：
-        system: CR3BP_System对象
-        family_result: OrbitFamily对象或None
-    """
-    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-
-    # 加载模式
-    if args.load:
-        if args.load == True:
-            # 未指定具体文件，查找最新的
-            family_path = get_latest_family_file()
-        else:
-            # 指定了文件名（可能是完整路径或相对路径）
-            if os.path.isabs(args.load):
-                family_path = args.load
-            else:
-                # 可能是 output/phase1_dro/xxx 或直接文件名
-                if os.path.exists(args.load):
-                    family_path = args.load
-                else:
-                    family_path = os.path.join(OUTPUT_DIR, args.load, FAMILY_FILENAME)
-
-        if family_path and os.path.exists(family_path):
-            print(f"加载轨道族数据: {family_path}")
-            family_result = OrbitFamily.load_from_file(family_path, system)
-            print(f"已加载 {len(family_result)} 条轨道")
-            return system, family_result
-        else:
-            print(f"未找到数据文件: {family_path}")
-            print("将重新计算...")
-
-    return system, None
 
 
 def compute_dro_family(system):
@@ -165,9 +78,7 @@ def compute_dro_family(system):
         0
     ]  # Orbit对象初始化所需的时间与对应索引的state一一对应。在实际数据处理中，times的元素为时间历元格式，此处用0表示第一个历元。
     seed_state = Orbit([initial_state], times)
-    seed_state.period = (
-        3.472526005624708  # 初始半周期猜测（无量纲时间），基于论文或前期计算结果
-    )
+    seed_state.period = 3.472526005624708  # 初始半周期猜测（无量纲时间），基于论文或前期计算结果  # type: ignore
 
     # 修正种子轨道后，将修正后的状态和半周期传递给延拓器
     seed_DRO = corrector.iterate_correction(seed_state)
@@ -187,55 +98,31 @@ def compute_dro_family(system):
     return seed_DRO, family_result
 
 
-def save_family(system, family_result, seed_orbit=None):
-    """保存轨道族到文件
+def dro_save_family(system, family_result, seed_orbit=None):
+    """保存DRO轨道族到文件
 
     参数：
         system: CR3BP_System对象
         family_result: OrbitFamily对象
         seed_orbit: 种子轨道（可选）
     """
-    ensure_output_dir()
-
-    # 生成时间戳作为子目录名
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    family_dir = os.path.join(OUTPUT_DIR, timestamp)
-    os.makedirs(family_dir, exist_ok=True)
-
-    # 保存轨道族（统一文件）
-    family_path = os.path.join(family_dir, FAMILY_FILENAME)
-    family_result.save_to_file(family_path)
-    print(f"轨道族已保存: {family_path}")
-
-    # 同时保存到 latest 链接（创建符号链接的替代方案：复制）
-    latest_path = os.path.join(OUTPUT_DIR, FAMILY_FILENAME)
-    import shutil
-
-    shutil.copy(family_path, latest_path)
-    print(f"最新轨道族: {latest_path}")
-
-    return family_dir
+    return save_family_to_file(family_result, OUTPUT_DIR, FAMILY_FILENAME)
 
 
-# 目标DRO
-# 论文中作者是通过初值猜测和延拓法得到了DRO轨道组，然后在轨道族中找到了周期接近2:1和3:1的DRO。
-# 我们也将采用同样的策略。
-#
-# DRO轨道特点：
-# 1. 逆行轨道（retrograde），相对于月球运动方向相反
-# 2. 距离较远（distant），通常位于月球轨道之外
-# 3. 具有周期性，在旋转坐标系中闭合
-# 4. 关于x轴对称，满足对称性条件
-#
-# 算法原理：
-# 1. 微分修正法（Differential Correction）：通过迭代修正初始状态，使轨道满足周期条件
-# 2. 对称性条件：对于2D对称DRO，满足 y(0)=0, vx(0)=0, y(T/2)=0, vx(T/2)=0
-# 3. 自然延拓法（Natural Continuation）：从一个已知解出发，通过参数连续变化得到轨道族
-#
-# 关键参数：
-# - Jacobi常数（Cj）：运动积分，表征轨道能量
-# - 稳定性指标：通过单值矩阵特征值判断轨道稳定性
-# - 共振比：轨道周期与月球轨道周期的比值
+def dro_load_or_compute(args):
+    """加载或计算DRO轨道族
+
+    参数:
+        args: 命令行参数
+
+    返回:
+        system: CR3BP_System对象
+        family_result: OrbitFamily对象或None
+    """
+    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
+    return load_or_compute(
+        args, system, compute_dro_family, OUTPUT_DIR, FAMILY_FILENAME
+    )
 
 
 # ============================================================
@@ -258,10 +145,10 @@ def main(args=None):
         args = parser.parse_args()
 
     # 确保输出目录存在
-    ensure_output_dir()
+    ensure_output_dir(OUTPUT_DIR)
 
     # 加载或计算轨道族
-    system, family_result = load_or_compute(args)
+    system, family_result = dro_load_or_compute(args)
 
     # 如果没有加载到数据，则计算
     if family_result is None:
@@ -271,7 +158,7 @@ def main(args=None):
 
         # 保存结果
         seed_orbit = family_result[0] if len(family_result) > 0 else None
-        save_family(system, family_result, seed_orbit)
+        dro_save_family(system, family_result, seed_orbit)
     else:
         # 使用加载的数据
         seed_orbit = family_result[0] if len(family_result) > 0 else None
@@ -323,7 +210,9 @@ def compute_stability_for_family(family_result, system):
                 stability_values.append(1.0)  # 默认值
                 continue
 
-            monodromy = dynamics.compute_state_transition_matrix(orbit.states[0], orbit.period)
+            monodromy = dynamics.compute_state_transition_matrix(
+                orbit.states[0], orbit.period
+            )
 
             # 计算特征值
             eigenvalues = np.linalg.eigvals(monodromy)
@@ -373,7 +262,7 @@ def visualize_orbits(system, family_result):
         # 确保family_result关联system（如果OrbitFamily.system为None，需要手动设置）
         if family_result.system is None:
             family_result.system = system
-        
+
         # 同时确保所有轨道也关联system（兼容旧版本Orbit对象）
         for orbit in family_result:
             if orbit.system is None:
@@ -384,7 +273,9 @@ def visualize_orbits(system, family_result):
 
         # 打印Jacobi常数范围
         if jacobi_values:  # 确保列表不为空
-            print(f"\nJacobi常数范围: {min(jacobi_values):.6f} ~ {max(jacobi_values):.6f}")
+            print(
+                f"\nJacobi常数范围: {min(jacobi_values):.6f} ~ {max(jacobi_values):.6f}"
+            )
         else:
             print("\n警告: 无法计算Jacobi常数（system未正确关联）")
 
@@ -399,7 +290,9 @@ def visualize_orbits(system, family_result):
     if jacobi_values:
         print(f"  Jacobi常数: {min(jacobi_values):.6f} ~ {max(jacobi_values):.6f}")
     if stability_values:
-        print(f"  稳定性指数: {min(stability_values):.6f} ~ {max(stability_values):.6f}")
+        print(
+            f"  稳定性指数: {min(stability_values):.6f} ~ {max(stability_values):.6f}"
+        )
 
     # family_result 现在是 OrbitFamily 对象
     # 延拓后的 Orbit 对象已经包含完整积分的轨道数据，可以直接用于可视化
@@ -448,7 +341,9 @@ def visualize_orbits(system, family_result):
 
     # 添加颜色条（显示Jacobi常数与颜色的对应关系）
     if jacobi_values:
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=jacobi_min, vmax=jacobi_max))
+        sm = plt.cm.ScalarMappable(
+            cmap=cmap, norm=plt.Normalize(vmin=jacobi_min, vmax=jacobi_max)
+        )
         sm.set_array([])
         cbar = plt.colorbar(sm, ax=orbit_plotter.axes, shrink=0.8)
         cbar.set_label("Jacobi Constant", fontsize=12)
@@ -460,7 +355,7 @@ def visualize_orbits(system, family_result):
     ax.set_title(
         f"DRO Family in Earth-Moon CR3BP (XY Plane) - {n_orbits} orbits\n"
         f"C = [{jacobi_min:.4f}, {jacobi_max:.4f}], lambda_max = [{min(stability_values):.4f}, {max(stability_values):.4f}]",
-        fontsize=12
+        fontsize=12,
     )
     # 调整图例：增大标记大小，增加行间距
     legend = ax.legend(loc="upper right", fontsize=10, markerscale=1.0, framealpha=0.9)
@@ -477,20 +372,20 @@ def visualize_orbits(system, family_result):
     # ============================================================
     # 创建新的图形用于局部放大图
     fig_zoom, ax_zoom = plt.subplots(figsize=(10, 8))
-    
+
     # 设置局部放大区域（聚焦在DRO靠近月球的区域）
     # 根据轨道数据，x范围约 0.79-1.19，y范围约 ±0.28
     # 放大区域设置为能包含所有DRO轨道，同时比全局图小一些以展示细节
-    zoom_center_x = 0.99   # 放大区域中心x
-    zoom_center_y = 0.0    # 放大区域中心y
-    zoom_range = 0.40      # 放大范围（x: 0.59~1.39, y: ±0.40）
-    
+    zoom_center_x = 0.99  # 放大区域中心x
+    zoom_center_y = 0.0  # 放大区域中心y
+    zoom_range = 0.40  # 放大范围（x: 0.59~1.39, y: ±0.40）
+
     # 重新绘制轨道到局部放大图
     cmap = matplotlib.colormaps["coolwarm"]
     jacobi_min = min(jacobi_values)
     jacobi_max = max(jacobi_values)
     jacobi_range = jacobi_max - jacobi_min if jacobi_max != jacobi_min else 1.0
-    
+
     # 绘制种子轨道
     if family_result is not None and n_orbits > 0:
         seed_orbit = family_result[0]
@@ -501,52 +396,52 @@ def visualize_orbits(system, family_result):
         orbit_plotter.plot_2d_projection(
             seed_orbit, plane="xy", color="red", label=label, ax=ax_zoom
         )
-    
+
     # 绘制其他轨道
     for idx in range(1, n_orbits):
         orbit = family_result[idx]
         norm_jacobi = (jacobi_values[idx] - jacobi_min) / jacobi_range
         color = cmap(norm_jacobi)
         orbit_plotter.plot_2d_projection(
-            orbit,
-            plane="xy",
-            color=color,
-            show_start=False,
-            ax=ax_zoom
+            orbit, plane="xy", color=color, show_start=False, ax=ax_zoom
         )
-    
+
     # 添加主次天体
     orbit_plotter.plot_primary_bodies(ax=ax_zoom)
-    
+
     # 添加拉格朗日点
     orbit_plotter.plot_libration_points(ax=ax_zoom)
-    
+
     # 设置坐标轴范围（局部放大）
     ax_zoom.set_xlim(zoom_center_x - zoom_range, zoom_center_x + zoom_range)
     ax_zoom.set_ylim(zoom_center_y - zoom_range, zoom_center_y + zoom_range)
-    
+
     # 坐标轴标签和标题
     ax_zoom.set_xlabel("X (nondimensional)", fontsize=12)
     ax_zoom.set_ylabel("Y (nondimensional)", fontsize=12)
     ax_zoom.set_title(
         f"DRO Family (Zoomed View near Moon)\n"
         f"X: [{zoom_center_x - zoom_range:.2f}, {zoom_center_x + zoom_range:.2f}], Y: [±{zoom_range:.2f}]",
-        fontsize=12
+        fontsize=12,
     )
-    
+
     # 添加颜色条
     if jacobi_values:
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=jacobi_min, vmax=jacobi_max))
+        sm = plt.cm.ScalarMappable(
+            cmap=cmap, norm=plt.Normalize(vmin=jacobi_min, vmax=jacobi_max)
+        )
         sm.set_array([])
         cbar = plt.colorbar(sm, ax=ax_zoom, shrink=0.8)
         cbar.set_label("Jacobi Constant", fontsize=12)
-    
+
     # 图例
-    legend_zoom = ax_zoom.legend(loc="upper right", fontsize=10, markerscale=1.0, framealpha=0.9)
+    legend_zoom = ax_zoom.legend(
+        loc="upper right", fontsize=10, markerscale=1.0, framealpha=0.9
+    )
     for patch in legend_zoom.get_patches():
         patch.set_height(20)
         patch.set_y(patch.get_y() + 2)
-    
+
     plt.tight_layout()
     plt.show()
 
@@ -554,15 +449,15 @@ def visualize_orbits(system, family_result):
     # 绘制全局三维视图
     # ============================================================
     # 创建新的图形用于3D视图
-    fig_3d, ax_3d = plt.subplots(figsize=(12, 10), subplot_kw={'projection': '3d'})
-    
+    fig_3d, ax_3d = plt.subplots(figsize=(12, 10), subplot_kw={"projection": "3d"})
+
     # 全局3D视图中心设为地球和月球的中点，半径覆盖整个轨道族范围
     # 地球在(0,0)，月球在(1,0)，所以中心设为(0.5,0)使地球在左、月球在右
-    global_center_x = 0.5   # 全局中心x（地球和月球的中点）
+    global_center_x = 0.5  # 全局中心x（地球和月球的中点）
     global_center_y = 0.0  # 全局中心y
     global_center_z = 0.0  # 全局中心z
-    global_radius = 0.65   # 全局范围（覆盖从-0.15到1.15的x范围）
-    
+    global_radius = 0.65  # 全局范围（覆盖从-0.15到1.15的x范围）
+
     # 绘制种子轨道
     if family_result is not None and n_orbits > 0:
         seed_orbit = family_result[0]
@@ -573,7 +468,7 @@ def visualize_orbits(system, family_result):
         orbit_plotter.plot_3d_orbit(
             seed_orbit, color="red", label=label_3d, ax=ax_3d, show_start=True
         )
-    
+
     # 绘制其他轨道
     if family_result is not None and n_orbits > 1:
         cmap = matplotlib.colormaps["coolwarm"]
@@ -581,46 +476,46 @@ def visualize_orbits(system, family_result):
             orbit = family_result[idx]
             norm_jacobi = (jacobi_values[idx] - jacobi_min) / jacobi_range
             color = cmap(norm_jacobi)
-            orbit_plotter.plot_3d_orbit(
-                orbit, color=color, ax=ax_3d, show_start=False
-            )
-    
+            orbit_plotter.plot_3d_orbit(orbit, color=color, ax=ax_3d, show_start=False)
+
     # 设置坐标轴范围（全局视图）
     ax_3d.set_xlim(global_center_x - global_radius, global_center_x + global_radius)
     ax_3d.set_ylim(global_center_y - global_radius, global_center_y + global_radius)
     ax_3d.set_zlim(global_center_z - global_radius, global_center_z + global_radius)
-    
+
     # 添加主次天体到3D图
     orbit_plotter.plot_primary_bodies(ax=ax_3d, is_3d=True)
     orbit_plotter.plot_libration_points(ax=ax_3d, show_labels=True, is_3d=True)
-    
+
     # 坐标轴标签
     ax_3d.set_xlabel("X (nondimensional)", fontsize=12)
     ax_3d.set_ylabel("Y (nondimensional)", fontsize=12)
     ax_3d.set_zlabel("Z (nondimensional)", fontsize=12)
-    
+
     # 标题
     ax_3d.set_title(
         f"DRO Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
         f"C = [{jacobi_min:.4f}, {jacobi_max:.4f}], lambda_max = [{min(stability_values):.4f}, {max(stability_values):.4f}]",
-        fontsize=12
+        fontsize=12,
     )
-    
+
     # 添加颜色条
     if jacobi_values:
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=jacobi_min, vmax=jacobi_max))
+        sm = plt.cm.ScalarMappable(
+            cmap=cmap, norm=plt.Normalize(vmin=jacobi_min, vmax=jacobi_max)
+        )
         sm.set_array([])
         cbar = plt.colorbar(sm, ax=ax_3d, shrink=0.6, pad=0.1)
         cbar.set_label("Jacobi Constant", fontsize=11)
-    
+
     # 图例
     legend_3d = ax_3d.legend(loc="upper right", fontsize=10)
-    
+
     # 调整视角：地球在左侧、月球在右侧
     # 从 -Y 方向看过去（azim=-90），X轴正向指向右，地球在(0,0)在左边，月球在(1,0)在右边
     # elev=0 表示平视，这样可以清楚看到地球和月球的相对位置
     ax_3d.view_init(elev=0, azim=-90)
-    
+
     plt.tight_layout()
     plt.show()
 
@@ -628,7 +523,9 @@ def visualize_orbits(system, family_result):
     # 绘制局部放大图的三维版本
     # ============================================================
     # 设置3D视图参数（与2D放大图一致）
-    seed_label_3d = f"Seed DRO (C={jacobi_values[0]:.4f})" if jacobi_values else "Seed DRO"
+    seed_label_3d = (
+        f"Seed DRO (C={jacobi_values[0]:.4f})" if jacobi_values else "Seed DRO"
+    )
     ax_3d_zoom = orbit_plotter.plot_3d_orbit_family(
         family_result,
         jacobi_values=jacobi_values,
@@ -638,12 +535,12 @@ def visualize_orbits(system, family_result):
         show_legend=True,
         seed_label=seed_label_3d,
     )
-    
+
     # 调整视角：地球在左侧、月球在右侧
     # 从 -Y 方向看过去（azim=-90），X轴正向指向右，地球在(0,0)在左边，月球在(1,0)在右边
     # elev=0 表示平视，这样可以清楚看到地球和月球的相对位置
     ax_3d_zoom.view_init(elev=0, azim=-90)
-    
+
     plt.tight_layout()
     plt.show()
 
