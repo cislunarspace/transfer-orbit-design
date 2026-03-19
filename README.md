@@ -63,14 +63,15 @@
 
 ## 复现计划
 
-### 阶段一：基线轨道生成 ✅ 已完成
+### 阶段一：基线轨道生成
 
-- [x] CR3BP 动力学模型实现
-- [x] 微分修正算法（2D 对称 x 轨道）
-- [x] 自然参数延拓（生成 DRO 族）
-- [x] 生成完整 DRO 族并计算 Jacobi 常数与稳定性指标
-- [ ] 生成 3:2 和 3:1 RO 族（平面共振轨道）
-- [ ] 生成 3D RO（RRO 和 ARO）——通过切分岔计算
+- [x] CR3BP 动力学模型实现（`e2m2e/core/dynamics.py`）
+- [x] 微分修正算法（`e2m2e/algorithms/differential_correction.py`）
+- [x] 自然参数延拓（`e2m2e/algorithms/continuation.py`）
+- [x] DRO 族生成（`scripts/phase1_generate_dro.py`）✅
+- [x] 生成完整 DRO 族并计算 Jacobi 常数与稳定性指标 ✅
+- [ ] 自然参数延拓（生成 3:2 RO 和 3:1 RO 族）`scripts/phase1_generate_ro.py`
+- [ ] 切分岔计算（生成 3D RRO 和 ARO 族）`scripts/phase1_generate_3d_ro.py`
 
 ### 阶段二：CR3BP 中的转移设计
 
@@ -99,32 +100,40 @@
 
 ## 当前代码架构
 
-代码采用面向过程与面向对象两套实现并行开发：
+核心算法代码位于 `e2m2e` 项目中，`transfer-orbit-design/scripts/` 包含各阶段的任务脚本。
 
-### 面向过程版本
+### e2m2e 核心库（`e2m2e/e2m2e/`）
 
-- `CoordinateTrans/`：坐标转换矩阵相关函数
-- `Dynamics/`：动力学外推函数（CR3BP）
-- `Parameters/`：系统参数定义
-- `Funcs/`：辅助功能函数（Jacobi 常数、拉格朗日点、稳定性分析等）
-- `Main/`：主函数与高层算法（微分修正、延拓）
-- `Test/`：测试脚本
+```
+e2m2e/
+├── algorithms/          # 算法模块
+│   ├── continuation.py          # 自然参数延拓
+│   ├── differential_correction.py  # 微分修正算法
+│   └── stability.py             # 稳定性分析
+├── core/               # 核心模块
+│   ├── coordinate.py             # 坐标变换
+│   ├── dynamics.py               # CR3BP 动力学
+│   ├── orbit.py                  # 轨道数据结构
+│   └── system.py                 # 系统参数管理
+├── transfer/           # 转移轨道设计
+│   ├── earth_moon.py
+│   ├── inter_orbit.py
+│   └── moon_earth.py
+└── visualization/      # 可视化
+    └── plotting.py
+```
 
-### 面向对象版本（`OOP/`）
+### transfer-orbit-design 任务脚本（`scripts/`）
 
-- `CR3BP_System.py`：三体系统参数管理
-- `CR3BP_Dynamics.py`：动力学方程与状态转移矩阵
-- `DifferentialCorrection.py`：微分修正算法
-- `Continuation.py`：自然参数延拓
-- `StabilityAnalysis.py`：稳定性分析
-- `Orbit.py`：轨道数据结构
-- `Visualization.py`：可视化工具
-- `CoordinateTransformation.py`：坐标转换
+- `phase1_generate_dro.py`：生成 DRO 族
+- `phase1_generate_ro.py`：生成 RO 族
+- `phase1_generate_3d_ro.py`：生成 3D RO 族
+- `phase2_transfer_search.py`：转移轨道搜索算法
 
 ### 数据与环境
 
 - `Spice/`：星历文件（SPICE kernels）
-- `envi/`：Python 虚拟环境
+- `output/`：计算结果输出目录
 
 ## 参考文献
 
