@@ -99,7 +99,7 @@ def find_converged_seed(dynamics, seed_dict, system, max_attempts=30):
     使用 setup_2D_symmetric_x_fixed_x0 配置，自由变量为 [y_dot0, T_half]。
 
     参数:
-        dynamics: CR3BP_Dynamics对象
+        dynamic: CR3BP_Dynamics对象
         seed_dict: dict, 包含x0_range, y_dot0_range, period
         system: CR3BP_System对象
         max_attempts: 最大尝试次数
@@ -179,7 +179,7 @@ def create_propagated_seed_orbit(dynamics, seed_dict, system):
     """创建包含完整积分的种子Orbit
 
     参数:
-        dynamics: CR3BP_Dynamics对象
+        dynamic: CR3BP_Dynamics对象
         seed_dict: dict, 包含x0, y0, y_dot0, period
         system: CR3BP_System对象
 

@@ -36,9 +36,6 @@ from utils import (
     DU,
     TU,
     VU,
-    ensure_output_dir,
-    load_or_compute,
-    save_family_to_file,
 )
 
 # 输出目录配置
@@ -58,29 +55,28 @@ def compute_dro_family(system):
     """
     # 创建动力学模型，用于计算状态转移矩阵和微分方程
     dynamic = e2m2e.core.dynamics.CR3BP_Dynamics(system)
-
-    # 创建微分修正器，用于将近似轨道修正为精确周期轨道
-    corrector = e2m2e.algorithms.DifferentialCorrection(dynamic)
-
-    # 设置2D对称轨道修正模式：固定x0，修正其他参数
-    # 这种模式适用于关于x轴对称的轨道，如DRO
+    # 设置初值
     x0 = 0.79188556619742  # 初始x坐标（无量纲）
-    corrector.setup_2D_symmetric_x_fixed_x0(x0)
-
-    # 2. 生成DRO族
-    # 设置初值：基于论文或前期计算结果
-    vy0 = 0.53682  # 初始y方向速度（无量纲）
-
-    # 初始状态向量：[x, y, z, vx, vy, vz]
-    # 对于2D对称DRO：y=0, z=0, vx=0, vz=0
-    initial_state = [x0, 0.0, 0.0, 0.0, vy0, 0.0]
-    times = [
-        0
-    ]  # Orbit对象初始化所需的时间与对应索引的state一一对应。在实际数据处理中，times的元素为时间历元格式，此处用0表示第一个历元。
+    vy0 = 0.53682  # 基于论文或前期计算结果，初始y方向速度（无量纲）
+    initial_state = [
+        x0,
+        0.0,
+        0.0,
+        0.0,
+        vy0,
+        0.0,
+    ]  # 初始状态向量：[x, y, z, vx, vy, vz]，对于2D对称DRO：y=0, z=0, vx=0, vz=0
+    times = [0]  # 此处用0表示第一个历元。
     seed_state = Orbit([initial_state], times)
     seed_state.period = 3.472526005624708  # 初始半周期猜测（无量纲时间），基于论文或前期计算结果  # type: ignore
 
-    # 修正种子轨道后，将修正后的状态和半周期传递给延拓器
+    # 创建微分修正器，用于将近似轨道修正为精确周期轨道
+    corrector = e2m2e.algorithms.DifferentialCorrection(dynamic)
+    corrector.setup_2D_symmetric_x_fixed_x0(
+        x0
+    )  # 设置2D对称轨道修正模式：固定x0，修正其他参数
+
+    # 修正种子轨道
     seed_DRO = corrector.iterate_correction(seed_state)
     if seed_DRO is None:
         raise RuntimeError("种子DRO修正失败")
@@ -98,17 +94,6 @@ def compute_dro_family(system):
     return seed_DRO, family_result
 
 
-def dro_save_family(system, family_result, seed_orbit=None):
-    """保存DRO轨道族到文件
-
-    参数：
-        system: CR3BP_System对象
-        family_result: OrbitFamily对象
-        seed_orbit: 种子轨道（可选）
-    """
-    return save_family_to_file(family_result, OUTPUT_DIR, FAMILY_FILENAME)
-
-
 def dro_load_or_compute(args):
     """加载或计算DRO轨道族
 
@@ -120,9 +105,6 @@ def dro_load_or_compute(args):
         family_result: OrbitFamily对象或None
     """
     system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    return load_or_compute(
-        args, system, compute_dro_family, OUTPUT_DIR, FAMILY_FILENAME
-    )
 
 
 # ============================================================
@@ -143,9 +125,6 @@ def main(args=None):
     if args is None:
         parser = create_parser()
         args = parser.parse_args()
-
-    # 确保输出目录存在
-    ensure_output_dir(OUTPUT_DIR)
 
     # 加载或计算轨道族
     system, family_result = dro_load_or_compute(args)
