@@ -16,165 +16,66 @@
   to Resonant Orbits", JGCD, Vol.48, No.6
 """
 
-import argparse
-import os
 from fontTools.misc.timeTools import timestampNow
 
 import e2m2e
-from e2m2e.core import Orbit, OrbitFamily
-from e2m2e.core.system import CR3BP_System
-from e2m2e.core.dynamics import CR3BP_Dynamics
-from e2m2e.algorithms import DifferentialCorrection, Continuation
-import numpy as np
-from scipy.integrate import solve_ivp
+from e2m2e.core import Orbit
 
 from scripts.utils.common import MU
 
 # =============================================================================
 # 系统参数
 # =============================================================================
-T_MOON = 2 * np.pi  # 月球恒星周期(无量纲)
+T_MOON = 2 * 3.141592653589793  # 月球恒星周期(无量纲)
 T_RO_32 = 2 * T_MOON  # 4π ≈ 12.566 TU
 
 # 3:2 RO 种子轨道参数（论文Table 2）
 SEED_X0 = -1.1453  # y幅值点x坐标
-SEED_Y0 = 0.4633   # y幅值点y坐标
-SEED_Y_DOT0 = 0.58566  # 修正后的y_dot0
+SEED_Y0 = 0.4633  # y幅值点y坐标
 X0_RANGE = (-1.2, -0.8)  # 延拓x0范围
 
-
-def correct_seed_ro32(dynamics, system):
-    """修正3:2 RO种子轨道
-
-    参数:
-        dynamics: CR3BP_Dynamics对象
-        system: CR3BP_System对象
-
-    返回:
-        修正后的Orbit或None
-    """
-    period = T_RO_32
-
-    # 创建初始状态（从y幅值点出发）
-    initial_state = [SEED_X0, SEED_Y0, 0.0, 0.0, SEED_Y_DOT0, 0.0]
-
-    # 积分一个周期
-    t_eval = np.linspace(0, period, 500)
-    res = solve_ivp(
-        dynamics.equations_of_motion,
-        (0, period),
-        initial_state,
-        method="DOP853",
-        t_eval=t_eval,
-        rtol=1e-10,
-        atol=1e-10,
-    )
-
-    if not res.success:
-        print(f"  [错误] 初始积分失败！")
-        return None
-
-    orbit = Orbit(res.y.T, res.t, system=system)
-    orbit.period = period
-
-    # 微分修正 - 固定x0，自由变量为[y_dot0, T_half]
-    corrector = DifferentialCorrection(dynamics)
-    corrector.setup_2D_symmetric_x_fixed_x0(SEED_X0)
-    corrector.tolerance = 1e-12
-    corrector.max_iterations = 50
-
-    corrected_orbit = corrector.iterate_correction(orbit, verbose=True)
-
-    if corrected_orbit is None or not corrected_orbit.correction_success:
-        print(f"  [错误] 种子轨道修正失败！")
-        return None
-
-    print(f"  修正后周期: {corrected_orbit.period:.6f} TU")
-    print(f"  修正后y_dot0: {corrected_orbit.states[0, 4]:.6f}")
-
-    return corrected_orbit
-
-
-def generate_ro32_family(system, dynamics):
-    """生成3:2 RO族
-
-    参数:
-        system: CR3BP_System对象
-        dynamics: CR3BP_Dynamics对象
-
-    返回:
-        OrbitFamily对象或None
-    """
-    print(f"\n生成 3:2 RO族...")
-    print(f"  目标周期: {T_RO_32:.6f} TU")
-
-    # 步骤1: 修正种子轨道
-    print(f"\n[步骤1] 修正种子轨道...")
-    corrected_orbit = correct_seed_ro32(dynamics, system)
-    if corrected_orbit is None:
-        return None
-
-    # 步骤2: 自然延拓
-    print(f"\n[步骤2] 开始延拓...")
-
-    corrector_for_cont = DifferentialCorrection(dynamic=dynamics)
-    corrector_for_cont.setup_2D_symmetric_x_fixed_x0(SEED_X0)
-    corrector_for_cont.tolerance = 1e-12
-    corrector_for_cont.max_iterations = 50
-
-    continuation = Continuation(corrector=corrector_for_cont)
-
-    family_result = continuation.natural_continuation(
-        seed_orbit=corrected_orbit, param_range=X0_RANGE, step_size =0.005, verbose=False
-    )
-
-    if family_result is not None and len(family_result) > 0:
-        print(f"\n3:2 RO族生成: {len(family_result)} 条轨道")
-    else:
-        print(f"\n3:2 RO族延拓失败")
-
-    return family_result
-
+# =============================================================================
+# 1. 系统与动力学模型初始化
+# =============================================================================
+system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
+dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
 
 # =============================================================================
-# 主程序
+# 2. 种子轨道初始状态定义
 # =============================================================================
-def main():
-    parser = argparse.ArgumentParser(description="3:2 RO族生成")
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="output/ro",
-        help="输出目录",
-    )
-    args = parser.parse_args()
+# 3:2 RO特征：平面内运动（y幅值点处y_dot=0），关于x轴对称（vx=vz=0）
+# 初始状态向量格式：[x, y, z, vx, vy, vz]，均为无量纲量
+x0 = SEED_X0  # 初始x坐标（无量纲）
+vy0 = 0.0  # 初始y方向速度（无量纲），需通过微分修正确定
 
-    print("=" * 60)
-    print("3:2 共振轨道(RO)族生成")
-    print(f"e2m2e version: {e2m2e.__version__}")
-    print("=" * 60)
+initial_state = [x0, SEED_Y0, 0.0, 0.0, vy0, 0.0]
+times = [0]  # 第一个历元时刻
 
-    # 创建系统
-    system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    dynamics = CR3BP_Dynamics(system)
-    dynamics.integrator = "DOP853"
+seed_orbit = Orbit(states=[initial_state], times=times)
+seed_orbit.period = T_RO_32  # 目标周期（无量纲时间）
 
-    # 确保输出目录存在
-    os.makedirs(args.output_dir, exist_ok=True)
+# =============================================================================
+# 3. 种子轨道差分修正
+# =============================================================================
+corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamics)
+corrector.setup_2D_symmetric_x_fixed_x0(x0=x0)
+seed_RO = corrector.iterate_correction(initial_guess=seed_orbit)
 
-    # 生成轨道族
-    family_32 = generate_ro32_family(system, dynamics)
-    if family_32 is not None:
-        # 保存轨道族
-        filename = f"ro_32_family_{timestampNow()}.json"
-        output_path = f"{args.output_dir}/{filename}"
-        family_32.save_to_file(output_path)
-        print(f"3:2 RO族已保存: {output_path}")
+# =============================================================================
+# 4. 自然延拓生成轨道族
+# =============================================================================
+continuation = e2m2e.algorithms.Continuation(corrector=corrector)
+step_size = 0.005
+family_result = continuation.natural_continuation(
+    seed_orbit=seed_RO,
+    param_range=X0_RANGE,  # x0参数延拓范围
+    step_size=step_size,  # 延拓步长
+)
 
-    print(f"\n{'=' * 60}")
-    print("完成！")
-    print(f"{'=' * 60}")
-
-
-if __name__ == "__main__":
-    main()
+# =============================================================================
+# 5. 保存轨道数据
+# =============================================================================
+# 命名规则：ro_32_family_x0start-x0end-stepsize_timestamp.json
+family_result.save_to_file(
+    filename=f"output/ro/ro_32_family_{X0_RANGE[0]}-{X0_RANGE[1]}-{step_size}_{timestampNow()}.json"
+)
