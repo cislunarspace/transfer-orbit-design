@@ -19,14 +19,14 @@ from matplotlib.colors import Normalize
 import e2m2e
 from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization.plotting import OrbitVisualizer, compute_stability_for_family
-from utils.common import MU
+from scripts.utils.common import MU
 
 # =============================================================================
 # 加载轨道数据
 # =============================================================================
 # 加载轨道族数据
-family_name = "ro_32_family_-1.2--0.8-0.005_3856827685"
-family_path = f"output/ro/{family_name}.json"
+family_name = "ro_32_family_-1.3--1-0.01_3856837644"
+family_path = f"scripts/output/ro/{family_name}.json"
 system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 family_result = OrbitFamily.load_from_file(filename=family_path, system=system)
 
