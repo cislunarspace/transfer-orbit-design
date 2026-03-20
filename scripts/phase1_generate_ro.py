@@ -1,20 +1,19 @@
 """
-阶段一：基线轨道生成 — 共振轨道族 (RO)
+[已废弃] 阶段一：基线轨道生成 — 共振轨道族 (RO)
 
-生成3:2和3:1平面共振轨道族 (Resonant Orbits)。
+本脚本已废弃，功能已拆分为：
+  - generate_ro_family.py: 生成RO轨道族
+  - plot_ro_family.py: 可视化RO轨道族
 
-目标RO（论文Table 2）：
-  3:2 RO: T = 4π ≈ 12.566 (航天器3圈/月球2圈)
-  3:1 RO: T = 2π ≈  6.283 (航天器3圈/月球1圈)
-
-参考论文：
-  Cui et al. (2025) "Two-Impulse Transfers from Lunar Distant Retrograde Orbits
-  to Resonant Orbits", JGCD, Vol.48, No.6
+请使用新的脚本：
+  python scripts/generate_ro_family.py --family both
+  python scripts/plot_ro_family.py --family both --plots all
 """
 
 import argparse
 import datetime
 import os
+import sys
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -22,6 +21,11 @@ import e2m2e
 from e2m2e.core import Orbit, OrbitFamily
 import numpy as np
 from scipy.integrate import solve_ivp
+
+# 检查新脚本是否存在
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+GENERATE_SCRIPT = os.path.join(SCRIPT_DIR, "generate_ro_family.py")
+PLOT_SCRIPT = os.path.join(SCRIPT_DIR, "plot_ro_family.py")
 
 # ============================================================
 # 系统参数（论文Table 1）
@@ -262,18 +266,34 @@ def visualize_orbits(system, family_result, label, target_T):
 
 
 # ============================================================
-# 主程序
+# 主程序（已废弃，转发到新脚本）
 # ============================================================
 def main():
-    parser = argparse.ArgumentParser(description="RO族生成")
-    parser.add_argument("--run-continuation", action="store_true", help="执行延拓")
+    # 检查脚本是否存在
+    if not os.path.exists(GENERATE_SCRIPT):
+        print(f"错误: 生成脚本不存在: {GENERATE_SCRIPT}")
+        sys.exit(1)
+
+    parser = argparse.ArgumentParser(description="RO族生成（已废弃，请使用新脚本）")
+    parser.add_argument("--run-continuation", action="store_true", help="执行延拓（已废弃）")
     parser.add_argument(
         "--family",
         choices=["32", "31", "both"],
         default="both",
         help="选择要处理的RO族",
     )
+    parser.add_argument("--skip-deprecation-warning", action="store_true", help="跳过废弃警告")
     args = parser.parse_args()
+
+    if not args.skip_deprecation_warning:
+        print("=" * 60)
+        print("【废弃警告】phase1_generate_ro.py 已废弃！")
+        print("=" * 60)
+        print("请使用新的脚本：")
+        print(f"  生成: python {GENERATE_SCRIPT} --family {args.family}")
+        print(f"  可视化: python {PLOT_SCRIPT} --family {args.family} --plots all")
+        print("=" * 60)
+        print()
 
     print("=" * 60)
     print("Phase 1: 共振轨道(RO)族生成")
@@ -374,17 +394,18 @@ def main():
                     corrector_for_cont.max_iterations = 50
 
                     # 使用论文给的x0作为中心，向两侧延拓
+                    # 计划文件 TASK-004：x0范围 [-1.2, -0.8]，步长 0.005
                     x0_range = (
-                        float(x0),
-                        float(x0 + 0.01),
-                    )  # //TODO 降低范围，加快收敛
+                        -1.2,  # param_min
+                        -0.8,  # param_max
+                    )
                     continuation = e2m2e.algorithms.Continuation(
                         corrector_for_cont, param="x0"
                     )
 
                     family_result = continuation.natural_continuation(
-                        corrected_orbit, x0_range, 0.001, verbose=False
-                    )  # //TODO 通过计算可以发现，步长为0.01时，能够收敛，但是速度很慢，我认为将步长缩小，能够加快每次收敛的速度，降低总时长
+                        corrected_orbit, x0_range, 0.005, verbose=False
+                    )
 
                     if family_result is not None and len(family_result) > 0:
                         print(f"\n3:2 RO族生成: {len(family_result)} 条轨道")
@@ -491,13 +512,17 @@ def main():
                     corrector_for_cont.max_iterations = 50
 
                     # 使用x0作为中心，向两侧延拓
-                    x0_range = (float(x0 - 0.1), float(x0 + 0.1))
+                    # 计划文件 TASK-005：x0范围 [-1.0, -0.7]，步长 0.005
+                    x0_range = (
+                        -1.0,  # param_min
+                        -0.7,  # param_max
+                    )
                     continuation = e2m2e.algorithms.Continuation(
-                        corrector_for_cont, param="x0", step=0.01
+                        corrector_for_cont, param="x0", step=0.005
                     )
 
                     family_result = continuation.natural_continuation(
-                        corrected_orbit, x0_range, 0.01, verbose=True
+                        corrected_orbit, x0_range, 0.005, verbose=True
                     )
 
                     if family_result is not None and len(family_result) > 0:
@@ -527,6 +552,19 @@ def main():
     print(f"\n{'=' * 60}")
     print("完成！")
     print(f"{'=' * 60}")
+
+
+# ============================================================
+# 废弃说明
+# ============================================================
+# 本文件已废弃，功能已拆分为：
+#   - generate_ro_family.py: 生成RO轨道族
+#   - plot_ro_family.py: 可视化RO轨道族
+#
+# 请使用新的脚本：
+#   python scripts/generate_ro_family.py --family both
+#   python scripts/plot_ro_family.py --family both --plots all
+# ============================================================
 
 
 if __name__ == "__main__":
