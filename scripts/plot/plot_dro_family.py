@@ -106,7 +106,7 @@ ax_global_2d.set_aspect("equal")
 
 plt.tight_layout()
 plt.savefig(
-    f"output/dro/{family_name}_global_2d_view.png", dpi=300, bbox_inches="tight"
+    output_dir / f"{family_name}_global_2d_view.png", dpi=300, bbox_inches="tight"
 )
 plt.show()
 
@@ -171,7 +171,7 @@ ax_global_3d.view_init(elev=0, azim=-90)
 
 plt.tight_layout()
 plt.savefig(
-    f"output/dro/{family_name}_global_3d_view.png", dpi=300, bbox_inches="tight"
+    output_dir / f"{family_name}_global_3d_view.png", dpi=300, bbox_inches="tight"
 )
 plt.show()
 
@@ -226,7 +226,7 @@ ax1.grid(True, alpha=0.3)
 
 plt.tight_layout()
 plt.savefig(
-    f"output/dro/{family_name}_jacobi_period_stability.png",
+    output_dir / f"{family_name}_jacobi_period_stability.png",
     dpi=300,
     bbox_inches="tight",
 )
@@ -286,7 +286,7 @@ ax_zoom_2d.legend(loc="upper right", fontsize=10, markerscale=1.0, framealpha=0.
 ax_zoom_2d.set_aspect("equal")
 
 plt.tight_layout()
-plt.savefig(f"output/dro/{family_name}_local_2d_view.png", dpi=300, bbox_inches="tight")
+plt.savefig(output_dir / f"{family_name}_local_2d_view.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 
@@ -308,7 +308,7 @@ ax_zoom_3d = orbit_plotter.plot_3d_orbit_family(
 ax_zoom_3d.view_init(elev=0, azim=-90)
 
 plt.tight_layout()
-plt.savefig(f"output/dro/{family_name}_local_3d_view.png", dpi=300, bbox_inches="tight")
+plt.savefig(output_dir / f"{family_name}_local_3d_view.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 
@@ -410,7 +410,7 @@ fig_overview.suptitle(
 )
 plt.tight_layout()
 plt.savefig(
-    f"output/dro/{family_name}_dro_family_overview.png", dpi=300, bbox_inches="tight"
+    output_dir / f"{family_name}_dro_family_overview.png", dpi=300, bbox_inches="tight"
 )
 plt.show()
 
