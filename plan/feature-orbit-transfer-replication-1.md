@@ -1,8 +1,8 @@
 ---
 goal: "复现 Cui et al. (2025) 两脉冲转移轨道设计论文"
-version: "1.0"
+version: "1.1"
 date_created: 2026-03-20
-last_updated: 2026-03-20
+last_updated: 2026-03-21
 owner: transfer-orbit-design
 status: 'In progress'
 tags: ['feature', 'replication', 'orbital-mechanics', 'cr3bp', 'br4bp', 'ephemeris']
@@ -51,6 +51,7 @@ tags: ['feature', 'replication', 'orbital-mechanics', 'cr3bp', 'br4bp', 'ephemer
 | TASK-006 | 切分岔计算生成 3D RRO 族（`scripts/phase1_generate_3d_ro.py`） | | |
 | TASK-007 | 切分岔计算生成 ARO 族（$A_z = 0.2$） | | |
 | TASK-008 | 验证 RO 族周期满足 3:2 和 3:1 共振比 | | |
+| TASK-008a | 修复轨道族绘图点连接顺序问题（当前按数据顺序连接，应按图上最近距离连接） | | 待3:1 RO族延拓完成后 |
 
 ### Implementation Phase 2: CR3BP 转移轨道设计
 
