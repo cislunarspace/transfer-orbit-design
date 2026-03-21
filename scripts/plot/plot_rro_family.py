@@ -31,7 +31,7 @@ from matplotlib.colors import Normalize
 import e2m2e
 from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization.plotting import OrbitVisualizer, compute_stability_for_family
-from common import MU
+from scripts.utils.common import MU
 
 # =============================================================================
 # 加载轨道数据

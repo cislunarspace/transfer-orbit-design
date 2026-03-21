@@ -15,7 +15,7 @@ scripts_dir = project_root / "scripts"
 utils_dir = scripts_dir / "utils"
 if str(utils_dir) not in sys.path:
     sys.path.insert(0, str(utils_dir))
-from params import MU
+from scripts.utils.params import MU
 
 # =============================================================================
 # 加载轨道数据

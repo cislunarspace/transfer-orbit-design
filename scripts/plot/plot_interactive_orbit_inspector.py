@@ -34,7 +34,7 @@ if str(utils_dir) not in sys.path:
 import e2m2e
 from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization.plotting import OrbitVisualizer
-from common import MU
+from scripts.utils.common import MU
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.colors import Normalize
