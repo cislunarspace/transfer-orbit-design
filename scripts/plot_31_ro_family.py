@@ -33,7 +33,7 @@ from utils.common import MU
 # 加载轨道数据
 # =============================================================================
 # 加载轨道族数据
-family_name = "ro_31_family_-0.9305--0.9305-0.001_3856908009"
+family_name = "ro_31_family_-0.9305--0.8304999999999999-0.001_3856908879"
 family_path = project_root / "output" / "ro" / f"{family_name}.json"
 system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 family_result = OrbitFamily.load_from_file(filename=family_path, system=system)
@@ -72,14 +72,28 @@ n_orbits_to_plot = plot_end - plot_start + 1
 print(f"将绘制第 {plot_start} 至 第 {plot_end} 条轨道，共 {n_orbits_to_plot} 条")
 
 # =============================================================================
-# 计算Jacobi常数和稳定性指数
+# 计算Jacobi常数和稳定性指数（仅针对绘制范围内的轨道）
 # =============================================================================
 print("正在计算Jacobi常数...")
+
+# 只获取绘制范围内的Jacobi常数
+jacobi_values_subset = [family_result.get_jacobi_constants()[i] for i in range(plot_start, plot_end + 1)]
 jacobi_values = family_result.get_jacobi_constants().tolist()
 print(f"Jacobi常数范围: {min(jacobi_values):.6f} ~ {max(jacobi_values):.6f}")
-print("正在计算稳定性指数...")
-stability_values = compute_stability_for_family(family_result, family_result.system)
-print(f"稳定性指数范围: {min(stability_values):.6f} ~ {max(stability_values):.6f}")
+
+# 只对绘制范围内的轨道计算稳定性指数
+print(f"正在计算第 {plot_start} 至 第 {plot_end} 条轨道的稳定性指数...")
+# 创建临时子轨道族用于计算稳定性
+from e2m2e.core import OrbitFamily
+subset_family = OrbitFamily(family_result.system)
+for i in range(plot_start, plot_end + 1):
+    subset_family.add_orbit(family_result[i])
+stability_values_subset = compute_stability_for_family(subset_family, family_result.system)
+# 补齐到完整列表（未计算的轨道填充None）
+stability_values = [None] * n_orbits
+for i, val in enumerate(stability_values_subset):
+    stability_values[plot_start + i] = val
+print(f"稳定性指数范围: {min(stability_values_subset):.6f} ~ {max(stability_values_subset):.6f}")
 
 # =============================================================================
 # 创建可视化器
@@ -112,7 +126,7 @@ fig_global_2d, ax_global_2d = plt.subplots(figsize=(12, 10))
 # 绘制种子轨道（第一条）
 seed_orbit = family_result[0]
 seed_jacobi = jacobi_values[0]
-seed_stability = stability_values[0]
+seed_stability = stability_values[0] if stability_values[0] is not None else stability_values_subset[0]
 label = f"Seed 3:1 RO (C={seed_jacobi:.4f}, λmax={seed_stability:.4f})"
 orbit_plotter.plot_2d_projection(
     seed_orbit, plane="xy", color="red", label=label, ax=ax_global_2d
@@ -144,7 +158,7 @@ ax_global_2d.set_xlabel("X (nondimensional)", fontsize=12)
 ax_global_2d.set_ylabel("Y (nondimensional)", fontsize=12)
 ax_global_2d.set_title(
     f"3:1 Resonant Orbit Family in Earth-Moon CR3BP (XY Plane) - {n_orbits} orbits\n"
-    f"C = [{jacobi_min:.4f}, {jacobi_max:.4f}], λmax = [{min(stability_values):.4f}, {max(stability_values):.4f}]",
+    f"C = [{jacobi_min:.4f}, {jacobi_max:.4f}], λmax = [{min(stability_values_subset):.4f}, {max(stability_values_subset):.4f}]",
     fontsize=12,
 )
 ax_global_2d.legend(loc="upper right", fontsize=10, markerscale=1.0, framealpha=0.9)
@@ -195,7 +209,7 @@ ax_global_3d.set_ylabel("Y (nondimensional)", fontsize=12)
 ax_global_3d.set_zlabel("Z (nondimensional)", fontsize=12)
 ax_global_3d.set_title(
     f"3:1 Resonant Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
-    f"C = [{jacobi_min:.4f}, {jacobi_max:.4f}], λmax = [{min(stability_values):.4f}, {max(stability_values):.4f}]",
+    f"C = [{jacobi_min:.4f}, {jacobi_max:.4f}], λmax = [{min(stability_values_subset):.4f}, {max(stability_values_subset):.4f}]",
     fontsize=12,
 )
 
@@ -245,13 +259,13 @@ ax1.axhline(
     label=f"Target Period ({target_period:.4f})",
 )
 
-# 右纵轴：稳定性指数
+# 右纵轴：稳定性指数（仅绘制范围内的轨道）
 ax2 = ax1.twinx()
 color_stability = "tab:red"
 ax2.set_ylabel("Stability Index (λmax)", color=color_stability, fontsize=12)
 (line_stability,) = ax2.plot(
-    jacobi_values,
-    stability_values,
+    jacobi_values_subset,
+    stability_values_subset,
     "s-",
     color=color_stability,
     markersize=5,
