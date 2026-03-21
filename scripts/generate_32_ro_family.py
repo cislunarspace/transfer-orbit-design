@@ -15,6 +15,15 @@
   Cui et al. (2025) "Two-Impulse Transfers from Lunar Distant Retrograde Orbits
   to Resonant Orbits", JGCD, Vol.48, No.6
 """
+
+import sys
+from pathlib import Path
+
+# 将项目根目录添加到 sys.path，确保可以导入 scripts.utils
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+    
 import e2m2e
 from fontTools.misc.timeTools import timestampNow
 from scripts.utils.common import MU, TU
@@ -50,14 +59,14 @@ seed_RO = corrector.iterate_correction(initial_guess=seed_orbit, verbose=True)
 # 4. 自然延拓生成轨道族
 # =============================================================================
 continuator = e2m2e.algorithms.Continuation(corrector=corrector)
-step_size = 0.01
-param_min = -1.3
-param_max = -1
+step_size = 0.005
+param_min = -1.2
+param_max = -0.8
 family_result = continuator.natural_continuation(
     seed_orbit=seed_RO,
     param_range=(param_min, param_max),  # x0参数延拓范围
     step_size=step_size,  # 延拓步长
-)
+)  # //TODO 这里的延拓逻辑存在问题，当延拓失败的时候，不会提示，好像会将轨道的值设置为一个特殊值。
 
 # =============================================================================
 # 5. 保存轨道数据
@@ -66,3 +75,4 @@ family_result = continuator.natural_continuation(
 family_result.save_to_file(
     filename=f"output/ro/ro_32_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json"
 )
+print(f"已保存至：ro_32_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json")
