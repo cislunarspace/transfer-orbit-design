@@ -11,7 +11,7 @@ from utils.params import MU
 # =============================================================================
 # 加载轨道族数据
 family_name = "dro_family_0.6-0.8-0.005_3856837265"
-family_path = f"scripts/output/dro/{family_name}.json"
+family_path = f"output/dro/{family_name}.json"
 system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 family_result = OrbitFamily.load_from_file(filename=family_path, system=system)
 

@@ -12,6 +12,14 @@
   to Resonant Orbits", JGCD, Vol.48, No.6
 """
 
+import sys
+from pathlib import Path
+
+# 将项目根目录添加到 sys.path，确保可以导入 scripts.utils
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -19,19 +27,49 @@ from matplotlib.colors import Normalize
 import e2m2e
 from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization.plotting import OrbitVisualizer, compute_stability_for_family
-from scripts.utils.common import MU
+from utils.common import MU
 
 # =============================================================================
 # 加载轨道数据
 # =============================================================================
 # 加载轨道族数据
-family_name = "ro_31_family_-1.0--0.7-0.005_3856827611"
-family_path = f"scripts/output/ro/{family_name}.json"
+family_name = "ro_31_family_-1.0--0.7-0.005_3856907185"
+family_path = project_root / "output" / "ro" / f"{family_name}.json"
 system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 family_result = OrbitFamily.load_from_file(filename=family_path, system=system)
 
 n_orbits = len(family_result)
 print(f"加载了 {n_orbits} 条 3:1 RO轨道")
+
+# =============================================================================
+# 绘制范围控制变量
+# =============================================================================
+# PLOT_START_IDX: 起始轨道索引 (0-based)，-1 表示从第一条轨道开始
+# PLOT_END_IDX: 结束轨道索引 (0-based, inclusive)，-1 表示到最后一条轨道
+# 规则：
+#   - 如果 PLOT_START_IDX == -1 且 PLOT_END_IDX == -1：绘制所有轨道
+#   - 如果 PLOT_START_IDX == -1：从第一条绘制到 PLOT_END_IDX
+#   - 如果 PLOT_END_IDX == -1：从 PLOT_START_IDX 绘制到最后一条
+#   - 其他情况：绘制 [PLOT_START_IDX, PLOT_END_IDX] 范围内的轨道
+PLOT_START_IDX = -1  # 修改此值控制起始轨道，例如 0, 10, -1
+PLOT_END_IDX = -1    # 修改此值控制结束轨道，例如 50, 100, -1
+
+# 计算实际绘制范围
+if PLOT_START_IDX == -1 and PLOT_END_IDX == -1:
+    plot_start = 0
+    plot_end = n_orbits - 1
+elif PLOT_START_IDX == -1:
+    plot_start = 0
+    plot_end = min(PLOT_END_IDX, n_orbits - 1)
+elif PLOT_END_IDX == -1:
+    plot_start = min(PLOT_START_IDX, n_orbits - 1)
+    plot_end = n_orbits - 1
+else:
+    plot_start = min(PLOT_START_IDX, n_orbits - 1)
+    plot_end = min(PLOT_END_IDX, n_orbits - 1)
+
+n_orbits_to_plot = plot_end - plot_start + 1
+print(f"将绘制第 {plot_start} 至 第 {plot_end} 条轨道，共 {n_orbits_to_plot} 条")
 
 # =============================================================================
 # 计算Jacobi常数和稳定性指数
@@ -80,8 +118,10 @@ orbit_plotter.plot_2d_projection(
     seed_orbit, plane="xy", color="red", label=label, ax=ax_global_2d
 )
 
-# 绘制其他轨道（从第二条开始）
-for idx in range(1, n_orbits):
+# 绘制其他轨道（使用绘制范围控制）
+# 起始索引为0时跳过（种子轨道已绘制），否则从plot_start开始
+orbit_loop_start = 1 if plot_start == 0 else plot_start
+for idx in range(orbit_loop_start, plot_end + 1):
     orbit = family_result[idx]
     norm_jacobi = (jacobi_values[idx] - jacobi_min) / jacobi_range
     color = cmap(norm_jacobi)
@@ -134,8 +174,9 @@ orbit_plotter.plot_3d_orbit(
     seed_orbit, color="red", label=label_3d, ax=ax_global_3d, show_start=True
 )
 
-# 绘制其他轨道
-for idx in range(1, n_orbits):
+# 绘制其他轨道（使用绘制范围控制）
+orbit_loop_start = 1 if plot_start == 0 else plot_start
+for idx in range(orbit_loop_start, plot_end + 1):
     orbit = family_result[idx]
     norm_jacobi = (jacobi_values[idx] - jacobi_min) / jacobi_range
     color = cmap(norm_jacobi)

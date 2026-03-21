@@ -34,7 +34,7 @@ from utils.common import MU
 # =============================================================================
 # 加载轨道族数据
 family_name = "ro_32_family_-1.2--0.8-0.005_3856902519"
-family_path = project_root / "scripts" / "output" / "ro" / f"{family_name}.json"
+family_path = project_root / "output" / "ro" / f"{family_name}.json"
 system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 family_result = OrbitFamily.load_from_file(filename=family_path, system=system)
 
