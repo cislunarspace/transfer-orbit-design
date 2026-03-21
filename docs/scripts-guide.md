@@ -78,6 +78,24 @@ python scripts/plot_dro_family.py
 python scripts/plot_ro_family.py
 ```
 
+### plot_31_ro_family.py
+
+绘制 3:1 共振轨道族。
+
+```bash
+python scripts/plot_31_ro_family.py
+```
+
+### plot_32_ro_family.py
+
+绘制 3:2 共振轨道族。
+
+```bash
+python scripts/plot_32_ro_family.py
+```
+
+**绘制范围控制**：在脚本顶部设置 `PLOT_START_IDX` 和 `PLOT_END_IDX` 变量，可控制绘制轨道的索引范围。
+
 ## 工具脚本
 
 ### utils/params.py

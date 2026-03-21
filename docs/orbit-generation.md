@@ -68,6 +68,15 @@ python scripts/generate_dro_family.py
 4. 改变 x₀ 参数（例如 3:2 RO 为 -1.2 到 -0.8）
 ```
 
+### 轨道排序
+
+延拓生成的轨道按 **从种子轨道的距离** 排序，存储在 `metadata.continuation_step` 字段中：
+- `continuation_step = 0`：种子轨道
+- `continuation_step > 0`：正向延拓（参数增大方向）
+- `continuation_step < 0`：反向延拓（参数减小方向）
+
+排序模式确保可视化时轨道从种子向外依次展开：`[0, -1, 1, -2, 2, -3, 3, ...]`
+
 ### 脚本使用
 
 ```bash
@@ -100,8 +109,11 @@ python scripts/generate_32_ro_family.py
       "states": [[x, y, z, vx, vy, vz], ...],
       "times": [0.0, 0.01, ...],
       "period": 3.4725,
-      "jacobi_constant": 3.05,
-      "stability_index": 0.95
+      "jacobi_constants": [3.05, ...],
+      "stability_indices": [0.95, ...],
+      "metadata": {
+        "continuation_step": 0
+      }
     }
   ]
 }
