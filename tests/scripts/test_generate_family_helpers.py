@@ -24,9 +24,11 @@ class TestGenerateScriptImports:
     def test_generate_31_ro_imports(self):
         """Test that generate_31_ro_family.py can be imported without errors"""
         script_path = project_root / "scripts" / "generate_31_ro_family.py"
-        spec = importlib.util.spec_from_file_location("generate_31_ro_family", script_path)
+        spec = importlib.util.spec_from_file_location(
+            "generate_31_ro_family", script_path
+        )
         module = importlib.util.module_from_spec(spec)
-        
+
         # Should not raise when parsing
         # Note: actual execution may fail without e2m2e, but import should work
         try:
@@ -38,9 +40,11 @@ class TestGenerateScriptImports:
     def test_generate_32_ro_imports(self):
         """Test that generate_32_ro_family.py can be imported without errors"""
         script_path = project_root / "scripts" / "generate_32_ro_family.py"
-        spec = importlib.util.spec_from_file_location("generate_32_ro_family", script_path)
+        spec = importlib.util.spec_from_file_location(
+            "generate_32_ro_family", script_path
+        )
         module = importlib.util.module_from_spec(spec)
-        
+
         try:
             spec.loader.exec_module(module)
         except ImportError:
@@ -49,9 +53,11 @@ class TestGenerateScriptImports:
     def test_generate_dro_imports(self):
         """Test that generate_dro_family.py can be imported without errors"""
         script_path = project_root / "scripts" / "generate_dro_family.py"
-        spec = importlib.util.spec_from_file_location("generate_dro_family", script_path)
+        spec = importlib.util.spec_from_file_location(
+            "generate_dro_family", script_path
+        )
         module = importlib.util.module_from_spec(spec)
-        
+
         try:
             spec.loader.exec_module(module)
         except ImportError:
@@ -68,7 +74,7 @@ class TestGenerate31ROParameters:
         z0 = 0.0
         vy0 = 0.3921
         vz0 = 0.0
-        
+
         # x0 should be in valid range for 3:1 RO
         assert -2 < x0 < 0  # RO orbits are on Moon's far side
         assert z0 == 0  # Planar orbit
@@ -80,7 +86,7 @@ class TestGenerate31ROParameters:
         x0 = -0.8805
         param_min = x0
         param_max = x0 + 0.05
-        
+
         assert param_min < 0  # RO orbits are on Moon's far side (negative x)
         assert param_max > param_min
         assert param_max < 0  # Should be in valid RO region
@@ -95,7 +101,7 @@ class TestGenerate32ROParameters:
         z0 = 0.0
         vy0 = 0.4633
         vz0 = 0.0
-        
+
         # x0 should be in valid range for 3:2 RO
         assert -2 < x0 < 0
         assert z0 == 0
@@ -106,7 +112,7 @@ class TestGenerate32ROParameters:
         """Test that 3:2 RO continuation range is reasonable"""
         param_min = -1.2
         param_max = -0.8
-        
+
         assert param_min < param_max
         assert -2 < param_min < 0
         assert -2 < param_max < 0
@@ -119,7 +125,7 @@ class TestGenerateDROParameters:
         """Test that DRO seed orbit parameters are reasonable"""
         x0 = 0.79188556619742
         vy0 = 0.53682
-        
+
         # DRO orbits are between Earth and Moon, x0 should be positive
         assert 0 < x0 < 1
         assert vy0 > 0
@@ -129,7 +135,7 @@ class TestGenerateDROParameters:
         param_min = 0.6
         param_max = 0.8
         step_size = 0.005
-        
+
         assert 0 < param_min < param_max
         assert param_max < 1
         assert step_size > 0

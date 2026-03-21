@@ -12,9 +12,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from scripts.utils.params import (
-    MU, M_SUN, OMEGA_SUN, RHO, DU, TU, VU, T_MOON
-)
+from scripts.utils.params import MU, M_SUN, OMEGA_SUN, RHO, DU, TU, VU, T_MOON
 
 
 class TestPhysicalConstants:
@@ -54,6 +52,7 @@ class TestPhysicalConstants:
     def test_t_moon_equals_2pi(self):
         """Moon orbital period in nondimensional units should be 2π"""
         import math
+
         assert math.isclose(T_MOON, 2 * math.pi, rel_tol=1e-10)
 
     def test_constants_consistency(self):
@@ -62,5 +61,6 @@ class TestPhysicalConstants:
         # DU [km], TU [days], VU [m/s]
         # Expected: VU ≈ DU * 1000 / (TU * 86400)
         import math
+
         expected_vu = DU * 1000 / (TU * 86400)  # m/s
         assert math.isclose(VU, expected_vu, rel_tol=0.01)  # Within 1%

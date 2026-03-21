@@ -17,8 +17,16 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from scripts.utils.common import (
-    MU, TU, DU, VU, T_MOON, FAMILY_FILENAME,
-    ensure_output_dir, get_latest_family_file, load_or_compute, save_family_to_file
+    MU,
+    TU,
+    DU,
+    VU,
+    T_MOON,
+    FAMILY_FILENAME,
+    ensure_output_dir,
+    get_latest_family_file,
+    load_or_compute,
+    save_family_to_file,
 )
 
 
@@ -45,6 +53,7 @@ class TestConstants:
     def test_t_moon_equals_2pi(self):
         """Moon orbital period in nondimensional units should be 2π"""
         import math
+
         assert math.isclose(T_MOON, 2 * math.pi, rel_tol=1e-10)
 
     def test_family_filename_default(self):
@@ -93,7 +102,7 @@ class TestGetLatestFamilyFile:
         # Create family.json in tmp_path
         family_file = tmp_path / FAMILY_FILENAME
         family_file.write_text("{}")
-        
+
         result = get_latest_family_file(str(tmp_path))
         assert result == str(family_file)
 
@@ -102,24 +111,25 @@ class TestGetLatestFamilyFile:
         # Create a parent output dir with timestamped subdirs
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        
+
         # Create two subdirs with different modification times
         old_dir = output_dir / "20240101_100000"
         new_dir = output_dir / "20240102_110000"
         old_dir.mkdir()
         new_dir.mkdir()
-        
+
         # Create family.json in both
         (old_dir / FAMILY_FILENAME).write_text('{"old": true}')
         (new_dir / FAMILY_FILENAME).write_text('{"new": true}')
-        
+
         # Update modification time using os to make new_dir appear latest
         import time
         import os
+
         time.sleep(0.1)
         new_mtime = os.path.getmtime(str(new_dir)) + 1
         os.utime(str(new_dir), (new_mtime, new_mtime))
-        
+
         result = get_latest_family_file(str(output_dir))
         assert result == str(new_dir / FAMILY_FILENAME)
 
@@ -131,41 +141,41 @@ class TestSaveFamilyToFile:
         """Should create a timestamped subdirectory"""
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        
+
         # Create a mock that writes file at the exact path passed
         mock_family = MagicMock()
-        
+
         def mock_save(filepath):
             # filepath is like tmp/output/timestamp/family.json
             p = Path(filepath)
             p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text('{}')
-        
+            p.write_text("{}")
+
         mock_family.save_to_file = mock_save
-        
+
         result_dir = save_family_to_file(mock_family, str(output_dir))
-        
+
         # Check that timestamped directory was created
         assert Path(result_dir).exists()
         # Check that family.json exists inside it
         assert (Path(result_dir) / FAMILY_FILENAME).exists()
-        
+
     def test_copies_to_latest(self, tmp_path):
         """Should copy saved file to latest path"""
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        
+
         # Create a mock that writes file at the exact path passed
         mock_family = MagicMock()
-        
+
         def mock_save(filepath):
             p = Path(filepath)
             p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text('{}')
-        
+            p.write_text("{}")
+
         mock_family.save_to_file = mock_save
-        
+
         save_family_to_file(mock_family, str(output_dir))
-        
+
         latest_path = output_dir / FAMILY_FILENAME
         assert latest_path.exists()
