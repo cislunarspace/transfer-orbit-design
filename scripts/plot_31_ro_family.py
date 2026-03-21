@@ -165,7 +165,7 @@ ax_global_2d.legend(loc="upper right", fontsize=10, markerscale=1.0, framealpha=
 ax_global_2d.set_aspect("equal")
 
 plt.tight_layout()
-plt.savefig(f"output/ro/{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
+plt.savefig(project_root / "output" / "ro" / f"{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # =============================================================================
@@ -228,7 +228,7 @@ ax_global_3d.legend(loc="upper right", fontsize=10)
 ax_global_3d.view_init(elev=0, azim=-90)
 
 plt.tight_layout()
-plt.savefig(f"output/ro/{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
+plt.savefig(project_root / "output" / "ro" / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # =============================================================================
@@ -236,13 +236,19 @@ plt.show()
 # =============================================================================
 fig_jacobi, ax1 = plt.subplots(figsize=(12, 7))
 
+# 按 Jacobi 值排序以避免连线交叉
+sort_idx = np.argsort(jacobi_values_subset)
+jacobi_sorted = np.array(jacobi_values_subset)[sort_idx]
+periods_sorted = np.array(family_result.periods[plot_start : plot_end + 1])[sort_idx]
+stability_sorted = np.array(stability_values_subset)[sort_idx]
+
 # 左纵轴：周期
 color_period = "tab:blue"
 ax1.set_xlabel("Jacobi Constant", fontsize=12)
 ax1.set_ylabel("Period (nondimensional)", color=color_period, fontsize=12)
 (line_period,) = ax1.plot(
-    jacobi_values,
-    family_result.periods,
+    jacobi_sorted,
+    periods_sorted,
     "o-",
     color=color_period,
     markersize=5,
@@ -264,8 +270,8 @@ ax2 = ax1.twinx()
 color_stability = "tab:red"
 ax2.set_ylabel("Stability Index (λmax)", color=color_stability, fontsize=12)
 (line_stability,) = ax2.plot(
-    jacobi_values_subset,
-    stability_values_subset,
+    jacobi_sorted,
+    stability_sorted,
     "s-",
     color=color_stability,
     markersize=5,
@@ -287,7 +293,7 @@ ax1.legend(lines, labels, loc="upper right", fontsize=10)
 
 plt.tight_layout()
 plt.savefig(
-    f"output/ro/{family_name}_period_stability.png", dpi=300, bbox_inches="tight"
+    project_root / "output" / "ro" / f"{family_name}_period_stability.png", dpi=300, bbox_inches="tight"
 )
 plt.show()
 
