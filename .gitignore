@@ -208,6 +208,7 @@ Desktop.ini
 # 大型数据文件
 /data/
 /output/
+/scripts/output/
 /results/
 
 # 配置文件（包含敏感信息）
