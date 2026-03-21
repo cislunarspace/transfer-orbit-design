@@ -77,10 +77,11 @@ class TestGenerate31ROParameters:
 
     def test_continuation_range_31ro(self):
         """Test that 3:1 RO continuation range is reasonable"""
-        param_min = 0.8905
-        param_max = -0.8805 + 0.05  # x0 + 0.05
+        x0 = -0.8805
+        param_min = x0
+        param_max = x0 + 0.05
         
-        assert param_min > 0
+        assert param_min < 0  # RO orbits are on Moon's far side (negative x)
         assert param_max > param_min
         assert param_max < 0  # Should be in valid RO region
 
