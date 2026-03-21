@@ -43,11 +43,11 @@ plt.ion()  # 开启交互模式
 # 配置区 - 修改这里选择要检查的轨道族
 # =============================================================================
 # 轨道族数据文件
-FAMILY_NAME = "dro_family_0.6-0.8-0.005_3856837265"  # 3:2 RO 轨道族
-# FAMILY_NAME = "ro_31_family_-1.0--0.7-0.005_3856827709"  # 3:1 RO 轨道族
+FAMILY_NAME = "ro_31_family_-0.9305--0.9305-0.001_3856908478"  # 3:2 RO 轨道族
+# FAMILY_NAME = "ro_31_family_-1.0--0.7-0.005_3856907185"  # 3:1 RO 轨道族
 # FAMILY_NAME = "dro_family_0.6-0.8-0.005_3856837322"  # DRO 轨道族
 
-FAMILY_PATH = project_root / "scripts" / "output" / "dro" / f"{FAMILY_NAME}.json"
+FAMILY_PATH = project_root / "output" / "ro" / f"{FAMILY_NAME}.json"
 
 # 可视化配置
 PLANE = "xy"  # 投影平面: "xy", "xz", "yz"

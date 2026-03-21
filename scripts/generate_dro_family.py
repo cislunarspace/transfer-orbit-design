@@ -16,6 +16,13 @@ from e2m2e.core import Orbit
 
 from scripts.utils.common import MU
 
+import sys
+from pathlib import Path
+
+# 项目根目录
+project_root = Path(__file__).parent.parent
+OUTPUT_DIR = project_root / "output"
+
 # =============================================================================
 # 1. 系统与动力学模型初始化
 # =============================================================================
@@ -61,5 +68,5 @@ family_result = continuation.natural_continuation(
 # =============================================================================
 # 命名规则：dro_family_x0start-x0end-stepsize_timestamp.json
 family_result.save_to_file(
-    filename=f"output/dro/dro_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json"
+    filename=str(OUTPUT_DIR / "dro" / f"dro_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json")
 )

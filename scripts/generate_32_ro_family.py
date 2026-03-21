@@ -28,6 +28,8 @@ import e2m2e
 from fontTools.misc.timeTools import timestampNow
 from scripts.utils.common import MU, TU
 
+OUTPUT_DIR = project_root / "output"
+
 # =============================================================================
 # 1. 系统与动力学模型初始化
 # =============================================================================
@@ -73,7 +75,7 @@ family_result = continuator.natural_continuation(
 # =============================================================================
 # 命名规则：ro_32_family_x0start-x0end-stepsize_timestamp.json
 family_result.save_to_file(
-    filename=f"output/ro/ro_32_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json"
+    filename=str(OUTPUT_DIR / "ro" / f"ro_32_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json")
 )
 print(
     f"已保存至：ro_32_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json"

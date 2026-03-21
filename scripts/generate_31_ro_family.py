@@ -28,6 +28,8 @@ import e2m2e
 from fontTools.misc.timeTools import timestampNow
 from scripts.utils.common import MU, TU
 
+OUTPUT_DIR = project_root / "output"
+
 # =============================================================================
 # 1. 系统与动力学模型初始化
 # =============================================================================
@@ -59,9 +61,9 @@ seed_RO = corrector.iterate_correction(initial_guess=seed_orbit, verbose=True)
 # 4. 自然延拓生成轨道族
 # =============================================================================
 continuator = e2m2e.algorithms.Continuation(corrector=corrector)
-step_size = 0.005
-param_min = -1.0
-param_max = -0.7
+step_size = 0.001
+param_min = x0 - 0.05
+param_max = x0 - 0.05
 family_result = continuator.natural_continuation(
     seed_orbit=seed_RO,
     param_range=(param_min, param_max),  # x0参数延拓范围
@@ -73,7 +75,7 @@ family_result = continuator.natural_continuation(
 # =============================================================================
 # 命名规则：ro_31_family_x0start-x0end-stepsize_timestamp.json
 family_result.save_to_file(
-    filename=f"output/ro/ro_31_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json"
+    filename=str(OUTPUT_DIR / "ro" / f"ro_31_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json")
 )
 print(
     f"已保存至：ro_31_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json"
