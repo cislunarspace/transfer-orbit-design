@@ -70,7 +70,6 @@ family_result = continuation.natural_continuation(
 family_result.save_to_file(
     filename=str(
         OUTPUT_DIR
-        / "dro"
         / f"dro_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json"
     )
 )
