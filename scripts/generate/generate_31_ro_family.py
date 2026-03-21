@@ -1,0 +1,86 @@
+"""
+生成 3:1 共振轨道族
+
+本脚本实现：
+1. 创建CR3BP系统和动力学模型
+2. 设置3:1 RO种子轨道的初始状态向量
+3. 利用差分修正器修正种子轨道
+4. 采用自然延拓方法生成完整轨道族
+
+3:1共振轨道特征：
+  - T = 2π ≈ 6.283 TU (航天器3圈/月球1圈)
+  - y幅值点: x=-0.8805, y=0.3921
+
+参考论文：
+  Cui et al. (2025) "Two-Impulse Transfers from Lunar Distant Retrograde Orbits
+  to Resonant Orbits", JGCD, Vol.48, No.6
+"""
+
+import sys
+from pathlib import Path
+
+# 将项目根目录添加到 sys.path，确保可以导入 scripts.utils
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+import e2m2e
+from fontTools.misc.timeTools import timestampNow
+from scripts.utils.common import MU, TU
+
+OUTPUT_DIR = project_root / "output"
+
+# =============================================================================
+# 1. 系统与动力学模型初始化
+# =============================================================================
+system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
+dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+
+# =============================================================================
+# 2. 种子轨道初始状态定义
+# =============================================================================
+# 3:1 RO特征：平面内运动（y幅值点处y_dot=0），关于x轴对称（vx=vz=0）
+# 初始状态向量格式：[x, y, z, vx, vy, vz]，均为无量纲量
+x0 = -0.8805  # 初始x坐标（无量纲）
+z0 = 0.0  # 初始z坐标（无量纲）
+vy0 = 0.3921  # 初始y方向速度（无量纲）
+vz0 = 0.0  # 初始z方向速度（无量纲）
+initial_state = [x0, 0.0, z0, 0.0, vy0, vz0]
+times = [0]  # 第一个历元时刻
+seed_orbit = e2m2e.core.orbit.Orbit(states=[initial_state], times=times)
+seed_orbit.period = 27.32 / TU  # 轨道周期（无量纲时间）
+
+# =============================================================================
+# 3. 种子轨道差分修正
+# =============================================================================
+corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamics)
+corrector.setup_2D_symmetric_x_fixed_x0(x0=x0)
+seed_RO = corrector.iterate_correction(initial_guess=seed_orbit, verbose=True)
+
+# =============================================================================
+# 4. 自然延拓生成轨道族
+# =============================================================================
+continuator = e2m2e.algorithms.Continuation(corrector=corrector)
+step_size = 0.001
+param_min = 0.8905
+param_max = x0 + 0.05
+family_result = continuator.natural_continuation(
+    seed_orbit=seed_RO,
+    param_range=(param_min, param_max),  # x0参数延拓范围
+    step_size=step_size,  # 延拓步长
+)
+
+# =============================================================================
+# 5. 保存轨道数据
+# =============================================================================
+# 命名规则：ro_31_family_x0start-x0end-stepsize_timestamp.json
+family_result.save_to_file(
+    filename=str(
+        OUTPUT_DIR
+        / "ro"
+        / f"ro_31_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json"
+    )
+)
+print(
+    f"已保存至：ro_31_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json"
+)
