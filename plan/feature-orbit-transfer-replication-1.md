@@ -23,6 +23,9 @@ tags: ['feature', 'replication', 'orbital-mechanics', 'cr3bp', 'br4bp', 'ephemer
 - **REQ-005**: 生成 RO 族种子（已完成 phase1_generate_ro.py）
 - **REQ-006**: 完整 RO 族延拓（延拓参数和范围待确定）
 - **REQ-007**: 生成 3D RRO 和 ARO 族（切分岔计算）
+  - 实现分岔检测算法（检测单值矩阵特征值 λ ≈ 1）
+  - 从 3:2/3:1 RO 族识别分岔点并生成 RRO 族
+  - 固定 x0 改变 z0 幅值延拓生成 ARO 族
 - **REQ-008**: 实现搜索阶段算法（网格化搜索 + 前向积分 + 筛选）
 - **REQ-009**: 实现优化阶段算法（NLP + SQP 求解器）
 - **REQ-010**: 实现 BR4BP 动力学模型
@@ -49,8 +52,58 @@ tags: ['feature', 'replication', 'orbital-mechanics', 'cr3bp', 'br4bp', 'ephemer
 | TASK-004 | 3:2 RO 族完整延拓（确定延拓参数：x0 范围 [−1.2, −0.8]，步长 0.005） | ✅ | 2026-03-21 |
 | TASK-005 | 3:1 RO 族完整延拓（确定延拓参数：x0 范围 [−1.0, −0.7]，步长 0.005） | ✅ | 2026-03-21 |
 | TASK-006 | 切分岔计算生成 3D RRO 族（`scripts/phase1_generate_3d_ro.py`） | | |
+
+### TASK-006 细化分解
+
+**目标**: 通过检测平面 RO 族的特征值分岔点，生成 3D RRO（反射共振轨道）族
+
+**技术背景**:
+- 论文 Section II.D: "当单值矩阵的一对特征值在实轴 +1 处碰撞时，发生切分岔，伴随 3D 轨道的生成"
+- RRO 特征：关于 x-z 平面对称（Mirror Theorem），类似于 LPO 中的 Halo 轨道
+- ARO 特征：关于 x 轴对称，类似于 LPO 中的轴向轨道
+
+**子任务分解**:
+
+| 子任务 | 描述 | 优先级 | 依赖 |
+|--------|------|--------|------|
+| SUB-006-01 | **实现分岔检测算法**: 在延拓过程中检测单值矩阵特征值是否接近 +1 | P0 | - |
+| SUB-006-02 | **确定分岔点参数**: 从 3:2 RO 族中识别 x0 ≈ -1.0878（对应 Az=0.2 的 RRO） | P0 | SUB-006-01 |
+| SUB-006-03 | **配置 3D 对称修正器**: 使用 `setup_3D_symmetric_x_fixed_x0` 配置 RRO 微分修正 | P0 | - |
+| SUB-006-04 | **实现 RRO 族延拓**: 从分岔点出发，固定 x0 改变 z0 幅值延拓生成 RRO 族 | P0 | SUB-006-02, SUB-006-03 |
+| SUB-006-05 | **验证 RRO 轨道参数**: 对比论文 Table 2 中 3:2 RRO (x=-1.0878, z=0.2, Az=0.2) | P1 | SUB-006-04 |
+| SUB-006-06 | **生成 3:1 RRO 族**: 同样方法处理 3:1 RO 族（分岔点 x0 ≈ -0.7660） | P1 | SUB-006-01 ~ SUB-006-05 |
+| SUB-006-07 | **编写 `scripts/phase1_generate_3d_ro.py`**: 整合以上模块为可执行脚本 | P0 | SUB-006-04 |
+
+**实现方案**:
+
+```python
+# 1. 加载已有的 3:2 RO 族数据
+# 2. 对每个轨道计算单值矩阵特征值
+# 3. 检测 |λ - 1| < tolerance 的分岔点
+# 4. 在分岔点处提取状态，配置 3D 修正器
+# 5. 以 z0 为延拓参数继续延拓生成 RRO 族
+```
+
+**参考代码**:
+- `e2m2e/algorithms/stability.py`: `compute_floquet_multipliers()`, `compute_stability_index()`
+- `e2m2e/algorithms/differential_correction.py`: `setup_3D_symmetric_x_fixed_x0()`
+- `e2m2e/algorithms/continuation.py`: `natural_continuation()`
+
 | TASK-007 | 切分岔计算生成 ARO 族（$A_z = 0.2$） | | |
-| TASK-008 | 验证 RO 族周期满足 3:2 和 3:1 共振比 | | |
+
+### TASK-007 细化分解
+
+**目标**: 通过分岔生成 ARO（轴向共振轨道）族
+
+**子任务分解**:
+
+| 子任务 | 描述 | 优先级 | 依赖 |
+|--------|------|--------|------|
+| SUB-007-01 | **配置 ARO 微分修正器**: 使用 `setup_3D_symmetric_xz_fixed_z0` 固定 z0 延拓 x0 | P0 | - |
+| SUB-007-02 | **确定 ARO 族分岔起点**: 从论文 Table 2 获取 3:2 ARO 种子 (x=-1.1318, z=0.1999) | P0 | - |
+| SUB-007-03 | **实现 ARO 族延拓**: 以 x0 为参数固定 z0 延拓生成 ARO 族 | P0 | SUB-007-01 |
+| SUB-007-04 | **验证 ARO 轨道参数**: 对比论文 Table 2 中 3:2 ARO 参数 | P1 | SUB-007-03 |
+| SUB-007-05 | **生成 3:1 ARO 族**: 同样方法处理 3:1 RO 族 | P1 | SUB-007-01 ~ SUB-007-04 |
 | TASK-008a | 修复轨道族绘图点连接顺序问题（使用最近邻排序算法替代数据顺序连接） | ✅ | 2026-03-21 |
 
 ### Implementation Phase 2: CR3BP 转移轨道设计
