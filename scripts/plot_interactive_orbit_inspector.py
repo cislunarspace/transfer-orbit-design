@@ -61,6 +61,7 @@ FIGURE_SIZE = (10, 8)  # 图形大小
 # 创建全局图形窗口
 fig = plt.figure(figsize=FIGURE_SIZE)
 
+
 def compute_orbit_jacobi(orbit, system):
     """计算单条轨道的Jacobi常数"""
     dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
@@ -82,28 +83,31 @@ def precompute_jacobi_for_family(family, system):
     return jacobi_list
 
 
-def compute_global_axis_limits(family, plane='xy', margin=1.15):
+def compute_global_axis_limits(family, plane="xy", margin=1.15):
     """根据轨道族计算全局轴范围，确保所有轨道都能显示在同一窗口"""
-    all_coords = {'x': [], 'y': [], 'z': []}
-    
+    all_coords = {"x": [], "y": [], "z": []}
+
     for orbit in family:
         states = orbit.states
         for state in states:
             x, y, z = state[0], state[1], state[2]
-            all_coords['x'].extend([x])
-            all_coords['y'].extend([y])
-            all_coords['z'].extend([z])
-    
-    if plane == 'xy':
-        max_val = max(max(abs(v) for v in all_coords['x']), 
-                      max(abs(v) for v in all_coords['y']))
-    elif plane == 'xz':
-        max_val = max(max(abs(v) for v in all_coords['x']), 
-                      max(abs(v) for v in all_coords['z']))
-    elif plane == 'yz':
-        max_val = max(max(abs(v) for v in all_coords['y']), 
-                      max(abs(v) for v in all_coords['z']))
-    
+            all_coords["x"].extend([x])
+            all_coords["y"].extend([y])
+            all_coords["z"].extend([z])
+
+    if plane == "xy":
+        max_val = max(
+            max(abs(v) for v in all_coords["x"]), max(abs(v) for v in all_coords["y"])
+        )
+    elif plane == "xz":
+        max_val = max(
+            max(abs(v) for v in all_coords["x"]), max(abs(v) for v in all_coords["z"])
+        )
+    elif plane == "yz":
+        max_val = max(
+            max(abs(v) for v in all_coords["y"]), max(abs(v) for v in all_coords["z"])
+        )
+
     limit = max_val * margin
     return -limit, limit
 
@@ -111,42 +115,42 @@ def compute_global_axis_limits(family, plane='xy', margin=1.15):
 def main():
     # 加载系统
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    
+
     # 加载轨道族
     print(f"加载轨道族: {FAMILY_NAME}")
     family = OrbitFamily.load_from_file(filename=FAMILY_PATH, system=system)
     n_orbits = len(family)
     print(f"共 {n_orbits} 条轨道")
-    
+
     # 预计算所有轨道的Jacobi常数
     print("正在计算Jacobi常数...")
     jacobi_values = precompute_jacobi_for_family(family, system)
     jacobi_min = min(jacobi_values)
     jacobi_max = max(jacobi_values)
     print(f"Jacobi常数范围: {jacobi_min:.6f} ~ {jacobi_max:.6f}")
-    
+
     # 计算全局轴范围
     print("正在计算轴范围...")
     xlim, ylim = compute_global_axis_limits(family, plane=PLANE)
     print(f"轴范围: [{xlim:.3f}, {ylim:.3f}]")
-    
+
     # 创建可视化器
     orbit_plotter = OrbitVisualizer(system=system)
     orbit_plotter.figsize = FIGURE_SIZE
-    
+
     # 设置天体和拉格朗日点样式（参考 plot_32_ro_family.py）
     orbit_plotter.primary_body_color = "blue"
     orbit_plotter.secondary_body_color = "silver"
     orbit_plotter.libration_point_colors = ["gray"] * 5
     orbit_plotter.libration_point_markers = ["^"] * 5
     orbit_plotter.libration_point_sizes = [60] * 5
-    
+
     # 颜色映射
     cmap = matplotlib.colormaps["coolwarm"]
-    
+
     # 主循环
     current_idx = 0
-    
+
     print("\n" + "=" * 60)
     print("交互式轨道检查器")
     print("=" * 60)
@@ -156,39 +160,45 @@ def main():
     print("输入 'j N': 跳转到第N条轨道")
     print("输入 'r': 重新绘制当前轨道")
     print("=" * 60 + "\n")
-    
+
     while True:
         # 显示当前轨道信息
         orbit = family[current_idx]
         jacobi = jacobi_values[current_idx]
         period = orbit.period if orbit.period else 0.0
-        
+
         print(f"\n[{current_idx + 1}/{n_orbits}] 轨道信息:")
-        print(f"  状态向量: [{orbit.states[0][0]:.6f}, {orbit.states[0][1]:.6f}, "
-              f"{orbit.states[0][2]:.6f}, {orbit.states[0][3]:.6f}, "
-              f"{orbit.states[0][4]:.6f}, {orbit.states[0][5]:.6f}]")
+        print(
+            f"  状态向量: [{orbit.states[0][0]:.6f}, {orbit.states[0][1]:.6f}, "
+            f"{orbit.states[0][2]:.6f}, {orbit.states[0][3]:.6f}, "
+            f"{orbit.states[0][4]:.6f}, {orbit.states[0][5]:.6f}]"
+        )
         print(f"  Jacobi常数: {jacobi:.6f}")
         print(f"  周期: {period:.4f} TU ({period * 4.348:.4f} days)")
-        
+
         # 清除上一帧
         fig.clf()
-        
+
         # 2D投影
         if SHOW_3D:
             ax_2d = fig.add_subplot(1, 2, 1)
-            ax_3d = fig.add_subplot(1, 2, 2, projection='3d')
+            ax_3d = fig.add_subplot(1, 2, 2, projection="3d")
         else:
             ax_2d = fig.add_subplot(111)
             ax_3d = None
-        
+
         # 根据Jacobi值计算颜色
-        norm_jacobi = (jacobi - jacobi_min) / (jacobi_max - jacobi_min) if jacobi_max != jacobi_min else 0.5
+        norm_jacobi = (
+            (jacobi - jacobi_min) / (jacobi_max - jacobi_min)
+            if jacobi_max != jacobi_min
+            else 0.5
+        )
         orbit_color = cmap(norm_jacobi)
-        
+
         # 绘制主天体和平动点
         orbit_plotter.plot_primary_bodies(ax=ax_2d)
         orbit_plotter.plot_libration_points(ax=ax_2d)
-        
+
         # 绘制轨道
         label = f"Orbit {current_idx + 1} (C={jacobi:.4f})"
         orbit_plotter.plot_2d_projection(
@@ -197,43 +207,47 @@ def main():
         ax_2d.set_title(f"XY Plane - Orbit {current_idx + 1}/{n_orbits}")
         ax_2d.legend(loc="upper right")
         ax_2d.set_aspect("equal")
-        
+
         # 设置统一的轴范围
         ax_2d.set_xlim(xlim, ylim)
         ax_2d.set_ylim(xlim, ylim)
-        
+
         # 添加颜色条
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=Normalize(vmin=jacobi_min, vmax=jacobi_max))
+        sm = plt.cm.ScalarMappable(
+            cmap=cmap, norm=Normalize(vmin=jacobi_min, vmax=jacobi_max)
+        )
         sm.set_array([])
         divider = make_axes_locatable(ax_2d)
         cax = divider.append_axes("right", size="2%", pad=0.1)
         cbar = plt.colorbar(sm, cax=cax)
         cbar.set_label("Jacobi Constant", fontsize=10)
-        
+
         # 3D视图
         if SHOW_3D:
             orbit_plotter.plot_primary_bodies(ax=ax_3d, is_3d=True)
             orbit_plotter.plot_libration_points(ax=ax_3d, is_3d=True, show_labels=True)
-            orbit_plotter.plot_3d_orbit(
-                orbit, color=orbit_color, label=label, ax=ax_3d
-            )
+            orbit_plotter.plot_3d_orbit(orbit, color=orbit_color, label=label, ax=ax_3d)
             ax_3d.set_title(f"3D View - Orbit {current_idx + 1}/{n_orbits}")
             ax_3d.legend(loc="upper right")
-        
+
         plt.tight_layout()
         fig.canvas.draw()
         fig.canvas.flush_events()
-        
+
         try:
-            user_input = input("\n命令 (Enter继续, q退出, s跳过, j跳转, r重绘): ").strip().lower()
+            user_input = (
+                input("\n命令 (Enter继续, q退出, s跳过, j跳转, r重绘): ")
+                .strip()
+                .lower()
+            )
         except EOFError:
             # 非交互环境
             break
-        
-        if user_input == 'q':
+
+        if user_input == "q":
             print("退出程序")
             break
-        elif user_input.startswith('s '):
+        elif user_input.startswith("s "):
             # 跳过N条轨道
             try:
                 skip_n = int(user_input.split()[1])
@@ -241,7 +255,7 @@ def main():
                 print(f"跳转到轨道 {current_idx + 1}")
             except (ValueError, IndexError):
                 print("无效的跳过数量")
-        elif user_input.startswith('j '):
+        elif user_input.startswith("j "):
             # 跳转到指定轨道
             try:
                 target = int(user_input.split()[1])
@@ -249,7 +263,7 @@ def main():
                 print(f"跳转到轨道 {current_idx + 1}")
             except (ValueError, IndexError):
                 print("无效的轨道编号")
-        elif user_input == 'r':
+        elif user_input == "r":
             # 重新绘制当前轨道（不前进）
             print(f"重绘轨道 {current_idx + 1}")
             continue
@@ -260,7 +274,7 @@ def main():
             else:
                 print("已到达最后一条轨道")
                 break
-    
+
     print(f"\n检查完成，共检查了 {current_idx + 1} 条轨道")
 
 

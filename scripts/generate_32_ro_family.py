@@ -23,7 +23,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
-    
+
 import e2m2e
 from fontTools.misc.timeTools import timestampNow
 from scripts.utils.common import MU, TU
@@ -40,13 +40,13 @@ dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
 # 3:2 RO特征：平面内运动（y幅值点处y_dot=0），关于x轴对称（vx=vz=0）
 # 初始状态向量格式：[x, y, z, vx, vy, vz]，均为无量纲量
 x0 = -1.1453  # 初始x坐标（无量纲）
-z0 = 0.0 # 初始z坐标（无量纲）
+z0 = 0.0  # 初始z坐标（无量纲）
 vy0 = 0.4633  # 初始y方向速度（无量纲）
-vz0 = 0.0 # 初始z方向速度（无量纲）
+vz0 = 0.0  # 初始z方向速度（无量纲）
 initial_state = [x0, 0.0, z0, 0.0, vy0, vz0]
 times = [0]  # 第一个历元时刻
 seed_orbit = e2m2e.core.orbit.Orbit(states=[initial_state], times=times)
-seed_orbit.period = 54.64 / TU # 轨道周期（无量纲时间）
+seed_orbit.period = 54.64 / TU  # 轨道周期（无量纲时间）
 
 # =============================================================================
 # 3. 种子轨道差分修正
@@ -75,4 +75,6 @@ family_result = continuator.natural_continuation(
 family_result.save_to_file(
     filename=f"output/ro/ro_32_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json"
 )
-print(f"已保存至：ro_32_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json")
+print(
+    f"已保存至：ro_32_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json"
+)

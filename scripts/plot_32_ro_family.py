@@ -52,7 +52,7 @@ print(f"加载了 {n_orbits} 条 3:2 RO轨道")
 #   - 如果 PLOT_END_IDX == -1：从 PLOT_START_IDX 绘制到最后一条
 #   - 其他情况：绘制 [PLOT_START_IDX, PLOT_END_IDX] 范围内的轨道
 PLOT_START_IDX = -1  # 修改此值控制起始轨道，例如 0, 10, -1
-PLOT_END_IDX = 42    # 修改此值控制结束轨道，例如 50, 100, -1
+PLOT_END_IDX = 42  # 修改此值控制结束轨道，例如 50, 100, -1
 
 # 计算实际绘制范围
 if PLOT_START_IDX == -1 and PLOT_END_IDX == -1:
@@ -103,6 +103,7 @@ jacobi_range = jacobi_max - jacobi_min if jacobi_max != jacobi_min else 1.0
 
 # 3:2 RO 目标周期
 target_period = 4 * np.pi  # 4π ≈ 12.566 TU
+
 
 # =============================================================================
 # 辅助函数：绘制指定范围的2D轨道视图
@@ -348,9 +349,7 @@ ax_global_2d.legend(loc="upper right", fontsize=10, markerscale=1.0, framealpha=
 ax_global_2d.set_aspect("equal")
 
 plt.tight_layout()
-plt.savefig(
-    f"output/ro/{family_name}_2d_view.png", dpi=300, bbox_inches="tight"
-)
+plt.savefig(f"output/ro/{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # =============================================================================
@@ -412,9 +411,7 @@ ax_global_3d.legend(loc="upper right", fontsize=10)
 ax_global_3d.view_init(elev=0, azim=-90)
 
 plt.tight_layout()
-plt.savefig(
-    f"output/ro/{family_name}_3d_view.png", dpi=300, bbox_inches="tight"
-)
+plt.savefig(f"output/ro/{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
 plt.show()
 
 # =============================================================================
