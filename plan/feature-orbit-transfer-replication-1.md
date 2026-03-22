@@ -1,11 +1,12 @@
 ---
 goal: "复现 Cui et al. (2025) 两脉冲转移轨道设计论文"
-version: "1.1"
+version: "1.2"
 date_created: 2026-03-20
-last_updated: 2026-03-21
+last_updated: 2026-03-22
 owner: transfer-orbit-design
 status: 'In progress'
 tags: ['feature', 'replication', 'orbital-mechanics', 'cr3bp', 'br4bp', 'ephemeris']
+note: "任务顺序调整：优先完成平面转移轨道设计（Phase 2），3D 轨道生成（Phase 1 TASK-006/007）推迟"
 ---
 
 # Introduction
@@ -22,11 +23,8 @@ tags: ['feature', 'replication', 'orbital-mechanics', 'cr3bp', 'br4bp', 'ephemer
 - **REQ-004**: 生成完整 DRO 族并计算 Jacobi 常数与稳定性指标（已完成）
 - **REQ-005**: 生成 RO 族种子（已完成 phase1_generate_ro.py）
 - **REQ-006**: 完整 RO 族延拓（延拓参数和范围待确定）
-- **REQ-007**: 生成 3D RRO 和 ARO 族（切分岔计算）
-  - 实现分岔检测算法（检测单值矩阵特征值 λ ≈ 1）
-  - 从 3:2/3:1 RO 族识别分岔点并生成 RRO 族
-  - 固定 x0 改变 z0 幅值延拓生成 ARO 族
-- **REQ-008**: 实现搜索阶段算法（网格化搜索 + 前向积分 + 筛选）
+- **REQ-007**: 生成 3D RRO 和 ARO 族（切分岔计算）— **⚠️ 已推迟，待分岔检测实现**
+- **REQ-008**: 实现搜索阶段算法（网格化搜索 + 前向积分 + 筛选）— **⭐ 当前重点**
 - **REQ-009**: 实现优化阶段算法（NLP + SQP 求解器）
 - **REQ-010**: 实现 BR4BP 动力学模型
 - **REQ-011**: 建立基于 DE438 星历的 RNBP 动力学模型
@@ -40,7 +38,7 @@ tags: ['feature', 'replication', 'orbital-mechanics', 'cr3bp', 'br4bp', 'ephemer
 
 ## 2. Implementation Steps
 
-### Implementation Phase 1: 基线轨道族生成
+### Implementation Phase 1: 基线轨道族生成（平面轨道）
 
 - GOAL-001: 完成 DRO 和 RO 族生成，为转移设计提供基线轨道
 
@@ -51,9 +49,18 @@ tags: ['feature', 'replication', 'orbital-mechanics', 'cr3bp', 'br4bp', 'ephemer
 | TASK-003 | RO 族种子搜索（已完成：`scripts/phase1_generate_ro.py`） | ✅ | 2026-03-20 |
 | TASK-004 | 3:2 RO 族完整延拓（确定延拓参数：x0 范围 [−1.2, −0.8]，步长 0.005） | ✅ | 2026-03-21 |
 | TASK-005 | 3:1 RO 族完整延拓（确定延拓参数：x0 范围 [−1.0, −0.7]，步长 0.005） | ✅ | 2026-03-21 |
-| TASK-006 | 切分岔计算生成 3D RRO 族（`scripts/phase1_generate_3d_ro.py`） | | |
+| TASK-008a | 修复轨道族绘图点连接顺序问题（使用最近邻排序算法替代数据顺序连接） | ✅ | 2026-03-21 |
 
-### TASK-006 细化分解
+### Implementation Phase 1b: 3D 轨道族生成（**已推迟**，待分岔检测实现）
+
+> ⚠️ **状态：已推迟** — 等待 SUB-006-01（分岔检测算法）完成后执行
+
+| Task | Description | Completed | Date | Note |
+|------|-------------|-----------|------|------|
+| TASK-006 | 切分岔计算生成 3D RRO 族（`scripts/phase1_generate_3d_ro.py`） | 🔴 deferred | - | 依赖 SUB-006-01 |
+| TASK-007 | 切分岔计算生成 ARO 族（$A_z = 0.2$） | 🔴 deferred | - | 依赖 SUB-006-01 |
+
+### TASK-006 细化分解（已推迟）
 
 **目标**: 通过检测平面 RO 族的特征值分岔点，生成 3D RRO（反射共振轨道）族
 
@@ -64,54 +71,37 @@ tags: ['feature', 'replication', 'orbital-mechanics', 'cr3bp', 'br4bp', 'ephemer
 
 **子任务分解**:
 
-| 子任务 | 描述 | 优先级 | 依赖 |
-|--------|------|--------|------|
-| SUB-006-01 | **实现分岔检测算法**: 在延拓过程中检测单值矩阵特征值是否接近 +1 | P0 | - |
-| SUB-006-02 | **确定分岔点参数**: 从 3:2 RO 族中识别 x0 ≈ -1.0878（对应 Az=0.2 的 RRO） | P0 | SUB-006-01 |
-| SUB-006-03 | **配置 3D 对称修正器**: 使用 `setup_3D_symmetric_x_fixed_x0` 配置 RRO 微分修正 | P0 | - |
-| SUB-006-04 | **实现 RRO 族延拓**: 从分岔点出发，固定 x0 改变 z0 幅值延拓生成 RRO 族 | P0 | SUB-006-02, SUB-006-03 |
-| SUB-006-05 | **验证 RRO 轨道参数**: 对比论文 Table 2 中 3:2 RRO (x=-1.0878, z=0.2, Az=0.2) | P1 | SUB-006-04 |
-| SUB-006-06 | **生成 3:1 RRO 族**: 同样方法处理 3:1 RO 族（分岔点 x0 ≈ -0.7660） | P1 | SUB-006-01 ~ SUB-006-05 |
-| SUB-006-07 | **编写 `scripts/phase1_generate_3d_ro.py`**: 整合以上模块为可执行脚本 | P0 | SUB-006-04 |
+| 子任务 | 描述 | 优先级 | 依赖 | 状态 |
+|--------|------|--------|------|------|
+| SUB-006-01 | **实现分岔检测算法**: 在延拓过程中检测单值矩阵特征值是否接近 +1 | P0 | - | 🔴 待实现 |
+| SUB-006-02 | **确定分岔点参数**: 从 3:2 RO 族中识别 x0 ≈ -1.0878（对应 Az=0.2 的 RRO） | P0 | SUB-006-01 | 🔴 |
+| SUB-006-03 | **配置 3D 对称修正器**: 使用 `setup_3D_symmetric_x_fixed_x0` 配置 RRO 微分修正 | P0 | - | 🔴 |
+| SUB-006-04 | **实现 RRO 族延拓**: 从分岔点出发，固定 x0 改变 z0 幅值延拓生成 RRO 族 | P0 | SUB-006-02, SUB-006-03 | 🔴 |
+| SUB-006-05 | **验证 RRO 轨道参数**: 对比论文 Table 2 中 3:2 RRO (x=-1.0878, z=0.2, Az=0.2) | P1 | SUB-006-04 | 🔴 |
+| SUB-006-06 | **生成 3:1 RRO 族**: 同样方法处理 3:1 RO 族（分岔点 x0 ≈ -0.7660） | P1 | SUB-006-01 ~ SUB-006-05 | 🔴 |
+| SUB-006-07 | **编写 `scripts/phase1_generate_3d_ro.py`**: 整合以上模块为可执行脚本 | P0 | SUB-006-04 | 🔴 |
 
-**实现方案**:
-
-```python
-# 1. 加载已有的 3:2 RO 族数据
-# 2. 对每个轨道计算单值矩阵特征值
-# 3. 检测 |λ - 1| < tolerance 的分岔点
-# 4. 在分岔点处提取状态，配置 3D 修正器
-# 5. 以 z0 为延拓参数继续延拓生成 RRO 族
-```
-
-**参考代码**:
-- `e2m2e/algorithms/stability.py`: `compute_floquet_multipliers()`, `compute_stability_index()`
-- `e2m2e/algorithms/differential_correction.py`: `setup_3D_symmetric_x_fixed_x0()`
-- `e2m2e/algorithms/continuation.py`: `natural_continuation()`
-
-| TASK-007 | 切分岔计算生成 ARO 族（$A_z = 0.2$） | | |
-
-### TASK-007 细化分解
+### TASK-007 细化分解（已推迟）
 
 **目标**: 通过分岔生成 ARO（轴向共振轨道）族
 
 **子任务分解**:
 
-| 子任务 | 描述 | 优先级 | 依赖 |
-|--------|------|--------|------|
-| SUB-007-01 | **配置 ARO 微分修正器**: 使用 `setup_3D_symmetric_xz_fixed_z0` 固定 z0 延拓 x0 | P0 | - |
-| SUB-007-02 | **确定 ARO 族分岔起点**: 从论文 Table 2 获取 3:2 ARO 种子 (x=-1.1318, z=0.1999) | P0 | - |
-| SUB-007-03 | **实现 ARO 族延拓**: 以 x0 为参数固定 z0 延拓生成 ARO 族 | P0 | SUB-007-01 |
-| SUB-007-04 | **验证 ARO 轨道参数**: 对比论文 Table 2 中 3:2 ARO 参数 | P1 | SUB-007-03 |
-| SUB-007-05 | **生成 3:1 ARO 族**: 同样方法处理 3:1 RO 族 | P1 | SUB-007-01 ~ SUB-007-04 |
-| TASK-008a | 修复轨道族绘图点连接顺序问题（使用最近邻排序算法替代数据顺序连接） | ✅ | 2026-03-21 |
+| 子任务 | 描述 | 优先级 | 依赖 | 状态 |
+|--------|------|--------|------|------|
+| SUB-007-01 | **配置 ARO 微分修正器**: 使用 `setup_3D_symmetric_xz_fixed_z0` 固定 z0 延拓 x0 | P0 | - | 🔴 待实现 |
+| SUB-007-02 | **确定 ARO 族分岔起点**: 从论文 Table 2 获取 3:2 ARO 种子 (x=-1.1318, z=0.1999) | P0 | - | 🔴 |
+| SUB-007-03 | **实现 ARO 族延拓**: 以 x0 为参数固定 z0 延拓生成 ARO 族 | P0 | SUB-007-01 | 🔴 |
+| SUB-007-04 | **验证 ARO 轨道参数**: 对比论文 Table 2 中 3:2 ARO 参数 | P1 | SUB-007-03 | 🔴 |
+| SUB-007-05 | **生成 3:1 ARO 族**: 同样方法处理 3:1 RO 族 | P1 | SUB-007-01 ~ SUB-007-04 | 🔴 |
 
-### Implementation Phase 2: CR3BP 转移轨道设计
+### Implementation Phase 2: CR3BP 平面转移轨道设计 ⭐ **当前重点**
 
-- GOAL-002: 实现"搜索-优化"两步法，设计 CR3BP 中的 DRO→RO 转移轨道
+- GOAL-002: 实现"搜索-优化"两步法，设计 CR3BP 中的 DRO→RO 平面转移轨道
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
+| TASK-008 | 完善转移轨道提取脚本（提取 2:1/3:1/3:2 DRO 和 3:1/3:2 RO 星历数据） | | |
 | TASK-009 | 实现网格化搜索算法（搜索变量：出发点位置、切向速度比 $\alpha$、法向速度比 $\beta$） | | |
 | TASK-010 | 实现前向积分模块（使用 `e2m2e/core/dynamics.py` CR3BP 积分器） | | |
 | TASK-011 | 实现轨迹筛选模块（与终端轨道相交或距离局部最小） | | |
@@ -121,7 +111,86 @@ tags: ['feature', 'replication', 'orbital-mechanics', 'cr3bp', 'br4bp', 'ephemer
 | TASK-015 | 分类三种典型转移类型（直接转移、LGA 转移、外部转移） | | |
 | TASK-016 | 绘制解平面（转移时间 vs 总脉冲） | | |
 | TASK-017 | 分析出发点和插入点分布（四分位图） | | |
-| TASK-018 | 计算非平面转移（2:1 DRO → 3D RO） | | |
+
+### TASK-008 细化分解
+
+**目标**: 提取转移轨道设计所需的 4 种轨道（2:1 DRO、3:1 DRO、3:2 RO、3:1 RO）的星历数据
+
+**现有脚本位置**: `scripts/extract/`
+
+| 子任务 | 描述 | 优先级 | 状态 |
+|--------|------|--------|------|
+| SUB-008-01 | 完善 `extract_21_dro_orbit.py`（提取 2:1 DRO，T/T_moon ≈ 2.0） | P0 | 🔴 待创建 |
+| SUB-008-02 | 完善 `extract_31_dro_orbit.py`（提取 3:1 DRO，T/T_moon ≈ 3.0） | P0 | 🟡 已有框架 |
+| SUB-008-03 | 完善 `extract_32_ro_orbit.py`（提取 3:2 RO，T/T_moon ≈ 1.5） | P0 | 🟡 已有框架 |
+| SUB-008-04 | 完善 `extract_31_ro_orbit.py`（提取 3:1 RO，T/T_moon ≈ 3.0） | P0 | 🟡 已有框架 |
+| SUB-008-05 | 统一输出格式（JSON）和输出路径（`output/transfer/`） | P0 | 🔴 待确定 |
+
+**输出数据要求**:
+- 轨道类型、周期比、状态向量 (x, y, vx, vy)、时间
+- JSON 格式，包含元数据（轨道族名、提取时间、周期比容差）
+
+### TASK-009 ~ TASK-017 细化分解
+
+**搜索-优化两步法概述**:
+
+```
+1. 网格化搜索阶段
+   - 搜索变量: (x0_departure, α, β, T_transfer)
+   - 筛选条件: 与目标 RO 轨道相交或距离达到局部最小
+
+2. NLP 优化阶段
+   - 优化变量: y = {α, T, t_ins}
+   - 目标函数: J(y) = Δv₁ + Δv₂
+   - 约束: 位置连续性、速度连续性、不碰撞约束
+```
+
+**参考论文**: Section III.A "Two-Impulse Transfer Problem" 和 Section III.B "Search Phase"
+
+#### TASK-009: 网格化搜索算法
+
+| 子任务 | 描述 | 优先级 |
+|--------|------|--------|
+| SUB-009-01 | 定义搜索网格（出发点 x ∈ [0.8, 1.2]，α ∈ [-0.5, 0.5]，β ∈ [-0.1, 0.1]） | P0 |
+| SUB-009-02 | 实现前向积分接口（从 DRO 上一点出发，施加速度扰动） | P0 |
+| SUB-009-03 | 实现轨迹与 RO 轨道相交检测算法 | P0 |
+| SUB-009-04 | 实现距离局部最小检测算法 | P0 |
+| SUB-009-05 | 并行化搜索加速（可选） | P1 |
+
+#### TASK-010: 前向积分模块
+
+- 使用 `e2m2e/core/dynamics.py` 中的 CR3BP 积分器
+- 输入: 初始状态 (x, y, z, vx, vy, vz)，积分时间 T
+- 输出: 积分轨迹 (states, times)
+
+#### TASK-011: 轨迹筛选模块
+
+- 筛选条件1: 轨迹与 RO 轨道的位置距离 < tolerance
+- 筛选条件2: 轨迹与 RO 轨道的距离达到局部最小（d'dt = 0, d²dt² > 0）
+
+#### TASK-012: NLP 问题构建
+
+- 优化变量: $y = \{\alpha, T, t_{ins}\}$
+- 目标函数: $J(y) = \Delta v_1 + \Delta v_2$
+- 约束: 位置连续性约束、速度连续性约束
+
+#### TASK-013: SQP 求解器
+
+- 使用 `scipy.optimize.minimize` with SLSQP method
+- 或使用 `scipy.optimize.milp` / `pyomo` 进行更复杂的 NLP
+
+#### TASK-014 ~ TASK-017: 结果分析
+
+| Task | 描述 |
+|------|------|
+| TASK-014 | 计算 4 种平面转移路径（2:1 DRO → 3:2 RO, 2:1 DRO → 3:1 RO, 3:1 DRO → 3:2 RO, 3:1 DRO → 3:1 RO） |
+| TASK-015 | 分类三种典型转移类型（直接转移、LGA 转移、外部转移），参考论文 Fig. 7 |
+| TASK-016 | 绘制解平面（转移时间 T vs 总脉冲 Δv₁+Δv₂），参考论文 Fig. 8 |
+| TASK-017 | 分析出发点和插入点分布（四分位图），参考论文 Fig. 9 |
+
+### TASK-018: 非平面转移（2:1 DRO → 3D RO）— **已推迟**
+
+> ⚠️ **状态：已推迟** — 等待 3D RRO/ARO 轨道族生成（Task-006/007）完成后执行
 
 ### Implementation Phase 3: BR4BP 转移轨道设计
 
