@@ -31,8 +31,8 @@ from e2m2e.visualization.plotting import OrbitVisualizer
 # 加载单条轨道数据
 # =============================================================================
 # 使用 Orbit.load_from_file() 加载单条轨道
-orbit_filename = "dro_31_3857029796.json"  # 3:1 DRO 轨道
-output_dir = project_root / "output" / "dro"
+orbit_filename = "ro_31_3857030320.json"  # 3:1 RO 轨道
+output_dir = project_root / "output" / "ro"
 orbit_path = output_dir / orbit_filename
 
 system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
