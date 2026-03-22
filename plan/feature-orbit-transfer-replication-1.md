@@ -114,17 +114,30 @@ note: "任务顺序调整：优先完成平面转移轨道设计（Phase 2），
 
 ### TASK-008 细化分解
 
-**目标**: 提取转移轨道设计所需的 4 种轨道（2:1 DRO、3:1 DRO、3:2 RO、3:1 RO）的星历数据
+**目标**: 从已生成的轨道族中提取最接近目标周期的轨道，并通过固定周期微分修正获取精确轨道
+
+**工作流程**:
+```
+1. 从轨道族中选择周期比最接近目标的轨道作为初值
+2. 使用 setup_2D_symmetric_x_fixed_t 配置固定周期微分修正
+3. 以初值代入微分修正器，获取精确的指定周期轨道
+```
 
 **现有脚本位置**: `scripts/extract/`
 
 | 子任务 | 描述 | 优先级 | 状态 |
 |--------|------|--------|------|
-| SUB-008-01 | 完善 `extract_21_dro_orbit.py`（提取 2:1 DRO，T/T_moon ≈ 2.0） | P0 | 🔴 待创建 |
-| SUB-008-02 | 完善 `extract_31_dro_orbit.py`（提取 3:1 DRO，T/T_moon ≈ 3.0） | P0 | 🟡 已有框架 |
-| SUB-008-03 | 完善 `extract_32_ro_orbit.py`（提取 3:2 RO，T/T_moon ≈ 1.5） | P0 | 🟡 已有框架 |
-| SUB-008-04 | 完善 `extract_31_ro_orbit.py`（提取 3:1 RO，T/T_moon ≈ 3.0） | P0 | 🟡 已有框架 |
-| SUB-008-05 | 统一输出格式（JSON）和输出路径（`output/transfer/`） | P0 | 🔴 待确定 |
+| SUB-008-01 | 完善 `extract_21_dro_orbit.py`（2:1 DRO，T/T_moon ≈ 2.0） | P0 | 🔴 待创建 |
+| SUB-008-02 | 完善 `extract_31_dro_orbit.py`（3:1 DRO，T/T_moon ≈ 3.0） | P0 | 🟡 已有框架 |
+| SUB-008-03 | 完善 `extract_32_ro_orbit.py`（3:2 RO，T/T_moon ≈ 1.5） | P0 | 🟡 已有框架 |
+| SUB-008-04 | 完善 `extract_31_ro_orbit.py`（3:1 RO，T/T_moon ≈ 3.0） | P0 | 🟡 已有框架 |
+| SUB-008-05 | 实现"选择最接近轨道 + 固定周期微分修正"流程 | P0 | 🔴 待实现 |
+| SUB-008-06 | 统一输出格式（JSON）和输出路径（`output/transfer/`） | P0 | 🔴 待确定 |
+
+**微分修正配置**:
+- 使用 `e2m2e.algorithms.DifferentialCorrection.setup_2D_symmetric_x_fixed_t(t_half)`
+- 自由变量: `[x0, y_dot0]`
+- 目标约束: `[y(T/2)=0, x_dot(T/2)=0]`
 
 **输出数据要求**:
 - 轨道类型、周期比、状态向量 (x, y, vx, vy)、时间
