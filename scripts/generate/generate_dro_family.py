@@ -54,7 +54,7 @@ seed_DRO = corrector.iterate_correction(initial_guess=seed_state)
 # 4. 自然延拓生成轨道族
 # =============================================================================
 continuation = e2m2e.algorithms.Continuation(corrector=corrector)
-param_min = 0.141886 # 延拓到再下一步，就发散了（2026年3月21日21:16:19计算得到的结论）
+param_min = 0.141886  # 延拓到再下一步，就发散了（2026年3月21日21:16:19计算得到的结论）
 param_max = 0.9
 step_size = 0.005
 family_result = continuation.natural_continuation(

@@ -80,7 +80,11 @@ ax_2d.legend(loc="upper right", fontsize=10)
 ax_2d.set_aspect("equal")
 
 plt.tight_layout()
-plt.savefig(output_dir / f"{orbit_filename.replace('.json', '_2d.png')}", dpi=300, bbox_inches="tight")
+plt.savefig(
+    output_dir / f"{orbit_filename.replace('.json', '_2d.png')}",
+    dpi=300,
+    bbox_inches="tight",
+)
 plt.show()
 
 # =============================================================================
@@ -123,7 +127,11 @@ ax_3d.legend(loc="upper right", fontsize=10)
 ax_3d.view_init(elev=20, azim=-60)
 
 plt.tight_layout()
-plt.savefig(output_dir / f"{orbit_filename.replace('.json', '_3d.png')}", dpi=300, bbox_inches="tight")
+plt.savefig(
+    output_dir / f"{orbit_filename.replace('.json', '_3d.png')}",
+    dpi=300,
+    bbox_inches="tight",
+)
 plt.show()
 
 # =============================================================================
@@ -131,20 +139,28 @@ plt.show()
 # =============================================================================
 fig_multi, axes = plt.subplots(1, 3, figsize=(18, 6))
 
-for ax, plane, title in zip(axes, ["xy", "xz", "yz"], ["XY Plane", "XZ Plane", "YZ Plane"]):
+for ax, plane, title in zip(
+    axes, ["xy", "xz", "yz"], ["XY Plane", "XZ Plane", "YZ Plane"]
+):
     orbit_plotter.plot_2d_projection(
         orbit, plane=plane, color="blue", label="3:1 DRO", ax=ax
     )
     orbit_plotter.plot_primary_bodies(ax=ax)
     orbit_plotter.plot_libration_points(ax=ax)
     ax.set_xlabel("X (nondimensional)", fontsize=10)
-    ax.set_ylabel("Y (nondimensional)" if plane == "xy" else "Z (nondimensional)", fontsize=10)
+    ax.set_ylabel(
+        "Y (nondimensional)" if plane == "xy" else "Z (nondimensional)", fontsize=10
+    )
     ax.set_title(title, fontsize=12)
     ax.legend(loc="upper right", fontsize=8)
     ax.set_aspect("equal")
 
 plt.tight_layout()
-plt.savefig(output_dir / f"{orbit_filename.replace('.json', '_multi_2d.png')}", dpi=300, bbox_inches="tight")
+plt.savefig(
+    output_dir / f"{orbit_filename.replace('.json', '_multi_2d.png')}",
+    dpi=300,
+    bbox_inches="tight",
+)
 plt.show()
 
 print(f"\n轨道图已保存至 {output_dir}")
