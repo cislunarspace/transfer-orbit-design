@@ -132,16 +132,34 @@
 
 ## 脚本使用
 
-### dro_ro_transfer_design.py
+### phase1_grid_search.py / phase1_grid_search_v2.py
 
-转移设计主脚本（待实现）。
+网格搜索转移轨道：
 
-### plot_dro_ro_transfer.py
+```bash
+python scripts/transfer/phase1_grid_search.py
+python scripts/transfer/phase1_grid_search_v2.py
+```
+
+**搜索变量**：
+- `alpha`：切向速度比（0.1 ~ 2.0）
+- `beta`：法向速度比（0.0 ~ 0.2）
+- 出发点位置沿 DRO 轨道分布
+
+### phase2_optimize.py
+
+优化阶段（NLP/SQP）：
+
+```bash
+python scripts/transfer/phase2_optimize.py
+```
+
+### plot_transfer.py
 
 可视化转移轨迹：
 
 ```bash
-python scripts/plot_dro_ro_transfer.py
+python scripts/plot/plot_transfer.py
 ```
 
 **输出**：

@@ -96,6 +96,48 @@ python scripts/plot_32_ro_family.py
 
 **绘制范围控制**：在脚本顶部设置 `PLOT_START_IDX` 和 `PLOT_END_IDX` 变量，可控制绘制轨道的索引范围。
 
+## 转移设计脚本
+
+### phase1_grid_search.py / phase1_grid_search_v2.py
+
+网格搜索 DRO 到 RO 的可行转移轨迹：
+
+```bash
+python scripts/transfer/phase1_grid_search.py
+python scripts/transfer/phase1_grid_search_v2.py
+```
+
+**搜索变量**：
+- `alpha`：切向速度比（0.1 ~ 2.0）
+- `beta`：法向速度比（0.0 ~ 0.2，非平面情况）
+- 出发点位置沿 DRO 轨道分布
+
+**算法**：
+1. 遍历网格点
+2. 计算出发点状态（alpha·v_tangential）
+3. 前向积分轨迹
+4. 检查是否接近目标 RO
+5. 记录可行转移
+
+### phase2_optimize.py
+
+优化阶段 - 使用 SQP 求解 NLP 问题：
+
+```bash
+python scripts/transfer/phase2_optimize.py
+```
+
+**决策变量**：$y = \{\alpha, T, t_{ins}\}$
+**目标函数**：$J(y) = \Delta v_1 + \Delta v_2$
+
+### plot_transfer.py
+
+可视化转移轨迹：
+
+```bash
+python scripts/plot/plot_transfer.py
+```
+
 ## 工具脚本
 
 ### utils/params.py

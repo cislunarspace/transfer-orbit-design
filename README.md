@@ -68,17 +68,17 @@
 - [x] CR3BP 动力学模型实现（`e2m2e/core/dynamics.py`）
 - [x] 微分修正算法（`e2m2e/algorithms/differential_correction.py`）
 - [x] 自然参数延拓（`e2m2e/algorithms/continuation.py`）
-- [x] DRO 族生成（`scripts/phase1_generate_dro.py`）✅
+- [x] DRO 族生成（`scripts/generate/generate_dro_family.py`）✅
 - [x] 生成完整 DRO 族并计算 Jacobi 常数与稳定性指标 ✅
-- [x] RO 族种子搜索（`scripts/phase1_generate_ro.py`）✅
+- [x] RO 族种子搜索（`scripts/generate/generate_31_ro_orbit.py`, `generate_32_ro_family.py`）✅
   - 3:2 RO 种子: x0=-1.1453, y0=0.4633, vy0=0.6124, T=12.47 TU
   - 3:1 RO 种子: x0=-0.8805, y0=0.3921, vy0=-0.0283, T=4.86 TU
-  - [ ] 完整 RO 族延拓（延拓参数和范围待确定）
-- [ ] 切分岔计算（生成 3D RRO 和 ARO 族）`scripts/phase1_generate_3d_ro.py`
+- [x] 完整 RO 族延拓（`generate_31_ro_family.py`, `generate_32_ro_family.py`）✅
+- [x] 3D RRO/ARO 族生成（`generate_rro_family.py`, `generate_aro_family.py`）✅
 
 ### 阶段二：CR3BP 中的转移设计
 
-- [ ] 实现搜索阶段算法（网格化搜索变量 + 前向积分 + 筛选）
+- [x] 网格搜索阶段算法（`scripts/transfer/phase1_grid_search.py`, `phase1_grid_search_v2.py`）🔄
 - [ ] 实现优化阶段算法（NLP 问题，SQP 求解器）
 - [ ] 计算四种平面转移路径（2:1/3:1 DRO → 3:2/3:1 RO）
 - [ ] 分类三种典型转移类型（直接转移、LGA 转移、外部转移）
@@ -128,10 +128,11 @@ e2m2e/
 
 ### transfer-orbit-design 任务脚本（`scripts/`）
 
-- `phase1_generate_dro.py`：生成 DRO 族
-- `phase1_generate_ro.py`：生成 RO 族
-- `phase1_generate_3d_ro.py`：生成 3D RO 族
-- `phase2_transfer_search.py`：转移轨道搜索算法
+- `generate_dro_family.py`：生成 DRO 族
+- `generate_31_ro_family.py` / `generate_32_ro_family.py`：生成 3:1/3:2 RO 族
+- `generate_rro_family.py` / `generate_aro_family.py`：生成 3D RRO/ARO 族
+- `phase1_grid_search.py` / `phase1_grid_search_v2.py`：网格搜索转移轨道
+- `phase2_optimize.py`：优化阶段（NLP/SQP）
 
 ### 数据与环境
 
