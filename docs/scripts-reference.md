@@ -18,14 +18,6 @@ python scripts/generate_dro_family.py
 - `param_range`：x0 延拓范围（0.6 到 0.8）
 - `step_size`：延拓步长（默认 0.005）
 
-### generate_ro_family.py
-
-生成共振轨道族（3:2 和 3:1）。
-
-```bash
-python scripts/generate_ro_family.py
-```
-
 ### generate_31_ro_family.py
 
 专门生成 3:1 共振轨道族。
@@ -134,7 +126,7 @@ python scripts/transfer/optimize.py
 可视化转移轨迹：
 
 ```bash
-python scripts/plot/plot_transfer.py
+python scripts/transfer/plot_transfer.py
 ```
 
 ## 工具脚本
