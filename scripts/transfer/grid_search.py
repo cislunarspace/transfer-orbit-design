@@ -9,12 +9,10 @@ DRO-RO转移轨道网格搜索 V2
 论文: Cui et al. - 2025 - Two-impulse transfers from lunar distant retrograde orbits to resonant orbits
 """
 
-import sys
 from pathlib import Path
 from datetime import datetime
 
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+project_root = Path(__file__).resolve().parent.parent.parent
 
 from e2m2e.core.system import CR3BP_System
 from e2m2e.core.dynamics import CR3BP_Dynamics

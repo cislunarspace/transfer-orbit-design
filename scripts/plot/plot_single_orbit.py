@@ -8,17 +8,9 @@
 - 加载使用 Orbit.load_from_file() 而非 OrbitFamily.load_from_file()
 """
 
-import sys
 from pathlib import Path
 
-# ==== 统一项目根目录定位与 utils 导入 ====
-project_root = (
-    Path(__file__).resolve().parent.parent.parent
-)  # .../transfer-orbit-design
-scripts_dir = project_root / "scripts"
-utils_dir = scripts_dir / "utils"
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+project_root = Path(__file__).resolve().parent.parent.parent
 from scripts.utils.params import MU
 
 import matplotlib

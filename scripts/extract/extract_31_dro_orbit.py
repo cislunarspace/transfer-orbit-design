@@ -7,19 +7,14 @@
     python extract_31_dro_orbit.py
 """
 
-import sys
 import glob
 import json
 from pathlib import Path
 from fontTools.misc.timeTools import timestampNow
 
-
-# 修正：将项目根目录设置为 transfer-orbit-design 根目录
-project_root = Path(__file__).resolve().parents[2]
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-
 import e2m2e
+
+project_root = Path(__file__).resolve().parent.parent.parent
 from scripts.utils.common import T_MOON
 
 # =============================================================================

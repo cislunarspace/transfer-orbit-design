@@ -5,14 +5,11 @@ DRO到RO转移轨道绘制脚本
     python plot_transfer.py --result optimization_result.json --dro dro_family.json --ro ro_31_family.json
 """
 
-import sys
 import glob
 import argparse
 from pathlib import Path
 
-# 添加项目根目录到 sys.path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+project_root = Path(__file__).resolve().parent.parent.parent
 
 import numpy as np
 import matplotlib.pyplot as plt

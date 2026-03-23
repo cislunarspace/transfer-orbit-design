@@ -9,6 +9,8 @@
 
 """
 
+from pathlib import Path
+
 from fontTools.misc.timeTools import timestampNow
 
 import e2m2e
@@ -16,11 +18,7 @@ from e2m2e.core import Orbit
 
 from scripts.utils.common import MU
 
-import sys
-from pathlib import Path
-
-# 项目根目录
-project_root = Path(__file__).parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = project_root / "output"
 
 # =============================================================================

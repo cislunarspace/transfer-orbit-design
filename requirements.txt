@@ -9,3 +9,5 @@ matplotlib>=3.10.0
 # e2m2e @ file:///C:/Users/ouyan/codes/e2m2e
 # Or install with: pip install -e C:\Users\ouyan\codes\e2m2e
 
+# 注册本仓库为可编辑包，使 `from scripts...` 在任意工作目录下可用（Windows / Linux 通用）
+-e .

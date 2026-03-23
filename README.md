@@ -9,6 +9,18 @@
 > *Journal of Guidance, Control, and Dynamics*, Vol. 48, No. 6, June 2025  
 > DOI: [10.2514/1.G008582](https://doi.org/10.2514/1.G008582)
 
+## 环境配置（克隆后必做）
+
+在仓库根目录执行一次（Windows / Linux / macOS 相同）：
+
+```bash
+pip install -r requirements.txt
+```
+
+`requirements.txt` 末尾的 `-e .` 会把本仓库以**可编辑包**形式安装，使任意工作目录下运行脚本时 `from scripts.utils...` 都能正确导入，无需再改 `PYTHONPATH` 或 `sys.path`。
+
+随后按注释安装本地依赖库 **e2m2e**（例如 `pip install -e /path/to/e2m2e`）。
+
 该论文研究了地月系统中从远距离逆行轨道（DRO）到共振轨道（RO）的两脉冲转移轨道设计问题。由于 DRO 和 RO 均为稳定轨道，无法利用不稳定流形结构，论文提出了一种"搜索-优化"两步法来设计转移轨道，并在 CR3BP、BR4BP 和星历模型中分别进行了计算与验证。
 
 ## 论文核心内容

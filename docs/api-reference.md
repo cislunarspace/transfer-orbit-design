@@ -82,7 +82,7 @@ OrbitFamily.load_from_file("output.json", system=system)
 ```python
 from e2m2e.algorithms import DifferentialCorrection
 
-corrector = DifferentialCorrection(dynamic=dynamics)
+corrector = DifferentialCorrection(dynamics=dynamics)
 corrector.setup_2D_symmetric_x_fixed_x0(x0=0.7919)
 corrected = corrector.iterate_correction(initial_guess)
 ```

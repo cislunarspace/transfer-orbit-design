@@ -16,13 +16,9 @@
   to Resonant Orbits", JGCD, Vol.48, No.6
 """
 
-import sys
 from pathlib import Path
 
-# 将项目根目录添加到 sys.path，确保可以导入 scripts.utils
-project_root = Path(__file__).parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+project_root = Path(__file__).resolve().parent.parent.parent
 
 import e2m2e
 from fontTools.misc.timeTools import timestampNow

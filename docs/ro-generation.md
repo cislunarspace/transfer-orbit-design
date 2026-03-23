@@ -164,7 +164,7 @@ system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon"
 dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
 
 # 微分修正
-corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamics)
+corrector = e2m2e.algorithms.DifferentialCorrection(dynamics=dynamics)
 corrector.setup_2D_symmetric_x_fixed_x0(x0=-0.8805)
 seed_RO = corrector.iterate_correction(initial_guess=seed_orbit)
 

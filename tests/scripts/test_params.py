@@ -5,12 +5,6 @@ Tests the physical constants used for Earth-Moon-Sun system.
 """
 
 import pytest
-import sys
-from pathlib import Path
-
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
 
 from scripts.utils.params import MU, M_SUN, OMEGA_SUN, RHO, DU, TU, VU, T_MOON
 

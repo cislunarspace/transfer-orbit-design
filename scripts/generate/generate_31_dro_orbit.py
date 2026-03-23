@@ -13,14 +13,11 @@
     - T = 9.11 days ≈ 2.095 TU (轨道周期)
 """
 
-import sys
 from pathlib import Path
 
-# 添加项目根目录到 Python 路径
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
 from fontTools.misc.timeTools import timestampNow
+
+project_root = Path(__file__).resolve().parent.parent.parent
 
 import e2m2e
 from e2m2e.core import Orbit

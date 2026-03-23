@@ -10,9 +10,7 @@ import glob
 import argparse
 from pathlib import Path
 
-# 添加项目根目录到 sys.path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+project_root = Path(__file__).resolve().parent.parent.parent
 
 import numpy as np
 import e2m2e

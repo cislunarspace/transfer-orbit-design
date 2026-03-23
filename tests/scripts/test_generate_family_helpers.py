@@ -11,14 +11,11 @@ import matplotlib
 matplotlib.use('Agg')  # Use non-GUI backend to suppress plot display
 
 import pytest
-import sys
 import importlib.util
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
+project_root = Path(__file__).resolve().parent.parent.parent
 
 
 class TestGenerateScriptImports:

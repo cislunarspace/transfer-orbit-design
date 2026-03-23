@@ -19,17 +19,9 @@
   to Resonant Orbits", JGCD, Vol.48, No.6
 """
 
-import sys
 from pathlib import Path
 
-# ==== 统一项目根目录定位与 utils 导入 ====
-project_root = (
-    Path(__file__).resolve().parent.parent.parent
-)  # .../transfer-orbit-design
-scripts_dir = project_root / "scripts"
-utils_dir = scripts_dir / "utils"
-if str(utils_dir) not in sys.path:
-    sys.path.insert(0, str(utils_dir))
+project_root = Path(__file__).resolve().parent.parent.parent
 
 import e2m2e
 from e2m2e.core import OrbitFamily, CR3BP_System

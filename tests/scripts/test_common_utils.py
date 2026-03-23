@@ -5,16 +5,11 @@ Tests the constants and helper functions used across multiple scripts.
 """
 
 import pytest
-import sys
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 import os
 import tempfile
 import json
-
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
 
 from scripts.utils.common import (
     MU,

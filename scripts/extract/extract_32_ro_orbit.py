@@ -7,18 +7,14 @@
     python extract_32_ro_orbit.py
 """
 
-import sys
 import glob
 import json
 from pathlib import Path
 from fontTools.misc.timeTools import timestampNow
 
-# 将项目根目录添加到 sys.path
-project_root = Path(__file__).parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
-
 import e2m2e
+
+project_root = Path(__file__).resolve().parent.parent.parent
 from scripts.utils.common import T_MOON
 
 OUTPUT_DIR = project_root / "output"
