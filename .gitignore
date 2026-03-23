@@ -148,6 +148,10 @@ cython_debug/
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# Cursor
+.cursor/
+!.cursor/worktrees.json
+
 # macOS
 .DS_Store
 
