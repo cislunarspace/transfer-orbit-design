@@ -23,7 +23,7 @@ class TestGenerateScriptImports:
 
     def test_generate_31_ro_imports(self):
         """Test that generate_31_ro_family.py can be imported without errors"""
-        script_path = project_root / "scripts" / "generate_31_ro_family.py"
+        script_path = project_root / "scripts" / "generate" / "generate_31_ro_family.py"
         spec = importlib.util.spec_from_file_location(
             "generate_31_ro_family", script_path
         )
@@ -39,7 +39,7 @@ class TestGenerateScriptImports:
 
     def test_generate_32_ro_imports(self):
         """Test that generate_32_ro_family.py can be imported without errors"""
-        script_path = project_root / "scripts" / "generate_32_ro_family.py"
+        script_path = project_root / "scripts" / "generate" / "generate_32_ro_family.py"
         spec = importlib.util.spec_from_file_location(
             "generate_32_ro_family", script_path
         )
@@ -52,7 +52,7 @@ class TestGenerateScriptImports:
 
     def test_generate_dro_imports(self):
         """Test that generate_dro_family.py can be imported without errors"""
-        script_path = project_root / "scripts" / "generate_dro_family.py"
+        script_path = project_root / "scripts" / "generate" / "generate_dro_family.py"
         spec = importlib.util.spec_from_file_location(
             "generate_dro_family", script_path
         )
