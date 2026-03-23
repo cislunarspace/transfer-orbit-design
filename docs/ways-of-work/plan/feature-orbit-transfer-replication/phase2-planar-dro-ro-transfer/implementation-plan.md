@@ -48,8 +48,8 @@ tags: ['phase-2', 'transfer-design', 'search-optimization', 'copt', 'nlp']
 | 任务ID | 描述 | 优先级 | 依赖 | 状态 |
 |--------|------|--------|------|------|
 | TASK-009 | 实现网格化搜索算法 | P0 | - | **Completed** |
-| TASK-010 | 实现前向积分模块 | P0 | TASK-009 | Pending |
-| TASK-011 | 实现轨迹筛选模块 | P0 | TASK-010 | Pending |
+| TASK-010 | 实现前向积分模块 | P0 | TASK-009 | **Completed** |
+| TASK-011 | 实现轨迹筛选模块 | P0 | TASK-010 | **Completed** |
 | TASK-012 | 实现NLP问题构建 | P0 | TASK-011 | Pending |
 | TASK-013 | 集成COPT求解器 | P0 | TASK-012 | Pending |
 | TASK-014 | 计算4种平面转移路径 | P1 | TASK-013 | Pending |
