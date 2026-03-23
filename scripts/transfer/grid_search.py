@@ -70,12 +70,12 @@ def main():
 
     # 加载轨道数据
     print(f"\n加载DRO轨道: {DRO_FILE}")
-    dro_orbit = load_orbit_from_json(DRO_FILE)
-    dro_name = Path(DRO_FILE).stem
+    dro_orbit = load_orbit_from_json(str(DRO_FILE))
+    dro_name = DRO_FILE.stem
 
     print(f"加载RO轨道: {RO_FILE}")
-    ro_orbit = load_orbit_from_json(RO_FILE)
-    ro_name = Path(RO_FILE).stem
+    ro_orbit = load_orbit_from_json(str(RO_FILE))
+    ro_name = RO_FILE.stem
 
     # 创建CR3BP系统
     print(f"\n初始化CR3BP系统 (μ={MU})")
@@ -136,7 +136,7 @@ def main():
     print(f"  局部最小: {len(local_min)}")
 
     # 保存结果
-    output_dir = Path(OUTPUT_DIR)
+    output_dir = OUTPUT_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # 保存完整结果 (JSON格式)
