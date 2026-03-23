@@ -46,21 +46,19 @@ if not dro_files:
 if not ro_files:
     raise FileNotFoundError(f"未找到RO文件: {args.ro}")
 
+from e2m2e.transfer.dro_ro_search import load_orbit_from_json
+
 print(f"加载DRO: {dro_files[0]}")
 print(f"加载RO: {ro_files[0]}")
 
-dro_data = e2m2e.core.orbit.OrbitFamily.load_from_file(dro_files[0])
-ro_data = e2m2e.core.orbit.OrbitFamily.load_from_file(ro_files[0])
+dro_orbit = load_orbit_from_json(dro_files[0])
+ro_orbit = load_orbit_from_json(ro_files[0])
 
 # =============================================================================
 # 3. 系统与动力学模型初始化
 # =============================================================================
 system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
 dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
-
-# 提取指定索引的轨道
-dro_orbit = dro_data.orbits[args.dro_index]
-ro_orbit = ro_data.orbits[args.ro_index]
 
 # 出发点: DRO远地点(x最大)
 dro_states = np.array(dro_orbit.states)

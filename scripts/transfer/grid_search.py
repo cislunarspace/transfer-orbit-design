@@ -2,11 +2,6 @@
 DRO-RO转移轨道网格搜索 V2
 
 使用修正后的搜索算法 (dro_ro_search_v2.py) 进行网格搜索。
-相比V1版本，修复了以下bug:
-- BUG-001: departure_orbit=arrival_orbit 引用错误
-- BUG-002: α,β速度扰动计算错误
-- BUG-003: O(n²)嵌套循环效率低
-- BUG-004: 缺少碰撞检测
 
 用法:
     修改下方参数后直接运行: python grid_search.py
@@ -23,8 +18,8 @@ sys.path.insert(0, str(project_root))
 
 from e2m2e.core.system import CR3BP_System
 from e2m2e.core.dynamics import CR3BP_Dynamics
-from e2m2e.transfer.dro_ro_search_v2 import (
-    DROROTransferSearchV2,
+from e2m2e.transfer.dro_ro_search import (
+    DROROTransferSearch,
     TransferSearchConfig,
     load_orbit_from_json,
     save_search_results,
@@ -65,7 +60,7 @@ def main():
     timestamp = int(datetime.now().timestamp())
 
     print("=" * 60)
-    print("DRO-RO转移轨道网格搜索 V2")
+    print("DRO-RO转移轨道网格搜索")
     print("=" * 60)
 
     # 加载轨道数据
@@ -102,7 +97,7 @@ def main():
     print(f"  总候选解数量: {config.n_departure * config.n_alpha * config.n_beta}")
 
     # 创建搜索器
-    searcher = DROROTransferSearchV2(
+    searcher = DROROTransferSearch(
         system=system,
         dynamics=dynamics,
         config=config,
