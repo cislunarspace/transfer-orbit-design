@@ -21,6 +21,33 @@ pip install -r requirements.txt
 
 随后按注释安装本地依赖库 **e2m2e**（例如 `pip install -e /path/to/e2m2e`）。
 
+## 使用方法
+
+### 生成 3:1 DRO 轨道
+
+首次使用需先安装依赖（可编辑模式安装，使 `from scripts.utils...` 等导入语句正常工作）：
+
+```bash
+pip install -r requirements.txt
+```
+
+确认 Python 路径后运行脚本：
+
+```bash
+which python
+python ./scripts/generate/generate_31_dro_orbit.py
+```
+
+输出示例：
+```
+目标 轨 道 : 3:1 DRO
+初 始 状 态 : x0=1.1202, vy0=-0.4618
+目标 周 期 : 2.0950 TU (9.11 days)
+...
+[ok] 成 功 找 到  3:1 DRO 轨 道 !
+  保 存 至 : output/dro/dro_31_3857117998.json
+```
+
 该论文研究了地月系统中从远距离逆行轨道（DRO）到共振轨道（RO）的两脉冲转移轨道设计问题。由于 DRO 和 RO 均为稳定轨道，无法利用不稳定流形结构，论文提出了一种"搜索-优化"两步法来设计转移轨道，并在 CR3BP、BR4BP 和星历模型中分别进行了计算与验证。
 
 ## 论文核心内容
