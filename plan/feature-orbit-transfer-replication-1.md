@@ -1,12 +1,12 @@
 ---
 goal: "复现 Cui et al. (2025) 两脉冲转移轨道设计论文"
-version: "1.2"
+version: "1.3"
 date_created: 2026-03-20
 last_updated: 2026-03-22
 owner: transfer-orbit-design
 status: 'In progress'
 tags: ['feature', 'replication', 'orbital-mechanics', 'cr3bp', 'br4bp', 'ephemeris']
-note: "任务顺序调整：优先完成平面转移轨道设计（Phase 2），3D 轨道生成（Phase 1 TASK-006/007）推迟"
+note: "TASK-008 完成；TASK-006/007 已有初步成果（RRO族已生成），分岔检测算法待完善"
 ---
 
 # Introduction
@@ -101,7 +101,7 @@ note: "任务顺序调整：优先完成平面转移轨道设计（Phase 2），
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
-| TASK-008 | 通过固定T微分校正法获取目标轨道（手工挑选初值 + 微分修正） | | |
+| TASK-008 | 通过固定T微分校正法获取目标轨道（手工挑选初值 + 微分修正） | ✅ | 2026-03-22 |
 | TASK-009 | 实现网格化搜索算法（搜索变量：出发点位置、切向速度比 $\alpha$、法向速度比 $\beta$） | | |
 | TASK-010 | 实现前向积分模块（使用 `e2m2e/core/dynamics.py` CR3BP 积分器） | | |
 | TASK-011 | 实现轨迹筛选模块（与终端轨道相交或距离局部最小） | | |
@@ -252,14 +252,18 @@ note: "任务顺序调整：优先完成平面转移轨道设计（Phase 2），
 
 - **FILE-001**: `transfer-orbit-design/scripts/phase1_generate_dro.py` — DRO 族生成脚本
 - **FILE-002**: `transfer-orbit-design/scripts/phase1_generate_ro.py` — RO 族生成脚本
-- **FILE-003**: `transfer-orbit-design/scripts/phase1_generate_3d_ro.py` — 3D RO 族生成脚本（待创建）
-- **FILE-004**: `transfer-orbit-design/scripts/phase2_transfer_search.py` — 转移搜索算法脚本（待创建）
-- **FILE-005**: `e2m2e/e2m2e/core/dynamics.py` — CR3BP/BR4BP 动力学模型
-- **FILE-006**: `e2m2e/e2m2e/algorithms/differential_correction.py` — 微分修正算法
-- **FILE-007**: `e2m2e/e2m2e/algorithms/continuation.py` — 轨道族延拓算法
-- **FILE-008**: `e2m2e/e2m2e/core/orbit.py` — 轨道数据结构
-- **FILE-009**: `transfer-orbit-design/output/phase1_dro/` — DRO 族输出
-- **FILE-010**: `transfer-orbit-design/output/phase1_ro/` — RO 族输出
+- **FILE-003**: `transfer-orbit-design/scripts/phase1_generate_3d_ro.py` — 3D RO 族生成脚本（已创建，待分岔检测）
+- **FILE-004**: `transfer-orbit-design/scripts/transfer/phase1_grid_search.py` — 转移网格搜索脚本
+- **FILE-005**: `transfer-orbit-design/scripts/transfer/phase2_optimize.py` — SQP优化求解脚本
+- **FILE-006**: `e2m2e/e2m2e/core/dynamics.py` — CR3BP/BR4BP 动力学模型
+- **FILE-007**: `e2m2e/e2m2e/algorithms/differential_correction.py` — 微分修正算法
+- **FILE-008**: `e2m2e/e2m2e/algorithms/continuation.py` — 轨道族延拓算法
+- **FILE-009**: `e2m2e/e2m2e/core/orbit.py` — 轨道数据结构
+- **FILE-010**: `transfer-orbit-design/output/dro/` — DRO 族输出
+- **FILE-011**: `transfer-orbit-design/output/ro/` — RO 族输出（RRO 已生成）
+- **FILE-012**: `transfer-orbit-design/output/ro/rro_32_family_*.json` — 3:2 RRO 族（已生成）
+- **FILE-013**: `transfer-orbit-design/output/ro/ro_31_*.json` — 单个 3:1 RO 轨道（TASK-008 产物）
+- **FILE-014**: `transfer-orbit-design/output/dro/dro_31_*.json` — 单个 DRO 轨道（TASK-008 产物）
 
 ## 6. Testing
 
