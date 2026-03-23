@@ -108,28 +108,19 @@ class TestGetLatestFamilyFile:
 
     def test_returns_latest_dir_family(self, tmp_path):
         """Should search in latest timestamped subdirectory"""
-        # Create a parent output dir with timestamped subdirs
+        import time
+        import os
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-
-        # Create two subdirs with different modification times
         old_dir = output_dir / "20240101_100000"
         new_dir = output_dir / "20240102_110000"
         old_dir.mkdir()
         new_dir.mkdir()
-
-        # Create family.json in both
         (old_dir / FAMILY_FILENAME).write_text('{"old": true}')
         (new_dir / FAMILY_FILENAME).write_text('{"new": true}')
-
-        # Update modification time using os to make new_dir appear latest
-        import time
-        import os
-
         time.sleep(0.1)
         new_mtime = os.path.getmtime(str(new_dir)) + 1
         os.utime(str(new_dir), (new_mtime, new_mtime))
-
         result = get_latest_family_file(str(output_dir))
         assert result == str(new_dir / FAMILY_FILENAME)
 

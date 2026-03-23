@@ -7,14 +7,15 @@ These tests focus on:
 - Testing the scripts can be parsed without errors
 """
 
+import math
 import matplotlib
-matplotlib.use('Agg')  # Use non-GUI backend to suppress plot display
+matplotlib.use('Agg')
 
 import pytest
 import sys
 import importlib.util
 from pathlib import Path
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 import numpy as np
 
 # Add project root to path
@@ -119,8 +120,6 @@ class TestPlotScriptImports:
 class TestJacobiComputation:
     """Test Jacobi constant computation logic"""
 
-    import math
-
     def test_jacobi_range_calculation(self):
         """Test Jacobi constant range calculation"""
         jacobi_values = [3.0, 3.5, 3.2, 3.8, 3.1]
@@ -131,7 +130,7 @@ class TestJacobiComputation:
 
         assert jacobi_min == 3.0
         assert jacobi_max == 3.8
-        assert self.math.isclose(jacobi_range, 0.8, rel_tol=1e-9)
+        assert math.isclose(jacobi_range, 0.8, rel_tol=1e-9)
 
     def test_normalized_jacobi_color(self):
         """Test normalization of Jacobi constants for colormap"""
