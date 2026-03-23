@@ -7,6 +7,9 @@ These tests focus on:
 - Testing that scripts can be parsed without errors
 """
 
+import matplotlib
+matplotlib.use('Agg')  # Use non-GUI backend to suppress plot display
+
 import pytest
 import sys
 import importlib.util
@@ -21,24 +24,37 @@ sys.path.insert(0, str(project_root))
 class TestGenerateScriptImports:
     """Test that generation scripts can be imported and parsed"""
 
-    def test_generate_31_ro_imports(self):
+    @patch('e2m2e.core.system.CR3BP_System')
+    @patch('e2m2e.core.dynamics.CR3BP_Dynamics')
+    @patch('e2m2e.algorithms.DifferentialCorrection')
+    @patch('e2m2e.algorithms.Continuation')
+    def test_generate_31_ro_imports(self, mock_cont, mock_corr, mock_dyn, mock_sys):
         """Test that generate_31_ro_family.py can be imported without errors"""
+        # Mock expensive computations to avoid long-running tests
+        mock_corr.return_value.iterate_correction.return_value = MagicMock()
+        mock_cont.return_value.natural_continuation.return_value = MagicMock()
+
         script_path = project_root / "scripts" / "generate" / "generate_31_ro_family.py"
         spec = importlib.util.spec_from_file_location(
             "generate_31_ro_family", script_path
         )
         module = importlib.util.module_from_spec(spec)
 
-        # Should not raise when parsing
-        # Note: actual execution may fail without e2m2e, but import should work
         try:
             spec.loader.exec_module(module)
         except ImportError:
-            # e2m2e may not be installed in test env, which is OK for syntax check
             pass
 
-    def test_generate_32_ro_imports(self):
+    @patch('e2m2e.core.system.CR3BP_System')
+    @patch('e2m2e.core.dynamics.CR3BP_Dynamics')
+    @patch('e2m2e.algorithms.DifferentialCorrection')
+    @patch('e2m2e.algorithms.Continuation')
+    def test_generate_32_ro_imports(self, mock_cont, mock_corr, mock_dyn, mock_sys):
         """Test that generate_32_ro_family.py can be imported without errors"""
+        # Mock expensive computations to avoid long-running tests
+        mock_corr.return_value.iterate_correction.return_value = MagicMock()
+        mock_cont.return_value.natural_continuation.return_value = MagicMock()
+
         script_path = project_root / "scripts" / "generate" / "generate_32_ro_family.py"
         spec = importlib.util.spec_from_file_location(
             "generate_32_ro_family", script_path
@@ -50,8 +66,16 @@ class TestGenerateScriptImports:
         except ImportError:
             pass
 
-    def test_generate_dro_imports(self):
+    @patch('e2m2e.core.system.CR3BP_System')
+    @patch('e2m2e.core.dynamics.CR3BP_Dynamics')
+    @patch('e2m2e.algorithms.DifferentialCorrection')
+    @patch('e2m2e.algorithms.Continuation')
+    def test_generate_dro_imports(self, mock_cont, mock_corr, mock_dyn, mock_sys):
         """Test that generate_dro_family.py can be imported without errors"""
+        # Mock expensive computations to avoid long-running tests
+        mock_corr.return_value.iterate_correction.return_value = MagicMock()
+        mock_cont.return_value.natural_continuation.return_value = MagicMock()
+
         script_path = project_root / "scripts" / "generate" / "generate_dro_family.py"
         spec = importlib.util.spec_from_file_location(
             "generate_dro_family", script_path
@@ -85,7 +109,7 @@ class TestGenerate31ROParameters:
         """Test that 3:1 RO continuation range is reasonable"""
         x0 = -0.8805
         param_min = x0
-        param_max = x0 + 0.05
+        param_max = x0 + 0.02  # Narrowed from 0.05 to 0.02
 
         assert param_min < 0  # RO orbits are on Moon's far side (negative x)
         assert param_max > param_min
@@ -110,8 +134,8 @@ class TestGenerate32ROParameters:
 
     def test_continuation_range_32ro(self):
         """Test that 3:2 RO continuation range is reasonable"""
-        param_min = -1.2
-        param_max = -0.8
+        param_min = -1.0  # Narrowed from -1.2 to -1.0
+        param_max = -0.9  # Narrowed from -0.8 to -0.9
 
         assert param_min < param_max
         assert -2 < param_min < 0
@@ -133,7 +157,7 @@ class TestGenerateDROParameters:
     def test_continuation_range_dro(self):
         """Test that DRO continuation range is reasonable"""
         param_min = 0.6
-        param_max = 0.8
+        param_max = 0.7  # Narrowed from 0.8 to 0.7
         step_size = 0.005
 
         assert 0 < param_min < param_max
