@@ -14,8 +14,12 @@ DRO-RO转移轨道网格搜索 V2
 论文: Cui et al. - 2025 - Two-impulse transfers from lunar distant retrograde orbits to resonant orbits
 """
 
+import sys
 from pathlib import Path
 from datetime import datetime
+
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 from e2m2e.core.system import CR3BP_System
 from e2m2e.core.dynamics import CR3BP_Dynamics
@@ -32,8 +36,8 @@ from scripts.utils.common import MU
 # =============================================================================
 
 # 输入文件
-DRO_FILE = "output/dro/dro_31_3857029810.json"  # DRO轨道文件
-RO_FILE = "output/ro/ro_31_3857030320.json"  # RO轨道文件
+DRO_FILE = project_root / "output/dro/dro_31_3857029810.json"  # DRO轨道文件
+RO_FILE = project_root / "output/ro/ro_31_3857030320.json"  # RO轨道文件
 
 # 搜索参数 (按论文Table 3设置)
 N_DEPARTURE = 5  # 出发点采样数量
@@ -48,7 +52,7 @@ BETA_MIN = -0.5
 BETA_MAX = 0.5
 
 # 输出目录
-OUTPUT_DIR = "output/transfer"
+OUTPUT_DIR = project_root / "output/transfer"
 
 # 并行worker数量 (Windows建议使用较小值)
 N_WORKERS = 1  # 暂时使用串行，Windows多进程有兼容问题
