@@ -9,7 +9,7 @@ DRO-RO转移轨道网格搜索 V2
 - BUG-004: 缺少碰撞检测
 
 用法:
-    修改下方参数后直接运行: python phase1_grid_search_v2.py
+    修改下方参数后直接运行: python grid_search.py
 
 论文: Cui et al. - 2025 - Two-impulse transfers from lunar distant retrograde orbits to resonant orbits
 """

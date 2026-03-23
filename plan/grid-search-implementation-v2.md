@@ -749,7 +749,7 @@ tests/e2m2e/test_transfer/
 
 1. **Phase 1**: Create new `dro_ro_search_v2.py` file with refactored code
 2. **Phase 2**: Run existing tests against new implementation
-3. **Phase 3**: Update `phase1_grid_search.py` to use new V2 class
+3. **Phase 3**: Update `grid_search.py` to use new V2 class
 4. **Phase 4**: Once validated, deprecate old `dro_ro_search.py`
 
 ---

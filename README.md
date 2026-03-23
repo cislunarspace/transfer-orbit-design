@@ -78,7 +78,7 @@
 
 ### 阶段二：CR3BP 中的转移设计
 
-- [x] 网格搜索阶段算法（`scripts/transfer/phase1_grid_search.py`, `phase1_grid_search_v2.py`）🔄
+- [x] 网格搜索阶段算法（`scripts/transfer/grid_search.py`）🔄
 - [ ] 实现优化阶段算法（NLP 问题，SQP 求解器）
 - [ ] 计算四种平面转移路径（2:1/3:1 DRO → 3:2/3:1 RO）
 - [ ] 分类三种典型转移类型（直接转移、LGA 转移、外部转移）
@@ -131,8 +131,8 @@ e2m2e/
 - `generate_dro_family.py`：生成 DRO 族
 - `generate_31_ro_family.py` / `generate_32_ro_family.py`：生成 3:1/3:2 RO 族
 - `generate_rro_family.py` / `generate_aro_family.py`：生成 3D RRO/ARO 族
-- `phase1_grid_search.py` / `phase1_grid_search_v2.py`：网格搜索转移轨道
-- `phase2_optimize.py`：优化阶段（NLP/SQP）
+- `grid_search.py`：网格搜索转移轨道
+- `optimize.py`：优化阶段（NLP/SQP）
 
 ### 数据与环境
 

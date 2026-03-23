@@ -132,13 +132,12 @@
 
 ## 脚本使用
 
-### phase1_grid_search.py / phase1_grid_search_v2.py
+### grid_search.py
 
 网格搜索转移轨道：
 
 ```bash
-python scripts/transfer/phase1_grid_search.py
-python scripts/transfer/phase1_grid_search_v2.py
+python scripts/transfer/grid_search.py
 ```
 
 **搜索变量**：
@@ -146,12 +145,12 @@ python scripts/transfer/phase1_grid_search_v2.py
 - `beta`：法向速度比（0.0 ~ 0.2）
 - 出发点位置沿 DRO 轨道分布
 
-### phase2_optimize.py
+### optimize.py
 
 优化阶段（NLP/SQP）：
 
 ```bash
-python scripts/transfer/phase2_optimize.py
+python scripts/transfer/optimize.py
 ```
 
 ### plot_transfer.py

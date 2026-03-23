@@ -11,7 +11,7 @@
 | [DRO 生成](dro-generation.md) | `generate_dro_family.py`, `plot_dro_family.py` | 远距离逆行轨道族生成 |
 | [RO 生成](ro-generation.md) | `generate_31_ro_family.py`, `generate_32_ro_family.py`, `plot_*_ro_family.py` | 共振轨道族生成 |
 | [RRO/ARO 生成](rro-aro-generation.md) | `generate_rro_family.py`, `generate_aro_family.py`, `plot_rro_family.py`, `plot_aro_family.py` | 3D 共振轨道生成 |
-| [DRO-RO 转移](dro-ro-transfer.md) | `phase1_grid_search.py`, `phase1_grid_search_v2.py`, `phase2_optimize.py`, `plot_transfer.py` | 两脉冲转移设计 |
+| [DRO-RO 转移](dro-ro-transfer.md) | `grid_search.py`, `optimize.py`, `plot_transfer.py` | 两脉冲转移设计 |
 
 ### 理论基础
 

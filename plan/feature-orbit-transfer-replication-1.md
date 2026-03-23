@@ -253,8 +253,8 @@ note: "TASK-008 完成；TASK-006/007 已有初步成果（RRO族已生成），
 - **FILE-001**: `transfer-orbit-design/scripts/phase1_generate_dro.py` — DRO 族生成脚本
 - **FILE-002**: `transfer-orbit-design/scripts/phase1_generate_ro.py` — RO 族生成脚本
 - **FILE-003**: `transfer-orbit-design/scripts/phase1_generate_3d_ro.py` — 3D RO 族生成脚本（已创建，待分岔检测）
-- **FILE-004**: `transfer-orbit-design/scripts/transfer/phase1_grid_search.py` — 转移网格搜索脚本
-- **FILE-005**: `transfer-orbit-design/scripts/transfer/phase2_optimize.py` — SQP优化求解脚本
+- **FILE-004**: `transfer-orbit-design/scripts/transfer/grid_search.py` — 转移网格搜索脚本
+- **FILE-005**: `transfer-orbit-design/scripts/transfer/optimize.py` — SQP优化求解脚本
 - **FILE-006**: `e2m2e/e2m2e/core/dynamics.py` — CR3BP/BR4BP 动力学模型
 - **FILE-007**: `e2m2e/e2m2e/algorithms/differential_correction.py` — 微分修正算法
 - **FILE-008**: `e2m2e/e2m2e/algorithms/continuation.py` — 轨道族延拓算法

@@ -98,13 +98,12 @@ python scripts/plot_32_ro_family.py
 
 ## 转移设计脚本
 
-### phase1_grid_search.py / phase1_grid_search_v2.py
+### grid_search.py
 
 网格搜索 DRO 到 RO 的可行转移轨迹：
 
 ```bash
-python scripts/transfer/phase1_grid_search.py
-python scripts/transfer/phase1_grid_search_v2.py
+python scripts/transfer/grid_search.py
 ```
 
 **搜索变量**：
@@ -119,12 +118,12 @@ python scripts/transfer/phase1_grid_search_v2.py
 4. 检查是否接近目标 RO
 5. 记录可行转移
 
-### phase2_optimize.py
+### optimize.py
 
 优化阶段 - 使用 SQP 求解 NLP 问题：
 
 ```bash
-python scripts/transfer/phase2_optimize.py
+python scripts/transfer/optimize.py
 ```
 
 **决策变量**：$y = \{\alpha, T, t_{ins}\}$

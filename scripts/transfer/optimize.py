@@ -2,7 +2,7 @@
 DRO到RO转移轨道设计 - 第二阶段：SQP优化求解
 
 用法:
-    python phase2_optimize.py --dro dro_family.json --ro ro_31_family.json --alpha 1.0 --time 15.0 --t-ins 5.0
+    python optimize.py --dro dro_family.json --ro ro_31_family.json --alpha 1.0 --time 15.0 --t-ins 5.0
 """
 
 import sys
