@@ -30,15 +30,19 @@ from scripts.utils.common import MU
 # 搜索参数配置
 # =============================================================================
 
-# 输入文件
-DRO_FILE = project_root / "output/dro/dro_31_3857029810.json"  # DRO轨道文件
-RO_FILE = project_root / "output/ro/ro_31_3857030320.json"  # RO轨道文件
+# 输入文件 - 论文Table 2中的轨道
+# 2:1 DRO: x=1.1754, 周期=13.66天
+# 3:1 DRO: x=1.1202, 周期=9.11天
+# 3:2 RO: x=-1.1453, 周期=54.64天
+# 3:1 RO: x=-0.8805, 周期=27.32天
+DRO_FILE = project_root / "output/dro/dro_21_3857.json"  # 2:1 DRO轨道文件
+RO_FILE = project_root / "output/ro/ro_32_3857.json"  # 3:2 RO轨道文件
 
 # 搜索参数 (按论文Table 3设置)
 N_DEPARTURE = 200  # 出发点采样数量
-N_ALPHA = 101  # α方向网格点数 (切向速度比)
-N_BETA = 21  # β方向网格点数 (法向速度比)
-MAX_TRANSFER_TIME = 15.0  # 最大转移时间 (CR3BP无量纲时间)
+N_ALPHA = 1001  # α方向网格点数 (切向速度比) - 论文Table 3
+N_BETA = 101  # β方向网格点数 (法向速度比) - 论文Table 3
+MAX_TRANSFER_TIME = 15.0  # 最大转移时间 (CR3BP无量纲时间, ≈65天)
 
 # α, β 搜索范围 (论文Table 3)
 ALPHA_MIN = 0.5
@@ -49,8 +53,8 @@ BETA_MAX = 0.5
 # 输出目录
 OUTPUT_DIR = project_root / "output/transfer"
 
-# 并行worker数量 (Windows建议使用较小值)
-N_WORKERS = 10  # 暂时使用串行，Windows多进程有兼容问题
+# 并行worker数量
+N_WORKERS = 8
 
 # =============================================================================
 

@@ -43,6 +43,8 @@ with open(args.result, "r") as f:
     result_data = json.load(f)
 
 # 加载轨道数据
+from e2m2e.transfer.dro_ro_search import load_orbit_from_json
+
 dro_files = glob.glob(args.dro)
 ro_files = glob.glob(args.ro)
 
@@ -51,17 +53,13 @@ if not dro_files:
 if not ro_files:
     raise FileNotFoundError(f"未找到RO文件: {args.ro}")
 
-dro_data = e2m2e.core.orbit.OrbitFamily.load_from_file(dro_files[0])
-ro_data = e2m2e.core.orbit.OrbitFamily.load_from_file(ro_files[0])
+dro_orbit = load_orbit_from_json(dro_files[0])
+ro_orbit = load_orbit_from_json(ro_files[0])
 
 # =============================================================================
 # 3. 系统初始化
 # =============================================================================
 system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-
-# 提取轨道
-dro_orbit = dro_data.orbits[args.dro_index]
-ro_orbit = ro_data.orbits[args.ro_index]
 
 mu = system.mu
 
