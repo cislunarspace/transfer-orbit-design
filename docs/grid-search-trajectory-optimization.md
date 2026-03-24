@@ -489,7 +489,7 @@ DRO-RO 网格搜索实现 (可直接修改使用)
 
 使用方法:
     1. 修改下方的配置参数
-    2. 运行: python grid_search_impl.py
+    2. 运行: python grid_search.py
 """
 
 import numpy as np
