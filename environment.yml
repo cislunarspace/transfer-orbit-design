@@ -1,0 +1,14 @@
+name: orbit-py313
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.13
+  - pip
+  - pip>=24.0
+  - numpy>=2.4.0
+  - scipy>=1.17.0
+  - matplotlib>=3.10.0
+  - pip:
+      - e2m2e @ git+https://gitee.com/cislunarspace/e2m2e.git
+      - coptpy  # COPT solver (if available on your platform)

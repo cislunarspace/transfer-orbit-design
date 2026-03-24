@@ -50,6 +50,62 @@ python ./scripts/generate/generate_31_dro_orbit.py
 
 该论文研究了地月系统中从远距离逆行轨道（DRO）到共振轨道（RO）的两脉冲转移轨道设计问题。由于 DRO 和 RO 均为稳定轨道，无法利用不稳定流形结构，论文提出了一种"搜索-优化"两步法来设计转移轨道，并在 CR3BP、BR4BP 和星历模型中分别进行了计算与验证。
 
+## 快速开始
+
+### 环境要求
+
+```bash
+# Python环境: orbit-py313 (conda)
+conda create -n orbit-py313 python=3.13
+conda activate orbit-py313
+
+# 安装依赖
+pip install numpy scipy matplotlib pandas
+pip install coptpy  # COPT求解器 (需要许可证)
+```
+
+### 执行网格搜索
+
+```bash
+# 1. 准备轨道数据文件 (JSON格式)
+#    - 2:1 DRO: output/dro/dro_21_*.json
+#    - 3:2 RO: output/ro/ro_32_*.json
+
+# 2. 执行网格搜索 (使用论文Table 3参数)
+conda run -n orbit-py313 python scripts/transfer/grid_search.py
+
+# 输出: output/transfer/search_v2_*_*.json
+```
+
+### 生成可视化
+
+```bash
+# 生成论文中的图像 (Fig.6, Fig.8-11)
+conda run -n orbit-py313 python scripts/transfer/plot_transfer_results.py \
+    --results output/transfer/search_v2_dro_21_*_ro_32_*_*.json \
+    --dro output/dro/dro_21_*.json \
+    --ro output/ro/ro_32_*.json \
+    --output-dir output/transfer/figures
+
+# 输出图像:
+#   - fig6_solution_plane.png  (解平面)
+#   - direct_transfers.png      (直接转移)
+#   - LGA_transfers.png         (月球借力转移)
+#   - external_transfers.png     (外部转移)
+#   - fig11_quartile_map.png    (四分位图)
+```
+
+### 轨道数据格式
+
+```json
+{
+  "states": [[x, y, z, vx, vy, vz], ...],
+  "times": [t0, t1, ...],
+  "period": 6.283,
+  "orbit_type": "DRO"
+}
+```
+
 ## 论文核心内容
 
 ### 动力学模型
@@ -117,12 +173,14 @@ python ./scripts/generate/generate_31_dro_orbit.py
 
 ### 阶段二：CR3BP 中的转移设计
 
-- [x] 网格搜索阶段算法（`scripts/transfer/grid_search.py`）🔄
-- [ ] 实现优化阶段算法（NLP 问题，SQP 求解器）
-- [ ] 计算四种平面转移路径（2:1/3:1 DRO → 3:2/3:1 RO）
+- [x] 网格搜索阶段算法（`scripts/transfer/grid_search.py`）✅
+- [x] COPT求解器集成（`e2m2e/transfer/dro_ro_nlp.py`）✅
+- [x] 优化阶段算法（NLP 问题，SQP 求解器）✅
+- [x] 并行算法优化（批量处理、向量化检测）✅
+- [ ] 计算四种平面转移路径（2:1/3:1 DRO → 3:2/3:1 RO）🔄
 - [ ] 分类三种典型转移类型（直接转移、LGA 转移、外部转移）
-- [ ] 绘制解平面（转移时间 vs 总脉冲）
-- [ ] 分析出发点和插入点分布（四分位图）
+- [ ] 绘制解平面（转移时间 vs 总脉冲）- Fig.6
+- [ ] 分析出发点和插入点分布（四分位图）- Fig.11
 - [ ] 计算非平面转移（2:1 DRO → 3D RO）
 
 ### 阶段三：BR4BP 中的转移设计

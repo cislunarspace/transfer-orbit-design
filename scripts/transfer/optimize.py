@@ -44,7 +44,7 @@ if not dro_files:
 if not ro_files:
     raise FileNotFoundError(f"未找到RO文件: {args.ro}")
 
-from e2m2e.transfer.dro_ro_search import load_orbit_from_json
+from e2m2e.transfer import load_orbit_from_json, DROTRONLPOptimizer, NLPOptimizationVariables
 
 print(f"加载DRO: {dro_files[0]}")
 print(f"加载RO: {ro_files[0]}")
@@ -80,7 +80,7 @@ print(f"  T = {args.time} TU")
 print(f"  t_ins = {args.t_ins} TU")
 
 # 创建NLP优化器
-optimizer = e2m2e.transfer.dro_ro_nlp.DROTRONLPOptimizer(
+optimizer = DROTRONLPOptimizer(
     system=system,
     dynamics=dynamics,
     departure_orbit=dro_orbit,
@@ -89,7 +89,7 @@ optimizer = e2m2e.transfer.dro_ro_nlp.DROTRONLPOptimizer(
 )
 
 # 构建初始猜测
-nlp_initial = e2m2e.transfer.dro_ro_nlp.NLPOptimizationVariables(
+nlp_initial = NLPOptimizationVariables(
     alpha=args.alpha, transfer_time=args.time, t_ins=args.t_ins
 )
 
