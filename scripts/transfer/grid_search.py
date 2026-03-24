@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import List, Tuple, Optional, Dict, Any
 from pathlib import Path
 import sys
+from scripts.utils.common import MU, DU, TU, VU, T_MOON
 
 # =============================================================================
 # 参数配置
@@ -24,8 +25,8 @@ DRO_FILE = "output/dro/dro_31_3857029810.json"
 RO_FILE = "output/ro/ro_31_3857030320.json"
 
 # 搜索参数
-N_DEPARTURE = 200      # 出发点采样数量 (范围: 50-500)
-N_ALPHA = 101          # α方向网格点数 (范围: 51-501)
+N_DEPARTURE = 200  # 出发点采样数量 (范围: 50-500)
+N_ALPHA = 101  # α方向网格点数 (范围: 51-501)
 MAX_TRANSFER_TIME = 15.0  # 最大转移时间 (TU)
 
 # alpha 搜索范围
@@ -33,19 +34,20 @@ ALPHA_MIN = 0.5
 ALPHA_MAX = 2.5
 
 # 筛选阈值
-INTERSECTION_THRESHOLD = 0.001   # 相交判定距离 (当距离小于此值认为相交)
-MIN_DISTANCE_THRESHOLD = 0.05   # 候选解最小距离阈值
+INTERSECTION_THRESHOLD = 0.001  # 相交判定距离 (当距离小于此值认为相交)
+MIN_DISTANCE_THRESHOLD = 0.05  # 候选解最小距离阈值
 
-# 碰撞检测半径 (无量纲)
-EARTH_RADIUS = 0.01 # //TODO 这里对应多少km？
-MOON_RADIUS = 0.01 # //TODO 这里对应多少km？
+# 碰撞检测半径 (无量纲 DU)
+# 地球: 200 km = 200/384405 DU ≈ 0.000520 DU
+# 月球: 100 km = 100/384405 DU ≈ 0.000260 DU
+EARTH_RADIUS = 200 / DU
+MOON_RADIUS = 100 / DU
 
 # 积分配置
-DT = 0.001   # 积分步长 //TODO 这个步长的单位是什么？
-INTEGRATOR = 'rk4'  # //TODO 这里应该要使用更高精度的积分器
+# 1 分钟 = 1/6269.28 TU ≈ 0.0001595 TU (1 TU = 4.34811305 天 = 6269.28 分钟)
+DT = 1.0 / (24 * 60 * TU)
+INTEGRATOR = "rk4"  # //TODO 这里应该要使用更高精度的积分器
 
-# 物理常数
-MU = 1.21506683e-2  # 地月质量比 //TODO 这里的参数应该要从common中选取
 
 print("=" * 70)
 print("DRO-RO 转移轨道网格搜索")
@@ -58,4 +60,3 @@ print(f"  积分步长: {DT}")
 print(f"  相交阈值: {INTERSECTION_THRESHOLD:.6f}")
 print(f"  候选解阈值: {MIN_DISTANCE_THRESHOLD:.6f}")
 print(f"  碰撞半径: 地球={EARTH_RADIUS:.4f}, 月球={MOON_RADIUS:.4f}")
-
