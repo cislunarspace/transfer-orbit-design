@@ -18,9 +18,9 @@ sys.path.insert(0, str(project_root))
 
 from e2m2e.core.system import CR3BP_System
 from e2m2e.core.dynamics import CR3BP_Dynamics
-from e2m2e.transfer.dro_ro_search import (
-    DROROTransferSearch,
-    TransferSearchConfig,
+from e2m2e.transfer import (
+    DROTransferSearch,
+    SearchResult,
     load_orbit_from_json,
     save_search_results,
 )
@@ -79,37 +79,29 @@ def main():
     dynamics = CR3BP_Dynamics(system=system)
 
     # 创建搜索配置
-    config = TransferSearchConfig(
+    print(f"\n搜索参数:")
+    print(f"  出发点数量: {N_DEPARTURE}")
+    print(f"  α范围: [{ALPHA_MIN}, {ALPHA_MAX}], n={N_ALPHA}")
+    print(f"  最大转移时间: {MAX_TRANSFER_TIME}")
+    print(f"  总候选解数量: {N_DEPARTURE * N_ALPHA}")
+
+    # 创建搜索器并配置
+    transfer = DROTransferSearch(system=system, dynamics=dynamics)
+    transfer.set_departure_orbit(dro_orbit).set_arrival_orbit(ro_orbit)
+    transfer.configure_search(
         alpha_min=ALPHA_MIN,
         alpha_max=ALPHA_MAX,
         n_alpha=N_ALPHA,
         n_departure=N_DEPARTURE,
         max_transfer_time=MAX_TRANSFER_TIME,
     )
-
-    print(f"\n搜索参数:")
-    print(f"  出发点数量: {config.n_departure}")
-    print(f"  α范围: [{config.alpha_min}, {config.alpha_max}], n={config.n_alpha}")
-    print(f"  最大转移时间: {config.max_transfer_time}")
-    print(f"  总候选解数量: {config.n_departure * config.n_alpha}")
-
-    # 创建搜索器
-    searcher = DROROTransferSearch(
-        system=system,
-        dynamics=dynamics,
-        config=config,
-    )
+    transfer.set_verbose(True).set_n_workers(N_WORKERS)
 
     # 执行网格搜索
     print(f"\n开始网格搜索...")
     print("-" * 60)
 
-    results = searcher.grid_search(
-        departure_orbit=dro_orbit,
-        arrival_orbit=ro_orbit,
-        verbose=True,
-        n_workers=N_WORKERS,
-    )
+    results = transfer.search()
 
     print("-" * 60)
 
