@@ -1,7 +1,7 @@
 """
-DRO-RO转移轨道网格搜索 V2
+平面DRO-RO转移轨道网格搜索
 
-使用修正后的搜索算法 (dro_ro_search_v2.py) 进行网格搜索。
+使用的搜索算法进行网格搜索。
 
 用法:
     修改下方参数后直接运行: python grid_search.py
@@ -41,14 +41,11 @@ RO_FILE = project_root / "output/ro/ro_32_3857.json"  # 3:2 RO轨道文件
 # 搜索参数 (按论文Table 3设置)
 N_DEPARTURE = 200  # 出发点采样数量
 N_ALPHA = 1001  # α方向网格点数 (切向速度比) - 论文Table 3
-N_BETA = 101  # β方向网格点数 (法向速度比) - 论文Table 3
 MAX_TRANSFER_TIME = 15.0  # 最大转移时间 (CR3BP无量纲时间, ≈65天)
 
-# α, β 搜索范围 (论文Table 3)
+# α 搜索范围 (论文Table 3)
 ALPHA_MIN = 0.5
 ALPHA_MAX = 2.5
-BETA_MIN = -0.5
-BETA_MAX = 0.5
 
 # 输出目录
 OUTPUT_DIR = project_root / "output/transfer"
@@ -86,9 +83,6 @@ def main():
         alpha_min=ALPHA_MIN,
         alpha_max=ALPHA_MAX,
         n_alpha=N_ALPHA,
-        beta_min=BETA_MIN,
-        beta_max=BETA_MAX,
-        n_beta=N_BETA,
         n_departure=N_DEPARTURE,
         max_transfer_time=MAX_TRANSFER_TIME,
     )
@@ -96,9 +90,8 @@ def main():
     print(f"\n搜索参数:")
     print(f"  出发点数量: {config.n_departure}")
     print(f"  α范围: [{config.alpha_min}, {config.alpha_max}], n={config.n_alpha}")
-    print(f"  β范围: [{config.beta_min}, {config.beta_max}], n={config.n_beta}")
     print(f"  最大转移时间: {config.max_transfer_time}")
-    print(f"  总候选解数量: {config.n_departure * config.n_alpha * config.n_beta}")
+    print(f"  总候选解数量: {config.n_departure * config.n_alpha}")
 
     # 创建搜索器
     searcher = DROROTransferSearch(
@@ -139,14 +132,14 @@ def main():
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # 保存完整结果 (JSON格式)
-    output_file = output_dir / f"search_v2_{dro_name}_{ro_name}_{timestamp}.json"
+    output_file = output_dir / f"search_{dro_name}_{ro_name}_{timestamp}.json"
     save_search_results(results, str(output_file))
     print(f"\n结果已保存: {output_file}")
 
     # 保存可行解详情
     if feasible:
         feasible_file = (
-            output_dir / f"feasible_v2_{dro_name}_{ro_name}_{timestamp}.json"
+            output_dir / f"feasible_{dro_name}_{ro_name}_{timestamp}.json"
         )
         save_search_results(feasible, str(feasible_file))
         print(f"可行解详情: {feasible_file}")
@@ -156,7 +149,7 @@ def main():
         feasible_sorted = sorted(feasible, key=lambda r: r.min_distance)[:5]
         for i, r in enumerate(feasible_sorted):
             print(
-                f"  {i + 1}. α={r.alpha:.4f}, β={r.beta:.4f}, "
+                f"  {i + 1}. α={r.alpha:.4f}, "
                 f"min_dist={r.min_distance:.6f}, "
                 f"transfer_time={r.transfer_time:.4f}"
             )
