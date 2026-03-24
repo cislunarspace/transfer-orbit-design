@@ -14,15 +14,13 @@
 """
 
 from pathlib import Path
-
 from fontTools.misc.timeTools import timestampNow
-
-project_root = Path(__file__).resolve().parent.parent.parent
 
 import e2m2e
 from e2m2e.core import Orbit
-
 from scripts.utils.common import MU
+
+project_root = Path(__file__).resolve().parent.parent.parent
 
 # 项目根目录
 OUTPUT_DIR = project_root / "output" / "dro"

@@ -18,12 +18,12 @@
 
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent.parent
-
 import e2m2e
 from fontTools.misc.timeTools import timestampNow
+
 from scripts.utils.common import MU, TU
 
+project_root = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = project_root / "output"
 
 # =============================================================================
