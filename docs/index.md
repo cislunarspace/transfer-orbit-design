@@ -28,13 +28,16 @@
 | [系统概述](system-overview.md) | 项目架构、依赖和安装 |
 | [API 参考](api-reference.md) | e2m2e 库 API 文档 |
 | [脚本参考](scripts-reference.md) | 所有脚本详细参数说明 |
+| [开发指南](development-guide.md) | e2m2e 依赖管理、符号链接设置 |
 
 ## 快速开始
 
 ```bash
 # 安装依赖
 pip install -r requirements.txt
-pip install -e C:/Users/ouyangjiahong/Codes/e2m2e
+
+# 建立 e2m2e 符号链接（首次 clone 后执行）
+ln -s /home/desktop/codes/e2m2e/e2m2e e2m2e
 
 # 生成 DRO 族
 python scripts/generate_dro_family.py

@@ -18,6 +18,10 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]
 
+[tool.pyright]
+extraPaths = ["/home/desktop/codes/e2m2e"]
+pythonVersion = "3.13"
+
 [tool.setuptools.packages.find]
 where = ["."]
 exclude = ["tests*"]

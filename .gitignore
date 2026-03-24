@@ -215,6 +215,9 @@ Desktop.ini
 /scripts/output/
 /results/
 
+# e2m2e 符号链接（指向 ~/codes/e2m2e/e2m2e，由 setup_symlink.sh 管理）
+e2m2e
+
 # 配置文件（包含敏感信息）
 config.ini
 secrets.json
