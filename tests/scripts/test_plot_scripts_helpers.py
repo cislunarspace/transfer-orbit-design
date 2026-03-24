@@ -9,7 +9,8 @@ These tests focus on:
 
 import math
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 
 import pytest
 import importlib.util
@@ -25,25 +26,32 @@ class TestPlotScriptImports:
 
     def _create_mock_family_result(self, mock_system):
         """Create a properly configured mock OrbitFamily for testing"""
+
         # Use a real class instead of MagicMock to avoid len() returning MagicMock
         class MockOrbitFamily:
             def __init__(self, system):
                 self.system = system
+
             def __len__(self):
                 return 0
+
             def get_jacobi_constants(self):
                 return np.array([3.0, 3.5])
+
             def get_periods(self):
                 return np.array([1.0, 1.5])
+
         return MockOrbitFamily(mock_system)
 
-    @patch('e2m2e.visualization.plotting.compute_stability_for_family')
-    @patch('e2m2e.core.OrbitFamily.load_from_file')
-    @patch('e2m2e.core.CR3BP_System')
+    @patch("e2m2e.visualization.plotting.compute_stability_for_family")
+    @patch("e2m2e.core.OrbitFamily.load_from_file")
+    @patch("e2m2e.core.CR3BP_System")
     def test_plot_31_ro_imports(self, mock_system, mock_load, mock_stability):
         """Test that plot_31_ro_family.py can be imported without errors"""
         # Mock expensive data loading to avoid long-running tests
-        mock_load.return_value = self._create_mock_family_result(mock_system.return_value)
+        mock_load.return_value = self._create_mock_family_result(
+            mock_system.return_value
+        )
         mock_system.return_value = MagicMock()
         mock_stability.return_value = np.array([1.0, 1.5])
 
@@ -57,12 +65,14 @@ class TestPlotScriptImports:
             # Scripts may fail due to mock data shapes - that's OK for import test
             pass
 
-    @patch('e2m2e.core.OrbitFamily.load_from_file')
-    @patch('e2m2e.core.CR3BP_System')
+    @patch("e2m2e.core.OrbitFamily.load_from_file")
+    @patch("e2m2e.core.CR3BP_System")
     def test_plot_32_ro_imports(self, mock_system, mock_load):
         """Test that plot_32_ro_family.py can be imported without errors"""
         # Mock expensive data loading to avoid long-running tests
-        mock_load.return_value = self._create_mock_family_result(mock_system.return_value)
+        mock_load.return_value = self._create_mock_family_result(
+            mock_system.return_value
+        )
         mock_system.return_value = MagicMock()
 
         script_path = project_root / "scripts" / "plot" / "plot_32_ro_family.py"
@@ -74,13 +84,15 @@ class TestPlotScriptImports:
         except Exception:
             pass
 
-    @patch('e2m2e.visualization.plotting.compute_stability_for_family')
-    @patch('e2m2e.core.OrbitFamily.load_from_file')
-    @patch('e2m2e.core.CR3BP_System')
+    @patch("e2m2e.visualization.plotting.compute_stability_for_family")
+    @patch("e2m2e.core.OrbitFamily.load_from_file")
+    @patch("e2m2e.core.CR3BP_System")
     def test_plot_dro_imports(self, mock_system, mock_load, mock_stability):
         """Test that plot_dro_family.py can be imported without errors"""
         # Mock expensive data loading to avoid long-running tests
-        mock_load.return_value = self._create_mock_family_result(mock_system.return_value)
+        mock_load.return_value = self._create_mock_family_result(
+            mock_system.return_value
+        )
         mock_system.return_value = MagicMock()
         mock_stability.return_value = np.array([1.0, 1.5])
 
@@ -94,15 +106,19 @@ class TestPlotScriptImports:
             # Scripts may fail due to mock data shapes - that's OK for import test
             pass
 
-    @patch('e2m2e.core.OrbitFamily.load_from_file')
-    @patch('e2m2e.core.CR3BP_System')
+    @patch("e2m2e.core.OrbitFamily.load_from_file")
+    @patch("e2m2e.core.CR3BP_System")
     def test_plot_interactive_imports(self, mock_system, mock_load):
         """Test that plot_interactive_orbit_inspector.py can be imported without errors"""
         # Mock expensive data loading to avoid long-running tests
-        mock_load.return_value = self._create_mock_family_result(mock_system.return_value)
+        mock_load.return_value = self._create_mock_family_result(
+            mock_system.return_value
+        )
         mock_system.return_value = MagicMock()
 
-        script_path = project_root / "scripts" / "plot" / "plot_interactive_orbit_inspector.py"
+        script_path = (
+            project_root / "scripts" / "plot" / "plot_interactive_orbit_inspector.py"
+        )
         spec = importlib.util.spec_from_file_location(
             "plot_interactive_orbit_inspector", script_path
         )

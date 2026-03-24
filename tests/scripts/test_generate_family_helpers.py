@@ -8,7 +8,8 @@ These tests focus on:
 """
 
 import matplotlib
-matplotlib.use('Agg')  # Use non-GUI backend to suppress plot display
+
+matplotlib.use("Agg")  # Use non-GUI backend to suppress plot display
 
 import pytest
 import importlib.util
@@ -21,10 +22,10 @@ project_root = Path(__file__).resolve().parent.parent.parent
 class TestGenerateScriptImports:
     """Test that generation scripts can be imported and parsed"""
 
-    @patch('e2m2e.core.system.CR3BP_System')
-    @patch('e2m2e.core.dynamics.CR3BP_Dynamics')
-    @patch('e2m2e.algorithms.DifferentialCorrection')
-    @patch('e2m2e.algorithms.Continuation')
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
     def test_generate_31_ro_imports(self, mock_cont, mock_corr, mock_dyn, mock_sys):
         """Test that generate_31_ro_family.py can be imported without errors"""
         # Mock expensive computations to avoid long-running tests
@@ -42,10 +43,10 @@ class TestGenerateScriptImports:
         except ImportError:
             pass
 
-    @patch('e2m2e.core.system.CR3BP_System')
-    @patch('e2m2e.core.dynamics.CR3BP_Dynamics')
-    @patch('e2m2e.algorithms.DifferentialCorrection')
-    @patch('e2m2e.algorithms.Continuation')
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
     def test_generate_32_ro_imports(self, mock_cont, mock_corr, mock_dyn, mock_sys):
         """Test that generate_32_ro_family.py can be imported without errors"""
         # Mock expensive computations to avoid long-running tests
@@ -63,10 +64,10 @@ class TestGenerateScriptImports:
         except ImportError:
             pass
 
-    @patch('e2m2e.core.system.CR3BP_System')
-    @patch('e2m2e.core.dynamics.CR3BP_Dynamics')
-    @patch('e2m2e.algorithms.DifferentialCorrection')
-    @patch('e2m2e.algorithms.Continuation')
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
     def test_generate_dro_imports(self, mock_cont, mock_corr, mock_dyn, mock_sys):
         """Test that generate_dro_family.py can be imported without errors"""
         # Mock expensive computations to avoid long-running tests

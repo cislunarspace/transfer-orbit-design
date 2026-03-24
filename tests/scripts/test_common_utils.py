@@ -105,6 +105,7 @@ class TestGetLatestFamilyFile:
         """Should search in latest timestamped subdirectory"""
         import time
         import os
+
         output_dir = tmp_path / "output"
         output_dir.mkdir()
         old_dir = output_dir / "20240101_100000"

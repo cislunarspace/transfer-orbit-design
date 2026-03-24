@@ -44,7 +44,11 @@ if not dro_files:
 if not ro_files:
     raise FileNotFoundError(f"未找到RO文件: {args.ro}")
 
-from e2m2e.transfer import load_orbit_from_json, DROTRONLPOptimizer, NLPOptimizationVariables
+from e2m2e.transfer import (
+    load_orbit_from_json,
+    DROTRONLPOptimizer,
+    NLPOptimizationVariables,
+)
 
 print(f"加载DRO: {dro_files[0]}")
 print(f"加载RO: {ro_files[0]}")
