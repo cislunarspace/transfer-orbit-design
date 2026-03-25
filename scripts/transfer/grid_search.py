@@ -10,9 +10,12 @@ DRO-RO 网格搜索
 import json
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent.parent
+import e2m2e
+from e2m2e.transfer import DROTransferSearch, load_orbit_from_json
 
-from scripts.utils.common import MU, DU, TU
+from scripts.utils.common import DU, MU, TU
+
+project_root = Path(__file__).resolve().parent.parent.parent
 
 # =============================================================================
 # 参数配置
@@ -41,10 +44,9 @@ MIN_DISTANCE_THRESHOLD = 0.05  # 候选解最小距离阈值
 EARTH_RADIUS = 200 / DU
 MOON_RADIUS = 100 / DU
 
-# 积分配置
-# 1 分钟 = 1/6269.28 TU ≈ 0.0001595 TU (1 TU = 4.34811305 天 = 6269.28 分钟)
-DT = 1.0 / (24 * 60 * TU)
-INTEGRATOR = "rk4"  # //TODO 这里应该要使用更高精度的积分器
+# DOP853，rtol/atol=1e-12；输出步长 1 小时（无量纲）
+DT = 1.0 / (24.0 * TU)
+INTEGRATOR = "DOP853"
 
 
 print("=" * 70)
@@ -54,7 +56,11 @@ print(f"\n搜索配置:")
 print(f"  出发点数量: {N_DEPARTURE}")
 print(f"  α范围: [{ALPHA_MIN:.2f}, {ALPHA_MAX:.2f}], n={N_ALPHA}")
 print(f"  最大转移时间: {MAX_TRANSFER_TIME:.1f} TU")
-print(f"  积分步长 DT: {DT}")
+_est_out = max(int(MAX_TRANSFER_TIME / DT) + 1, 2)
+print(
+    f"  输出时间步长（1 小时）: {DT:.8f} TU  "
+    f"(每 1 TU ≈ {1.0/DT:.0f} 步；{MAX_TRANSFER_TIME:.1f} TU 上约 {_est_out} 个输出点)"
+)
 print(f"  相交阈值: {INTERSECTION_THRESHOLD:.6f}")
 print(f"  候选解阈值: {MIN_DISTANCE_THRESHOLD:.6f}")
 print(f"  碰撞半径: 地球={EARTH_RADIUS:.4f}, 月球={MOON_RADIUS:.4f}")
@@ -64,16 +70,12 @@ print(f"  碰撞半径: 地球={EARTH_RADIUS:.4f}, 月球={MOON_RADIUS:.4f}")
 # e2m2e Transfer 模块初始化
 # =============================================================================
 
-# 导入 e2m2e 及 transfer 模块
-import e2m2e
-from e2m2e.transfer import (
-    load_orbit_from_json,
-    DROTransferSearch,
-)
-
-# 创建 CR3BP 系统与动力学模型
 system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
 dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+dynamics.integrator = INTEGRATOR
+dynamics.rtol = 1e-12
+dynamics.atol = 1e-12
+dynamics.max_step = DT
 
 # 加载轨道数据
 print(f"\n加载轨道数据:")
@@ -86,10 +88,8 @@ ro_orbit = load_orbit_from_json(RO_FILE)
 print(f"  DRO周期: {dro_orbit.period:.4f} TU, 状态数: {len(dro_orbit.states)}")
 print(f"  RO周期: {ro_orbit.period:.4f} TU, 状态数: {len(ro_orbit.states)}")
 
-# 创建网格搜索实例
 transfer_search = DROTransferSearch(system=system, dynamics=dynamics)
 
-# 设置搜索参数（直接在实例上赋值）
 transfer_search.alpha_min = ALPHA_MIN
 transfer_search.alpha_max = ALPHA_MAX
 transfer_search.n_alpha = N_ALPHA
@@ -103,6 +103,9 @@ transfer_search.integration_dt = DT
 
 print(f"\ne2m2e transfer 模块初始化完成")
 print(f"  系统: μ = {system.mu:.6e}")
+print(f"  积分器: {dynamics.integrator}")
+print(f"  rtol/atol: {dynamics.rtol:g} / {dynamics.atol:g}")
+print(f"  max_step: {dynamics.max_step:.8f} TU")
 print(f"  搜索实例已创建")
 
 
@@ -114,16 +117,13 @@ print("\n" + "=" * 70)
 print("开始网格搜索")
 print("=" * 70)
 
-# 设置轨道
 transfer_search.set_departure_orbit(dro_orbit)
 transfer_search.set_arrival_orbit(ro_orbit)
 
-# 执行搜索
 results = transfer_search.search()
 
 print(f"\n搜索完成，共找到 {len(results)} 个候选解")
 
-# 筛选可行解（search() 返回 dict 列表，可行性与 BaseTransfer._is_feasible 一致）
 feasible_results = [r for r in results if transfer_search._is_feasible(r)]
 print(f"其中 {len(feasible_results)} 个为可行解")
 
@@ -135,7 +135,7 @@ print(f"其中 {len(feasible_results)} 个为可行解")
 OUTPUT_FILE = project_root / "output/transfer/search_results.json"
 
 def _json_safe(x):
-    """numpy 标量/数组转为 JSON 可序列化类型"""
+    """JSON 序列化 numpy 标量/数组"""
     if x is None:
         return None
     if hasattr(x, "tolist"):
@@ -144,7 +144,7 @@ def _json_safe(x):
 
 
 def serialize_result(r):
-    """将 search() 返回的 dict 转为可序列化的字典（不含 transfer_trajectory 等大数组）"""
+    """序列化单条搜索结果（不含 transfer_trajectory）"""
     return {
         "departure_orbit_name": r.get("departure_orbit_name"),
         "arrival_orbit_name": r.get("arrival_orbit_name"),
@@ -166,13 +166,10 @@ def serialize_result(r):
         "dv_departure": _json_safe(r.get("dv_departure")),
     }
 
-# 序列化所有结果
 results_data = [serialize_result(r) for r in results]
 
-# 确保输出目录存在
 Path(OUTPUT_FILE).parent.mkdir(parents=True, exist_ok=True)
 
-# 保存到JSON
 with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
     json.dump(results_data, f, indent=2, ensure_ascii=False)
 
