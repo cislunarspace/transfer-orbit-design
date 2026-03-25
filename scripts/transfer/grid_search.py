@@ -25,10 +25,15 @@ project_root = Path(__file__).resolve().parent.parent.parent
 DRO_FILE = project_root / "output/dro/dro_31_3857117441.json"
 RO_FILE = project_root / "output/ro/ro_31_3857122799.json"
 
+# 并行：1 = 串行（便于调试 _search_single_departure）；None = 使用 e2m2e 默认（cpu 核数）
+# N_WORKERS = 1
+N_WORKERS = None
+
 # 搜索参数
 N_DEPARTURE = 200  # 出发点采样数量 (范围: 50-500)
 N_ALPHA = 101  # α方向网格点数 (范围: 51-501)
-MAX_TRANSFER_TIME = 15.0  # 最大转移时间 (TU)
+# 最大转移时间：10 天（e2m2e 内为无量纲 TU；1 TU ≈ 4.348 天，见 scripts.utils.common.TU）
+MAX_TRANSFER_TIME = 10.0 / TU
 
 # alpha 搜索范围
 ALPHA_MIN = 0.5
@@ -53,6 +58,7 @@ print("=" * 70)
 print("DRO-RO 转移轨道网格搜索")
 print("=" * 70)
 print(f"\n搜索配置:")
+print(f"  并行线程数 n_workers: {N_WORKERS}（None 表示使用 CPU 核数）")
 print(f"  出发点数量: {N_DEPARTURE}")
 print(f"  α范围: [{ALPHA_MIN:.2f}, {ALPHA_MAX:.2f}], n={N_ALPHA}")
 print(f"  最大转移时间: {MAX_TRANSFER_TIME:.1f} TU")
@@ -120,7 +126,7 @@ print("=" * 70)
 transfer_search.set_departure_orbit(dro_orbit)
 transfer_search.set_arrival_orbit(ro_orbit)
 
-results = transfer_search.search()
+results = transfer_search.search(n_workers=N_WORKERS)
 
 print(f"\n搜索完成，共找到 {len(results)} 个候选解")
 
