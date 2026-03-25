@@ -122,8 +122,8 @@ results = transfer_search.search()
 
 print(f"\n搜索完成，共找到 {len(results)} 个候选解")
 
-# 筛选可行解
-feasible_results = [r for r in results if r.is_feasible]
+# 筛选可行解（search() 返回 dict 列表，可行性与 BaseTransfer._is_feasible 一致）
+feasible_results = [r for r in results if transfer_search._is_feasible(r)]
 print(f"其中 {len(feasible_results)} 个为可行解")
 
 
@@ -133,27 +133,36 @@ print(f"其中 {len(feasible_results)} 个为可行解")
 
 OUTPUT_FILE = project_root / "output/transfer/search_results.json"
 
+def _json_safe(x):
+    """numpy 标量/数组转为 JSON 可序列化类型"""
+    if x is None:
+        return None
+    if hasattr(x, "tolist"):
+        return x.tolist()
+    return x
+
+
 def serialize_result(r):
-    """将SearchResult转换为可序列化的字典"""
+    """将 search() 返回的 dict 转为可序列化的字典（不含 transfer_trajectory 等大数组）"""
     return {
-        "departure_orbit_name": r.departure_orbit_name,
-        "arrival_orbit_name": r.arrival_orbit_name,
-        "departure_time": r.departure_time,
-        "departure_state": r.departure_state.tolist() if r.departure_state is not None else None,
-        "alpha": r.alpha,
-        "transfer_time": r.transfer_time,
-        "min_distance": r.min_distance,
-        "min_distance_idx": r.min_distance_idx,
-        "intersection_found": r.intersection_found,
-        "intersection_point": r.intersection_point.tolist() if r.intersection_point is not None else None,
-        "intersection_idx": r.intersection_idx,
-        "local_minimum_found": r.local_minimum_found,
-        "local_minimum_distance": r.local_minimum_distance,
-        "collision_found": r.collision_found,
-        "collision_body": r.collision_body,
-        "status": r.status,
-        "is_feasible": r.is_feasible,
-        "dv_departure": r.dv_departure,
+        "departure_orbit_name": r.get("departure_orbit_name"),
+        "arrival_orbit_name": r.get("arrival_orbit_name"),
+        "departure_time": r.get("departure_time"),
+        "departure_state": _json_safe(r.get("departure_state")),
+        "alpha": r.get("alpha"),
+        "transfer_time": r.get("transfer_time"),
+        "min_distance": _json_safe(r.get("min_distance")),
+        "min_distance_idx": r.get("min_distance_idx"),
+        "intersection_found": r.get("intersection_found"),
+        "intersection_point": _json_safe(r.get("intersection_point")),
+        "intersection_idx": r.get("intersection_idx"),
+        "local_minimum_found": r.get("local_minimum_found"),
+        "local_minimum_distance": _json_safe(r.get("local_minimum_distance")),
+        "collision_found": r.get("collision_found"),
+        "collision_body": r.get("collision_body"),
+        "status": r.get("status"),
+        "is_feasible": transfer_search._is_feasible(r),
+        "dv_departure": _json_safe(r.get("dv_departure")),
     }
 
 # 序列化所有结果
