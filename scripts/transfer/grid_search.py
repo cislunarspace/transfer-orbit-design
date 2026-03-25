@@ -54,7 +54,7 @@ print(f"\n搜索配置:")
 print(f"  出发点数量: {N_DEPARTURE}")
 print(f"  α范围: [{ALPHA_MIN:.2f}, {ALPHA_MAX:.2f}], n={N_ALPHA}")
 print(f"  最大转移时间: {MAX_TRANSFER_TIME:.1f} TU")
-print(f"  积分步长: {DT}")
+print(f"  积分步长 DT: {DT}")
 print(f"  相交阈值: {INTERSECTION_THRESHOLD:.6f}")
 print(f"  候选解阈值: {MIN_DISTANCE_THRESHOLD:.6f}")
 print(f"  碰撞半径: 地球={EARTH_RADIUS:.4f}, 月球={MOON_RADIUS:.4f}")
@@ -99,6 +99,7 @@ transfer_search.intersection_threshold = INTERSECTION_THRESHOLD
 transfer_search.min_distance_threshold = MIN_DISTANCE_THRESHOLD
 transfer_search.collision_earth_radius = EARTH_RADIUS
 transfer_search.collision_moon_radius = MOON_RADIUS
+transfer_search.integration_dt = DT
 
 print(f"\ne2m2e transfer 模块初始化完成")
 print(f"  系统: μ = {system.mu:.6e}")
