@@ -1,12 +1,14 @@
 """
-可视化 grid_search 输出的 search_results.json
+可视化 grid_search 输出的搜索结果 JSON。
+
+在下方 ``RESULTS_JSON`` 中指定要绘制的 grid_search 输出 JSON（相对仓库根目录或绝对路径均可）。
 
 与论文搜索阶段对应：在 (出发点时间, α) 平面上看覆盖与最小距离；
-转移时间 vs 最小距离散点（优化前代理图）。
+转移时间 vs 最小距离散点（优化前代理图）；可行解的 α–出发 Δv 散点（Δv 由 departure_state 与 α 按搜索阶段速度扰动模型计算）。
 
 用法:
     python plot_search_results.py
-    python plot_search_results.py --input output/transfer/search_results.json --save output/transfer/figures/search
+    python plot_search_results.py --save output/transfer/figures/search
 """
 
 from __future__ import annotations
@@ -21,11 +23,57 @@ import numpy as np
 
 project_root = Path(__file__).resolve().parent.parent.parent
 
+# =============================================================================
+# 数据文件：grid_search 输出的 JSON
+# =============================================================================
+RESULTS_JSON = project_root / "output/transfer/search_results.json"
+# 示例: RESULTS_JSON = project_root / "output/transfer/search_results_10-101-0.5-2.5-2.298634_3857123456.json"
+
 
 def _f(x) -> float:
     if x is None:
         return np.nan
     return float(x)
+
+
+def departure_delta_v_norm(state6: np.ndarray, alpha: float) -> float:
+    """与 e2m2e DROTransferSearch._compute_departure_velocity 一致，返回 ‖v'−v‖（无量纲速度）。"""
+    pos = np.asarray(state6[:3], dtype=np.float64)
+    vel = np.asarray(state6[3:6], dtype=np.float64)
+    r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
+    if r_xy < 1e-10:
+        return float("nan")
+    tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
+    radial = pos / np.linalg.norm(pos)
+    v_radial_comp = float(np.dot(vel, radial))
+    v_tangential_comp = float(np.dot(vel, tangential))
+    new_vel = v_radial_comp * radial + alpha * v_tangential_comp * tangential
+    return float(np.linalg.norm(new_vel - vel))
+
+
+def feasible_alpha_and_departure_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndarray]:
+    """仅可行解；优先使用 JSON 中的 dv_departure（标量），否则由 departure_state 与 alpha 计算。"""
+    alphas: list[float] = []
+    dvs: list[float] = []
+    for r in rows:
+        if not r.get("is_feasible"):
+            continue
+        alpha = r.get("alpha")
+        if alpha is None:
+            continue
+        dv_raw = r.get("dv_departure")
+        if dv_raw is not None:
+            dv_arr = np.asarray(dv_raw, dtype=np.float64).ravel()
+            dv = float(dv_arr[0]) if dv_arr.size == 1 else float(np.linalg.norm(dv_arr))
+        else:
+            ds = r.get("departure_state")
+            if ds is None:
+                continue
+            dv = departure_delta_v_norm(np.asarray(ds, dtype=np.float64), float(alpha))
+        if np.isfinite(dv):
+            alphas.append(float(alpha))
+            dvs.append(dv)
+    return np.asarray(alphas, dtype=np.float64), np.asarray(dvs, dtype=np.float64)
 
 
 def load_search_results(path: Path) -> list[dict]:
@@ -188,6 +236,35 @@ def plot_transfer_vs_min_dist(
     ax.legend(loc="best", fontsize=8)
 
 
+def plot_delta_v_vs_alpha(ax: plt.Axes, alpha: np.ndarray, delta_v: np.ndarray) -> None:
+    """可行解：α vs 出发 Δv（无量纲）。"""
+    if len(alpha) == 0:
+        ax.text(
+            0.5,
+            0.5,
+            "no feasible points",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+        ax.set_title("Feasible: departure Δv vs α")
+        return
+    ax.scatter(
+        alpha,
+        delta_v,
+        c="crimson",
+        s=16,
+        alpha=0.75,
+        edgecolors="darkred",
+        linewidths=0.3,
+        rasterized=True,
+    )
+    ax.set_xlabel("α")
+    ax.set_ylabel("Δv (departure, ‖Δv‖)")
+    ax.set_title("Feasible solutions: departure Δv vs α")
+    ax.grid(True, alpha=0.3)
+
+
 def plot_status_counts(ax: plt.Axes, status: np.ndarray) -> None:
     """Full-sample counts (subsample would distort proportions)."""
     st = status
@@ -203,13 +280,7 @@ def plot_status_counts(ax: plt.Axes, status: np.ndarray) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="绘制 grid_search 的 search_results.json")
-    parser.add_argument(
-        "--input",
-        type=Path,
-        default=project_root / "output/transfer/search_results.json",
-        help="search_results.json 路径",
-    )
+    parser = argparse.ArgumentParser(description="绘制 grid_search 的 search_results_*.json")
     parser.add_argument(
         "--save",
         type=str,
@@ -226,17 +297,20 @@ def main() -> None:
     parser.add_argument("--dpi", type=int, default=150)
     args = parser.parse_args()
 
-    path = args.input
+    path = Path(RESULTS_JSON).expanduser().resolve()
     if not path.is_file():
         raise FileNotFoundError(path)
+    print(f"读取: {path}")
 
     rows = load_search_results(path)
     ar = build_arrays(rows)
     n = len(rows)
     idx = subsample_indices(n, args.max_points, args.seed)
 
-    fig = plt.figure(figsize=(12, 10))
-    gs = fig.add_gridspec(2, 2, height_ratios=[1.15, 1.0], hspace=0.28, wspace=0.28)
+    alpha_feas, dv_feas = feasible_alpha_and_departure_dv(rows)
+
+    fig = plt.figure(figsize=(12, 12))
+    gs = fig.add_gridspec(3, 2, height_ratios=[1.15, 1.0, 1.0], hspace=0.28, wspace=0.28)
 
     ax1 = fig.add_subplot(gs[0, :])
     plot_departure_alpha(
@@ -261,7 +335,14 @@ def main() -> None:
     ax3 = fig.add_subplot(gs[1, 1])
     plot_status_counts(ax3, ar["status"])
 
-    fig.suptitle(f"Grid search summary (N={n}, points drawn={len(idx)})", fontsize=12, y=0.98)
+    ax4 = fig.add_subplot(gs[2, :])
+    plot_delta_v_vs_alpha(ax4, alpha_feas, dv_feas)
+
+    fig.suptitle(
+        f"Grid search summary (N={n}, points drawn={len(idx)}; feasible Δv points={len(alpha_feas)})",
+        fontsize=12,
+        y=0.995,
+    )
 
     if args.save:
         base = Path(args.save).resolve()

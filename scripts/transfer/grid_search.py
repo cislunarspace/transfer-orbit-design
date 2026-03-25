@@ -6,11 +6,16 @@ DRO-RO 网格搜索
     2. 确保轨道数据JSON文件存在
     3. 运行: python grid_search.py
 
+输出文件名：``search_results_{nDep}-{nAlpha}-{αmin}-{αmax}-{tmax}_{timestamp}.json``。
+
 Windows 多进程需要 ``if __name__ == "__main__"``，请勿删除末尾保护。
 """
 
 import json
 from pathlib import Path
+
+import numpy as np
+from fontTools.misc.timeTools import timestampNow
 
 import e2m2e
 from e2m2e.transfer import DROTransferSearch, load_orbit_from_json
@@ -125,40 +130,53 @@ def main() -> None:
     feasible_results = [r for r in results if transfer_search._is_feasible(r)]
     print(f"其中 {len(feasible_results)} 个为可行解")
 
-    output_file = project_root / "output/transfer/search_results.json"
+    output_dir = project_root / "output/transfer"
+    output_file = output_dir / (
+        f"search_results_{N_DEPARTURE}-{N_ALPHA}-{ALPHA_MIN:g}-{ALPHA_MAX:g}-"
+        f"{MAX_TRANSFER_TIME:.6f}_{timestampNow()}.json"
+    )
 
     def _json_safe(x):
+        """将 NumPy 标量/数组及嵌套结构转为 JSON 可序列化的 Python 类型。"""
         if x is None:
             return None
-        if hasattr(x, "tolist"):
+        if isinstance(x, np.generic):
+            return x.item()
+        if isinstance(x, np.ndarray):
             return x.tolist()
+        if isinstance(x, dict):
+            return {k: _json_safe(v) for k, v in x.items()}
+        if isinstance(x, (list, tuple)):
+            return [_json_safe(i) for i in x]
         return x
 
     def serialize_result(r):
-        return {
-            "departure_orbit_name": r.get("departure_orbit_name"),
-            "arrival_orbit_name": r.get("arrival_orbit_name"),
-            "departure_time": r.get("departure_time"),
-            "departure_state": _json_safe(r.get("departure_state")),
-            "alpha": r.get("alpha"),
-            "transfer_time": r.get("transfer_time"),
-            "min_distance": _json_safe(r.get("min_distance")),
-            "min_distance_idx": r.get("min_distance_idx"),
-            "intersection_found": r.get("intersection_found"),
-            "intersection_point": _json_safe(r.get("intersection_point")),
-            "intersection_idx": r.get("intersection_idx"),
-            "local_minimum_found": r.get("local_minimum_found"),
-            "local_minimum_distance": _json_safe(r.get("local_minimum_distance")),
-            "collision_found": r.get("collision_found"),
-            "collision_body": r.get("collision_body"),
-            "status": r.get("status"),
-            "is_feasible": transfer_search._is_feasible(r),
-            "dv_departure": _json_safe(r.get("dv_departure")),
-        }
+        return _json_safe(
+            {
+                "departure_orbit_name": r.get("departure_orbit_name"),
+                "arrival_orbit_name": r.get("arrival_orbit_name"),
+                "departure_time": r.get("departure_time"),
+                "departure_state": r.get("departure_state"),
+                "alpha": r.get("alpha"),
+                "transfer_time": r.get("transfer_time"),
+                "min_distance": r.get("min_distance"),
+                "min_distance_idx": r.get("min_distance_idx"),
+                "intersection_found": r.get("intersection_found"),
+                "intersection_point": r.get("intersection_point"),
+                "intersection_idx": r.get("intersection_idx"),
+                "local_minimum_found": r.get("local_minimum_found"),
+                "local_minimum_distance": r.get("local_minimum_distance"),
+                "collision_found": r.get("collision_found"),
+                "collision_body": r.get("collision_body"),
+                "status": r.get("status"),
+                "is_feasible": transfer_search._is_feasible(r),
+                "dv_departure": r.get("dv_departure"),
+            }
+        )
 
     results_data = [serialize_result(r) for r in results]
 
-    Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(results_data, f, indent=2, ensure_ascii=False)
