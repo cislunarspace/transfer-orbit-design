@@ -9,15 +9,18 @@ DRO-RO 网格搜索
 
 import json
 from pathlib import Path
+
+project_root = Path(__file__).resolve().parent.parent.parent
+
 from scripts.utils.common import MU, DU, TU
 
 # =============================================================================
 # 参数配置
 # =============================================================================
 
-# 轨道数据文件路径，单条轨道
-DRO_FILE = "output/dro/dro_31_3857199098.json"
-RO_FILE = "output/ro/ro_32_family_-1.2--0.8-0.005_3857196959.json"
+# 轨道数据文件路径（相对本仓库根目录；与当前工作目录无关）
+DRO_FILE = project_root / "output/dro/dro_31_3857117441.json"
+RO_FILE = project_root / "output/ro/ro_31_3857122799.json"
 
 # 搜索参数
 N_DEPARTURE = 200  # 出发点采样数量 (范围: 50-500)
@@ -128,7 +131,7 @@ print(f"其中 {len(feasible_results)} 个为可行解")
 # 保存结果到JSON
 # =============================================================================
 
-OUTPUT_FILE = "output/transfer/search_results.json"
+OUTPUT_FILE = project_root / "output/transfer/search_results.json"
 
 def serialize_result(r):
     """将SearchResult转换为可序列化的字典"""
