@@ -29,8 +29,8 @@ project_root = Path(__file__).resolve().parent.parent.parent
 # =============================================================================
 
 # 轨道数据文件路径（相对本仓库根目录；与当前工作目录无关）
-DRO_FILE = project_root / "output/dro/dro_31_3857199098.json"
-RO_FILE = project_root / "output/ro/ro_31_3857328571.json"
+DRO_FILE = project_root / "output/dro/dro_31_3857337599.json"
+RO_FILE = project_root / "output/ro/ro_31_3857337606.json"
 
 # 并行：1 = 串行（便于调试 _search_single_departure）；None = 使用 e2m2e 默认（cpu 核数）
 # N_WORKERS = 1
@@ -49,7 +49,7 @@ ALPHA_MAX = 2.5
 # 筛选阈值（无量纲长度，与 CR3BP 中 1 DU 一致；1 DU ≈ DU km，见 scripts.utils.common.DU）
 # 例：0.001 DU ≈ 384 km；100 km ≈ 100/DU DU
 INTERSECTION_THRESHOLD = 0.001  # 相交判定：轨迹与目标轨道离散点的最小距离 < 此值
-MIN_DISTANCE_THRESHOLD = 100.0 / DU  # 可行解默认距离阈值 100 km（无量纲 DU，与 e2m2e 默认一致）
+MIN_DISTANCE_THRESHOLD = 10.0 / DU  # 可行解默认距离阈值 100 km（无量纲 DU，与 e2m2e 默认一致）
 
 # 碰撞检测半径 (无量纲 DU)
 # 地球: 200 km = 200/384405 DU ≈ 0.000520 DU
