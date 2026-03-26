@@ -9,12 +9,14 @@
 叠加绘制 DRO 出发轨道与 RO 到达轨道，直观展示转移路径。
 
 用法:
-    python plot_search_results.py                                  # 仅 α–Δv 散点图
-    python plot_search_results.py --orbit                          # 转移轨道 3D 示意图
+    python plot_search_results.py                                      # 仅 α–Δv 散点图
+    python plot_search_results.py --orbit                            # 转移轨道 3D 示意图
     python plot_search_results.py --orbit --save output/transfer/figures/search_orbit.png
-    python plot_search_results.py --orbit --idx 0                  # 绘制第 idx 个可行解
-    python plot_search_results.py --orbit --idx best               # 绘制 Δv 最小的可行解
-    python plot_search_results.py --orbit --idx random --seed 42   # 随机一个可行解
+    python plot_search_results.py --orbit --idx 0                      # 绘制第 idx 个可行解
+    python plot_search_results.py --orbit --idx best                  # 绘制 Δv 最小的可行解
+    python plot_search_results.py --orbit --idx random --seed 42      # 随机一个可行解
+    python plot_search_results.py --orbit --idx all                    # 绘制全部可行解（子采样受 --max-points 控制）
+    python plot_search_results.py --orbit --idx all --max-points 100  # 最多绘制 100 条
 """
 
 from __future__ import annotations
@@ -308,10 +310,20 @@ def plot_transfer_orbit_diagram_3d(
     return ax
 
 
-def _select_feasible_index(feasible_rows: list[dict], idx_arg, seed: int) -> int:
-    """根据 --idx 参数选择可行解索引。"""
+def _select_feasible_indices(
+    feasible_rows: list[dict], idx_arg: str, seed: int, max_indices: int | None = None
+) -> list[int]:
+    """根据 --idx 参数选择可行解索引列表。返回索引列表；'all' 返回全部（可子采样）。"""
     n = len(feasible_rows)
-    if idx_arg == "best":
+    if idx_arg == "all":
+        if max_indices is not None and n > max_indices:
+            rng = np.random.default_rng(seed)
+            chosen = rng.choice(n, size=max_indices, replace=False)
+            print(f"  [all] 随机采样 {max_indices} / {n} 个可行解（seed={seed}）")
+            return sorted(chosen.tolist())
+        print(f"  [all] 绘制全部 {n} 个可行解")
+        return list(range(n))
+    elif idx_arg == "best":
         dv_vals = []
         for r in feasible_rows:
             dv_raw = r.get("dv_departure")
@@ -323,17 +335,17 @@ def _select_feasible_index(feasible_rows: list[dict], idx_arg, seed: int) -> int
             dv_vals.append(dv)
         best_i = int(np.argmin(dv_vals))
         print(f"  [best] 选择 Δv={dv_vals[best_i]:.6f} 的解（索引 {best_i}）")
-        return best_i
+        return [best_i]
     elif idx_arg == "random":
         rng = np.random.default_rng(seed)
         chosen = rng.integers(0, n)
         print(f"  [random] 随机选择索引 {chosen}（seed={seed}）")
-        return chosen
+        return [chosen]
     else:
         i = int(idx_arg)
         if i < 0 or i >= n:
             raise ValueError(f"索引 {i} 超出范围（可行解总数={n}）")
-        return i
+        return [i]
 
 
 def main() -> None:
@@ -362,7 +374,7 @@ def main() -> None:
         "--idx",
         type=str,
         default="0",
-        help="绘制第 idx 个可行解（整数索引），或 'best'（Δv 最小），或 'random'（随机）",
+        help="选择可行解：整数索引，'best'（Δv 最小），'random'，或 'all'（全部，受 --max-points 控制）",
     )
     args = parser.parse_args()
 
@@ -395,45 +407,92 @@ def main() -> None:
         ts.set_arrival_orbit(ro_orbit)
         system = ts.system
 
-        sel_idx = _select_feasible_index(feasible_rows, args.idx, args.seed)
-        result = feasible_rows[sel_idx]
-
-        departure_state = np.asarray(result["departure_state"], dtype=np.float64)
-        alpha = float(result["alpha"])
-        transfer_time = float(result["transfer_time"])
-        max_transfer_time = float(result["transfer_time"])
-        dv_departure_raw = result.get("dv_departure")
-        if dv_departure_raw is not None:
-            dv_arr = np.asarray(dv_departure_raw, dtype=np.float64).ravel()
-            dv_departure = float(dv_arr[0]) if dv_arr.size == 1 else float(np.linalg.norm(dv_arr))
-        else:
-            dv_departure = float("nan")
-        dv_insertion = float(result.get("dv_insertion", 0))
-
-        print(f"积分转移轨道（α={alpha}, T={transfer_time:.3f} TU）...")
-        transfer_states, transfer_times = _reintegrate_transfer(
-            ts, departure_state, alpha, max_transfer_time
+        sel_indices = _select_feasible_indices(
+            feasible_rows, args.idx, args.seed, max_indices=args.max_points
         )
-
-        arrival_phase_idx = _find_closest_orbit_phase_idx(transfer_states, ro_orbit)
 
         fig = plt.figure(figsize=(12, 10))
         ax = fig.add_subplot(111, projection="3d")
-        plot_transfer_orbit_diagram_3d(
-            departure_orbit=dro_orbit,
-            arrival_orbit=ro_orbit,
-            transfer_states=transfer_states,
-            transfer_times=transfer_times,
-            departure_state=departure_state,
-            arrival_orbit_phase_idx=arrival_phase_idx,
-            dv_departure=dv_departure,
-            dv_insertion=dv_insertion,
-            transfer_time=transfer_time,
-            alpha=alpha,
-            system=system,
-            fig=fig,
-            ax=ax,
+
+        # 只绘制一次 DRO 和 RO 轨道（所有解共用）
+        ax.plot(
+            dro_orbit.states[:, 0], dro_orbit.states[:, 1], dro_orbit.states[:, 2],
+            "-", color="steelblue", lw=1.0, alpha=0.5, label="DRO (departure)"
         )
+        ax.plot(
+            ro_orbit.states[:, 0], ro_orbit.states[:, 1], ro_orbit.states[:, 2],
+            "-", color="seagreen", lw=1.0, alpha=0.5, label="RO (arrival)"
+        )
+
+        # 用颜色映射区分不同解
+        n_sel = len(sel_indices)
+        cmap = plt.cm.plasma
+        for cm_idx, sel_idx in enumerate(sel_indices):
+            result = feasible_rows[sel_idx]
+            departure_state = np.asarray(result["departure_state"], dtype=np.float64)
+            alpha = float(result["alpha"])
+            transfer_time = float(result["transfer_time"])
+            dv_departure_raw = result.get("dv_departure")
+            if dv_departure_raw is not None:
+                dv_arr = np.asarray(dv_departure_raw, dtype=np.float64).ravel()
+                dv_departure = float(dv_arr[0]) if dv_arr.size == 1 else float(np.linalg.norm(dv_arr))
+            else:
+                dv_departure = float("nan")
+
+            print(f"  [{cm_idx+1}/{n_sel}] 积分转移轨道 α={alpha:.3f}, T={transfer_time:.3f} TU...")
+            transfer_states, _ = _reintegrate_transfer(
+                ts, departure_state, alpha, float(transfer_time)
+            )
+            arrival_phase_idx = _find_closest_orbit_phase_idx(transfer_states, ro_orbit)
+
+            color = cmap(cm_idx / max(n_sel - 1, 1))
+            ax.plot(
+                transfer_states[:, 0], transfer_states[:, 1], transfer_states[:, 2],
+                "-", color=color, lw=1.2, alpha=0.7
+            )
+            # 标注出发点
+            ax.scatter(
+                [departure_state[0]], [departure_state[1]], [departure_state[2]],
+                color=color, s=30, alpha=0.8
+            )
+            # 标注到达点
+            arrival_point = ro_orbit.states[arrival_phase_idx]
+            ax.scatter(
+                [arrival_point[0]], [arrival_point[1]], [arrival_point[2]],
+                color=color, s=30, alpha=0.8, marker="s"
+            )
+
+        # 使用 OrbitVisualizer 绘制地球、月球和拉格朗日点
+        orbit_plotter = OrbitVisualizer(system=system)
+        orbit_plotter.primary_body_color = "blue"
+        orbit_plotter.secondary_body_color = "silver"
+        orbit_plotter.libration_point_colors = ["gray"] * 5
+        orbit_plotter.libration_point_markers = ["^"] * 5
+        orbit_plotter.libration_point_sizes = [60] * 5
+        orbit_plotter.plot_primary_bodies(ax=ax, is_3d=True)
+        orbit_plotter.plot_libration_points(ax=ax, is_3d=True, show_labels=True)
+
+        # 坐标轴范围（自适应）
+        all_x = np.concatenate([dro_orbit.states[:, 0], ro_orbit.states[:, 0]])
+        all_y = np.concatenate([dro_orbit.states[:, 1], ro_orbit.states[:, 1]])
+        all_z = np.concatenate([dro_orbit.states[:, 2], ro_orbit.states[:, 2]])
+        cx = (all_x.max() + all_x.min()) / 2
+        cy = (all_y.max() + all_y.min()) / 2
+        cz = (all_z.max() + all_z.min()) / 2
+        span = max(
+            all_x.max() - all_x.min(), all_y.max() - all_y.min(), all_z.max() - all_z.min()
+        ) / 2
+        span = max(span, 0.3) * 1.2
+        ax.set_xlim(cx - span, cx + span)
+        ax.set_ylim(cy - span, cy + span)
+        ax.set_zlim(cz - span, cz + span)
+
+        ax.set_xlabel("X (nondimensional)", fontsize=10)
+        ax.set_ylabel("Y (nondimensional)", fontsize=10)
+        ax.set_zlabel("Z (nondimensional)", fontsize=10)
+        ax.set_title(f"Transfer orbits: {n_sel} feasible solutions", fontsize=11)
+        ax.legend(loc="upper right", fontsize=9)
+        ax.view_init(elev=0, azim=-90)
 
         if args.save:
             png = Path(args.save).expanduser().resolve()
