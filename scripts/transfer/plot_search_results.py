@@ -1,5 +1,5 @@
 """
-可视化 grid_search 输出的搜索结果 JSON：可行解的 α–Δv 散点图与转移轨道示意图。
+可视化 grid_search 输出的搜索结果 JSON：可行解的 α–Δv 散点图、转移时间–Δv 散点图与转移轨道示意图。
 
 在下方 ``RESULTS_JSON`` 中指定要绘制的 grid_search 输出 JSON（相对仓库根目录或绝对路径均可）。
 
@@ -9,7 +9,8 @@
 叠加绘制 DRO 出发轨道与 RO 到达轨道，直观展示转移路径。
 
 用法:
-    python plot_search_results.py                                      # 仅 α–Δv 散点图
+    python plot_search_results.py                                      # 仅 α–Δv 散点图 //TOOD 通过alpha-dv图可以判断哪一个alpha是最适合转移的
+    python plot_search_results.py --time-dv                           # 转移时间–Δv 散点图
     python plot_search_results.py --orbit                            # 转移轨道 3D 示意图
     python plot_search_results.py --orbit --save output/transfer/figures/search_orbit.png
     python plot_search_results.py --orbit --idx 0                      # 绘制第 idx 个可行解
@@ -49,7 +50,7 @@ from scripts.utils.common import MU, DU, TU
 # =============================================================================
 # 数据文件：grid_search 输出的 JSON
 # =============================================================================
-RESULTS_JSON = project_root / "output/transfer/search_results_200-1001-0.5-2.5-2.299848_3857331829.json"
+RESULTS_JSON = project_root / "output/transfer/search_results_200-10-0.5-2.5-22.998482_3857352774.json"
 # 示例: RESULTS_JSON = project_root / "output/transfer/search_results_10-101-0.5-2.5-2.298634_3857123456.json"
 
 # 轨道数据文件（用于转移轨道积分和绘图）
@@ -109,6 +110,50 @@ def subsample_indices(n: int, max_points: int | None, seed: int) -> np.ndarray:
     return np.sort(rng.choice(n, size=max_points, replace=False))
 
 
+def compute_actual_transfer_time(r: dict, dt: float = 1.0 / (24.0 * TU)) -> float:
+    """
+    计算实际转移时间。
+
+    e2m2e grid_search 输出的 transfer_time 是 max_transfer_time（积分总时长），
+    而非实际到达目标轨道的时间。这里用 min_distance_idx * dt 来估算真实转移时间。
+    """
+    transfer_time = r.get("transfer_time")
+    if transfer_time is None:
+        return float("nan")
+    # 使用 min_distance_idx 和 dt 计算真实转移时间
+    min_idx = r.get("min_distance_idx")
+    if min_idx is not None and min_idx >= 0:
+        return float(min_idx) * dt
+    # 如果没有 min_distance_idx，使用原始的 transfer_time（这不应该发生）
+    return float(transfer_time)
+
+
+def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndarray]:
+    """仅可行解；返回 (transfer_times, dv_departure)。"""
+    times: list[float] = []
+    dvs: list[float] = []
+    DT = 1.0 / (24.0 * TU)
+    for r in rows:
+        if not r.get("is_feasible"):
+            continue
+        dv_raw = r.get("dv_departure")
+        if dv_raw is not None:
+            dv_arr = np.asarray(dv_raw, dtype=np.float64).ravel()
+            dv = float(dv_arr[0]) if dv_arr.size == 1 else float(np.linalg.norm(dv_arr))
+        else:
+            ds = r.get("departure_state")
+            alpha = r.get("alpha")
+            if ds is None or alpha is None:
+                continue
+            dv = departure_delta_v_norm(np.asarray(ds, dtype=np.float64), float(alpha))
+        if np.isfinite(dv):
+            actual_time = compute_actual_transfer_time(r, DT)
+            if np.isfinite(actual_time):
+                times.append(actual_time)
+                dvs.append(dv)
+    return np.asarray(times, dtype=np.float64), np.asarray(dvs, dtype=np.float64)
+
+
 def plot_alpha_delta_v(
     ax: Axes,
     alpha: np.ndarray,
@@ -139,6 +184,42 @@ def plot_alpha_delta_v(
     ax.set_ylabel("Δv (departure, ‖Δv‖)")
     ax.set_title("Feasible solutions: departure Δv vs α")
     ax.grid(True, alpha=0.3)
+
+
+def plot_transfer_time_delta_v(
+    ax: Axes,
+    transfer_time: np.ndarray,
+    delta_v: np.ndarray,
+) -> None:
+    """绘制转移时间 vs Δv 散点图。"""
+    if len(transfer_time) == 0:
+        ax.text(
+            0.5,
+            0.5,
+            "no feasible points",
+            ha="center",
+            va="center",
+            transform=ax.transAxes,
+        )
+        ax.set_title("Feasible: departure Δv vs transfer time")
+        return
+    sc = ax.scatter(
+        transfer_time,
+        delta_v,
+        c=transfer_time,
+        cmap="viridis",
+        s=16,
+        alpha=0.75,
+        edgecolors="darkred",
+        linewidths=0.3,
+        rasterized=True,
+    )
+    ax.set_xlabel("Transfer Time (TU)")
+    ax.set_ylabel("Δv (departure, ‖Δv‖)")
+    ax.set_title("Feasible solutions: departure Δv vs transfer time")
+    ax.grid(True, alpha=0.3)
+    cbar = plt.colorbar(sc, ax=ax)
+    cbar.set_label("Transfer Time (TU)", fontsize=9)
 
 
 def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
@@ -449,6 +530,12 @@ def main() -> None:
         default=None,
         help="并行积分的 worker 进程数（默认 CPU 核数）；仅 --orbit 且多轨道时生效",
     )
+    # 转移时间 vs Δv 图专用参数
+    parser.add_argument(
+        "--time-dv",
+        action="store_true",
+        help="绘制转移时间 vs Δv 散点图（替代 α–Δv 图）",
+    )
     args = parser.parse_args()
 
     path = Path(RESULTS_JSON).expanduser().resolve()
@@ -606,32 +693,60 @@ def main() -> None:
             plt.show()
         plt.close(fig)
     else:
-        # ── α–Δv 散点图（原有功能）─────────────────────────────────────────
-        alpha_all, dv_all = feasible_alpha_and_departure_dv(rows)
-        n_feas = len(alpha_all)
-        idx = subsample_indices(n_feas, args.max_points, args.seed)
-        alpha = alpha_all[idx]
-        dv = dv_all[idx]
+        if args.time_dv:
+            # ── 转移时间–Δv 散点图 ─────────────────────────────────────────
+            times_all, dvs_all = feasible_transfer_time_and_dv(rows)
+            n_feas = len(times_all)
+            idx = subsample_indices(n_feas, args.max_points, args.seed)
+            times = times_all[idx]
+            dvs = dvs_all[idx]
 
-        fig, ax = plt.subplots(figsize=(7, 5))
-        plot_alpha_delta_v(ax, alpha, dv)
-        fig.suptitle(
-            f"N={len(rows)} rows, {n_feas} feasible, {len(idx)} points drawn",
-            fontsize=11,
-            y=1.02,
-        )
-        fig.tight_layout()
+            fig, ax = plt.subplots(figsize=(7, 5))
+            plot_transfer_time_delta_v(ax, times, dvs)
+            fig.suptitle(
+                f"N={len(rows)} rows, {n_feas} feasible, {len(idx)} points drawn",
+                fontsize=11,
+                y=1.02,
+            )
+            fig.tight_layout()
 
-        if args.save:
-            png = Path(args.save).expanduser().resolve()
-            if png.suffix.lower() != ".png":
-                png = png.with_suffix(".png")
-            png.parent.mkdir(parents=True, exist_ok=True)
-            fig.savefig(png, dpi=args.dpi, bbox_inches="tight")
-            print(f"Saved: {png}")
+            if args.save:
+                png = Path(args.save).expanduser().resolve()
+                if png.suffix.lower() != ".png":
+                    png = png.with_suffix(".png")
+                png.parent.mkdir(parents=True, exist_ok=True)
+                fig.savefig(png, dpi=args.dpi, bbox_inches="tight")
+                print(f"Saved: {png}")
+            else:
+                plt.show()
+            plt.close(fig)
         else:
-            plt.show()
-        plt.close(fig)
+            # ── α–Δv 散点图（原有功能）─────────────────────────────────────
+            alpha_all, dv_all = feasible_alpha_and_departure_dv(rows)
+            n_feas = len(alpha_all)
+            idx = subsample_indices(n_feas, args.max_points, args.seed)
+            alpha = alpha_all[idx]
+            dv = dv_all[idx]
+
+            fig, ax = plt.subplots(figsize=(7, 5))
+            plot_alpha_delta_v(ax, alpha, dv)
+            fig.suptitle(
+                f"N={len(rows)} rows, {n_feas} feasible, {len(idx)} points drawn",
+                fontsize=11,
+                y=1.02,
+            )
+            fig.tight_layout()
+
+            if args.save:
+                png = Path(args.save).expanduser().resolve()
+                if png.suffix.lower() != ".png":
+                    png = png.with_suffix(".png")
+                png.parent.mkdir(parents=True, exist_ok=True)
+                fig.savefig(png, dpi=args.dpi, bbox_inches="tight")
+                print(f"Saved: {png}")
+            else:
+                plt.show()
+            plt.close(fig)
 
 
 if __name__ == "__main__":
