@@ -13,6 +13,7 @@ dependencies = [
     "scipy>=1.17.0",
     "matplotlib>=3.10.0",
     "fonttools>=4.0.0",
+    "tqdm>=4.66",
 ]
 
 [project.optional-dependencies]

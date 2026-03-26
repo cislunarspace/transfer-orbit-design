@@ -1,12 +1,12 @@
 ---
 goal: "复现 Cui et al. (2025) 两脉冲转移轨道设计论文"
-version: "1.3"
+version: "1.4"
 date_created: 2026-03-20
-last_updated: 2026-03-22
+last_updated: 2026-03-26
 owner: transfer-orbit-design
 status: 'In progress'
 tags: ['feature', 'replication', 'orbital-mechanics', 'cr3bp', 'br4bp', 'ephemeris']
-note: "TASK-008 完成；TASK-006/007 已有初步成果（RRO族已生成），分岔检测算法待完善"
+note: "Phase2 网格搜索已完成；optimize.py 已接入 NLP，下一步为性能剖析与减算。TASK-006/007 仍推迟（分岔检测）。"
 ---
 
 # Introduction
@@ -24,8 +24,8 @@ note: "TASK-008 完成；TASK-006/007 已有初步成果（RRO族已生成），
 - **REQ-005**: 生成 RO 族种子（已完成 phase1_generate_ro.py）
 - **REQ-006**: 完整 RO 族延拓（延拓参数和范围待确定）
 - **REQ-007**: 生成 3D RRO 和 ARO 族（切分岔计算）— **⚠️ 已推迟，待分岔检测实现**
-- **REQ-008**: 实现搜索阶段算法（网格化搜索 + 前向积分 + 筛选）— **⭐ 当前重点**
-- **REQ-009**: 实现优化阶段算法（NLP + SQP 求解器）
+- **REQ-008**: 实现搜索阶段算法（网格化搜索 + 前向积分 + 筛选）— **✅ 已完成**（`scripts/transfer/grid_search.py` + `e2m2e.transfer.DROTransferSearch`）
+- **REQ-009**: 实现优化阶段算法（NLP + SQP 求解器）— **🔄 已接入，待调优**（`e2m2e.transfer.DROTRONLPOptimizer` + `scripts/transfer/optimize.py`；默认 SciPy SLSQP，可选 COPT）
 - **REQ-010**: 实现 BR4BP 动力学模型
 - **REQ-011**: 建立基于 DE438 星历的 RNBP 动力学模型
 - **REQ-012**: 实现定时多段射击法（fixed-time multiple shooting）
@@ -95,22 +95,27 @@ note: "TASK-008 完成；TASK-006/007 已有初步成果（RRO族已生成），
 | SUB-007-04 | **验证 ARO 轨道参数**: 对比论文 Table 2 中 3:2 ARO 参数 | P1 | SUB-007-03 | 🔴 |
 | SUB-007-05 | **生成 3:1 ARO 族**: 同样方法处理 3:1 RO 族 | P1 | SUB-007-01 ~ SUB-007-04 | 🔴 |
 
-### Implementation Phase 2: CR3BP 平面转移轨道设计 ⭐ **当前重点**
+### Implementation Phase 2: CR3BP 平面转移轨道设计 ⭐ **当前重点：优化阶段性能与结果分析**
 
 - GOAL-002: 实现"搜索-优化"两步法，设计 CR3BP 中的 DRO→RO 平面转移轨道
 
 | Task | Description | Completed | Date |
 |------|-------------|-----------|------|
 | TASK-008 | 通过固定T微分校正法获取目标轨道（手工挑选初值 + 微分修正） | ✅ | 2026-03-22 |
-| TASK-009 | 实现网格化搜索算法（搜索变量：出发点位置、切向速度比 $\alpha$、法向速度比 $\beta$） | | |
-| TASK-010 | 实现前向积分模块（使用 `e2m2e/core/dynamics.py` CR3BP 积分器） | | |
-| TASK-011 | 实现轨迹筛选模块（与终端轨道相交或距离局部最小） | | |
-| TASK-012 | 实现 NLP 问题构建（优化变量：$y = \{\alpha, T, t_{ins}\}$） | | |
-| TASK-013 | 实现 SQP 求解器（调用 scipy.optimize 或其他 NLP 求解器） | | |
+| TASK-009 | 网格化搜索（出发点采样 + $\alpha$ 网格 + 前向积分至 `max_transfer_time`） | ✅ | 2026-03-26 |
+| TASK-010 | 前向积分（`e2m2e` `CR3BP_Dynamics.propagate`，搜索阶段已用） | ✅ | 2026-03-26 |
+| TASK-011 | 轨迹筛选（相交/最小距离/碰撞；可行解标记） | ✅ | 2026-03-26 |
+| TASK-012 | NLP 构建（$y=\{\alpha,T,t_{ins}\}$，`DROTRONLPOptimizer`） | ✅ | 2026-03-26 |
+| TASK-013 | SQP / NLP 求解（`scipy.optimize` SLSQP；可选 `coptpy`） | ✅ | 2026-03-26 |
 | TASK-014 | 计算 4 种平面转移路径（2:1/3:1 DRO → 3:2/3:1 RO） | | |
 | TASK-015 | 分类三种典型转移类型（直接转移、LGA 转移、外部转移） | | |
 | TASK-016 | 绘制解平面（转移时间 vs 总脉冲） | | |
 | TASK-017 | 分析出发点和插入点分布（四分位图） | | |
+
+> **与初版任务表的差异（以仓库代码为准）**  
+> - 搜索阶段 **未** 按初稿实现「$\alpha,\beta$ 双参数网格」：`e2m2e.transfer.DROTransferSearch` 使用平面内 **径向+切向** 与 **单一 $\alpha$**（切向缩放）构造出发速度；与论文 Table 3（出发点数 × $\alpha$ 采样）一致。  
+> - **`scripts/transfer/optimize.py`**：消费 `grid_search` 产出的 `search_results_*.json`，对可行解做 NLP；默认 **多进程**（`packed` worker，对齐 `transfer_search` 的进程并行模式）、SciPy SLSQP；详见脚本顶部注释与 `meta` 输出。  
+> - **下一步**：对 `optimize.py` 做 **性能剖析**（`cProfile`/采样等），定位积分与约束/梯度中的热点，**去掉重复或不必要的计算**，再推进 TASK-014～017。
 
 ### TASK-008 细化分解
 
@@ -150,52 +155,48 @@ note: "TASK-008 完成；TASK-006/007 已有初步成果（RRO族已生成），
 
 ### TASK-009 ~ TASK-017 细化分解
 
-**搜索-优化两步法概述**:
+**搜索-优化两步法概述**（与初版文字略有出入处已标出）:
 
 ```
-1. 网格化搜索阶段
-   - 搜索变量: (x0_departure, α, β, T_transfer)
-   - 筛选条件: 与目标 RO 轨道相交或距离达到局部最小
+1. 网格化搜索阶段（已实现：grid_search.py + DROTransferSearch）
+   - 搜索变量: 出发点（沿 DRO 采样）× α ∈ [alpha_min, alpha_max] × 积分时长至 max_transfer_time
+   - （初稿曾写 β；当前实现无独立 β 网格，见上文差异说明）
+   - 筛选条件: 与目标 RO 相交或最小距离/碰撞判定等
 
-2. NLP 优化阶段
+2. NLP 优化阶段（已实现：optimize.py + DROTRONLPOptimizer）
    - 优化变量: y = {α, T, t_ins}
    - 目标函数: J(y) = Δv₁ + Δv₂
-   - 约束: 位置连续性、速度连续性、不碰撞约束
+   - 约束: 位置连续、速度平行（或松弛）、撞星约束在优化器内检查
 ```
 
 **参考论文**: Section III.A "Two-Impulse Transfer Problem" 和 Section III.B "Search Phase"
 
-#### TASK-009: 网格化搜索算法
+#### TASK-009: 网格化搜索算法 — **✅ 已完成（以代码为准）**
 
-| 子任务 | 描述 | 优先级 |
-|--------|------|--------|
-| SUB-009-01 | 定义搜索网格（出发点 x ∈ [0.8, 1.2]，α ∈ [-0.5, 0.5]，β ∈ [-0.1, 0.1]） | P0 |
-| SUB-009-02 | 实现前向积分接口（从 DRO 上一点出发，施加速度扰动） | P0 |
-| SUB-009-03 | 实现轨迹与 RO 轨道相交检测算法 | P0 |
-| SUB-009-04 | 实现距离局部最小检测算法 | P0 |
-| SUB-009-05 | 并行化搜索加速（可选） | P1 |
+| 子任务 | 描述 | 状态 |
+|--------|------|------|
+| SUB-009-01 | 搜索网格由 `grid_search.py` 与 `DROTransferSearch` 配置（如 α∈[0.5,2.5]、`n_departure`、`n_alpha`）；**非**初稿中的固定 x/β 区间 | ✅ |
+| SUB-009-02 | 前向积分（`transfer_search._forward_integrate` → `dynamics.propagate`） | ✅ |
+| SUB-009-03 | 与 RO 相交检测 | ✅ |
+| SUB-009-04 | 距离局部最小 | ✅ |
+| SUB-009-05 | 并行（`parallel_backend` processes/threads，`n_workers`） | ✅ |
 
-#### TASK-010: 前向积分模块
+#### TASK-010: 前向积分模块 — **✅**
 
-- 使用 `e2m2e/core/dynamics.py` 中的 CR3BP 积分器
-- 输入: 初始状态 (x, y, z, vx, vy, vz)，积分时间 T
-- 输出: 积分轨迹 (states, times)
+- 使用 `e2m2e/core/dynamics.py` 中的 CR3BP 积分器（搜索与优化阶段均复用）
 
-#### TASK-011: 轨迹筛选模块
+#### TASK-011: 轨迹筛选模块 — **✅**
 
-- 筛选条件1: 轨迹与 RO 轨道的位置距离 < tolerance
-- 筛选条件2: 轨迹与 RO 轨道的距离达到局部最小（d'dt = 0, d²dt² > 0）
+- 相交、最小距离、碰撞等逻辑在 `transfer_search` 中；结果写入 JSON 并带 `is_feasible`
 
-#### TASK-012: NLP 问题构建
+#### TASK-012: NLP 问题构建 — **✅**
 
-- 优化变量: $y = \{\alpha, T, t_{ins}\}$
-- 目标函数: $J(y) = \Delta v_1 + \Delta v_2$
-- 约束: 位置连续性约束、速度连续性约束
+- `e2m2e/transfer/transfer_optimization.py` 中 `DROTRONLPOptimizer`；变量与论文一致
 
-#### TASK-013: SQP 求解器
+#### TASK-013: SQP 求解器 — **✅（默认 SciPy；可选 COPT）**
 
-- 使用 `scipy.optimize.minimize` with SLSQP method
-- 或使用 `scipy.optimize.milp` / `pyomo` 进行更复杂的 NLP
+- 主路径：`scipy.optimize.minimize(..., method="SLSQP")`
+- 可选：`optimize_with_copt`（需安装 `coptpy`）
 
 #### TASK-014 ~ TASK-017: 结果分析
 
@@ -250,11 +251,12 @@ note: "TASK-008 完成；TASK-006/007 已有初步成果（RRO族已生成），
 
 ## 5. Files
 
+- **FILE-000b**: `transfer-orbit-design/plan/optimize-implementation.md` — NLP 阶段 `optimize.py` 实现说明与可勾选后续任务
 - **FILE-001**: `transfer-orbit-design/scripts/generate/generate_dro_family.py` — DRO 族生成脚本
 - **FILE-002**: `transfer-orbit-design/scripts/generate/generate_31_ro_family.py` — RO 族生成脚本（3:1 和 3:2 RO 族）
 - **FILE-003**: `transfer-orbit-design/scripts/generate/generate_rro_family.py` — 3D RRO 族生成脚本（已创建，待分岔检测）
-- **FILE-004**: `transfer-orbit-design/scripts/transfer/grid_search.py` — 转移网格搜索脚本
-- **FILE-005**: `transfer-orbit-design/scripts/transfer/optimize.py` — SQP优化求解脚本
+- **FILE-004**: `transfer-orbit-design/scripts/transfer/grid_search.py` — 转移网格搜索（输出 `output/transfer/search_results_*.json`）
+- **FILE-005**: `transfer-orbit-design/scripts/transfer/optimize.py` — NLP 优化（读入搜索结果；多进程/线程；SciPy SLSQP 默认，可选 COPT）
 - **FILE-006**: `e2m2e/e2m2e/core/dynamics.py` — CR3BP/BR4BP 动力学模型
 - **FILE-006b**: `transfer-orbit-design/scripts/generate/generate_aro_family.py` — ARO 族生成脚本
 - **FILE-007**: `e2m2e/e2m2e/algorithms/differential_correction.py` — 微分修正算法
@@ -285,8 +287,14 @@ note: "TASK-008 完成；TASK-006/007 已有初步成果（RRO族已生成），
 - **ASSUMPTION-002**: DE438 星历文件可用且格式正确
 - **ASSUMPTION-003**: DRO 和 RO 族存在且可以通过微分修正收敛
 
-## 8. Related Specifications / Further Reading
+## 8. 下一步工作（优化阶段，2026-03-26）
+
+1. **性能**：对 `scripts/transfer/optimize.py` 与 `e2m2e.transfer.DROTRONLPOptimizer` 做剖析，记录单次 NLP 中 `propagate` / `minimize` 回调次数与耗时占比。  
+2. **减算**：减少重复前向积分、收紧 `t_eval` 密度、评估解析梯度或缓存轨迹等（以测量结果为准，避免未验证的“优化”）。  
+3. **分析**：在完成上述基线后推进 TASK-014～017（多组 DRO/RO 组合、作图与分类）。
+
+## 9. Related Specifications / Further Reading
 
 - [Cui et al. (2025) Two-Impulse Transfers from DRO to RO, JGCD](https://doi.org/10.2514/1.G008582)
 - [Szebehely (1967) Theory of Orbit: The Restricted Problem of Three Bodies](https://www.sciencedirect.com/book/9780123957328/theory-of-orbit)
-- [e2m2e 核心库文档](../e2m2e/README.md)
+- e2m2e 核心库：以本地克隆或 `pip install -e` 路径中的 `README.md` 为准
