@@ -297,14 +297,14 @@ def plot_transfer_orbit_diagram_3d(
 
     # 标注出发点
     ax.scatter(
-        [departure_state[0]], [departure_state[1]], [departure_state[2]],
+        departure_state[0], departure_state[1], departure_state[2],
         color="blue", s=100, zorder=5, label="Departure point"
     )
 
     # 标注到达点
     arrival_point = arrival_orbit.states[arrival_orbit_phase_idx]
     ax.scatter(
-        [arrival_point[0]], [arrival_point[1]], [arrival_point[2]],
+        arrival_point[0], arrival_point[1], arrival_point[2],
         color="green", s=100, zorder=5, label="Arrival point"
     )
 
