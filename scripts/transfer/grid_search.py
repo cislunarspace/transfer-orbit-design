@@ -36,9 +36,9 @@ RO_FILE = project_root / "output/ro/ro_31_3857328571.json"
 # N_WORKERS = 1
 N_WORKERS = None
 
-# 搜索参数
+# 搜索参数（Cui et al. 2025 Table 3：出发点 200 点，α∈[0.5,2.5] 取 1001 点）
 N_DEPARTURE = 200  # 出发点采样数量 (范围: 50-500)
-N_ALPHA = 101  # α方向网格点数 (范围: 51-501)
+N_ALPHA = 1001  # α 方向网格点数；论文 Table 3 为 1001
 # 最大转移时间：10 天（e2m2e 内为无量纲 TU；1 TU ≈ 4.348 天，见 scripts.utils.common.TU）
 MAX_TRANSFER_TIME = 10.0 / TU
 
@@ -46,9 +46,10 @@ MAX_TRANSFER_TIME = 10.0 / TU
 ALPHA_MIN = 0.5
 ALPHA_MAX = 2.5
 
-# 筛选阈值
-INTERSECTION_THRESHOLD = 0.001  # 相交判定距离 (当距离小于此值认为相交)
-MIN_DISTANCE_THRESHOLD = 0.05  # 候选解最小距离阈值
+# 筛选阈值（无量纲长度，与 CR3BP 中 1 DU 一致；1 DU ≈ DU km，见 scripts.utils.common.DU）
+# 例：0.001 DU ≈ 384 km；0.05 DU ≈ 1.92e4 km
+INTERSECTION_THRESHOLD = 0.001  # 相交判定：轨迹与目标轨道离散点的最小距离 < 此值
+MIN_DISTANCE_THRESHOLD = 0.05  # 可行解/初值：min_distance 或局部极小距离须 < 此值（与 e2m2e _is_feasible 一致）
 
 # 碰撞检测半径 (无量纲 DU)
 # 地球: 200 km = 200/384405 DU ≈ 0.000520 DU
@@ -171,6 +172,8 @@ def main() -> None:
                 "status": r.get("status"),
                 "is_feasible": transfer_search._is_feasible(r),
                 "dv_departure": r.get("dv_departure"),
+                "dv_insertion": r.get("dv_insertion"),
+                "min_distance_orbit_idx": r.get("min_distance_orbit_idx"),
             }
         )
 
