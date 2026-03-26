@@ -17,6 +17,7 @@
     python plot_search_results.py --orbit --idx random --seed 42      # 随机一个可行解
     python plot_search_results.py --orbit --idx all                    # 绘制全部可行解（子采样受 --max-points 控制）
     python plot_search_results.py --orbit --idx all --max-points 100  # 最多绘制 100 条
+    python plot_search_results.py --orbit --idx best:10                # 绘制 Δv 最小的 10 条轨道
 """
 
 from __future__ import annotations
@@ -358,8 +359,25 @@ def plot_transfer_orbit_diagram_3d(
 def _select_feasible_indices(
     feasible_rows: list[dict], idx_arg: str, seed: int, max_indices: int | None = None
 ) -> list[int]:
-    """根据 --idx 参数选择可行解索引列表。返回索引列表；'all' 返回全部（可子采样）。"""
+    """根据 --idx 参数选择可行解索引列表。返回索引列表；支持：
+    - 'all': 全部（可子采样）
+    - 'best': Δv 最小的 1 个
+    - 'best:N': Δv 最小的 N 个
+    - 'random': 随机 1 个
+    """
     n = len(feasible_rows)
+
+    # 预计算所有 dv_departure
+    dv_vals = []
+    for r in feasible_rows:
+        dv_raw = r.get("dv_departure")
+        if dv_raw is not None:
+            dv_arr = np.asarray(dv_raw, dtype=np.float64).ravel()
+            dv = float(dv_arr[0]) if dv_arr.size == 1 else float(np.linalg.norm(dv_arr))
+        else:
+            dv = float("inf")
+        dv_vals.append(dv)
+
     if idx_arg == "all":
         if max_indices is not None and n > max_indices:
             rng = np.random.default_rng(seed)
@@ -368,19 +386,23 @@ def _select_feasible_indices(
             return sorted(chosen.tolist())
         print(f"  [all] 绘制全部 {n} 个可行解")
         return list(range(n))
-    elif idx_arg == "best":
-        dv_vals = []
-        for r in feasible_rows:
-            dv_raw = r.get("dv_departure")
-            if dv_raw is not None:
-                dv_arr = np.asarray(dv_raw, dtype=np.float64).ravel()
-                dv = float(dv_arr[0]) if dv_arr.size == 1 else float(np.linalg.norm(dv_arr))
-            else:
-                dv = float("inf")
-            dv_vals.append(dv)
-        best_i = int(np.argmin(dv_vals))
-        print(f"  [best] 选择 Δv={dv_vals[best_i]:.6f} 的解（索引 {best_i}）")
-        return [best_i]
+    elif idx_arg.startswith("best"):
+        parts = idx_arg.split(":")
+        if len(parts) == 2:
+            try:
+                top_n = int(parts[1])
+            except ValueError:
+                top_n = 1
+        else:
+            top_n = 1
+        top_n = min(top_n, n)
+        sorted_indices = sorted(range(n), key=lambda i: dv_vals[i])
+        selected = sorted_indices[:top_n]
+        if top_n == 1:
+            print(f"  [best] 选择 Δv={dv_vals[selected[0]]:.6f} 的解（索引 {selected[0]}）")
+        else:
+            print(f"  [best:{top_n}] 选择 Δv 最小的 {top_n} 个可行解（Δv 范围: {dv_vals[selected[0]]:.6f} ~ {dv_vals[selected[-1]]:.6f}）")
+        return selected
     elif idx_arg == "random":
         rng = np.random.default_rng(seed)
         chosen = rng.integers(0, n)
@@ -419,13 +441,13 @@ def main() -> None:
         "--idx",
         type=str,
         default="0",
-        help="选择可行解：整数索引，'best'（Δv 最小），'random'，或 'all'（全部，受 --max-points 控制）",
+        help="选择可行解：整数索引，'best'（Δv 最小 1 个），'best:N'（Δv 最小的 N 个），'random'，或 'all'（全部，受 --max-points 控制）",
     )
     parser.add_argument(
         "--n-workers",
         type=int,
         default=None,
-        help="并行积分的 worker 进程数（默认 CPU 核数）；仅 --orbit --idx all 时生效",
+        help="并行积分的 worker 进程数（默认 CPU 核数）；仅 --orbit 且多轨道时生效",
     )
     args = parser.parse_args()
 
