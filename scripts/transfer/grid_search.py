@@ -29,8 +29,8 @@ project_root = Path(__file__).resolve().parent.parent.parent
 # =============================================================================
 
 # 轨道数据文件路径（相对本仓库根目录；与当前工作目录无关）
-DRO_FILE = project_root / "output/dro/dro_31_3857117441.json"
-RO_FILE = project_root / "output/ro/ro_31_3857122799.json"
+DRO_FILE = project_root / "output/dro/dro_31_3857199098.json"
+RO_FILE = project_root / "output/ro/ro_31_3857328571.json"
 
 # 并行：1 = 串行（便于调试 _search_single_departure）；None = 使用 e2m2e 默认（cpu 核数）
 # N_WORKERS = 1
@@ -90,8 +90,8 @@ def main() -> None:
     print(f"  DRO: {DRO_FILE}")
     print(f"  RO: {RO_FILE}")
 
-    dro_orbit = load_orbit_from_json(DRO_FILE)
-    ro_orbit = load_orbit_from_json(RO_FILE)
+    dro_orbit = load_orbit_from_json(str(DRO_FILE))
+    ro_orbit = load_orbit_from_json(str(RO_FILE))
 
     print(f"  DRO周期: {dro_orbit.period:.4f} TU, 状态数: {len(dro_orbit.states)}")
     print(f"  RO周期: {ro_orbit.period:.4f} TU, 状态数: {len(ro_orbit.states)}")
