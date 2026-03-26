@@ -23,19 +23,19 @@ pip install -r requirements.txt
 
 ## 使用方法
 
-### 生成 3:1 DRO 轨道
+### 生成 DRO/RO 轨道
 
-首次使用需先安装依赖（可编辑模式安装，使 `from scripts.utils...` 等导入语句正常工作）：
+首次使用需先安装依赖：
 
 ```bash
 pip install -r requirements.txt
+pip install -e /path/to/e2m2e  # 本地 e2m2e 依赖库
 ```
 
-确认 Python 路径后运行脚本：
+生成单个 3:1 DRO 轨道：
 
 ```bash
-which python
-python ./scripts/generate/generate_31_dro_orbit.py
+python scripts/generate/generate_31_dro_orbit.py
 ```
 
 输出示例：
@@ -46,6 +46,14 @@ python ./scripts/generate/generate_31_dro_orbit.py
 ...
 [ok] 成 功 找 到  3:1 DRO 轨 道 !
   保 存 至 : output/dro/dro_31_3857117998.json
+```
+
+生成 DRO 族、RO 族：
+
+```bash
+python scripts/generate/generate_dro_family.py
+python scripts/generate/generate_31_ro_family.py
+python scripts/generate/generate_32_ro_family.py
 ```
 
 该论文研究了地月系统中从远距离逆行轨道（DRO）到共振轨道（RO）的两脉冲转移轨道设计问题。由于 DRO 和 RO 均为稳定轨道，无法利用不稳定流形结构，论文提出了一种"搜索-优化"两步法来设计转移轨道，并在 CR3BP、BR4BP 和星历模型中分别进行了计算与验证。
@@ -60,21 +68,30 @@ conda create -n orbit-py313 python=3.13
 conda activate orbit-py313
 
 # 安装依赖
-pip install numpy scipy matplotlib pandas
-pip install coptpy  # COPT求解器 (需要许可证)
+pip install -r requirements.txt
+pip install -e /path/to/e2m2e  # 本地 e2m2e 依赖库
 ```
 
 ### 执行网格搜索
 
 ```bash
 # 1. 准备轨道数据文件 (JSON格式)
-#    - 2:1 DRO: output/dro/dro_21_*.json
-#    - 3:2 RO: output/ro/ro_32_*.json
+#    - 3:1 DRO: output/dro/dro_31_*.json
+#    - 3:1 RO: output/ro/ro_31_*.json
 
 # 2. 执行网格搜索 (使用论文Table 3参数)
-conda run -n orbit-py313 python scripts/transfer/grid_search.py
+python scripts/transfer/grid_search.py
 
-# 输出: output/transfer/search_v2_*_*.json
+# 输出: output/transfer/search_results_*.json
+```
+
+### NLP 优化阶段
+
+```bash
+# 对网格搜索结果进行 NLP 优化
+python scripts/transfer/optimize.py
+
+# 输出: output/transfer/optimization_results_*.json
 ```
 
 ### 生成可视化
@@ -158,30 +175,32 @@ conda run -n orbit-py313 python scripts/transfer/plot_transfer_results.py \
 
 ## 复现计划
 
-### 阶段一：基线轨道生成
+详细进度跟踪见 [plan/feature-orbit-transfer-replication-1.md](plan/feature-orbit-transfer-replication-1.md)
+
+### 阶段一：基线轨道生成（平面）
 
 - [x] CR3BP 动力学模型实现（`e2m2e/core/dynamics.py`）
 - [x] 微分修正算法（`e2m2e/algorithms/differential_correction.py`）
 - [x] 自然参数延拓（`e2m2e/algorithms/continuation.py`）
-- [x] DRO 族生成（`scripts/generate/generate_dro_family.py`）✅
-- [x] 生成完整 DRO 族并计算 Jacobi 常数与稳定性指标 ✅
-- [x] RO 族种子搜索（`scripts/generate/generate_31_ro_orbit.py`, `generate_32_ro_family.py`）✅
-  - 3:2 RO 种子: x0=-1.1453, y0=0.4633, vy0=0.6124, T=12.47 TU
-  - 3:1 RO 种子: x0=-0.8805, y0=0.3921, vy0=-0.0283, T=4.86 TU
-- [x] 完整 RO 族延拓（`generate_31_ro_family.py`, `generate_32_ro_family.py`）✅
-- [x] 3D RRO/ARO 族生成（`generate_rro_family.py`, `generate_aro_family.py`）✅
+- [x] DRO 族生成（`scripts/generate/generate_dro_family.py`）
+- [x] RO 族种子搜索与延拓（`scripts/generate/generate_31_ro_family.py`, `generate_32_ro_family.py`）
+
+### 阶段一 b：3D 轨道族生成（已推迟）
+
+> ⚠️ 等待分岔检测算法（SUB-006-01）实现后再执行
+
+- [ ] 3D RRO 族生成（`generate_rro_family.py`）
+- [ ] 3D ARO 族生成（`generate_aro_family.py`）
 
 ### 阶段二：CR3BP 中的转移设计
 
-- [x] 网格搜索阶段算法（`scripts/transfer/grid_search.py`）✅
-- [x] COPT求解器集成（`e2m2e/transfer/dro_ro_nlp.py`）✅
-- [x] 优化阶段算法（NLP 问题，SQP 求解器）✅
-- [x] 并行算法优化（批量处理、向量化检测）✅
-- [ ] 计算四种平面转移路径（2:1/3:1 DRO → 3:2/3:1 RO）🔄
-- [ ] 分类三种典型转移类型（直接转移、LGA 转移、外部转移）
-- [ ] 绘制解平面（转移时间 vs 总脉冲）- Fig.6
-- [ ] 分析出发点和插入点分布（四分位图）- Fig.11
-- [ ] 计算非平面转移（2:1 DRO → 3D RO）
+- [x] 网格搜索阶段（`scripts/transfer/grid_search.py` + `e2m2e.transfer.DROTransferSearch`）
+- [x] NLP 优化阶段（`scripts/transfer/optimize.py` + `e2m2e.transfer.DROTRONLPOptimizer`）
+- [ ] TASK-014：计算四种平面转移路径（2:1/3:1 DRO → 3:2/3:1 RO）
+- [ ] TASK-015：分类三种典型转移类型（直接/LGA/外部）
+- [ ] TASK-016：绘制解平面（转移时间 vs 总脉冲 Δv）
+- [ ] TASK-017：分析出发点和插入点分布（四分位图）
+- [ ] 性能剖析与优化（当前重点）
 
 ### 阶段三：BR4BP 中的转移设计
 
@@ -208,33 +227,35 @@ conda run -n orbit-py313 python scripts/transfer/plot_transfer_results.py \
 e2m2e/
 ├── algorithms/          # 算法模块
 │   ├── continuation.py          # 自然参数延拓
-│   ├── differential_correction.py  # 微分修正算法
-│   └── stability.py             # 稳定性分析
+│   └── differential_correction.py  # 微分修正算法
 ├── core/               # 核心模块
-│   ├── coordinate.py             # 坐标变换
-│   ├── dynamics.py               # CR3BP 动力学
+│   ├── dynamics.py               # CR3BP/BR4BP 动力学
 │   ├── orbit.py                  # 轨道数据结构
 │   └── system.py                 # 系统参数管理
 ├── transfer/           # 转移轨道设计
-│   ├── earth_moon.py
-│   ├── inter_orbit.py
-│   └── moon_earth.py
+│   ├── transfer_optimization.py  # NLP 优化器
+│   └── transfer_search.py        # 网格搜索
 └── visualization/      # 可视化
     └── plotting.py
 ```
 
 ### transfer-orbit-design 任务脚本（`scripts/`）
 
-- `generate_dro_family.py`：生成 DRO 族
-- `generate_31_ro_family.py` / `generate_32_ro_family.py`：生成 3:1/3:2 RO 族
-- `generate_rro_family.py` / `generate_aro_family.py`：生成 3D RRO/ARO 族
-- `grid_search.py`：网格搜索转移轨道
-- `optimize.py`：优化阶段（NLP/SQP）
+| 脚本 | 功能 |
+|------|------|
+| `generate/generate_dro_family.py` | 生成 DRO 族 |
+| `generate/generate_31_dro_orbit.py` | 生成单个 3:1 DRO |
+| `generate/generate_31_ro_family.py` | 生成 3:1 RO 族 |
+| `generate/generate_32_ro_family.py` | 生成 3:2 RO 族 |
+| `transfer/grid_search.py` | 网格搜索转移轨道 |
+| `transfer/optimize.py` | NLP 优化阶段 |
+| `plot/plot_*.py` | 轨道族可视化 |
 
-### 数据与环境
+### 输出目录
 
-- `Spice/`：星历文件（SPICE kernels）
-- `output/`：计算结果输出目录
+- `output/dro/`：DRO 轨道数据
+- `output/ro/`：RO 轨道数据
+- `output/transfer/`：转移搜索与优化结果
 
 ## 参考文献
 

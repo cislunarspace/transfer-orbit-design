@@ -57,20 +57,12 @@ RO 轨道使用与 DRO 相同的 **2D 对称 X-Fixed** 微分修正算法：
 
 ## 脚本使用
 
-### generate_ro_family.py
-
-生成所有 RO 轨道族（3:2 和 3:1）：
-
-```bash
-python scripts/generate_ro_family.py
-```
-
 ### generate_31_ro_family.py
 
-仅生成 3:1 RO 轨道族：
+生成 3:1 RO 轨道族：
 
 ```bash
-python scripts/generate_31_ro_family.py
+python scripts/generate/generate_31_ro_family.py
 ```
 
 **关键参数**：
@@ -105,19 +97,16 @@ python scripts/generate_32_ro_family.py
 
 **输出文件**：`output/ro/ro_32_family_{x0_min}-{x0_max}-{step_size}_{timestamp}.json`
 
-### plot_ro_family.py / plot_31_ro_family.py / plot_32_ro_family.py
+### plot_31_ro_family.py / plot_32_ro_family.py
 
 可视化 RO 轨道族：
 
 ```bash
-# 可视化所有 RO
-python scripts/plot_ro_family.py
-
 # 可视化 3:1 RO
-python scripts/plot_31_ro_family.py
+python scripts/plot/plot_31_ro_family.py
 
 # 可视化 3:2 RO
-python scripts/plot_32_ro_family.py
+python scripts/plot/plot_32_ro_family.py
 ```
 
 **输出**：
@@ -158,18 +147,19 @@ python scripts/plot_32_ro_family.py
 ```python
 import e2m2e
 from e2m2e.core import Orbit
+from e2m2e.algorithms import DifferentialCorrection, Continuation
 
 # 系统初始化
 system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
 dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
 
 # 微分修正
-corrector = e2m2e.algorithms.DifferentialCorrection(dynamics=dynamics)
+corrector = DifferentialCorrection(dynamics=dynamics)
 corrector.setup_2D_symmetric_x_fixed_x0(x0=-0.8805)
 seed_RO = corrector.iterate_correction(initial_guess=seed_orbit)
 
 # 自然延拓
-continuator = e2m2e.algorithms.Continuation(corrector=corrector)
+continuator = Continuation(corrector=corrector)
 family_result = continuator.natural_continuation(
     seed_orbit=seed_RO,
     param_range=(-1.0, -0.7),

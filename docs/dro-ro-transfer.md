@@ -169,27 +169,30 @@ python scripts/plot/plot_transfer.py
 ## 与 e2m2e 库的接口
 
 ```python
-from e2m2e.transfer.dro_ro_nlp import (
+from e2m2e.transfer import (
     DROTRONLPOptimizer,
+    DROTransferSearch,
     NLPOptimizationVariables,
     NLPOptimizationResult,
-    optimize_transfer,
+    load_orbit_from_json,
 )
 
-# 创建优化器
-optimizer = DROTRONLPOptimizer(
-    system=system,
-    dynamics=dynamics,
-    dro_orbit=dro_orbit,
-    ro_orbit=ro_orbit,
-)
+# 加载轨道
+dro_orbit = load_orbit_from_json("output/dro/dro_31_*.json")
+ro_orbit = load_orbit_from_json("output/ro/ro_31_*.json")
 
-# 优化转移
-result = optimizer.optimize(
-    initial_guess=initial_transfer,
-    alpha_range=(0.1, 2.0),
-    T_range=(1.0, 20.0),
-)
+# 网格搜索
+transfer_search = DROTransferSearch(system=system, dynamics=dynamics)
+transfer_search.alpha_min = 0.5
+transfer_search.alpha_max = 2.5
+transfer_search.n_alpha = 101
+results = transfer_search.search(dro_orbit, ro_orbit, n_workers=None)
+
+# NLP 优化
+optimizer = DROTRONLPOptimizer(system=system, dynamics=dynamics)
+optimizer.dro_orbit = dro_orbit
+optimizer.ro_orbit = ro_orbit
+nlp_result = optimizer.optimize(initial_variables=initial_vars)
 ```
 
 ## 几何示意

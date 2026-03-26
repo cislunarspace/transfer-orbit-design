@@ -42,34 +42,45 @@
 # 安装依赖
 pip install -r requirements.txt
 
-# 建立 e2m2e 符号链接（首次 clone 后执行）
-ln -s /home/desktop/codes/e2m2e/e2m2e e2m2e
+# 安装本地 e2m2e 依赖库（需要先克隆 e2m2e 仓库）
+pip install -e /path/to/e2m2e
 
 # 生成 DRO 族
-python scripts/generate_dro_family.py
+python scripts/generate/generate_dro_family.py
 
-# 生成 RO 族
-python scripts/generate_31_ro_family.py
-python scripts/generate_32_ro_family.py
+# 生成单个 3:1 DRO 轨道
+python scripts/generate/generate_31_dro_orbit.py
+
+# 生成 3:1 RO 族
+python scripts/generate/generate_31_ro_family.py
+
+# 生成 3:2 RO 族
+python scripts/generate/generate_32_ro_family.py
+
+# 网格搜索转移轨道
+python scripts/transfer/grid_search.py
+
+# NLP 优化阶段
+python scripts/transfer/optimize.py
 
 # 可视化结果
-python scripts/plot_dro_family.py
-python scripts/plot_31_ro_family.py
-python scripts/plot_32_ro_family.py
+python scripts/plot/plot_dro_family.py
+python scripts/plot/plot_31_ro_family.py
+python scripts/plot/plot_32_ro_family.py
 ```
 
 ## 轨道类型
 
 ```
 DRO（远距离逆行轨道）
-  └── 平面轨道，围绕月球逆行运动
+  ├── 2:1 DRO（周期 ~3.47 TU，月球周期的 1/2）
+  └── 3:1 DRO（周期 ~2.09 TU，月球周期的 1/3）
 
 RO（共振轨道）
-  ├── 3:1 RO（周期 6.28 TU）
-  ├── 3:2 RO（周期 12.57 TU）
-  └── 平面内共振
+  ├── 3:1 RO（周期 ~6.28 TU）
+  └── 3:2 RO（周期 ~12.57 TU）
 
-RRO/ARO（3D 共振轨道）
-  ├── RRO（反射共振轨道）
-  └── ARO（轴向共振轨道）
+RRO/ARO（3D 共振轨道）— 当前 Phase 1b 已推迟
+  ├── RRO（反射共振轨道，z 振幅 Az=0.2）
+  └── ARO（轴向共振轨道，z 振幅 Az=0.2）
 ```
