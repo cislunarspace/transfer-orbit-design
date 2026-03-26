@@ -21,6 +21,8 @@
 | `generate_32_ro_family.py` | 3:2 RO (3:2 共振轨道) | 生成 3:2 共振轨道族 |
 | `generate_rro_family.py` | RRO (共振远距离逆行轨道) | 生成 RRO 轨道族 |
 | `generate_aro_family.py` | ARO (幅值约化轨道) | 生成 ARO 轨道族 |
+| `generate_halo_orbit.py` | Halo (L1/L2 平动点) | 微分修正生成单条 Halo 周期轨道 |
+| `generate_halo_family.py` | Halo 轨道族 | 伪弧长延拓生成 Halo 轨道族 |
 
 ## 输出
 

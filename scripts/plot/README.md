@@ -19,6 +19,8 @@ generate/ 生成轨道族数据 → plot/ 可视化预览 → 定位问题轨道
 | `plot_32_ro_family.py` | 预览 3:2 RO 轨道族 |
 | `plot_rro_family.py` | 预览 RRO 轨道族 |
 | `plot_aro_family.py` | 预览 ARO 轨道族 |
+| `plot_halo_orbit.py` | 预览 Halo 轨道族（多图：2D/3D、周期-稳定性等） |
+| `plot_halo_family.py` | 从 JSON 绘制 Halo 轨道族（支持命令行与 `--latest`） |
 | `plot_interactive_orbit_inspector.py` | **交互式逐条检查轨道形状**，用于定位不收敛的轨道点 |
 
 ## 交互式检查工具
