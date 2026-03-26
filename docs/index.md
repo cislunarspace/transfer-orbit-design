@@ -13,6 +13,12 @@
 | [RRO/ARO 生成](rro-aro-generation.md) | `generate_rro_family.py`, `generate_aro_family.py`, `plot_rro_family.py`, `plot_aro_family.py` | 3D 共振轨道生成 |
 | [DRO-RO 转移](dro-ro-transfer.md) | `grid_search.py`, `optimize.py`, `plot_transfer.py` | 两脉冲转移设计 |
 
+### 算法说明
+
+| 文档 | 描述 |
+|------|------|
+| [可行解判定](algorithms/feasible-candidate-criteria.md) | 网格搜索结果 `_is_feasible` 的阈值与逻辑（e2m2e 与 `grid_search` 一致） |
+
 ### 理论基础
 
 | 文档 | 描述 |

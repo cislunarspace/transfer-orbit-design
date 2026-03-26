@@ -329,7 +329,7 @@ class TransferSearchConfig:
 
     # 筛选阈值
     intersection_threshold: float = 0.001  # 相交判定距离
-    min_distance_threshold: float = 0.05   # 候选解最小距离阈值
+    min_distance_threshold: float = 100.0 / 384405.0   # 候选解最小距离阈值，默认 100 km（无量纲 DU）
 
     # 碰撞半径
     earth_radius: float = 0.01  # 无量纲
@@ -345,7 +345,7 @@ class TransferSearchConfig:
 | `n_beta` | 21 | β方向网格点 | 11-101 |
 | `max_transfer_time` | 15.0 | 最大积分时间(TU) | 10.0-30.0 |
 | `intersection_threshold` | 0.001 | 相交判定 | 0.0001-0.01 |
-| `min_distance_threshold` | 0.05 | 候选解阈值 | 0.01-0.2 |
+| `min_distance_threshold` | `100/384405`（≈2.6×10⁻⁴ DU，物理 100 km） | 候选解阈值 | 按任务放宽/收紧 |
 
 ---
 
@@ -516,7 +516,7 @@ BETA_MIN, BETA_MAX = -0.5, 0.5
 
 # 阈值参数
 INTERSECTION_THRESHOLD = 0.001   # 相交判定距离
-MIN_DISTANCE_THRESHOLD = 0.05   # 候选解阈值
+MIN_DISTANCE_THRESHOLD = 100.0 / 384405.0   # 候选解阈值，默认 100 km（无量纲 DU）；与 e2m2e 一致
 
 # 碰撞半径 (无量纲)
 EARTH_RADIUS = 0.01

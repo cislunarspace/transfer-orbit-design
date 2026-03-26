@@ -175,7 +175,7 @@ def compute_departure_velocity(state_dep: np.ndarray, alpha: float, beta: float 
 def filter_transfer_candidates(
     transfer_arc: np.ndarray,  # [n_steps, 6] 状态序列
     arrival_orbit: Orbit,
-    min_distance_threshold: float = 0.01,
+    min_distance_threshold: float = 100.0 / 384405.0,  # 与 e2m2e 默认一致：100 km（无量纲 DU）
     intersection_threshold: float = 0.001
 ) -> List[Dict]:
     """筛选转移候选解"""
