@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -166,6 +167,50 @@ def _build_transfer_search() -> DROTransferSearch:
     transfer_search = DROTransferSearch(system=system, dynamics=dynamics)
     transfer_search.integration_dt = DT
     return transfer_search
+
+
+def _integrate_single_orbit(args: tuple) -> tuple:
+    """
+    子进程 worker：构建积分器并积分单条转移轨道。
+    参数 (args)：
+        departure_state, alpha, max_transfer_time, mu, tu
+    返回：
+        (transfer_states, alpha, dv_departure) 或失败时 (None, ...)
+    """
+    import warnings
+    departure_state, alpha, max_transfer_time, mu, tu = args
+    DT = 1.0 / (24.0 * tu)
+    try:
+        system = e2m2e.core.system.CR3BP_System(mu=mu, primary="earth", secondary="moon")
+        dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+        dynamics.integrator = "DOP853"
+        dynamics.rtol = 1e-12
+        dynamics.atol = 1e-12
+        dynamics.max_step = DT
+        ts = DROTransferSearch(system=system, dynamics=dynamics)
+        ts.integration_dt = DT
+
+        pos = departure_state[:3]
+        vel = departure_state[3:6]
+        r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
+        if r_xy < 1e-10:
+            tangential = np.array([-pos[1], pos[0], 0.0]) / max(r_xy, 1e-10)
+        else:
+            tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
+        radial = pos / float(np.linalg.norm(pos))
+        v_radial_comp = float(np.dot(vel, radial))
+        v_tangential_comp = float(np.dot(vel, tangential))
+        new_vel = v_radial_comp * radial + alpha * v_tangential_comp * tangential
+        initial_state = np.concatenate([pos, new_vel])
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            transfer_states, _ = ts._forward_integrate(initial_state, max_transfer_time, DT)
+
+        dv_departure = float(np.linalg.norm(new_vel - vel))
+        return transfer_states, alpha, dv_departure
+    except Exception:
+        return None, alpha, float("nan")
 
 
 def _reintegrate_transfer(
@@ -376,6 +421,12 @@ def main() -> None:
         default="0",
         help="选择可行解：整数索引，'best'（Δv 最小），'random'，或 'all'（全部，受 --max-points 控制）",
     )
+    parser.add_argument(
+        "--n-workers",
+        type=int,
+        default=None,
+        help="并行积分的 worker 进程数（默认 CPU 核数）；仅 --orbit --idx all 时生效",
+    )
     args = parser.parse_args()
 
     path = Path(RESULTS_JSON).expanduser().resolve()
@@ -401,15 +452,56 @@ def main() -> None:
         dro_orbit = load_orbit_from_json(str(dro_path))
         ro_orbit = load_orbit_from_json(str(ro_path))
 
-        print("构建转移搜索实例（用于重新积分）...")
-        ts = _build_transfer_search()
-        ts.set_departure_orbit(dro_orbit)
-        ts.set_arrival_orbit(ro_orbit)
-        system = ts.system
+        # 构建 system（用于 OrbitVisualizer 和子进程）
+        ts_dummy = _build_transfer_search()
+        system = ts_dummy.system
 
         sel_indices = _select_feasible_indices(
             feasible_rows, args.idx, args.seed, max_indices=args.max_points
         )
+        n_sel = len(sel_indices)
+
+        # 并行积分（子进程各自构建积分器，不依赖外部对象）
+        n_workers = args.n_workers
+        use_parallel = (n_sel > 1)
+        if use_parallel:
+            print(f"并行积分：{n_sel} 条轨道，n_workers={n_workers or 'CPU 核数'}...")
+            work_args = [
+                (
+                    np.asarray(feasible_rows[i]["departure_state"], dtype=np.float64),
+                    float(feasible_rows[i]["alpha"]),
+                    float(feasible_rows[i]["transfer_time"]),
+                    float(MU),
+                    float(TU),
+                )
+                for i in sel_indices
+            ]
+            with ProcessPoolExecutor(max_workers=n_workers) as executor:
+                futures = {
+                    executor.submit(_integrate_single_orbit, wa): (cm_idx, wa[1])
+                    for cm_idx, wa in enumerate(work_args)
+                }
+                results: dict[int, tuple] = {}
+                for future in as_completed(futures):
+                    cm_idx, alpha = futures[future]
+                    res = future.result()
+                    results[cm_idx] = res
+                    print(f"  [{len(results)}/{n_sel}] α={alpha:.3f} 完成")
+        else:
+            # 单条轨道：串行（用于 --idx 0 / best / random）
+            result = feasible_rows[sel_indices[0]]
+            departure_state = np.asarray(result["departure_state"], dtype=np.float64)
+            alpha = float(result["alpha"])
+            transfer_time = float(result["transfer_time"])
+            dv_departure_raw = result.get("dv_departure")
+            dv_arr = np.asarray(dv_departure_raw, dtype=np.float64).ravel() if dv_departure_raw is not None else None
+            dv_departure = float(dv_arr[0]) if dv_arr is not None and dv_arr.size == 1 else (float(np.linalg.norm(dv_arr)) if dv_arr is not None else float("nan"))
+            print(f"积分转移轨道（α={alpha}, T={transfer_time:.3f} TU）...")
+            transfer_states, _ = _reintegrate_transfer(
+                ts_dummy, departure_state, alpha, float(transfer_time)
+            )
+            arrival_phase_idx = _find_closest_orbit_phase_idx(transfer_states, ro_orbit)
+            results = {0: (transfer_states, alpha, dv_departure)}
 
         fig = plt.figure(figsize=(12, 10))
         ax = fig.add_subplot(111, projection="3d")
@@ -425,24 +517,11 @@ def main() -> None:
         )
 
         # 用颜色映射区分不同解
-        n_sel = len(sel_indices)
         cmap = plt.cm.plasma
-        for cm_idx, sel_idx in enumerate(sel_indices):
-            result = feasible_rows[sel_idx]
-            departure_state = np.asarray(result["departure_state"], dtype=np.float64)
-            alpha = float(result["alpha"])
-            transfer_time = float(result["transfer_time"])
-            dv_departure_raw = result.get("dv_departure")
-            if dv_departure_raw is not None:
-                dv_arr = np.asarray(dv_departure_raw, dtype=np.float64).ravel()
-                dv_departure = float(dv_arr[0]) if dv_arr.size == 1 else float(np.linalg.norm(dv_arr))
-            else:
-                dv_departure = float("nan")
-
-            print(f"  [{cm_idx+1}/{n_sel}] 积分转移轨道 α={alpha:.3f}, T={transfer_time:.3f} TU...")
-            transfer_states, _ = _reintegrate_transfer(
-                ts, departure_state, alpha, float(transfer_time)
-            )
+        for cm_idx in range(n_sel):
+            transfer_states, alpha, dv_departure = results[cm_idx]
+            sel_idx = sel_indices[cm_idx]
+            departure_state = np.asarray(feasible_rows[sel_idx]["departure_state"], dtype=np.float64)
             arrival_phase_idx = _find_closest_orbit_phase_idx(transfer_states, ro_orbit)
 
             color = cmap(cm_idx / max(n_sel - 1, 1))
