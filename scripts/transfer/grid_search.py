@@ -38,7 +38,7 @@ N_WORKERS = None
 
 # 搜索参数（Cui et al. 2025 Table 3：出发点 200 点，α∈[0.5,2.5] 取 1001 点）
 N_DEPARTURE = 200  # 出发点采样数量 (范围: 50-500)
-N_ALPHA = 1001  # α 方向网格点数；论文 Table 3 为 1001
+N_ALPHA = 101  # α 方向网格点数；论文 Table 3 为 1001
 # 最大转移时间：10 天（e2m2e 内为无量纲 TU；1 TU ≈ 4.348 天，见 scripts.utils.common.TU）
 MAX_TRANSFER_TIME = 10.0 / TU
 
