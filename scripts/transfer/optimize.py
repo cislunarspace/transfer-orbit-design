@@ -1,593 +1,665 @@
 """
-DRO→RO 第二阶段 NLP：初值来自 grid_search 的 ``search_results_*.json``。改下方路径与参数后运行 ``python optimize.py``。
+DRO–RO 转移 NLP 优化（Cui et al. 2025，Section III.B）
 
-求解器：有 coptpy 时默认 COPT，否则 SciPy；松弛速度约束仅 SciPy。COPT 与 Python 回调多线程并发易静默退出，故 ``COPT_THREADS`` / ``COPT_BAR_THREADS`` 默认 1；仍异常可设 ``SOLVER="scipy"``。
+在网格搜索（粗搜索）结果基础上，对变量 y = (α, T, t_ins) 求解
+最小 Δv1+Δv2，满足位置连续与速度平行约束（Cui et al. 2025）。
 
-每个 grid 候选单独构造 ``DROTRONLPOptimizer`` 并求解。``N_WORKERS=1`` 顺序执行；``N_WORKERS>1`` 时多进程或线程池（COPT 多 worker 时不宜 ``PARALLEL_BACKEND="thread"``，脚本会改回 process）。
+**默认使用 SciPy ``minimize(..., method="SLSQP")``**（e2m2e ``DROTRONLPOptimizer.optimize``），
+无需 COPT。若已安装 coptpy，可将 ``USE_COPT = True`` 尝试 Cardoso 系求解器。
 
-Windows 下并行需保留 ``if __name__ == "__main__"``。
+使用前请保证本脚本中轨道 JSON、``MAX_TRANSFER_TIME``、α 范围等与
+``grid_search.py`` 生成 ``search_results_*.json`` 时一致。
+
+运行:
+    python optimize.py
+
+进度条使用 ``tqdm``（与 e2m2e 网格搜索一致，输出到 stderr）。关闭进度条: ``set OPTIMIZE_NO_TQDM=1``。
+
+默认 ``PARALLEL_BACKEND="processes"``、``N_WORKERS=None``（逻辑 CPU 数），与 ``transfer_search`` 网格搜索
+并行策略一致；子进程任务经 ``_nlp_worker_packed`` 打包数组，在子进程内重建 ``Orbit``/动力学，绕过 GIL。
+多进程前会设置 ``OMP_NUM_THREADS`` 等，使每 worker 内 BLAS 为单线程，避免与进程数相乘导致抢核。
+
+Windows 多进程需 ``if __name__ == "__main__"``，请勿删除末尾保护。
 """
 
 from __future__ import annotations
 
 import json
-import multiprocessing
-import shutil
+import os
 import sys
 import traceback
+import multiprocessing
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from fontTools.misc.timeTools import timestampNow
+from tqdm.auto import tqdm
 
 import e2m2e
 from e2m2e.transfer import (
     DROTRONLPOptimizer,
+    NLPOptimizationResult,
     NLPOptimizationVariables,
-    _HAVE_COPT,
     load_orbit_from_json,
-    optimize_with_copt,
 )
 
-from scripts.utils.common import MU, TU
+from scripts.utils.common import DU, MU, TU
 
 project_root = Path(__file__).resolve().parent.parent.parent
 
-# --- 输入：grid_search 的 JSON + 与 grid_search 一致的 DRO/RO 轨道 ---
+# =============================================================================
+# 参数配置（须与生成 search_results 的 grid_search 一致）
+# =============================================================================
+
 SEARCH_RESULTS_FILE = project_root / (
     "output/transfer/search_results_200-1001-0.5-2.5-2.299848_3857331829.json"
 )
 DRO_FILE = project_root / "output/dro/dro_31_3857117998.json"
 RO_FILE = project_root / "output/ro/ro_31_3857122799.json"
 
-# --- 候选：指定行或排序取 Top ---
-# ROW_INDEX 为 int 时只优化该行；为 None 时在可行集中按 SORT_BY 排序后取前 TOP 条
-ROW_INDEX: Optional[int] = None
-FEASIBLE_ONLY = False
-SORT_BY = "min_distance"  # "min_distance" | "dv_total"
-TOP = 1
+ALPHA_MIN = 0.5
+ALPHA_MAX = 2.5
+# 与 grid_search 中 MAX_TRANSFER_TIME 一致（无量纲 TU）
+MAX_TRANSFER_TIME = 200.0 / TU
 
-# --- 初值：MAP_ALPHA 将搜索速度投影到 NLP 的 v_inj=α·v；INTEGRATION_DT 用于由 min_distance_idx 估 T0 ---
-MAP_ALPHA = True
-INTEGRATION_DT: Optional[float] = None  # None -> 1/(24*TU)
+# 碰撞半径（无量纲 DU），与 grid_search 一致
+EARTH_RADIUS = 200.0 / DU
+MOON_RADIUS = 100.0 / DU
 
-RELAXED_VELOCITY = False  # 松弛速度角约束仅 SciPy；与 COPT 同时启用时本行会走 SciPy
-VEL_TOL_DEG = 5.0
+DT = 1.0 / (24.0 * TU)
+INTEGRATOR = "DOP853"
 
-# NLP 盒约束；全为 None 时：alpha≈(0.5,2.5)，T 上界随候选 transfer_time 放宽，t_ins 用优化器默认
-ALPHA_RANGE: Optional[tuple[float, float]] = None
-T_RANGE: Optional[tuple[float, float]] = None
-T_INS_RANGE: Optional[tuple[float, float]] = None
+# 仅对网格中的可行解做 NLP；None 表示全部可行解
+TOP_K_FEASIBLE: Optional[int] = None
+# 调试时可设为较小整数
+MAX_CASES: Optional[int] = None
 
-# --- 求解器：COPT 在 e2m2e 中为 3 变量 + 2 等式约束，耗时主要在回调内轨道积分 ---
-SOLVER: Optional[str] = None  # "copt" | "scipy" | None（有 coptpy 则 copt）
-COPT_MAX_ITER = 1000
-COPT_FALLBACK_TO_SCIPY = True
-COPT_THREADS = 1
-COPT_BAR_THREADS = 1
+# 并行度（与 grid_search 一致）：
+#   None → 使用本机逻辑 CPU 数（os.cpu_count），尽量跑满；
+#   1    → 强制串行（单线程单任务）；
+#   正整数 → 最多同时运行的 worker 数（仍不超过待优化条数）。
+N_WORKERS: Optional[int] = None
 
-# --- 输出 ---
-OUTPUT_FILE: Optional[Path] = None  # None -> output/transfer/optimization_from_search_<时间戳>.json
-WRITE_LATEST_COPY = True
-LATEST_COPY_NAME = "optimization_from_search_latest.json"
+# 并行后端（与 e2m2e ``DROTransferSearch._parallel_backend`` 一致，默认 **processes**）：
+#   "processes"— 多进程，独立解释器，真正并行占满 CPU（网格搜索默认即此，见 transfer_search 注释）；
+#   "threads"  — 线程池，受 GIL 影响，CPU 密集 SciPy 时常跑不满，仅作调试或 I/O 场景。
+PARALLEL_BACKEND: str = "processes"
 
-# 每条候选独立一次完整 NLP（独立优化器）；N_WORKERS>1 时用进程/线程池，见 main 内对 COPT+thread 的修正
-N_WORKERS: Optional[int] = 1  # 1 顺序；None 表示 min(CPU, 候选数)
-PARALLEL_BACKEND = "process"  # 多候选时推荐 process（尤其 COPT）
+# 多进程并行时，每个子进程内 BLAS/OpenMP 线程数（默认 1，避免与进程数相乘导致过度抢占）。
+# 也可用环境变量 OPTIMIZE_BLAS_THREADS_PER_WORKER 覆盖本常量。
+LIMIT_BLAS_THREADS_PER_WORKER: int = 1
 
 
-# --- 以下为初值与排序辅助；核心求解在 run_nlp_for_single_row ---
+def _blas_threads_per_worker() -> int:
+    raw = os.environ.get("OPTIMIZE_BLAS_THREADS_PER_WORKER")
+    if raw is not None and raw.strip() != "":
+        return max(1, int(raw))
+    return max(1, int(LIMIT_BLAS_THREADS_PER_WORKER))
 
 
-def departure_velocity_search_model(state: np.ndarray, alpha: float) -> np.ndarray:
-    """与 ``DROTransferSearch._compute_departure_velocity`` 一致（平面）。"""
-    pos = state[:3].astype(np.float64)
-    vel = state[3:6].astype(np.float64)
-    r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
-    if r_xy < 1e-10:
-        return vel.copy()
-    tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
-    radial = pos / np.linalg.norm(pos)
-    v_radial_comp = float(np.dot(vel, radial))
-    v_tangential_comp = float(np.dot(vel, tangential))
-    return v_radial_comp * radial + alpha * v_tangential_comp * tangential
+def _apply_blas_env_for_child_processes(n_threads: int) -> None:
+    """在创建 ProcessPoolExecutor 之前写入环境变量，spawn 子进程会继承，避免每进程 BLAS 再开多线程。"""
+    s = str(max(1, int(n_threads)))
+    for k in (
+        "OMP_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "VECLIB_MAXIMUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+    ):
+        os.environ[k] = s
+
+# 命令行进度条（与 e2m2e 网格搜索一致，使用 tqdm）；设环境变量 OPTIMIZE_NO_TQDM=1 可关闭
+USE_TQDM = os.environ.get("OPTIMIZE_NO_TQDM", "").lower() not in ("1", "true", "yes")
+
+# ---------------------------------------------------------------------------
+# NLP 求解器：默认 SciPy SLSQP（不依赖 coptpy）
+# ---------------------------------------------------------------------------
+USE_COPT = False
+# COPT 未收敛时是否回退 SciPy（仅当 USE_COPT 为 True 时有效）
+FALLBACK_TO_SCIPY = True
+
+# 等式速度约束不易收敛时可改为 True，并调节 VELOCITY_ANGLE_TOL（弧度）
+USE_RELAXED_VELOCITY = False
+VELOCITY_ANGLE_TOL = 0.05
 
 
-def nlp_alpha_from_search_row(row: dict) -> float:
-    """使 ``v_nlp = α·v`` 与搜索阶段速度最接近的 α。"""
-    ds = row.get("departure_state")
-    if ds is None:
-        return 1.0
-    state = np.asarray(ds, dtype=np.float64).ravel()
-    if state.size < 6:
-        return 1.0
-    alpha_s = float(row.get("alpha", 1.0))
-    v_search = departure_velocity_search_model(state, alpha_s)
-    vel = state[3:6]
-    denom = float(np.dot(vel, vel))
-    if denom < 1e-14:
-        return 1.0
-    a = float(np.dot(v_search, vel) / denom)
-    return a
-
-
-def estimate_t0_from_min_distance_idx(
-    row: dict,
-    integration_dt: float,
-) -> Optional[float]:
-    """由 ``min_distance_idx`` 与等间隔输出估计转移时间初值。"""
-    mtt = row.get("transfer_time")
-    if mtt is None:
-        return None
-    mtt = float(mtt)
-    mi = row.get("min_distance_idx")
-    if mi is None:
-        return mtt * 0.5
-    mi = int(mi)
-    n_steps = max(int(mtt / integration_dt) + 1, 2)
-    if n_steps <= 1:
-        return mtt
-    t = float(mi) * (mtt / float(n_steps - 1))
-    return float(np.clip(t, 1e-3, mtt))
-
-
-def t_ins_from_orbit_idx(ro_orbit: Any, orbit_idx: Optional[int]) -> float:
-    """RO 离散下标对应的时间初值。"""
-    if orbit_idx is None:
-        return float(ro_orbit.times[0])
-    i = int(orbit_idx) % len(ro_orbit.times)
-    return float(ro_orbit.times[i])
-
-
-def load_rows(path: Path) -> list[dict]:
+def _load_search_results(path: Path) -> List[Dict[str, Any]]:
+    """加载网格 JSON。支持 Python 扩展（NaN / Infinity），与 grid_search 写出格式一致。"""
     with open(path, encoding="utf-8") as f:
-        data = json.load(f)
-    if not isinstance(data, list):
-        raise ValueError(f"期望 JSON 数组，得到: {type(data)}")
-    return data
+        return json.load(f)
 
 
-def sort_key(row: dict, mode: str) -> float:
-    if mode == "min_distance":
-        return float(row.get("min_distance") or 1e9)
-    if mode == "dv_total":
-        d1 = row.get("dv_departure")
-        d2 = row.get("dv_insertion")
-        s = 0.0
-        if d1 is not None:
-            s += float(np.asarray(d1, dtype=np.float64).ravel()[0])
-        if d2 is not None:
-            s += float(np.asarray(d2, dtype=np.float64).ravel()[0])
-        return s
-    raise ValueError(f"未知 sort-by: {mode}")
-
-
-def pick_candidates(
-    rows: list[dict],
-    feasible_only: bool,
-    sort_by: str,
-    top: int,
-    index: Optional[int],
-) -> list[tuple[int, dict]]:
-    if index is not None:
-        if index < 0 or index >= len(rows):
-            raise IndexError(f"index={index} 超出 [0, {len(rows)})")
-        return [(index, rows[index])]
-
-    filtered: list[tuple[int, dict]] = [
-        (i, r) for i, r in enumerate(rows) if not feasible_only or r.get("is_feasible")
-    ]
-    if not filtered:
-        raise RuntimeError("无候选行（检查 --feasible-only 或搜索结果）")
-
-    filtered.sort(key=lambda t: sort_key(t[1], sort_by))
-    return filtered[:top]
-
-
-def run_nlp_for_single_row(
-    row_index: int,
-    row: dict,
-    dro_path: str,
-    ro_path: str,
-    *,
-    integration_dt: float,
-    map_alpha: bool,
-    solver: str,
-    alpha_range: tuple[float, float],
-    t_range: tuple[float, float],
-    t_ins_range: tuple[float, float],
-    relaxed: bool,
-    vel_tol_deg: float,
-    copt_max_iter: int,
-    copt_fallback: bool,
-    copt_threads: int,
-    copt_bar_threads: int,
-    verbose: bool,
-) -> Optional[dict[str, Any]]:
-    """单行：新建 ``DROTRONLPOptimizer`` 并求解（顺序或并行 worker 各调一次）。"""
-    # departure_state：grid 行内 6 维状态；随后加载轨道并在本函数内构造 CR3BP 与优化器（每行一份）
-    dep = np.asarray(row.get("departure_state"), dtype=np.float64).ravel()
-    if dep.size != 6:
-        if verbose:
-            print(f"\n跳过行 {row_index}: departure_state 维数不是 6", flush=True)
+def _json_safe(x: Any) -> Any:
+    if x is None:
         return None
+    if isinstance(x, np.generic):
+        return x.item()
+    if isinstance(x, np.ndarray):
+        return x.tolist()
+    if isinstance(x, dict):
+        return {k: _json_safe(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [_json_safe(i) for i in x]
+    return x
 
-    dro_orbit = load_orbit_from_json(str(dro_path))
-    ro_orbit = load_orbit_from_json(str(ro_path))
 
-    # 与 SciPy 路径共用同一动力学；COPT 路径在 e2m2e 中通过回调调用 objective / 约束
-    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
-
-    if map_alpha:
-        alpha0 = nlp_alpha_from_search_row(row)
-    else:
-        alpha0 = float(row.get("alpha", 1.0))
-
-    t0 = estimate_t0_from_min_distance_idx(row, integration_dt)
-    if t0 is None:
-        t0 = float(row.get("transfer_time") or 10.0) * 0.5
-    t0 = float(np.clip(t0, t_range[0], t_range[1]))
-
-    oidx = row.get("min_distance_orbit_idx")
-    t_ins0 = t_ins_from_orbit_idx(ro_orbit, oidx if oidx is not None else None)
-    t_ins0 = float(np.clip(t_ins0, t_ins_range[0], t_ins_range[1]))
-
-    nlp_initial = NLPOptimizationVariables(
-        alpha=alpha0,
-        transfer_time=t0,
-        t_ins=t_ins0,
+def _serialize_nlp_result(r: NLPOptimizationResult) -> Dict[str, Any]:
+    return _json_safe(
+        {
+            "success": r.success,
+            "message": r.message,
+            "alpha": r.alpha,
+            "transfer_time": r.transfer_time,
+            "t_ins": r.t_ins,
+            "objective_value": r.objective_value,
+            "delta_v1": r.delta_v1,
+            "delta_v2": r.delta_v2,
+            "transfer_type": r.transfer_type.value if r.transfer_type else None,
+            "constraints_violation": r.constraints_violation,
+            "departure_state": r.departure_state,
+            "insertion_state": r.insertion_state,
+            "final_state": r.final_state,
+            "transfer_trajectory": r.transfer_trajectory,
+            "transfer_times": r.transfer_times,
+        }
     )
 
-    if verbose:
-        print("\n" + "-" * 70, flush=True)
-        print(
-            f"行索引 {row_index}  搜索 α={row.get('alpha')}  min_distance={row.get('min_distance')}",
-            flush=True,
-        )
-        print(f"  初值: α={alpha0:.6f}  T={t0:.6f}  t_ins={t_ins0:.6f}", flush=True)
-        print("  开始 NLP…", flush=True)
 
-    optimizer = DROTRONLPOptimizer(
+def _initial_guess_from_search(
+    rec: Dict[str, Any], ro_orbit: Any
+) -> NLPOptimizationVariables:
+    """由网格结果构造 (α, T, t_ins) 初值。t_ins 取 RO 上最近点相位对应时刻。"""
+    alpha = float(rec["alpha"])
+    transfer_time = float(rec["transfer_time"])
+    idx = rec.get("min_distance_orbit_idx")
+    t0 = float(ro_orbit.times[0])
+    per = float(ro_orbit.period)
+    if idx is not None:
+        i = int(idx) % len(ro_orbit.times)
+        t_ins = float(ro_orbit.times[i])
+    else:
+        t_ins = t0 + 0.5 * per
+    return NLPOptimizationVariables(
+        alpha=alpha, transfer_time=transfer_time, t_ins=t_ins
+    )
+
+
+def _t_ins_bounds(ro_orbit: Any) -> Tuple[float, float]:
+    t0 = float(ro_orbit.times[0])
+    per = float(ro_orbit.period)
+    return (t0, t0 + per)
+
+
+def _build_dynamics() -> Tuple[Any, Any]:
+    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
+    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+    dynamics.integrator = INTEGRATOR
+    dynamics.rtol = 1e-12
+    dynamics.atol = 1e-12
+    dynamics.max_step = DT
+    return system, dynamics
+
+
+def _optimize_one_case(
+    rec: Dict[str, Any],
+    dro_orbit: Any,
+    ro_orbit: Any,
+    system: Any,
+    dynamics: Any,
+    *,
+    verbose: bool = False,
+    alpha_min: float = ALPHA_MIN,
+    alpha_max: float = ALPHA_MAX,
+    max_transfer_time: float = MAX_TRANSFER_TIME,
+    earth_radius: float = EARTH_RADIUS,
+    moon_radius: float = MOON_RADIUS,
+    use_relaxed_velocity: bool = USE_RELAXED_VELOCITY,
+    velocity_angle_tol: float = VELOCITY_ANGLE_TOL,
+    use_copt: bool = USE_COPT,
+    fallback_to_scipy: bool = FALLBACK_TO_SCIPY,
+) -> NLPOptimizationResult:
+    """单条网格记录 → NLP。标量参数可传入，供子进程 ``packed`` worker 使用。"""
+    dep = np.asarray(rec["departure_state"], dtype=float).ravel()
+    if dep.size != 6:
+        raise ValueError("departure_state 须为长度 6 的向量")
+
+    opt = DROTRONLPOptimizer(
         system=system,
         dynamics=dynamics,
         departure_orbit=dro_orbit,
         arrival_orbit=ro_orbit,
         departure_state=dep,
     )
-    optimizer.alpha_range = alpha_range
-    optimizer.transfer_time_range = t_range
-    optimizer.t_ins_range = t_ins_range
+    opt.earth_radius = earth_radius
+    opt.moon_radius = moon_radius
 
-    scipy_kw = dict(
-        initial_guess=nlp_initial,
-        alpha_range=alpha_range,
-        transfer_time_range=t_range,
-        t_ins_range=t_ins_range,
-        use_relaxed_velocity_constraint=relaxed,
-        velocity_angle_constraint=np.deg2rad(vel_tol_deg),
+    t_lo, t_hi = _t_ins_bounds(ro_orbit)
+    guess = _initial_guess_from_search(rec, ro_orbit)
+
+    kwargs_opt: Dict[str, Any] = dict(
+        initial_guess=guess,
+        alpha_range=(alpha_min, alpha_max),
+        transfer_time_range=(1e-4, max_transfer_time),
+        t_ins_range=(t_lo, t_hi),
+        use_relaxed_velocity_constraint=use_relaxed_velocity,
+        velocity_angle_constraint=velocity_angle_tol,
         verbose=verbose,
     )
 
-    # COPT 仅实现等式速度约束；松弛角约束时强制 SciPy
-    if relaxed and solver == "copt":
-        if verbose:
-            print(
-                "  提示: COPT 仅等式速度约束；本行改用 SciPy（RELAXED_VELOCITY=True）。",
-                flush=True,
-            )
-        result = optimizer.optimize(**scipy_kw)
-    elif solver == "copt":
-        if not _HAVE_COPT:
-            raise RuntimeError(
-                "未检测到 coptpy，无法使用 SOLVER=\"copt\"。请安装 coptpy 或设 SOLVER=\"scipy\"。"
-            )
-        result = optimize_with_copt(
-            optimizer,
-            initial_guess=nlp_initial,
-            fallback_to_scipy=copt_fallback,
-            max_iter=copt_max_iter,
-            threads=copt_threads,
-            bar_threads=copt_bar_threads,
-            scipy_fallback_kwargs=scipy_kw,
-        )
-    else:
-        result = optimizer.optimize(**scipy_kw)
+    if use_copt:
+        from e2m2e.transfer import _HAVE_COPT, optimize_with_copt
 
-    entry: dict[str, Any] = {
-        "solver_used": "scipy" if (relaxed and solver == "copt") else solver,
-        "search_row_index": row_index,
+        if _HAVE_COPT:
+            scipy_kw = {k: v for k, v in kwargs_opt.items() if k != "initial_guess"}
+            return optimize_with_copt(
+                opt,
+                initial_guess=guess,
+                fallback_to_scipy=fallback_to_scipy,
+                max_iter=1000,
+                threads=1,
+                bar_threads=1,
+                scipy_fallback_kwargs=scipy_kw,
+            )
+
+    return opt.optimize(**kwargs_opt)
+
+
+def _row_template(rec: Dict[str, Any], search_index: int) -> Dict[str, Any]:
+    return {
+        "search_index": search_index,
         "search_snapshot": {
-            "alpha": row.get("alpha"),
-            "transfer_time": row.get("transfer_time"),
-            "min_distance": row.get("min_distance"),
-            "is_feasible": row.get("is_feasible"),
+            "alpha": rec.get("alpha"),
+            "transfer_time": rec.get("transfer_time"),
+            "min_distance": rec.get("min_distance"),
+            "is_feasible": rec.get("is_feasible"),
+            "status": rec.get("status"),
         },
-        "initial_guess_nlp": {
-            "alpha": nlp_initial.alpha,
-            "transfer_time": nlp_initial.transfer_time,
-            "t_ins": nlp_initial.t_ins,
-        },
-        "success": result.success,
-        "message": result.message,
-        "variables": {
-            "alpha": result.alpha,
-            "transfer_time": result.transfer_time,
-            "t_ins": result.t_ins,
-        },
-        "delta_v": {
-            "dv1": result.delta_v1,
-            "dv2": result.delta_v2,
-            "total": result.objective_value,
-        },
-        "departure_state": dep.tolist(),
+        "error": None,
+        "nlp": None,
     }
-    if hasattr(result.transfer_type, "value"):
-        entry["transfer_type"] = result.transfer_type.value
-    else:
-        entry["transfer_type"] = str(result.transfer_type)
-
-    return entry
 
 
-def _optimize_task_payload_to_result(payload: dict[str, Any]) -> Optional[dict[str, Any]]:
-    """进程/线程池入口：可 pickle 的 dict，避免直接传闭包。"""
-    return run_nlp_for_single_row(
-        row_index=payload["row_index"],
-        row=payload["row"],
-        dro_path=payload["dro_path"],
-        ro_path=payload["ro_path"],
-        integration_dt=payload["integration_dt"],
-        map_alpha=payload["map_alpha"],
-        solver=payload["solver"],
-        alpha_range=tuple(payload["alpha_range"]),
-        t_range=tuple(payload["t_range"]),
-        t_ins_range=tuple(payload["t_ins_range"]),
-        relaxed=payload["relaxed"],
-        vel_tol_deg=payload["vel_tol_deg"],
-        copt_max_iter=payload["copt_max_iter"],
-        copt_fallback=payload["copt_fallback"],
-        copt_threads=payload["copt_threads"],
-        copt_bar_threads=payload["copt_bar_threads"],
-        verbose=payload["verbose"],
+def _pack_nlp_task(
+    search_index: int,
+    rec: Dict[str, Any],
+    dro_orbit: Any,
+    ro_orbit: Any,
+) -> Tuple[Any, ...]:
+    """打包为可 pickle 元组，供子进程 ``_nlp_worker_packed`` 使用（与 transfer_search 的 packed worker 同构）。"""
+    return (
+        int(search_index),
+        rec,
+        np.asarray(dro_orbit.states, dtype=float),
+        np.asarray(dro_orbit.times, dtype=float),
+        float(dro_orbit.period),
+        np.asarray(ro_orbit.states, dtype=float),
+        np.asarray(ro_orbit.times, dtype=float),
+        float(ro_orbit.period),
+        float(MU),
+        float(ALPHA_MIN),
+        float(ALPHA_MAX),
+        float(MAX_TRANSFER_TIME),
+        float(EARTH_RADIUS),
+        float(MOON_RADIUS),
+        float(DT),
+        str(INTEGRATOR),
+        float(1e-12),
+        float(1e-12),
+        float(DT),
+        bool(USE_RELAXED_VELOCITY),
+        float(VELOCITY_ANGLE_TOL),
+        bool(USE_COPT),
+        bool(FALLBACK_TO_SCIPY),
     )
 
 
-def _resolve_n_workers(requested: Optional[int], n_tasks: int) -> int:
-    """将用户配置的 worker 数限制在 [1, n_tasks] 内。"""
-    if n_tasks <= 0:
-        return 1
-    if requested is None:
-        return min(multiprocessing.cpu_count(), n_tasks)
-    return max(1, min(int(requested), n_tasks))
+def _nlp_worker_packed(packed: Tuple[Any, ...]) -> Dict[str, Any]:
+    """子进程入口：在子进程内重建 Orbit 与动力学，绕过 GIL；模块级函数便于 Windows spawn pickle。"""
+    (
+        search_index,
+        rec,
+        dro_states,
+        dro_times,
+        dro_period,
+        ro_states,
+        ro_times,
+        ro_period,
+        mu,
+        alpha_min,
+        alpha_max,
+        max_transfer_time,
+        earth_radius,
+        moon_radius,
+        _dt_unused,
+        integrator,
+        rtol,
+        atol,
+        max_step,
+        use_relaxed_velocity,
+        velocity_angle_tol,
+        use_copt,
+        fallback_to_scipy,
+    ) = packed
+
+    from e2m2e.core.orbit import Orbit
+
+    dro_orbit = Orbit(
+        states=np.asarray(dro_states, dtype=float),
+        times=np.asarray(dro_times, dtype=float),
+    )
+    dro_orbit.period = float(dro_period)
+    ro_orbit = Orbit(
+        states=np.asarray(ro_states, dtype=float),
+        times=np.asarray(ro_times, dtype=float),
+    )
+    ro_orbit.period = float(ro_period)
+
+    system = e2m2e.core.system.CR3BP_System(mu=float(mu), primary="earth", secondary="moon")
+    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+    dynamics.integrator = str(integrator)
+    dynamics.rtol = float(rtol)
+    dynamics.atol = float(atol)
+    dynamics.max_step = float(max_step)
+
+    out = _row_template(rec, int(search_index))
+    try:
+        result = _optimize_one_case(
+            rec,
+            dro_orbit,
+            ro_orbit,
+            system,
+            dynamics,
+            verbose=False,
+            alpha_min=float(alpha_min),
+            alpha_max=float(alpha_max),
+            max_transfer_time=float(max_transfer_time),
+            earth_radius=float(earth_radius),
+            moon_radius=float(moon_radius),
+            use_relaxed_velocity=bool(use_relaxed_velocity),
+            velocity_angle_tol=float(velocity_angle_tol),
+            use_copt=bool(use_copt),
+            fallback_to_scipy=bool(fallback_to_scipy),
+        )
+        out["nlp"] = _serialize_nlp_result(result)
+    except Exception:
+        out["error"] = traceback.format_exc()
+    return out
+
+
+def _worker_run_thread(
+    args: Tuple[Dict[str, Any], int, Any, Any, Any, Any],
+) -> Dict[str, Any]:
+    """线程池入口：共享主进程已加载的轨道与动力学。"""
+    rec, search_index, dro, ro, system, dynamics = args
+    out = _row_template(rec, search_index)
+    try:
+        result = _optimize_one_case(rec, dro, ro, system, dynamics, verbose=False)
+        out["nlp"] = _serialize_nlp_result(result)
+    except Exception:
+        out["error"] = traceback.format_exc()
+    return out
 
 
 def main() -> None:
-    # 1) 读 search_results、选候选  2) 算 NLP 边界  3) 顺序或并行跑 run_nlp_for_single_row  4) 写 JSON
-    print("optimize.py 已启动…", flush=True)
+    print("=" * 70, flush=True)
+    print("DRO–RO 转移 NLP 优化（Cui et al. 2025；e2m2e DROTRONLPOptimizer）", flush=True)
+    print("=" * 70, flush=True)
 
-    search_path = Path(SEARCH_RESULTS_FILE).expanduser().resolve()
-    if not search_path.is_file():
-        raise FileNotFoundError(search_path)
+    if not SEARCH_RESULTS_FILE.is_file():
+        raise FileNotFoundError(f"未找到网格结果文件: {SEARCH_RESULTS_FILE}")
+    if not DRO_FILE.is_file():
+        raise FileNotFoundError(f"未找到 DRO 文件: {DRO_FILE}")
+    if not RO_FILE.is_file():
+        raise FileNotFoundError(f"未找到 RO 文件: {RO_FILE}")
 
-    dro_path = Path(DRO_FILE).expanduser().resolve()
-    ro_path = Path(RO_FILE).expanduser().resolve()
-    if not dro_path.is_file():
-        raise FileNotFoundError(dro_path)
-    if not ro_path.is_file():
-        raise FileNotFoundError(ro_path)
-
-    integration_dt = INTEGRATION_DT
-    if integration_dt is None:
-        integration_dt = 1.0 / (24.0 * TU)
-
+    print(f"\n优化配置:", flush=True)
+    _cpu = multiprocessing.cpu_count() or 1
     print(
-        f"正在读取搜索结果（可能较慢）: {search_path}",
+        f"  并行: n_workers={N_WORKERS}（None=逻辑 CPU 数 {_cpu}）, "
+        f"backend={PARALLEL_BACKEND}",
         flush=True,
     )
-    rows = load_rows(search_path)
-    print(f"已加载 {len(rows)} 行。", flush=True)
-    picked = pick_candidates(
-        rows,
-        feasible_only=FEASIBLE_ONLY,
-        sort_by=SORT_BY,
-        top=TOP,
-        index=ROW_INDEX,
-    )
+    print(f"  TOP_K_FEASIBLE: {TOP_K_FEASIBLE}", flush=True)
+    print(f"  MAX_CASES: {MAX_CASES}", flush=True)
+    print(f"  α 范围: [{ALPHA_MIN:.2f}, {ALPHA_MAX:.2f}]", flush=True)
+    print(f"  最大转移时间: {MAX_TRANSFER_TIME:.6f} TU", flush=True)
+    print(f"  积分步长（1 小时）: {DT:.8f} TU", flush=True)
+    print(f"  碰撞半径: 地球={EARTH_RADIUS:.4f}, 月球={MOON_RADIUS:.4f}", flush=True)
+    print(f"  进度条: {'开启（tqdm）' if USE_TQDM else '关闭（OPTIMIZE_NO_TQDM）'}", flush=True)
 
-    print("=" * 70, flush=True)
-    print("DRO→RO NLP 优化（初值来自 grid_search）", flush=True)
-    print("=" * 70, flush=True)
-    print(f"搜索结果: {search_path}（共 {len(rows)} 行）", flush=True)
-    print(f"DRO: {dro_path}", flush=True)
-    print(f"RO: {ro_path}", flush=True)
-    print(f"integration_dt（估计 T0）: {integration_dt:.8f}", flush=True)
-    map_alpha = MAP_ALPHA
-    solver = SOLVER if SOLVER is not None else ("copt" if _HAVE_COPT else "scipy")
-    if solver not in ("copt", "scipy"):
-        raise ValueError('SOLVER 须为 "copt"、"scipy" 或 None')
-    print(f"候选数: {len(picked)}  map_alpha={map_alpha}  solver={solver}", flush=True)
-    if solver == "copt" and _HAVE_COPT:
+    print(f"\n加载网格结果:", flush=True)
+    print(f"  文件: {SEARCH_RESULTS_FILE}", flush=True)
+    print("  正在读取 JSON（大文件可能较慢）…", flush=True)
+    all_results = _load_search_results(SEARCH_RESULTS_FILE)
+    total_records = len(all_results)
+    feasible_indexed: List[Tuple[int, Dict[str, Any]]] = [
+        (i, r) for i, r in enumerate(all_results) if r.get("is_feasible")
+    ]
+
+    feasible_indexed.sort(key=lambda ir: float(ir[1].get("min_distance", 1e9)))
+    n_feasible_total = len(feasible_indexed)
+    if TOP_K_FEASIBLE is not None:
+        feasible_indexed = feasible_indexed[:TOP_K_FEASIBLE]
+    if MAX_CASES is not None:
+        feasible_indexed = feasible_indexed[:MAX_CASES]
+
+    del all_results
+
+    print(f"\n网格记录总数: {total_records}", flush=True)
+    print(f"可行解总数: {n_feasible_total}", flush=True)
+    print(f"本次待优化（经 TOP_K / MAX_CASES 截断后）: {len(feasible_indexed)}", flush=True)
+    if USE_COPT:
+        from e2m2e.transfer import _HAVE_COPT
+
         print(
-            f"  COPT: Threads={COPT_THREADS}, BarThreads={COPT_BAR_THREADS}",
+            f"NLP: 优先 COPT（已安装: {_HAVE_COPT}），失败则 SciPy SLSQP",
+            flush=True,
+        )
+    else:
+        print(
+            "NLP: SciPy SLSQP（scipy.optimize.minimize，与 e2m2e DROTRONLPOptimizer.optimize 一致）",
             flush=True,
         )
 
-    # T 上界默认随所选候选的最大 transfer_time 略放宽，避免初值贴边
-    alpha_range = ALPHA_RANGE if ALPHA_RANGE is not None else (0.5, 2.5)
-    mtt_ref = max(
-        (float(rows[i].get("transfer_time") or 1.0) for i, _ in picked),
-        default=15.0,
-    )
-    if T_RANGE is not None:
-        t_range = (float(T_RANGE[0]), float(T_RANGE[1]))
+    if not feasible_indexed:
+        print("\n没有可行解，退出。", flush=True)
+        return
+
+    print(f"\n加载轨道数据:", flush=True)
+    print(f"  DRO: {DRO_FILE}", flush=True)
+    print(f"  RO: {RO_FILE}", flush=True)
+    dro_orbit = load_orbit_from_json(str(DRO_FILE))
+    ro_orbit = load_orbit_from_json(str(RO_FILE))
+    print(f"  DRO 周期: {dro_orbit.period:.4f} TU, 状态数: {len(dro_orbit.states)}", flush=True)
+    print(f"  RO 周期: {ro_orbit.period:.4f} TU, 状态数: {len(ro_orbit.states)}", flush=True)
+
+    system, dynamics = _build_dynamics()
+    print(f"\ne2m2e 动力学已就绪", flush=True)
+    print(f"  系统: μ = {system.mu:.6e}", flush=True)
+    print(f"  积分器: {dynamics.integrator}", flush=True)
+    print(f"  rtol/atol: {dynamics.rtol:g} / {dynamics.atol:g}", flush=True)
+    print(f"  max_step: {dynamics.max_step:.8f} TU", flush=True)
+
+    output_dir = project_root / "output/transfer"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out_path = output_dir / f"optimization_results_{timestampNow()}.json"
+
+    backend = PARALLEL_BACKEND.strip().lower()
+    if backend not in ("threads", "processes"):
+        raise ValueError("PARALLEL_BACKEND 须为 'threads' 或 'processes'")
+
+    cpu_n = multiprocessing.cpu_count() or 1
+    if N_WORKERS is None:
+        n_workers_req = max(1, cpu_n)
     else:
-        t_range = (1.0, max(30.0, mtt_ref * 1.05))
-    t_ins_range = (
-        (float(T_INS_RANGE[0]), float(T_INS_RANGE[1]))
-        if T_INS_RANGE is not None
-        else getattr(DROTRONLPOptimizer, "DEFAULT_T_INS_RANGE", (0.0, 10.0))
-    )
+        n_workers_req = max(1, int(N_WORKERS))
 
-    # 多 worker + COPT + thread 会强制改为 process（避免 COPT 与 Python 回调多线程并发问题）
-    n_tasks = len(picked)
-    n_workers = _resolve_n_workers(N_WORKERS, n_tasks)
-    parallel_backend = PARALLEL_BACKEND
-    if n_workers > 1 and parallel_backend == "thread" and solver == "copt":
-        print("  并行: COPT 与 thread 后端不兼容，已改用 process。", flush=True)
-        parallel_backend = "process"
+    n_total = len(feasible_indexed)
+    disable_tqdm = not USE_TQDM or n_total <= 0
 
-    print(
-        f"  并行调度: n_workers={n_workers}（候选 {n_tasks} 条）"
-        f"，backend={parallel_backend if n_workers > 1 else 'sequential'}",
-        flush=True,
-    )
+    print("\n" + "=" * 70, flush=True)
+    print("开始 NLP 优化", flush=True)
+    print("=" * 70, flush=True)
 
-    out_list: list[dict[str, Any]] = []
-
-    def _make_payload(row_index: int, row: dict, *, verbose: bool) -> dict[str, Any]:
-        return {
-            "row_index": row_index,
-            "row": row,
-            "dro_path": str(dro_path),
-            "ro_path": str(ro_path),
-            "integration_dt": integration_dt,
-            "map_alpha": map_alpha,
-            "solver": solver,
-            "alpha_range": [alpha_range[0], alpha_range[1]],
-            "t_range": [t_range[0], t_range[1]],
-            "t_ins_range": [t_ins_range[0], t_ins_range[1]],
-            "relaxed": RELAXED_VELOCITY,
-            "vel_tol_deg": VEL_TOL_DEG,
-            "copt_max_iter": COPT_MAX_ITER,
-            "copt_fallback": COPT_FALLBACK_TO_SCIPY,
-            "copt_threads": COPT_THREADS,
-            "copt_bar_threads": COPT_BAR_THREADS,
-            "verbose": verbose,
-        }
-
-    # 顺序模式便于逐行看日志；并行时子进程/线程内 verbose=False，减少输出交错
-    if n_workers == 1:
-        for row_index, row in picked:
-            r = run_nlp_for_single_row(
-                row_index,
-                row,
-                str(dro_path),
-                str(ro_path),
-                integration_dt=integration_dt,
-                map_alpha=map_alpha,
-                solver=solver,
-                alpha_range=alpha_range,
-                t_range=t_range,
-                t_ins_range=t_ins_range,
-                relaxed=RELAXED_VELOCITY,
-                vel_tol_deg=VEL_TOL_DEG,
-                copt_max_iter=COPT_MAX_ITER,
-                copt_fallback=COPT_FALLBACK_TO_SCIPY,
-                copt_threads=COPT_THREADS,
-                copt_bar_threads=COPT_BAR_THREADS,
-                verbose=True,
-            )
-            if r is not None:
-                out_list.append(r)
-    else:
-        payloads = [_make_payload(i, r, verbose=False) for i, r in picked]
-        Executor = (
-            ProcessPoolExecutor
-            if parallel_backend == "process"
-            else ThreadPoolExecutor
+    records: List[Dict[str, Any]] = []
+    if n_workers_req == 1:
+        pbar = tqdm(
+            feasible_indexed,
+            total=n_total,
+            desc="NLP 优化",
+            unit="条",
+            file=sys.stderr,
+            dynamic_ncols=True,
+            mininterval=0.3,
+            disable=disable_tqdm,
         )
-        with Executor(max_workers=n_workers) as ex:
-            futures = {
-                ex.submit(_optimize_task_payload_to_result, p): p for p in payloads
+        for k, (global_idx, rec) in enumerate(pbar):
+            row: Dict[str, Any] = {
+                "search_index": global_idx,
+                "search_snapshot": {
+                    "alpha": rec.get("alpha"),
+                    "transfer_time": rec.get("transfer_time"),
+                    "min_distance": rec.get("min_distance"),
+                    "is_feasible": rec.get("is_feasible"),
+                    "status": rec.get("status"),
+                },
+                "error": None,
+                "nlp": None,
             }
-            completed = 0
-            for fut in as_completed(futures):
-                completed += 1
-                p = futures[fut]
-                ri = p["row_index"]
-                try:
-                    r = fut.result()
-                    if r is not None:
-                        out_list.append(r)
+            try:
+                res = _optimize_one_case(
+                    rec, dro_orbit, ro_orbit, system, dynamics, verbose=False
+                )
+                row["nlp"] = _serialize_nlp_result(res)
+                if disable_tqdm:
+                    pct = (k + 1) / n_total * 100
                     print(
-                        f"  [{completed}/{n_tasks}] 完成 search_row_index={ri}",
+                        f"  NLP 进度: {k + 1}/{n_total} ({pct:.1f}%)  "
+                        f"idx={global_idx} success={res.success} ΔV={res.objective_value:.6f}",
                         flush=True,
                     )
-                except Exception as e:
+                else:
+                    pbar.set_postfix(
+                        idx=global_idx,
+                        alpha=f"{float(rec.get('alpha', 0.0)):.4f}",
+                        ok=res.success,
+                        dV=f"{res.objective_value:.4f}",
+                        refresh=False,
+                    )
+            except Exception:
+                row["error"] = traceback.format_exc()
+                if disable_tqdm:
                     print(
-                        f"  [{completed}/{n_tasks}] 失败 search_row_index={ri}: {e}",
+                        f"  NLP 进度: {k + 1}/{n_total}  idx={global_idx} ERROR",
                         flush=True,
                     )
+                else:
+                    tqdm.write(
+                        f"  [错误] idx={global_idx}:\n{row['error'][:2000]}",
+                    )
+                    pbar.set_postfix(
+                        idx=global_idx,
+                        err="ERR",
+                        refresh=False,
+                    )
+            records.append(row)
+    else:
+        n_pool = min(n_workers_req, n_total)
+        print(
+            f"  并行执行: {n_pool} 个 worker（backend={backend}，本机逻辑 CPU={cpu_n}）",
+            flush=True,
+        )
+        if backend == "processes":
+            _bt = _blas_threads_per_worker()
+            _apply_blas_env_for_child_processes(_bt)
+            print(
+                f"  多进程 BLAS/OpenMP: 每 worker {_bt} 线程（环境已写入 OMP/MKL/OpenBLAS 等）",
+                flush=True,
+            )
+        payloads = [(rec, idx) for idx, rec in feasible_indexed]
+        futures_list: List[Any] = []
 
-    # as_completed 完成顺序不定，按 search_row_index 排序再写出
-    out_list.sort(key=lambda e: int(e.get("search_row_index", 0)))
+        if backend == "threads":
+            with ThreadPoolExecutor(max_workers=n_pool) as ex:
+                for rec, idx in payloads:
+                    futures_list.append(
+                        ex.submit(
+                            _worker_run_thread,
+                            (
+                                rec,
+                                idx,
+                                dro_orbit,
+                                ro_orbit,
+                                system,
+                                dynamics,
+                            ),
+                        )
+                    )
+                for fut in tqdm(
+                    as_completed(futures_list),
+                    total=len(futures_list),
+                    desc=f"NLP 优化(线程×{n_pool})",
+                    unit="条",
+                    file=sys.stderr,
+                    dynamic_ncols=True,
+                    mininterval=0.3,
+                    disable=disable_tqdm,
+                ):
+                    records.append(fut.result())
+        else:
+            with ProcessPoolExecutor(max_workers=n_pool) as ex:
+                for rec, idx in payloads:
+                    futures_list.append(
+                        ex.submit(_nlp_worker_packed, _pack_nlp_task(idx, rec, dro_orbit, ro_orbit))
+                    )
+                for fut in tqdm(
+                    as_completed(futures_list),
+                    total=len(futures_list),
+                    desc=f"NLP 优化(进程×{n_pool})",
+                    unit="条",
+                    file=sys.stderr,
+                    dynamic_ncols=True,
+                    mininterval=0.3,
+                    disable=disable_tqdm,
+                ):
+                    records.append(fut.result())
+        records.sort(key=lambda x: x.get("search_index", 0))
 
-    out_path = (
-        Path(OUTPUT_FILE).expanduser().resolve()
-        if OUTPUT_FILE is not None
-        else project_root
-        / "output"
-        / "transfer"
-        / f"optimization_from_search_{timestampNow()}.json"
-    )
-    out_path.parent.mkdir(parents=True, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(
             {
                 "meta": {
-                    "search_results": str(search_path),
-                    "dro": str(dro_path),
-                    "ro": str(ro_path),
-                    "integration_dt": integration_dt,
-                    "map_alpha": map_alpha,
-                    "solver": solver,
-                    "n_workers": n_workers,
-                    "parallel_backend": (
-                        parallel_backend if n_workers > 1 else "sequential"
+                    "search_results_file": str(SEARCH_RESULTS_FILE),
+                    "dro_file": str(DRO_FILE),
+                    "ro_file": str(RO_FILE),
+                    "alpha_range": [ALPHA_MIN, ALPHA_MAX],
+                    "max_transfer_time": MAX_TRANSFER_TIME,
+                    "nlp_solver": (
+                        "copt_with_scipy_fallback"
+                        if USE_COPT
+                        else "scipy_slsqp"
                     ),
-                    "max_iter_copt": COPT_MAX_ITER,
-                    "copt_threads": COPT_THREADS,
-                    "copt_bar_threads": COPT_BAR_THREADS,
-                    "copt_fallback": COPT_FALLBACK_TO_SCIPY,
-                    "have_copt": _HAVE_COPT,
-                    "relaxed": RELAXED_VELOCITY,
-                    "vel_tol_deg": VEL_TOL_DEG,
+                    "use_relaxed_velocity": USE_RELAXED_VELOCITY,
+                    "n_optimized": len(records),
+                    "parallel_backend": PARALLEL_BACKEND,
+                    "n_workers_requested": N_WORKERS,
+                    "blas_threads_per_worker": _blas_threads_per_worker()
+                    if PARALLEL_BACKEND.strip().lower() == "processes"
+                    else None,
                 },
-                "results": out_list,
+                "results": records,
             },
             f,
             indent=2,
             ensure_ascii=False,
         )
 
-    out_abs = out_path.resolve()
-    print("\n" + "=" * 70, flush=True)
-    print(f"已写入（绝对路径）:\n  {out_abs}", flush=True)
-    if WRITE_LATEST_COPY:
-        latest = (project_root / "output" / "transfer" / LATEST_COPY_NAME).resolve()
-        latest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(out_abs, latest)
-        print(f"已复制最新结果到:\n  {latest}", flush=True)
-    print("=" * 70, flush=True)
-
-    if any(not e.get("success") for e in out_list):
-        sys.exit(1)
+    print(f"\n优化完成，共写入 {len(records)} 条记录", flush=True)
+    print(f"结果已保存到: {out_path}", flush=True)
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\n已中断；未完成求解则不会写出结果 JSON。", flush=True)
-        sys.exit(130)
-    except Exception:
-        traceback.print_exc()
-        print(
-            "\n检查 SEARCH_RESULTS_FILE；求解耗时长时结束前不会写出 JSON。"
-            "\n试跑可设 ROW_INDEX=0、SOLVER=\"scipy\"。",
-            flush=True,
-        )
-        sys.exit(1)
+    main()

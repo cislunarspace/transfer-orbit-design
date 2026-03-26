@@ -4,6 +4,7 @@
 numpy>=2.4.0
 scipy>=1.17.0
 matplotlib>=3.10.0
+tqdm>=4.66
 
 # Custom library (install in editable mode)
 # e2m2e @ file:///C:/Users/ouyan/codes/e2m2e
