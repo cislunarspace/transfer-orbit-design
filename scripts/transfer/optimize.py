@@ -378,7 +378,7 @@ def _optimize_one_case(
     t_lo, t_hi = _t_ins_bounds(ro_orbit)
     guess = _initial_guess_from_search(rec, ro_orbit)
 
-    if progress_callback is not None:
+    if progress_callback is not None and hasattr(opt, "set_progress_callback"):
         opt.set_progress_callback(progress_callback)
 
     kwargs_opt: Dict[str, Any] = dict(
