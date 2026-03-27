@@ -27,11 +27,13 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 import traceback
 import multiprocessing
+import threading
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 from fontTools.misc.timeTools import timestampNow
@@ -54,19 +56,20 @@ project_root = Path(__file__).resolve().parent.parent.parent
 # =============================================================================
 
 SEARCH_RESULTS_FILE = project_root / (
-    "output/transfer/search_results_200-1001-0.5-2.5-2.299848_3857331829.json"
+    "output/transfer/search_results_200-1001-0.5-2.5-22.998482_3857379210.json"
 )
-DRO_FILE = project_root / "output/dro/dro_31_3857117998.json"
-RO_FILE = project_root / "output/ro/ro_31_3857122799.json"
+DRO_FILE = project_root / "output/dro/dro_31_3857199098.json"
+RO_FILE = project_root / "output/ro/ro_31_3857328571.json"
 
 ALPHA_MIN = 0.5
 ALPHA_MAX = 2.5
-# 与 grid_search 中 MAX_TRANSFER_TIME 一致（无量纲 TU）
-MAX_TRANSFER_TIME = 200.0 / TU
+# 与 grid_search 中 MAX_TRANSFER_TIME 一致（无量纲 TU，100/TU ≈ 23 天）
+MAX_TRANSFER_TIME = 100.0 / TU
 
-# 碰撞半径（无量纲 DU），与 grid_search 一致
-EARTH_RADIUS = 200.0 / DU
-MOON_RADIUS = 100.0 / DU
+# 碰撞半径（无量纲 DU）：距行星表面高度 + 行星本体半径
+# 与 grid_search 中的 surface_altitude 配合使用
+EARTH_RADIUS = (200.0 + 6371.0) / DU
+MOON_RADIUS = (100.0 + 1737.0) / DU
 
 DT = 1.0 / (24.0 * TU)
 INTEGRATOR = "DOP853"
@@ -122,8 +125,102 @@ USE_COPT = False
 FALLBACK_TO_SCIPY = True
 
 # 等式速度约束不易收敛时可改为 True，并调节 VELOCITY_ANGLE_TOL（弧度）
-USE_RELAXED_VELOCITY = False
+USE_RELAXED_VELOCITY = True
 VELOCITY_ANGLE_TOL = 0.05
+
+# ---------------------------------------------------------------------------
+# 调试配置
+# ---------------------------------------------------------------------------
+# 固定出发点调试：指定出发点状态向量的位置分量（x, y, z），只优化该点的可行解
+# None = 优化所有可行解
+# 例如：固定第一个出发点 → DEBUG_DEPARTURE_POINT = (1.093772, -0.089809, 0.0)
+DEBUG_DEPARTURE_POINT: Optional[tuple] = (1.093772, -0.089809, 0.0)
+
+
+# ---------------------------------------------------------------------------
+# 进度追踪（供优化迭代回调和监控线程共享）
+# ---------------------------------------------------------------------------
+
+
+class OptimizationProgress:
+    """线程安全的优化进度状态，供 callback 和监控线程共享。"""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.case_index: int = -1      # 当前是第几条（0起）
+        self.total_cases: int = 0      # 总共多少条
+        self.search_index: int = -1     # 当前对应的 search_index
+        self.iteration: int = 0        # 当前条 SLSQP 迭代数
+        self.objective: float = float("inf")
+        self.alpha: float = 0.0
+        self.transfer_time: float = 0.0
+        self.t_ins: float = 0.0
+        self.start_time: float = 0.0   # 本条开始时间（墙钟）
+        self.case_start_time: float = 0.0  # 本条开始时间
+        # 上一条完成信息
+        self.last_success: bool = False
+        self.last_delta_v: float = float("inf")
+        self.last_duration: float = 0.0  # 本条耗时（秒）
+
+    def start_case(self, case_idx: int, total: int, search_idx: int) -> None:
+        with self._lock:
+            if self.start_time <= 0:
+                self.start_time = _wall_time()
+            self.case_index = case_idx
+            self.total_cases = total
+            self.search_index = search_idx
+            self.iteration = 0
+            self.objective = float("inf")
+            self.alpha = 0.0
+            self.transfer_time = 0.0
+            self.t_ins = 0.0
+            self.case_start_time = _wall_time()
+
+    def update_iteration(self, it: int, obj: float, a: float, T: float, tins: float) -> None:
+        with self._lock:
+            self.iteration = it
+            self.objective = obj
+            self.alpha = a
+            self.transfer_time = T
+            self.t_ins = tins
+
+    def finish_case(self, success: bool, delta_v: float) -> None:
+        with self._lock:
+            self.last_success = success
+            self.last_delta_v = delta_v
+            self.last_duration = _wall_time() - self.case_start_time
+
+    def get_snapshot(self) -> dict:
+        with self._lock:
+            return dict(
+                case=self.case_index,
+                total=self.total_cases,
+                search_index=self.search_index,
+                iter=self.iteration,
+                obj=self.objective,
+                alpha=self.alpha,
+                T=self.transfer_time,
+                tins=self.t_ins,
+                duration=self.last_duration,
+                last_success=self.last_success,
+                last_delta_v=self.last_delta_v,
+            )
+
+
+def _wall_time() -> float:
+    return time.time()
+
+
+_progress: Optional[OptimizationProgress] = None
+
+
+def _make_progress_callback(prog: OptimizationProgress, case_idx: int, total: int, search_idx: int):
+    """创建当前案例的迭代回调函数。"""
+
+    def callback(it: int, obj: float, a: float, T: float, tins: float) -> None:
+        prog.update_iteration(it, obj, a, T, tins)
+
+    return callback
 
 
 def _load_search_results(path: Path) -> List[Dict[str, Any]]:
@@ -166,6 +263,16 @@ def _serialize_nlp_result(r: NLPOptimizationResult) -> Dict[str, Any]:
             "transfer_times": r.transfer_times,
         }
     )
+
+
+def _match_departure_point(rec: Dict[str, Any], x: float, y: float, z: float, tol: float = 1e-4) -> bool:
+    """判断搜索结果 rec 的出发点是否与指定 (x, y, z) 匹配（容差 tol）。"""
+    dep_state = rec.get("departure_state")
+    if dep_state is None:
+        return False
+    return (abs(dep_state[0] - x) < tol and
+            abs(dep_state[1] - y) < tol and
+            abs(dep_state[2] - z) < tol)
 
 
 def _initial_guess_from_search(
@@ -220,6 +327,7 @@ def _optimize_one_case(
     velocity_angle_tol: float = VELOCITY_ANGLE_TOL,
     use_copt: bool = USE_COPT,
     fallback_to_scipy: bool = FALLBACK_TO_SCIPY,
+    progress_callback: Optional[Callable] = None,
 ) -> NLPOptimizationResult:
     """单条网格记录 → NLP。标量参数可传入，供子进程 ``packed`` worker 使用。"""
     dep = np.asarray(rec["departure_state"], dtype=float).ravel()
@@ -238,6 +346,9 @@ def _optimize_one_case(
 
     t_lo, t_hi = _t_ins_bounds(ro_orbit)
     guess = _initial_guess_from_search(rec, ro_orbit)
+
+    if progress_callback is not None:
+        opt.set_progress_callback(progress_callback)
 
     kwargs_opt: Dict[str, Any] = dict(
         initial_guess=guess,
@@ -440,6 +551,16 @@ def main() -> None:
     ]
 
     feasible_indexed.sort(key=lambda ir: float(ir[1].get("min_distance", 1e9)))
+
+    # 调试：固定出发点筛选
+    if DEBUG_DEPARTURE_POINT is not None:
+        dx, dy, dz = DEBUG_DEPARTURE_POINT
+        feasible_indexed = [
+            (i, r) for i, r in feasible_indexed
+            if _match_departure_point(r, dx, dy, dz)
+        ]
+        print(f"  [调试] 固定出发点 {DEBUG_DEPARTURE_POINT}，筛选后可行解: {len(feasible_indexed)}", flush=True)
+
     n_feasible_total = len(feasible_indexed)
     if TOP_K_FEASIBLE is not None:
         feasible_indexed = feasible_indexed[:TOP_K_FEASIBLE]
@@ -473,6 +594,14 @@ def main() -> None:
     print(f"  RO: {RO_FILE}", flush=True)
     dro_orbit = load_orbit_from_json(str(DRO_FILE))
     ro_orbit = load_orbit_from_json(str(RO_FILE))
+
+    # 修正 RO period：load_orbit_from_json 的 _estimate_period() 估算值可能不准确
+    # 从 JSON properties 读取真实周期
+    with open(RO_FILE, encoding="utf-8") as f:
+        ro_json = json.load(f)
+    if "properties" in ro_json and "period" in ro_json["properties"]:
+        ro_orbit.period = float(ro_json["properties"]["period"])
+
     print(f"  DRO 周期: {dro_orbit.period:.4f} TU, 状态数: {len(dro_orbit.states)}", flush=True)
     print(f"  RO 周期: {ro_orbit.period:.4f} TU, 状态数: {len(ro_orbit.states)}", flush=True)
 
@@ -506,17 +635,36 @@ def main() -> None:
 
     records: List[Dict[str, Any]] = []
     if n_workers_req == 1:
-        pbar = tqdm(
-            feasible_indexed,
-            total=n_total,
-            desc="NLP 优化",
-            unit="条",
-            file=sys.stderr,
-            dynamic_ncols=True,
-            mininterval=0.3,
-            disable=disable_tqdm,
-        )
-        for k, (global_idx, rec) in enumerate(pbar):
+        # 进度状态对象（跨案例共享；start_time 由 start_case 首次调用时初始化）
+        global_progress = OptimizationProgress()
+        global_progress.total_cases = n_total
+
+        # 定期打印详细进度的监控线程
+        def _monitor_loop(prog: OptimizationProgress, interval: float = 2.0) -> None:
+            while True:
+                time.sleep(interval)
+                snap = prog.get_snapshot()
+                # 算总耗时（从第一条开始计时）
+                total_elapsed = _wall_time() - prog.start_time if prog.start_time > 0 else 0
+                if snap["total"] > 0 and snap["case"] >= 0:
+                    print(
+                        f"  ▶ case {snap['case']+1}/{snap['total']} "
+                        f"(search_idx={snap['search_index']}) | "
+                        f"iter={snap['iter']:4d} | "
+                        f"α={snap['alpha']:.4f} T={snap['T']:.4f} tins={snap['tins']:.4f} | "
+                        f"obj={snap['obj']:.6f} | "
+                        f"elapsed={total_elapsed:.0f}s",
+                        flush=True,
+                    )
+                    # 所有案例都完成则退出
+                    if snap["case"] >= snap["total"] - 1 and snap["iter"] > 0:
+                        break
+
+        monitor = threading.Thread(target=_monitor_loop, args=(global_progress,), daemon=True)
+        monitor.start()
+
+        for k, (global_idx, rec) in enumerate(feasible_indexed):
+            global_progress.start_case(k, n_total, global_idx)
             row: Dict[str, Any] = {
                 "search_index": global_idx,
                 "search_snapshot": {
@@ -529,42 +677,33 @@ def main() -> None:
                 "error": None,
                 "nlp": None,
             }
+            # 本案例的回调：每 SLSQP 迭代触发
+            cb = _make_progress_callback(global_progress, k, n_total, global_idx)
             try:
                 res = _optimize_one_case(
-                    rec, dro_orbit, ro_orbit, system, dynamics, verbose=False
+                    rec, dro_orbit, ro_orbit, system, dynamics,
+                    verbose=False, progress_callback=cb,
                 )
                 row["nlp"] = _serialize_nlp_result(res)
-                if disable_tqdm:
-                    pct = (k + 1) / n_total * 100
-                    print(
-                        f"  NLP 进度: {k + 1}/{n_total} ({pct:.1f}%)  "
-                        f"idx={global_idx} success={res.success} ΔV={res.objective_value:.6f}",
-                        flush=True,
-                    )
-                else:
-                    pbar.set_postfix(
-                        idx=global_idx,
-                        alpha=f"{float(rec.get('alpha', 0.0)):.4f}",
-                        ok=res.success,
-                        dV=f"{res.objective_value:.4f}",
-                        refresh=False,
-                    )
+                global_progress.finish_case(res.success, res.objective_value)
+                snap = global_progress.get_snapshot()
+                elapsed = _wall_time() - global_progress.start_time if global_progress.start_time > 0 else 0
+                print(
+                    f"  ✓ case {k+1}/{n_total} done "
+                    f"(search_idx={global_idx}) | "
+                    f"iter={snap['iter']} | "
+                    f"success={res.success} ΔV={res.objective_value:.6f} | "
+                    f"elapsed={elapsed:.1f}s",
+                    flush=True,
+                )
             except Exception:
                 row["error"] = traceback.format_exc()
-                if disable_tqdm:
-                    print(
-                        f"  NLP 进度: {k + 1}/{n_total}  idx={global_idx} ERROR",
-                        flush=True,
-                    )
-                else:
-                    tqdm.write(
-                        f"  [错误] idx={global_idx}:\n{row['error'][:2000]}",
-                    )
-                    pbar.set_postfix(
-                        idx=global_idx,
-                        err="ERR",
-                        refresh=False,
-                    )
+                global_progress.finish_case(False, float("inf"))
+                print(
+                    f"  ✗ case {k+1}/{n_total} ERROR (search_idx={global_idx}):\n"
+                    f"  {row['error'][:500]}",
+                    flush=True,
+                )
             records.append(row)
     else:
         n_pool = min(n_workers_req, n_total)
