@@ -19,6 +19,18 @@ DRO–RO 转移 NLP 优化（Cui et al. 2025，Section III.B）
 并行策略一致；子进程任务经 ``_nlp_worker_packed`` 打包数组，在子进程内重建 ``Orbit``/动力学，绕过 GIL。
 多进程前会设置 ``OMP_NUM_THREADS`` 等，使每 worker 内 BLAS 为单线程，避免与进程数相乘导致抢核。
 
+**CPU 利用率偏低时请先检查：**
+
+- ``N_WORKERS=1`` 或 ``len(可行解)==1`` 时本质单任务串行，无法占满多核；放宽 ``DEBUG_DEPARTURE_POINT`` /
+  环境变量筛选或把 ``N_WORKERS`` 设为 ``None``。
+- ``PARALLEL_BACKEND="threads"`` 对 SciPy/积分等 CPU 密集代码帮助很小，请用 ``processes``。
+- 实际并发数为 ``min(N_WORKERS, 待优化条数)``；待优化条数过少时 worker 数再多也不会增加并行度。
+- 多进程下单进程 BLAS 默认 1 线程；若**强制单进程**跑大量 case，可提高 ``OPTIMIZE_BLAS_THREADS_PER_WORKER``
+  或相应 ``OMP_NUM_THREADS``，让单进程内线性代数多线程（与多进程二选一或折中，需实测）。
+- 积分容差 ``INTEGRATOR_RTOL`` / ``INTEGRATOR_ATOL`` 过紧会显著增加耗时，可先放宽做试探再收紧。
+
+``N_WORKERS`` 解析为 1 时走主进程顺序循环，可使用 ``progress_callback`` 打印迭代；多 worker 时子进程无该回调。
+
 Windows 多进程需 ``if __name__ == "__main__"``，请勿删除末尾保护。
 """
 
@@ -66,17 +78,21 @@ ALPHA_MAX = 2.5
 # 与 grid_search 中 MAX_TRANSFER_TIME 一致（无量纲 TU，100/TU ≈ 23 天）
 MAX_TRANSFER_TIME = 100.0 / TU
 
-# 碰撞半径（无量纲 DU）：距行星表面高度 + 行星本体半径
-# 与 grid_search 中的 surface_altitude 配合使用
-EARTH_RADIUS = (200.0 + 6371.0) / DU
-MOON_RADIUS = (100.0 + 1737.0) / DU
+# 撞星约束半径（无量纲，与地月距离 DU 的比值）：须与 grid_search.py 中
+# ``collision_earth_radius`` / ``collision_moon_radius`` 一致，使粗搜可行解与 NLP 约束同一套几何。
+# 含义：轨迹点到地球/月球中心距离小于该阈值则判碰撞（见 e2m2e ``DROTransferSearch`` / ``DROTRONLPOptimizer``）。
+EARTH_RADIUS = 200.0 / DU
+MOON_RADIUS = 100.0 / DU
 
 DT = 1.0 / (24.0 * TU)
 INTEGRATOR = "DOP853"
+# 与 grid_search 及子进程 ``_nlp_worker_packed`` 共用；放宽可明显加速，终算或与文献对比时可收紧。
+INTEGRATOR_RTOL = 1e-12
+INTEGRATOR_ATOL = 1e-12
 
-# 仅对网格中的可行解做 NLP；None 表示全部可行解
+# 仅对网格中的可行解做 NLP：在按 min_distance 排序后只取前 K 条（None = 全部）。
 TOP_K_FEASIBLE: Optional[int] = None
-# 调试时可设为较小整数
+# 在上述截断之后再限制条数，便于调试或小规模试跑（None = 不额外限制）。
 MAX_CASES: Optional[int] = None
 
 # 并行度（与 grid_search 一致）：
@@ -90,8 +106,9 @@ N_WORKERS: Optional[int] = None
 #   "threads"  — 线程池，受 GIL 影响，CPU 密集 SciPy 时常跑不满，仅作调试或 I/O 场景。
 PARALLEL_BACKEND: str = "processes"
 
-# 多进程并行时，每个子进程内 BLAS/OpenMP 线程数（默认 1，避免与进程数相乘导致过度抢占）。
-# 也可用环境变量 OPTIMIZE_BLAS_THREADS_PER_WORKER 覆盖本常量。
+# 多进程并行时，每个子进程内 OpenBLAS/MKL 等 BLAS 使用的线程数（默认 1）。
+# 若设为 N 且进程数为 P，最坏会占满约 P×N 个逻辑 CPU，故默认 1；可用环境变量
+# OPTIMIZE_BLAS_THREADS_PER_WORKER 覆盖。
 LIMIT_BLAS_THREADS_PER_WORKER: int = 1
 
 
@@ -114,6 +131,20 @@ def _apply_blas_env_for_child_processes(n_threads: int) -> None:
     ):
         os.environ[k] = s
 
+
+def _resolve_debug_departure_point() -> Optional[Tuple[float, float, float]]:
+    """环境变量 OPTIMIZE_DEBUG_DEPARTURE 优先于模块常量 DEBUG_DEPARTURE_POINT。"""
+    raw = os.environ.get("OPTIMIZE_DEBUG_DEPARTURE", "").strip()
+    if not raw:
+        return DEBUG_DEPARTURE_POINT
+    parts = [p for p in raw.replace(",", " ").split() if p]
+    if len(parts) != 3:
+        raise ValueError(
+            "OPTIMIZE_DEBUG_DEPARTURE 须为三个数，例如 1.093772,-0.089809,0.0"
+        )
+    return (float(parts[0]), float(parts[1]), float(parts[2]))
+
+
 # 命令行进度条（与 e2m2e 网格搜索一致，使用 tqdm）；设环境变量 OPTIMIZE_NO_TQDM=1 可关闭
 USE_TQDM = os.environ.get("OPTIMIZE_NO_TQDM", "").lower() not in ("1", "true", "yes")
 
@@ -124,18 +155,18 @@ USE_COPT = False
 # COPT 未收敛时是否回退 SciPy（仅当 USE_COPT 为 True 时有效）
 FALLBACK_TO_SCIPY = True
 
-# 等式速度约束不易收敛时可改为 True，并调节 VELOCITY_ANGLE_TOL（弧度）
+# True 时走 e2m2e ``use_relaxed_velocity_constraint``：用角度容差松弛「速度平行」等式，便于 SLSQP 收敛。
+# 若需改为真正的「不等式约束」表述，须在 e2m2e ``transfer_optimization.py`` 内改约束形式，而非仅改此处。
 USE_RELAXED_VELOCITY = True
 VELOCITY_ANGLE_TOL = 0.05
 
 # ---------------------------------------------------------------------------
 # 调试配置
 # ---------------------------------------------------------------------------
-# 固定出发点调试：指定出发点状态向量的位置分量（x, y, z），只优化该点的可行解
-# None = 优化所有可行解
-# 例如：固定第一个出发点 → DEBUG_DEPARTURE_POINT = (1.093772, -0.089809, 0.0)
-DEBUG_DEPARTURE_POINT: Optional[tuple] = (1.093772, -0.089809, 0.0)
-
+# 固定出发点：仅优化 departure_state 位置 (x,y,z) 与该三元组匹配的可行解；None = 不筛选。
+# 调试值请从 ``search_results_*.json`` 某条记录的 ``departure_state`` 前三项复制，或设置环境变量
+# OPTIMIZE_DEBUG_DEPARTURE="x,y,z"（逗号或空格分隔，覆盖本常量）。
+DEBUG_DEPARTURE_POINT: Optional[Tuple[float, float, float]] = None
 
 # ---------------------------------------------------------------------------
 # 进度追踪（供优化迭代回调和监控线程共享）
@@ -304,8 +335,8 @@ def _build_dynamics() -> Tuple[Any, Any]:
     system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
     dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
     dynamics.integrator = INTEGRATOR
-    dynamics.rtol = 1e-12
-    dynamics.atol = 1e-12
+    dynamics.rtol = INTEGRATOR_RTOL
+    dynamics.atol = INTEGRATOR_ATOL
     dynamics.max_step = DT
     return system, dynamics
 
@@ -417,8 +448,8 @@ def _pack_nlp_task(
         float(MOON_RADIUS),
         float(DT),
         str(INTEGRATOR),
-        float(1e-12),
-        float(1e-12),
+        float(INTEGRATOR_RTOL),
+        float(INTEGRATOR_ATOL),
         float(DT),
         bool(USE_RELAXED_VELOCITY),
         float(VELOCITY_ANGLE_TOL),
@@ -550,23 +581,26 @@ def main() -> None:
         (i, r) for i, r in enumerate(all_results) if r.get("is_feasible")
     ]
 
+    # 按网格记录的 min_distance 升序：优先优化与目标轨道距离更大（通常更安全）的可行解。
     feasible_indexed.sort(key=lambda ir: float(ir[1].get("min_distance", 1e9)))
 
-    # 调试：固定出发点筛选
-    if DEBUG_DEPARTURE_POINT is not None:
-        dx, dy, dz = DEBUG_DEPARTURE_POINT
+    debug_pt = _resolve_debug_departure_point()
+    if debug_pt is not None:
+        dx, dy, dz = debug_pt
         feasible_indexed = [
             (i, r) for i, r in feasible_indexed
             if _match_departure_point(r, dx, dy, dz)
         ]
-        print(f"  [调试] 固定出发点 {DEBUG_DEPARTURE_POINT}，筛选后可行解: {len(feasible_indexed)}", flush=True)
+        print(f"  [调试] 固定出发点 {debug_pt}，筛选后可行解: {len(feasible_indexed)}", flush=True)
 
     n_feasible_total = len(feasible_indexed)
+    # 先取「质量最好」的前 TOP_K 条，再按 MAX_CASES 截断（两者可同时生效）。
     if TOP_K_FEASIBLE is not None:
         feasible_indexed = feasible_indexed[:TOP_K_FEASIBLE]
     if MAX_CASES is not None:
         feasible_indexed = feasible_indexed[:MAX_CASES]
 
+    # 可行解列表已构建完毕，释放整表 JSON 以减小峰值内存。
     del all_results
 
     print(f"\n网格记录总数: {total_records}", flush=True)
@@ -576,12 +610,12 @@ def main() -> None:
         from e2m2e.transfer import _HAVE_COPT
 
         print(
-            f"NLP: 优先 COPT（已安装: {_HAVE_COPT}），失败则 SciPy SLSQP",
+            f"NLP 求解器: COPT（商业整数规划求解器，已安装: {_HAVE_COPT}），若收敛失败则回退到 SciPy SLSQP",
             flush=True,
         )
     else:
         print(
-            "NLP: SciPy SLSQP（scipy.optimize.minimize，与 e2m2e DROTRONLPOptimizer.optimize 一致）",
+            "NLP 求解器: SciPy SLSQP（序列最小二乘规划算法，用于求解非线性约束优化问题）",
             flush=True,
         )
 
@@ -590,13 +624,12 @@ def main() -> None:
         return
 
     print(f"\n加载轨道数据:", flush=True)
-    print(f"  DRO: {DRO_FILE}", flush=True)
-    print(f"  RO: {RO_FILE}", flush=True)
     dro_orbit = load_orbit_from_json(str(DRO_FILE))
     ro_orbit = load_orbit_from_json(str(RO_FILE))
+    print(f"  DRO: {DRO_FILE}", flush=True)
+    print(f"  RO: {RO_FILE}", flush=True)
 
-    # 修正 RO period：load_orbit_from_json 的 _estimate_period() 估算值可能不准确
-    # 从 JSON properties 读取真实周期
+    # ``load_orbit_from_json`` 内对周期可能用采样估计；若 JSON 含 ``properties.period``，用其覆盖为标称周期。
     with open(RO_FILE, encoding="utf-8") as f:
         ro_json = json.load(f)
     if "properties" in ro_json and "period" in ro_json["properties"]:
@@ -609,13 +642,18 @@ def main() -> None:
     print(f"\ne2m2e 动力学已就绪", flush=True)
     print(f"  系统: μ = {system.mu:.6e}", flush=True)
     print(f"  积分器: {dynamics.integrator}", flush=True)
-    print(f"  rtol/atol: {dynamics.rtol:g} / {dynamics.atol:g}", flush=True)
+    print(
+        f"  rtol/atol: {dynamics.rtol:g} / {dynamics.atol:g} "
+        f"（可调常量 INTEGRATOR_RTOL/ATOL；放宽通常显著加速）",
+        flush=True,
+    )
     print(f"  max_step: {dynamics.max_step:.8f} TU", flush=True)
 
     output_dir = project_root / "output/transfer"
     output_dir.mkdir(parents=True, exist_ok=True)
     out_path = output_dir / f"optimization_results_{timestampNow()}.json"
 
+    # 解析并行后端与 worker 数（多进程见下文的 BLAS 环境写入）。
     backend = PARALLEL_BACKEND.strip().lower()
     if backend not in ("threads", "processes"):
         raise ValueError("PARALLEL_BACKEND 须为 'threads' 或 'processes'")
@@ -634,6 +672,7 @@ def main() -> None:
     print("=" * 70, flush=True)
 
     records: List[Dict[str, Any]] = []
+    # 单 worker：主进程顺序执行每条 case，可使用 SLSQP 迭代回调；无多 case 并行。
     if n_workers_req == 1:
         # 进度状态对象（跨案例共享；start_time 由 start_case 首次调用时初始化）
         global_progress = OptimizationProgress()
@@ -706,18 +745,21 @@ def main() -> None:
                 )
             records.append(row)
     else:
+        # 多 worker：线程池共享主进程轨道/动力学；进程池在子进程内重建对象，真正并行 CPU。
         n_pool = min(n_workers_req, n_total)
         print(
             f"  并行执行: {n_pool} 个 worker（backend={backend}，本机逻辑 CPU={cpu_n}）",
             flush=True,
         )
         if backend == "processes":
+            # 在创建进程池前写入 OMP/MKL 等，使子进程继承，限制每进程 BLAS 线程数。
             _bt = _blas_threads_per_worker()
             _apply_blas_env_for_child_processes(_bt)
             print(
                 f"  多进程 BLAS/OpenMP: 每 worker {_bt} 线程（环境已写入 OMP/MKL/OpenBLAS 等）",
                 flush=True,
             )
+        # (rec, search_index) 与 feasible_indexed 中项一致。
         payloads = [(rec, idx) for idx, rec in feasible_indexed]
         futures_list: List[Any] = []
 
@@ -752,8 +794,12 @@ def main() -> None:
             with ProcessPoolExecutor(max_workers=n_pool) as ex:
                 for rec, idx in payloads:
                     futures_list.append(
-                        ex.submit(_nlp_worker_packed, _pack_nlp_task(idx, rec, dro_orbit, ro_orbit))
+                        ex.submit(
+                            _nlp_worker_packed,
+                            _pack_nlp_task(idx, rec, dro_orbit, ro_orbit),
+                        )
                     )
+                # as_completed：任一子进程完成即返回对应 future；顺序与提交顺序无关。
                 for fut in tqdm(
                     as_completed(futures_list),
                     total=len(futures_list),
@@ -785,6 +831,8 @@ def main() -> None:
                     "n_optimized": len(records),
                     "parallel_backend": PARALLEL_BACKEND,
                     "n_workers_requested": N_WORKERS,
+                    "integrator_rtol": INTEGRATOR_RTOL,
+                    "integrator_atol": INTEGRATOR_ATOL,
                     "blas_threads_per_worker": _blas_threads_per_worker()
                     if PARALLEL_BACKEND.strip().lower() == "processes"
                     else None,
