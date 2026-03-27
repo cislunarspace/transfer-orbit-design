@@ -42,7 +42,7 @@ sys.path.insert(0, str(project_root))
 
 import e2m2e
 from e2m2e.core import CR3BP_System, Orbit
-from e2m2e.transfer import DROTransferSearch, load_orbit_from_json
+from e2m2e.transfer import TransferSearch, load_orbit_from_json
 from e2m2e.visualization.plotting import OrbitVisualizer
 
 from scripts.utils.common import MU, DU, TU
@@ -59,7 +59,7 @@ RO_FILE = project_root / "output/ro/ro_31_3857337606.json"
 
 
 def departure_delta_v_norm(state6: np.ndarray, alpha: float) -> float:
-    """与 e2m2e DROTransferSearch._compute_departure_velocity 一致，返回 ‖v'−v‖（无量纲速度）。"""
+    """与 e2m2e TransferSearch._compute_departure_velocity 一致，返回 ‖v'−v‖（无量纲速度）。"""
     pos = np.asarray(state6[:3], dtype=np.float64)
     vel = np.asarray(state6[3:6], dtype=np.float64)
     r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
@@ -223,7 +223,7 @@ def plot_transfer_time_delta_v(
 
 
 def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
-    """与 e2m2e DROTransferSearch._compute_departure_velocity 一致，计算速度扰动后的速度向量。"""
+    """与 e2m2e TransferSearch._compute_departure_velocity 一致，计算速度扰动后的速度向量。"""
     pos = np.asarray(state6[:3], dtype=np.float64)
     vel = np.asarray(state6[3:6], dtype=np.float64)
     r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
@@ -237,8 +237,8 @@ def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
     return new_vel
 
 
-def _build_transfer_search() -> DROTransferSearch:
-    """构建并配置 DROTransferSearch 实例（积分器参数与 grid_search.py 一致）。"""
+def _build_transfer_search() -> TransferSearch:
+    """构建并配置 TransferSearch 实例（积分器参数与 grid_search.py 一致）。"""
     DT = 1.0 / (24.0 * TU)
     system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
     dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
@@ -246,7 +246,7 @@ def _build_transfer_search() -> DROTransferSearch:
     dynamics.rtol = 1e-12
     dynamics.atol = 1e-12
     dynamics.max_step = DT
-    transfer_search = DROTransferSearch(system=system, dynamics=dynamics)
+    transfer_search = TransferSearch(system=system, dynamics=dynamics)
     transfer_search.integration_dt = DT
     return transfer_search
 
@@ -269,7 +269,7 @@ def _integrate_single_orbit(args: tuple) -> tuple:
         dynamics.rtol = 1e-12
         dynamics.atol = 1e-12
         dynamics.max_step = DT
-        ts = DROTransferSearch(system=system, dynamics=dynamics)
+        ts = TransferSearch(system=system, dynamics=dynamics)
         ts.integration_dt = DT
 
         pos = departure_state[:3]
@@ -296,7 +296,7 @@ def _integrate_single_orbit(args: tuple) -> tuple:
 
 
 def _reintegrate_transfer(
-    ts: DROTransferSearch,
+    ts: TransferSearch,
     departure_state: np.ndarray,
     alpha: float,
     max_transfer_time: float,

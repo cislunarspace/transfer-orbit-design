@@ -23,7 +23,7 @@
 | 类 | 文件 | 阈值来源 |
 |----|------|---------|
 | `BaseTransfer` | `e2m2e/transfer/transfer_base.py` | 默认 `DEFAULT_MIN_DISTANCE_THRESHOLD_DU`（100 km） |
-| `DROTransferSearch` | `e2m2e/transfer/transfer_search.py` | 实例属性 `min_distance_threshold`；若为 `None` 则回退到基类 |
+| `TransferSearch` | `e2m2e/transfer/transfer_search.py` | 实例属性 `min_distance_threshold`；若为 `None` 则回退到基类 |
 
 > 需要更严或更松时，为 `min_distance_threshold` 显式赋值（无量纲 DU）。`scripts/transfer/grid_search.py` 中 `MIN_DISTANCE_THRESHOLD = 100.0 / DU` 与库默认一致。
 
@@ -34,7 +34,7 @@
 ```
 输入：搜索结果字典 result
 
-1. 若 DROTransferSearch.min_distance_threshold 为 None
+1. 若 TransferSearch.min_distance_threshold 为 None
      → 使用基类逻辑，阈值 mdt = DEFAULT_MIN_DISTANCE_THRESHOLD_DU（100 km）
 
 2. 若 collision_found == True
@@ -77,7 +77,7 @@ feasible = not collision
 
 ## 与脚本的关系
 
-- `grid_search.py`：构造 `DROTransferSearch` 时通过 `MIN_DISTANCE_THRESHOLD`（脚本内常量）设置搜索类的 `min_distance_threshold`，然后调用 `_is_feasible` 将结果写入 JSON 字段 `is_feasible`。两者应保持一致。
+- `grid_search.py`：构造 `TransferSearch` 时通过 `MIN_DISTANCE_THRESHOLD`（脚本内常量）设置搜索类的 `min_distance_threshold`，然后调用 `_is_feasible` 将结果写入 JSON 字段 `is_feasible`。两者应保持一致。
 - `plot_search_results.py`：仅读取 JSON 中的 `is_feasible`，不再重复判定逻辑。
 
 ## 测试

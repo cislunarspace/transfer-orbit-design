@@ -64,7 +64,7 @@ RO_FILE = project_root / "output/ro/ro_31_3857328571.json"
 ALPHA_MIN = 0.5
 ALPHA_MAX = 2.5
 
-# 与 grid_search 的 collision_earth/moon_radius 一致（到中心距离判碰撞，见 e2m2e DROTransferSearch / NLP）
+# 与 grid_search 的 collision_earth/moon_radius 一致（到中心距离判碰撞，见 e2m2e TransferSearch / NLP）
 EARTH_RADIUS = 200.0 / DU
 MOON_RADIUS = 100.0 / DU
 

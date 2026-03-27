@@ -101,7 +101,7 @@ optimize.py      →  optimization_results_*.json（每条对应一次 NLP）
 
 ## 7. 与网格搜索的已知差异（调试时留意）
 
-- **搜索阶段**（`DROTransferSearch`）与 **NLP 阶段**（`DROTRONLPOptimizer`）对出发速度扰动的构造方式不同；网格给出的 `alpha` 作为 NLP 初值仍常用，但不必严格等同同一物理参数化。若收敛差，可检查初值与边界、或启用松弛速度约束。
+- **搜索阶段**（`TransferSearch`）与 **NLP 阶段**（`DROTRONLPOptimizer`）对出发速度扰动的构造方式不同；网格给出的 `alpha` 作为 NLP 初值仍常用，但不必严格等同同一物理参数化。若收敛差，可检查初值与边界、或启用松弛速度约束。
 
 ---
 

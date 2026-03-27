@@ -24,7 +24,7 @@ note: "Phase2 网格搜索已完成；optimize.py 已接入 NLP，下一步为�
 - **REQ-005**: 生成 RO 族种子（已完成 phase1_generate_ro.py）
 - **REQ-006**: 完整 RO 族延拓（延拓参数和范围待确定）
 - **REQ-007**: 生成 3D RRO 和 ARO 族（切分岔计算）— **⚠️ 已推迟，待分岔检测实现**
-- **REQ-008**: 实现搜索阶段算法（网格化搜索 + 前向积分 + 筛选）— **✅ 已完成**（`scripts/transfer/grid_search.py` + `e2m2e.transfer.DROTransferSearch`）
+- **REQ-008**: 实现搜索阶段算法（网格化搜索 + 前向积分 + 筛选）— **✅ 已完成**（`scripts/transfer/grid_search.py` + `e2m2e.transfer.TransferSearch`）
 - **REQ-009**: 实现优化阶段算法（NLP + SQP 求解器）— **🔄 已接入，待调优**（`e2m2e.transfer.DROTRONLPOptimizer` + `scripts/transfer/optimize.py`；默认 SciPy SLSQP，可选 COPT）
 - **REQ-010**: 实现 BR4BP 动力学模型
 - **REQ-011**: 建立基于 DE438 星历的 RNBP 动力学模型
@@ -113,7 +113,7 @@ note: "Phase2 网格搜索已完成；optimize.py 已接入 NLP，下一步为�
 | TASK-017 | 分析出发点和插入点分布（四分位图） | | |
 
 > **与初版任务表的差异（以仓库代码为准）**  
-> - 搜索阶段 **未** 按初稿实现「$\alpha,\beta$ 双参数网格」：`e2m2e.transfer.DROTransferSearch` 使用平面内 **径向+切向** 与 **单一 $\alpha$**（切向缩放）构造出发速度；与论文 Table 3（出发点数 × $\alpha$ 采样）一致。  
+> - 搜索阶段 **未** 按初稿实现「$\alpha,\beta$ 双参数网格」：`e2m2e.transfer.TransferSearch` 使用平面内 **径向+切向** 与 **单一 $\alpha$**（切向缩放）构造出发速度；与论文 Table 3（出发点数 × $\alpha$ 采样）一致。  
 > - **`scripts/transfer/optimize.py`**：消费 `grid_search` 产出的 `search_results_*.json`，对可行解做 NLP；默认 **多进程**（`packed` worker，对齐 `transfer_search` 的进程并行模式）、SciPy SLSQP；详见脚本顶部注释与 `meta` 输出。  
 > - **下一步**：对 `optimize.py` 做 **性能剖析**（`cProfile`/采样等），定位积分与约束/梯度中的热点，**去掉重复或不必要的计算**，再推进 TASK-014～017。
 
@@ -158,7 +158,7 @@ note: "Phase2 网格搜索已完成；optimize.py 已接入 NLP，下一步为�
 **搜索-优化两步法概述**（与初版文字略有出入处已标出）:
 
 ```
-1. 网格化搜索阶段（已实现：grid_search.py + DROTransferSearch）
+1. 网格化搜索阶段（已实现：grid_search.py + TransferSearch）
    - 搜索变量: 出发点（沿 DRO 采样）× α ∈ [alpha_min, alpha_max] × 积分时长至 max_transfer_time
    - （初稿曾写 β；当前实现无独立 β 网格，见上文差异说明）
    - 筛选条件: 与目标 RO 相交或最小距离/碰撞判定等
@@ -175,7 +175,7 @@ note: "Phase2 网格搜索已完成；optimize.py 已接入 NLP，下一步为�
 
 | 子任务 | 描述 | 状态 |
 |--------|------|------|
-| SUB-009-01 | 搜索网格由 `grid_search.py` 与 `DROTransferSearch` 配置（如 α∈[0.5,2.5]、`n_departure`、`n_alpha`）；**非**初稿中的固定 x/β 区间 | ✅ |
+| SUB-009-01 | 搜索网格由 `grid_search.py` 与 `TransferSearch` 配置（如 α∈[0.5,2.5]、`n_departure`、`n_alpha`）；**非**初稿中的固定 x/β 区间 | ✅ |
 | SUB-009-02 | 前向积分（`transfer_search._forward_integrate` → `dynamics.propagate`） | ✅ |
 | SUB-009-03 | 与 RO 相交检测 | ✅ |
 | SUB-009-04 | 距离局部最小 | ✅ |

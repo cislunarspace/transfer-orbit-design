@@ -171,7 +171,7 @@ python scripts/plot/plot_transfer.py
 ```python
 from e2m2e.transfer import (
     DROTRONLPOptimizer,
-    DROTransferSearch,
+    TransferSearch,
     NLPOptimizationVariables,
     NLPOptimizationResult,
     load_orbit_from_json,
@@ -182,7 +182,7 @@ dro_orbit = load_orbit_from_json("output/dro/dro_31_*.json")
 ro_orbit = load_orbit_from_json("output/ro/ro_31_*.json")
 
 # 网格搜索
-transfer_search = DROTransferSearch(system=system, dynamics=dynamics)
+transfer_search = TransferSearch(system=system, dynamics=dynamics)
 transfer_search.alpha_min = 0.5
 transfer_search.alpha_max = 2.5
 transfer_search.n_alpha = 101

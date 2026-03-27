@@ -194,7 +194,7 @@ conda run -n orbit-py313 python scripts/transfer/plot_transfer_results.py \
 
 ### 阶段二：CR3BP 中的转移设计
 
-- [x] 网格搜索阶段（`scripts/transfer/grid_search.py` + `e2m2e.transfer.DROTransferSearch`）
+- [x] 网格搜索阶段（`scripts/transfer/grid_search.py` + `e2m2e.transfer.TransferSearch`）
 - [x] NLP 优化阶段（`scripts/transfer/optimize.py` + `e2m2e.transfer.DROTRONLPOptimizer`）
 - [ ] TASK-014：计算四种平面转移路径（2:1/3:1 DRO → 3:2/3:1 RO）
 - [ ] TASK-015：分类三种典型转移类型（直接/LGA/外部）

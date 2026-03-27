@@ -4,7 +4,7 @@
 **Date**: 2026-03-25  
 **Last updated**: 2026-03-26  
 **Status**: **已完成**（脚本与 e2m2e 集成已落地；大规模运行与参数扫描由使用者按需执行）  
-**Target**: `scripts/transfer/grid_search.py`、`e2m2e.transfer.DROTransferSearch`
+**Target**: `scripts/transfer/grid_search.py`、`e2m2e.transfer.TransferSearch`
 
 ---
 
@@ -14,7 +14,7 @@
 
 - **不使用独立的配置类**（如 `SearchConfig` dataclass）
 - **直接在实例上设置属性**：`transfer_search.alpha_min = 0.5`
-- 搜索参数作为 `DROTransferSearch` 实例的属性
+- 搜索参数作为 `TransferSearch` 实例的属性
 
 ---
 
@@ -23,7 +23,7 @@
 ### 2.1 搜索参数设置（直接在实例上赋值）
 
 ```python
-transfer_search = DROTransferSearch(system=system, dynamics=dynamics)
+transfer_search = TransferSearch(system=system, dynamics=dynamics)
 
 transfer_search.alpha_min = 0.5
 transfer_search.alpha_max = 2.5
@@ -41,7 +41,7 @@ transfer_search.integration_dt = 1.0 / (24.0 * TU)
 
 ### 2.2 e2m2e 侧
 
-`e2m2e/transfer/transfer_search.py` 中 `DROTransferSearch` 支持：
+`e2m2e/transfer/transfer_search.py` 中 `TransferSearch` 支持：
 
 - 实例属性配置与 `search(n_workers=..., parallel_backend="processes"|"threads")` 并行网格搜索。
 
@@ -51,7 +51,7 @@ transfer_search.integration_dt = 1.0 / (24.0 * TU)
 
 ### 3.1 已完成
 
-- ✅ e2m2e `DROTransferSearch` 支持直接属性赋值与多进程/多线程并行
+- ✅ e2m2e `TransferSearch` 支持直接属性赋值与多进程/多线程并行
 - ✅ `grid_search.py` 使用上述 API，写出 `output/transfer/search_results_{nDep}-{nAlpha}-...json`
 - ✅ 轨道输入为单个 DRO/RO 的 JSON（与 `load_orbit_from_json` 一致）
 
