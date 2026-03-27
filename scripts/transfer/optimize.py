@@ -1,37 +1,17 @@
 """
-DRO–RO 转移 NLP 优化（Cui et al. 2025，Section III.B）
+DRO–RO 转移 NLP（Cui et al. 2025）：在网格搜索结果上对 y=(α,T,t_ins) 最小化 Δv，默认 SciPy SLSQP（``DROTRONLPOptimizer``）。
 
-在网格搜索（粗搜索）结果基础上，对变量 y = (α, T, t_ins) 求解
-最小 Δv1+Δv2，满足位置连续与速度平行约束（Cui et al. 2025）。
+须与 ``grid_search.py`` 生成 ``search_results`` 时一致：轨道 JSON、``MAX_TRANSFER_TIME``、α 范围、碰撞半径等。
 
-**默认使用 SciPy ``minimize(..., method="SLSQP")``**（e2m2e ``DROTRONLPOptimizer.optimize``），
-无需 COPT。若已安装 coptpy，可将 ``USE_COPT = True`` 尝试 Cardoso 系求解器。
+运行: ``python optimize.py``。进度条: ``tqdm``；关闭: ``OPTIMIZE_NO_TQDM=1``。
 
-使用前请保证本脚本中轨道 JSON、``MAX_TRANSFER_TIME``、α 范围等与
-``grid_search.py`` 生成 ``search_results_*.json`` 时一致。
+并行: 默认 ``PARALLEL_BACKEND="processes"``、``N_WORKERS=None``；子进程经 ``_nlp_worker_packed`` 重建轨道，绕过 GIL。
+多进程创建前会限制每 worker 的 BLAS 线程（``LIMIT_BLAS_THREADS_PER_WORKER`` / ``OPTIMIZE_BLAS_THREADS_PER_WORKER``）。
 
-运行:
-    python optimize.py
+CPU 跑不满时: 提高待优化条数（本文件 ``TOP_K_FEASIBLE`` / ``MAX_CASES`` / ``DEBUG_DEPARTURE_POINT``）或 ``N_WORKERS``；
+用 ``processes`` 而非 ``threads``；并发数 ``≤ min(N_WORKERS, 条数)``；单进程跑满核可增大 BLAS 线程；积分可放宽 ``INTEGRATOR_RTOL/ATOL``。
 
-进度条使用 ``tqdm``（与 e2m2e 网格搜索一致，输出到 stderr）。关闭进度条: ``set OPTIMIZE_NO_TQDM=1``。
-
-默认 ``PARALLEL_BACKEND="processes"``、``N_WORKERS=None``（逻辑 CPU 数），与 ``transfer_search`` 网格搜索
-并行策略一致；子进程任务经 ``_nlp_worker_packed`` 打包数组，在子进程内重建 ``Orbit``/动力学，绕过 GIL。
-多进程前会设置 ``OMP_NUM_THREADS`` 等，使每 worker 内 BLAS 为单线程，避免与进程数相乘导致抢核。
-
-**CPU 利用率偏低时请先检查：**
-
-- ``N_WORKERS=1`` 或 ``len(可行解)==1`` 时本质单任务串行，无法占满多核；放宽 ``DEBUG_DEPARTURE_POINT`` /
-  环境变量筛选或把 ``N_WORKERS`` 设为 ``None``。
-- ``PARALLEL_BACKEND="threads"`` 对 SciPy/积分等 CPU 密集代码帮助很小，请用 ``processes``。
-- 实际并发数为 ``min(N_WORKERS, 待优化条数)``；待优化条数过少时 worker 数再多也不会增加并行度。
-- 多进程下单进程 BLAS 默认 1 线程；若**强制单进程**跑大量 case，可提高 ``OPTIMIZE_BLAS_THREADS_PER_WORKER``
-  或相应 ``OMP_NUM_THREADS``，让单进程内线性代数多线程（与多进程二选一或折中，需实测）。
-- 积分容差 ``INTEGRATOR_RTOL`` / ``INTEGRATOR_ATOL`` 过紧会显著增加耗时，可先放宽做试探再收紧。
-
-``N_WORKERS`` 解析为 1 时走主进程顺序循环，可使用 ``progress_callback`` 打印迭代；多 worker 时子进程无该回调。
-
-Windows 多进程需 ``if __name__ == "__main__"``，请勿删除末尾保护。
+Windows 须保留末尾 ``if __name__ == "__main__"``。
 """
 
 from __future__ import annotations
@@ -63,10 +43,7 @@ from scripts.utils.common import DU, MU, TU
 
 project_root = Path(__file__).resolve().parent.parent.parent
 
-# =============================================================================
-# 参数配置（须与生成 search_results 的 grid_search 一致）
-# =============================================================================
-
+# --- 须与 grid_search 生成 search_results 时一致 ---
 SEARCH_RESULTS_FILE = project_root / (
     "output/transfer/search_results_200-1001-0.5-2.5-22.998482_3857379210.json"
 )
@@ -75,44 +52,28 @@ RO_FILE = project_root / "output/ro/ro_31_3857328571.json"
 
 ALPHA_MIN = 0.5
 ALPHA_MAX = 2.5
-# 与 grid_search 中 MAX_TRANSFER_TIME 一致（无量纲 TU，100/TU ≈ 23 天）
-MAX_TRANSFER_TIME = 100.0 / TU
+MAX_TRANSFER_TIME = 100.0 / TU  # 与 grid_search 一致（无量纲 TU）
 
-# 撞星约束半径（无量纲，与地月距离 DU 的比值）：须与 grid_search.py 中
-# ``collision_earth_radius`` / ``collision_moon_radius`` 一致，使粗搜可行解与 NLP 约束同一套几何。
-# 含义：轨迹点到地球/月球中心距离小于该阈值则判碰撞（见 e2m2e ``DROTransferSearch`` / ``DROTRONLPOptimizer``）。
+# 与 grid_search 的 collision_earth/moon_radius 一致（到中心距离判碰撞，见 e2m2e DROTransferSearch / NLP）
 EARTH_RADIUS = 200.0 / DU
 MOON_RADIUS = 100.0 / DU
 
 DT = 1.0 / (24.0 * TU)
 INTEGRATOR = "DOP853"
-# 与 grid_search 及子进程 ``_nlp_worker_packed`` 共用；放宽可明显加速，终算或与文献对比时可收紧。
-INTEGRATOR_RTOL = 1e-12
+INTEGRATOR_RTOL = 1e-12  # 与 _pack_nlp_task 一致；放宽可加速
 INTEGRATOR_ATOL = 1e-12
 
-# 仅对网格中的可行解做 NLP：在按 min_distance 排序后只取前 K 条（None = 全部）。
-TOP_K_FEASIBLE: Optional[int] = None
-# 在上述截断之后再限制条数，便于调试或小规模试跑（None = 不额外限制）。
-MAX_CASES: Optional[int] = None
+TOP_K_FEASIBLE: Optional[int] = None  # 排序后取前 K 条；None=全部
+MAX_CASES: Optional[int] = None  # 在 TOP_K 之后再截断；None=不限制
 
-# 并行度（与 grid_search 一致）：
-#   None → 使用本机逻辑 CPU 数（os.cpu_count），尽量跑满；
-#   1    → 强制串行（单线程单任务）；
-#   正整数 → 最多同时运行的 worker 数（仍不超过待优化条数）。
-N_WORKERS: Optional[int] = None
+N_WORKERS: Optional[int] = None  # None→cpu_count；1→串行
+PARALLEL_BACKEND: str = "processes"  # processes 推荐；threads 受 GIL 影响大
 
-# 并行后端（与 e2m2e ``DROTransferSearch._parallel_backend`` 一致，默认 **processes**）：
-#   "processes"— 多进程，独立解释器，真正并行占满 CPU（网格搜索默认即此，见 transfer_search 注释）；
-#   "threads"  — 线程池，受 GIL 影响，CPU 密集 SciPy 时常跑不满，仅作调试或 I/O 场景。
-PARALLEL_BACKEND: str = "processes"
-
-# 多进程并行时，每个子进程内 OpenBLAS/MKL 等 BLAS 使用的线程数（默认 1）。
-# 若设为 N 且进程数为 P，最坏会占满约 P×N 个逻辑 CPU，故默认 1；可用环境变量
-# OPTIMIZE_BLAS_THREADS_PER_WORKER 覆盖。
-LIMIT_BLAS_THREADS_PER_WORKER: int = 1
+LIMIT_BLAS_THREADS_PER_WORKER: int = 1  # 每子进程 BLAS 线程；环境变量 OPTIMIZE_BLAS_THREADS_PER_WORKER 可覆盖
 
 
 def _blas_threads_per_worker() -> int:
+    """读取每 worker 的 BLAS 线程数：环境变量优先，否则用 ``LIMIT_BLAS_THREADS_PER_WORKER``。"""
     raw = os.environ.get("OPTIMIZE_BLAS_THREADS_PER_WORKER")
     if raw is not None and raw.strip() != "":
         return max(1, int(raw))
@@ -120,7 +81,7 @@ def _blas_threads_per_worker() -> int:
 
 
 def _apply_blas_env_for_child_processes(n_threads: int) -> None:
-    """在创建 ProcessPoolExecutor 之前写入环境变量，spawn 子进程会继承，避免每进程 BLAS 再开多线程。"""
+    """ProcessPool 创建前设置 OMP/MKL 等，子进程继承。"""
     s = str(max(1, int(n_threads)))
     for k in (
         "OMP_NUM_THREADS",
@@ -132,71 +93,41 @@ def _apply_blas_env_for_child_processes(n_threads: int) -> None:
         os.environ[k] = s
 
 
-def _resolve_debug_departure_point() -> Optional[Tuple[float, float, float]]:
-    """环境变量 OPTIMIZE_DEBUG_DEPARTURE 优先于模块常量 DEBUG_DEPARTURE_POINT。"""
-    raw = os.environ.get("OPTIMIZE_DEBUG_DEPARTURE", "").strip()
-    if not raw:
-        return DEBUG_DEPARTURE_POINT
-    parts = [p for p in raw.replace(",", " ").split() if p]
-    if len(parts) != 3:
-        raise ValueError(
-            "OPTIMIZE_DEBUG_DEPARTURE 须为三个数，例如 1.093772,-0.089809,0.0"
-        )
-    return (float(parts[0]), float(parts[1]), float(parts[2]))
-
-
-# 命令行进度条（与 e2m2e 网格搜索一致，使用 tqdm）；设环境变量 OPTIMIZE_NO_TQDM=1 可关闭
 USE_TQDM = os.environ.get("OPTIMIZE_NO_TQDM", "").lower() not in ("1", "true", "yes")
 
-# ---------------------------------------------------------------------------
-# NLP 求解器：默认 SciPy SLSQP（不依赖 coptpy）
-# ---------------------------------------------------------------------------
 USE_COPT = False
-# COPT 未收敛时是否回退 SciPy（仅当 USE_COPT 为 True 时有效）
-FALLBACK_TO_SCIPY = True
+FALLBACK_TO_SCIPY = True  # USE_COPT 时是否回退 SciPy
 
-# True 时走 e2m2e ``use_relaxed_velocity_constraint``：用角度容差松弛「速度平行」等式，便于 SLSQP 收敛。
-# 若需改为真正的「不等式约束」表述，须在 e2m2e ``transfer_optimization.py`` 内改约束形式，而非仅改此处。
-USE_RELAXED_VELOCITY = True
+USE_RELAXED_VELOCITY = True  # e2m2e use_relaxed_velocity_constraint；不等式形式需改 e2m2e
 VELOCITY_ANGLE_TOL = 0.05
 
-# ---------------------------------------------------------------------------
-# 调试配置
-# ---------------------------------------------------------------------------
-# 固定出发点：仅优化 departure_state 位置 (x,y,z) 与该三元组匹配的可行解；None = 不筛选。
-# 调试值请从 ``search_results_*.json`` 某条记录的 ``departure_state`` 前三项复制，或设置环境变量
-# OPTIMIZE_DEBUG_DEPARTURE="x,y,z"（逗号或空格分隔，覆盖本常量）。
-DEBUG_DEPARTURE_POINT: Optional[Tuple[float, float, float]] = None
-
-# ---------------------------------------------------------------------------
-# 进度追踪（供优化迭代回调和监控线程共享）
-# ---------------------------------------------------------------------------
+DEBUG_DEPARTURE_POINT: Optional[Tuple[float, float, float]] = None  # 非 None 时只跑匹配 (x,y,z) 的可行解；值从 search_results 的 departure_state 抄
 
 
 class OptimizationProgress:
-    """线程安全的优化进度状态，供 callback 和监控线程共享。"""
+    """串行模式：callback 与监控线程共享的进度。"""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
-        self.case_index: int = -1      # 当前是第几条（0起）
-        self.total_cases: int = 0      # 总共多少条
-        self.search_index: int = -1     # 当前对应的 search_index
-        self.iteration: int = 0        # 当前条 SLSQP 迭代数
+        self.case_index: int = -1
+        self.total_cases: int = 0
+        self.search_index: int = -1  # 对应网格 JSON 下标
+        self.iteration: int = 0
         self.objective: float = float("inf")
         self.alpha: float = 0.0
         self.transfer_time: float = 0.0
         self.t_ins: float = 0.0
-        self.start_time: float = 0.0   # 本条开始时间（墙钟）
-        self.case_start_time: float = 0.0  # 本条开始时间
-        # 上一条完成信息
+        self.start_time: float = 0.0
+        self.case_start_time: float = 0.0
         self.last_success: bool = False
         self.last_delta_v: float = float("inf")
-        self.last_duration: float = 0.0  # 本条耗时（秒）
+        self.last_duration: float = 0.0
 
     def start_case(self, case_idx: int, total: int, search_idx: int) -> None:
+        """进入第 ``case_idx`` 条（共 ``total`` 条），对应原始网格下标 ``search_idx``。"""
         with self._lock:
             if self.start_time <= 0:
-                self.start_time = _wall_time()
+                self.start_time = _wall_time()  # 整条批任务开始时刻
             self.case_index = case_idx
             self.total_cases = total
             self.search_index = search_idx
@@ -208,6 +139,7 @@ class OptimizationProgress:
             self.case_start_time = _wall_time()
 
     def update_iteration(self, it: int, obj: float, a: float, T: float, tins: float) -> None:
+        """由 SLSQP 回调更新当前迭代的序号、目标与变量猜测。"""
         with self._lock:
             self.iteration = it
             self.objective = obj
@@ -216,12 +148,14 @@ class OptimizationProgress:
             self.t_ins = tins
 
     def finish_case(self, success: bool, delta_v: float) -> None:
+        """本条 NLP 结束：记录是否成功与 ΔV，并统计耗时。"""
         with self._lock:
             self.last_success = success
             self.last_delta_v = delta_v
             self.last_duration = _wall_time() - self.case_start_time
 
     def get_snapshot(self) -> dict:
+        """供监控线程读取当前进度（线程安全拷贝）。"""
         with self._lock:
             return dict(
                 case=self.case_index,
@@ -239,16 +173,18 @@ class OptimizationProgress:
 
 
 def _wall_time() -> float:
+    """墙钟秒数（与 ``time.time()`` 一致）。"""
     return time.time()
 
 
-_progress: Optional[OptimizationProgress] = None
+_progress: Optional[OptimizationProgress] = None  # 预留；当前进度由 main 内 local ``global_progress`` 持有
 
 
 def _make_progress_callback(prog: OptimizationProgress, case_idx: int, total: int, search_idx: int):
-    """创建当前案例的迭代回调函数。"""
+    """返回写入 OptimizationProgress 的 SLSQP 回调（若 e2m2e 支持）。"""
 
     def callback(it: int, obj: float, a: float, T: float, tins: float) -> None:
+        """由优化器在每次迭代调用（iter, 目标值, α, T, t_ins）。"""
         prog.update_iteration(it, obj, a, T, tins)
 
     return callback
@@ -261,6 +197,7 @@ def _load_search_results(path: Path) -> List[Dict[str, Any]]:
 
 
 def _json_safe(x: Any) -> Any:
+    """将 numpy 标量/数组及嵌套结构转为可 ``json.dump`` 的 Python 原生类型。"""
     if x is None:
         return None
     if isinstance(x, np.generic):
@@ -275,6 +212,7 @@ def _json_safe(x: Any) -> Any:
 
 
 def _serialize_nlp_result(r: NLPOptimizationResult) -> Dict[str, Any]:
+    """把 ``NLPOptimizationResult`` 打成可写入结果 JSON 的 dict。"""
     return _json_safe(
         {
             "success": r.success,
@@ -309,35 +247,37 @@ def _match_departure_point(rec: Dict[str, Any], x: float, y: float, z: float, to
 def _initial_guess_from_search(
     rec: Dict[str, Any], ro_orbit: Any
 ) -> NLPOptimizationVariables:
-    """由网格结果构造 (α, T, t_ins) 初值。t_ins 取 RO 上最近点相位对应时刻。"""
+    """由网格结果构造 (α, T, t_ins) 初值。α、T 来自粗搜；t_ins 优先用 ``min_distance_orbit_idx`` 在 RO 时间轴上的时刻，否则取半周期。"""
     alpha = float(rec["alpha"])
     transfer_time = float(rec["transfer_time"])
     idx = rec.get("min_distance_orbit_idx")
     t0 = float(ro_orbit.times[0])
     per = float(ro_orbit.period)
     if idx is not None:
-        i = int(idx) % len(ro_orbit.times)
+        i = int(idx) % len(ro_orbit.times)  # 与网格离散索引对齐
         t_ins = float(ro_orbit.times[i])
     else:
-        t_ins = t0 + 0.5 * per
+        t_ins = t0 + 0.5 * per  # 无索引时取 RO 中段相位
     return NLPOptimizationVariables(
         alpha=alpha, transfer_time=transfer_time, t_ins=t_ins
     )
 
 
 def _t_ins_bounds(ro_orbit: Any) -> Tuple[float, float]:
+    """插入时刻 t_ins 的搜索区间：一个 RO 周期 ``[t0, t0+period]``。"""
     t0 = float(ro_orbit.times[0])
     per = float(ro_orbit.period)
     return (t0, t0 + per)
 
 
 def _build_dynamics() -> Tuple[Any, Any]:
+    """构造地月 CR3BP 系统与动力学；积分器与容差与 ``_pack_nlp_task`` 中常量保持一致。"""
     system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
     dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
     dynamics.integrator = INTEGRATOR
     dynamics.rtol = INTEGRATOR_RTOL
     dynamics.atol = INTEGRATOR_ATOL
-    dynamics.max_step = DT
+    dynamics.max_step = DT  # 与网格输出步长一致，控制积分输出密度
     return system, dynamics
 
 
@@ -360,7 +300,7 @@ def _optimize_one_case(
     fallback_to_scipy: bool = FALLBACK_TO_SCIPY,
     progress_callback: Optional[Callable] = None,
 ) -> NLPOptimizationResult:
-    """单条网格记录 → NLP。标量参数可传入，供子进程 ``packed`` worker 使用。"""
+    """对单条网格可行解做 NLP。参数可覆盖模块常量，供子进程 ``_nlp_worker_packed`` 传入。"""
     dep = np.asarray(rec["departure_state"], dtype=float).ravel()
     if dep.size != 6:
         raise ValueError("departure_state 须为长度 6 的向量")
@@ -384,7 +324,7 @@ def _optimize_one_case(
     kwargs_opt: Dict[str, Any] = dict(
         initial_guess=guess,
         alpha_range=(alpha_min, alpha_max),
-        transfer_time_range=(1e-4, max_transfer_time),
+        transfer_time_range=(1e-4, max_transfer_time),  # 下界略大于 0 避免除零
         t_ins_range=(t_lo, t_hi),
         use_relaxed_velocity_constraint=use_relaxed_velocity,
         velocity_angle_constraint=velocity_angle_tol,
@@ -410,6 +350,7 @@ def _optimize_one_case(
 
 
 def _row_template(rec: Dict[str, Any], search_index: int) -> Dict[str, Any]:
+    """单条结果记录骨架：网格下标、粗搜快照、错误与 NLP 占位。"""
     return {
         "search_index": search_index,
         "search_snapshot": {
@@ -430,7 +371,11 @@ def _pack_nlp_task(
     dro_orbit: Any,
     ro_orbit: Any,
 ) -> Tuple[Any, ...]:
-    """打包为可 pickle 元组，供子进程 ``_nlp_worker_packed`` 使用（与 transfer_search 的 packed worker 同构）。"""
+    """打包为可 pickle 元组，供 ``_nlp_worker_packed`` 在子进程重建轨道与动力学。
+
+    顺序为：search_index、rec、DRO 状态/时间/周期、RO 状态/时间/周期、μ、α 与 T 范围、
+    撞球半径、占位 DT、积分器名、rtol、atol、max_step、松弛速度/COPT 开关等。
+    """
     return (
         int(search_index),
         rec,
@@ -446,11 +391,11 @@ def _pack_nlp_task(
         float(MAX_TRANSFER_TIME),
         float(EARTH_RADIUS),
         float(MOON_RADIUS),
-        float(DT),
+        float(DT),  # _nlp_worker_packed 中 _dt_unused，与 pack 历史字段对齐
         str(INTEGRATOR),
         float(INTEGRATOR_RTOL),
         float(INTEGRATOR_ATOL),
-        float(DT),
+        float(DT),  # max_step，与主进程 dynamics.max_step 一致
         bool(USE_RELAXED_VELOCITY),
         float(VELOCITY_ANGLE_TOL),
         bool(USE_COPT),
@@ -459,7 +404,10 @@ def _pack_nlp_task(
 
 
 def _nlp_worker_packed(packed: Tuple[Any, ...]) -> Dict[str, Any]:
-    """子进程入口：在子进程内重建 Orbit 与动力学，绕过 GIL；模块级函数便于 Windows spawn pickle。"""
+    """子进程入口：解包 ``_pack_nlp_task`` 元组，重建 ``Orbit``/动力学后调用 ``_optimize_one_case``。
+
+    须为模块级函数，便于 Windows ``spawn`` 下 pickle。
+    """
     (
         search_index,
         rec,
@@ -486,7 +434,7 @@ def _nlp_worker_packed(packed: Tuple[Any, ...]) -> Dict[str, Any]:
         fallback_to_scipy,
     ) = packed
 
-    from e2m2e.core.orbit import Orbit
+    from e2m2e.core.orbit import Orbit  # 子进程内再导入，避免部分 fork 场景问题
 
     dro_orbit = Orbit(
         states=np.asarray(dro_states, dtype=float),
@@ -527,29 +475,31 @@ def _nlp_worker_packed(packed: Tuple[Any, ...]) -> Dict[str, Any]:
         )
         out["nlp"] = _serialize_nlp_result(result)
     except Exception:
-        out["error"] = traceback.format_exc()
+        out["error"] = traceback.format_exc()  # 子进程内异常写入文本，便于主进程落盘
     return out
 
 
 def _worker_run_thread(
     args: Tuple[Dict[str, Any], int, Any, Any, Any, Any],
 ) -> Dict[str, Any]:
-    """线程池入口：共享主进程已加载的轨道与动力学。"""
+    """线程池入口：共享主进程已加载的轨道与动力学（无 pickle 大数组）。"""
     rec, search_index, dro, ro, system, dynamics = args
     out = _row_template(rec, search_index)
     try:
         result = _optimize_one_case(rec, dro, ro, system, dynamics, verbose=False)
         out["nlp"] = _serialize_nlp_result(result)
     except Exception:
-        out["error"] = traceback.format_exc()
+        out["error"] = traceback.format_exc()  # 与多进程分支一致，保留栈信息
     return out
 
 
 def main() -> None:
+    """加载网格与轨道、筛选可行解、按并行设置跑 NLP，并写出 ``optimization_results_*.json``。"""
     print("=" * 70, flush=True)
     print("DRO–RO 转移 NLP 优化（Cui et al. 2025；e2m2e DROTRONLPOptimizer）", flush=True)
     print("=" * 70, flush=True)
 
+    # --- 输入文件存在性 ---
     if not SEARCH_RESULTS_FILE.is_file():
         raise FileNotFoundError(f"未找到网格结果文件: {SEARCH_RESULTS_FILE}")
     if not DRO_FILE.is_file():
@@ -572,6 +522,7 @@ def main() -> None:
     print(f"  碰撞半径: 地球={EARTH_RADIUS:.4f}, 月球={MOON_RADIUS:.4f}", flush=True)
     print(f"  进度条: {'开启（tqdm）' if USE_TQDM else '关闭（OPTIMIZE_NO_TQDM）'}", flush=True)
 
+    # --- 读取网格 JSON，筛可行解、排序、TOP_K / MAX_CASES / 固定出发点 ---
     print(f"\n加载网格结果:", flush=True)
     print(f"  文件: {SEARCH_RESULTS_FILE}", flush=True)
     print("  正在读取 JSON（大文件可能较慢）…", flush=True)
@@ -581,27 +532,26 @@ def main() -> None:
         (i, r) for i, r in enumerate(all_results) if r.get("is_feasible")
     ]
 
-    # 按网格记录的 min_distance 升序：优先优化与目标轨道距离更大（通常更安全）的可行解。
-    feasible_indexed.sort(key=lambda ir: float(ir[1].get("min_distance", 1e9)))
+    feasible_indexed.sort(key=lambda ir: float(ir[1].get("min_distance", 1e9)))  # 升序；TOP_K 取 min_distance 最小的 K 条
 
-    debug_pt = _resolve_debug_departure_point()
-    if debug_pt is not None:
-        dx, dy, dz = debug_pt
+    if DEBUG_DEPARTURE_POINT is not None:
+        dx, dy, dz = DEBUG_DEPARTURE_POINT
         feasible_indexed = [
             (i, r) for i, r in feasible_indexed
             if _match_departure_point(r, dx, dy, dz)
         ]
-        print(f"  [调试] 固定出发点 {debug_pt}，筛选后可行解: {len(feasible_indexed)}", flush=True)
+        print(
+            f"  [调试] 固定出发点 {DEBUG_DEPARTURE_POINT}，筛选后可行解: {len(feasible_indexed)}",
+            flush=True,
+        )
 
     n_feasible_total = len(feasible_indexed)
-    # 先取「质量最好」的前 TOP_K 条，再按 MAX_CASES 截断（两者可同时生效）。
     if TOP_K_FEASIBLE is not None:
         feasible_indexed = feasible_indexed[:TOP_K_FEASIBLE]
     if MAX_CASES is not None:
         feasible_indexed = feasible_indexed[:MAX_CASES]
 
-    # 可行解列表已构建完毕，释放整表 JSON 以减小峰值内存。
-    del all_results
+    del all_results  # 释放整表，降内存峰值
 
     print(f"\n网格记录总数: {total_records}", flush=True)
     print(f"可行解总数: {n_feasible_total}", flush=True)
@@ -610,30 +560,27 @@ def main() -> None:
         from e2m2e.transfer import _HAVE_COPT
 
         print(
-            f"NLP 求解器: COPT（商业整数规划求解器，已安装: {_HAVE_COPT}），若收敛失败则回退到 SciPy SLSQP",
+            f"NLP: COPT（已安装: {_HAVE_COPT}），失败则 SciPy SLSQP",
             flush=True,
         )
     else:
-        print(
-            "NLP 求解器: SciPy SLSQP（序列最小二乘规划算法，用于求解非线性约束优化问题）",
-            flush=True,
-        )
+        print("NLP: SciPy SLSQP（scipy.optimize.minimize）", flush=True)
 
     if not feasible_indexed:
         print("\n没有可行解，退出。", flush=True)
         return
 
+    # --- DRO/RO 轨道与 JSON 周期覆盖；主进程动力学 ---
     print(f"\n加载轨道数据:", flush=True)
     dro_orbit = load_orbit_from_json(str(DRO_FILE))
     ro_orbit = load_orbit_from_json(str(RO_FILE))
     print(f"  DRO: {DRO_FILE}", flush=True)
     print(f"  RO: {RO_FILE}", flush=True)
 
-    # ``load_orbit_from_json`` 内对周期可能用采样估计；若 JSON 含 ``properties.period``，用其覆盖为标称周期。
     with open(RO_FILE, encoding="utf-8") as f:
         ro_json = json.load(f)
     if "properties" in ro_json and "period" in ro_json["properties"]:
-        ro_orbit.period = float(ro_json["properties"]["period"])
+        ro_orbit.period = float(ro_json["properties"]["period"])  # 覆盖 load 估计周期
 
     print(f"  DRO 周期: {dro_orbit.period:.4f} TU, 状态数: {len(dro_orbit.states)}", flush=True)
     print(f"  RO 周期: {ro_orbit.period:.4f} TU, 状态数: {len(ro_orbit.states)}", flush=True)
@@ -642,18 +589,14 @@ def main() -> None:
     print(f"\ne2m2e 动力学已就绪", flush=True)
     print(f"  系统: μ = {system.mu:.6e}", flush=True)
     print(f"  积分器: {dynamics.integrator}", flush=True)
-    print(
-        f"  rtol/atol: {dynamics.rtol:g} / {dynamics.atol:g} "
-        f"（可调常量 INTEGRATOR_RTOL/ATOL；放宽通常显著加速）",
-        flush=True,
-    )
+    print(f"  rtol/atol: {dynamics.rtol:g} / {dynamics.atol:g}", flush=True)
     print(f"  max_step: {dynamics.max_step:.8f} TU", flush=True)
 
+    # --- 输出路径与并行参数（worker 数、BLAS 环境）---
     output_dir = project_root / "output/transfer"
     output_dir.mkdir(parents=True, exist_ok=True)
     out_path = output_dir / f"optimization_results_{timestampNow()}.json"
 
-    # 解析并行后端与 worker 数（多进程见下文的 BLAS 环境写入）。
     backend = PARALLEL_BACKEND.strip().lower()
     if backend not in ("threads", "processes"):
         raise ValueError("PARALLEL_BACKEND 须为 'threads' 或 'processes'")
@@ -672,18 +615,16 @@ def main() -> None:
     print("=" * 70, flush=True)
 
     records: List[Dict[str, Any]] = []
-    # 单 worker：主进程顺序执行每条 case，可使用 SLSQP 迭代回调；无多 case 并行。
+    # --- 串行：可挂 SLSQP 迭代回调与监控线程 ---
     if n_workers_req == 1:
-        # 进度状态对象（跨案例共享；start_time 由 start_case 首次调用时初始化）
         global_progress = OptimizationProgress()
         global_progress.total_cases = n_total
 
-        # 定期打印详细进度的监控线程
         def _monitor_loop(prog: OptimizationProgress, interval: float = 2.0) -> None:
+            """后台周期性打印当前 case 与迭代信息；最后一条开始后若已有迭代则退出。"""
             while True:
                 time.sleep(interval)
                 snap = prog.get_snapshot()
-                # 算总耗时（从第一条开始计时）
                 total_elapsed = _wall_time() - prog.start_time if prog.start_time > 0 else 0
                 if snap["total"] > 0 and snap["case"] >= 0:
                     print(
@@ -695,7 +636,7 @@ def main() -> None:
                         f"elapsed={total_elapsed:.0f}s",
                         flush=True,
                     )
-                    # 所有案例都完成则退出
+                    # 已是最后一条且出现过迭代，认为监控可结束（避免无限 sleep）
                     if snap["case"] >= snap["total"] - 1 and snap["iter"] > 0:
                         break
 
@@ -716,7 +657,6 @@ def main() -> None:
                 "error": None,
                 "nlp": None,
             }
-            # 本案例的回调：每 SLSQP 迭代触发
             cb = _make_progress_callback(global_progress, k, n_total, global_idx)
             try:
                 res = _optimize_one_case(
@@ -745,21 +685,19 @@ def main() -> None:
                 )
             records.append(row)
     else:
-        # 多 worker：线程池共享主进程轨道/动力学；进程池在子进程内重建对象，真正并行 CPU。
+        # --- 多 worker：线程或进程池 + tqdm；进程模式先限 BLAS ---
         n_pool = min(n_workers_req, n_total)
         print(
             f"  并行执行: {n_pool} 个 worker（backend={backend}，本机逻辑 CPU={cpu_n}）",
             flush=True,
         )
         if backend == "processes":
-            # 在创建进程池前写入 OMP/MKL 等，使子进程继承，限制每进程 BLAS 线程数。
             _bt = _blas_threads_per_worker()
             _apply_blas_env_for_child_processes(_bt)
             print(
                 f"  多进程 BLAS/OpenMP: 每 worker {_bt} 线程（环境已写入 OMP/MKL/OpenBLAS 等）",
                 flush=True,
             )
-        # (rec, search_index) 与 feasible_indexed 中项一致。
         payloads = [(rec, idx) for idx, rec in feasible_indexed]
         futures_list: List[Any] = []
 
@@ -799,7 +737,6 @@ def main() -> None:
                             _pack_nlp_task(idx, rec, dro_orbit, ro_orbit),
                         )
                     )
-                # as_completed：任一子进程完成即返回对应 future；顺序与提交顺序无关。
                 for fut in tqdm(
                     as_completed(futures_list),
                     total=len(futures_list),
@@ -811,8 +748,10 @@ def main() -> None:
                     disable=disable_tqdm,
                 ):
                     records.append(fut.result())
+        # as_completed 完成顺序与提交顺序无关，按 search_index 排序再写 JSON
         records.sort(key=lambda x: x.get("search_index", 0))
 
+    # --- 写出结果 JSON（meta + results）---
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(
             {
