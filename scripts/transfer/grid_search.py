@@ -2,7 +2,7 @@
 DRO-RO 网格搜索
 
 使用方法:
-    1. 修改下方 "参数配置" 部分
+    1. 修改 main() 函数中的搜索参数
     2. 确保轨道数据JSON文件存在
     3. 运行: python grid_search.py
 
@@ -19,116 +19,89 @@ from fontTools.misc.timeTools import timestampNow
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
 from scripts.utils.common import DU, MU, TU
 
-# =============================================================================
-# 参数配置
-# =============================================================================
-
-# 轨道数据文件路径
-project_root = Path(__file__).resolve().parent.parent.parent
-DRO_FILE = project_root / "output/dro/dro_31_3857199098.json"
-RO_FILE = project_root / "output/ro/ro_31_3857328571.json"
-
-# 并行数，1=单线程，None=cpu核数
-N_WORKERS = None
-
-# 搜索参数
-N_DEPARTURE = 200  # 出发点采样数量
-N_ALPHA = 10  # α 方向网格点数
-MAX_TRANSFER_TIME = 100.0 / TU  # 最大转移时间
-
-# alpha 参数搜索范围
-ALPHA_MIN = 0.5
-ALPHA_MAX = 2.5
-
-# 可行解判定条件
-INTERSECTION_THRESHOLD = 0.001  # 相交判定距离阈值 //TODO 这个值需要审核
-MIN_DISTANCE_THRESHOLD = 100.0 / DU  # 候选解距离阈值
-
-# 碰撞检测半径
-EARTH_RADIUS = 200 / DU
-MOON_RADIUS = 100 / DU
-
-# 积分器设置
-DT = 1.0 / (24.0 * TU)  # 积分步长
-INTEGRATOR = "DOP853"  # 积分器
-
-def print_search_config():
-    print("=" * 70)
-    print("DRO-RO 转移轨道网格搜索")
-    print("=" * 70)
-    print(f"\n搜索配置:")
-    print(f"  并行 worker 数 n_workers: {N_WORKERS}（None=CPU 核数；默认多进程）")
-    print(f"  出发点数量: {N_DEPARTURE}")
-    print(f"  α范围: [{ALPHA_MIN:.2f}, {ALPHA_MAX:.2f}], n={N_ALPHA}")
-    print(f"  最大转移时间: {MAX_TRANSFER_TIME:.1f} TU")
-    _est_out = max(int(MAX_TRANSFER_TIME / DT) + 1, 2)
-    print(
-        f"  输出时间步长（1 小时）: {DT:.8f} TU  "
-        f"(每 1 TU ≈ {1.0 / DT:.0f} 步；{MAX_TRANSFER_TIME:.1f} TU 上约 {_est_out} 个输出点)"
-    )
-    print(f"  相交阈值: {INTERSECTION_THRESHOLD:.6f}")
-    print(f"  候选解阈值: {MIN_DISTANCE_THRESHOLD:.6f}")
-    print(f"  碰撞半径: 地球={EARTH_RADIUS*DU:.4f}, 月球={MOON_RADIUS*DU:.4f}")
 
 def main() -> None:
-    # 打印搜索参数设置
-    print_search_config()
+    # =========================================================================
+    # 搜索参数配置
+    # =========================================================================
 
-    # 加载系统
+    # 轨道数据文件路径
+    project_root = Path(__file__).resolve().parent.parent.parent
+    dro_file = project_root / "output/dro/dro_31_3857199098.json"
+    ro_file = project_root / "output/ro/ro_31_3857328571.json"
+
+    # =========================================================================
+    # 初始化系统
+    # =========================================================================
     system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
-    dynamics.integrator = INTEGRATOR
-    dynamics.rtol = 1e-12 # 相对积分容差
-    dynamics.atol = 1e-12 # 绝对积分容差
-    dynamics.max_step = DT
+    system = e2m2e.core.system.CR3BP_System(mu=0.01215, primary="Earth", secondary="Moon")
+    system.set_characteristic_scales(
+        distance=384400.0,
+        period=27.32 * 86400
+    )
+    dynamic = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+    dynamic.integrator = "DOP853" # 修改积分器为DOP853,提高积分精度
+    dynamic.rtol = 1e-12
+    dynamic.atol = 1e-12
+    dynamic.max_step = 1.0 / (24.0 * system.characteristic_length) # 设置积分步长为1天
 
     # 加载轨道数据
-    dro_orbit = load_orbit_from_json(str(DRO_FILE))
-    ro_orbit = load_orbit_from_json(str(RO_FILE))
+    dro_orbit = load_orbit_from_json(str(dro_file))
+    ro_orbit = load_orbit_from_json(str(ro_file))
 
-    print(f"  DRO周期: {dro_orbit.period:.4f} TU, 状态数: {len(dro_orbit.states)}")
-    print(f"  RO周期: {ro_orbit.period:.4f} TU, 状态数: {len(ro_orbit.states)}")
-
-    # 创建转移搜索实例
-    transfer_searcher = TransferSearch(system=system, dynamics=dynamics)
-
-    # 配置搜索参数
-    transfer_searcher.alpha_min = ALPHA_MIN
-    transfer_searcher.alpha_max = ALPHA_MAX
-    transfer_searcher.n_alpha = N_ALPHA
-    transfer_searcher.n_departure = N_DEPARTURE
-    transfer_searcher.max_transfer_time = MAX_TRANSFER_TIME
-    transfer_searcher.intersection_threshold = INTERSECTION_THRESHOLD
-    transfer_searcher.min_distance_threshold = MIN_DISTANCE_THRESHOLD
-    transfer_searcher.collision_earth_radius = EARTH_RADIUS
-    transfer_searcher.collision_moon_radius = MOON_RADIUS
-    transfer_searcher.integration_dt = DT
-
-    print(f"\ne2m2e transfer 模块初始化完成")
-    print(f"  系统: μ = {system.mu:.6e}")
-    print(f"  积分器: {dynamics.integrator}")
-    print(f"  rtol/atol: {dynamics.rtol:g} / {dynamics.atol:g}")
-    print(f"  max_step: {dynamics.max_step:.8f} TU")
-    print(f"  搜索实例已创建")
-
+    # =========================================================================
+    # 执行搜索
+    # =========================================================================
     print("\n" + "=" * 70)
     print("开始网格搜索")
     print("=" * 70)
 
-    transfer_searcher.set_departure_orbit(dro_orbit)
-    transfer_searcher.set_arrival_orbit(ro_orbit)
+    # 搜索参数
+    n_departure = 200
+    n_alpha = 10
+    max_transfer_time = 100.0 / TU
 
-    results = transfer_searcher.search(n_workers=N_WORKERS)
+    # alpha 参数搜索范围
+    alpha_min = 0.5
+    alpha_max = 2.5
+
+    # 可行解判定条件
+    intersection_threshold = 0.001  # 相交判定距离阈值
+    min_distance_threshold = 100.0 / DU
+
+    # 碰撞检测半径
+    earth_radius = 200 / DU
+    moon_radius = 100 / DU
+
+    transfer_searcher = TransferSearch(dynamics=dynamics)
+    results = transfer_searcher.search(
+        alpha_min=alpha_min,
+        alpha_max=alpha_max,
+        n_alpha=n_alpha,
+        n_departure=n_departure,
+        max_transfer_time=max_transfer_time,
+        intersection_threshold=intersection_threshold,
+        min_distance_threshold=min_distance_threshold,
+        collision_earth_radius=earth_radius,
+        collision_moon_radius=moon_radius,
+        integration_dt=dynamics.max_step,
+        departure_orbit=dro_orbit,
+        arrival_orbit=ro_orbit,
+        n_workers=None, 
+    )
 
     print(f"\n搜索完成，共找到 {len(results)} 个候选解")
 
     feasible_results = [r for r in results if transfer_searcher._is_feasible(r)]
     print(f"其中 {len(feasible_results)} 个为可行解")
 
+    # =========================================================================
+    # 保存结果
+    # =========================================================================
     output_dir = project_root / "output/transfer"
     output_file = output_dir / (
-        f"search_results_{N_DEPARTURE}-{N_ALPHA}-{ALPHA_MIN:g}-{ALPHA_MAX:g}-"
-        f"{MAX_TRANSFER_TIME:.6f}_{timestampNow()}.json"
+        f"search_results_{n_departure}-{n_alpha}-{alpha_min:g}-{alpha_max:g}-"
+        f"{max_transfer_time:.6f}_{timestampNow()}.json"
     )
 
     def _json_safe(x):
