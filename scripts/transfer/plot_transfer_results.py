@@ -24,10 +24,7 @@ import json
 from e2m2e.core.system import CR3BP_System
 from e2m2e.core.dynamics import CR3BP_Dynamics
 from e2m2e.core.orbit import Orbit
-from e2m2e.transfer.dro_ro_search import (
-    TransferSearchResult,
-    load_orbit_from_json,
-)
+from e2m2e.transfer import load_orbit_from_json
 from scripts.utils.common import MU, DU, TU, VU
 
 
@@ -35,6 +32,11 @@ MU = 1.21506683e-2
 DU = 3.84405000e5
 TU = 4.34811305
 VU = 1023.23281
+
+
+def _load_transfer_search_result():
+    from e2m2e.transfer.transfer_search import Dict
+    return Dict
 
 
 class TransferVisualizer:
@@ -45,7 +47,7 @@ class TransferVisualizer:
         system: CR3BP_System,
         dro_orbit: Orbit,
         ro_orbit: Orbit,
-        results: List[TransferSearchResult],
+        results: List[Dict],
     ):
         self.system = system
         self.mu = system.mu
@@ -57,7 +59,7 @@ class TransferVisualizer:
         self.ro_states = ro_orbit.states
 
     def compute_delta_v(
-        self, result: TransferSearchResult
+        self, result: Dict
     ) -> Tuple[float, float, float]:
         """计算ΔV1, ΔV2和总ΔV
 
@@ -74,7 +76,7 @@ class TransferVisualizer:
 
         return dv1, dv2, dv1 + dv2
 
-    def classify_transfer_type(self, result: TransferSearchResult) -> str:
+    def classify_transfer_type(self, result: Dict) -> str:
         """分类转移类型: direct, LGA, external"""
         if result.transfer_trajectory is None:
             return "unknown"
@@ -143,7 +145,7 @@ class TransferVisualizer:
 
         return fig
 
-    def _plot_results_on_axis(self, ax, results: List[TransferSearchResult]) -> None:
+    def _plot_results_on_axis(self, ax, results: List[Dict]) -> None:
         """在axis上绘制结果点"""
         times_days = []
         costs = []
@@ -185,7 +187,7 @@ class TransferVisualizer:
 
     def plot_transfer_trajectory_2d(
         self,
-        result: TransferSearchResult,
+        result: Dict,
         ax: plt.Axes,
         frame: str = "rotating",
         show_orbits: bool = True,
@@ -415,14 +417,292 @@ class TransferVisualizer:
         return figures
 
 
-def load_search_results(filepath: str) -> List[TransferSearchResult]:
+class NLPResultVisualizer:
+    """NLP优化结果可视化类，支持绘制转移轨道、解平面、统计图"""
+
+    def __init__(
+        self,
+        system: CR3BP_System,
+        dro_orbit: Orbit,
+        ro_orbit: Orbit,
+        nlp_results: List[Dict],
+    ):
+        self.system = system
+        self.mu = system.mu
+        self.dro_orbit = dro_orbit
+        self.ro_orbit = ro_orbit
+        self.results = nlp_results
+
+        self.dro_states = np.array(dro_orbit.states)
+        self.ro_states = np.array(ro_orbit.states)
+
+    def get_success_cases(self) -> List[Dict]:
+        return [r for r in self.results if r.get("nlp") and r["nlp"].get("success")]
+
+    def get_failed_cases(self) -> List[Dict]:
+        return [r for r in self.results if r.get("nlp") and not r["nlp"].get("success")]
+
+    def plot_transfer_trajectory_2d(
+        self,
+        nlp_result: Dict,
+        ax: plt.Axes,
+        show_orbits: bool = True,
+        color: str = "red",
+    ) -> None:
+        traj_data = nlp_result.get("nlp")
+        if not traj_data:
+            return
+        traj = traj_data.get("transfer_trajectory")
+        if traj is None or len(traj) == 0:
+            return
+        traj = np.array(traj)
+
+        if show_orbits:
+            ax.plot(
+                self.dro_states[:, 0],
+                self.dro_states[:, 1],
+                "b-",
+                linewidth=1.5,
+                alpha=0.7,
+                label="DRO",
+            )
+            ax.plot(
+                self.ro_states[:, 0],
+                self.ro_states[:, 1],
+                "g-",
+                linewidth=1.5,
+                alpha=0.7,
+                label="RO",
+            )
+
+        ax.plot(traj[:, 0], traj[:, 1], "-", color=color, linewidth=2, label="Transfer")
+        ax.plot(traj[0, 0], traj[0, 1], "o", color=color, markersize=10, label="Departure")
+        ax.plot(traj[-1, 0], traj[-1, 1], "s", color=color, markersize=10, label="Insertion")
+
+        ax.plot(0, 0, "ko", markersize=15, label="Earth")
+        ax.plot(1 - self.mu, 0, "o", color="gray", markersize=8, label="Moon")
+
+        ax.set_xlabel("x (DU)")
+        ax.set_ylabel("y (DU)")
+        ax.set_aspect("equal")
+        ax.grid(True, alpha=0.3)
+        ax.legend(loc="upper right")
+
+    def plot_transfer_trajectory_3d(
+        self,
+        nlp_result: Dict,
+        ax: plt.Axes,
+        show_orbits: bool = True,
+        color: str = "red",
+    ) -> None:
+        traj_data = nlp_result.get("nlp")
+        if not traj_data:
+            return
+        traj = traj_data.get("transfer_trajectory")
+        if traj is None or len(traj) == 0:
+            return
+        traj = np.array(traj)
+
+        if show_orbits:
+            ax.plot(
+                self.dro_states[:, 0],
+                self.dro_states[:, 1],
+                self.dro_states[:, 2],
+                "b-",
+                linewidth=1.5,
+                alpha=0.7,
+                label="DRO",
+            )
+            ax.plot(
+                self.ro_states[:, 0],
+                self.ro_states[:, 1],
+                self.ro_states[:, 2],
+                "g-",
+                linewidth=1.5,
+                alpha=0.7,
+                label="RO",
+            )
+
+        ax.plot(traj[:, 0], traj[:, 1], traj[:, 2], "-", color=color, linewidth=2, label="Transfer")
+        ax.scatter(traj[0, 0], traj[0, 1], traj[0, 2], color=color, s=100, marker="o", label="Departure")
+        ax.scatter(traj[-1, 0], traj[-1, 1], traj[-1, 2], color=color, s=100, marker="s", label="Insertion")
+
+        ax.set_xlabel("x (DU)")
+        ax.set_ylabel("y (DU)")
+        ax.set_zlabel("z (DU)")
+        ax.legend()
+
+    def plot_all_success_trajectories(
+        self,
+        save_path: Optional[str] = None,
+    ) -> plt.Figure:
+        successes = self.get_success_cases()
+        if not successes:
+            print("No successful cases to plot")
+            return None
+
+        n = len(successes)
+        n_cols = min(3, n)
+        n_rows = (n + n_cols - 1) // n_cols
+
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(6 * n_cols, 6 * n_rows))
+        if n == 1:
+            axes = np.array([axes])
+        axes = axes.flatten()
+
+        colors = plt.cm.rainbow(np.linspace(0, 1, n))
+
+        for idx, (result, ax, color) in enumerate(zip(successes, axes, colors)):
+            nlp = result["nlp"]
+            traj = np.array(nlp["transfer_trajectory"])
+
+            ax.plot(self.dro_states[:, 0], self.dro_states[:, 1], "b-", linewidth=1, alpha=0.5, label="DRO")
+            ax.plot(self.ro_states[:, 0], self.ro_states[:, 1], "g-", linewidth=1, alpha=0.5, label="RO")
+            ax.plot(traj[:, 0], traj[:, 1], "-", color=color, linewidth=2)
+            ax.plot(traj[0, 0], traj[0, 1], "o", color=color, markersize=8)
+            ax.plot(traj[-1, 0], traj[-1, 1], "s", color=color, markersize=8)
+
+            ax.plot(0, 0, "ko", markersize=10)
+            ax.plot(1 - self.mu, 0, "o", color="gray", markersize=6)
+
+            total_dv = nlp.get("objective_value", 0) * VU
+            ax.set_title(
+                f"Case {idx+1}: {nlp.get('transfer_type', 'unknown').upper()}, "
+                f"ΔV={total_dv:.1f} m/s"
+            )
+            ax.set_aspect("equal")
+            ax.grid(True, alpha=0.3)
+
+        for ax in axes[n:]:
+            ax.set_visible(False)
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=150, bbox_inches="tight")
+            print(f"所有成功轨迹图已保存: {save_path}")
+
+        return fig
+
+    def plot_solution_plane(
+        self,
+        save_path: Optional[str] = None,
+    ) -> plt.Figure:
+        successes = self.get_success_cases()
+        if not successes:
+            print("No successful cases")
+            return None
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+
+        direct = []
+        lga = []
+
+        for r in successes:
+            nlp = r["nlp"]
+            t_days = nlp["transfer_time"] * TU
+            dv = nlp["objective_value"] * VU
+            if nlp.get("transfer_type") == "direct":
+                direct.append((t_days, dv))
+            else:
+                lga.append((t_days, dv))
+
+        if direct:
+            d = np.array(direct)
+            ax.scatter(d[:, 0], d[:, 1], c="blue", s=50, alpha=0.7, label=f"Direct ({len(direct)})")
+        if lga:
+            l = np.array(lga)
+            ax.scatter(l[:, 0], l[:, 1], c="green", s=50, alpha=0.7, label=f"LGA ({len(lga)})")
+
+        ax.set_xlabel("Transfer Time (days)")
+        ax.set_ylabel("Total ΔV (m/s)")
+        ax.set_title("Solution Plane: NLP Optimization Results")
+        ax.grid(True, alpha=0.3)
+        ax.legend()
+
+        if save_path:
+            plt.savefig(save_path, dpi=150, bbox_inches="tight")
+            print(f"解平面图已保存: {save_path}")
+
+        return fig
+
+    def plot_statistics(
+        self,
+        save_path: Optional[str] = None,
+    ) -> plt.Figure:
+        total = len(self.results)
+        successes = len(self.get_success_cases())
+        failed = total - successes
+
+        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+
+        # 成功率饼图
+        axes[0].pie(
+            [successes, failed],
+            labels=["Success", "Failed"],
+            autopct="%1.1f%%",
+            colors=["green", "red"],
+            explode=(0.05, 0),
+        )
+        axes[0].set_title(f"Optimization Success Rate\n({total} cases)")
+
+        # ΔV 分布
+        success_dvs = []
+        for r in self.get_success_cases():
+            dv = r["nlp"]["objective_value"] * VU
+            success_dvs.append(dv)
+
+        if success_dvs:
+            axes[1].hist(success_dvs, bins=20, color="steelblue", edgecolor="black", alpha=0.7)
+            axes[1].set_xlabel("Total ΔV (m/s)")
+            axes[1].set_ylabel("Count")
+            axes[1].set_title(f"ΔV Distribution (Success: {len(success_dvs)})")
+            axes[1].grid(True, alpha=0.3)
+
+            # 标注统计值
+            axes[1].axvline(np.mean(success_dvs), color="red", linestyle="--", label=f"Mean: {np.mean(success_dvs):.1f}")
+            axes[1].axvline(np.median(success_dvs), color="orange", linestyle="--", label=f"Median: {np.median(success_dvs):.1f}")
+            axes[1].legend()
+
+        # 转移类型分布
+        type_counts = {}
+        for r in self.results:
+            if r.get("nlp"):
+                t = r["nlp"].get("transfer_type", "unknown")
+                type_counts[t] = type_counts.get(t, 0) + 1
+
+        if type_counts:
+            bars = axes[2].bar(type_counts.keys(), type_counts.values(), color=["steelblue", "green", "orange"][:len(type_counts)])
+            axes[2].set_xlabel("Transfer Type")
+            axes[2].set_ylabel("Count")
+            axes[2].set_title("Transfer Type Distribution")
+            for bar, count in zip(bars, type_counts.values()):
+                axes[2].text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5, str(count), ha="center")
+
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=150, bbox_inches="tight")
+            print(f"统计图已保存: {save_path}")
+
+        return fig
+
+
+def load_nlp_results(filepath: str) -> Dict:
+    """加载NLP优化结果JSON文件"""
+    with open(filepath, "r") as f:
+        data = json.load(f)
+    return data
+
+
+def load_search_results(filepath: str) -> List[Dict]:
     """从JSON文件加载搜索结果"""
     with open(filepath, "r") as f:
         data = json.load(f)
 
     results = []
     for item in data:
-        result = TransferSearchResult(
+        result = Dict(
             departure_orbit_name=item.get("departure_orbit_name", ""),
             arrival_orbit_name=item.get("arrival_orbit_name", ""),
             departure_time_index=item.get("departure_time_index", 0),
@@ -446,11 +726,18 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser(description="生成转移轨道可视化图像")
-    parser.add_argument("--results", type=str, required=True, help="搜索结果JSON文件")
-    parser.add_argument("--dro", type=str, required=True, help="DRO轨道JSON文件")
-    parser.add_argument("--ro", type=str, required=True, help="RO轨道JSON文件")
+    parser.add_argument("--results", type=str, help="搜索结果JSON文件或NLP优化结果JSON文件")
+    parser.add_argument("--dro", type=str, help="DRO轨道JSON文件")
+    parser.add_argument("--ro", type=str, help="RO轨道JSON文件")
     parser.add_argument(
         "--output-dir", type=str, default="output/transfer/figures", help="输出目录"
+    )
+    parser.add_argument(
+        "--type",
+        type=str,
+        choices=["search", "nlp"],
+        default="nlp",
+        help="结果类型: search(网格搜索) 或 nlp(优化结果)",
     )
     args = parser.parse_args()
 
@@ -460,24 +747,46 @@ def main():
     print("加载数据...")
     dro_orbit = load_orbit_from_json(args.dro)
     ro_orbit = load_orbit_from_json(args.ro)
-    results = load_search_results(args.results)
-
-    print(f"加载了 {len(results)} 个搜索结果")
-
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
-    visualizer = TransferVisualizer(system, dro_orbit, ro_orbit, results)
+    if args.type == "nlp":
+        nlp_data = load_nlp_results(args.results)
+        nlp_results = nlp_data.get("results", [])
 
-    print("\n生成解平面图 (Fig. 6)...")
-    visualizer.plot_solution_plane(
-        save_path=str(output_dir / "fig6_solution_plane.png")
-    )
+        print(f"加载了 {len(nlp_results)} 个NLP优化结果")
 
-    print("\n生成转移轨迹图...")
-    visualizer.plot_all_transfer_types(save_dir=str(output_dir))
+        success_count = len([r for r in nlp_results if r.get("nlp") and r["nlp"].get("success")])
+        print(f"成功案例: {success_count}")
 
-    print("\n生成四分位图 (Fig. 11)...")
-    visualizer.plot_quartile_map(save_path=str(output_dir / "fig11_quartile_map.png"))
+        visualizer = NLPResultVisualizer(system, dro_orbit, ro_orbit, nlp_results)
+
+        print("\n生成所有成功轨迹图...")
+        visualizer.plot_all_success_trajectories(
+            save_path=str(output_dir / "nlp_all_trajectories.png")
+        )
+
+        print("\n生成解平面图...")
+        visualizer.plot_solution_plane(save_path=str(output_dir / "nlp_solution_plane.png"))
+
+        print("\n生成统计图...")
+        visualizer.plot_statistics(save_path=str(output_dir / "nlp_statistics.png"))
+
+    else:
+        results = load_search_results(args.results)
+        print(f"加载了 {len(results)} 个搜索结果")
+
+        visualizer = TransferVisualizer(system, dro_orbit, ro_orbit, results)
+
+        print("\n生成解平面图 (Fig. 6)...")
+        visualizer.plot_solution_plane(
+            save_path=str(output_dir / "fig6_solution_plane.png")
+        )
+
+        print("\n生成转移轨迹图...")
+        visualizer.plot_all_transfer_types(save_dir=str(output_dir))
+
+        print("\n生成四分位图 (Fig. 11)...")
+        visualizer.plot_quartile_map(save_path=str(output_dir / "fig11_quartile_map.png"))
 
     print(f"\n所有图像已保存到: {output_dir}")
 
