@@ -28,7 +28,7 @@ from scripts.utils.common import MU
 # =============================================================================
 # 加载轨道数据
 # =============================================================================
-family_name = "ro_31_family_0.8905--0.8304999999999999-0.001_3856910376"
+family_name = "ro_31_family_0.8905--0.8304999999999999-0.001_3857719121"
 output_dir = project_root / "output" / "ro"
 family_path = output_dir / f"{family_name}.json"
 system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
@@ -173,7 +173,6 @@ ax_global_2d.set_aspect("equal")
 
 plt.tight_layout()
 plt.savefig(output_dir / f"{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
-plt.show()
 
 # =============================================================================
 # 2. 全局3D视图
@@ -236,7 +235,6 @@ ax_global_3d.view_init(elev=0, azim=-90)
 
 plt.tight_layout()
 plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
-plt.show()
 
 # =============================================================================
 # 3. Jacobi常数-周期-稳定性图（双纵轴）
@@ -302,6 +300,5 @@ plt.tight_layout()
 plt.savefig(
     output_dir / f"{family_name}_period_stability.png", dpi=300, bbox_inches="tight"
 )
-plt.show()
 
 print(f"\n完成！图像已保存到 output/ro/ 目录")
