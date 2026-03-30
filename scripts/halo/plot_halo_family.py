@@ -11,16 +11,16 @@
 用法::
 
     # 1）修改本文件中的 FAMILY_JSON_PATH 后直接运行
-    python scripts/plot/plot_halo_family.py
+    python scripts/halo/plot_halo_family.py
 
     # 2）命令行指定 JSON（相对项目根或绝对路径）
-    python scripts/plot/plot_halo_family.py output/halo/halo_L1_N_family_3857325361.json
+    python scripts/halo/plot_halo_family.py output/halo/halo_L1_N_family_3857325361.json
 
     # 3）使用某目录下最新的 halo_*_family_*.json
-    python scripts/plot/plot_halo_family.py --latest
+    python scripts/halo/plot_halo_family.py --latest
 
     # 仅保存 PNG、不弹窗
-    python scripts/plot/plot_halo_family.py path/to/family.json --no-show
+    python scripts/halo/plot_halo_family.py path/to/family.json --no-show
 """
 
 from __future__ import annotations
@@ -31,7 +31,6 @@ import sys
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(project_root))
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -370,7 +369,7 @@ def main() -> None:
         found = find_latest_family_json(search_dir)
         if found is None:
             print(f"[error] 在 {search_dir} 未找到 halo_*_family_*.json")
-            print("请先生成: python scripts/generate/generate_halo_family.py")
+            print("请先生成: python scripts/halo/generate_halo_family.py")
             sys.exit(1)
         family_path = found
         print(f"[info] --latest: 使用 {family_path}")

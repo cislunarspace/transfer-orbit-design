@@ -9,10 +9,7 @@
 
 """
 
-import sys
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from fontTools.misc.timeTools import timestampNow
 from scripts.utils.common import MU
@@ -20,7 +17,7 @@ from scripts.utils.common import MU
 import e2m2e
 from e2m2e.core import Orbit
 
-project_root = Path(__file__).resolve().parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = project_root / "output"
 
 # =============================================================================

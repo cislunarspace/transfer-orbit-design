@@ -28,7 +28,7 @@ from scripts.utils.common import MU
 # =============================================================================
 # 加载轨道数据
 # =============================================================================
-family_name = "ro_32_family_-1.2--0.8-0.005_3856902519"
+family_name = "ro_32_family_-1.2--0.8-0.005_3857719350"
 output_dir = project_root / "output" / "ro"
 family_path = output_dir / f"{family_name}.json"
 system = CR3BP_System(mu=MU, primary="earth", secondary="moon")

@@ -28,7 +28,7 @@ from scripts.utils.common import MU
 # =============================================================================
 # 加载轨道数据
 # =============================================================================
-family_name = "ro_31_family_0.8905--0.8304999999999999-0.001_3857719121"
+family_name = "ro_31_family_-0.8905--0.8304999999999999-0.001_3857720079"
 output_dir = project_root / "output" / "ro"
 family_path = output_dir / f"{family_name}.json"
 system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
@@ -48,7 +48,7 @@ print(f"加载了 {n_orbits} 条 3:1 RO轨道")
 #   - 如果 PLOT_END_IDX == -1：从 PLOT_START_IDX 绘制到最后一条
 #   - 其他情况：绘制 [PLOT_START_IDX, PLOT_END_IDX] 范围内的轨道
 PLOT_START_IDX = -1  # 修改此值控制起始轨道，例如 0, 10, -1
-PLOT_END_IDX = 42  # 修改此值控制结束轨道，例如 50, 100, -1
+PLOT_END_IDX = -1  # 修改此值控制结束轨道，例如 50, 100, -1
 
 # 计算实际绘制范围
 if PLOT_START_IDX == -1 and PLOT_END_IDX == -1:

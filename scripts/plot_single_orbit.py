@@ -10,8 +10,8 @@
 
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent.parent
-from scripts.utils.params import MU
+project_root = Path(__file__).resolve().parent.parent
+from scripts.utils.common import MU
 
 import matplotlib
 import matplotlib.pyplot as plt

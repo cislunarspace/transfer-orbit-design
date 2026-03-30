@@ -13,13 +13,11 @@
     tf = 1.8397 (完整周期)
 """
 
-import sys
 from pathlib import Path
 
 from fontTools.misc.timeTools import timestampNow
 
 project_root = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(project_root))
 
 import e2m2e
 from e2m2e.core import Orbit

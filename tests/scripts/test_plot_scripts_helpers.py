@@ -55,7 +55,7 @@ class TestPlotScriptImports:
         mock_system.return_value = MagicMock()
         mock_stability.return_value = np.array([1.0, 1.5])
 
-        script_path = project_root / "scripts" / "plot" / "plot_31_ro_family.py"
+        script_path = project_root / "scripts" / "ro" / "plot_31_ro_family.py"
         spec = importlib.util.spec_from_file_location("plot_31_ro_family", script_path)
         module = importlib.util.module_from_spec(spec)
 
@@ -75,7 +75,7 @@ class TestPlotScriptImports:
         )
         mock_system.return_value = MagicMock()
 
-        script_path = project_root / "scripts" / "plot" / "plot_32_ro_family.py"
+        script_path = project_root / "scripts" / "ro" / "plot_32_ro_family.py"
         spec = importlib.util.spec_from_file_location("plot_32_ro_family", script_path)
         module = importlib.util.module_from_spec(spec)
 
@@ -96,7 +96,7 @@ class TestPlotScriptImports:
         mock_system.return_value = MagicMock()
         mock_stability.return_value = np.array([1.0, 1.5])
 
-        script_path = project_root / "scripts" / "plot" / "plot_dro_family.py"
+        script_path = project_root / "scripts" / "dro" / "plot_dro_family.py"
         spec = importlib.util.spec_from_file_location("plot_dro_family", script_path)
         module = importlib.util.module_from_spec(spec)
 
@@ -117,7 +117,7 @@ class TestPlotScriptImports:
         mock_system.return_value = MagicMock()
 
         script_path = (
-            project_root / "scripts" / "plot" / "plot_interactive_orbit_inspector.py"
+            project_root / "scripts" / "plot_interactive_orbit_inspector.py"
         )
         spec = importlib.util.spec_from_file_location(
             "plot_interactive_orbit_inspector", script_path
