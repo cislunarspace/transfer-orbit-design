@@ -153,45 +153,34 @@ python scripts/transfer/grid_search.py
 python scripts/transfer/optimize.py
 ```
 
-### plot_transfer.py
+### plot_search_results.py
 
-可视化转移轨迹：
+可视化转移搜索结果：
 
 ```bash
-python scripts/plot/plot_transfer.py
+python scripts/transfer/plot_search_results.py <results.json>
 ```
 
-**输出**：
-- 转移轨迹 2D/3D 绘制
-- 与出发点/目标轨道的对比
-- ΔV 收敛曲线
+**参数**：
+- `--time-dv`：绘制转移时间 vs delta-v 散点图
+- `--orbit`：绘制 3D 转移轨道图
+- `--idx <int|best|random|all|best:N>`：选择绘制的可行解
+- `--save <path>`：保存图片而非显示
 
 ## 与 e2m2e 库的接口
 
 ```python
 from e2m2e.transfer import (
-    DROTRONLPOptimizer,
     TransferSearch,
-    NLPOptimizationVariables,
-    NLPOptimizationResult,
-    load_orbit_from_json,
+    DROTRONLPOptimizer,
 )
-
-# 加载轨道
-dro_orbit = load_orbit_from_json("output/dro/dro_31_*.json")
-ro_orbit = load_orbit_from_json("output/ro/ro_31_*.json")
 
 # 网格搜索
 transfer_search = TransferSearch(system=system, dynamics=dynamics)
-transfer_search.alpha_min = 0.5
-transfer_search.alpha_max = 2.5
-transfer_search.n_alpha = 101
-results = transfer_search.search(dro_orbit, ro_orbit, n_workers=None)
+results = transfer_search.search(dro_orbit, ro_orbit)
 
 # NLP 优化
 optimizer = DROTRONLPOptimizer(system=system, dynamics=dynamics)
-optimizer.dro_orbit = dro_orbit
-optimizer.ro_orbit = ro_orbit
 nlp_result = optimizer.optimize(initial_variables=initial_vars)
 ```
 

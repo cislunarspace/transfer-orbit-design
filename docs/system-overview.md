@@ -20,15 +20,18 @@ transfer-orbit-design/
 ├── docs/                    # 技术文档
 ├── output/
 │   ├── dro/                 # 生成的 DRO 族 JSON 文件
-│   └── ro/                  # 生成的 RO 族 JSON 文件
+│   ├── ro/                  # 生成的 RO/RRO/ARO 族 JSON 文件
+│   ├── halo/                # 生成的 Halo 轨道族 JSON 文件
+│   └── transfer/            # 转移搜索与优化结果
 ├── paper/                   # 参考论文（中文翻译）
 ├── plan/                    # 实施计划
-├── reference/               # 参考资料
-│   └── CR3BP/              # CR3BP 轨道族参考资料
 ├── scripts/
-│   ├── generate_*.py       # 轨道族生成脚本
-│   ├── plot_*.py           # 可视化脚本
-│   └── utils/              # 共享参数和辅助函数
+│   ├── dro/                 # DRO 轨道生成与可视化
+│   ├── ro/                  # RO/RRO/ARO 轨道生成与可视化
+│   ├── halo/                # Halo 轨道生成与可视化
+│   ├── transfer/            # 转移设计（搜索、优化、可视化）
+│   └── utils/               # 共享参数和辅助函数
+├── tests/                   # 测试
 ├── requirements.txt
 └── README.md
 ```
@@ -38,13 +41,15 @@ transfer-orbit-design/
 | 包 | 版本 | 用途 |
 |----|------|------|
 | numpy | ≥2.4.0 | 数值计算 |
-| scipy | ≥1.17.0 | 科学计算 |
+| scipy | ≥1.17.0 | 科学计算（ODE 积分、优化） |
 | matplotlib | ≥3.10.0 | 可视化 |
+| fonttools | ≥4.0.0 | 字体处理 |
+| tqdm | ≥4.66 | 进度条 |
 | e2m2e | (editable) | 核心轨道力学库 |
 
 ### e2m2e 库
 
-项目依赖 [e2m2e](file:///C:/Users/ouyangjiahong/Codes/e2m2e) 库，提供：
+项目依赖 e2m2e 库，提供：
 
 | 模块 | 用途 |
 |------|------|
@@ -78,9 +83,9 @@ transfer-orbit-design/
 git clone <repository-url> transfer-orbit-design
 git clone <repository-url> e2m2e
 
-# 以可编辑模式安装 e2m2e
-pip install -e C:/Users/ouyangjiahong/Codes/e2m2e
-
 # 安装依赖
 pip install -r transfer-orbit-design/requirements.txt
+
+# 以可编辑模式安装 e2m2e
+pip install -e /path/to/e2m2e
 ```

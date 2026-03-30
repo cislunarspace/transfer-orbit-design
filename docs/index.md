@@ -8,10 +8,11 @@
 
 | 文档 | 对应脚本 | 描述 |
 |------|----------|------|
-| [DRO 生成](dro-generation.md) | `generate_dro_family.py`, `plot_dro_family.py` | 远距离逆行轨道族生成 |
-| [RO 生成](ro-generation.md) | `generate_31_ro_family.py`, `generate_32_ro_family.py`, `plot_*_ro_family.py` | 共振轨道族生成 |
-| [RRO/ARO 生成](rro-aro-generation.md) | `generate_rro_family.py`, `generate_aro_family.py`, `plot_rro_family.py`, `plot_aro_family.py` | 3D 共振轨道生成 |
-| [DRO-RO 转移](dro-ro-transfer.md) | `grid_search.py`, `optimize.py`, `plot_transfer.py` | 两脉冲转移设计 |
+| [DRO 生成](dro-generation.md) | `dro/generate_dro_family.py`, `dro/plot_dro_family.py` | 远距离逆行轨道族生成 |
+| [RO 生成](ro-generation.md) | `ro/generate_31_ro_family.py`, `ro/generate_32_ro_family.py`, `ro/plot_*_ro_family.py` | 共振轨道族生成 |
+| [RRO/ARO 生成](rro-aro-generation.md) | `ro/generate_rro_family.py`, `ro/generate_aro_family.py`, `ro/plot_rro_family.py`, `ro/plot_aro_family.py` | 3D 共振轨道生成 |
+| [Halo 轨道](#) | `halo/generate_halo_orbit.py`, `halo/generate_halo_family.py`, `halo/plot_halo_orbit.py`, `halo/plot_halo_family.py` | L1/L2 Halo 轨道生成 |
+| [DRO-RO 转移](dro-ro-transfer.md) | `transfer/grid_search.py`, `transfer/optimize.py`, `transfer/plot_search_results.py` | 两脉冲转移设计 |
 
 ### 算法说明
 
@@ -46,16 +47,16 @@ pip install -r requirements.txt
 pip install -e /path/to/e2m2e
 
 # 生成 DRO 族
-python scripts/generate/generate_dro_family.py
+python scripts/dro/generate_dro_family.py
 
 # 生成单个 3:1 DRO 轨道
-python scripts/generate/generate_31_dro_orbit.py
+python scripts/dro/generate_31_dro_orbit.py
 
 # 生成 3:1 RO 族
-python scripts/generate/generate_31_ro_family.py
+python scripts/ro/generate_31_ro_family.py
 
 # 生成 3:2 RO 族
-python scripts/generate/generate_32_ro_family.py
+python scripts/ro/generate_32_ro_family.py
 
 # 网格搜索转移轨道
 python scripts/transfer/grid_search.py
@@ -64,9 +65,10 @@ python scripts/transfer/grid_search.py
 python scripts/transfer/optimize.py
 
 # 可视化结果
-python scripts/plot/plot_dro_family.py
-python scripts/plot/plot_31_ro_family.py
-python scripts/plot/plot_32_ro_family.py
+python scripts/dro/plot_dro_family.py
+python scripts/ro/plot_31_ro_family.py
+python scripts/ro/plot_32_ro_family.py
+python scripts/transfer/plot_search_results.py <results.json>
 ```
 
 ## 轨道类型

@@ -65,7 +65,7 @@
 生成 RRO 轨道族：
 
 ```bash
-python scripts/generate_rro_family.py
+python scripts/ro/generate_rro_family.py
 ```
 
 **关键参数**：
@@ -82,7 +82,7 @@ python scripts/generate_rro_family.py
 生成 ARO 轨道族：
 
 ```bash
-python scripts/generate_aro_family.py
+python scripts/ro/generate_aro_family.py
 ```
 
 **关键参数**：
@@ -101,10 +101,10 @@ python scripts/generate_aro_family.py
 
 ```bash
 # 可视化 RRO
-python scripts/plot_rro_family.py
+python scripts/ro/plot_rro_family.py
 
 # 可视化 ARO
-python scripts/plot_aro_family.py
+python scripts/ro/plot_aro_family.py
 ```
 
 ## 与 e2m2e 库的接口

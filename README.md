@@ -35,7 +35,7 @@ pip install -e /path/to/e2m2e  # 本地 e2m2e 依赖库
 生成单个 3:1 DRO 轨道：
 
 ```bash
-python scripts/generate/generate_31_dro_orbit.py
+python scripts/dro/generate_31_dro_orbit.py
 ```
 
 输出示例：
@@ -51,9 +51,9 @@ python scripts/generate/generate_31_dro_orbit.py
 生成 DRO 族、RO 族：
 
 ```bash
-python scripts/generate/generate_dro_family.py
-python scripts/generate/generate_31_ro_family.py
-python scripts/generate/generate_32_ro_family.py
+python scripts/dro/generate_dro_family.py
+python scripts/ro/generate_31_ro_family.py
+python scripts/ro/generate_32_ro_family.py
 ```
 
 该论文研究了地月系统中从远距离逆行轨道（DRO）到共振轨道（RO）的两脉冲转移轨道设计问题。由于 DRO 和 RO 均为稳定轨道，无法利用不稳定流形结构，论文提出了一种"搜索-优化"两步法来设计转移轨道，并在 CR3BP、BR4BP 和星历模型中分别进行了计算与验证。
@@ -94,22 +94,17 @@ python scripts/transfer/optimize.py
 # 输出: output/transfer/optimization_results_*.json
 ```
 
-### 生成可视化
+### 可视化搜索结果
 
 ```bash
-# 生成论文中的图像 (Fig.6, Fig.8-11)
-conda run -n orbit-py313 python scripts/transfer/plot_transfer_results.py \
-    --results output/transfer/search_v2_dro_21_*_ro_32_*_*.json \
-    --dro output/dro/dro_21_*.json \
-    --ro output/ro/ro_32_*.json \
-    --output-dir output/transfer/figures
+# 可视化网格搜索结果（散点图、转移轨迹）
+python scripts/transfer/plot_search_results.py <results.json>
 
-# 输出图像:
-#   - fig6_solution_plane.png  (解平面)
-#   - direct_transfers.png      (直接转移)
-#   - LGA_transfers.png         (月球借力转移)
-#   - external_transfers.png     (外部转移)
-#   - fig11_quartile_map.png    (四分位图)
+# 可选参数：
+#   --time-dv     绘制转移时间 vs delta-v 散点图
+#   --orbit       绘制 3D 转移轨道图
+#   --idx <N>     指定绘制第 N 个可行解（best/random/all/best:N）
+#   --save <path> 保存图片而非显示
 ```
 
 ### 轨道数据格式
@@ -182,8 +177,8 @@ conda run -n orbit-py313 python scripts/transfer/plot_transfer_results.py \
 - [x] CR3BP 动力学模型实现（`e2m2e/core/dynamics.py`）
 - [x] 微分修正算法（`e2m2e/algorithms/differential_correction.py`）
 - [x] 自然参数延拓（`e2m2e/algorithms/continuation.py`）
-- [x] DRO 族生成（`scripts/generate/generate_dro_family.py`）
-- [x] RO 族种子搜索与延拓（`scripts/generate/generate_31_ro_family.py`, `generate_32_ro_family.py`）
+- [x] DRO 族生成（`scripts/dro/generate_dro_family.py`）
+- [x] RO 族种子搜索与延拓（`scripts/ro/generate_31_ro_family.py`, `generate_32_ro_family.py`）
 
 ### 阶段一 b：3D 轨道族生成（已推迟）
 
@@ -226,13 +221,15 @@ conda run -n orbit-py313 python scripts/transfer/plot_transfer_results.py \
 ```
 e2m2e/
 ├── algorithms/          # 算法模块
-│   ├── continuation.py          # 自然参数延拓
-│   └── differential_correction.py  # 微分修正算法
+│   ├── continuation.py          # 自然参数延拓 / 伪弧长延拓
+│   ├── differential_correction.py  # 微分修正算法
+│   └── stability.py             # 单值矩阵特征值分析
 ├── core/               # 核心模块
 │   ├── dynamics.py               # CR3BP/BR4BP 动力学
-│   ├── orbit.py                  # 轨道数据结构
-│   └── system.py                 # 系统参数管理
+│   ├── orbit.py                  # Orbit / OrbitFamily 数据结构
+│   └── system.py                 # CR3BP 系统参数管理
 ├── transfer/           # 转移轨道设计
+│   ├── transfer_base.py          # 转移基类
 │   ├── transfer_optimization.py  # NLP 优化器
 │   └── transfer_search.py        # 网格搜索
 └── visualization/      # 可视化
@@ -243,19 +240,40 @@ e2m2e/
 
 | 脚本 | 功能 |
 |------|------|
-| `generate/generate_dro_family.py` | 生成 DRO 族 |
-| `generate/generate_31_dro_orbit.py` | 生成单个 3:1 DRO |
-| `generate/generate_31_ro_family.py` | 生成 3:1 RO 族 |
-| `generate/generate_32_ro_family.py` | 生成 3:2 RO 族 |
+| **DRO 轨道** | |
+| `dro/generate_dro_family.py` | 生成 DRO 族 |
+| `dro/generate_31_dro_orbit.py` | 生成单个 3:1 DRO |
+| `dro/plot_dro_family.py` | DRO 族可视化 |
+| **RO 轨道** | |
+| `ro/generate_31_ro_orbit.py` | 生成单个 3:1 RO |
+| `ro/generate_31_ro_family.py` | 生成 3:1 RO 族 |
+| `ro/generate_32_ro_family.py` | 生成 3:2 RO 族 |
+| `ro/plot_31_ro_family.py` | 3:1 RO 族可视化 |
+| `ro/plot_32_ro_family.py` | 3:2 RO 族可视化 |
+| **3D 轨道（RRO/ARO）** | |
+| `ro/generate_rro_family.py` | 生成 RRO 族 |
+| `ro/generate_aro_family.py` | 生成 ARO 族 |
+| `ro/plot_rro_family.py` | RRO 族可视化 |
+| `ro/plot_aro_family.py` | ARO 族可视化 |
+| **Halo 轨道** | |
+| `halo/generate_halo_orbit.py` | 生成单个 Halo 轨道（Richardson 三阶近似 + 微分修正） |
+| `halo/generate_halo_family.py` | 生成 Halo 轨道族（伪弧长延拓） |
+| `halo/plot_halo_orbit.py` | 单个 Halo 轨道可视化 |
+| `halo/plot_halo_family.py` | Halo 轨道族可视化 |
+| **转移设计** | |
 | `transfer/grid_search.py` | 网格搜索转移轨道 |
 | `transfer/optimize.py` | NLP 优化阶段 |
-| `plot/plot_*.py` | 轨道族可视化 |
+| `transfer/plot_search_results.py` | 搜索结果可视化（散点图、转移轨迹） |
+| **通用工具** | |
+| `plot_single_orbit.py` | 单轨道可视化（2D/3D） |
+| `plot_interactive_orbit_inspector.py` | 交互式轨道逐条检查 |
 
 ### 输出目录
 
 - `output/dro/`：DRO 轨道数据
-- `output/ro/`：RO 轨道数据
+- `output/ro/`：RO/RRO/ARO 轨道数据
 - `output/transfer/`：转移搜索与优化结果
+- `output/halo/`：Halo 轨道数据
 
 ## 参考文献
 
