@@ -58,7 +58,7 @@ seed_RO = corrector.iterate_correction(initial_guess=seed_orbit, verbose=True)
 # =============================================================================
 continuator = e2m2e.algorithms.Continuation(corrector=corrector)
 step_size = 0.001
-param_min = 0.8905
+param_min = -0.8905
 param_max = x0 + 0.05
 family_result = continuator.natural_continuation(
     seed_orbit=seed_RO,
