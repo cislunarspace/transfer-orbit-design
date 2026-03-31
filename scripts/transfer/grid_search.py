@@ -35,6 +35,7 @@ def main() -> None:
     # =========================================================================
     system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
     system.set_characteristic_scales(distance=384400.0, period=27.32 * 86400)
+    assert system.characteristic_length is not None
     dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
     dynamics.integrator = "DOP853"
     dynamics.rtol = 1e-12
