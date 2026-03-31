@@ -34,16 +34,12 @@ def main() -> None:
     # 初始化系统
     # =========================================================================
     system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    system = e2m2e.core.system.CR3BP_System(mu=0.01215, primary="Earth", secondary="Moon")
-    system.set_characteristic_scales(
-        distance=384400.0,
-        period=27.32 * 86400
-    )
-    dynamic = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
-    dynamic.integrator = "DOP853" # 修改积分器为DOP853,提高积分精度
-    dynamic.rtol = 1e-12
-    dynamic.atol = 1e-12
-    dynamic.max_step = 1.0 / (24.0 * system.characteristic_length) # 设置积分步长为1天
+    system.set_characteristic_scales(distance=384400.0, period=27.32 * 86400)
+    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+    dynamics.integrator = "DOP853"
+    dynamics.rtol = 1e-12
+    dynamics.atol = 1e-12
+    dynamics.max_step = 1.0 / (24.0 * system.characteristic_length)
 
     # 加载轨道数据
     dro_orbit = load_orbit_from_json(str(dro_file))
@@ -87,7 +83,7 @@ def main() -> None:
         integration_dt=dynamics.max_step,
         departure_orbit=dro_orbit,
         arrival_orbit=ro_orbit,
-        n_workers=None, 
+        n_workers=None,
     )
 
     print(f"\n搜索完成，共找到 {len(results)} 个候选解")

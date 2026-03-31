@@ -50,7 +50,9 @@ from scripts.utils.common import MU, DU, TU
 # =============================================================================
 # 数据文件：grid_search 输出的 JSON
 # =============================================================================
-RESULTS_JSON = project_root / "output/transfer/search_results_200-1001-0.5-2.5-22.998482_3857379210.json"
+RESULTS_JSON = (
+    project_root / "output/transfer/search_results_200-1001-0.5-2.5-22.998482_3857379210.json"
+)
 # 示例: RESULTS_JSON = project_root / "output/transfer/search_results_10-101-0.5-2.5-2.298634_3857123456.json"
 
 # 轨道数据文件（用于转移轨道积分和绘图）
@@ -246,7 +248,7 @@ def _build_transfer_search() -> TransferSearch:
     dynamics.rtol = 1e-12
     dynamics.atol = 1e-12
     dynamics.max_step = DT
-    transfer_search = TransferSearch(system=system, dynamics=dynamics)
+    transfer_search = TransferSearch(dynamics=dynamics)
     transfer_search.integration_dt = DT
     return transfer_search
 
@@ -260,6 +262,7 @@ def _integrate_single_orbit(args: tuple) -> tuple:
         (transfer_states, alpha, dv_departure) 或失败时 (None, ...)
     """
     import warnings
+
     departure_state, alpha, max_transfer_time, mu, tu = args
     DT = 1.0 / (24.0 * tu)
     try:
@@ -269,7 +272,7 @@ def _integrate_single_orbit(args: tuple) -> tuple:
         dynamics.rtol = 1e-12
         dynamics.atol = 1e-12
         dynamics.max_step = DT
-        ts = TransferSearch(system=system, dynamics=dynamics)
+        ts = TransferSearch(dynamics=dynamics)
         ts.integration_dt = DT
 
         pos = departure_state[:3]
@@ -308,18 +311,14 @@ def _reintegrate_transfer(
     return states, times
 
 
-def _orbit_states_in_plane(
-    orbit: Orbit, plane: str = "xz"
-) -> tuple[np.ndarray, np.ndarray]:
+def _orbit_states_in_plane(orbit: Orbit, plane: str = "xz") -> tuple[np.ndarray, np.ndarray]:
     """返回轨道在指定平面上的坐标。plane: 'xz' | 'xy' | 'yz'。"""
     idx_map = {"xy": (0, 1), "xz": (0, 2), "yz": (1, 2)}
     i, j = idx_map[plane]
     return orbit.states[:, i], orbit.states[:, j]
 
 
-def _find_closest_orbit_phase_idx(
-    transfer_states: np.ndarray, orbit: Orbit
-) -> int:
+def _find_closest_orbit_phase_idx(transfer_states: np.ndarray, orbit: Orbit) -> int:
     """找到转移轨迹终点与目标轨道最接近的点（轨道相位索引）。"""
     pos_tr = transfer_states[-1, :2]
     min_dist = float("inf")
@@ -332,11 +331,10 @@ def _find_closest_orbit_phase_idx(
     return best_idx
 
 
-def plot_transfer_orbit_diagram_3d(
+def _plot_single_transfer_orbit(
     departure_orbit: Orbit,
     arrival_orbit: Orbit,
     transfer_states: np.ndarray,
-    transfer_times: np.ndarray,
     departure_state: np.ndarray,
     arrival_orbit_phase_idx: int,
     dv_departure: float,
@@ -347,68 +345,34 @@ def plot_transfer_orbit_diagram_3d(
     fig=None,
     ax=None,
 ) -> Axes:
-    """绘制转移轨道 3D 示意图：DRO出发轨道 + 转移轨迹 + RO到达轨道。"""
+    """使用 OrbitVisualizer.plot_transfer_orbit() 绘制单条转移轨道 3D 示意图。"""
     if ax is None:
         fig = plt.figure(figsize=(12, 10))
         ax = fig.add_subplot(111, projection="3d")
 
-    # 绘制 DRO 出发轨道（蓝色）
-    ax.plot(
-        departure_orbit.states[:, 0],
-        departure_orbit.states[:, 1],
-        departure_orbit.states[:, 2],
-        "-", color="steelblue", lw=1.0, alpha=0.7, label="DRO (departure)"
-    )
-
-    # 绘制 RO 到达轨道（绿色）
-    ax.plot(
-        arrival_orbit.states[:, 0],
-        arrival_orbit.states[:, 1],
-        arrival_orbit.states[:, 2],
-        "-", color="seagreen", lw=1.0, alpha=0.7, label="RO (arrival)"
-    )
-
-    # 绘制转移轨迹（红色）
-    ax.plot(
-        transfer_states[:, 0],
-        transfer_states[:, 1],
-        transfer_states[:, 2],
-        "-", color="crimson", lw=2.0, alpha=0.9, label="Transfer trajectory"
-    )
-
-    # 标注出发点
-    ax.scatter(
-        departure_state[0], departure_state[1], departure_state[2],
-        color="blue", s=100, zorder=5, label="Departure point"
-    )
-
-    # 标注到达点
     arrival_point = arrival_orbit.states[arrival_orbit_phase_idx]
-    ax.scatter(
-        arrival_point[0], arrival_point[1], arrival_point[2],
-        color="green", s=100, zorder=5, label="Arrival point"
+
+    viz = OrbitVisualizer(system=system)
+    viz.plot_transfer_orbit(
+        departure_orbit=departure_orbit,
+        arrival_orbit=arrival_orbit,
+        transfer_trajectory=transfer_states,
+        departure_state=departure_state[:3],
+        insertion_state=arrival_point[:3],
+        ax=ax,
+        label=f"Transfer (α={alpha:.3f})",
+        color="crimson",
     )
 
-    # 使用 OrbitVisualizer 绘制地球、月球和拉格朗日点
-    orbit_plotter = OrbitVisualizer(system=system)
-    orbit_plotter.primary_body_color = "blue"
-    orbit_plotter.secondary_body_color = "silver"
-    orbit_plotter.libration_point_colors = ["gray"] * 5
-    orbit_plotter.libration_point_markers = ["^"] * 5
-    orbit_plotter.libration_point_sizes = [60] * 5
-    orbit_plotter.plot_primary_bodies(ax=ax, is_3d=True)
-    orbit_plotter.plot_libration_points(ax=ax, is_3d=True, show_labels=True)
-
-    # 坐标轴范围（自适应转移轨迹）
-    all_x = np.concatenate([
-        departure_orbit.states[:, 0], arrival_orbit.states[:, 0], transfer_states[:, 0]
-    ])
-    all_y = np.concatenate([
-        departure_orbit.states[:, 1], arrival_orbit.states[:, 1], transfer_states[:, 1]
-    ])
-    all_z = np.concatenate([
-        departure_orbit.states[:, 2], arrival_orbit.states[:, 2], transfer_states[:, 2]
-    ])
+    all_x = np.concatenate(
+        [departure_orbit.states[:, 0], arrival_orbit.states[:, 0], transfer_states[:, 0]]
+    )
+    all_y = np.concatenate(
+        [departure_orbit.states[:, 1], arrival_orbit.states[:, 1], transfer_states[:, 1]]
+    )
+    all_z = np.concatenate(
+        [departure_orbit.states[:, 2], arrival_orbit.states[:, 2], transfer_states[:, 2]]
+    )
     cx = (all_x.max() + all_x.min()) / 2
     cy = (all_y.max() + all_y.min()) / 2
     cz = (all_z.max() + all_z.min()) / 2
@@ -418,7 +382,6 @@ def plot_transfer_orbit_diagram_3d(
     ax.set_ylim(cy - span, cy + span)
     ax.set_zlim(cz - span, cz + span)
 
-    # 标题
     dv_dep_phys = dv_departure * 1023.23281
     dv_ins_phys = dv_insertion * 1023.23281
     ax.set_title(
@@ -426,14 +389,7 @@ def plot_transfer_orbit_diagram_3d(
         f"Δv_dep={dv_dep_phys:.2f} m/s, Δv_ins={dv_ins_phys:.2f} m/s",
         fontsize=11,
     )
-    ax.set_xlabel("X (nondimensional)", fontsize=10)
-    ax.set_ylabel("Y (nondimensional)", fontsize=10)
-    ax.set_zlabel("Z (nondimensional)", fontsize=10)
-    ax.legend(loc="upper right", fontsize=9)
-
-    # 视角：侧视（地球在左，月球在右）
     ax.view_init(elev=0, azim=-90)
-
     return ax
 
 
@@ -482,7 +438,9 @@ def _select_feasible_indices(
         if top_n == 1:
             print(f"  [best] 选择 Δv={dv_vals[selected[0]]:.6f} 的解（索引 {selected[0]}）")
         else:
-            print(f"  [best:{top_n}] 选择 Δv 最小的 {top_n} 个可行解（Δv 范围: {dv_vals[selected[0]]:.6f} ~ {dv_vals[selected[-1]]:.6f}）")
+            print(
+                f"  [best:{top_n}] 选择 Δv 最小的 {top_n} 个可行解（Δv 范围: {dv_vals[selected[0]]:.6f} ~ {dv_vals[selected[-1]]:.6f}）"
+            )
         return selected
     elif idx_arg == "random":
         rng = np.random.default_rng(seed)
@@ -497,7 +455,9 @@ def _select_feasible_indices(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="绘制 grid_search 结果（α–Δv 散点图 / 转移轨道示意图）")
+    parser = argparse.ArgumentParser(
+        description="绘制 grid_search 结果（α–Δv 散点图 / 转移轨道示意图）"
+    )
     parser.add_argument(
         "--save",
         type=str,
@@ -572,7 +532,7 @@ def main() -> None:
 
         # 并行积分（子进程各自构建积分器，不依赖外部对象）
         n_workers = args.n_workers
-        use_parallel = (n_sel > 1)
+        use_parallel = n_sel > 1
         if use_parallel:
             print(f"并行积分：{n_sel} 条轨道，n_workers={n_workers or 'CPU 核数'}...")
             work_args = [
@@ -603,8 +563,16 @@ def main() -> None:
             alpha = float(result["alpha"])
             transfer_time = float(result["transfer_time"])
             dv_departure_raw = result.get("dv_departure")
-            dv_arr = np.asarray(dv_departure_raw, dtype=np.float64).ravel() if dv_departure_raw is not None else None
-            dv_departure = float(dv_arr[0]) if dv_arr is not None and dv_arr.size == 1 else (float(np.linalg.norm(dv_arr)) if dv_arr is not None else float("nan"))
+            dv_arr = (
+                np.asarray(dv_departure_raw, dtype=np.float64).ravel()
+                if dv_departure_raw is not None
+                else None
+            )
+            dv_departure = (
+                float(dv_arr[0])
+                if dv_arr is not None and dv_arr.size == 1
+                else (float(np.linalg.norm(dv_arr)) if dv_arr is not None else float("nan"))
+            )
             print(f"积分转移轨道（α={alpha}, T={transfer_time:.3f} TU）...")
             transfer_states, _ = _reintegrate_transfer(
                 ts_dummy, departure_state, alpha, float(transfer_time)
@@ -612,75 +580,119 @@ def main() -> None:
             arrival_phase_idx = _find_closest_orbit_phase_idx(transfer_states, ro_orbit)
             results = {0: (transfer_states, alpha, dv_departure)}
 
-        fig = plt.figure(figsize=(12, 10))
-        ax = fig.add_subplot(111, projection="3d")
-
-        # 只绘制一次 DRO 和 RO 轨道（所有解共用）
-        ax.plot(
-            dro_orbit.states[:, 0], dro_orbit.states[:, 1], dro_orbit.states[:, 2],
-            "-", color="steelblue", lw=1.0, alpha=0.5, label="DRO (departure)"
-        )
-        ax.plot(
-            ro_orbit.states[:, 0], ro_orbit.states[:, 1], ro_orbit.states[:, 2],
-            "-", color="seagreen", lw=1.0, alpha=0.5, label="RO (arrival)"
-        )
-
-        # 用颜色映射区分不同解
-        cmap = plt.cm.plasma
-        for cm_idx in range(n_sel):
-            transfer_states, alpha, dv_departure = results[cm_idx]
-            sel_idx = sel_indices[cm_idx]
-            departure_state = np.asarray(feasible_rows[sel_idx]["departure_state"], dtype=np.float64)
+        if n_sel == 1:
+            transfer_states, alpha, dv_departure = results[0]
+            departure_state = np.asarray(
+                feasible_rows[sel_indices[0]]["departure_state"], dtype=np.float64
+            )
             arrival_phase_idx = _find_closest_orbit_phase_idx(transfer_states, ro_orbit)
+            dv_insertion_raw = feasible_rows[sel_indices[0]].get("dv_insertion")
+            dv_insertion = float(dv_insertion_raw) if dv_insertion_raw is not None else float("nan")
 
-            color = cmap(cm_idx / max(n_sel - 1, 1))
+            fig = plt.figure(figsize=(12, 10))
+            ax = fig.add_subplot(111, projection="3d")
+            ax = _plot_single_transfer_orbit(
+                departure_orbit=dro_orbit,
+                arrival_orbit=ro_orbit,
+                transfer_states=transfer_states,
+                departure_state=departure_state,
+                arrival_orbit_phase_idx=arrival_phase_idx,
+                dv_departure=dv_departure,
+                dv_insertion=dv_insertion,
+                transfer_time=float(feasible_rows[sel_indices[0]]["transfer_time"]),
+                alpha=alpha,
+                system=system,
+                fig=fig,
+                ax=ax,
+            )
+        else:
+            fig = plt.figure(figsize=(12, 10))
+            ax = fig.add_subplot(111, projection="3d")
+
             ax.plot(
-                transfer_states[:, 0], transfer_states[:, 1], transfer_states[:, 2],
-                "-", color=color, lw=1.2, alpha=0.7
+                dro_orbit.states[:, 0],
+                dro_orbit.states[:, 1],
+                dro_orbit.states[:, 2],
+                "-",
+                color="steelblue",
+                lw=1.0,
+                alpha=0.5,
+                label="DRO (departure)",
             )
-            # 标注出发点
-            ax.scatter(
-                [departure_state[0]], [departure_state[1]], [departure_state[2]],
-                color=color, s=30, alpha=0.8
-            )
-            # 标注到达点
-            arrival_point = ro_orbit.states[arrival_phase_idx]
-            ax.scatter(
-                [arrival_point[0]], [arrival_point[1]], [arrival_point[2]],
-                color=color, s=30, alpha=0.8, marker="s"
+            ax.plot(
+                ro_orbit.states[:, 0],
+                ro_orbit.states[:, 1],
+                ro_orbit.states[:, 2],
+                "-",
+                color="seagreen",
+                lw=1.0,
+                alpha=0.5,
+                label="RO (arrival)",
             )
 
-        # 使用 OrbitVisualizer 绘制地球、月球和拉格朗日点
-        orbit_plotter = OrbitVisualizer(system=system)
-        orbit_plotter.primary_body_color = "blue"
-        orbit_plotter.secondary_body_color = "silver"
-        orbit_plotter.libration_point_colors = ["gray"] * 5
-        orbit_plotter.libration_point_markers = ["^"] * 5
-        orbit_plotter.libration_point_sizes = [60] * 5
-        orbit_plotter.plot_primary_bodies(ax=ax, is_3d=True)
-        orbit_plotter.plot_libration_points(ax=ax, is_3d=True, show_labels=True)
+            cmap = plt.cm.plasma
+            for cm_idx in range(n_sel):
+                transfer_states, alpha, dv_departure = results[cm_idx]
+                sel_idx = sel_indices[cm_idx]
+                departure_state = np.asarray(
+                    feasible_rows[sel_idx]["departure_state"], dtype=np.float64
+                )
+                arrival_phase_idx = _find_closest_orbit_phase_idx(transfer_states, ro_orbit)
 
-        # 坐标轴范围（自适应）
-        all_x = np.concatenate([dro_orbit.states[:, 0], ro_orbit.states[:, 0]])
-        all_y = np.concatenate([dro_orbit.states[:, 1], ro_orbit.states[:, 1]])
-        all_z = np.concatenate([dro_orbit.states[:, 2], ro_orbit.states[:, 2]])
-        cx = (all_x.max() + all_x.min()) / 2
-        cy = (all_y.max() + all_y.min()) / 2
-        cz = (all_z.max() + all_z.min()) / 2
-        span = max(
-            all_x.max() - all_x.min(), all_y.max() - all_y.min(), all_z.max() - all_z.min()
-        ) / 2
-        span = max(span, 0.3) * 1.2
-        ax.set_xlim(cx - span, cx + span)
-        ax.set_ylim(cy - span, cy + span)
-        ax.set_zlim(cz - span, cz + span)
+                color = cmap(cm_idx / max(n_sel - 1, 1))
+                ax.plot(
+                    transfer_states[:, 0],
+                    transfer_states[:, 1],
+                    transfer_states[:, 2],
+                    "-",
+                    color=color,
+                    lw=1.2,
+                    alpha=0.7,
+                )
+                ax.scatter(
+                    [departure_state[0]],
+                    [departure_state[1]],
+                    [departure_state[2]],
+                    color=color,
+                    s=30,
+                    alpha=0.8,
+                )
+                arrival_point = ro_orbit.states[arrival_phase_idx]
+                ax.scatter(
+                    [arrival_point[0]],
+                    [arrival_point[1]],
+                    [arrival_point[2]],
+                    color=color,
+                    s=30,
+                    alpha=0.8,
+                    marker="s",
+                )
 
-        ax.set_xlabel("X (nondimensional)", fontsize=10)
-        ax.set_ylabel("Y (nondimensional)", fontsize=10)
-        ax.set_zlabel("Z (nondimensional)", fontsize=10)
-        ax.set_title(f"Transfer orbits: {n_sel} feasible solutions", fontsize=11)
-        ax.legend(loc="upper right", fontsize=9)
-        ax.view_init(elev=0, azim=-90)
+            viz = OrbitVisualizer(system=system)
+            viz.plot_primary_bodies(ax=ax, is_3d=True)
+            viz.plot_libration_points(ax=ax, is_3d=True, show_labels=True)
+
+            all_x = np.concatenate([dro_orbit.states[:, 0], ro_orbit.states[:, 0]])
+            all_y = np.concatenate([dro_orbit.states[:, 1], ro_orbit.states[:, 1]])
+            all_z = np.concatenate([dro_orbit.states[:, 2], ro_orbit.states[:, 2]])
+            cx = (all_x.max() + all_x.min()) / 2
+            cy = (all_y.max() + all_y.min()) / 2
+            cz = (all_z.max() + all_z.min()) / 2
+            span = (
+                max(all_x.max() - all_x.min(), all_y.max() - all_y.min(), all_z.max() - all_z.min())
+                / 2
+            )
+            span = max(span, 0.3) * 1.2
+            ax.set_xlim(cx - span, cx + span)
+            ax.set_ylim(cy - span, cy + span)
+            ax.set_zlim(cz - span, cz + span)
+
+            ax.set_xlabel("X (nondimensional)", fontsize=10)
+            ax.set_ylabel("Y (nondimensional)", fontsize=10)
+            ax.set_zlabel("Z (nondimensional)", fontsize=10)
+            ax.set_title(f"Transfer orbits: {n_sel} feasible solutions", fontsize=11)
+            ax.legend(loc="upper right", fontsize=9)
+            ax.view_init(elev=0, azim=-90)
 
         if args.save:
             png = Path(args.save).expanduser().resolve()
