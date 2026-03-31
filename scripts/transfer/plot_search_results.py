@@ -307,7 +307,8 @@ def _reintegrate_transfer(
     """重新积分转移轨迹，返回 (states, times)。"""
     new_vel = _compute_departure_velocity(departure_state, alpha)
     initial_state = np.concatenate([departure_state[:3], new_vel])
-    states, times = ts._forward_integrate(initial_state, max_transfer_time, ts.integration_dt)
+    dt = ts.integration_dt if ts.integration_dt is not None else 0.01
+    states, times = ts._forward_integrate(initial_state, max_transfer_time, dt)
     return states, times
 
 
