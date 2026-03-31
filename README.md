@@ -170,7 +170,7 @@ python scripts/transfer/plot_search_results.py <results.json>
 
 ## 复现计划
 
-详细进度跟踪见 [plan/feature-orbit-transfer-replication-1.md](plan/feature-orbit-transfer-replication-1.md)
+详细进度跟踪见 [docs/plan/feature-orbit-transfer-replication-1.md](docs/plan/feature-orbit-transfer-replication-1.md)
 
 ### 阶段一：基线轨道生成（平面）
 

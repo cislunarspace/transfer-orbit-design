@@ -4,38 +4,51 @@
 
 ## 文档结构
 
-### 核心文档（与脚本对应）
+### 设计文档（`design/`）— 与脚本对应
 
 | 文档 | 对应脚本 | 描述 |
 |------|----------|------|
-| [DRO 生成](dro-generation.md) | `dro/generate_dro_family.py`, `dro/plot_dro_family.py` | 远距离逆行轨道族生成 |
-| [RO 生成](ro-generation.md) | `ro/generate_31_ro_family.py`, `ro/generate_32_ro_family.py`, `ro/plot_*_ro_family.py` | 共振轨道族生成 |
-| [RRO/ARO 生成](rro-aro-generation.md) | `ro/generate_rro_family.py`, `ro/generate_aro_family.py`, `ro/plot_rro_family.py`, `ro/plot_aro_family.py` | 3D 共振轨道生成 |
-| [Halo 轨道](#) | `halo/generate_halo_orbit.py`, `halo/generate_halo_family.py`, `halo/plot_halo_orbit.py`, `halo/plot_halo_family.py` | L1/L2 Halo 轨道生成 |
-| [DRO-RO 转移](dro-ro-transfer.md) | `transfer/grid_search.py`, `transfer/optimize.py`, `transfer/plot_search_results.py` | 两脉冲转移设计 |
+| [DRO 生成](design/dro-generation.md) | `dro/generate_dro_family.py`, `dro/plot_dro_family.py` | 远距离逆行轨道族生成 |
+| [RO 生成](design/ro-generation.md) | `ro/generate_31_ro_family.py`, `ro/generate_32_ro_family.py`, `ro/plot_*_ro_family.py` | 共振轨道族生成 |
+| [RRO/ARO 生成](design/rro-aro-generation.md) | `ro/generate_rro_family.py`, `ro/generate_aro_family.py`, `ro/plot_rro_family.py`, `ro/plot_aro_family.py` | 3D 共振轨道生成 |
+| [DRO-RO 转移](design/dro-ro-transfer.md) | `transfer/grid_search.py`, `transfer/optimize.py`, `transfer/plot_search_results.py` | 两脉冲转移设计 |
 
-### 算法说明
-
-| 文档 | 描述 |
-|------|------|
-| [可行解判定](algorithms/feasible-candidate-criteria.md) | 网格搜索结果 `_is_feasible` 的阈值与逻辑（e2m2e 与 `grid_search` 一致） |
-
-### 理论基础
+### 算法说明（`algorithms/`）
 
 | 文档 | 描述 |
 |------|------|
-| [CR3BP 理论](cr3bp-theory.md) | 圆型限制性三体问题基础 |
-| [微分修正](differential-correction.md) | 周期轨道修正方法 |
-| [参数延拓](continuation-method.md) | 自然/伪弧长延拓生成轨道族 |
+| [可行解判定](algorithms/feasible-candidate-criteria.md) | 网格搜索结果 `_is_feasible` 的阈值与逻辑 |
+| [网格搜索与轨迹优化](algorithms/grid-search-trajectory-optimization.md) | 搜索-优化两步法的算法设计 |
 
-### 参考资料
+### 理论基础（`theory/`）
 
 | 文档 | 描述 |
 |------|------|
-| [系统概述](system-overview.md) | 项目架构、依赖和安装 |
-| [API 参考](api-reference.md) | e2m2e 库 API 文档 |
-| [脚本参考](scripts-reference.md) | 所有脚本详细参数说明 |
-| [开发指南](development-guide.md) | e2m2e 依赖管理、符号链接设置 |
+| [CR3BP 理论](theory/cr3bp-theory.md) | 圆型限制性三体问题基础 |
+| [微分修正](theory/differential-correction.md) | 周期轨道修正方法 |
+| [参数延拓](theory/continuation-method.md) | 自然/伪弧长延拓生成轨道族 |
+
+### 指南（`guides/`）
+
+| 文档 | 描述 |
+|------|------|
+| [系统概述](guides/system-overview.md) | 项目架构、依赖和安装 |
+| [开发指南](guides/development-guide.md) | e2m2e 依赖管理、IDE 配置 |
+
+### 参考（`reference/`）
+
+| 文档 | 描述 |
+|------|------|
+| [API 参考](reference/api-reference.md) | e2m2e 库 API 文档 |
+| [脚本参考](reference/scripts-reference.md) | 所有脚本详细参数说明 |
+
+### 项目计划（`plan/`）
+
+| 文档 | 描述 |
+|------|------|
+| [复现计划](plan/feature-orbit-transfer-replication-1.md) | 完整的轨道转移复现计划与进度 |
+| [优化实现](plan/optimize-implementation.md) | NLP 优化阶段实现笔记 |
+| [PLAN](plan/PLAN.md) | 系统重构与 bug 修复计划 |
 
 ## 快速开始
 
