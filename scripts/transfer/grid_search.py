@@ -12,6 +12,7 @@ Windows 多进程需要 ``if __name__ == "__main__"``，请勿删除末尾保护
 """
 
 import json
+import os
 import numpy as np
 import e2m2e
 from pathlib import Path
@@ -27,20 +28,29 @@ def main() -> None:
 
     # 轨道数据文件路径
     project_root = Path(__file__).resolve().parent.parent.parent
-    dro_file = project_root / "output/dro/dro_31_3857199098.json"
-    ro_file = project_root / "output/ro/ro_31_3857328571.json"
+    dro_file = project_root / "output/dro/dro_31_3857117441.json"
+    ro_file = project_root / "output/ro/ro_31_3857122799.json"
 
     # =========================================================================
     # 初始化系统
     # =========================================================================
     system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    system.set_characteristic_scales(distance=384400.0, period=27.32 * 86400)
-    assert system.characteristic_length is not None
     dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
     dynamics.integrator = "DOP853"
     dynamics.rtol = 1e-12
     dynamics.atol = 1e-12
-    dynamics.max_step = 1.0 / (24.0 * system.characteristic_length)
+    dynamics.max_step = 1.0 / (24.0 * TU)
+
+    _blas_keys = [
+        "OMP_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "GOTO_NUM_THREADS",
+        "VECLIB_MAXIMUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+    ]
+    for _k in _blas_keys:
+        os.environ[_k] = "1"
 
     # 加载轨道数据
     dro_orbit = load_orbit_from_json(str(dro_file))
@@ -55,7 +65,7 @@ def main() -> None:
 
     # 搜索参数
     n_departure = 200
-    n_alpha = 10
+    n_alpha = 100
     max_transfer_time = 100.0 / TU
 
     # alpha 参数搜索范围
