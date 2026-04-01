@@ -28,8 +28,8 @@ def main() -> None:
 
     # 轨道数据文件路径
     project_root = Path(__file__).resolve().parent.parent.parent
-    dro_file = project_root / "output/dro/dro_31_3857117441.json"
-    ro_file = project_root / "output/ro/ro_31_3857122799.json"
+    dro_file = project_root / "output/dro/dro_31_3857693511.json"
+    ro_file = project_root / "output/ro/ro_31_3857693516.json"
 
     # =========================================================================
     # 初始化系统

@@ -34,7 +34,7 @@ from matplotlib.axes import Axes
 import numpy as np
 
 # 配置中文字体（解决 Windows 下中文显示为方块的问题）
-plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimSun", "Noto Sans SC"]
+plt.rcParams["font.sans-serif"] = ["Noto Sans CJK SC", "Microsoft YaHei", "SimSun", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -51,13 +51,13 @@ from scripts.utils.common import MU, DU, TU
 # 数据文件：grid_search 输出的 JSON
 # =============================================================================
 RESULTS_JSON = (
-    project_root / "output/transfer/search_results_200-1001-0.5-2.5-22.998482_3857379210.json"
+    project_root / "output/transfer/search_results_200-100-0.5-2.5-22.998482_3857848453.json"
 )
 # 示例: RESULTS_JSON = project_root / "output/transfer/search_results_10-101-0.5-2.5-2.298634_3857123456.json"
 
 # 轨道数据文件（用于转移轨道积分和绘图）
-DRO_FILE = project_root / "output/dro/dro_31_3857337599.json"
-RO_FILE = project_root / "output/ro/ro_31_3857337606.json"
+DRO_FILE = project_root / "output/dro/dro_31_3857693511.json"
+RO_FILE = project_root / "output/ro/ro_31_3857693516.json"
 
 
 def departure_delta_v_norm(state6: np.ndarray, alpha: float) -> float:
@@ -714,11 +714,16 @@ def main() -> None:
             times = times_all[idx]
             dvs = dvs_all[idx]
 
-            fig, ax = plt.subplots(figsize=(7, 5))
+            fig, ax = plt.subplots(figsize=(12, 8))
+            ax.tick_params(axis="both", which="major", labelsize=13)
+            ax.tick_params(axis="both", which="minor", labelsize=11)
             plot_transfer_time_delta_v(ax, times, dvs)
+            ax.title.set_fontsize(16)
+            ax.xaxis.label.set_fontsize(14)
+            ax.yaxis.label.set_fontsize(14)
             fig.suptitle(
                 f"N={len(rows)} rows, {n_feas} feasible, {len(idx)} points drawn",
-                fontsize=11,
+                fontsize=13,
                 y=1.02,
             )
             fig.tight_layout()
