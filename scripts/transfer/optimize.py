@@ -43,10 +43,10 @@ from scripts.utils.common import DU, MU, TU
 project_root = Path(__file__).resolve().parent.parent.parent
 
 SEARCH_RESULTS_FILE = project_root / (
-    "output/transfer/search_results_200-1001-0.5-2.5-22.998482_3857379210.json"
+    "output/transfer/search_results_200-100-0.5-2.5-22.998482_3857865736.json"
 )
-DRO_FILE = project_root / "output/dro/dro_31_3857199098.json"
-RO_FILE = project_root / "output/ro/ro_31_3857328571.json"
+DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
+RO_FILE = project_root / "output/ro/ro_31_3857864753.json"
 
 ALPHA_MIN = 0.5
 ALPHA_MAX = 2.5
@@ -76,6 +76,8 @@ USE_RELAXED_VELOCITY = True
 VELOCITY_ANGLE_TOL = 0.05
 
 DEBUG_DEPARTURE_POINT: Optional[Tuple[float, float, float]] = None
+
+COMPUTE_T_INS_FROM_TRAJECTORY = True
 
 
 # ---------------------------------------------------------------------------
@@ -126,6 +128,45 @@ def build_dynamics(integrator: str, rtol: float, atol: float, max_step: float, m
     return system, dynamics
 
 
+def _compute_initial_t_ins(
+    departure_state: np.ndarray,
+    alpha: float,
+    transfer_time: float,
+    ro_orbit: Orbit,
+    dynamics: CR3BP_Dynamics,
+) -> Tuple[float, float]:
+    pos = departure_state[:3]
+    vel = departure_state[3:]
+    v_mag = np.linalg.norm(vel)
+    if v_mag < 1e-10:
+        return transfer_time, 0.0
+    tangential = vel / v_mag
+    v_injection = alpha * v_mag * tangential
+    initial_state = np.concatenate([pos, v_injection])
+
+    result = dynamics.propagate(
+        initial_state=initial_state,
+        t_span=(0.0, transfer_time),
+        with_stm=False,
+        with_jacobi=False,
+    )
+    times = result["time"]
+    states = result["states"]
+    if len(states) == 0:
+        return transfer_time, 0.0
+
+    traj_pos = states[:, :3]
+    ro_pos = np.asarray(ro_orbit.states)[:, :3]
+    ro_times = np.asarray(ro_orbit.times)
+
+    dists = np.sqrt(
+        np.sum((traj_pos[:, None, :] - ro_pos[None, :, :]) ** 2, axis=2)
+    )
+    flat_idx = np.argmin(dists)
+    i, j = np.unravel_index(flat_idx, dists.shape)
+    return float(times[i]), float(ro_times[j])
+
+
 def optimize_one_case(
     rec,
     dro_orbit,
@@ -145,10 +186,20 @@ def optimize_one_case(
     progress_callback=None,
 ):
     departure_state = np.array(rec["departure_state"], dtype=float)
+
+    alpha_0 = rec["alpha"]
+    T_0 = rec["transfer_time"]
+    t_ins_0 = rec.get("t_ins", None)
+
+    if COMPUTE_T_INS_FROM_TRAJECTORY and (t_ins_0 is None or t_ins_0 == 0.0):
+        T_0, t_ins_0 = _compute_initial_t_ins(
+            departure_state, alpha_0, T_0, ro_orbit, dynamics
+        )
+
     ig = NLPOptimizationVariables(
-        alpha=rec["alpha"],
-        transfer_time=rec["transfer_time"],
-        t_ins=rec.get("t_ins", 0.0),
+        alpha=alpha_0,
+        transfer_time=T_0,
+        t_ins=t_ins_0 if t_ins_0 is not None else 0.0,
     )
     optimizer = DROTRONLPOptimizer(
         system=system,
@@ -395,6 +446,7 @@ def main() -> None:
     print(f"  积分步长（1 小时）: {DT:.8f} TU")
     print(f"  碰撞半径: 地球={EARTH_RADIUS:.4f}, 月球={MOON_RADIUS:.4f}")
     print(f"  进度条: {'开启（tqdm）' if USE_TQDM else '关闭（OPTIMIZE_NO_TQDM）'}")
+    print(f"  自动推算 t_ins: {COMPUTE_T_INS_FROM_TRAJECTORY}")
 
     print(f"\n加载网格结果:", flush=True)
     print(f"  文件: {SEARCH_RESULTS_FILE}", flush=True)
