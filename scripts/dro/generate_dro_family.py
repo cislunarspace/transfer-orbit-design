@@ -18,7 +18,7 @@ import e2m2e
 from e2m2e.core import Orbit
 
 project_root = Path(__file__).resolve().parent.parent.parent
-OUTPUT_DIR = project_root / "output"
+OUTPUT_DIR = project_root / "output" / "dro"
 
 # =============================================================================
 # 1. 系统与动力学模型初始化
