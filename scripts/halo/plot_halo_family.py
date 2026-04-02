@@ -33,12 +33,10 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent.parent
 
 import matplotlib
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.colors import Normalize
 
 from e2m2e.core import OrbitFamily, CR3BP_System
-from e2m2e.visualization.plotting import OrbitVisualizer, compute_stability_for_family
+from e2m2e.visualization import PlotConfig, FamilyPlotter, compute_stability_for_family
 
 from scripts.utils.common import MU
 
@@ -123,6 +121,8 @@ def plot_halo_family(
     plot_end: int = -1,
     show: bool = True,
 ) -> None:
+    import matplotlib.pyplot as plt
+
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
     family_result = OrbitFamily.load_from_file(filename=str(family_path), system=system)
@@ -144,206 +144,98 @@ def plot_halo_family(
 
     print(f"绘制索引 [{ps}, {pe}]，共 {pe - ps + 1} 条")
 
+    subset_family = OrbitFamily(system)
+    for i in range(ps, pe + 1):
+        subset_family.add_orbit(family_result[i])
+
     print("正在计算 Jacobi 常数...")
     jacobi_values = family_result.get_jacobi_constants().tolist()
-    print(f"Jacobi 范围: {min(jacobi_values):.6f} ~ {max(jacobi_values):.6f}")
+    jacobi_subset = [jacobi_values[i] for i in range(ps, pe + 1)]
+    print(f"Jacobi 范围: {min(jacobi_subset):.6f} ~ {max(jacobi_subset):.6f}")
 
     print("正在计算稳定性指数（可能较慢）...")
     stability_values = compute_stability_for_family(family_result, family_result.system)
-    print(f"λmax 范围: {min(stability_values):.6f} ~ {max(stability_values):.6f}")
+    stability_subset = [stability_values[i] for i in range(ps, pe + 1)]
+    print(f"λmax 范围: {min(stability_subset):.6f} ~ {max(stability_subset):.6f}")
 
-    orbit_plotter = OrbitVisualizer(system=system)
-    orbit_plotter.primary_body_color = "blue"
-    orbit_plotter.secondary_body_color = "silver"
-    orbit_plotter.libration_point_colors = ["gray"] * 5
-    orbit_plotter.libration_point_markers = ["^"] * 5
-    orbit_plotter.libration_point_sizes = [60] * 5
+    sort_idx = np.argsort(jacobi_subset)
+    jacobi_sorted = np.array(jacobi_subset)[sort_idx].tolist()
+    periods_sorted = np.array(subset_family.periods)[sort_idx].tolist()
+    stability_sorted = np.array(stability_subset)[sort_idx].tolist()
 
-    cmap = matplotlib.colormaps["coolwarm"]
-    jacobi_min = min(jacobi_values)
-    jacobi_max = max(jacobi_values)
-    jacobi_range = jacobi_max - jacobi_min if jacobi_max != jacobi_min else 1.0
+    config = PlotConfig(
+        title=32, label=28, tick=26, legend=28, colorbar=26, suptitle=36, lp_label=32,
+        title_y_offset=-0.12, title_y_offset_3d=-0.08, title_y_offset_dual=-0.18,
+        title_y_offset_subplot=-0.15,
+    )
+    config.apply_rcparams()
 
-    halo_center_x = 0.9
-    halo_center_y = 0.0
-    halo_center_z = 0.0
-    halo_radius = 0.4
+    plotter = FamilyPlotter(system, config)
 
+    jmin, jmax = min(jacobi_subset), max(jacobi_subset)
+    smin, smax = min(stability_subset), max(stability_subset)
     seed_orbit = family_result[0]
     seed_jacobi = jacobi_values[0]
     seed_stability = stability_values[0]
-    orbit_loop_start = 1 if ps == 0 else ps
 
     # ---------- 1. XZ ----------
-    fig_global_2d, ax_global_2d = plt.subplots(figsize=(12, 10))
-    label = f"Seed Halo (C={seed_jacobi:.4f}, λmax={seed_stability:.4f})"
-    orbit_plotter.plot_2d_projection(seed_orbit, plane="xz", color="red", label=label, ax=ax_global_2d)
-    for idx in range(orbit_loop_start, pe + 1):
-        orbit = family_result[idx]
-        norm_j = (jacobi_values[idx] - jacobi_min) / jacobi_range
-        orbit_plotter.plot_2d_projection(
-            orbit, plane="xz", color=cmap(norm_j), show_start=False, ax=ax_global_2d
-        )
-    orbit_plotter.plot_primary_bodies(ax=ax_global_2d)
-    orbit_plotter.plot_libration_points(ax=ax_global_2d)
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=Normalize(vmin=jacobi_min, vmax=jacobi_max))
-    sm.set_array([])
-    plt.colorbar(sm, ax=ax_global_2d, shrink=0.8).set_label("Jacobi Constant", fontsize=12)
-    ax_global_2d.set_xlabel("X (nondimensional)", fontsize=12)
-    ax_global_2d.set_ylabel("Z (nondimensional)", fontsize=12)
-    ax_global_2d.set_title(
-        f"Halo Orbit Family (XZ) — {n_orbits} orbits\n"
-        f"C = [{jacobi_min:.4f}, {jacobi_max:.4f}], λmax = [{min(stability_values):.4f}, {max(stability_values):.4f}]",
-        fontsize=12,
+    fig_2d, ax_2d = plotter.plot_family_2d(
+        subset_family, jacobi_subset,
+        title=f"Halo Orbit Family (XZ) — {n_orbits} orbits\n"
+              f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+        plane="xz",
+        show_bodies=True, show_libration=True, show_colorbar=True,
+        show=False,
     )
-    ax_global_2d.legend(loc="upper right", fontsize=10, markerscale=1.0, framealpha=0.9)
-    ax_global_2d.set_aspect("equal")
+    plotter.plot_2d_projection(
+        seed_orbit, plane="xz", color="red",
+        label=f"Seed Halo (C={seed_jacobi:.4f}, λmax={seed_stability:.4f})",
+        ax=ax_2d,
+    )
     plt.tight_layout()
     plt.savefig(output_dir / f"{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
     if show:
         plt.show()
     else:
-        plt.close(fig_global_2d)
+        plt.close(fig_2d)
 
     # ---------- 2. 3D ----------
-    fig_global_3d = plt.figure(figsize=(14, 10))
-    ax_global_3d = fig_global_3d.add_subplot(111, projection="3d")
-    orbit_plotter.plot_3d_orbit(
-        seed_orbit,
-        color="red",
+    fig_3d, ax_3d = plotter.plot_family_3d(
+        subset_family, jacobi_subset,
+        title=f"Halo Orbit Family (3D) — {n_orbits} orbits\n"
+              f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+        center=(0.9, 0, 0), radius=0.4, elev=20, azim=-60,
+        show=False,
+    )
+    plotter.plot_3d_orbit(
+        seed_orbit, color="red",
         label=f"Seed Halo (C={seed_jacobi:.4f})",
-        ax=ax_global_3d,
-        show_start=True,
+        ax=ax_3d, show_start=True,
     )
-    for idx in range(orbit_loop_start, pe + 1):
-        orbit = family_result[idx]
-        norm_j = (jacobi_values[idx] - jacobi_min) / jacobi_range
-        orbit_plotter.plot_3d_orbit(orbit, color=cmap(norm_j), ax=ax_global_3d, show_start=False)
-    orbit_plotter.plot_primary_bodies(ax=ax_global_3d, is_3d=True)
-    orbit_plotter.plot_libration_points(ax=ax_global_3d, show_labels=True, is_3d=True)
-    ax_global_3d.set_xlim(halo_center_x - halo_radius, halo_center_x + halo_radius)
-    ax_global_3d.set_ylim(halo_center_y - halo_radius, halo_center_y + halo_radius)
-    ax_global_3d.set_zlim(halo_center_z - halo_radius, halo_center_z + halo_radius)
-    ax_global_3d.set_xlabel("X (nondimensional)", fontsize=12)
-    ax_global_3d.set_ylabel("Y (nondimensional)", fontsize=12)
-    ax_global_3d.set_zlabel("Z (nondimensional)", fontsize=12)
-    ax_global_3d.set_title(
-        f"Halo Orbit Family (3D) — {n_orbits} orbits\n"
-        f"C = [{jacobi_min:.4f}, {jacobi_max:.4f}], λmax = [{min(stability_values):.4f}, {max(stability_values):.4f}]",
-        fontsize=12,
-    )
-    sm_3d = plt.cm.ScalarMappable(cmap=cmap, norm=Normalize(vmin=jacobi_min, vmax=jacobi_max))
-    sm_3d.set_array([])
-    plt.colorbar(sm_3d, ax=ax_global_3d, shrink=0.6, pad=0.1).set_label("Jacobi Constant", fontsize=11)
-    ax_global_3d.legend(loc="upper right", fontsize=10)
-    ax_global_3d.view_init(elev=20, azim=-60)
     plt.tight_layout()
     plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
     if show:
         plt.show()
     else:
-        plt.close(fig_global_3d)
+        plt.close(fig_3d)
 
     # ---------- 3. Period & stability ----------
-    sort_idx = np.argsort(jacobi_values)
-    jacobi_sorted = np.array(jacobi_values)[sort_idx]
-    periods_sorted = np.array(family_result.periods)[sort_idx]
-    stability_sorted = np.array(stability_values)[sort_idx]
-
-    fig_jacobi, ax1 = plt.subplots(figsize=(12, 7))
-    ax1.set_xlabel("Jacobi Constant", fontsize=12)
-    ax1.set_ylabel("Period (nondimensional)", color="tab:blue", fontsize=12)
-    (line_period,) = ax1.plot(jacobi_sorted, periods_sorted, "o-", color="tab:blue", markersize=5, label="Period")
-    ax1.tick_params(axis="y", labelcolor="tab:blue")
-    ax2 = ax1.twinx()
-    ax2.set_ylabel("Stability Index (λmax)", color="tab:red", fontsize=12)
-    (line_stability,) = ax2.plot(jacobi_sorted, stability_sorted, "s-", color="tab:red", markersize=5, label="λmax")
-    ax2.tick_params(axis="y", labelcolor="tab:red")
-    ax1.set_title(f"Halo Orbit Family — Period and Stability (n = {n_orbits})", fontsize=13)
-    ax1.legend([line_period, line_stability], ["Period", "Stability Index (λmax)"], loc="upper right", fontsize=10)
-    ax1.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(output_dir / f"{family_name}_period_stability.png", dpi=300, bbox_inches="tight")
-    if show:
-        plt.show()
-    else:
-        plt.close(fig_jacobi)
+    plotter.plot_jacobi_period_stability(
+        jacobi_sorted, periods_sorted, stability_sorted,
+        title=f"Halo Orbit Family — Period and Stability (n = {n_orbits})",
+        save_path=output_dir / f"{family_name}_period_stability.png",
+        show=show,
+    )
 
     # ---------- 4. Overview ----------
-    fig_overview = plt.figure(figsize=(18, 14))
-    ax_ov1 = fig_overview.add_subplot(221)
-    orbit_plotter.plot_2d_projection(
-        seed_orbit, plane="xz", color="red", label=f"Seed (C={seed_jacobi:.4f})", ax=ax_ov1
+    plotter.plot_family_overview(
+        subset_family, jacobi_subset, subset_family.periods, stability_subset,
+        suptitle=f"Halo Orbit Family Overview — Earth–Moon CR3BP (n = {n_orbits})",
+        plane="xz", center_3d=(0.9, 0, 0), radius_3d=0.4,
+        elev=20, azim=-60,
+        save_path=output_dir / f"{family_name}_overview.png",
+        show=show,
     )
-    for idx in range(orbit_loop_start, pe + 1):
-        orbit = family_result[idx]
-        norm_j = (jacobi_values[idx] - jacobi_min) / jacobi_range
-        orbit_plotter.plot_2d_projection(orbit, plane="xz", color=cmap(norm_j), show_start=False, ax=ax_ov1)
-    orbit_plotter.plot_primary_bodies(ax=ax_ov1)
-    orbit_plotter.plot_libration_points(ax=ax_ov1)
-    sm_ov = plt.cm.ScalarMappable(cmap=cmap, norm=Normalize(vmin=jacobi_min, vmax=jacobi_max))
-    sm_ov.set_array([])
-    plt.colorbar(sm_ov, ax=ax_ov1, shrink=0.8).set_label("Jacobi Constant", fontsize=10)
-    ax_ov1.set_title(f"XZ ({n_orbits} orbits)", fontsize=11)
-    ax_ov1.set_xlabel("X", fontsize=10)
-    ax_ov1.set_ylabel("Z", fontsize=10)
-    ax_ov1.legend(loc="upper right", fontsize=8)
-    ax_ov1.set_aspect("equal")
-
-    ax_ov2 = fig_overview.add_subplot(222)
-    orbit_plotter.plot_2d_projection(seed_orbit, plane="xy", color="red", label="Seed", ax=ax_ov2)
-    for idx in range(orbit_loop_start, pe + 1):
-        orbit = family_result[idx]
-        norm_j = (jacobi_values[idx] - jacobi_min) / jacobi_range
-        orbit_plotter.plot_2d_projection(orbit, plane="xy", color=cmap(norm_j), show_start=False, ax=ax_ov2)
-    orbit_plotter.plot_primary_bodies(ax=ax_ov2)
-    orbit_plotter.plot_libration_points(ax=ax_ov2)
-    ax_ov2.set_title("XY", fontsize=11)
-    ax_ov2.set_xlabel("X", fontsize=10)
-    ax_ov2.set_ylabel("Y", fontsize=10)
-    ax_ov2.legend(loc="upper right", fontsize=8)
-    ax_ov2.set_aspect("equal")
-
-    ax_ov3 = fig_overview.add_subplot(223)
-    ax_ov3.set_xlabel("Jacobi Constant", fontsize=10)
-    ax_ov3.set_ylabel("Period", color="tab:blue", fontsize=10)
-    (line_p,) = ax_ov3.plot(jacobi_sorted, periods_sorted, "o-", color="tab:blue", markersize=4)
-    ax_ov3.tick_params(axis="y", labelcolor="tab:blue")
-    ax_ov3_r = ax_ov3.twinx()
-    ax_ov3_r.set_ylabel("λmax", color="tab:red", fontsize=10)
-    (line_s,) = ax_ov3_r.plot(jacobi_sorted, stability_sorted, "s-", color="tab:red", markersize=4)
-    ax_ov3_r.tick_params(axis="y", labelcolor="tab:red")
-    ax_ov3.set_title("Jacobi vs Period & Stability", fontsize=11)
-    ax_ov3.legend([line_p, line_s], ["Period", "λmax"], loc="upper right", fontsize=8)
-    ax_ov3.grid(True, alpha=0.3)
-
-    ax_ov4 = fig_overview.add_subplot(224, projection="3d")
-    orbit_plotter.plot_3d_orbit(seed_orbit, color="red", label="Seed", ax=ax_ov4, show_start=True)
-    for idx in range(orbit_loop_start, pe + 1):
-        orbit = family_result[idx]
-        norm_j = (jacobi_values[idx] - jacobi_min) / jacobi_range
-        orbit_plotter.plot_3d_orbit(orbit, color=cmap(norm_j), ax=ax_ov4, show_start=False)
-    orbit_plotter.plot_primary_bodies(ax=ax_ov4, is_3d=True)
-    ax_ov4.set_xlim(halo_center_x - halo_radius, halo_center_x + halo_radius)
-    ax_ov4.set_ylim(halo_center_y - halo_radius, halo_center_y + halo_radius)
-    ax_ov4.set_zlim(halo_center_z - halo_radius, halo_center_z + halo_radius)
-    ax_ov4.set_title("3D", fontsize=11)
-    ax_ov4.set_xlabel("X", fontsize=10)
-    ax_ov4.set_ylabel("Y", fontsize=10)
-    ax_ov4.set_zlabel("Z", fontsize=10)
-    ax_ov4.view_init(elev=20, azim=-60)
-
-    fig_overview.suptitle(
-        f"Halo Orbit Family Overview — Earth–Moon CR3BP (n = {n_orbits})",
-        fontsize=14,
-        fontweight="bold",
-    )
-    plt.tight_layout()
-    plt.savefig(output_dir / f"{family_name}_overview.png", dpi=300, bbox_inches="tight")
-    if show:
-        plt.show()
-    else:
-        plt.close(fig_overview)
 
     print(f"\n图表已保存至: {output_dir}")
     print(f"  - {family_name}_2d_view.png")
