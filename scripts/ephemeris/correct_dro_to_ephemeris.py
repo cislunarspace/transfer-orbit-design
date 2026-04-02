@@ -162,6 +162,7 @@ def run_multiple_shooting(
         var_time=True,
         max_iter=max_iter,
         tolerance=tolerance,
+        verbose=True,
     )
 
     if result.converged:
