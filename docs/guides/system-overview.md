@@ -59,7 +59,7 @@ transfer-orbit-design/
 | `e2m2e.algorithms.differential_correction` | 周期轨道修正 |
 | `e2m2e.algorithms.continuation` | 自然/伪弧长延拓 |
 | `e2m2e.algorithms.stability` | 单值矩阵特征值分析 |
-| `e2m2e.visualization.plotting` | 2D/3D 轨道绘图 |
+| `e2m2e.visualization.plotting` | 2D/3D 轨道绘图（shim，实际由 config/family/transfer/stability 子模块提供） |
 
 ## 物理参数
 

@@ -102,15 +102,49 @@ family = continuation.natural_continuation(
 
 ## e2m2e 可视化
 
-### e2m2e.visualization.plotting.OrbitVisualizer
+### e2m2e.visualization.config.PlotConfig
 
 ```python
-from e2m2e.visualization.plotting import OrbitVisualizer, compute_stability_for_family
+from e2m2e.visualization.config import PlotConfig
 
-plotter = OrbitVisualizer(system=system)
+cfg = PlotConfig(figsize=(10, 8), dpi=150)
+```
+
+### e2m2e.visualization.family.FamilyPlotter
+
+```python
+from e2m2e.visualization.family import FamilyPlotter
+
+plotter = FamilyPlotter(system=system)
 plotter.plot_2d_projection(orbit, plane="xy")
 plotter.plot_3d_trajectory(orbit)
 plotter.plot_family_overview(family)
+```
+
+### e2m2e.visualization.transfer.TransferPlotter
+
+```python
+from e2m2e.visualization.transfer import TransferPlotter
+
+plotter = TransferPlotter(system=system)
+plotter.plot_transfer_2d(transfer_orbit)
+plotter.plot_transfer_3d(transfer_orbit)
+```
+
+### e2m2e.visualization.stability
+
+```python
+from e2m2e.visualization.stability import plot_stability_index, plot_eigenvalues
+
+plot_stability_index(family)
+plot_eigenvalues(family)
+```
+
+### 向后兼容
+
+```python
+# 旧 API 仍可通过 shim 导入
+from e2m2e.visualization.plotting import FamilyPlotter, TransferPlotter, PlotConfig
 ```
 
 ## 本地脚本

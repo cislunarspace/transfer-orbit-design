@@ -233,7 +233,12 @@ e2m2e/
 │   ├── transfer_optimization.py  # NLP 优化器
 │   └── transfer_search.py        # 网格搜索
 └── visualization/      # 可视化
-    └── plotting.py
+    ├── config.py               # PlotConfig 绘图配置
+    ├── base.py                 # BasePlotter 基类
+    ├── family.py               # FamilyPlotter 轨道族绘图
+    ├── transfer.py             # TransferPlotter 转移绘图
+    ├── stability.py            # 稳定性可视化
+    └── plotting.py             # 向后兼容 shim
 ```
 
 ### transfer-orbit-design 任务脚本（`scripts/`）
