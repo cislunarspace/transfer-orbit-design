@@ -27,13 +27,16 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from fontTools.misc.timeTools import timestampNow
+from scipy.optimize import Bounds, minimize
 from tqdm.auto import tqdm
 
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 from e2m2e.core.orbit import Orbit
 from e2m2e.transfer import (
     DROTRONLPOptimizer,
+    NLPOptimizationResult,
     NLPOptimizationVariables,
+    TransferType,
     load_orbit_from_json,
     optimize_with_copt,
 )
@@ -58,6 +61,12 @@ DT = 1.0 / (24.0 * TU)
 INTEGRATOR = "DOP853"
 INTEGRATOR_RTOL = 1e-12
 INTEGRATOR_ATOL = 1e-12
+
+NLP_MAXITER = 100
+NLP_FTOL = 1e-6
+NLP_RTOL = 1e-10
+NLP_ATOL = 1e-10
+NLP_MAX_STEP = 0.1
 
 TOP_K_FEASIBLE: Optional[int] = None
 MAX_CASES: Optional[int] = None
@@ -184,6 +193,8 @@ def optimize_one_case(
     use_copt=False,
     fallback_to_scipy=True,
     progress_callback=None,
+    nlp_maxiter=NLP_MAXITER,
+    nlp_ftol=NLP_FTOL,
 ):
     departure_state = np.array(rec["departure_state"], dtype=float)
 
@@ -191,19 +202,39 @@ def optimize_one_case(
     T_0 = rec["transfer_time"]
     t_ins_0 = rec.get("t_ins", None)
 
+    nlp_system = CR3BP_System(mu=system.mu, primary="earth", secondary="moon")
+    nlp_dynamics = CR3BP_Dynamics(system=nlp_system)
+    nlp_dynamics.integrator = dynamics.integrator
+    nlp_dynamics.rtol = NLP_RTOL
+    nlp_dynamics.atol = NLP_ATOL
+    nlp_dynamics.max_step = NLP_MAX_STEP
+
     if COMPUTE_T_INS_FROM_TRAJECTORY and (t_ins_0 is None or t_ins_0 == 0.0):
         T_0, t_ins_0 = _compute_initial_t_ins(
-            departure_state, alpha_0, T_0, ro_orbit, dynamics
+            departure_state, alpha_0, T_0, ro_orbit, nlp_dynamics
         )
 
-    ig = NLPOptimizationVariables(
-        alpha=alpha_0,
-        transfer_time=T_0,
-        t_ins=t_ins_0 if t_ins_0 is not None else 0.0,
-    )
+    y0 = np.array([alpha_0, T_0, t_ins_0 if t_ins_0 is not None else 0.0])
+
+    if use_copt:
+        optimizer = DROTRONLPOptimizer(
+            system=nlp_system,
+            dynamics=nlp_dynamics,
+            departure_orbit=dro_orbit,
+            arrival_orbit=ro_orbit,
+            departure_state=departure_state,
+        )
+        optimizer.alpha_range = (alpha_min, alpha_max)
+        optimizer.earth_radius = earth_radius
+        optimizer.moon_radius = moon_radius
+        ig = NLPOptimizationVariables(alpha=y0[0], transfer_time=y0[1], t_ins=y0[2])
+        return optimize_with_copt(
+            optimizer, initial_guess=ig, fallback_to_scipy=fallback_to_scipy
+        )
+
     optimizer = DROTRONLPOptimizer(
-        system=system,
-        dynamics=dynamics,
+        system=nlp_system,
+        dynamics=nlp_dynamics,
         departure_orbit=dro_orbit,
         arrival_orbit=ro_orbit,
         departure_state=departure_state,
@@ -211,23 +242,97 @@ def optimize_one_case(
     optimizer.alpha_range = (alpha_min, alpha_max)
     optimizer.earth_radius = earth_radius
     optimizer.moon_radius = moon_radius
+    optimizer.enable_cache(True)
 
-    if progress_callback is not None:
-        optimizer.set_progress_callback(progress_callback)
+    bounds = Bounds(
+        lb=[alpha_min, 1.0, 0.0],
+        ub=[alpha_max, 30.0, 10.0],
+    )
 
-    if use_copt:
-        return optimize_with_copt(
-            optimizer,
-            initial_guess=ig,
-            fallback_to_scipy=fallback_to_scipy,
+    constraints = [{"type": "eq", "fun": optimizer.constraint_position}]
+
+    if use_relaxed_velocity:
+        cos_theta_max = np.cos(velocity_angle_tol)
+        constraints.append(
+            {"type": "ineq", "fun": lambda y: cos_theta_max - optimizer._compute_cos_angle(y)}
         )
     else:
-        return optimizer.optimize(
-            initial_guess=ig,
-            alpha_range=(alpha_min, alpha_max),
-            use_relaxed_velocity_constraint=use_relaxed_velocity,
-            velocity_angle_constraint=velocity_angle_tol,
-            verbose=verbose,
+        constraints.append({"type": "eq", "fun": optimizer.constraint_velocity_parallel})
+
+    iteration_counter = [0]
+
+    def _scipy_cb(xk):
+        iteration_counter[0] += 1
+        if progress_callback is not None:
+            obj_k = float(optimizer.objective_function(xk))
+            progress_callback(
+                iteration_counter[0], obj_k, float(xk[0]), float(xk[1]), float(xk[2])
+            )
+
+    try:
+        result = minimize(
+            optimizer.objective_function,
+            y0,
+            method="SLSQP",
+            bounds=bounds,
+            constraints=constraints,
+            options={"ftol": nlp_ftol, "maxiter": nlp_maxiter, "disp": verbose},
+            callback=_scipy_cb,
+        )
+
+        final_y = result.x
+        cache = optimizer._evaluate_all(final_y)
+
+        states = cache["states"]
+        times = cache["times"]
+        final_state = cache["final_state"]
+        insertion_state = cache["insertion_state"]
+        dv1 = cache["dv1"]
+        dv2 = cache["dv2"]
+
+        violation = {}
+        if result.success:
+            violation["position"] = float(cache["pos_violation"])
+            if use_relaxed_velocity:
+                violation["velocity"] = max(0.0, cos_theta_max - cache["cos_angle"])
+            else:
+                violation["velocity"] = abs(float(optimizer.constraint_velocity_parallel(final_y)))
+
+        transfer_type = TransferType.DIRECT
+        if not cache["empty"]:
+            x_max = float(np.max(states[:, 0]))
+            T_opt = float(final_y[1])
+            if T_opt < 20.0 and x_max < 1.5:
+                transfer_type = TransferType.DIRECT
+            elif x_max > 3.0:
+                transfer_type = TransferType.EXTERNAL
+            else:
+                transfer_type = TransferType.LGA
+
+        return NLPOptimizationResult(
+            alpha=float(final_y[0]),
+            transfer_time=float(final_y[1]),
+            t_ins=float(final_y[2]),
+            objective_value=dv1 + dv2,
+            delta_v1=dv1,
+            delta_v2=dv2,
+            transfer_trajectory=states,
+            transfer_times=times,
+            departure_state=departure_state.copy(),
+            insertion_state=insertion_state,
+            final_state=final_state,
+            success=bool(result.success),
+            message=str(result.message),
+            transfer_type=transfer_type,
+            constraints_violation=violation,
+        )
+    except Exception as e:
+        return NLPOptimizationResult(
+            alpha=float(y0[0]),
+            transfer_time=float(y0[1]),
+            t_ins=float(y0[2]),
+            success=False,
+            message=f"优化失败: {e}",
         )
 
 
