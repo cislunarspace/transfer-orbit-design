@@ -26,7 +26,7 @@ import os
 from pathlib import Path
 
 import numpy as np
-from fontTools.misc.timeTools import timestampNow
+from datetime import datetime
 
 import e2m2e
 from e2m2e.core import Orbit, CR3BP_System, CR3BP_Dynamics
@@ -61,7 +61,7 @@ BODIES = ["EARTH", "MOON", "SUN"]
 
 
 def find_spice_kernel():
-    for name in ["de440.bsp", "de440s.bsp", "de438.bsp"]:
+    for name in ["de435.bsp", "de440.bsp", "de440s.bsp", "de438.bsp"]:
         path = os.path.join(SPICE_KERNEL_DIR, name)
         if os.path.exists(path):
             return path
@@ -237,7 +237,7 @@ def validate_and_save(result, eph_dynamics):
         "corrected_times_et": corrected_times.tolist(),
     }
 
-    output_file = OUTPUT_DIR / f"dro_ephemeris_correction_{timestampNow()}.json"
+    output_file = OUTPUT_DIR / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=2, ensure_ascii=False)
     print(f"\n  结果已保存: {output_file}")

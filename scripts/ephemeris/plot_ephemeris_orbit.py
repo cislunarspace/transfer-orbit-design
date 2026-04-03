@@ -45,7 +45,7 @@ from scripts.utils.params import DU, MU, TU
 # =============================================================================
 # CONFIG — 修改此处参数
 # =============================================================================
-JSON_FILENAME = "dro_ephemeris_correction_3857940253.json"
+JSON_FILENAME = "dro_homotopy_correction_20260403_155117.json"
 
 DISPLAY_MODE = "both"
 
@@ -61,7 +61,7 @@ def find_spice_kernel():
         "SPICE_KERNEL_DIR",
         str(project_root.parent / "e2m2e" / "kernels"),
     )
-    for name in ["de440.bsp", "de440s.bsp", "de438.bsp"]:
+    for name in ["de435.bsp", "de440.bsp", "de440s.bsp", "de438.bsp"]:
         path = os.path.join(kernel_dir, name)
         if os.path.exists(path):
             return path
@@ -374,8 +374,12 @@ save_prefix = str(OUTPUT_DIR / Path(JSON_FILENAME).stem)
 
 print(f"加载数据: {JSON_FILENAME}")
 data = load_json(json_path)
+bodies = data.get("bodies", data.get("base_bodies", []) + data.get("perturbation_bodies", []))
+data.setdefault("bodies", bodies)
+iterations = data.get("iterations", data.get("total_iterations", "?"))
+print(f"  方法: {data.get('method', 'direct')}")
 print(f"  收敛: {data.get('converged')}")
-print(f"  迭代: {data.get('iterations')}")
+print(f"  迭代: {iterations}")
 print(f"  最大残差: {data.get('max_residual', 'N/A')}")
 print(f"  Patch points: {data.get('n_patch_points')}")
 print(f"  展示模式: {DISPLAY_MODE}")
