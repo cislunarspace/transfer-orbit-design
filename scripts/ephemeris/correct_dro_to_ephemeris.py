@@ -313,7 +313,8 @@ def validate_and_save(result, eph_dynamics, dro_orbit):
     }
 
     output_file = (
-        OUTPUT_DIR / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        OUTPUT_DIR
+        / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     )
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=2, ensure_ascii=False)
@@ -328,24 +329,30 @@ def main():
     依次执行 SPICE 内核加载、DRO 轨道加载、patch points 采样、
     坐标转换、Multiple Shooting 差分修正和结果验证保存。
     """
+    # 打印任务基本信息
     print("DRO CR3BP → 星历模型修正")
     print(f"参考历元: {REFERENCE_EPOCH}")
     print(f"天体: {BODIES}")
     print(f"Patch points: {N_PATCH_POINTS}")
 
+    # 初始化 SPICE 管理器，定位并加载星历内核
     spice = SPICEManager()
-    kernel_path = spice.find_ephemeris_kernel(SPICE_KERNEL_DIR)
+    kernel_path = spice.find_ephemeris_kernel(SPICE_KERNEL_DIR) # 在指定目录中按优先级搜索星历内核文件
     print(f"SPICE kernel: {kernel_path}")
 
+    # 加载闰秒内核（naif0012.tls），用于 UTC ↔ ET 时间转换
     leapseconds_path = os.path.join(SPICE_KERNEL_DIR, "naif0012.tls")
     spiceypy.furnsh(leapseconds_path)
     spice.load_kernel(kernel_path)
 
     try:
+        # 将参考历元 UTC 字符串转换为 SPICE ephemeris time（ET，单位秒）
         reference_et = spice.utc_to_et(REFERENCE_EPOCH)
 
+        # 构建 CR3BP 系统对象，用于后续归一化/反归一化及坐标变换
         cr3bp_system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
+        # 构建星历模型系统与动力学对象，指定引力天体、原点和参考系
         eph_system = EphemerisSystem(
             bodies=BODIES,
             spice=spice,
@@ -354,13 +361,16 @@ def main():
         )
         eph_dynamics = EphemerisDynamics(system=eph_system)
 
+        # Step 1: 从 JSON 文件加载 CR3BP 下的 DRO 轨道
         dro_orbit = load_dro_orbit(cr3bp_system)
 
+        # Step 2: 沿轨道周期均匀采样 patch points（归一化 synodic 坐标系）
         t_patch_syn, states_syn = sample_patch_points(
             dro_orbit,
             N_PATCH_POINTS,
         )
 
+        # Step 3: 将 patch points 从 synodic 归一化坐标系转换到 J2000 惯性系（km, km/s）
         t_patch_j2000, states_j2000 = convert_to_j2000(
             t_patch_syn,
             states_syn,
@@ -369,15 +379,18 @@ def main():
             reference_et,
         )
 
+        # Step 4: 以 J2000 状态为初值，执行 Multiple Shooting 差分修正
         result = run_multiple_shooting(
             t_patch_j2000,
             states_j2000,
             eph_dynamics,
         )
 
+        # Step 5: 验证修正后轨迹连续性，并将结果保存为 JSON
         validate_and_save(result, eph_dynamics, dro_orbit)
 
     finally:
+        # 卸载星历内核，释放 SPICE 资源
         spice.unload_kernel(kernel_path)
 
 
