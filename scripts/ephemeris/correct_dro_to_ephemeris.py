@@ -63,56 +63,6 @@ BODIES = ["EARTH", "MOON", "SUN"]
 # =============================================================================
 
 
-def run_multiple_shooting(
-    t_patch, state_patch, eph_dynamics, max_iter=50, tolerance=POSITION_CONTINUITY_TOL
-):
-    """使用 Multiple Shooting 差分修正方法将 patch points 修正为连续轨迹。
-
-    以时间自由的模式修正各段端点状态与时间，使相邻段的位置连续。
-
-    Args:
-        t_patch: shape (n,)，各 patch point 的 ET 时间数组（秒）。
-        state_patch: shape (n, 6)，各 patch point 的初始状态向量（km, km/s）。
-        eph_dynamics: EphemerisDynamics 实例，提供星历模型下的轨道传播与状态转移矩阵。
-        max_iter: 最大修正迭代次数。默认为 50。
-        tolerance: 位置连续性收敛容差（km）。默认为 POSITION_CONTINUITY_TOL。
-
-    Returns:
-        MultipleShootingResult: 修正结果对象，包含收敛状态、迭代次数、残差历史、
-        修正后的时间和状态等信息。
-    """
-    print(f"\n{'=' * 60}")
-    print("Step 4: Multiple Shooting 差分修正")
-    print(f"{'=' * 60}")
-
-    print(f"  Patch points: {len(t_patch)}")
-    print(f"  最大迭代: {max_iter}")
-    print(f"  收敛容差: {tolerance:.1e} km")
-    print(f"  时间自由: True")
-
-    ms = MultipleShooting(dynamics=eph_dynamics)
-    result = ms.correct(
-        t_patch=t_patch,
-        state_patch=state_patch,
-        var_time=True,
-        max_iter=max_iter,
-        tolerance=tolerance,
-        verbose=True,
-    )
-
-    if result.converged:
-        print(f"\n[ok] 修正收敛!")
-        print(f"  迭代次数: {result.iterations}")
-        print(f"  最大残差: {result.max_residual:.2e} km")
-        print(f"  残差历史: {[f'{r:.2e}' for r in result.residual_history]}")
-    else:
-        print(f"\n[warning] 修正未收敛")
-        print(f"  迭代次数: {result.iterations}")
-        print(f"  最大残差: {result.max_residual:.2e} km")
-
-    return result
-
-
 def validate_and_save(result, eph_dynamics, dro_orbit):
     """验证修正后轨迹的位置连续性并保存结果到 JSON 文件。
 
@@ -293,11 +243,34 @@ def main():
             )
 
         # Step 4: 以 J2000 状态为初值，执行 Multiple Shooting 差分修正
-        result = run_multiple_shooting(
-            t_patch_j2000,
-            states_j2000,
-            eph_dynamics,
+        print(f"\n{'=' * 60}")
+        print("Step 4: Multiple Shooting 差分修正")
+        print(f"{'=' * 60}")
+
+        print(f"  Patch points: {len(t_patch_j2000)}")
+        print(f"  最大迭代: 50")
+        print(f"  收敛容差: {POSITION_CONTINUITY_TOL:.1e} km")
+        print(f"  时间自由: True")
+
+        ms = MultipleShooting(dynamics=eph_dynamics)
+        result = ms.correct(
+            t_patch=t_patch_j2000,
+            state_patch=states_j2000,
+            var_time=True,
+            max_iter=50,
+            tolerance=POSITION_CONTINUITY_TOL,
+            verbose=True,
         )
+
+        if result.converged:
+            print(f"\n[ok] 修正收敛!")
+            print(f"  迭代次数: {result.iterations}")
+            print(f"  最大残差: {result.max_residual:.2e} km")
+            print(f"  残差历史: {[f'{r:.2e}' for r in result.residual_history]}")
+        else:
+            print(f"\n[warning] 修正未收敛")
+            print(f"  迭代次数: {result.iterations}")
+            print(f"  最大残差: {result.max_residual:.2e} km")
 
         # Step 5: 验证修正后轨迹连续性，并将结果保存为 JSON
         validate_and_save(result, eph_dynamics, dro_orbit)
