@@ -1,11 +1,11 @@
 """
 DRO 轨道 CR3BP → 星历模型 (Ephemeris N-body) 修正
 
-将 CR3BP 中的 3:1 DRO 轨道转换到高精度星历模型下，
+将 CR3BP 中的 DRO 轨道转换到高精度星历模型下，
 使用 Multiple Shooting 差分修正方法。
 
 工作流:
-  Step 1: 在 CR3BP 中生成 3:1 DRO 轨道
+  Step 1: 从 JSON 文件加载 DRO 轨道
   Step 2: 对 DRO 轨道均匀采样生成 patch points
   Step 3: synodic → J2000 坐标转换（含速度）
   Step 4: Multiple Shooting 差分修正（星历模型）
@@ -28,11 +28,10 @@ from pathlib import Path
 import numpy as np
 from datetime import datetime
 
-import e2m2e
-from e2m2e.core import Orbit, CR3BP_System, CR3BP_Dynamics
+from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.core import SPICEManager, EphemerisSystem, EphemerisDynamics
 from e2m2e.core import SynodicJ2000Transformation
-from e2m2e.algorithms import DifferentialCorrection, MultipleShooting
+from e2m2e.algorithms import MultipleShooting
 
 from scripts.utils.params import MU, DU, TU
 
@@ -45,9 +44,7 @@ OUTPUT_DIR = project_root / "output" / "ephemeris"
 TU_SECONDS = TU * 86400
 VU = DU / TU_SECONDS
 
-DRO_31_X0 = 1.1202109158830986
-DRO_31_VY0 = -0.46178983697629084
-DRO_31_PERIOD = 2.095
+DRO_JSON_FILE = project_root / "output" / "dro" / "dro_31_3857864736.json"
 
 N_PATCH_POINTS = 8
 POSITION_CONTINUITY_TOL = 1e-6
@@ -70,43 +67,41 @@ def find_spice_kernel():
     )
 
 
-def generate_dro_orbit(system, dynamics):
+def load_dro_orbit(system):
     print("=" * 60)
-    print("Step 1: 生成 3:1 DRO 轨道 (CR3BP)")
+    print("Step 1: 加载 DRO 轨道 (JSON)")
     print("=" * 60)
 
-    seed_state = np.array([DRO_31_X0, 0.0, 0.0, 0.0, DRO_31_VY0, 0.0])
-    seed_orbit = Orbit(states=[seed_state], times=[0])
-    seed_orbit.period = DRO_31_PERIOD
+    dro_orbit = Orbit.load_from_file(filename=DRO_JSON_FILE, system=system)
 
-    print(f"种子状态: x0={DRO_31_X0:.4f}, vy0={DRO_31_VY0:.4f}")
-    print(f"目标周期: {DRO_31_PERIOD:.4f} TU ({DRO_31_PERIOD * TU:.2f} days)")
+    if dro_orbit.period is None:
+        dro_orbit._estimate_period()
 
-    corrector = DifferentialCorrection(dynamic=dynamics)
-    corrector.setup_2D_symmetric_x_fixed_x0(x0=DRO_31_X0)
-    orbit_result = corrector.iterate_correction(initial_guess=seed_orbit, verbose=True)
+    assert dro_orbit.period is not None, "无法确定 DRO 轨道周期"
 
-    if orbit_result is None:
-        raise RuntimeError(f"DRO 微分修正失败: {corrector.termination_reason}")
-
-    print(f"\n[ok] DRO 轨道生成成功!")
-    print(f"  修正后周期: {orbit_result.period:.6f} TU")
-    print(f"  初始状态: {orbit_result.states[0]}")
-    return orbit_result
+    print(f"  文件: {DRO_JSON_FILE.name}")
+    print(f"  状态数: {len(dro_orbit.states)}")
+    period = dro_orbit.period
+    print(f"  周期: {period:.6f} TU ({period * TU:.2f} days)")
+    print(f"  初始状态: {dro_orbit.states[0]}")
+    return dro_orbit
 
 
-def sample_patch_points(dro_orbit, dynamics, n_points):
+def sample_patch_points(dro_orbit, n_points):
     print(f"\n{'=' * 60}")
     print(f"Step 2: 采样 {n_points} 个 patch points")
     print(f"{'=' * 60}")
 
     period = dro_orbit.period
+    assert period is not None, "轨道周期未知，无法采样 patch points"
     t_patch = np.linspace(0, period, n_points, endpoint=False)
 
+    orbit_states = np.array(dro_orbit.states)
+    orbit_times = np.array(dro_orbit.times)
+
     states = np.zeros((n_points, 6))
-    states[0] = dro_orbit.states[0]
-    for i in range(1, n_points):
-        states[i] = dynamics.propagate_orbit_state_at_time(dro_orbit, t_patch[i])
+    for dim in range(6):
+        states[:, dim] = np.interp(t_patch, orbit_times, orbit_states[:, dim])
 
     print(f"  时间范围: [0, {t_patch[-1]:.4f}] TU")
     print(f"  时间间隔: {t_patch[1] - t_patch[0]:.4f} TU")
@@ -178,7 +173,7 @@ def run_multiple_shooting(
     return result
 
 
-def validate_and_save(result, eph_dynamics):
+def validate_and_save(result, eph_dynamics, dro_orbit):
     print(f"\n{'=' * 60}")
     print("Step 5: 验证与保存")
     print(f"{'=' * 60}")
@@ -199,6 +194,8 @@ def validate_and_save(result, eph_dynamics):
     print(f"  距离标准差: {std_dist:.0f} km (std/mean={std_dist / mean_dist:.4f})")
 
     pos_errors = []
+    full_states_list = []
+    full_times_list = []
     for i in range(n_seg):
         prop = eph_dynamics.propagate(
             corrected_states[i],
@@ -209,8 +206,20 @@ def validate_and_save(result, eph_dynamics):
         pos_errors.append(pos_error)
         print(f"    段 {i}→{i + 1}: 位置连续性误差 = {pos_error:.2e} km")
 
+        seg_states = prop["states"].T
+        seg_times = prop["time"]
+        if i > 0:
+            seg_states = seg_states[1:]
+            seg_times = seg_times[1:]
+        full_states_list.append(seg_states)
+        full_times_list.append(seg_times)
+
+    full_states = np.vstack(full_states_list)
+    full_times = np.concatenate(full_times_list)
+    print(f"\n  完整轨迹: {len(full_states)} 个状态点")
+
     max_error = max(pos_errors)
-    print(f"\n  最大位置连续性误差: {max_error:.2e} km")
+    print(f"  最大位置连续性误差: {max_error:.2e} km")
     if max_error < POSITION_CONTINUITY_TOL:
         print(f"  [ok] 满足连续性要求 (< {POSITION_CONTINUITY_TOL:.1e} km)")
     else:
@@ -226,15 +235,18 @@ def validate_and_save(result, eph_dynamics):
         "n_patch_points": len(corrected_states),
         "bodies": BODIES,
         "cr3bp_dro": {
-            "x0": DRO_31_X0,
-            "vy0": DRO_31_VY0,
-            "period_tu": DRO_31_PERIOD,
+            "source_file": str(DRO_JSON_FILE),
+            "x0": dro_orbit.states[0][0],
+            "vy0": dro_orbit.states[0][4],
+            "period_tu": dro_orbit.period,
         },
         "position_errors_km": [float(e) for e in pos_errors],
         "mean_distance_km": float(mean_dist),
         "std_distance_km": float(std_dist),
         "corrected_states": corrected_states.tolist(),
         "corrected_times_et": corrected_times.tolist(),
+        "full_trajectory_states": full_states.tolist(),
+        "full_trajectory_times_et": full_times.tolist(),
     }
 
     output_file = OUTPUT_DIR / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -261,7 +273,6 @@ def main():
         reference_et = spice.utc_to_et(REFERENCE_EPOCH)
 
         cr3bp_system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
-        cr3bp_dynamics = CR3BP_Dynamics(system=cr3bp_system)
 
         eph_system = EphemerisSystem(
             bodies=BODIES,
@@ -271,11 +282,10 @@ def main():
         )
         eph_dynamics = EphemerisDynamics(system=eph_system)
 
-        dro_orbit = generate_dro_orbit(cr3bp_system, cr3bp_dynamics)
+        dro_orbit = load_dro_orbit(cr3bp_system)
 
         t_patch_syn, states_syn = sample_patch_points(
             dro_orbit,
-            cr3bp_dynamics,
             N_PATCH_POINTS,
         )
 
@@ -293,7 +303,7 @@ def main():
             eph_dynamics,
         )
 
-        validate_and_save(result, eph_dynamics)
+        validate_and_save(result, eph_dynamics, dro_orbit)
 
     finally:
         spice.unload_kernel(kernel_path)
