@@ -66,16 +66,6 @@ MAX_ITER_MS = 50
 MS_TOLERANCE = POSITION_CONTINUITY_TOL
 
 
-def find_spice_kernel():
-    for name in ["de435.bsp", "de440.bsp", "de440s.bsp", "de438.bsp"]:
-        path = os.path.join(SPICE_KERNEL_DIR, name)
-        if os.path.exists(path):
-            return path
-    raise FileNotFoundError(
-        f"SPICE kernel not found in {SPICE_KERNEL_DIR}. Set SPICE_KERNEL_DIR environment variable."
-    )
-
-
 def load_dro_orbit(system):
     print("=" * 60)
     print("Step 1: 加载 DRO 轨道 (JSON)")
@@ -233,15 +223,9 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
                 if result_sub.converged:
                     current_t = result_sub.t_patch.copy()
                     current_states = result_sub.state_patch.copy()
-                    print(
-                        f"    子步 λ={sub_lam:.4f} 收敛, "
-                        f"残差={result_sub.max_residual:.2e}"
-                    )
+                    print(f"    子步 λ={sub_lam:.4f} 收敛, 残差={result_sub.max_residual:.2e}")
                 else:
-                    print(
-                        f"    子步 λ={sub_lam:.4f} 仍未收敛, "
-                        f"残差={result_sub.max_residual:.2e}"
-                    )
+                    print(f"    子步 λ={sub_lam:.4f} 仍未收敛, 残差={result_sub.max_residual:.2e}")
                     sub_ok = False
                     break
 
@@ -355,10 +339,9 @@ def main():
     print(f"同伦路径: {HOMOTOPY_STEPS}")
     print(f"Patch points: {N_PATCH_POINTS}")
 
-    kernel_path = find_spice_kernel()
-    print(f"SPICE kernel: {kernel_path}")
-
     spice = SPICEManager()
+    kernel_path = spice.find_ephemeris_kernel(SPICE_KERNEL_DIR)
+    print(f"SPICE kernel: {kernel_path}")
     import spiceypy
 
     leapseconds_path = os.path.join(SPICE_KERNEL_DIR, "naif0012.tls")

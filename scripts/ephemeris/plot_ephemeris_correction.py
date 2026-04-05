@@ -42,16 +42,6 @@ TU_SECONDS = TU * 86400
 N_PERIODS = 3
 
 
-def find_spice_kernel():
-    for name in ["de435.bsp", "de440.bsp", "de440s.bsp", "de438.bsp"]:
-        path = os.path.join(SPICE_KERNEL_DIR, name)
-        if os.path.exists(path):
-            return path
-    raise FileNotFoundError(
-        f"SPICE kernel not found in {SPICE_KERNEL_DIR}. Set SPICE_KERNEL_DIR."
-    )
-
-
 def set_axes_equal(ax):
     x_range = ax.get_xlim()[1] - ax.get_xlim()[0]
     y_range = ax.get_ylim()[1] - ax.get_ylim()[0]
@@ -85,8 +75,8 @@ def tile_orbit_n_periods(orbit, n):
 
 
 def main():
-    kernel_path = find_spice_kernel()
     spice = SPICEManager()
+    kernel_path = spice.find_ephemeris_kernel(SPICE_KERNEL_DIR)
     import spiceypy
 
     leapseconds_path = os.path.join(SPICE_KERNEL_DIR, "naif0012.tls")

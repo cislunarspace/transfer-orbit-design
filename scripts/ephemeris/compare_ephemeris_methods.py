@@ -69,16 +69,6 @@ MS_TOLERANCE = POSITION_CONTINUITY_TOL
 N_PERIODS = 3
 
 
-def find_spice_kernel():
-    for name in ["de435.bsp", "de440.bsp", "de440s.bsp", "de438.bsp"]:
-        path = os.path.join(SPICE_KERNEL_DIR, name)
-        if os.path.exists(path):
-            return path
-    raise FileNotFoundError(
-        f"SPICE kernel not found in {SPICE_KERNEL_DIR}. Set SPICE_KERNEL_DIR environment variable."
-    )
-
-
 def set_axes_equal(ax):
     x_range = ax.get_xlim()[1] - ax.get_xlim()[0]
     y_range = ax.get_ylim()[1] - ax.get_ylim()[0]
@@ -97,10 +87,10 @@ def setup_shared_infrastructure():
     print("Step 1: 公共初始化")
     print("=" * 60)
 
-    kernel_path = find_spice_kernel()
+    spice = SPICEManager()
+    kernel_path = spice.find_ephemeris_kernel(SPICE_KERNEL_DIR)
     print(f"  SPICE kernel: {kernel_path}")
 
-    spice = SPICEManager()
     spice.load_kernel(kernel_path)
 
     try:
@@ -108,17 +98,13 @@ def setup_shared_infrastructure():
         print(f"  参考历元: {REFERENCE_EPOCH} (ET={reference_et:.2f} s)")
 
         cr3bp_system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
-        eph_system = EphemerisSystem(
-            bodies=BODIES, spice=spice, origin="EARTH", frame="J2000"
-        )
+        eph_system = EphemerisSystem(bodies=BODIES, spice=spice, origin="EARTH", frame="J2000")
 
         dro_orbit = Orbit.load_from_file(filename=DRO_JSON_FILE, system=cr3bp_system)
         if dro_orbit.period is None:
             dro_orbit._estimate_period()
         assert dro_orbit.period is not None
-        print(
-            f"  DRO 周期: {dro_orbit.period:.6f} TU ({dro_orbit.period * TU:.2f} days)"
-        )
+        print(f"  DRO 周期: {dro_orbit.period:.6f} TU ({dro_orbit.period * TU:.2f} days)")
 
         period = dro_orbit.period
         t_patch_syn = np.linspace(0, period, N_PATCH_POINTS, endpoint=False)
@@ -126,9 +112,7 @@ def setup_shared_infrastructure():
         orbit_times = np.array(dro_orbit.times)
         states_syn = np.zeros((N_PATCH_POINTS, 6))
         for dim in range(6):
-            states_syn[:, dim] = np.interp(
-                t_patch_syn, orbit_times, orbit_states[:, dim]
-            )
+            states_syn[:, dim] = np.interp(t_patch_syn, orbit_times, orbit_states[:, dim])
 
         syn_j2000 = SynodicJ2000Transformation(cr3bp_system=cr3bp_system, spice=spice)
         states_j2000 = syn_j2000.batch_synodic_to_j2000(
@@ -279,9 +263,7 @@ def run_homotopy_method(eph_system, t_patch_j2000, states_j2000):
                         "converged": result_sub.converged,
                         "iterations": result_sub.iterations,
                         "max_residual": float(result_sub.max_residual),
-                        "residual_history": [
-                            float(r) for r in result_sub.residual_history
-                        ],
+                        "residual_history": [float(r) for r in result_sub.residual_history],
                         "time_s": round(dt_sub, 3),
                         "note": "sub-step",
                     }
@@ -290,10 +272,7 @@ def run_homotopy_method(eph_system, t_patch_j2000, states_j2000):
                 if result_sub.converged:
                     current_t = result_sub.t_patch.copy()
                     current_states = result_sub.state_patch.copy()
-                    print(
-                        f"      子步 λ={sub_lam:.4f} ok, "
-                        f"res={result_sub.max_residual:.2e}"
-                    )
+                    print(f"      子步 λ={sub_lam:.4f} ok, res={result_sub.max_residual:.2e}")
                 else:
                     print(f"      子步 λ={sub_lam:.4f} 失败")
                     sub_ok = False
@@ -362,10 +341,7 @@ def print_comparison_table(direct_info, homotopy_info):
         f"{homotopy_info['total_iterations']:>18}"
     )
 
-    print(
-        f"{'运行时间 (s)':<22} {direct_info['time_s']:>18.2f} "
-        f"{homotopy_info['time_s']:>18.2f}"
-    )
+    print(f"{'运行时间 (s)':<22} {direct_info['time_s']:>18.2f} {homotopy_info['time_s']:>18.2f}")
 
     print(
         f"{'最终残差 (km)':<22} {direct_info['max_residual']:>18.2e} "
@@ -521,8 +497,7 @@ def plot_trajectory_comparison(direct_info, homotopy_info, setup):
     set_axes_equal(ax2)
 
     fig.suptitle(
-        f"DRO→星历模型修正：轨迹对比\n"
-        f"ref: {REFERENCE_EPOCH}, bodies: {', '.join(BODIES)}",
+        f"DRO→星历模型修正：轨迹对比\nref: {REFERENCE_EPOCH}, bodies: {', '.join(BODIES)}",
         fontsize=13,
         y=1.02,
     )

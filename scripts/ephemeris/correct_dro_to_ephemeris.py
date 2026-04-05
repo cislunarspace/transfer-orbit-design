@@ -57,30 +57,10 @@ SPICE_KERNEL_DIR = os.environ.get(
 )
 BODIES = ["EARTH", "MOON", "SUN"]
 
+
 # =============================================================================
 # 辅助函数
 # =============================================================================
-def find_spice_kernel():
-    """在 SPICE_KERNEL_DIR 中搜索可用的 SPICE 行星历内核文件。
-
-    按优先级依次查找 de435.bsp、de440.bsp、de440s.bsp、de438.bsp，
-    返回第一个找到的文件路径。
-
-    Returns:
-        str: 找到的 SPICE 内核文件的绝对路径。
-
-    Raises:
-        FileNotFoundError: 如果所有候选内核文件均不存在。
-    """
-    for name in ["de435.bsp", "de440.bsp", "de440s.bsp", "de438.bsp"]:
-        path = os.path.join(SPICE_KERNEL_DIR, name)
-        if os.path.exists(path):
-            return path
-    raise FileNotFoundError(
-        f"SPICE kernel not found in {SPICE_KERNEL_DIR}. Set SPICE_KERNEL_DIR environment variable."
-    )
-
-
 def load_dro_orbit(system):
     """从 JSON 文件加载 DRO 轨道数据并估计其周期。
 
@@ -333,8 +313,7 @@ def validate_and_save(result, eph_dynamics, dro_orbit):
     }
 
     output_file = (
-        OUTPUT_DIR
-        / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        OUTPUT_DIR / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     )
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=2, ensure_ascii=False)
@@ -354,10 +333,9 @@ def main():
     print(f"天体: {BODIES}")
     print(f"Patch points: {N_PATCH_POINTS}")
 
-    kernel_path = find_spice_kernel()
-    print(f"SPICE kernel: {kernel_path}")
-
     spice = SPICEManager()
+    kernel_path = spice.find_ephemeris_kernel(SPICE_KERNEL_DIR)
+    print(f"SPICE kernel: {kernel_path}")
 
     leapseconds_path = os.path.join(SPICE_KERNEL_DIR, "naif0012.tls")
     spiceypy.furnsh(leapseconds_path)
