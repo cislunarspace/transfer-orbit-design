@@ -13,7 +13,7 @@ DRO 轨道 CR3BP → 星历模型 修正（同伦法）
     加速度: a(r,t,λ) = Σ_{base} a_b + λ · Σ_{perturbation} a_p
 
 工作流:
-    Step 1: 在 CR3BP 中生成 3:1 DRO 轨道
+    Step 1: 从 JSON 文件加载 DRO 轨道
     Step 2: 采样 patch points，synodic → J2000 转换
     Step 3: Phase 1 — λ=0, E+M only, MultipleShooting 修正
     Step 4: Phase 2 — λ: 0→1, 自然延拓逐步引入 Sun
@@ -33,11 +33,11 @@ from pathlib import Path
 import numpy as np
 from datetime import datetime
 
-from e2m2e.core import Orbit, CR3BP_System, CR3BP_Dynamics
+from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.core import SPICEManager, EphemerisSystem
 from e2m2e.core import HomotopyEphemerisDynamics
 from e2m2e.core import SynodicJ2000Transformation
-from e2m2e.algorithms import DifferentialCorrection, MultipleShooting
+from e2m2e.algorithms import MultipleShooting
 
 from scripts.utils.params import MU, DU, TU
 
@@ -47,9 +47,7 @@ OUTPUT_DIR = project_root / "output" / "ephemeris"
 TU_SECONDS = TU * 86400
 VU = DU / TU_SECONDS
 
-DRO_31_X0 = 1.1202109158830986
-DRO_31_VY0 = -0.46178983697629084
-DRO_31_PERIOD = 2.095
+DRO_JSON_FILE = project_root / "output" / "dro" / "dro_31_3857864736.json"
 
 N_PATCH_POINTS = 8
 POSITION_CONTINUITY_TOL = 1e-6
@@ -63,7 +61,7 @@ BODIES = ["EARTH", "MOON", "SUN"]
 BASE_BODIES = ["EARTH", "MOON"]
 PERTURBATION_BODIES = ["SUN"]
 
-HOMOTOPY_STEPS = [0.0, 0.25, 0.5, 0.75, 1.0]
+HOMOTOPY_STEPS = [0.25, 0.5, 0.75, 1.0]
 MAX_ITER_MS = 50
 MS_TOLERANCE = POSITION_CONTINUITY_TOL
 
@@ -78,46 +76,42 @@ def find_spice_kernel():
     )
 
 
-def generate_dro_orbit(system, dynamics):
+def load_dro_orbit(system):
     print("=" * 60)
-    print("Step 1: 生成 3:1 DRO 轨道 (CR3BP)")
+    print("Step 1: 加载 DRO 轨道 (JSON)")
     print("=" * 60)
 
-    seed_state = np.array([DRO_31_X0, 0.0, 0.0, 0.0, DRO_31_VY0, 0.0])
-    seed_orbit = Orbit(states=[seed_state], times=[0])
-    seed_orbit.period = DRO_31_PERIOD
+    dro_orbit = Orbit.load_from_file(filename=DRO_JSON_FILE, system=system)
 
-    print(f"种子状态: x0={DRO_31_X0:.4f}, vy0={DRO_31_VY0:.4f}")
-    print(f"目标周期: {DRO_31_PERIOD:.4f} TU ({DRO_31_PERIOD * TU:.2f} days)")
+    if dro_orbit.period is None:
+        dro_orbit._estimate_period()
 
-    corrector = DifferentialCorrection(dynamic=dynamics)
-    corrector.setup_2D_symmetric_x_fixed_x0(x0=DRO_31_X0)
-    orbit_result = corrector.iterate_correction(initial_guess=seed_orbit, verbose=True)
+    assert dro_orbit.period is not None, "无法确定 DRO 轨道周期"
 
-    if orbit_result is None:
-        raise RuntimeError(f"DRO 微分修正失败: {corrector.termination_reason}")
-
-    print(f"\n[ok] DRO 轨道生成成功!")
-    print(f"  修正后周期: {orbit_result.period:.6f} TU")
-    print(f"  初始状态: {orbit_result.states[0]}")
-    return orbit_result
+    print(f"  文件: {DRO_JSON_FILE.name}")
+    print(f"  状态数: {len(dro_orbit.states)}")
+    period = dro_orbit.period
+    print(f"  周期: {period:.6f} TU ({period * TU:.2f} days)")
+    print(f"  初始状态: {dro_orbit.states[0]}")
+    return dro_orbit
 
 
-def prepare_patch_points(dro_orbit, cr3bp_dynamics, cr3bp_system, spice, reference_et):
+def prepare_patch_points(dro_orbit, cr3bp_system, spice, reference_et):
     print(f"\n{'=' * 60}")
     print("Step 2: 采样 patch points + Synodic → J2000")
     print(f"{'=' * 60}")
 
     period = dro_orbit.period
+    assert period is not None, "轨道周期未知，无法采样 patch points"
     n_points = N_PATCH_POINTS
     t_patch_syn = np.linspace(0, period, n_points, endpoint=False)
 
+    orbit_states = np.array(dro_orbit.states)
+    orbit_times = np.array(dro_orbit.times)
+
     states_syn = np.zeros((n_points, 6))
-    states_syn[0] = dro_orbit.states[0]
-    for i in range(1, n_points):
-        states_syn[i] = cr3bp_dynamics.propagate_orbit_state_at_time(
-            dro_orbit, t_patch_syn[i]
-        )
+    for dim in range(6):
+        states_syn[:, dim] = np.interp(t_patch_syn, orbit_times, orbit_states[:, dim])
 
     syn_j2000 = SynodicJ2000Transformation(
         cr3bp_system=cr3bp_system,
@@ -264,7 +258,7 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
     return result, homotopy_log, total_dt
 
 
-def validate_and_save(result, homotopy_log, total_time, eph_system):
+def validate_and_save(result, homotopy_log, total_time, eph_system, dro_orbit):
     print(f"\n{'=' * 60}")
     print("Step 5: 验证与保存")
     print(f"{'=' * 60}")
@@ -324,9 +318,10 @@ def validate_and_save(result, homotopy_log, total_time, eph_system):
         "base_bodies": BASE_BODIES,
         "perturbation_bodies": PERTURBATION_BODIES,
         "cr3bp_dro": {
-            "x0": DRO_31_X0,
-            "vy0": DRO_31_VY0,
-            "period_tu": DRO_31_PERIOD,
+            "source_file": str(DRO_JSON_FILE),
+            "x0": dro_orbit.states[0][0],
+            "vy0": dro_orbit.states[0][4],
+            "period_tu": dro_orbit.period,
         },
         "position_errors_km": [float(e) for e in pos_errors],
         "mean_distance_km": float(mean_dist),
@@ -362,7 +357,6 @@ def main():
         reference_et = spice.utc_to_et(REFERENCE_EPOCH)
 
         cr3bp_system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
-        cr3bp_dynamics = CR3BP_Dynamics(system=cr3bp_system)
 
         eph_system = EphemerisSystem(
             bodies=BODIES,
@@ -371,17 +365,17 @@ def main():
             frame="J2000",
         )
 
-        dro_orbit = generate_dro_orbit(cr3bp_system, cr3bp_dynamics)
+        dro_orbit = load_dro_orbit(cr3bp_system)
 
         t_patch_j2000, states_j2000 = prepare_patch_points(
-            dro_orbit, cr3bp_dynamics, cr3bp_system, spice, reference_et
+            dro_orbit, cr3bp_system, spice, reference_et
         )
 
         result, homotopy_log, total_time = run_homotopy_correction(
             t_patch_j2000, states_j2000, eph_system
         )
 
-        validate_and_save(result, homotopy_log, total_time, eph_system)
+        validate_and_save(result, homotopy_log, total_time, eph_system, dro_orbit)
 
     finally:
         spice.unload_kernel(kernel_path)
