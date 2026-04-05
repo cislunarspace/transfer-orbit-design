@@ -32,7 +32,7 @@ import spiceypy
 from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.core import SPICEManager, EphemerisSystem, EphemerisDynamics
 from e2m2e.core import SynodicJ2000Transformation
-from e2m2e.algorithms import MultipleShooting
+from e2m2e.algorithms import MultipleShooting, sample_patch_points, convert_to_j2000
 
 from scripts.utils.params import MU, DU, TU
 
@@ -61,37 +61,12 @@ BODIES = ["EARTH", "MOON", "SUN"]
 # =============================================================================
 # 辅助函数
 # =============================================================================
-def sample_patch_points(dro_orbit, n_points):
-    """沿 DRO 轨道等间距采样 patch points，用于 Multiple Shooting 修正。
-
-    在轨道周期内均匀取 n_points 个时刻，通过线性插值获取对应的状态向量。
-
-    Args:
-        dro_orbit: DRO 轨道对象，需包含有效的 period 属性。
-        n_points: 需要采样的 patch point 数量。
-
-    Returns:
-        tuple[np.ndarray, np.ndarray]:
-            - t_patch: shape (n_points,)，各 patch point 对应的归一化时间（TU）。
-            - states: shape (n_points, 6)，各 patch point 的六维状态向量（归一化）。
-
-    Raises:
-        AssertionError: 如果轨道周期为 None。
-    """
+def sample_patch_points_wrapper(dro_orbit, n_points):
     print(f"\n{'=' * 60}")
     print(f"Step 2: 采样 {n_points} 个 patch points")
     print(f"{'=' * 60}")
 
-    period = dro_orbit.period
-    assert period is not None, "轨道周期未知，无法采样 patch points"
-    t_patch = np.linspace(0, period, n_points, endpoint=False)
-
-    orbit_states = np.array(dro_orbit.states)
-    orbit_times = np.array(dro_orbit.times)
-
-    states = np.zeros((n_points, 6))
-    for dim in range(6):
-        states[:, dim] = np.interp(t_patch, orbit_times, orbit_states[:, dim])
+    t_patch, states = sample_patch_points(dro_orbit, n_points)
 
     print(f"  时间范围: [0, {t_patch[-1]:.4f}] TU")
     print(f"  时间间隔: {t_patch[1] - t_patch[0]:.4f} TU")
@@ -102,21 +77,7 @@ def sample_patch_points(dro_orbit, n_points):
     return t_patch, states
 
 
-def convert_to_j2000(t_patch_syn, states_syn, cr3bp_system, spice, reference_et):
-    """将 synodic 坐标系下的 patch points 批量转换为 J2000 坐标系。
-
-    Args:
-        t_patch_syn: shape (n,)，synodic 归一化时间数组（TU）。
-        states_syn: shape (n, 6)，synodic 坐标系下的状态向量数组。
-        cr3bp_system: CR3BP 系统对象，提供质量参数等归一化信息。
-        spice: SPICEManager 实例，用于天体位置查询。
-        reference_et: 参考历元的 ET（ephemeris time），单位秒。
-
-    Returns:
-        tuple[np.ndarray, np.ndarray]:
-            - t_patch_j2000: shape (n,)，J2000 下的绝对 ET 时间数组（秒）。
-            - states_j2000: shape (n, 6)，J2000 惯性系下的状态向量数组（km, km/s）。
-    """
+def convert_to_j2000_wrapper(t_patch_syn, states_syn, cr3bp_system, spice, reference_et):
     print(f"\n{'=' * 60}")
     print("Step 3: Synodic → J2000 坐标转换")
     print(f"{'=' * 60}")
@@ -125,13 +86,9 @@ def convert_to_j2000(t_patch_syn, states_syn, cr3bp_system, spice, reference_et)
         cr3bp_system=cr3bp_system,
         spice=spice,
     )
-
-    states_j2000 = syn_j2000.batch_synodic_to_j2000(
-        states_syn=states_syn,
-        t_syn_arr=t_patch_syn,
-        et0=reference_et,
+    t_patch_j2000, states_j2000 = convert_to_j2000(
+        t_patch_syn, states_syn, syn_j2000, reference_et, TU_SECONDS
     )
-    t_patch_j2000 = reference_et + t_patch_syn * TU_SECONDS
 
     print(f"  参考历元: {REFERENCE_EPOCH} (ET={reference_et:.2f} s)")
     for i in range(len(t_patch_syn)):
@@ -282,8 +239,7 @@ def validate_and_save(result, eph_dynamics, dro_orbit):
     }
 
     output_file = (
-        OUTPUT_DIR
-        / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        OUTPUT_DIR / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     )
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=2, ensure_ascii=False)
@@ -342,13 +298,12 @@ def main():
         print(f"  初始状态: {dro_orbit.states[0]}")
 
         # Step 2: 沿轨道周期均匀采样 patch points（归一化 synodic 坐标系）
-        t_patch_syn, states_syn = sample_patch_points(
+        t_patch_syn, states_syn = sample_patch_points_wrapper(
             dro_orbit,
             N_PATCH_POINTS,
         )
 
-        # Step 3: 将 patch points 从 synodic 归一化坐标系转换到 J2000 惯性系（km, km/s）
-        t_patch_j2000, states_j2000 = convert_to_j2000(
+        t_patch_j2000, states_j2000 = convert_to_j2000_wrapper(
             t_patch_syn,
             states_syn,
             cr3bp_system,

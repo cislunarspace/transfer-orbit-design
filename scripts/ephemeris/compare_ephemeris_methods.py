@@ -30,7 +30,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from e2m2e.algorithms import MultipleShooting
+from e2m2e.algorithms import MultipleShooting, sample_patch_points, convert_to_j2000
 from e2m2e.core import (
     CR3BP_System,
     EphemerisDynamics,
@@ -106,19 +106,12 @@ def setup_shared_infrastructure():
         assert dro_orbit.period is not None
         print(f"  DRO 周期: {dro_orbit.period:.6f} TU ({dro_orbit.period * TU:.2f} days)")
 
-        period = dro_orbit.period
-        t_patch_syn = np.linspace(0, period, N_PATCH_POINTS, endpoint=False)
-        orbit_states = np.array(dro_orbit.states)
-        orbit_times = np.array(dro_orbit.times)
-        states_syn = np.zeros((N_PATCH_POINTS, 6))
-        for dim in range(6):
-            states_syn[:, dim] = np.interp(t_patch_syn, orbit_times, orbit_states[:, dim])
+        t_patch_syn, states_syn = sample_patch_points(dro_orbit, N_PATCH_POINTS)
 
         syn_j2000 = SynodicJ2000Transformation(cr3bp_system=cr3bp_system, spice=spice)
-        states_j2000 = syn_j2000.batch_synodic_to_j2000(
-            states_syn=states_syn, t_syn_arr=t_patch_syn, et0=reference_et
+        t_patch_j2000, states_j2000 = convert_to_j2000(
+            t_patch_syn, states_syn, syn_j2000, reference_et, TU_SECONDS
         )
-        t_patch_j2000 = reference_et + t_patch_syn * TU_SECONDS
 
         print(f"  Patch points: {N_PATCH_POINTS}")
         print(f"  坐标转换完成: Synodic → J2000")

@@ -37,7 +37,7 @@ from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.core import SPICEManager, EphemerisSystem
 from e2m2e.core import HomotopyEphemerisDynamics
 from e2m2e.core import SynodicJ2000Transformation
-from e2m2e.algorithms import MultipleShooting
+from e2m2e.algorithms import MultipleShooting, sample_patch_points, convert_to_j2000
 
 from scripts.utils.params import MU, DU, TU
 
@@ -91,33 +91,20 @@ def prepare_patch_points(dro_orbit, cr3bp_system, spice, reference_et):
     print("Step 2: 采样 patch points + Synodic → J2000")
     print(f"{'=' * 60}")
 
-    period = dro_orbit.period
-    assert period is not None, "轨道周期未知，无法采样 patch points"
-    n_points = N_PATCH_POINTS
-    t_patch_syn = np.linspace(0, period, n_points, endpoint=False)
-
-    orbit_states = np.array(dro_orbit.states)
-    orbit_times = np.array(dro_orbit.times)
-
-    states_syn = np.zeros((n_points, 6))
-    for dim in range(6):
-        states_syn[:, dim] = np.interp(t_patch_syn, orbit_times, orbit_states[:, dim])
+    t_patch_syn, states_syn = sample_patch_points(dro_orbit, N_PATCH_POINTS)
 
     syn_j2000 = SynodicJ2000Transformation(
         cr3bp_system=cr3bp_system,
         spice=spice,
     )
 
-    states_j2000 = syn_j2000.batch_synodic_to_j2000(
-        states_syn=states_syn,
-        t_syn_arr=t_patch_syn,
-        et0=reference_et,
+    t_patch_j2000, states_j2000 = convert_to_j2000(
+        t_patch_syn, states_syn, syn_j2000, reference_et, TU_SECONDS
     )
-    t_patch_j2000 = reference_et + t_patch_syn * TU_SECONDS
 
     print(f"  参考历元: {REFERENCE_EPOCH} (ET={reference_et:.2f} s)")
-    print(f"  Patch points: {n_points}")
-    for i in range(n_points):
+    print(f"  Patch points: {N_PATCH_POINTS}")
+    for i in range(N_PATCH_POINTS):
         r = np.linalg.norm(states_j2000[i, :3])
         print(f"  Patch {i}: ET={t_patch_j2000[i]:.2f}, r={r:.0f} km")
 
