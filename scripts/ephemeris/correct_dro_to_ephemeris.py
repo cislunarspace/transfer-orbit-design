@@ -57,112 +57,6 @@ SPICE_KERNEL_DIR = os.environ.get(
 )
 BODIES = ["EARTH", "MOON", "SUN"]
 
-
-# =============================================================================
-# 辅助函数
-# =============================================================================
-
-
-def validate_and_save(result, eph_dynamics, dro_orbit):
-    """验证修正后轨迹的位置连续性并保存结果到 JSON 文件。
-
-    逐段传播修正后的轨迹，检查相邻段端点的位置误差，
-    并将修正结果、完整轨迹和元信息写入 output/ephemeris/ 目录。
-
-    Args:
-        result: MultipleShooting 修正结果对象。
-        eph_dynamics: EphemerisDynamics 实例，用于轨道传播验证。
-        dro_orbit: 原始 DRO 轨道对象，用于记录源轨道信息。
-
-    Returns:
-        Path: 保存的 JSON 结果文件的完整路径。
-    """
-    print(f"\n{'=' * 60}")
-    print("Step 5: 验证与保存")
-    print(f"{'=' * 60}")
-
-    corrected_states = result.state_patch
-    corrected_times = result.t_patch
-    n_seg = len(corrected_states) - 1
-
-    print(f"  修正后 patch points 距地球距离:")
-    for i in range(len(corrected_states)):
-        r = np.linalg.norm(corrected_states[i, :3])
-        print(f"    Patch {i}: r={r:.0f} km")
-
-    distances = np.linalg.norm(corrected_states[:, :3], axis=1)
-    mean_dist = np.mean(distances)
-    std_dist = np.std(distances)
-    print(f"  平均距地球: {mean_dist:.0f} km")
-    print(f"  距离标准差: {std_dist:.0f} km (std/mean={std_dist / mean_dist:.4f})")
-
-    pos_errors = []
-    full_states_list = []
-    full_times_list = []
-    for i in range(n_seg):
-        prop = eph_dynamics.propagate(
-            corrected_states[i],
-            (corrected_times[i], corrected_times[i + 1]),
-        )
-        propagated_final = prop["states"][:, -1]
-        pos_error = np.linalg.norm(propagated_final[:3] - corrected_states[i + 1, :3])
-        pos_errors.append(pos_error)
-        print(f"    段 {i}→{i + 1}: 位置连续性误差 = {pos_error:.2e} km")
-
-        seg_states = prop["states"].T
-        seg_times = prop["time"]
-        if i > 0:
-            seg_states = seg_states[1:]
-            seg_times = seg_times[1:]
-        full_states_list.append(seg_states)
-        full_times_list.append(seg_times)
-
-    full_states = np.vstack(full_states_list)
-    full_times = np.concatenate(full_times_list)
-    print(f"\n  完整轨迹: {len(full_states)} 个状态点")
-
-    max_error = max(pos_errors)
-    print(f"  最大位置连续性误差: {max_error:.2e} km")
-    if max_error < POSITION_CONTINUITY_TOL:
-        print(f"  [ok] 满足连续性要求 (< {POSITION_CONTINUITY_TOL:.1e} km)")
-    else:
-        print(f"  [warning] 未满足连续性要求 (< {POSITION_CONTINUITY_TOL:.1e} km)")
-
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    output_data = {
-        "converged": result.converged,
-        "iterations": result.iterations,
-        "max_residual": float(result.max_residual),
-        "residual_history": [float(r) for r in result.residual_history],
-        "reference_epoch": REFERENCE_EPOCH,
-        "n_patch_points": len(corrected_states),
-        "bodies": BODIES,
-        "cr3bp_dro": {
-            "source_file": str(DRO_JSON_FILE),
-            "x0": dro_orbit.states[0][0],
-            "vy0": dro_orbit.states[0][4],
-            "period_tu": dro_orbit.period,
-        },
-        "position_errors_km": [float(e) for e in pos_errors],
-        "mean_distance_km": float(mean_dist),
-        "std_distance_km": float(std_dist),
-        "corrected_states": corrected_states.tolist(),
-        "corrected_times_et": corrected_times.tolist(),
-        "full_trajectory_states": full_states.tolist(),
-        "full_trajectory_times_et": full_times.tolist(),
-    }
-
-    output_file = (
-        OUTPUT_DIR
-        / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    )
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(output_data, f, indent=2, ensure_ascii=False)
-    print(f"\n  结果已保存: {output_file}")
-
-    return output_file
-
-
 def main():
     """DRO 轨道 CR3BP → 星历模型修正的主流程入口。
 
@@ -273,7 +167,90 @@ def main():
             print(f"  最大残差: {result.max_residual:.2e} km")
 
         # Step 5: 验证修正后轨迹连续性，并将结果保存为 JSON
-        validate_and_save(result, eph_dynamics, dro_orbit)
+        print(f"\n{'=' * 60}")
+        print("Step 5: 验证与保存")
+        print(f"{'=' * 60}")
+
+        corrected_states = result.state_patch
+        corrected_times = result.t_patch
+        n_seg = len(corrected_states) - 1
+
+        print(f"  修正后 patch points 距地球距离:")
+        for i in range(len(corrected_states)):
+            r = np.linalg.norm(corrected_states[i, :3])
+            print(f"    Patch {i}: r={r:.0f} km")
+
+        distances = np.linalg.norm(corrected_states[:, :3], axis=1)
+        mean_dist = np.mean(distances)
+        std_dist = np.std(distances)
+        print(f"  平均距地球: {mean_dist:.0f} km")
+        print(f"  距离标准差: {std_dist:.0f} km (std/mean={std_dist / mean_dist:.4f})")
+
+        pos_errors = []
+        full_states_list = []
+        full_times_list = []
+        for i in range(n_seg):
+            prop = eph_dynamics.propagate(
+                corrected_states[i],
+                (corrected_times[i], corrected_times[i + 1]),
+            )
+            propagated_final = prop["states"][:, -1]
+            pos_error = np.linalg.norm(
+                propagated_final[:3] - corrected_states[i + 1, :3]
+            )
+            pos_errors.append(pos_error)
+            print(f"    段 {i}→{i + 1}: 位置连续性误差 = {pos_error:.2e} km")
+
+            seg_states = prop["states"].T
+            seg_times = prop["time"]
+            if i > 0:
+                seg_states = seg_states[1:]
+                seg_times = seg_times[1:]
+            full_states_list.append(seg_states)
+            full_times_list.append(seg_times)
+
+        full_states = np.vstack(full_states_list)
+        full_times = np.concatenate(full_times_list)
+        print(f"\n  完整轨迹: {len(full_states)} 个状态点")
+
+        max_error = max(pos_errors)
+        print(f"  最大位置连续性误差: {max_error:.2e} km")
+        if max_error < POSITION_CONTINUITY_TOL:
+            print(f"  [ok] 满足连续性要求 (< {POSITION_CONTINUITY_TOL:.1e} km)")
+        else:
+            print(f"  [warning] 未满足连续性要求 (< {POSITION_CONTINUITY_TOL:.1e} km)")
+
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        output_data = {
+            "converged": result.converged,
+            "iterations": result.iterations,
+            "max_residual": float(result.max_residual),
+            "residual_history": [float(r) for r in result.residual_history],
+            "reference_epoch": REFERENCE_EPOCH,
+            "n_patch_points": len(corrected_states),
+            "bodies": BODIES,
+            "cr3bp_dro": {
+                "source_file": str(DRO_JSON_FILE),
+                "x0": dro_orbit.states[0][0],
+                "vy0": dro_orbit.states[0][4],
+                "period_tu": dro_orbit.period,
+            },
+            "position_errors_km": [float(e) for e in pos_errors],
+            "mean_distance_km": float(mean_dist),
+            "std_distance_km": float(std_dist),
+            "corrected_states": corrected_states.tolist(),
+            "corrected_times_et": corrected_times.tolist(),
+            "full_trajectory_states": full_states.tolist(),
+            "full_trajectory_times_et": full_times.tolist(),
+        }
+
+        output_file = (
+            OUTPUT_DIR
+            / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        )
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(output_data, f, indent=2, ensure_ascii=False)
+        print(f"\n  结果已保存: {output_file}")
 
     finally:
         # 卸载星历内核，释放 SPICE 资源
