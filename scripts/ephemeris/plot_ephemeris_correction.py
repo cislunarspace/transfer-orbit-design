@@ -87,13 +87,18 @@ def tile_orbit_n_periods(orbit, n):
 def main():
     kernel_path = find_spice_kernel()
     spice = SPICEManager()
+    import spiceypy
+
+    leapseconds_path = os.path.join(SPICE_KERNEL_DIR, "naif0012.tls")
+    spiceypy.furnsh(leapseconds_path)
     spice.load_kernel(kernel_path)
 
     try:
         reference_et = spice.utc_to_et(REFERENCE_EPOCH)
         cr3bp_system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
         syn_j2000 = SynodicJ2000Transformation(
-            cr3bp_system=cr3bp_system, spice=spice,
+            cr3bp_system=cr3bp_system,
+            spice=spice,
         )
 
         dro_orbit = Orbit.load_from_file(filename=DRO_JSON_FILE, system=cr3bp_system)
@@ -101,7 +106,9 @@ def main():
         dro_syn_3t, dro_times_3t = tile_orbit_n_periods(dro_orbit, N_PERIODS)
 
         dro_j2000 = syn_j2000.batch_synodic_to_j2000(
-            states_syn=dro_syn_3t, t_syn_arr=dro_times_3t, et0=reference_et,
+            states_syn=dro_syn_3t,
+            t_syn_arr=dro_times_3t,
+            et0=reference_et,
         )
 
         with open(EPHEMERIS_JSON_FILE, encoding="utf-8") as f:
@@ -116,7 +123,10 @@ def main():
         t_end_3p = t0 + N_PERIODS * period_tu * TU_SECONDS
 
         eph_system = EphemerisSystem(
-            bodies=BODIES, spice=spice, origin="EARTH", frame="J2000",
+            bodies=BODIES,
+            spice=spice,
+            origin="EARTH",
+            frame="J2000",
         )
         eph_dynamics = EphemerisDynamics(system=eph_system)
         prop_3p = eph_dynamics.propagate(state0, (t0, t_end_3p))
@@ -125,7 +135,9 @@ def main():
         eph_t_syn = (eph_times_et - reference_et) / TU_SECONDS
 
         eph_syn = syn_j2000.batch_j2000_to_synodic(
-            states_j2000=eph_j2000, t_syn_arr=eph_t_syn, et0=reference_et,
+            states_j2000=eph_j2000,
+            t_syn_arr=eph_t_syn,
+            et0=reference_et,
         )
 
         print(f"CR3BP DRO (synodic, 1 period): {len(dro_syn_1p)} 个状态点")
@@ -139,16 +151,24 @@ def main():
         ax1 = fig.add_subplot(121, projection="3d")
 
         ax1.plot(
-            dro_syn_1p[:, 0], dro_syn_1p[:, 1], dro_syn_1p[:, 2],
-            color="royalblue", linewidth=1.5, alpha=0.7,
+            dro_syn_1p[:, 0],
+            dro_syn_1p[:, 1],
+            dro_syn_1p[:, 2],
+            color="royalblue",
+            linewidth=1.5,
+            alpha=0.7,
             label="CR3BP DRO",
         )
 
         n_per_period = len(eph_syn) // N_PERIODS
-        eph_syn_1p = eph_syn[:n_per_period + 1]
+        eph_syn_1p = eph_syn[: n_per_period + 1]
         ax1.plot(
-            eph_syn_1p[:, 0], eph_syn_1p[:, 1], eph_syn_1p[:, 2],
-            color="crimson", linewidth=1.5, alpha=0.9,
+            eph_syn_1p[:, 0],
+            eph_syn_1p[:, 1],
+            eph_syn_1p[:, 2],
+            color="crimson",
+            linewidth=1.5,
+            alpha=0.9,
             label="Ephemeris corrected",
         )
 
@@ -167,14 +187,22 @@ def main():
         ax2 = fig.add_subplot(122, projection="3d")
 
         ax2.plot(
-            dro_j2000[:, 0] / DU, dro_j2000[:, 1] / DU, dro_j2000[:, 2] / DU,
-            color="royalblue", linewidth=1.2, alpha=0.7,
+            dro_j2000[:, 0] / DU,
+            dro_j2000[:, 1] / DU,
+            dro_j2000[:, 2] / DU,
+            color="royalblue",
+            linewidth=1.2,
+            alpha=0.7,
             label=f"CR3BP DRO ({N_PERIODS}T)",
         )
 
         ax2.plot(
-            eph_j2000[:, 0] / DU, eph_j2000[:, 1] / DU, eph_j2000[:, 2] / DU,
-            color="crimson", linewidth=1.5, alpha=0.9,
+            eph_j2000[:, 0] / DU,
+            eph_j2000[:, 1] / DU,
+            eph_j2000[:, 2] / DU,
+            color="crimson",
+            linewidth=1.5,
+            alpha=0.9,
             label=f"Ephemeris corrected ({N_PERIODS}T)",
         )
 
@@ -193,7 +221,8 @@ def main():
             f"DRO CR3BP vs Ephemeris Correction\n"
             f"ref: {eph_data['reference_epoch']}, "
             f"bodies: {', '.join(eph_data['bodies'])}",
-            fontsize=13, y=1.02,
+            fontsize=13,
+            y=1.02,
         )
         plt.tight_layout()
 

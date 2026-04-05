@@ -28,6 +28,7 @@ from pathlib import Path
 import numpy as np
 from datetime import datetime
 
+import spiceypy
 from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.core import SPICEManager, EphemerisSystem, EphemerisDynamics
 from e2m2e.core import SynodicJ2000Transformation
@@ -35,20 +36,20 @@ from e2m2e.algorithms import MultipleShooting
 
 from scripts.utils.params import MU, DU, TU
 
+# =============================================================================
+# 输入输出路径设置
+# =============================================================================
 project_root = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "ephemeris"
+DRO_JSON_FILE = project_root / "output" / "dro" / "dro_31_3857864736.json"
 
 # =============================================================================
-# 物理参数
+# 多重打靶法所需要的各项参数
 # =============================================================================
 TU_SECONDS = TU * 86400
 VU = DU / TU_SECONDS
-
-DRO_JSON_FILE = project_root / "output" / "dro" / "dro_31_3857864736.json"
-
-N_PATCH_POINTS = 8
-POSITION_CONTINUITY_TOL = 1e-6
-
+N_PATCH_POINTS = 4
+POSITION_CONTINUITY_TOL = 1e-3
 REFERENCE_EPOCH = "2025-06-21T11:00:06"
 SPICE_KERNEL_DIR = os.environ.get(
     "SPICE_KERNEL_DIR",
@@ -56,8 +57,21 @@ SPICE_KERNEL_DIR = os.environ.get(
 )
 BODIES = ["EARTH", "MOON", "SUN"]
 
-
+# =============================================================================
+# 辅助函数
+# =============================================================================
 def find_spice_kernel():
+    """在 SPICE_KERNEL_DIR 中搜索可用的 SPICE 行星历内核文件。
+
+    按优先级依次查找 de435.bsp、de440.bsp、de440s.bsp、de438.bsp，
+    返回第一个找到的文件路径。
+
+    Returns:
+        str: 找到的 SPICE 内核文件的绝对路径。
+
+    Raises:
+        FileNotFoundError: 如果所有候选内核文件均不存在。
+    """
     for name in ["de435.bsp", "de440.bsp", "de440s.bsp", "de438.bsp"]:
         path = os.path.join(SPICE_KERNEL_DIR, name)
         if os.path.exists(path):
@@ -68,6 +82,17 @@ def find_spice_kernel():
 
 
 def load_dro_orbit(system):
+    """从 JSON 文件加载 DRO 轨道数据并估计其周期。
+
+    Args:
+        system: CR3BP 系统对象，用于解析轨道数据的归一化参数。
+
+    Returns:
+        Orbit: 加载后的 DRO 轨道对象，包含状态序列和已估计的周期。
+
+    Raises:
+        AssertionError: 如果无法确定轨道周期。
+    """
     print("=" * 60)
     print("Step 1: 加载 DRO 轨道 (JSON)")
     print("=" * 60)
@@ -88,6 +113,22 @@ def load_dro_orbit(system):
 
 
 def sample_patch_points(dro_orbit, n_points):
+    """沿 DRO 轨道等间距采样 patch points，用于 Multiple Shooting 修正。
+
+    在轨道周期内均匀取 n_points 个时刻，通过线性插值获取对应的状态向量。
+
+    Args:
+        dro_orbit: DRO 轨道对象，需包含有效的 period 属性。
+        n_points: 需要采样的 patch point 数量。
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]:
+            - t_patch: shape (n_points,)，各 patch point 对应的归一化时间（TU）。
+            - states: shape (n_points, 6)，各 patch point 的六维状态向量（归一化）。
+
+    Raises:
+        AssertionError: 如果轨道周期为 None。
+    """
     print(f"\n{'=' * 60}")
     print(f"Step 2: 采样 {n_points} 个 patch points")
     print(f"{'=' * 60}")
@@ -113,6 +154,20 @@ def sample_patch_points(dro_orbit, n_points):
 
 
 def convert_to_j2000(t_patch_syn, states_syn, cr3bp_system, spice, reference_et):
+    """将 synodic 坐标系下的 patch points 批量转换为 J2000 坐标系。
+
+    Args:
+        t_patch_syn: shape (n,)，synodic 归一化时间数组（TU）。
+        states_syn: shape (n, 6)，synodic 坐标系下的状态向量数组。
+        cr3bp_system: CR3BP 系统对象，提供质量参数等归一化信息。
+        spice: SPICEManager 实例，用于天体位置查询。
+        reference_et: 参考历元的 ET（ephemeris time），单位秒。
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]:
+            - t_patch_j2000: shape (n,)，J2000 下的绝对 ET 时间数组（秒）。
+            - states_j2000: shape (n, 6)，J2000 惯性系下的状态向量数组（km, km/s）。
+    """
     print(f"\n{'=' * 60}")
     print("Step 3: Synodic → J2000 坐标转换")
     print(f"{'=' * 60}")
@@ -141,6 +196,21 @@ def convert_to_j2000(t_patch_syn, states_syn, cr3bp_system, spice, reference_et)
 def run_multiple_shooting(
     t_patch, state_patch, eph_dynamics, max_iter=50, tolerance=POSITION_CONTINUITY_TOL
 ):
+    """使用 Multiple Shooting 差分修正方法将 patch points 修正为连续轨迹。
+
+    以时间自由的模式修正各段端点状态与时间，使相邻段的位置连续。
+
+    Args:
+        t_patch: shape (n,)，各 patch point 的 ET 时间数组（秒）。
+        state_patch: shape (n, 6)，各 patch point 的初始状态向量（km, km/s）。
+        eph_dynamics: EphemerisDynamics 实例，提供星历模型下的轨道传播与状态转移矩阵。
+        max_iter: 最大修正迭代次数。默认为 50。
+        tolerance: 位置连续性收敛容差（km）。默认为 POSITION_CONTINUITY_TOL。
+
+    Returns:
+        MultipleShootingResult: 修正结果对象，包含收敛状态、迭代次数、残差历史、
+        修正后的时间和状态等信息。
+    """
     print(f"\n{'=' * 60}")
     print("Step 4: Multiple Shooting 差分修正")
     print(f"{'=' * 60}")
@@ -174,6 +244,19 @@ def run_multiple_shooting(
 
 
 def validate_and_save(result, eph_dynamics, dro_orbit):
+    """验证修正后轨迹的位置连续性并保存结果到 JSON 文件。
+
+    逐段传播修正后的轨迹，检查相邻段端点的位置误差，
+    并将修正结果、完整轨迹和元信息写入 output/ephemeris/ 目录。
+
+    Args:
+        result: MultipleShooting 修正结果对象。
+        eph_dynamics: EphemerisDynamics 实例，用于轨道传播验证。
+        dro_orbit: 原始 DRO 轨道对象，用于记录源轨道信息。
+
+    Returns:
+        Path: 保存的 JSON 结果文件的完整路径。
+    """
     print(f"\n{'=' * 60}")
     print("Step 5: 验证与保存")
     print(f"{'=' * 60}")
@@ -249,7 +332,10 @@ def validate_and_save(result, eph_dynamics, dro_orbit):
         "full_trajectory_times_et": full_times.tolist(),
     }
 
-    output_file = OUTPUT_DIR / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    output_file = (
+        OUTPUT_DIR
+        / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    )
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=2, ensure_ascii=False)
     print(f"\n  结果已保存: {output_file}")
@@ -258,6 +344,11 @@ def validate_and_save(result, eph_dynamics, dro_orbit):
 
 
 def main():
+    """DRO 轨道 CR3BP → 星历模型修正的主流程入口。
+
+    依次执行 SPICE 内核加载、DRO 轨道加载、patch points 采样、
+    坐标转换、Multiple Shooting 差分修正和结果验证保存。
+    """
     print("DRO CR3BP → 星历模型修正")
     print(f"参考历元: {REFERENCE_EPOCH}")
     print(f"天体: {BODIES}")
@@ -267,6 +358,9 @@ def main():
     print(f"SPICE kernel: {kernel_path}")
 
     spice = SPICEManager()
+
+    leapseconds_path = os.path.join(SPICE_KERNEL_DIR, "naif0012.tls")
+    spiceypy.furnsh(leapseconds_path)
     spice.load_kernel(kernel_path)
 
     try:

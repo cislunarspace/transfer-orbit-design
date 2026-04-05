@@ -9,7 +9,7 @@ DRO 轨道 CR3BP → 星历模型 修正（同伦法）
     在 J2000 惯性系下，逐步引入 Sun 的引力:
     - λ=0: 仅 Earth + Moon（接近 CRTBP 的星历等效模型）
     - λ=1: Earth + Moon + Sun（完整星历模型）
-    
+
     加速度: a(r,t,λ) = Σ_{base} a_b + λ · Σ_{perturbation} a_p
 
 工作流:
@@ -50,7 +50,7 @@ VU = DU / TU_SECONDS
 DRO_JSON_FILE = project_root / "output" / "dro" / "dro_31_3857864736.json"
 
 N_PATCH_POINTS = 8
-POSITION_CONTINUITY_TOL = 1e-6
+POSITION_CONTINUITY_TOL = 1e-3
 
 REFERENCE_EPOCH = "2025-06-21T11:00:06"
 SPICE_KERNEL_DIR = os.environ.get(
@@ -183,8 +183,10 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
         homotopy_log.append(step_info)
 
         if result.converged:
-            print(f"  [ok] λ={lam:.4f} 收敛! 迭代={result.iterations}, "
-                  f"残差={result.max_residual:.2e} km, 耗时={dt_step:.1f}s")
+            print(
+                f"  [ok] λ={lam:.4f} 收敛! 迭代={result.iterations}, "
+                f"残差={result.max_residual:.2e} km, 耗时={dt_step:.1f}s"
+            )
             current_t = result.t_patch.copy()
             current_states = result.state_patch.copy()
         else:
@@ -195,9 +197,7 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
                 print(f"  [error] λ=0 阶段即不收敛，终止")
                 return result, homotopy_log, total_t0
 
-            sub_steps = np.linspace(
-                HOMOTOPY_STEPS[step_idx - 1], lam, 3
-            )[1:]
+            sub_steps = np.linspace(HOMOTOPY_STEPS[step_idx - 1], lam, 3)[1:]
 
             sub_ok = True
             for sub_lam in sub_steps:
@@ -219,23 +219,29 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
                 )
                 dt_sub = time.time() - t0_sub
 
-                homotopy_log.append({
-                    "lambda": float(sub_lam),
-                    "converged": result_sub.converged,
-                    "iterations": result_sub.iterations,
-                    "max_residual": float(result_sub.max_residual),
-                    "time_s": round(dt_sub, 2),
-                    "note": "sub-step",
-                })
+                homotopy_log.append(
+                    {
+                        "lambda": float(sub_lam),
+                        "converged": result_sub.converged,
+                        "iterations": result_sub.iterations,
+                        "max_residual": float(result_sub.max_residual),
+                        "time_s": round(dt_sub, 2),
+                        "note": "sub-step",
+                    }
+                )
 
                 if result_sub.converged:
                     current_t = result_sub.t_patch.copy()
                     current_states = result_sub.state_patch.copy()
-                    print(f"    子步 λ={sub_lam:.4f} 收敛, "
-                          f"残差={result_sub.max_residual:.2e}")
+                    print(
+                        f"    子步 λ={sub_lam:.4f} 收敛, "
+                        f"残差={result_sub.max_residual:.2e}"
+                    )
                 else:
-                    print(f"    子步 λ={sub_lam:.4f} 仍未收敛, "
-                          f"残差={result_sub.max_residual:.2e}")
+                    print(
+                        f"    子步 λ={sub_lam:.4f} 仍未收敛, "
+                        f"残差={result_sub.max_residual:.2e}"
+                    )
                     sub_ok = False
                     break
 
@@ -251,9 +257,11 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
     print(f"  各步详情:")
     for s in homotopy_log:
         status = "ok" if s["converged"] else "FAIL"
-        print(f"    λ={s['lambda']:.4f} [{status}] "
-              f"iter={s['iterations']} res={s['max_residual']:.2e} "
-              f"t={s['time_s']:.1f}s")
+        print(
+            f"    λ={s['lambda']:.4f} [{status}] "
+            f"iter={s['iterations']} res={s['max_residual']:.2e} "
+            f"t={s['time_s']:.1f}s"
+        )
 
     return result, homotopy_log, total_dt
 
@@ -351,6 +359,10 @@ def main():
     print(f"SPICE kernel: {kernel_path}")
 
     spice = SPICEManager()
+    import spiceypy
+
+    leapseconds_path = os.path.join(SPICE_KERNEL_DIR, "naif0012.tls")
+    spiceypy.furnsh(leapseconds_path)
     spice.load_kernel(kernel_path)
 
     try:
