@@ -61,42 +61,6 @@ BODIES = ["EARTH", "MOON", "SUN"]
 # =============================================================================
 # 辅助函数
 # =============================================================================
-def sample_patch_points_wrapper(dro_orbit, n_points):
-    print(f"\n{'=' * 60}")
-    print(f"Step 2: 采样 {n_points} 个 patch points")
-    print(f"{'=' * 60}")
-
-    t_patch, states = sample_patch_points(dro_orbit, n_points)
-
-    print(f"  时间范围: [0, {t_patch[-1]:.4f}] TU")
-    print(f"  时间间隔: {t_patch[1] - t_patch[0]:.4f} TU")
-    for i in range(n_points):
-        r = np.linalg.norm(states[i, :3]) * DU
-        print(f"  Patch {i}: t={t_patch[i]:.4f}, r={r:.0f} km")
-
-    return t_patch, states
-
-
-def convert_to_j2000_wrapper(t_patch_syn, states_syn, cr3bp_system, spice, reference_et):
-    print(f"\n{'=' * 60}")
-    print("Step 3: Synodic → J2000 坐标转换")
-    print(f"{'=' * 60}")
-
-    syn_j2000 = SynodicJ2000Transformation(
-        cr3bp_system=cr3bp_system,
-        spice=spice,
-    )
-    t_patch_j2000, states_j2000 = convert_to_j2000(
-        t_patch_syn, states_syn, syn_j2000, reference_et, TU_SECONDS
-    )
-
-    print(f"  参考历元: {REFERENCE_EPOCH} (ET={reference_et:.2f} s)")
-    for i in range(len(t_patch_syn)):
-        r = np.linalg.norm(states_j2000[i, :3])
-        v = np.linalg.norm(states_j2000[i, 3:])
-        print(f"  Patch {i}: ET={t_patch_j2000[i]:.2f}, r={r:.0f} km, v={v:.4f} km/s")
-
-    return t_patch_j2000, states_j2000
 
 
 def run_multiple_shooting(
@@ -239,7 +203,8 @@ def validate_and_save(result, eph_dynamics, dro_orbit):
     }
 
     output_file = (
-        OUTPUT_DIR / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        OUTPUT_DIR
+        / f"dro_ephemeris_correction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
     )
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(output_data, f, indent=2, ensure_ascii=False)
@@ -298,18 +263,34 @@ def main():
         print(f"  初始状态: {dro_orbit.states[0]}")
 
         # Step 2: 沿轨道周期均匀采样 patch points（归一化 synodic 坐标系）
-        t_patch_syn, states_syn = sample_patch_points_wrapper(
-            dro_orbit,
-            N_PATCH_POINTS,
+        print(f"Step 2: 采样 {N_PATCH_POINTS} 个 patch points")
+
+        t_patch_syn, states_syn = sample_patch_points(dro_orbit, N_PATCH_POINTS)
+
+        print(f"  时间范围: [0, {t_patch_syn[-1]:.4f}] TU")
+        print(f"  时间间隔: {t_patch_syn[1] - t_patch_syn[0]:.4f} TU")
+        for i in range(N_PATCH_POINTS):
+            r = np.linalg.norm(states_syn[i, :3]) * DU
+            print(f"  Patch {i}: t={t_patch_syn[i]:.4f}, r={r:.0f} km")
+
+        # Step 3: Synodic → J2000 坐标转换
+        print("Step 3: Synodic → J2000 坐标转换")
+
+        syn_j2000 = SynodicJ2000Transformation(
+            cr3bp_system=cr3bp_system,
+            spice=spice,
+        )
+        t_patch_j2000, states_j2000 = convert_to_j2000(
+            t_patch_syn, states_syn, syn_j2000, reference_et, TU_SECONDS
         )
 
-        t_patch_j2000, states_j2000 = convert_to_j2000_wrapper(
-            t_patch_syn,
-            states_syn,
-            cr3bp_system,
-            spice,
-            reference_et,
-        )
+        print(f"  参考历元: {REFERENCE_EPOCH} (ET={reference_et:.2f} s)")
+        for i in range(len(t_patch_syn)):
+            r = np.linalg.norm(states_j2000[i, :3])
+            v = np.linalg.norm(states_j2000[i, 3:])
+            print(
+                f"  Patch {i}: ET={t_patch_j2000[i]:.2f}, r={r:.0f} km, v={v:.4f} km/s"
+            )
 
         # Step 4: 以 J2000 状态为初值，执行 Multiple Shooting 差分修正
         result = run_multiple_shooting(
