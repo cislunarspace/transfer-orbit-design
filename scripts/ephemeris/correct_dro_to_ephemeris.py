@@ -5,7 +5,7 @@ DRO 轨道 CR3BP → 星历模型 (Ephemeris N-body) 修正
 使用 Multiple Shooting 差分修正方法。
 
 工作流:
-  Step 1: 从 JSON 文件加载 DRO 轨道
+  Step 1: 使用 Orbit.load_from_file 加载 DRO 轨道
   Step 2: 对 DRO 轨道均匀采样生成 patch points
   Step 3: synodic → J2000 坐标转换（含速度）
   Step 4: Multiple Shooting 差分修正（星历模型）
@@ -61,37 +61,6 @@ BODIES = ["EARTH", "MOON", "SUN"]
 # =============================================================================
 # 辅助函数
 # =============================================================================
-def load_dro_orbit(system):
-    """从 JSON 文件加载 DRO 轨道数据并估计其周期。
-
-    Args:
-        system: CR3BP 系统对象，用于解析轨道数据的归一化参数。
-
-    Returns:
-        Orbit: 加载后的 DRO 轨道对象，包含状态序列和已估计的周期。
-
-    Raises:
-        AssertionError: 如果无法确定轨道周期。
-    """
-    print("=" * 60)
-    print("Step 1: 加载 DRO 轨道 (JSON)")
-    print("=" * 60)
-
-    dro_orbit = Orbit.load_from_file(filename=DRO_JSON_FILE, system=system)
-
-    if dro_orbit.period is None:
-        dro_orbit._estimate_period()
-
-    assert dro_orbit.period is not None, "无法确定 DRO 轨道周期"
-
-    print(f"  文件: {DRO_JSON_FILE.name}")
-    print(f"  状态数: {len(dro_orbit.states)}")
-    period = dro_orbit.period
-    print(f"  周期: {period:.6f} TU ({period * TU:.2f} days)")
-    print(f"  初始状态: {dro_orbit.states[0]}")
-    return dro_orbit
-
-
 def sample_patch_points(dro_orbit, n_points):
     """沿 DRO 轨道等间距采样 patch points，用于 Multiple Shooting 修正。
 
@@ -337,7 +306,9 @@ def main():
 
     # 初始化 SPICE 管理器，定位并加载星历内核
     spice = SPICEManager()
-    kernel_path = spice.find_ephemeris_kernel(SPICE_KERNEL_DIR) # 在指定目录中按优先级搜索星历内核文件
+    kernel_path = spice.find_ephemeris_kernel(
+        SPICE_KERNEL_DIR
+    )  # 在指定目录中按优先级搜索星历内核文件
     print(f"SPICE kernel: {kernel_path}")
 
     # 加载闰秒内核（naif0012.tls），用于 UTC ↔ ET 时间转换
@@ -362,7 +333,13 @@ def main():
         eph_dynamics = EphemerisDynamics(system=eph_system)
 
         # Step 1: 从 JSON 文件加载 CR3BP 下的 DRO 轨道
-        dro_orbit = load_dro_orbit(cr3bp_system)
+        print("Step 1: 加载 DRO 轨道 (JSON)")
+        dro_orbit = Orbit.load_from_file(filename=DRO_JSON_FILE, system=cr3bp_system)
+        assert dro_orbit.period is not None, "无法确定 DRO 轨道周期"
+        print(f"  文件: {DRO_JSON_FILE.name}")
+        print(f"  状态数: {len(dro_orbit.states)}")
+        print(f"  周期: {dro_orbit.period:.6f} TU ({dro_orbit.period * TU:.2f} days)")
+        print(f"  初始状态: {dro_orbit.states[0]}")
 
         # Step 2: 沿轨道周期均匀采样 patch points（归一化 synodic 坐标系）
         t_patch_syn, states_syn = sample_patch_points(
