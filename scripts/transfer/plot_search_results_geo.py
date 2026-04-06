@@ -19,6 +19,7 @@
     python plot_search_results_geo.py --orbit --idx all                    # 绘制全部可行解（子采样受 --max-points 控制）
     python plot_search_results_geo.py --orbit --idx all --max-points 100  # 最多绘制 100 条
     python plot_search_results_geo.py --orbit --idx best:10                # 绘制 Δv 最小的 10 条轨道
+    python plot_search_results_geo.py --interactive                       # 交互式逐条浏览（按转移时间排序）
 """
 
 from __future__ import annotations
@@ -545,6 +546,135 @@ def _select_feasible_indices(
         return [i]
 
 
+def interactive_browse_by_time(
+    feasible_rows: list[dict],
+    dro_orbit: Orbit,
+    system: CR3BP_System,
+    ts: TransferSearch,
+) -> None:
+    """按转移时间排序，交互式逐条浏览转移轨道（参考 plot_interactive_orbit_inspector.py）。"""
+    plt.ion()
+
+    sorted_rows = sorted(
+        feasible_rows, key=lambda r: float(r.get("transfer_time", float("inf")))
+    )
+    n = len(sorted_rows)
+
+    print(f"\n共 {n} 条可行解，已按转移时间排序")
+    print("=" * 60)
+    print("交互式转移轨道浏览器（按转移时间排序）")
+    print("=" * 60)
+    print("按 Enter: 绘制下一条轨道")
+    print("输入 'q': 退出")
+    print("输入 's N': 跳过 N 条")
+    print("输入 'j N': 跳转到第 N 条")
+    print("输入 'r': 重绘当前轨道")
+    print("=" * 60 + "\n")
+
+    current_idx = 0
+    fig = None
+
+    while True:
+        row = sorted_rows[current_idx]
+        alpha = float(row["alpha"])
+        transfer_time = float(row["transfer_time"])
+        departure_state = np.asarray(row["departure_state"], dtype=np.float64)
+
+        dv_dep_raw = row.get("dv_departure")
+        dv_arr = (
+            np.asarray(dv_dep_raw, dtype=np.float64).ravel()
+            if dv_dep_raw is not None
+            else None
+        )
+        dv_departure = (
+            float(dv_arr[0])
+            if dv_arr is not None and dv_arr.size == 1
+            else (float(np.linalg.norm(dv_arr)) if dv_arr is not None else float("nan"))
+        )
+        dv_insertion_raw = row.get("dv_insertion")
+        dv_insertion = (
+            float(dv_insertion_raw) if dv_insertion_raw is not None else float("nan")
+        )
+
+        print(f"\n[{current_idx + 1}/{n}] 转移轨道信息:")
+        print(f"  α = {alpha:.4f}")
+        print(f"  转移时间 = {transfer_time:.4f} TU")
+        print(
+            f"  Δv_dep = {dv_departure:.6f} ({dv_departure * V_CIRCULAR_GEO * 1000:.1f} m/s)"
+        )
+        print(
+            f"  Δv_ins = {dv_insertion:.6f} ({dv_insertion * V_CIRCULAR_GEO * 1000:.1f} m/s)"
+        )
+        if np.isfinite(dv_departure) and np.isfinite(dv_insertion):
+            dv_total = dv_departure + dv_insertion
+            print(
+                f"  Δv_total = {dv_total:.6f} ({dv_total * V_CIRCULAR_GEO * 1000:.1f} m/s)"
+            )
+
+        transfer_states, _ = _reintegrate_transfer(
+            ts, departure_state, alpha, transfer_time
+        )
+
+        if fig is not None:
+            plt.close(fig)
+        fig = plt.figure(figsize=(12, 10))
+        ax = fig.add_subplot(111, projection="3d")
+        _plot_single_transfer_orbit(
+            departure_orbit=dro_orbit,
+            transfer_states=transfer_states,
+            departure_state=departure_state,
+            dv_departure=dv_departure,
+            dv_insertion=dv_insertion,
+            transfer_time=transfer_time,
+            alpha=alpha,
+            system=system,
+            fig=fig,
+            ax=ax,
+        )
+        fig.tight_layout()
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+
+        try:
+            user_input = input(
+                "\n命令 (Enter继续, q退出, s跳过, j跳转, r重绘): "
+            ).strip()
+        except EOFError:
+            break
+
+        if user_input == "q":
+            print("退出")
+            break
+        elif user_input.startswith("s "):
+            try:
+                skip_n = int(user_input.split()[1])
+                current_idx = min(current_idx + skip_n, n - 1)
+                print(f"跳转到第 {current_idx + 1} 条")
+            except (ValueError, IndexError):
+                print("无效的跳过数量")
+        elif user_input.startswith("j "):
+            try:
+                target = int(user_input.split()[1])
+                current_idx = max(0, min(target - 1, n - 1))
+                print(f"跳转到第 {current_idx + 1} 条")
+            except (ValueError, IndexError):
+                print("无效的编号")
+        elif user_input == "r":
+            print(f"重绘第 {current_idx + 1} 条")
+            continue
+        else:
+            if current_idx < n - 1:
+                current_idx += 1
+            else:
+                print("已到达最后一条")
+                break
+
+    if fig is not None:
+        plt.close(fig)
+    plt.ioff()
+    print(f"\n浏览完成，共查看了 {current_idx + 1} 条轨道")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="绘制 grid_search_dro_geo 结果（α–Δv 散点图 / 转移轨道示意图）"
@@ -587,6 +717,11 @@ def main() -> None:
         action="store_true",
         help="绘制转移时间 vs Δv 散点图（替代 α–Δv 图）",
     )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="交互式逐条浏览转移轨道（按转移时间排序）",
+    )
     args = parser.parse_args()
 
     path = Path(RESULTS_JSON).expanduser().resolve()
@@ -598,7 +733,20 @@ def main() -> None:
     feasible_rows = [r for r in rows if r.get("is_feasible")]
     print(f"总行数={len(rows)}，可行解={len(feasible_rows)}")
 
-    if args.orbit:
+    if args.interactive:
+        # ── 交互式逐条浏览（按转移时间排序）──────────────────────────────────
+        dro_path = Path(DRO_FILE).expanduser().resolve()
+        if not dro_path.is_file():
+            raise FileNotFoundError(f"DRO 轨道文件不存在: {dro_path}")
+
+        print(f"加载 DRO: {dro_path}")
+        dro_orbit = load_orbit_from_json(str(dro_path))
+
+        ts = _build_transfer_search()
+        system = ts.system
+
+        interactive_browse_by_time(feasible_rows, dro_orbit, system, ts)
+    elif args.orbit:
         # ── 转移轨道示意图 ──────────────────────────────────────────────────
         dro_path = Path(DRO_FILE).expanduser().resolve()
         if not dro_path.is_file():
