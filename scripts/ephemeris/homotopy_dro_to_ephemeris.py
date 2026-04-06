@@ -26,6 +26,7 @@ DRO 轨道 CR3BP → 星历模型 修正（同伦法）
 """
 
 import json
+import multiprocessing
 import os
 import time
 from pathlib import Path
@@ -36,7 +37,7 @@ from datetime import datetime
 from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.core import SPICEManager, EphemerisSystem
 from e2m2e.core import HomotopyEphemerisDynamics
-from e2m2e.core import SynodicJ2000Transformation
+from e2m2e.core import SynodicJ2000Transformation, BodyName
 from e2m2e.algorithms import MultipleShooting, sample_patch_points, convert_to_j2000
 
 from scripts.utils.params import MU, DU, TU
@@ -51,13 +52,14 @@ DRO_JSON_FILE = project_root / "output" / "dro" / "dro_31_3857864736.json"
 
 N_PATCH_POINTS = 8
 POSITION_CONTINUITY_TOL = 1e-3
+N_WORKERS = multiprocessing.cpu_count()
 
 REFERENCE_EPOCH = "2025-06-21T11:00:06"
 SPICE_KERNEL_DIR = os.environ.get(
     "SPICE_KERNEL_DIR",
     str(project_root.parent / "e2m2e" / "kernels"),
 )
-BODIES = ["EARTH", "MOON", "SUN"]
+BODIES = BodyName.EARTH_MOON_SUN
 BASE_BODIES = ["EARTH", "MOON"]
 PERTURBATION_BODIES = ["SUN"]
 
@@ -99,7 +101,7 @@ def prepare_patch_points(dro_orbit, cr3bp_system, spice, reference_et):
     )
 
     t_patch_j2000, states_j2000 = convert_to_j2000(
-        t_patch_syn, states_syn, syn_j2000, reference_et, TU_SECONDS
+        t_patch_syn, states_syn, syn_j2000, reference_et, TU
     )
 
     print(f"  参考历元: {REFERENCE_EPOCH} (ET={reference_et:.2f} s)")
@@ -119,6 +121,7 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
     print(f"  基础天体: {BASE_BODIES}")
     print(f"  摄动天体: {PERTURBATION_BODIES}")
     print(f"  收敛容差: {MS_TOLERANCE:.1e} km")
+    print(f"  并行 workers: {N_WORKERS}")
 
     total_t0 = time.time()
     homotopy_log = []
@@ -138,7 +141,11 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
             homotopy_param=lam,
         )
 
-        ms = MultipleShooting(dynamics=hdynamics)
+        ms = MultipleShooting(
+            dynamics=hdynamics,
+            n_workers=N_WORKERS,
+            kernel_dir=SPICE_KERNEL_DIR,
+        )
         t0_step = time.time()
         result = ms.correct(
             t_patch=current_t,
@@ -184,7 +191,11 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
                     perturbation_bodies=PERTURBATION_BODIES,
                     homotopy_param=sub_lam,
                 )
-                ms_sub = MultipleShooting(dynamics=hdynamics_sub)
+                ms_sub = MultipleShooting(
+                    dynamics=hdynamics_sub,
+                    n_workers=N_WORKERS,
+                    kernel_dir=SPICE_KERNEL_DIR,
+                )
                 t0_sub = time.time()
                 result_sub = ms_sub.correct(
                     t_patch=current_t,
