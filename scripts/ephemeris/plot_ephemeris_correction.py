@@ -28,7 +28,7 @@ project_root = Path(__file__).resolve().parent.parent.parent
 
 DRO_JSON_FILE = project_root / "output" / "dro" / "dro_31_3857864736.json"
 EPHEMERIS_JSON_FILE = sorted(
-    (project_root / "output" / "ephemeris").glob("dro_ephemeris_correction_*.json")
+    (project_root / "output" / "ephemeris").glob("dro_ephemeris_correction_20260406_120419.json")
 )[-1]
 OUTPUT_DIR = project_root / "output" / "ephemeris"
 
