@@ -32,7 +32,7 @@ from datetime import datetime
 import spiceypy
 from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.core import SPICEManager, EphemerisSystem, EphemerisDynamics
-from e2m2e.core import SynodicJ2000Transformation
+from e2m2e.core import SynodicJ2000Transformation, BodyName
 from e2m2e.algorithms import MultipleShooting, sample_patch_points, convert_to_j2000
 
 from scripts.utils.params import MU, DU, TU
@@ -57,7 +57,7 @@ SPICE_KERNEL_DIR = os.environ.get(
     "SPICE_KERNEL_DIR",
     str(project_root.parent / "e2m2e" / "kernels"),
 )
-BODIES = ["EARTH", "MOON", "SUN"]
+BODIES = BodyName.EARTH_MOON_SUN   # 地球（原点）+ 月球 + 太阳；不引入其他行星摄动
 
 def main():
     """DRO 轨道 CR3BP → 星历模型修正的主流程入口。
