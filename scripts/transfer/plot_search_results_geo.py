@@ -51,7 +51,7 @@ from e2m2e.core import CR3BP_System, Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
 from e2m2e.visualization.plotting import OrbitVisualizer
 
-from scripts.utils.common import MU, DU, TU
+from scripts.utils.common import MU, DU, TU, VU
 from scripts.utils.geo import R_GEO, V_CIRCULAR_GEO
 
 # =============================================================================
@@ -329,12 +329,12 @@ def _geo_sphere_points(n_pts: int = 200) -> np.ndarray:
     """
     生成 GEO 球面上的点（在旋转坐标系中）。
 
-    地心在 (1-μ, 0)，GEO 半径为 R_GEO。
-    在旋转系中，GEO 球面近似为以 (1-μ, 0, 0) 为圆心、R_GEO 为半径的圆（z=0 平面）。
+    地心在 (-μ, 0)，GEO 半径为 R_GEO。
+    在旋转系中，GEO 球面近似为以 (-μ, 0, 0) 为圆心、R_GEO 为半径的圆（z=0 平面）。
     （严格来说在旋转系中由于科氏力会形成更复杂的形状，但 R_GEO 很小，近似为圆足够。）
     """
     theta = np.linspace(0.0, 2.0 * np.pi, n_pts)
-    earth_x = 1.0 - MU
+    earth_x = -MU
     pts = np.zeros((n_pts, 3))
     pts[:, 0] = earth_x + R_GEO * np.cos(theta)
     pts[:, 1] = R_GEO * np.sin(theta)
@@ -426,7 +426,7 @@ def _plot_single_transfer_orbit(
     )
 
     # 地心标记
-    earth_x = 1.0 - MU
+    earth_x = -MU
     ax.scatter(
         [earth_x],
         [0.0],
@@ -468,8 +468,8 @@ def _plot_single_transfer_orbit(
     ax.set_ylim(cy - span, cy + span)
     ax.set_zlim(cz - span, cz + span)
 
-    dv_dep_phys = dv_departure * V_CIRCULAR_GEO * 1000
-    dv_ins_phys = dv_insertion * V_CIRCULAR_GEO * 1000
+    dv_dep_phys = dv_departure * VU * 1000
+    dv_ins_phys = dv_insertion * VU * 1000
     ax.set_title(
         f"Transfer orbit: α={alpha:.3f}, T={transfer_time:.2f} TU\n"
         f"Δv_dep={dv_dep_phys:.1f} m/s, Δv_ins={dv_ins_phys:.1f} m/s",
@@ -600,15 +600,15 @@ def interactive_browse_by_time(
         print(f"  α = {alpha:.4f}")
         print(f"  转移时间 = {transfer_time:.4f} TU")
         print(
-            f"  Δv_dep = {dv_departure:.6f} ({dv_departure * V_CIRCULAR_GEO * 1000:.1f} m/s)"
+            f"  Δv_dep = {dv_departure:.6f} ({dv_departure * VU * 1000:.1f} m/s)"
         )
         print(
-            f"  Δv_ins = {dv_insertion:.6f} ({dv_insertion * V_CIRCULAR_GEO * 1000:.1f} m/s)"
+            f"  Δv_ins = {dv_insertion:.6f} ({dv_insertion * VU * 1000:.1f} m/s)"
         )
         if np.isfinite(dv_departure) and np.isfinite(dv_insertion):
             dv_total = dv_departure + dv_insertion
             print(
-                f"  Δv_total = {dv_total:.6f} ({dv_total * V_CIRCULAR_GEO * 1000:.1f} m/s)"
+                f"  Δv_total = {dv_total:.6f} ({dv_total * VU * 1000:.1f} m/s)"
             )
 
         transfer_states, _ = _reintegrate_transfer(

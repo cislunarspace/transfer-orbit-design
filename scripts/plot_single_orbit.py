@@ -56,7 +56,7 @@ orbit_plotter.libration_point_sizes = [60] * 5
 fig_2d, ax_2d = plt.subplots(figsize=(10, 8))
 
 orbit_plotter.plot_2d_projection(
-    orbit, plane="xy", color="blue", label="3:1 DRO", ax=ax_2d
+    orbit, plane="xy", color="blue", label="3:1 RO", ax=ax_2d
 )
 orbit_plotter.plot_primary_bodies(ax=ax_2d)
 orbit_plotter.plot_libration_points(ax=ax_2d)
@@ -64,7 +64,7 @@ orbit_plotter.plot_libration_points(ax=ax_2d)
 ax_2d.set_xlabel("X (nondimensional)", fontsize=12)
 ax_2d.set_ylabel("Y (nondimensional)", fontsize=12)
 ax_2d.set_title(
-    f"Single 3:1 DRO Orbit (XY Plane)\n"
+    f"Single 3:1 RO Orbit (XY Plane)\n"
     f"Period = {orbit.period:.4f} TU, Jacobi = {orbit.jacobi_constants[0]:.4f}",
     fontsize=12,
 )
@@ -95,7 +95,7 @@ center_z = orbit.states[:, 2].mean()
 max_range = max(x_range, y_range, z_range) / 2 * 1.2
 
 orbit_plotter.plot_3d_orbit(
-    orbit, color="blue", label="3:1 DRO", ax=ax_3d, show_start=True
+    orbit, color="blue", label="3:1 RO", ax=ax_3d, show_start=True
 )
 orbit_plotter.plot_primary_bodies(ax=ax_3d, is_3d=True)
 orbit_plotter.plot_libration_points(ax=ax_3d, show_labels=True, is_3d=True)
@@ -109,7 +109,7 @@ ax_3d.set_xlabel("X (nondimensional)", fontsize=12)
 ax_3d.set_ylabel("Y (nondimensional)", fontsize=12)
 ax_3d.set_zlabel("Z (nondimensional)", fontsize=12)
 ax_3d.set_title(
-    f"Single 3:1 DRO Orbit (3D View)\n"
+    f"Single 3:1 RO Orbit (3D View)\n"
     f"Period = {orbit.period:.4f} TU, Jacobi = {orbit.jacobi_constants[0]:.4f}",
     fontsize=12,
 )
@@ -135,7 +135,7 @@ for ax, plane, title in zip(
     axes, ["xy", "xz", "yz"], ["XY Plane", "XZ Plane", "YZ Plane"]
 ):
     orbit_plotter.plot_2d_projection(
-        orbit, plane=plane, color="blue", label="3:1 DRO", ax=ax
+        orbit, plane=plane, color="blue", label="3:1 RO", ax=ax
     )
     orbit_plotter.plot_primary_bodies(ax=ax)
     orbit_plotter.plot_libration_points(ax=ax)

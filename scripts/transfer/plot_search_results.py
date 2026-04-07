@@ -9,7 +9,7 @@
 叠加绘制 DRO 出发轨道与 RO 到达轨道，直观展示转移路径。
 
 用法:
-    python plot_search_results.py                                      # 仅 α–Δv 散点图 //TOOD 通过alpha-dv图可以判断哪一个alpha是最适合转移的
+    python plot_search_results.py                                      # 仅 α–Δv 散点图 //TODO 通过alpha-dv图可以判断哪一个alpha是最适合转移的
     python plot_search_results.py --time-dv                           # 转移时间–Δv 散点图
     python plot_search_results.py --orbit                            # 转移轨道 3D 示意图
     python plot_search_results.py --orbit --save output/transfer/figures/search_orbit.png

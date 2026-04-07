@@ -27,9 +27,11 @@ from scripts.utils.common import DU, MU, TU
 project_root = Path(__file__).resolve().parent.parent.parent
 
 DRO_JSON_FILE = project_root / "output" / "dro" / "dro_31_3857864736.json"
-EPHEMERIS_JSON_FILE = sorted(
-    (project_root / "output" / "ephemeris").glob("dro_ephemeris_correction_20260406_120419.json")
-)[-1]
+EPHEMERIS_JSON_FILE = (
+    project_root / "output" / "ephemeris" / "dro_ephemeris_correction_20260406_120419.json"
+)
+if not EPHEMERIS_JSON_FILE.is_file():
+    raise FileNotFoundError(f"星历修正数据文件不存在: {EPHEMERIS_JSON_FILE}")
 OUTPUT_DIR = project_root / "output" / "ephemeris"
 
 REFERENCE_EPOCH = "2025-06-21T11:00:06"

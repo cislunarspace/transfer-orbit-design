@@ -73,19 +73,16 @@ def _build_dynamics() -> Tuple[CR3BP_System, CR3BP_Dynamics]:
 
 
 def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
+    pos = np.asarray(state6[:3], dtype=np.float64)
     vel = np.asarray(state6[3:6], dtype=np.float64)
-    v_mag = np.linalg.norm(vel)
-    if v_mag < 1e-10:
+    r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
+    if r_xy < 1e-10:
         return vel.copy()
-    tangential = vel / v_mag
-    normal = np.array([0.0, 0.0, 1.0])
-    normal_dir = np.cross(tangential, normal)
-    norm_nd = np.linalg.norm(normal_dir)
-    if norm_nd < 1e-10:
-        normal_dir = np.array([1.0, 0.0, 0.0])
-    else:
-        normal_dir = normal_dir / norm_nd
-    return alpha * v_mag * tangential
+    tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
+    radial = pos / np.linalg.norm(pos)
+    v_radial_comp = float(np.dot(vel, radial))
+    v_tangential_comp = float(np.dot(vel, tangential))
+    return v_radial_comp * radial + alpha * v_tangential_comp * tangential
 
 
 def _integrate_transfer(

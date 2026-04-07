@@ -18,7 +18,7 @@ from fontTools.misc.timeTools import timestampNow
 
 import e2m2e
 from e2m2e.core import Orbit
-from scripts.utils.common import MU
+from scripts.utils.common import MU, TU
 
 project_root = Path(__file__).resolve().parent.parent.parent
 
@@ -46,7 +46,7 @@ t_half = target_period / 2  # 半周期
 
 print(f"目标轨道: 3:1 DRO")
 print(f"初始状态: x0={x0}, vy0={vy0}")
-print(f"目标周期: {target_period:.4f} TU ({target_period * 4.348:.2f} days)")
+print(f"目标周期: {target_period:.4f} TU ({target_period * TU:.2f} days)")
 print(f"半周期: {t_half:.4f} TU")
 
 # =============================================================================

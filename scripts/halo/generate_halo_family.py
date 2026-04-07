@@ -14,7 +14,10 @@
     （由 step_size / step_size_negative 控制）。
 """
 
+import sys
 from pathlib import Path
+
+import numpy as np
 
 project_root = Path(__file__).resolve().parent.parent.parent
 
@@ -61,7 +64,7 @@ if seed_halo is None:
     sys.exit(1)
 
 print(f"[ok] 种子轨道生成成功: 周期={seed_halo.period:.6f} TU")
-print(f"  x0={seed_halo.states[0, 0]:.6f}, z0={seed_halo.states[0, 2]:.6f}")
+print(f"  x0={np.asarray(seed_halo.states)[0, 0]:.6f}, z0={np.asarray(seed_halo.states)[0, 2]:.6f}")
 
 # =============================================================================
 # 4. 使用halo_pseudo_arclength_continuation生成轨道族
@@ -90,5 +93,5 @@ family_result.save_to_file(filename=str(OUTPUT_DIR / f"{family_name}.json"))
 print(f"\n[ok] 轨道族已保存至: {OUTPUT_DIR / f'{family_name}.json'}")
 print(f"  轨道族名称: {family_name}")
 if len(family_result) > 0:
-    z_values = [o.parameters.get("amplitude_z", 0) for o in family_result]
+    z_values = [getattr(o, "parameters", {}).get("amplitude_z", 0) for o in family_result]
     print(f"  z_amplitude 范围: [{min(z_values):.4f}, {max(z_values):.4f}]")

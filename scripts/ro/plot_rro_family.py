@@ -77,7 +77,7 @@ jacobi_sorted = np.array(jacobi_values_subset)[sort_idx].tolist()
 periods_sorted = np.array(periods_subset)[sort_idx].tolist()
 stability_sorted = np.array(stability_values_subset)[sort_idx].tolist()
 
-target_period = 2 * np.pi
+target_period = 4 * np.pi
 
 # =============================================================================
 # 创建绘图器
