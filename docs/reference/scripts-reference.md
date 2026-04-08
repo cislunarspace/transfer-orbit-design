@@ -176,13 +176,12 @@ python scripts/transfer/grid_search.py
 
 **搜索变量**：
 - `alpha`：切向速度比（0.5 ~ 2.5）
-- `beta`：法向速度比（-0.5 ~ 0.5）
 - 出发点位置沿 DRO 轨道分布
 
 **算法**：
 1. 遍历网格点
-2. 计算出发点状态（alpha·v_tangential + beta·v_normal）
-3. 前向积分轨迹
+2. 计算出发点状态（v_radial·radial + alpha·v_tangential·tangential）
+3. 前向积分轨迹（DOP853, rtol=1e-12, atol=1e-12）
 4. 检查是否接近目标 RO
 5. 记录可行转移
 
@@ -214,6 +213,88 @@ python scripts/transfer/plot_search_results.py <results.json>
 - `--max-points <int>`：最大绘制轨道数（配合 `--idx all`）
 - `--save <path>`：保存图片而非显示
 
+### plot_optimize_result.py
+
+可视化 NLP 优化结果：
+
+```bash
+python scripts/transfer/plot_optimize_result.py
+python scripts/transfer/plot_optimize_result.py --orbit
+python scripts/transfer/plot_optimize_result.py --orbit --idx best
+```
+
+**参数**：
+- `--file`：优化结果 JSON 路径（默认自动选择最新）
+- `--orbit`：绘制 3D 转移轨道示意图
+- `--idx <int|best|best:N|random|all>`：选择结果索引
+- `--save <path>`：保存图片
+
+### grid_search_dro_geo.py
+
+网格搜索 DRO 到 GEO 的可行转移轨迹：
+
+```bash
+python scripts/transfer/grid_search_dro_geo.py
+```
+
+与 `grid_search.py` 类似，但目标为 GEO 球面而非 RO 轨道。使用 `GeoTransferSearch` 检测 GEO 球面穿越。
+
+### optimize_dro_geo.py
+
+优化 DRO→GEO 转移轨道：
+
+```bash
+python scripts/transfer/optimize_dro_geo.py
+```
+
+### plot_search_results_geo.py
+
+可视化 DRO→GEO 搜索结果：
+
+```bash
+python scripts/transfer/plot_search_results_geo.py
+python scripts/transfer/plot_search_results_geo.py --orbit
+python scripts/transfer/plot_search_results_geo.py --interactive
+```
+
+**参数**：与 `plot_search_results.py` 类似，额外支持 `--interactive` 交互式浏览模式。
+
+## 星历修正脚本
+
+### correct_dro_to_ephemeris.py
+
+使用多重打靶法将 CR3BP DRO 修正为星历模型下的轨道：
+
+```bash
+python scripts/ephemeris/correct_dro_to_ephemeris.py
+```
+
+需要 SPICE 内核文件（`de440.bsp`, `naif0012.tls`）。
+
+### homotopy_dro_to_ephemeris.py
+
+使用同伦 λ-延拓方法将 CR3BP DRO 修正为星历模型下的轨道：
+
+```bash
+python scripts/ephemeris/homotopy_dro_to_ephemeris.py
+```
+
+### compare_ephemeris_methods.py
+
+对比多重打靶法和同伦法的修正效果：
+
+```bash
+python scripts/ephemeris/compare_ephemeris_methods.py
+```
+
+### plot_ephemeris_correction.py
+
+可视化星历修正前后对比（会合坐标系 + J2000 惯性系）：
+
+```bash
+python scripts/ephemeris/plot_ephemeris_correction.py
+```
+
 ## 通用工具脚本
 
 ### plot_single_orbit.py
@@ -242,21 +323,36 @@ python scripts/plot_interactive_orbit_inspector.py
 
 ### utils/params.py
 
-物理常数（SI 单位）：
+物理常数（归一化单位）：
 
-| 常数 | 值 | 单位 |
+| 常数 | 值 | 说明 |
 |------|-----|------|
-| MU | 1.21506683e-2 | - |
-| M_SUN | 3.28900541e5 | - |
-| OMEGA_SUN | 9.25195985e-1 | - |
-| RHO | 3.88811143e2 | - |
-| DU | 3.84405e5 | km |
-| TU | 4.34811305 | 天 |
-| VU | 1023.23281 | m/s |
-| T_MOON | 2π | TU |
+| MU | 1.21506683e-2 | 地月质量比（无量纲） |
+| M_SUN | 3.28900541e5 | 太阳质量比（无量纲，BR4BP） |
+| OMEGA_SUN | 9.25195985e-1 | 太阳角速度（无量纲，BR4BP） |
+| RHO | 3.88811143e2 | 太阳距离比（无量纲，BR4BP） |
+| DU | 3.84405e5 | 距离单位 (km) |
+| TU | 4.34811305 | 时间单位 (天) |
+| VU | 1023.23281 | 速度单位 (m/s) |
+| T_MOON | 2π | 月球轨道周期 (TU) |
 
 ### utils/common.py
 
-共享函数：
+共享常数（MU, DU, TU, VU, T_MOON）和文件辅助函数：
 - `ensure_output_dir()`：创建输出目录
-- `get_latest_family_file()`：查找最新的输出
+- `get_latest_family_file()`：查找最新的输出文件
+- `load_or_compute()`：加载已有文件或重新计算
+- `save_family_to_file()`：保存轨道族数据
+
+### utils/geo.py
+
+GEO 轨道工具（DRO→GEO 转移用）：
+- `R_GEO`：GEO 轨道半径（归一化）
+- `V_CIRCULAR_GEO`：GEO 圆轨道速度（归一化）
+- `EARTH_CENTER`：地心坐标 `(-MU, 0, 0)`
+- `geo_circular_velocity_rotating()`：计算旋转系下 GEO 圆轨道速度
+- `detect_geo_sphere_crossing()`：检测轨迹 GEO 球面穿越
+- `find_closest_approach_to_geo()`：找最接近 GEO 的点
+- `compute_geo_dv2()`：计算 GEO 插入 delta-v
+- `compute_departure_velocity()`：切向速度缩放（径向/切向分解）
+- `check_collision()`：碰撞检测

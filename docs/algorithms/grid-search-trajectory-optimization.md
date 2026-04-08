@@ -44,18 +44,17 @@
 | 变量 | 符号 | 范围 | 网格点数 |
 |------|------|------|----------|
 | 出发点 | — | DRO轨道等时间采样 | 200 |
-| 切向速度比 | α | [0.5, 2.5] | 101 |
-| 法向速度比 | β | [-0.5, 0.5] | 21 |
+| 切向速度比 | α | [0.5, 2.5] | 100 |
 
 ### 2.3 速度扰动模型
 
-在出发点施加脉冲：
+在出发点施加脉冲，将速度分解为径向和切向分量，仅缩放切向分量：
 
 ```
-v_dep_new = α · v_tangential + β · v_normal
+v_dep_new = v_radial · radial + α · v_tangential · tangential
 ```
 
-其中 `v_tangential` 是轨道切向速度，`v_normal` 是法向速度。
+其中 `tangential` 是轨道切向方向（xy 平面内垂直于位置矢量），`radial` 是径向方向。
 
 ### 2.4 优化问题定义
 
@@ -99,16 +98,15 @@ PROCEDURE:
 2. # 遍历所有出发点
    FOR EACH (state, t_dep) IN (departure_states, departure_times) DO:
 
-      # 遍历α-β网格
+      # 遍历α网格
       FOR EACH α IN α_grid DO:
-        FOR EACH β IN β_grid DO:
 
             # Step 1: 计算扰动速度
             v_dep ← Orbit_Velocity(dro_orbit, t_dep)
-            v_new ← Compute_Perturbed_Velocity(state, α, β)
+            v_new ← Compute_Perturbed_Velocity(state, α)
 
-            # Step 2: 前向积分
-            X_f, T_f ← Forward_Integrate([state.position, v_new], T_max=15.0)
+            # Step 2: 前向积分（使用 DOP853 高阶 Runge-Kutta 积分器）
+            X_f, T_f ← Forward_Integrate([state.position, v_new], T_max=100.0/TU)
 
             # Step 3: 计算到目标轨道的最小距离
             min_dist ← Compute_Min_Distance(X_f, ro_orbit)
@@ -118,10 +116,9 @@ PROCEDURE:
 
             # Step 5: 筛选条件
             IF collision == FALSE AND min_dist < threshold THEN:
-                record_result(state, α, β, min_dist, X_f)
+                record_result(state, α, min_dist, X_f)
 
             END
-        END
       END
 
 3. RETURN all_recorded_results
@@ -130,9 +127,9 @@ PROCEDURE:
 ### 3.2 前向积分
 
 ```python
-def forward_integrate(initial_state, transfer_time, dt=0.001):
+def forward_integrate(initial_state, transfer_time, dt=1.0/(24.0*TU)):
     """
-    前向积分转移轨迹。
+    前向积分转移轨迹。实际实现使用 scipy DOP853（8阶 Runge-Kutta）积分器。
 
     Parameters:
     -----------
@@ -141,7 +138,7 @@ def forward_integrate(initial_state, transfer_time, dt=0.001):
     transfer_time : float
         积分时间 (TU)
     dt : float
-        积分步长
+        最大积分步长（默认约 0.0095 TU ≈ 1 小时）
 
     Returns:
     --------
@@ -150,20 +147,9 @@ def forward_integrate(initial_state, transfer_time, dt=0.001):
     times : np.ndarray [n_steps]
         对应时间序列
     """
-    n_steps = int(transfer_time / dt) + 1
-    states = np.zeros((n_steps, 6))
-    times = np.zeros(n_steps)
-
-    states[0] = initial_state
-    times[0] = 0.0
-
-    for i in range(1, n_steps):
-        # 使用CR3BP动力学计算状态导数
-        dxdt = dynamics.compute_dynamics(states[i-1])
-        states[i] = states[i-1] + dxdt * dt
-        times[i] = times[i-1] + dt
-
-    return states, times
+    # 实际使用 e2m2e 的 TransferSearch._forward_integrate
+    # 积分器配置: DOP853, rtol=1e-12, atol=1e-12
+    ...
 ```
 
 ### 3.3 最小距离计算
@@ -214,7 +200,7 @@ def compute_min_distance(trajectory_states, arrival_orbit):
 ### 3.4 碰撞检测
 
 ```python
-def check_collision(trajectory_states, mu, r_earth=0.01, r_moon=0.01):
+def check_collision(trajectory_states, mu, r_earth=200.0/DU, r_moon=100.0/DU):
     """
     检测轨迹是否与地球或月球碰撞。
 
@@ -313,27 +299,26 @@ class TransferSearchConfig:
     # α搜索范围
     alpha_min: float = 0.5
     alpha_max: float = 2.5
-    n_alpha: int = 101
-
-    # β搜索范围
-    beta_min: float = -0.5
-    beta_max: float = 0.5
-    n_beta: int = 21
+    n_alpha: int = 100
 
     # 出发点采样
     n_departure: int = 200
 
-    # 积分配置
-    max_transfer_time: float = 15.0  # TU
-    dt: float = 0.001  # 积分步长
+    # 积分配置（使用 DOP853 高阶积分器）
+    max_transfer_time: float = 100.0 / TU  # ≈ 23.0 TU
+    dt: float = 1.0 / (24.0 * TU)  # 最大步长 ≈ 0.0095 TU
+
+    # 积分精度
+    rtol: float = 1e-12
+    atol: float = 1e-12
 
     # 筛选阈值
     intersection_threshold: float = 0.001  # 相交判定距离
-    min_distance_threshold: float = 100.0 / 384405.0   # 候选解最小距离阈值，默认 100 km（无量纲 DU）
+    min_distance_threshold: float = 100.0 / DU   # 候选解最小距离阈值，默认 100 km（无量纲 DU）
 
-    # 碰撞半径
-    earth_radius: float = 0.01  # 无量纲
-    moon_radius: float = 0.01
+    # 碰撞半径（物理值 200 km / 100 km）
+    earth_radius: float = 200.0 / DU  # ≈ 0.00052
+    moon_radius: float = 100.0 / DU   # ≈ 0.00026
 ```
 
 ### 4.2 调试参数（可人工修改）
@@ -341,11 +326,10 @@ class TransferSearchConfig:
 | 参数 | 默认值 | 说明 | 建议修改范围 |
 |------|--------|------|--------------|
 | `n_departure` | 200 | 出发点数量 | 50-500 |
-| `n_alpha` | 101 | α方向网格点 | 51-501 |
-| `n_beta` | 21 | β方向网格点 | 11-101 |
-| `max_transfer_time` | 15.0 | 最大积分时间(TU) | 10.0-30.0 |
+| `n_alpha` | 100 | α方向网格点 | 51-501 |
+| `max_transfer_time` | 100.0/TU (≈23.0) | 最大积分时间(TU) | 10.0-30.0 |
 | `intersection_threshold` | 0.001 | 相交判定 | 0.0001-0.01 |
-| `min_distance_threshold` | `100/384405`（≈2.6×10⁻⁴ DU，物理 100 km） | 候选解阈值 | 按任务放宽/收紧 |
+| `min_distance_threshold` | `100/DU`（≈2.6×10⁻⁴ DU，物理 100 km） | 候选解阈值 | 按任务放宽/收紧 |
 
 ---
 
@@ -357,7 +341,7 @@ class TransferSearchConfig:
 |------|------|----------|----------|
 | 动力学模型错误 | 轨迹发散 | 检查μ值 | 确认μ=1.21506683e-2 |
 | 积分步长过大 | 精度不足 | 减小dt | dt=0.0001 |
-| 搜索范围不当 | 无候选解 | 可视化轨迹 | 扩大α/β范围 |
+| 搜索范围不当 | 无候选解 | 可视化轨迹 | 扩大α范围 |
 | 阈值过严 | 过滤掉所有解 | 检查min_dist分布 | 放宽threshold |
 | 坐标系错误 | 位置完全不对 | 检查orbit数据 | 确认CR3BP坐标系 |
 | 碰撞检测过严 | 大量collision | 检查r_earth/r_moon | 调整碰撞半径 |
@@ -440,7 +424,7 @@ def quick_debug_test():
 
     state = departure_states[0]
     for alpha in [0.5, 1.0, 1.5, 2.0]:
-        v_new = compute_departure_velocity(state, alpha, beta=0.0)
+        v_new = compute_departure_velocity(state, alpha)
         print(f"  α={alpha:.1f}: |v|={np.linalg.norm(v_new):.6f}")
 
     # 4. 测试前向积分
@@ -448,8 +432,8 @@ def quick_debug_test():
     print("4. 测试前向积分 (T=1.0 TU)")
     print("=" * 60)
 
-    v_new = compute_departure_velocity(state, alpha=1.0, beta=0.0)
-    X, T = forward_integrate([state[:3], v_new], transfer_time=1.0, dt=0.001)
+    v_new = compute_departure_velocity(state, alpha=1.0)
+    X, T = forward_integrate([state[:3], v_new], transfer_time=1.0, dt=DT)
 
     print(f"  积分步数: {len(X)}")
     print(f"  起点: ({X[0,0]:.4f}, {X[0,1]:.4f}, {X[0,2]:.4f})")
@@ -506,24 +490,22 @@ RO_FILE = "output/ro/ro_31_3857030320.json"
 
 # 搜索参数
 N_DEPARTURE = 200    # 出发点数量 (可改为50-500)
-N_ALPHA = 101        # α网格点数 (可改为51-501)
-N_BETA = 21          # β网格点数 (可改为11-101)
-MAX_TRANSFER_TIME = 15.0  # 最大转移时间 TU
+N_ALPHA = 100        # α网格点数 (可改为51-501)
+MAX_TRANSFER_TIME = 100.0 / 384405.0 * 86400  # ≈ 22.998 TU
 
-# α, β 范围
+# α 范围
 ALPHA_MIN, ALPHA_MAX = 0.5, 2.5
-BETA_MIN, BETA_MAX = -0.5, 0.5
 
 # 阈值参数
 INTERSECTION_THRESHOLD = 0.001   # 相交判定距离
 MIN_DISTANCE_THRESHOLD = 100.0 / 384405.0   # 候选解阈值，默认 100 km（无量纲 DU）；与 e2m2e 一致
 
-# 碰撞半径 (无量纲)
-EARTH_RADIUS = 0.01
-MOON_RADIUS = 0.01
+# 碰撞半径 (无量纲, 物理值 200 km / 100 km)
+EARTH_RADIUS = 200.0 / 384405.0
+MOON_RADIUS = 100.0 / 384405.0
 
-# 积分步长
-DT = 0.001
+# 积分步长 (最大步长，实际使用 DOP853 自适应步长)
+DT = 1.0 / (24.0 * 4.34811305)  # ≈ 0.0095 TU
 
 # =============================================================================
 # 数据类
@@ -535,9 +517,6 @@ class TransferSearchConfig:
     alpha_min: float = ALPHA_MIN
     alpha_max: float = ALPHA_MAX
     n_alpha: int = N_ALPHA
-    beta_min: float = BETA_MIN
-    beta_max: float = BETA_MAX
-    n_beta: int = N_BETA
     n_departure: int = N_DEPARTURE
     max_transfer_time: float = MAX_TRANSFER_TIME
     intersection_threshold: float = INTERSECTION_THRESHOLD
@@ -549,7 +528,6 @@ class SearchResult:
     """搜索结果"""
     departure_idx: int
     alpha: float
-    beta: float
     departure_state: np.ndarray
     transfer_trajectory: np.ndarray
     transfer_times: np.ndarray
@@ -586,16 +564,15 @@ def sample_departure_points(orbit_states, orbit_period, n_points: int) -> Tuple[
     return departure_states, times
 
 
-def compute_departure_velocity(orbit_state: np.ndarray, alpha: float, beta: float = 0.0) -> np.ndarray:
+def compute_departure_velocity(orbit_state: np.ndarray, alpha: float) -> np.ndarray:
     """
-    计算出发点扰动速度。
+    计算出发点扰动速度。将速度分解为径向/切向分量，仅缩放切向分量。
 
-    v_new = v + (α - 1) * v_tangential + β * v_normal
+    v_new = v_radial * radial + α * v_tangential * tangential
 
     Parameters:
         orbit_state: [x, y, z, vx, vy, vz]
         alpha: 切向速度比例
-        beta: 法向速度比例
 
     Returns:
         扰动后的速度向量 [vx, vy, vz]
@@ -603,74 +580,40 @@ def compute_departure_velocity(orbit_state: np.ndarray, alpha: float, beta: floa
     pos = orbit_state[:3]
     vel = orbit_state[3:]
 
-    # 计算切向方向 (在xy平面内垂直于位置矢量)
     r_xy = np.sqrt(pos[0]**2 + pos[1]**2)
     if r_xy < 1e-10:
-        return vel * alpha
+        return vel.copy()
 
     tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
-    normal = np.array([0.0, 0.0, 1.0])
+    radial = pos / np.linalg.norm(pos)
 
     # 分解速度
-    v_tang = np.dot(vel, tangential)
-    v_norm = np.dot(vel, normal)
+    v_rad = np.dot(vel, radial)
+    v_tan = np.dot(vel, tangential)
 
-    # 构建新速度
-    new_vel = vel.copy()
-    new_vel += (alpha - 1.0) * v_tang * tangential
-    new_vel += beta * v_norm * normal
-
-    return new_vel
+    # 构建新速度（保留径向分量，缩放切向分量）
+    return v_rad * radial + alpha * v_tan * tangential
 
 
 def forward_integrate(initial_state: np.ndarray, transfer_time: float,
                       mu: float, dt: float = DT) -> Tuple[np.ndarray, np.ndarray]:
     """
-    前向积分轨迹。
-
-    使用CR3BP动力学模型。
+    前向积分轨迹。实际使用 scipy DOP853（8阶 Runge-Kutta）积分器。
 
     Parameters:
         initial_state: [x, y, z, vx, vy, vz]
         transfer_time: 积分时间 (TU)
         mu: 质量比
-        dt: 积分步长
+        dt: 最大步长
 
     Returns:
         states: shape (n_steps, 6)
         times: shape (n_steps,)
     """
-    n_steps = int(transfer_time / dt) + 1
-    states = np.zeros((n_steps, 6))
-    times = np.zeros(n_steps)
-
-    states[0] = initial_state
-    times[0] = 0.0
-
-    for i in range(1, n_steps):
-        # CR3BP动力学方程
-        x, y, z, vx, vy, vz = states[i-1]
-
-        # 位置
-        rx = x + mu
-        r = np.sqrt(rx**2 + y**2 + z**2)
-        r1 = np.sqrt((x + mu - 1)**2 + y**2 + z**2)
-
-        # 加速度
-        ax = 2*vy + x - (1 - mu)*rx/r**3 - mu*(x + mu - 1)/r1**3
-        ay = -2*vx + y - (1 - mu)*y/r**3 - mu*y/r1**3
-        az = -(1 - mu)*z/r**3 - mu*z/r1**3
-
-        # 积分 (欧拉法 - 可替换为RK4)
-        states[i, 0] = x + vx * dt
-        states[i, 1] = y + vy * dt
-        states[i, 2] = z + vz * dt
-        states[i, 3] = vx + ax * dt
-        states[i, 4] = vy + ay * dt
-        states[i, 5] = vz + az * dt
-        times[i] = times[i-1] + dt
-
-    return states, times
+    # 实际实现使用 e2m2e 的 CR3BP_Dynamics.propagate()
+    # 积分器: DOP853, rtol=1e-12, atol=1e-12, max_step=dt
+    # 下方为 CR3BP 方程参考（非实际积分代码）
+    ...
 
 
 def compute_min_distance(trajectory_states: np.ndarray, orbit_states: np.ndarray) -> Tuple[float, int]:
@@ -726,7 +669,6 @@ def grid_search(departure_orbit_states, departure_period,
 
     # 生成搜索网格
     alpha_grid = np.linspace(config.alpha_min, config.alpha_max, config.n_alpha)
-    beta_grid = np.linspace(config.beta_min, config.beta_max, config.n_beta)
 
     # 采样出发点
     departure_states, departure_times = sample_departure_points(
@@ -736,21 +678,19 @@ def grid_search(departure_orbit_states, departure_period,
     if verbose:
         print(f"出发点数量: {len(departure_states)}")
         print(f"α网格: {len(alpha_grid)} 点, [{alpha_grid[0]:.2f}, {alpha_grid[-1]:.2f}]")
-        print(f"β网格: {len(beta_grid)} 点, [{beta_grid[0]:.2f}, {beta_grid[-1]:.2f}]")
-        print(f"总候选解数量: {len(departure_states) * len(alpha_grid) * len(beta_grid)}")
+        print(f"总候选解数量: {len(departure_states) * len(alpha_grid)}")
         print("-" * 60)
 
     results = []
-    total_combinations = len(departure_states) * len(alpha_grid) * len(beta_grid)
+    total_combinations = len(departure_states) * len(alpha_grid)
     count = 0
 
     for dep_idx, (dep_state, dep_time) in enumerate(zip(departure_states, departure_times)):
         for alpha in alpha_grid:
-            for beta in beta_grid:
                 count += 1
 
                 # 计算扰动速度
-                v_new = compute_departure_velocity(dep_state, alpha, beta)
+                v_new = compute_departure_velocity(dep_state, alpha)
 
                 # 前向积分
                 initial_state = np.concatenate([dep_state[:3], v_new])
@@ -775,7 +715,6 @@ def grid_search(departure_orbit_states, departure_period,
                     result = SearchResult(
                         departure_idx=dep_idx,
                         alpha=alpha,
-                        beta=beta,
                         departure_state=dep_state,
                         transfer_trajectory=traj_states,
                         transfer_times=traj_times,
@@ -786,7 +725,7 @@ def grid_search(departure_orbit_states, departure_period,
                     results.append(result)
 
                     if verbose and len(results) <= 5:
-                        print(f"  可行解 #{len(results)}: α={alpha:.4f}, β={beta:.4f}, "
+                        print(f"  可行解 #{len(results)}: α={alpha:.4f}, "
                               f"min_dist={min_dist:.6f}, dep_idx={dep_idx}")
 
                 if verbose and count % 10000 == 0:
@@ -877,7 +816,7 @@ if __name__ == "__main__":
 - [ ] 最小距离计算结果合理
 
 ### Step 4: 调整参数
-- [ ] 如果min_distance普遍很大 → 扩大α/β范围
+- [ ] 如果min_distance普遍很大 → 扩大α范围
 - [ ] 如果大量collision → 检查碰撞半径或动力学模型
 - [ ] 如果轨迹发散 → 减小dt或减少max_transfer_time
 

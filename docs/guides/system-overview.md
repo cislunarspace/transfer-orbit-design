@@ -21,8 +21,8 @@ transfer-orbit-design/
 ├── output/
 │   ├── dro/                 # 生成的 DRO 族 JSON 文件
 │   ├── ro/                  # 生成的 RO/RRO/ARO 族 JSON 文件
-│   ├── halo/                # 生成的 Halo 轨道族 JSON 文件
-│   └── transfer/            # 转移搜索与优化结果
+│   ├── transfer/            # 转移搜索与优化结果
+│   └── ephemeris/           # 星历修正结果
 ├── paper/                   # 参考论文（中文翻译）
 ├── plan/                    # 实施计划
 ├── scripts/

@@ -266,9 +266,18 @@ e2m2e/
 | `halo/plot_halo_orbit.py` | 单个 Halo 轨道可视化 |
 | `halo/plot_halo_family.py` | Halo 轨道族可视化 |
 | **转移设计** | |
-| `transfer/grid_search.py` | 网格搜索转移轨道 |
+| `transfer/grid_search.py` | 网格搜索 DRO→RO 转移轨道 |
 | `transfer/optimize.py` | NLP 优化阶段 |
 | `transfer/plot_search_results.py` | 搜索结果可视化（散点图、转移轨迹） |
+| `transfer/plot_optimize_result.py` | 优化结果可视化 |
+| `transfer/grid_search_dro_geo.py` | 网格搜索 DRO→GEO 转移轨道 |
+| `transfer/optimize_dro_geo.py` | DRO→GEO NLP 优化 |
+| `transfer/plot_search_results_geo.py` | DRO→GEO 搜索结果可视化 |
+| **星历修正** | |
+| `ephemeris/correct_dro_to_ephemeris.py` | 多重打靶法星历修正 |
+| `ephemeris/homotopy_dro_to_ephemeris.py` | 同伦法星历修正 |
+| `ephemeris/compare_ephemeris_methods.py` | 修正方法对比 |
+| `ephemeris/plot_ephemeris_correction.py` | 星历修正可视化 |
 | **通用工具** | |
 | `plot_single_orbit.py` | 单轨道可视化（2D/3D） |
 | `plot_interactive_orbit_inspector.py` | 交互式轨道逐条检查 |
@@ -278,7 +287,7 @@ e2m2e/
 - `output/dro/`：DRO 轨道数据
 - `output/ro/`：RO/RRO/ARO 轨道数据
 - `output/transfer/`：转移搜索与优化结果
-- `output/halo/`：Halo 轨道数据
+- `output/ephemeris/`：星历修正结果
 
 ## 参考文献
 

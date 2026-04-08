@@ -11,7 +11,9 @@
 | [DRO 生成](design/dro-generation.md) | `dro/generate_dro_family.py`, `dro/plot_dro_family.py` | 远距离逆行轨道族生成 |
 | [RO 生成](design/ro-generation.md) | `ro/generate_31_ro_family.py`, `ro/generate_32_ro_family.py`, `ro/plot_*_ro_family.py` | 共振轨道族生成 |
 | [RRO/ARO 生成](design/rro-aro-generation.md) | `ro/generate_rro_family.py`, `ro/generate_aro_family.py`, `ro/plot_rro_family.py`, `ro/plot_aro_family.py` | 3D 共振轨道生成 |
-| [DRO-RO 转移](design/dro-ro-transfer.md) | `transfer/grid_search.py`, `transfer/optimize.py`, `transfer/plot_search_results.py` | 两脉冲转移设计 |
+| [DRO-RO 转移](design/dro-ro-transfer.md) | `transfer/grid_search.py`, `transfer/optimize.py`, `transfer/plot_search_results.py`, `transfer/plot_optimize_result.py` | 两脉冲转移设计 |
+| DRO→GEO 转移 | `transfer/grid_search_dro_geo.py`, `transfer/optimize_dro_geo.py`, `transfer/plot_search_results_geo.py` | DRO 到 GEO 转移设计 |
+| 星历修正 | `ephemeris/correct_dro_to_ephemeris.py`, `ephemeris/homotopy_dro_to_ephemeris.py` | CR3BP → 星历模型修正 |
 
 ### 算法说明（`algorithms/`）
 
@@ -76,6 +78,13 @@ python scripts/transfer/grid_search.py
 
 # NLP 优化阶段
 python scripts/transfer/optimize.py
+
+# DRO→GEO 转移管线
+python scripts/transfer/grid_search_dro_geo.py
+python scripts/transfer/optimize_dro_geo.py
+
+# 星历修正（需要 SPICE 内核）
+python scripts/ephemeris/correct_dro_to_ephemeris.py
 
 # 可视化结果
 python scripts/dro/plot_dro_family.py

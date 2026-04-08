@@ -50,7 +50,11 @@ tests/          # pytest tests
 3. NLP optimization on feasible results (`optimize.py`) → optimization results JSON
 4. Visualization and analysis scripts
 
-**Key e2m2e API surface**: `e2m2e.core.CR3BP_System`, `e2m2e.core.CR3BP_Dynamics`, `e2m2e.core.orbit.Orbit`, `e2m2e.core.OrbitFamily`, `e2m2e.transfer.TransferSearch`, `e2m2e.transfer.DROTRONLPOptimizer`, `e2m2e.transfer.load_orbit_from_json`
+**DRO→GEO pipeline**: Same structure using `grid_search_dro_geo.py`, `optimize_dro_geo.py`, `plot_search_results_geo.py` (interactive browsing supported via `--interactive`). Target is GEO sphere around Earth.
+
+**Ephemeris correction**: `correct_dro_to_ephemeris.py` (multiple shooting) and `homotopy_dro_to_ephemeris.py` (homotopy λ-continuation). Requires SPICE kernels (`de440.bsp`, `naif0012.tls`).
+
+**Key e2m2e API surface**: `e2m2e.core.CR3BP_System`, `e2m2e.core.CR3BP_Dynamics`, `e2m2e.core.orbit.Orbit`, `e2m2e.core.OrbitFamily`, `e2m2e.transfer.TransferSearch`, `e2m2e.transfer.DROTRONLPOptimizer`, `e2m2e.transfer.load_orbit_from_json`, `e2m2e.transfer.GeoTransferSearch`
 
 ## Critical Constants
 
