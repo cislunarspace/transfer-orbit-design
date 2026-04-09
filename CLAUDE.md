@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Scripts for designing two-impulse transfer orbits from Lunar Distant Retrograde Orbits (DRO) to Resonant Orbits (RO) and GEO, reproducing results from Cui et al. (2025). Works in Chinese (comments, print output, docs).
+Scripts for designing two-impulse transfer orbits between Lunar Distant Retrograde Orbits (DRO), Resonant Orbits (RO), GEO, and LEO, reproducing results from Cui et al. (2025). Works in Chinese (comments, print output, docs).
 
 **This repo is scripts-only.** All core algorithms live in the separate `e2m2e` library (sibling repo at `../e2m2e`). The `scripts/` directory is importable as a package via editable install.
 
@@ -33,11 +33,11 @@ For full pipeline commands (generate orbits → grid search → optimize → vis
 
 ```
 scripts/
-  utils/        # Shared constants (common.py, params.py, geo.py) and file helpers
+  utils/        # Shared constants (common.py, params.py, geo.py, leo.py) and file helpers
   dro/          # DRO orbit generation
   ro/           # Resonant orbit families (3:1, 3:2, RRO, ARO)
   halo/         # Halo orbit generation
-  transfer/     # Grid search + NLP optimization (DRO→RO and DRO→GEO)
+  transfer/     # Grid search + NLP optimization (DRO→RO, DRO→GEO, GEO→DRO, LEO→DRO)
   ephemeris/    # CR3BP → ephemeris correction (multiple shooting, homotopy)
   plot_*.py     # Standalone visualization tools
 output/         # Generated data (gitignored, created on demand)
@@ -52,6 +52,10 @@ tests/          # pytest tests
 
 **DRO→GEO pipeline**: Same structure using `grid_search_dro_geo.py`, `optimize_dro_geo.py`, `plot_search_results_geo.py` (interactive browsing supported via `--interactive`). Target is GEO sphere around Earth.
 
+**GEO→DRO pipeline**: Reverse direction using `grid_search_geo_to_dro.py`, `optimize_geo_to_dro.py`, `plot_search_results_geo_to_dro.py`. Departure from GEO (approximate circular orbit), arrival at DRO. Alpha range [1.0, 1.5].
+
+**LEO→DRO pipeline**: Same structure using `grid_search_leo_to_dro.py`, `optimize_leo_to_dro.py`. Departure from LEO (400 km altitude), requires larger alpha and longer transfer time. LEO constants in `scripts/utils/leo.py`.
+
 **Ephemeris correction**: `correct_dro_to_ephemeris.py` (multiple shooting) and `homotopy_dro_to_ephemeris.py` (homotopy λ-continuation). Requires SPICE kernels (`de440.bsp`, `naif0012.tls`).
 
 **Key e2m2e API surface**: `e2m2e.core.CR3BP_System`, `e2m2e.core.CR3BP_Dynamics`, `e2m2e.core.orbit.Orbit`, `e2m2e.core.OrbitFamily`, `e2m2e.transfer.TransferSearch`, `e2m2e.transfer.DROTRONLPOptimizer`, `e2m2e.transfer.load_orbit_from_json`, `e2m2e.transfer.GeoTransferSearch`
@@ -61,6 +65,7 @@ tests/          # pytest tests
 - **MU = 1.21506683e-2** — do not use rounded `0.01215`
 - Defined in both `scripts/utils/common.py` (CR3BP) and `params.py` (adds BR4BP: `M_SUN`, `OMEGA_SUN`, `RHO`)
 - `scripts/utils/geo.py` has GEO-specific constants (`R_GEO`, `V_CIRCULAR_GEO`, etc.)
+- `scripts/utils/leo.py` has LEO-specific constants (`R_LEO`, `V_CIRCULAR_LEO`, etc.)
 
 ## Key Patterns
 
