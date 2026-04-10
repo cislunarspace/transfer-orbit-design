@@ -11,7 +11,7 @@
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent
-from scripts.utils.common import MU
+from scripts.utils.common import MU, TU
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -32,9 +32,15 @@ orbit = Orbit.load_from_file(filename=orbit_path, system=system)
 
 print(f"加载轨道: {orbit_filename}")
 print(f"  状态数: {len(orbit.states)}")
-print(f"  周期: {orbit.period:.6f} TU ({orbit.period * 4.348:.2f} days)")
+print(f"  周期: {orbit.period:.6f} TU ({orbit.period * TU:.2f} days)")
 if orbit.jacobi_constants is not None:
     print(f"  Jacobi常数: {orbit.jacobi_constants[0]:.6f}")
+
+_jacobi_title = (
+    f"Jacobi = {orbit.jacobi_constants[0]:.4f}"
+    if orbit.jacobi_constants is not None
+    else "Jacobi = N/A"
+)
 
 # =============================================================================
 # 创建可视化器
@@ -65,7 +71,7 @@ ax_2d.set_xlabel("X (nondimensional)", fontsize=12)
 ax_2d.set_ylabel("Y (nondimensional)", fontsize=12)
 ax_2d.set_title(
     f"Single 3:1 RO Orbit (XY Plane)\n"
-    f"Period = {orbit.period:.4f} TU, Jacobi = {orbit.jacobi_constants[0]:.4f}",
+    f"Period = {orbit.period:.4f} TU, {_jacobi_title}",
     fontsize=12,
 )
 ax_2d.legend(loc="upper right", fontsize=10)
@@ -110,7 +116,7 @@ ax_3d.set_ylabel("Y (nondimensional)", fontsize=12)
 ax_3d.set_zlabel("Z (nondimensional)", fontsize=12)
 ax_3d.set_title(
     f"Single 3:1 RO Orbit (3D View)\n"
-    f"Period = {orbit.period:.4f} TU, Jacobi = {orbit.jacobi_constants[0]:.4f}",
+    f"Period = {orbit.period:.4f} TU, {_jacobi_title}",
     fontsize=12,
 )
 ax_3d.legend(loc="upper right", fontsize=10)

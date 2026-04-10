@@ -1,10 +1,10 @@
 """
 通用辅助函数
 
-包含在多个 phase1_*.py 脚本中重复使用的函数和常量。
+包含在多个脚本中重复使用的函数和常量。
 """
 
-import argparse
+import math
 import os
 
 # ============================================================
@@ -23,7 +23,7 @@ TU = 4.34811305  # Time unit days
 VU = 1023.23281  # Velocity unit m/s
 
 # 月球轨道周期（无量纲）
-T_MOON = 2 * 3.141592653589793  # 2π ≈ 6.283
+T_MOON = 2.0 * math.pi  # 2π ≈ 6.283
 
 # 轨道族统一文件名
 FAMILY_FILENAME = "family.json"
@@ -88,7 +88,7 @@ def load_or_compute(
 
     # 加载模式
     if args.load:
-        if args.load == True:
+        if args.load is True:
             # 未指定具体文件，查找最新的
             family_path = get_latest_family_file(output_dir, family_filename)
         else:
@@ -125,13 +125,14 @@ def save_family_to_file(family_result, output_dir, family_filename=FAMILY_FILENA
     返回:
         family_dir: 保存的目录路径
     """
-    import datetime
     import shutil
+
+    from fontTools.misc.timeTools import timestampNow
 
     ensure_output_dir(output_dir)
 
-    # 生成时间戳作为子目录名
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    # 生成时间戳作为子目录名（使用 epoch 整数，与生成脚本一致）
+    timestamp = str(timestampNow())
     family_dir = os.path.join(output_dir, timestamp)
     os.makedirs(family_dir, exist_ok=True)
 

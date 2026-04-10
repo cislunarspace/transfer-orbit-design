@@ -25,71 +25,78 @@ from scripts.utils.common import MU, TU
 project_root = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "ro"
 
-# =============================================================================
-# 1. 系统与动力学模型初始化
-# =============================================================================
-system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
 
-# =============================================================================
-# 2. 3:1 RO 初值（来自文献 Table 2）
-# =============================================================================
-# RO特征：平面内运动（y=z=0），关于x轴对称（vx=vz=0）
-# 状态向量格式：[x, y, z, vx, vy, vz]，均为无量纲量
-x0 = -0.8805  # 初始x坐标（无量纲）
-vy0 = 0.3921  # 初始y方向速度（无量纲）
+def main():
+    # =============================================================================
+    # 1. 系统与动力学模型初始化
+    # =============================================================================
+    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
+    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
 
-# 目标周期：27.32 days ≈ 6.283 TU (Time Unit)
-# TU = 4.34811305 days (lunar sidereal period)
-target_period = 27.32 / TU  # 转换为无量纲时间单位
-t_half = target_period / 2  # 半周期
+    # =============================================================================
+    # 2. 3:1 RO 初值（来自文献 Table 2）
+    # =============================================================================
+    # RO特征：平面内运动（y=z=0），关于x轴对称（vx=vz=0）
+    # 状态向量格式：[x, y, z, vx, vy, vz]，均为无量纲量
+    x0 = -0.8805  # 初始x坐标（无量纲）
+    vy0 = 0.3921  # 初始y方向速度（无量纲）
 
-print(f"目标轨道: 3:1 RO")
-print(f"初始状态: x0={x0}, vy0={vy0}")
-print(f"目标周期: {target_period:.4f} TU ({27.32:.2f} days)")
-print(f"半周期: {t_half:.4f} TU")
+    # 目标周期：27.32 days ≈ 6.283 TU (Time Unit)
+    # TU = 4.34811305 days (lunar sidereal period)
+    target_period = 27.32 / TU  # 转换为无量纲时间单位
+    t_half = target_period / 2  # 半周期
 
-# =============================================================================
-# 3. 配置固定周期微分校正器
-# =============================================================================
-corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamics)
-corrector.setup_2D_symmetric_x_fixed_t(t_half=t_half)
+    print(f"目标轨道: 3:1 RO")
+    print(f"初始状态: x0={x0}, vy0={vy0}")
+    print(f"目标周期: {target_period:.4f} TU ({27.32:.2f} days)")
+    print(f"半周期: {t_half:.4f} TU")
 
-print(f"\n微分校正器配置:")
-print(f"  模式: setup_2D_symmetric_x_fixed_t")
-print(f"  固定参数: T_half = {t_half:.4f}")
-print(f"  自由变量: {corrector.free_variables}")
-print(f"  约束条件: {list(corrector.target_conditions.keys())}")
+    # =============================================================================
+    # 3. 配置固定周期微分校正器
+    # =============================================================================
+    corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamics)
+    corrector.setup_2D_symmetric_x_fixed_t(t_half=t_half)
 
-# =============================================================================
-# 4. 初始猜测
-# =============================================================================
-initial_state = [x0, 0.0, 0.0, 0.0, vy0, 0.0]
-times = [0]  # 第一个历元时刻
+    print(f"\n微分校正器配置:")
+    print(f"  模式: setup_2D_symmetric_x_fixed_t")
+    print(f"  固定参数: T_half = {t_half:.4f}")
+    print(f"  自由变量: {corrector.free_variables}")
+    print(f"  约束条件: {list(corrector.target_conditions.keys())}")
 
-orbit_init = Orbit(states=[initial_state], times=times)
+    # =============================================================================
+    # 4. 初始猜测
+    # =============================================================================
+    initial_state = [x0, 0.0, 0.0, 0.0, vy0, 0.0]
+    times = [0]  # 第一个历元时刻
 
-print(f"\n初始猜测:")
-print(f"  状态: {initial_state}")
+    orbit_init = Orbit(states=[initial_state], times=times)
 
-# =============================================================================
-# 5. 执行迭代修正
-# =============================================================================
-print(f"\n开始迭代修正...")
-orbit_result = corrector.iterate_correction(initial_guess=orbit_init, verbose=True)
+    print(f"\n初始猜测:")
+    print(f"  状态: {initial_state}")
 
-# =============================================================================
-# 6. 保存结果
-# =============================================================================
-if orbit_result is not None:
-    print(f"\n[ok] 成功找到 3:1 RO 轨道!")
-    print(f"  修正后周期: {orbit_result.period:.6f} TU")
-    print(f"  周期误差: {abs(orbit_result.period - target_period):.6e}")
+    # =============================================================================
+    # 5. 执行迭代修正
+    # =============================================================================
+    print(f"\n开始迭代修正...")
+    orbit_result = corrector.iterate_correction(initial_guess=orbit_init, verbose=True)
 
-    # 保存轨道数据
-    output_file = OUTPUT_DIR / f"ro_31_{timestampNow()}.json"
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    orbit_result.save_to_file(filename=str(output_file))
-    print(f"  保存至: {output_file}")
-else:
-    print(f"\n[error] 修正失败: {corrector.termination_reason}")
+    # =============================================================================
+    # 6. 保存结果
+    # =============================================================================
+    if orbit_result is not None:
+        print(f"\n[ok] 成功找到 3:1 RO 轨道!")
+        print(f"  修正后周期: {orbit_result.period:.6f} TU")
+        print(f"  周期误差: {abs(orbit_result.period - target_period):.6e}")
+
+        # 保存轨道数据
+        ts = timestampNow()
+        output_file = OUTPUT_DIR / f"ro_31_{ts}.json"
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        orbit_result.save_to_file(filename=str(output_file))
+        print(f"  保存至: {output_file}")
+    else:
+        print(f"\n[error] 修正失败: {corrector.termination_reason}")
+
+
+if __name__ == "__main__":
+    main()

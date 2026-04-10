@@ -2,6 +2,8 @@
 系统参数（论文Table 1）
 """
 
+import math
+
 # 地月系统质量比，μ = m2/(m1+m2)，其中m1为地球质量，m2为月球质量
 MU = 1.21506683e-2  # Mass ratio of the Earth–moon system
 
@@ -24,4 +26,4 @@ TU = 4.34811305  # Time unit days
 VU = 1023.23281  # Velocity unit m/s
 
 # 月球轨道周期（无量纲）
-T_MOON = 2 * 3.141592653589793  # 2π ≈ 6.283
+T_MOON = 2.0 * math.pi  # 2π ≈ 6.283

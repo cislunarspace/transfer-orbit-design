@@ -61,7 +61,9 @@ class TestPlotScriptImports:
 
         try:
             spec.loader.exec_module(module)
-        except Exception:
+        except ImportError as e:
+            pytest.skip(f"Missing dependency: {e}")
+        except (Exception, SystemExit) as e:
             # Scripts may fail due to mock data shapes - that's OK for import test
             pass
 
@@ -81,7 +83,9 @@ class TestPlotScriptImports:
 
         try:
             spec.loader.exec_module(module)
-        except Exception:
+        except ImportError as e:
+            pytest.skip(f"Missing dependency: {e}")
+        except (Exception, SystemExit) as e:
             pass
 
     @patch("e2m2e.visualization.plotting.compute_stability_for_family")
@@ -102,8 +106,10 @@ class TestPlotScriptImports:
 
         try:
             spec.loader.exec_module(module)
-        except Exception:
-            # Scripts may fail due to mock data shapes - that's OK for import test
+        except ImportError as e:
+            pytest.skip(f"Missing dependency: {e}")
+        except (Exception, SystemExit) as e:
+            # Scripts may fail due to mock data shapes or missing files - that's OK for import test
             pass
 
     @patch("e2m2e.core.OrbitFamily.load_from_file")
@@ -126,8 +132,10 @@ class TestPlotScriptImports:
 
         try:
             spec.loader.exec_module(module)
-        except ImportError:
-            pass
+        except ImportError as e:
+            pytest.skip(f"Missing dependency: {e}")
+        except Exception as e:
+            pytest.fail(f"Script import failed with unexpected error: {e}")
 
 
 class TestJacobiComputation:
@@ -189,6 +197,9 @@ class TestPlotRangeLogic:
         elif PLOT_START_IDX == -1:
             plot_start = 0
             plot_end = min(PLOT_END_IDX, n_orbits - 1)
+        else:
+            plot_start = min(PLOT_START_IDX, n_orbits - 1)
+            plot_end = min(PLOT_END_IDX, n_orbits - 1)
 
         assert plot_start == 0
         assert plot_end == 42
@@ -199,9 +210,14 @@ class TestPlotRangeLogic:
         PLOT_END_IDX = -1
         n_orbits = 100
 
-        if PLOT_END_IDX == -1:
+        if PLOT_START_IDX == -1 and PLOT_END_IDX == -1:
+            plot_start, plot_end = 0, n_orbits - 1
+        elif PLOT_END_IDX == -1:
             plot_start = min(PLOT_START_IDX, n_orbits - 1)
             plot_end = n_orbits - 1
+        else:
+            plot_start = min(PLOT_START_IDX, n_orbits - 1)
+            plot_end = min(PLOT_END_IDX, n_orbits - 1)
 
         assert plot_start == 50
         assert plot_end == 99

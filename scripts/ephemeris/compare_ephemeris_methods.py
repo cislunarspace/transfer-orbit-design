@@ -53,7 +53,7 @@ TU_SECONDS = TU * 86400
 DRO_JSON_FILE = project_root / "output" / "dro" / "dro_31_3857864736.json"
 
 N_PATCH_POINTS = 8
-POSITION_CONTINUITY_TOL = 1e-6
+POSITION_CONTINUITY_TOL = 1e-6  # 比典型 1e-3 km 更严格；patch-point 连续性需要亚毫米精度
 N_WORKERS = multiprocessing.cpu_count()
 
 REFERENCE_EPOCH = "2025-06-21T11:00:06"
