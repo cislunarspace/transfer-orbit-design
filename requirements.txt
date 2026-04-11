@@ -6,6 +6,9 @@ scipy>=1.17.0
 matplotlib>=3.10.0
 tqdm>=4.66
 
+# GUI
+PyQt6>=6.6.0
+
 # Custom library (install in editable mode)
 # e2m2e @ file:///C:/Users/ouyan/codes/e2m2e
 # Or install with: pip install -e C:\Users\ouyan\codes\e2m2e
