@@ -123,7 +123,7 @@ def main():
         )
         eph_dynamics = EphemerisDynamics(system=eph_system)
         prop_3p = eph_dynamics.propagate(state0, (t0, t_end_3p))
-        eph_j2000 = prop_3p["states"].T
+        eph_j2000 = prop_3p["states"]
         eph_times_et = prop_3p["time"]
         eph_t_syn = (eph_times_et - reference_et) / TU_SECONDS
 

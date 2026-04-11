@@ -320,7 +320,7 @@ def validate_result(info, eph_system):
     pos_errors = []
     for i in range(n_seg):
         prop = dynamics.propagate(states[i], (times[i], times[i + 1]))
-        propagated_final = prop["states"][:, -1]
+        propagated_final = prop["states"][-1]
         pos_error = np.linalg.norm(propagated_final[:3] - states[i + 1, :3])
         pos_errors.append(float(pos_error))
         print(f"    段 {i}→{i + 1}: {pos_error:.2e} km")
@@ -456,7 +456,7 @@ def plot_trajectory_comparison(direct_info, homotopy_info, setup):
     t0_d = d_times[0]
     t_end_d = t0_d + N_PERIODS * period_tu * TU_SECONDS
     prop_d = dynamics.propagate(state0_d, (t0_d, t_end_d))
-    traj_d = prop_d["states"].T
+    traj_d = prop_d["states"]
 
     ax1 = fig.add_subplot(121, projection="3d")
     ax1.plot(
@@ -483,7 +483,7 @@ def plot_trajectory_comparison(direct_info, homotopy_info, setup):
     t0_h = h_times[0]
     t_end_h = t0_h + N_PERIODS * period_tu * TU_SECONDS
     prop_h = dynamics.propagate(state0_h, (t0_h, t_end_h))
-    traj_h = prop_h["states"].T
+    traj_h = prop_h["states"]
 
     ax2 = fig.add_subplot(122, projection="3d")
     ax2.plot(

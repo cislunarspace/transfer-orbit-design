@@ -201,14 +201,14 @@ def main():
                 corrected_states[i],
                 (corrected_times[i], corrected_times[i + 1]),
             )
-            propagated_final = prop["states"][:, -1]
+            propagated_final = prop["states"][-1]
             pos_error = np.linalg.norm(
                 propagated_final[:3] - corrected_states[i + 1, :3]
             )
             pos_errors.append(pos_error)
             print(f"    段 {i}→{i + 1}: 位置连续性误差 = {pos_error:.2e} km")
 
-            seg_states = prop["states"].T
+            seg_states = prop["states"]
             seg_times = prop["time"]
             if i > 0:
                 seg_states = seg_states[1:]
