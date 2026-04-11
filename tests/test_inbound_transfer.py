@@ -10,12 +10,13 @@ class TestGeoUtils:
     """测试 GEO 工具函数。"""
 
     def test_geo_constants(self):
+        from scripts.utils.common import VU
         from scripts.utils.geo import R_GEO, V_CIRCULAR_GEO, T_GEO, EARTH_CENTER, DU, MU
 
         # GEO 半径 ~42164 km
         assert abs(R_GEO * DU - 42164.0) < 1.0
         # 速度 ~3071 m/s
-        assert abs(V_CIRCULAR_GEO * 1023.23 - 3071.0) < 5.0
+        assert abs(V_CIRCULAR_GEO * VU - 3071.0) < 5.0
         # 周期 ~1 天
         assert abs(T_GEO * 4.34811305 - 1.0) < 0.01
         # 地心在 [-mu, 0, 0]
@@ -78,7 +79,7 @@ class TestLeoUtils:
         # LEO 半径 ~6771 km (6371 + 400)
         assert abs(R_LEO * DU - 6771.0) < 1.0
         # 速度 ~7.7 km/s
-        v_ms = V_CIRCULAR_LEO * 1023.23
+        v_ms = V_CIRCULAR_LEO * VU
         assert 7500 < v_ms < 8000
         # 周期 ~92 分钟 ≈ 0.064 天
         t_days = T_LEO * 4.34811305
