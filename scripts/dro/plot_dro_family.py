@@ -32,6 +32,12 @@ family_name = "dro_family_0.141886-0.9-0.005_3857978855"
 output_dir = project_root / "output" / "dro"
 family_path = output_dir / f"{family_name}.json"
 system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
+
+if not family_path.exists():
+    print(f"数据文件不存在: {family_path}")
+    print("请先运行生成脚本，或更新文件路径")
+    raise SystemExit(1)
+
 family_result = OrbitFamily.load_from_file(filename=family_path, system=system)
 
 n_orbits = len(family_result)

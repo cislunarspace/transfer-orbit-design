@@ -26,13 +26,11 @@ project_root = Path(__file__).resolve().parent.parent.parent
 import e2m2e
 from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization.plotting import OrbitVisualizer
-from scripts.utils.common import MU
+from scripts.utils.common import MU, TU
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.colors import Normalize
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-plt.ion()  # 开启交互模式
 
 
 # =============================================================================
@@ -87,6 +85,9 @@ def precompute_jacobi_for_family(family, system):
 
 def compute_global_axis_limits(family, plane="xy", margin=1.15):
     """根据轨道族计算全局轴范围，确保所有轨道都能显示在同一窗口"""
+    if not family:
+        return -1.0, 1.0
+
     all_coords = {"x": [], "y": [], "z": []}
 
     for orbit in family:
@@ -109,12 +110,16 @@ def compute_global_axis_limits(family, plane="xy", margin=1.15):
         max_val = max(
             max(abs(v) for v in all_coords["y"]), max(abs(v) for v in all_coords["z"])
         )
+    else:
+        raise ValueError(f"Unknown plane: {plane!r}. Expected 'xy', 'xz', or 'yz'.")
 
     limit = max_val * margin
     return -limit, limit
 
 
 def main():
+    plt.ion()  # 开启交互模式
+
     # 加载系统
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
@@ -176,7 +181,7 @@ def main():
             f"{orbit.states[0][4]:.6f}, {orbit.states[0][5]:.6f}]"
         )
         print(f"  Jacobi常数: {jacobi:.6f}")
-        print(f"  周期: {period:.4f} TU ({period * 4.348:.4f} days)")
+        print(f"  周期: {period:.4f} TU ({period * TU:.4f} days)")
 
         # 清除上一帧
         fig.clf()

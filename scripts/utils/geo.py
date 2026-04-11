@@ -57,6 +57,7 @@ def detect_geo_sphere_crossing(
 
     Returns:
         (crossed, first_crossing_idx, dist_at_crossing)
+        idx 是符号变化前的最后一个点。如需精确交叉时刻，可在 idx 和 idx+1 之间插值。
     """
     positions = trajectory_states[:, :3]
     dists = np.linalg.norm(positions - earth_center, axis=1)
@@ -137,6 +138,8 @@ def check_collision(
     Returns:
         (collision_found, body, collision_idx)
     """
+    if earth_radius <= 0 or moon_radius <= 0:
+        raise ValueError("Radii must be positive")
     positions = states[:, :3]
     earth_center = np.array([-mu, 0.0, 0.0])
     moon_center = np.array([1.0 - mu, 0.0, 0.0])

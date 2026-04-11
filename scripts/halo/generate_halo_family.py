@@ -30,68 +30,75 @@ from e2m2e.core import Orbit, OrbitFamily
 
 OUTPUT_DIR = project_root / "output" / "halo"
 
-# =============================================================================
-# 1. 系统与动力学模型初始化
-# =============================================================================
-system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
 
-# =============================================================================
-# 2. Halo轨道参数
-# =============================================================================
-libration_point = 1  # 1=L1, 2=L2
-amplitude_z = 0.23  # Z方向振幅
-halo_class = 0  # 0=北Halo (Class I), 1=南Halo (Class II)
+def main():
+    # =============================================================================
+    # 1. 系统与动力学模型初始化
+    # =============================================================================
+    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
+    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
 
-# =============================================================================
-# 3. 创建延拓器并生成种子轨道
-# =============================================================================
-corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamics)
-continuation = e2m2e.algorithms.Continuation(corrector=corrector)
+    # =============================================================================
+    # 2. Halo轨道参数
+    # =============================================================================
+    libration_point = 1  # 1=L1, 2=L2
+    amplitude_z = 0.23  # Z方向振幅
+    halo_class = 0  # 0=北Halo (Class I), 1=南Halo (Class II)
 
-print(f"正在生成种子轨道: L{libration_point} {'北' if halo_class == 0 else '南'} Halo")
-print(f"  Z振幅: {amplitude_z}")
+    # =============================================================================
+    # 3. 创建延拓器并生成种子轨道
+    # =============================================================================
+    corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamics)
+    continuation = e2m2e.algorithms.Continuation(corrector=corrector)
 
-seed_halo = continuation.generate_halo_seed_orbit(
-    libration_point=libration_point,
-    amplitude_z=amplitude_z,
-    halo_class=halo_class,
-    verbose=False,
-)
+    print(f"正在生成种子轨道: L{libration_point} {'北' if halo_class == 0 else '南'} Halo")
+    print(f"  Z振幅: {amplitude_z}")
 
-if seed_halo is None:
-    print("[error] 种子轨道生成失败")
-    sys.exit(1)
+    seed_halo = continuation.generate_halo_seed_orbit(
+        libration_point=libration_point,
+        amplitude_z=amplitude_z,
+        halo_class=halo_class,
+        verbose=False,
+    )
 
-print(f"[ok] 种子轨道生成成功: 周期={seed_halo.period:.6f} TU")
-print(f"  x0={np.asarray(seed_halo.states)[0, 0]:.6f}, z0={np.asarray(seed_halo.states)[0, 2]:.6f}")
+    if seed_halo is None:
+        print("[error] 种子轨道生成失败")
+        sys.exit(1)
 
-# =============================================================================
-# 4. 使用halo_pseudo_arclength_continuation生成轨道族
-# =============================================================================
-print(f"\n开始Halo轨道族伪弧长延拓（continuation_PAL_CR3BP 流程）...")
+    print(f"[ok] 种子轨道生成成功: 周期={seed_halo.period:.6f} TU")
+    print(f"  x0={np.asarray(seed_halo.states)[0, 0]:.6f}, z0={np.asarray(seed_halo.states)[0, 2]:.6f}")
 
-n_orbits = 20
-step_size = 0.0045
-step_size_negative = 0.009
+    # =============================================================================
+    # 4. 使用halo_pseudo_arclength_continuation生成轨道族
+    # =============================================================================
+    print(f"\n开始Halo轨道族伪弧长延拓（continuation_PAL_CR3BP 流程）...")
 
-family_result = continuation.halo_pseudo_arclength_continuation(
-    seed_orbit=seed_halo,
-    n_orbits=n_orbits,
-    direction="both",
-    step_size=step_size,
-    step_size_negative=step_size_negative,
-    verbose=True,
-)
+    n_orbits = 20
+    step_size = 0.0045
+    step_size_negative = 0.009
 
-print(f"\n[ok] 轨道族生成完成: 共{len(family_result)}条轨道")
+    family_result = continuation.halo_pseudo_arclength_continuation(
+        seed_orbit=seed_halo,
+        n_orbits=n_orbits,
+        direction="both",
+        step_size=step_size,
+        step_size_negative=step_size_negative,
+        verbose=True,
+    )
 
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-family_name = f"halo_L{libration_point}_{'N' if halo_class == 0 else 'S'}_family_{timestampNow()}"
-family_result.save_to_file(filename=str(OUTPUT_DIR / f"{family_name}.json"))
+    print(f"\n[ok] 轨道族生成完成: 共{len(family_result)}条轨道")
 
-print(f"\n[ok] 轨道族已保存至: {OUTPUT_DIR / f'{family_name}.json'}")
-print(f"  轨道族名称: {family_name}")
-if len(family_result) > 0:
-    z_values = [getattr(o, "parameters", {}).get("amplitude_z", 0) for o in family_result]
-    print(f"  z_amplitude 范围: [{min(z_values):.4f}, {max(z_values):.4f}]")
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    ts = timestampNow()
+    family_name = f"halo_L{libration_point}_{'N' if halo_class == 0 else 'S'}_family_{ts}"
+    family_result.save_to_file(filename=str(OUTPUT_DIR / f"{family_name}.json"))
+
+    print(f"\n[ok] 轨道族已保存至: {OUTPUT_DIR / f'{family_name}.json'}")
+    print(f"  轨道族名称: {family_name}")
+    if len(family_result) > 0:
+        z_values = [getattr(o, "parameters", {}).get("amplitude_z", 0) for o in family_result]
+        print(f"  z_amplitude 范围: [{min(z_values):.4f}, {max(z_values):.4f}]")
+
+
+if __name__ == "__main__":
+    main()

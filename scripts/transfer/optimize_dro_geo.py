@@ -33,7 +33,7 @@ from tqdm.auto import tqdm
 
 import e2m2e
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
-from scripts.utils.common import DU, MU, TU
+from scripts.utils.common import DU, MU, TU, VU
 from scripts.utils.geo import (
     R_GEO,
     EARTH_CENTER,
@@ -444,9 +444,9 @@ def main() -> None:
         print(f"\n最优解:")
         print(f"  α = {b['alpha']:.6f}")
         print(f"  T = {b['transfer_time']:.6f} TU ({b['transfer_time'] * TU:.2f} days)")
-        print(f"  Δv1 = {b['delta_v1']:.6f} VU ({b['delta_v1'] * 1023.23:.1f} m/s)")
-        print(f"  Δv2 = {b['delta_v2']:.6f} VU ({b['delta_v2'] * 1023.23:.1f} m/s)")
-        print(f"  Δv_total = {b['objective_value']:.6f} VU ({b['objective_value'] * 1023.23:.1f} m/s)")
+        print(f"  Δv1 = {b['delta_v1']:.6f} VU ({b['delta_v1'] * VU:.1f} m/s)")
+        print(f"  Δv2 = {b['delta_v2']:.6f} VU ({b['delta_v2'] * VU:.1f} m/s)")
+        print(f"  Δv_total = {b['objective_value']:.6f} VU ({b['objective_value'] * VU:.1f} m/s)")
         print(f"  |r - r_earth| = {b.get('dist_from_earth', 'N/A'):.6f} DU (target: {R_GEO:.6f})")
 
 

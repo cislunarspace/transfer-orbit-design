@@ -40,8 +40,10 @@ class TestGenerateScriptImports:
 
         try:
             spec.loader.exec_module(module)
-        except ImportError:
-            pass
+        except ImportError as e:
+            pytest.skip(f"Missing dependency: {e}")
+        except Exception as e:
+            pytest.fail(f"Script import failed with unexpected error: {e}")
 
     @patch("e2m2e.core.system.CR3BP_System")
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
@@ -61,8 +63,10 @@ class TestGenerateScriptImports:
 
         try:
             spec.loader.exec_module(module)
-        except ImportError:
-            pass
+        except ImportError as e:
+            pytest.skip(f"Missing dependency: {e}")
+        except Exception as e:
+            pytest.fail(f"Script import failed with unexpected error: {e}")
 
     @patch("e2m2e.core.system.CR3BP_System")
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
@@ -82,8 +86,10 @@ class TestGenerateScriptImports:
 
         try:
             spec.loader.exec_module(module)
-        except ImportError:
-            pass
+        except ImportError as e:
+            pytest.skip(f"Missing dependency: {e}")
+        except Exception as e:
+            pytest.fail(f"Script import failed with unexpected error: {e}")
 
 
 class TestGenerate31ROParameters:

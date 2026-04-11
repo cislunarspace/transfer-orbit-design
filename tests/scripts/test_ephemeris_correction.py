@@ -47,8 +47,10 @@ class TestEphemerisScriptImports:
 
         try:
             spec.loader.exec_module(module)
-        except ImportError:
-            pass
+        except ImportError as e:
+            pytest.skip(f"Missing dependency: {e}")
+        except Exception as e:
+            pytest.fail(f"Script import failed with unexpected error: {e}")
 
 
 class TestEphemerisScriptParameters:

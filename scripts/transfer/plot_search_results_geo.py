@@ -872,10 +872,14 @@ def main() -> None:
                 label=f"GEO (r={R_GEO:.4f} DU)",
             )
 
-            # 转移轨迹
+            # 转移轨迹（过滤积分失败的结果）
             cmap = plt.cm.plasma
+            n_skipped = 0
             for cm_idx in range(n_sel):
                 transfer_states, alpha, dv_departure = results[cm_idx]
+                if transfer_states is None:
+                    n_skipped += 1
+                    continue
                 sel_idx = sel_indices[cm_idx]
                 departure_state = np.asarray(
                     feasible_rows[sel_idx]["departure_state"], dtype=np.float64
@@ -909,6 +913,9 @@ def main() -> None:
                     alpha=0.8,
                     marker="s",
                 )
+
+            if n_skipped:
+                print(f"  警告: {n_skipped}/{n_sel} 条转移轨迹积分失败，已跳过")
 
             viz = OrbitVisualizer(system=system)
             viz.plot_primary_bodies(ax=ax, is_3d=True)

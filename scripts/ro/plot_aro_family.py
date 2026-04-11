@@ -20,7 +20,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization import PlotConfig, FamilyPlotter, compute_stability_for_family
-from scripts.utils.common import MU
+from scripts.utils.common import MU, TU
 
 # =============================================================================
 # 加载轨道数据
@@ -29,6 +29,12 @@ family_name = "aro_32_family_placeholder"
 output_dir = project_root / "output" / "ro"
 family_path = output_dir / f"{family_name}.json"
 system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
+
+if not family_path.exists():
+    print(f"数据文件不存在: {family_path}")
+    print("请先运行生成脚本，或更新文件路径")
+    raise SystemExit(1)
+
 family_result = OrbitFamily.load_from_file(filename=family_path, system=system)
 
 n_orbits = len(family_result)
@@ -157,7 +163,7 @@ plotter.plot_jacobi_period_stability(
     stability_sorted,
     title=(
         f"3:2 ARO Orbit Family - Period and Stability\n"
-        f"Period Target: {target_period:.4f} TU ({target_period * 4.348:.2f} days)"
+        f"Period Target: {target_period:.4f} TU ({target_period * TU:.2f} days)"
     ),
     target_period=target_period,
     save_path=output_dir / f"{family_name}_period_stability.png",
