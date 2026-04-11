@@ -20,7 +20,7 @@ import e2m2e
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from e2m2e.core.orbit import Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
-from scripts.utils.common import DU, MU, TU
+from scripts.utils.common import DU, MU, TU, VU
 from scripts.utils.geo import (
     R_GEO,
     V_CIRCULAR_GEO,
@@ -249,7 +249,7 @@ def main() -> None:
             al = r.get("alpha", 0)
             print(f"  #{i+1}: dep_idx={r.get('departure_time_index')}, "
                   f"α={al:.4f}, T={tt:.2f} TU ({tt * TU:.1f} 天), "
-                  f"dv_dep={dv:.4f} VU ({dv * 1023.23:.0f} m/s), "
+                  f"dv_dep={dv:.4f} VU ({dv * VU:.0f} m/s), "
                   f"min_dist={md:.6f} DU ({md * DU:.0f} km), "
                   f"相交={r.get('intersection_found', False)}")
 

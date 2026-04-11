@@ -23,15 +23,13 @@ import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import matplotlib
+
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-plt.rcParams["font.sans-serif"] = [
-    "Noto Sans CJK SC",
-    "Microsoft YaHei",
-    "SimSun",
-    "DejaVu Sans",
-]
+plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "SimSun", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -40,15 +38,14 @@ sys.path.insert(0, str(project_root))
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from e2m2e.core.orbit import Orbit
 from e2m2e.transfer import load_orbit_from_json
-from e2m2e.visualization.plotting import OrbitVisualizer
 
-from scripts.utils.common import DU, MU, TU
+from scripts.utils.common import DU, MU, TU, VU
+from scripts.utils.geo import EARTH_CENTER
 
 DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
 RO_FILE = project_root / "output/ro/ro_31_3857864753.json"
 
 DT = 1.0 / (24.0 * TU)
-V_SCALE = 1023.23281
 
 
 def _latest_optimization_json() -> Optional[Path]:
@@ -154,69 +151,73 @@ def _select_indices(
         return [i]
 
 
+# =====================================================================
+# 图表
+# =====================================================================
+
+
 def plot_dv_summary(records: List[Dict[str, Any]], ax: plt.Axes) -> None:
     if not records:
-        ax.text(0.5, 0.5, "no results", ha="center", va="center", transform=ax.transAxes)
+        ax.text(0.5, 0.5, "无数据", ha="center", va="center", transform=ax.transAxes)
         return
 
     success = [r for r in records if r["success"]]
     fail = [r for r in records if not r["success"]]
 
     if success:
-        dv1 = np.array([r["delta_v1"] for r in success]) * V_SCALE
-        dv2 = np.array([r["delta_v2"] for r in success]) * V_SCALE
-        total = np.array([r["objective_value"] for r in success]) * V_SCALE
+        dv1 = np.array([r["delta_v1"] for r in success]) * VU / 1000
+        dv2 = np.array([r["delta_v2"] for r in success]) * VU / 1000
+        total = np.array([r["objective_value"] for r in success]) * VU / 1000
         idx = np.arange(len(success))
 
         bar_w = 0.25
-        ax.bar(idx - bar_w, dv1, bar_w, label="Δv₁ (departure)", color="steelblue")
-        ax.bar(idx, dv2, bar_w, label="Δv₂ (insertion)", color="coral")
-        ax.bar(idx + bar_w, total, bar_w, label="Total Δv", color="seagreen")
+        ax.bar(idx - bar_w, dv1, bar_w, label="Δv₁ (出发)", color="steelblue")
+        ax.bar(idx, dv2, bar_w, label="Δv₂ (入轨)", color="coral")
+        ax.bar(idx + bar_w, total, bar_w, label="总 Δv", color="seagreen")
         ax.set_xticks(idx)
         ax.set_xticklabels([str(i) for i in idx], fontsize=8)
 
     if fail:
         n_s = len(success)
-        fail_total = [r["objective_value"] * V_SCALE for r in fail]
+        fail_total = [r["objective_value"] * VU / 1000 for r in fail]
         ax.scatter(
             range(n_s, n_s + len(fail)),
             fail_total,
             marker="x",
             c="red",
             s=40,
-            label=f"failed ({len(fail)})",
+            label=f"失败 ({len(fail)})",
             zorder=5,
         )
 
-    ax.set_xlabel("Result index")
-    ax.set_ylabel("Δv (m/s)")
-    ax.set_title("NLP Optimization: Δv Summary")
-    ax.legend(fontsize=9)
+    ax.set_xlabel("结果索引")
+    ax.set_ylabel("Δv (km/s)")
+    ax.set_title("NLP 优化: Δv 汇总")
+    ax.legend(fontsize=8)
     ax.grid(True, alpha=0.3)
 
 
 def plot_dv_scatter(records: List[Dict[str, Any]], ax: plt.Axes) -> None:
     success = [r for r in records if r["success"]]
     if not success:
-        ax.text(0.5, 0.5, "no successful results", ha="center", va="center", transform=ax.transAxes)
+        ax.text(0.5, 0.5, "无成功结果", ha="center", va="center", transform=ax.transAxes)
         return
 
-    dv1 = np.array([r["delta_v1"] for r in success]) * V_SCALE
-    dv2 = np.array([r["delta_v2"] for r in success]) * V_SCALE
-    total = np.array([r["objective_value"] for r in success]) * V_SCALE
-    alpha = np.array([r["alpha"] for r in success])
+    dv1 = np.array([r["delta_v1"] for r in success]) * VU / 1000
+    dv2 = np.array([r["delta_v2"] for r in success]) * VU / 1000
+    total = np.array([r["objective_value"] for r in success]) * VU / 1000
 
-    sc = ax.scatter(dv1, dv2, c=total, cmap="viridis_r", s=24, alpha=0.8, edgecolors="gray", linewidths=0.3)
-    cbar = plt.colorbar(sc, ax=ax)
-    cbar.set_label("Total Δv (m/s)", fontsize=9)
-    ax.set_xlabel("Δv₁ (m/s)")
-    ax.set_ylabel("Δv₂ (m/s)")
-    ax.set_title("NLP: Δv₁ vs Δv₂ (color=Total Δv)")
+    sc = ax.scatter(dv1, dv2, c=total, cmap="viridis", s=6, alpha=0.6)
+    plt.colorbar(sc, ax=ax, label="总 Δv (km/s)")
+    ax.set_xlabel("Δv₁ (km/s)")
+    ax.set_ylabel("Δv₂ (km/s)")
+    ax.set_title("NLP: Δv₁ vs Δv₂ (颜色=总 Δv)")
     ax.grid(True, alpha=0.3)
 
     best_idx = int(np.argmin(total))
+    alpha = np.array([r["alpha"] for r in success])
     ax.annotate(
-        f"best: α={alpha[best_idx]:.3f}\nΔv={total[best_idx]:.1f} m/s",
+        f"最优: α={alpha[best_idx]:.3f}\nΔv={total[best_idx]:.3f} km/s",
         xy=(dv1[best_idx], dv2[best_idx]),
         xytext=(10, 10),
         textcoords="offset points",
@@ -224,6 +225,39 @@ def plot_dv_scatter(records: List[Dict[str, Any]], ax: plt.Axes) -> None:
         arrowprops=dict(arrowstyle="->", color="red"),
         color="red",
     )
+
+
+def plot_transfer_time_vs_dv(records: List[Dict[str, Any]], ax: plt.Axes) -> None:
+    success = [r for r in records if r["success"]]
+    if not success:
+        ax.text(0.5, 0.5, "无成功结果", ha="center", va="center", transform=ax.transAxes)
+        return
+
+    tt_days = np.array([r["transfer_time"] * TU for r in success])
+    total_dv = np.array([r["objective_value"] * VU / 1000 for r in success])
+
+    sc = ax.scatter(tt_days, total_dv, c=total_dv, cmap="viridis", s=6, alpha=0.6)
+    plt.colorbar(sc, ax=ax, label="总 Δv (km/s)")
+    ax.set_xlabel("转移时间 (天)")
+    ax.set_ylabel("总 Δv (km/s)")
+    ax.set_title("NLP: 转移时间 vs 总 Δv")
+    ax.grid(True, alpha=0.3)
+
+    best_idx = int(np.argmin(total_dv))
+    ax.annotate(
+        f"最优: T={tt_days[best_idx]:.1f} 天\nΔv={total_dv[best_idx]:.3f} km/s",
+        xy=(tt_days[best_idx], total_dv[best_idx]),
+        xytext=(10, 10),
+        textcoords="offset points",
+        fontsize=8,
+        arrowprops=dict(arrowstyle="->", color="red"),
+        color="red",
+    )
+
+
+# =====================================================================
+# 3D 轨道
+# =====================================================================
 
 
 def plot_orbit_3d(
@@ -247,55 +281,74 @@ def plot_orbit_3d(
 
         print(f"积分转移轨道: α={alpha:.6f}, T={T:.4f} TU, t_ins={t_ins:.4f} TU ...")
         times, states = _integrate_transfer(departure_state, alpha, T, dynamics)
-        insertion_state = dynamics.propagate_orbit_state_at_time(ro_orbit, t_ins)
 
-        fig = plt.figure(figsize=(12, 10))
+        fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection="3d")
 
-        viz = OrbitVisualizer(system=system)
-        viz.plot_transfer_orbit(
-            departure_orbit=dro_orbit,
-            arrival_orbit=ro_orbit,
-            transfer_trajectory=states,
-            departure_state=departure_state[:3],
-            insertion_state=insertion_state[:3],
-            ax=ax,
-            label=f"Transfer (α={alpha:.3f})",
-            color="crimson",
-        )
+        # DRO 出发轨道
+        ax.plot(dro_orbit.states[:, 0], dro_orbit.states[:, 1],
+                dro_orbit.states[:, 2], color="royalblue", lw=0.8, label="DRO")
 
-        dv1_ms = rec["delta_v1"] * V_SCALE
-        dv2_ms = rec["delta_v2"] * V_SCALE
+        # RO 到达轨道
+        ax.plot(ro_orbit.states[:, 0], ro_orbit.states[:, 1],
+                ro_orbit.states[:, 2], color="seagreen", lw=0.8, label="RO")
+
+        # 转移轨迹
+        ax.plot(states[:, 0], states[:, 1], states[:, 2],
+                color="crimson", lw=1.2, label="转移轨道")
+
+        # 出发点和到达点
+        ax.scatter(*departure_state[:3], color="green", s=40, zorder=5, label="出发点")
+
+        # 到达点（t_ins 时刻 RO 上的点）
+        arrival_state = dynamics.propagate_orbit_state_at_time(ro_orbit, t_ins)
+        ax.scatter(*arrival_state[:3], color="orange", s=40, marker="s", zorder=5, label="终点")
+
+        # 地球和月球
+        ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
+        ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
+        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=7, ha="center")
+        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=7, ha="center")
+
+        # 平动点
+        system.compute_libration_points()
+        for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
+            ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
+            ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
+
+        ax.set_xlabel("x (DU)")
+        ax.set_ylabel("y (DU)")
+        ax.set_zlabel("z (DU)")
+
+        dv1_km = rec["delta_v1"] * VU / 1000
+        dv2_km = rec["delta_v2"] * VU / 1000
+        total_km = rec["objective_value"] * VU / 1000
         ax.set_title(
-            f"NLP Transfer: α={alpha:.4f}, T={T:.2f} TU, t_ins={t_ins:.2f} TU\n"
-            f"Δv₁={dv1_ms:.2f} m/s, Δv₂={dv2_ms:.2f} m/s, Total={rec['objective_value'] * V_SCALE:.2f} m/s",
-            fontsize=11,
+            f"DRO→RO  α={alpha:.4f}  T={T:.2f} TU ({T * TU:.1f}天)\n"
+            f"Δv_dep={dv1_km:.4f} km/s  Δv_ins={dv2_km:.4f} km/s  "
+            f"Total={total_km:.4f} km/s"
         )
-        ax.view_init(elev=0, azim=-90)
+        ax.legend(fontsize=7, loc="upper left")
+
+        # 等比例轴
+        all_pts = np.concatenate([states[:, :3], dro_orbit.states[:, :3],
+                                  ro_orbit.states[:, :3]])
+        mid = all_pts.mean(axis=0)
+        half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
+        ax.set_xlim(mid[0] - half, mid[0] + half)
+        ax.set_ylim(mid[1] - half, mid[1] + half)
+        ax.set_zlim(mid[2] - half, mid[2] + half)
+        ax.set_box_aspect([1, 1, 1])
     else:
-        fig = plt.figure(figsize=(12, 10))
+        fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection="3d")
 
-        ax.plot(
-            dro_orbit.states[:, 0],
-            dro_orbit.states[:, 1],
-            dro_orbit.states[:, 2],
-            "-",
-            color="steelblue",
-            lw=1.0,
-            alpha=0.5,
-            label="DRO",
-        )
-        ax.plot(
-            ro_orbit.states[:, 0],
-            ro_orbit.states[:, 1],
-            ro_orbit.states[:, 2],
-            "-",
-            color="seagreen",
-            lw=1.0,
-            alpha=0.5,
-            label="RO",
-        )
+        # DRO
+        ax.plot(dro_orbit.states[:, 0], dro_orbit.states[:, 1],
+                dro_orbit.states[:, 2], color="royalblue", lw=0.8, label="DRO")
+        # RO
+        ax.plot(ro_orbit.states[:, 0], ro_orbit.states[:, 1],
+                ro_orbit.states[:, 2], color="seagreen", lw=0.8, label="RO")
 
         cmap = plt.cm.plasma
         obj_vals = [records[i]["objective_value"] for i in sel_indices]
@@ -313,35 +366,43 @@ def plot_orbit_3d(
             norm_val = (rec["objective_value"] - obj_min) / obj_range
             color = cmap(norm_val)
 
-            ax.plot(states[:, 0], states[:, 1], states[:, 2], "-", color=color, lw=1.0, alpha=0.7)
-            ax.scatter(
-                [departure_state[0]], [departure_state[1]], [departure_state[2]],
-                color=color, s=20, alpha=0.8,
-            )
-            if len(states) > 0:
-                ax.scatter(
-                    [states[-1, 0]], [states[-1, 1]], [states[-1, 2]],
-                    color=color, s=20, alpha=0.8, marker="s",
-                )
+            ax.plot(states[:, 0], states[:, 1], states[:, 2], color=color, lw=1.2, alpha=0.7)
+            ax.scatter(*departure_state[:3], color=color, s=30, alpha=0.8)
 
             if (cm_idx + 1) % 10 == 0 or cm_idx == n_sel - 1:
                 print(f"  [{cm_idx + 1}/{n_sel}] 已绘制")
 
-        viz = OrbitVisualizer(system=system)
-        viz.plot_primary_bodies(ax=ax, is_3d=True)
-        viz.plot_libration_points(ax=ax, is_3d=True, show_labels=True)
+        # 地球和月球
+        ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
+        ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
+        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=7, ha="center")
+        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=7, ha="center")
 
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=obj_min * V_SCALE, vmax=obj_max * V_SCALE))
+        # 平动点
+        system.compute_libration_points()
+        for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
+            ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
+            ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
+
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(
+            vmin=obj_min * VU / 1000, vmax=obj_max * VU / 1000))
         sm.set_array([])
-        cbar = plt.colorbar(sm, ax=ax, shrink=0.6, pad=0.1)
-        cbar.set_label("Total Δv (m/s)", fontsize=9)
+        plt.colorbar(sm, ax=ax, label="总 Δv (km/s)")
 
-        ax.set_xlabel("X", fontsize=10)
-        ax.set_ylabel("Y", fontsize=10)
-        ax.set_zlabel("Z", fontsize=10)
-        ax.set_title(f"NLP Transfer Orbits: {n_sel} solutions", fontsize=11)
-        ax.legend(loc="upper right", fontsize=9)
-        ax.view_init(elev=0, azim=-90)
+        ax.set_xlabel("x (DU)")
+        ax.set_ylabel("y (DU)")
+        ax.set_zlabel("z (DU)")
+        ax.set_title(f"DRO→RO: {n_sel} 条转移轨道")
+        ax.legend(fontsize=7, loc="upper left")
+
+        # 等比例轴
+        all_pts = np.concatenate([dro_orbit.states[:, :3], ro_orbit.states[:, :3]])
+        mid = all_pts.mean(axis=0)
+        half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
+        ax.set_xlim(mid[0] - half, mid[0] + half)
+        ax.set_ylim(mid[1] - half, mid[1] + half)
+        ax.set_zlim(mid[2] - half, mid[2] + half)
+        ax.set_box_aspect([1, 1, 1])
 
     if save_path:
         save_path.parent.mkdir(parents=True, exist_ok=True)
@@ -358,6 +419,7 @@ def main() -> None:
     parser.add_argument("--save", type=str, default=None, help="保存图片路径")
     parser.add_argument("--dpi", type=int, default=150)
     parser.add_argument("--orbit", action="store_true", help="绘制转移轨道 3D 示意图")
+    parser.add_argument("--time-dv", action="store_true", help="转移时间 vs Δv 散点图")
     parser.add_argument("--idx", type=str, default="best", help="选择结果：整数索引 / best / best:N / random / all")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--max-points", type=int, default=500, help="--orbit --idx all 时最多绘制条数")
@@ -394,17 +456,23 @@ def main() -> None:
 
         save_path = Path(args.save) if args.save else None
         plot_orbit_3d(records, sel_indices, dro_orbit, ro_orbit, system, dynamics, save_path, args.dpi)
+    elif args.time_dv:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        plot_transfer_time_vs_dv(records, ax)
+        fig.tight_layout()
+
+        if args.save:
+            png = Path(args.save).expanduser().resolve()
+            png.parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(png, dpi=args.dpi, bbox_inches="tight")
+            print(f"Saved: {png}")
+        else:
+            plt.show()
+        plt.close(fig)
     else:
-        fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-
-        plot_dv_summary(records, axes[0])
-        plot_dv_scatter(records, axes[1])
-
-        fig.suptitle(
-            f"N={len(records)} results, {n_success} successful | {meta.get('nlp_solver', '')}",
-            fontsize=12,
-            y=1.02,
-        )
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+        plot_dv_summary(records, ax1)
+        plot_dv_scatter(records, ax2)
         fig.tight_layout()
 
         if args.save:

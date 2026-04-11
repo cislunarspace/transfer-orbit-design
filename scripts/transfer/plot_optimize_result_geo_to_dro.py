@@ -147,17 +147,17 @@ def plot_dv_summary(records, ax):
     success = [r["success"] for r in records]
 
     w = 0.25
-    ax.bar(x - w, dv1, width=w, label="dv1 (departure)", color="steelblue")
-    ax.bar(x, dv2, width=w, label="dv2 (insertion)", color="coral")
-    ax.bar(x + w, total, width=w, label="dv_total", color="seagreen")
+    ax.bar(x - w, dv1, width=w, label="Δv₁ (出发)", color="steelblue")
+    ax.bar(x, dv2, width=w, label="Δv₂ (入轨)", color="coral")
+    ax.bar(x + w, total, width=w, label="总 Δv", color="seagreen")
 
     for i, s in enumerate(success):
         if not s:
             ax.axvline(i, color="red", alpha=0.3)
 
-    ax.set_xlabel("Result index")
-    ax.set_ylabel("dv (km/s)")
-    ax.set_title("GEO -> DRO: dv Summary")
+    ax.set_xlabel("结果索引")
+    ax.set_ylabel("Δv (km/s)")
+    ax.set_title("GEO→DRO: Δv 汇总")
     ax.legend(fontsize=8)
     ax.set_xticks(x)
 
@@ -165,57 +165,55 @@ def plot_dv_summary(records, ax):
 def plot_dv_scatter(records, ax):
     success = [r for r in records if r["success"]]
     if not success:
-        ax.text(0.5, 0.5, "no successful results", transform=ax.transAxes, ha="center")
+        ax.text(0.5, 0.5, "无成功结果", transform=ax.transAxes, ha="center")
         return
 
     dv1 = np.array([r["delta_v1"] for r in success]) * VU / 1000
     dv2 = np.array([r["delta_v2"] for r in success]) * VU / 1000
     obj = np.array([r["objective_value"] for r in success]) * VU / 1000
 
-    sc = ax.scatter(dv1, dv2, c=obj, cmap="viridis_r", s=24, alpha=0.8, edgecolors="gray", linewidths=0.3)
-    cbar = plt.colorbar(sc, ax=ax)
-    cbar.set_label("dv_total (km/s)", fontsize=9)
+    sc = ax.scatter(dv1, dv2, c=obj, cmap="viridis", s=6, alpha=0.6)
+    plt.colorbar(sc, ax=ax, label="总 Δv (km/s)")
 
     best = min(success, key=lambda r: r["objective_value"])
     ax.annotate(
-        f"best: a={best['alpha']:.4f}\ndv={best['objective_value'] * VU / 1000:.3f} km/s",
+        f"最优: α={best['alpha']:.4f}\nΔv={best['objective_value'] * VU / 1000:.3f} km/s",
         xy=(best["delta_v1"] * VU / 1000, best["delta_v2"] * VU / 1000),
         fontsize=8, color="red",
         arrowprops=dict(arrowstyle="->", color="red"),
         xytext=(10, 10), textcoords="offset points",
     )
 
-    ax.set_xlabel("dv1 (km/s)")
-    ax.set_ylabel("dv2 (km/s)")
-    ax.set_title("GEO -> DRO: dv1 vs dv2")
+    ax.set_xlabel("Δv₁ (km/s)")
+    ax.set_ylabel("Δv₂ (km/s)")
+    ax.set_title("GEO→DRO: Δv₁ vs Δv₂")
     ax.grid(True, alpha=0.3)
 
 
 def plot_transfer_time_vs_dv(records, ax):
     success = [r for r in records if r["success"]]
     if not success:
-        ax.text(0.5, 0.5, "no successful results", transform=ax.transAxes, ha="center")
+        ax.text(0.5, 0.5, "无成功结果", transform=ax.transAxes, ha="center")
         return
 
     tt_days = np.array([r["transfer_time"] * TU for r in success])
-    total_dv = np.array([r["objective_value"] * VU for r in success])
+    total_dv = np.array([r["objective_value"] * VU / 1000 for r in success])
 
-    sc = ax.scatter(tt_days, total_dv, c=total_dv, cmap="viridis_r", s=24, alpha=0.8, edgecolors="gray", linewidths=0.3)
-    cbar = plt.colorbar(sc, ax=ax)
-    cbar.set_label("dv_total (m/s)", fontsize=9)
+    sc = ax.scatter(tt_days, total_dv, c=total_dv, cmap="viridis", s=6, alpha=0.6)
+    plt.colorbar(sc, ax=ax, label="总 Δv (km/s)")
 
     best = min(success, key=lambda r: r["objective_value"])
     ax.annotate(
-        f"best: T={best['transfer_time'] * TU:.1f} d\ndv={best['objective_value'] * VU:.0f} m/s",
-        xy=(best["transfer_time"] * TU, best["objective_value"] * VU),
+        f"最优: T={best['transfer_time'] * TU:.1f} 天\nΔv={best['objective_value'] * VU / 1000:.3f} km/s",
+        xy=(best["transfer_time"] * TU, best["objective_value"] * VU / 1000),
         fontsize=8, color="red",
         arrowprops=dict(arrowstyle="->", color="red"),
         xytext=(10, 10), textcoords="offset points",
     )
 
-    ax.set_xlabel("Transfer time (days)")
-    ax.set_ylabel("dv_total (m/s)")
-    ax.set_title("GEO -> DRO: Transfer Time vs dv_total")
+    ax.set_xlabel("转移时间 (天)")
+    ax.set_ylabel("总 Δv (km/s)")
+    ax.set_title("GEO→DRO: 转移时间 vs 总 Δv")
     ax.grid(True, alpha=0.3)
 
 
@@ -273,10 +271,9 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         dep_state = rec["departure_state"]
         alpha = rec["alpha"]
         tt = rec["transfer_time"]
-        t_ins = rec.get("t_ins") or tt
 
-        print(f"积分转移轨道: a={alpha:.6f}, T={t_ins:.4f} TU ({t_ins * TU:.1f} d) ...")
-        states, times = _integrate_transfer(dep_state, alpha, t_ins, dynamics)
+        print(f"积分转移轨道: a={alpha:.6f}, T={tt:.4f} TU ({tt * TU:.1f} d) ...")
+        states, times = _integrate_transfer(dep_state, alpha, tt, dynamics)
 
         fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection="3d")
@@ -313,13 +310,13 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         ax.set_xlabel("x (DU)")
         ax.set_ylabel("y (DU)")
         ax.set_zlabel("z (DU)")
-        dv1_ms = rec["delta_v1"] * VU
-        dv2_ms = rec["delta_v2"] * VU
-        total_ms = rec["objective_value"] * VU
+        dv1_km = rec["delta_v1"] * VU / 1000
+        dv2_km = rec["delta_v2"] * VU / 1000
+        total_km = rec["objective_value"] * VU / 1000
         ax.set_title(
             f"GEO→DRO  α={alpha:.4f}  T={tt:.2f} TU ({tt * TU:.1f}天)\n"
-            f"Δv_dep={dv1_ms:.0f} m/s  Δv_ins={dv2_ms:.0f} m/s  "
-            f"Total={total_ms:.0f} m/s"
+            f"Δv_dep={dv1_km:.4f} km/s  Δv_ins={dv2_km:.4f} km/s  "
+            f"Total={total_km:.4f} km/s"
         )
         ax.legend(fontsize=7, loc="upper left")
 
@@ -350,8 +347,7 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         for rec in sel_records:
             dep_state = rec["departure_state"]
             alpha = rec["alpha"]
-            t_ins = rec.get("t_ins") or rec["transfer_time"]
-            states, _ = _integrate_transfer(dep_state, alpha, t_ins, dynamics)
+            states, _ = _integrate_transfer(dep_state, alpha, rec["transfer_time"], dynamics)
             norm_val = (rec["objective_value"] - obj_min) / obj_range
             color = cmap(norm_val)
             ax.plot(states[:, 0], states[:, 1], states[:, 2], color=color, lw=1.2, alpha=0.7)
@@ -370,9 +366,9 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
             ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
 
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(
-            vmin=obj_min * VU, vmax=obj_max * VU))
+            vmin=obj_min * VU / 1000, vmax=obj_max * VU / 1000))
         sm.set_array([])
-        cbar = plt.colorbar(sm, ax=ax, label="dv_total (m/s)", shrink=0.6, pad=0.1)
+        plt.colorbar(sm, ax=ax, label="总 Δv (km/s)")
 
         ax.set_xlabel("x (DU)")
         ax.set_ylabel("y (DU)")
@@ -457,8 +453,8 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
         pos_km = np.sqrt(max(0, float(pv))) * DU
         angle = rec.get("angle_deg", 0)
 
-        print(f"\n[{current+1}/{n}] (idx={orig_i}) a={alpha:.4f}, T={tt * TU:.1f} d, "
-              f"dv1={dv1 * VU:.0f}, dv2={dv2 * VU:.0f}, total={total * VU:.0f} m/s, "
+        print(f"\n[{current+1}/{n}] (idx={orig_i}) a={alpha:.4f}, T={tt * TU:.1f} 天, "
+              f"dv1={dv1 * VU / 1000:.4f}, dv2={dv2 * VU / 1000:.4f}, total={total * VU / 1000:.4f} km/s, "
               f"pos={pos_km:.1f} km, angle={angle:.1f} deg")
 
         dep_state = rec.get("departure_state")
@@ -468,8 +464,7 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
             continue
 
         try:
-            t_ins = rec.get("t_ins") or tt
-            states, times = _integrate_transfer(dep_state, alpha, t_ins, dynamics)
+            states, times = _integrate_transfer(dep_state, alpha, tt, dynamics)
         except Exception as e:
             print(f"  integration failed: {e}")
             current += 1
@@ -484,11 +479,11 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
         ax.plot(dro_x, dro_y, dro_z, color="royalblue", lw=0.8, label="DRO")
         # 转移
         ax.plot(states[:, 0], states[:, 1], states[:, 2],
-                color="crimson", lw=1.2, label="Transfer")
+                color="crimson", lw=1.2, label="转移轨道")
         # 出发/到达
         dep_pos = np.asarray(dep_state, dtype=float)[:3]
-        ax.scatter(*dep_pos, color="green", s=40, zorder=5, label="Departure")
-        ax.scatter(*states[-1, :3], color="orange", s=40, marker="s", zorder=5, label="Arrival")
+        ax.scatter(*dep_pos, color="green", s=40, zorder=5, label="出发点")
+        ax.scatter(*states[-1, :3], color="orange", s=40, marker="s", zorder=5, label="终点")
         # 天体
         ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
         ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
@@ -501,8 +496,8 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
         ax.set_ylabel("y (DU)")
         ax.set_zlabel("z (DU)")
         ax.set_title(
-            f"[{current+1}/{n}] a={alpha:.4f}  T={tt * TU:.1f} d  "
-            f"dv={total * VU:.0f} m/s  pos={pos_km:.1f} km",
+            f"[{current+1}/{n}] a={alpha:.4f}  T={tt * TU:.1f} 天  "
+            f"Δv={total * VU / 1000:.4f} km/s  pos={pos_km:.1f} km",
             fontsize=10,
         )
         ax.legend(fontsize=7, loc="upper left")
@@ -632,7 +627,7 @@ def main():
             plot_dv_scatter(valid_records, ax2)
             meta = data.get("meta", {})
             fig.suptitle(
-                f"N={len(valid_records)} valid results | {meta.get('nlp_solver', '')}",
+                f"N={len(valid_records)} 条有效结果 | {meta.get('nlp_solver', '')}",
                 fontsize=12, y=1.02,
             )
             fig.tight_layout()

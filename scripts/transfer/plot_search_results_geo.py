@@ -30,17 +30,14 @@ import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
+import matplotlib
+
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 import numpy as np
 
-# 配置中文字体（解决 Windows 下中文显示为方块的问题）
-plt.rcParams["font.sans-serif"] = [
-    "Noto Sans CJK SC",
-    "Microsoft YaHei",
-    "SimSun",
-    "DejaVu Sans",
-]
+plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "SimSun", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -49,10 +46,9 @@ sys.path.insert(0, str(project_root))
 import e2m2e
 from e2m2e.core import CR3BP_System, Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
-from e2m2e.visualization.plotting import OrbitVisualizer
 
 from scripts.utils.common import MU, DU, TU, VU
-from scripts.utils.geo import R_GEO, V_CIRCULAR_GEO
+from scripts.utils.geo import R_GEO, V_CIRCULAR_GEO, EARTH_CENTER
 
 # =============================================================================
 # 数据文件：grid_search_dro_to_geo 输出的 JSON
@@ -162,29 +158,13 @@ def plot_alpha_delta_v(
     delta_v: np.ndarray,
 ) -> None:
     if len(alpha) == 0:
-        ax.text(
-            0.5,
-            0.5,
-            "no feasible points",
-            ha="center",
-            va="center",
-            transform=ax.transAxes,
-        )
-        ax.set_title("Feasible: departure Δv vs α")
+        ax.text(0.5, 0.5, "无可行解", ha="center", va="center", transform=ax.transAxes)
+        ax.set_title("DRO→GEO: α vs Δv_departure")
         return
-    ax.scatter(
-        alpha,
-        delta_v,
-        c="crimson",
-        s=16,
-        alpha=0.75,
-        edgecolors="darkred",
-        linewidths=0.3,
-        rasterized=True,
-    )
+    ax.scatter(alpha, delta_v * VU / 1000, s=6, alpha=0.6, c="steelblue")
     ax.set_xlabel("α")
-    ax.set_ylabel("Δv (departure, ‖Δv‖)")
-    ax.set_title("Feasible solutions: departure Δv vs α")
+    ax.set_ylabel("Δv_departure (km/s)")
+    ax.set_title("DRO→GEO: α vs Δv_departure")
     ax.grid(True, alpha=0.3)
 
 
@@ -195,33 +175,16 @@ def plot_transfer_time_delta_v(
 ) -> None:
     """绘制转移时间 vs Δv 散点图。"""
     if len(transfer_time) == 0:
-        ax.text(
-            0.5,
-            0.5,
-            "no feasible points",
-            ha="center",
-            va="center",
-            transform=ax.transAxes,
-        )
-        ax.set_title("Feasible: departure Δv vs transfer time")
+        ax.text(0.5, 0.5, "无可行解", ha="center", va="center", transform=ax.transAxes)
+        ax.set_title("DRO→GEO: 转移时间 vs Δv_departure")
         return
-    sc = ax.scatter(
-        transfer_time,
-        delta_v,
-        c=transfer_time,
-        cmap="viridis",
-        s=16,
-        alpha=0.75,
-        edgecolors="darkred",
-        linewidths=0.3,
-        rasterized=True,
-    )
-    ax.set_xlabel("Transfer Time (TU)")
-    ax.set_ylabel("Δv (departure, ‖Δv‖)")
-    ax.set_title("Feasible solutions: departure Δv vs transfer time")
+    sc = ax.scatter(transfer_time * TU, delta_v * VU / 1000, s=6, alpha=0.6,
+                    c=transfer_time * TU, cmap="viridis")
+    plt.colorbar(sc, ax=ax, label="转移时间 (天)")
+    ax.set_xlabel("转移时间 (天)")
+    ax.set_ylabel("Δv_departure (km/s)")
+    ax.set_title("DRO→GEO: 转移时间 vs Δv_departure")
     ax.grid(True, alpha=0.3)
-    cbar = plt.colorbar(sc, ax=ax)
-    cbar.set_label("Transfer Time (TU)", fontsize=9)
 
 
 def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
@@ -325,6 +288,13 @@ def _orbit_states_in_plane(
     return orbit.states[:, i], orbit.states[:, j]
 
 
+def _geo_circle_points(n_pts: int = 200) -> tuple[np.ndarray, np.ndarray]:
+    """GEO 圆在 x-y 平面上的投影（返回 x, y 两个 1D 数组）。"""
+    th = np.linspace(0, 2 * np.pi, n_pts)
+    earth_x = -MU
+    return earth_x + R_GEO * np.cos(th), R_GEO * np.sin(th)
+
+
 def _geo_sphere_points(n_pts: int = 200) -> np.ndarray:
     """
     生成 GEO 球面上的点（在旋转坐标系中）。
@@ -354,132 +324,63 @@ def _plot_single_transfer_orbit(
     fig=None,
     ax=None,
 ) -> Axes:
-    """使用 OrbitVisualizer 绘制单条转移轨道 3D 示意图（DRO + 转移 + GEO 球面）。"""
+    """绘制单条 DRO→GEO 转移轨道 3D 示意图。"""
     if ax is None:
-        fig = plt.figure(figsize=(12, 10))
+        fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection="3d")
 
-    viz = OrbitVisualizer(system=system)
-
     # DRO 出发轨道
-    ax.plot(
-        departure_orbit.states[:, 0],
-        departure_orbit.states[:, 1],
-        departure_orbit.states[:, 2],
-        "-",
-        color="steelblue",
-        lw=1.2,
-        alpha=0.6,
-        label="DRO (departure)",
-    )
+    ax.plot(departure_orbit.states[:, 0], departure_orbit.states[:, 1],
+            departure_orbit.states[:, 2], color="royalblue", lw=0.8, label="DRO")
 
     # 转移轨迹
-    ax.plot(
-        transfer_states[:, 0],
-        transfer_states[:, 1],
-        transfer_states[:, 2],
-        "-",
-        color="crimson",
-        lw=1.5,
-        alpha=0.8,
-        label=f"Transfer (α={alpha:.3f})",
-    )
+    ax.plot(transfer_states[:, 0], transfer_states[:, 1], transfer_states[:, 2],
+            color="crimson", lw=1.2, label="转移轨道")
 
     # 出发点
-    ax.scatter(
-        [departure_state[0]],
-        [departure_state[1]],
-        [departure_state[2]],
-        color="limegreen",
-        s=50,
-        edgecolors="black",
-        linewidths=0.8,
-        zorder=5,
-        label="Departure",
-    )
+    dep_pos = np.asarray(departure_state, dtype=float)[:3]
+    ax.scatter(*dep_pos, color="green", s=40, zorder=5, label="出发点")
 
-    # GEO 穿越点（转移轨迹终点）
-    ax.scatter(
-        [transfer_states[-1, 0]],
-        [transfer_states[-1, 1]],
-        [transfer_states[-1, 2]],
-        color="orange",
-        s=50,
-        marker="s",
-        edgecolors="black",
-        linewidths=0.8,
-        zorder=5,
-        label="GEO crossing",
-    )
+    # GEO 穿越点（终点）
+    ax.scatter(*transfer_states[-1, :3], color="orange", s=40, marker="s", zorder=5, label="终点")
 
     # GEO 球面（圆）
-    geo_pts = _geo_sphere_points(200)
-    ax.plot(
-        geo_pts[:, 0],
-        geo_pts[:, 1],
-        geo_pts[:, 2],
-        "--",
-        color="gray",
-        lw=1.0,
-        alpha=0.5,
-        label=f"GEO (r={R_GEO:.4f} DU)",
-    )
+    gx, gy = _geo_circle_points()
+    ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--", lw=0.8, label="GEO")
 
-    # 地心标记
-    earth_x = -MU
-    ax.scatter(
-        [earth_x],
-        [0.0],
-        [0.0],
-        color="black",
-        marker="+",
-        s=80,
-        linewidths=1.5,
-        zorder=5,
-    )
+    # 地球和月球
+    ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
+    ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
+    ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=7, ha="center")
+    ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=7, ha="center")
 
-    # 月球
-    viz.plot_primary_bodies(ax=ax, is_3d=True)
-    viz.plot_libration_points(ax=ax, is_3d=True, show_labels=False)
+    # 平动点
+    system.compute_libration_points()
+    for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
+        ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
+        ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
 
-    # 视角范围
-    all_x = np.concatenate(
-        [departure_orbit.states[:, 0], transfer_states[:, 0], geo_pts[:, 0]]
-    )
-    all_y = np.concatenate(
-        [departure_orbit.states[:, 1], transfer_states[:, 1], geo_pts[:, 1]]
-    )
-    all_z = np.concatenate(
-        [departure_orbit.states[:, 2], transfer_states[:, 2], geo_pts[:, 2]]
-    )
-    cx = (all_x.max() + all_x.min()) / 2
-    cy = (all_y.max() + all_y.min()) / 2
-    cz = (all_z.max() + all_z.min()) / 2
-    span = (
-        max(
-            all_x.max() - all_x.min(),
-            all_y.max() - all_y.min(),
-            all_z.max() - all_z.min(),
-        )
-        / 2
-    )
-    span = max(span, 0.3) * 1.2
-    ax.set_xlim(cx - span, cx + span)
-    ax.set_ylim(cy - span, cy + span)
-    ax.set_zlim(cz - span, cz + span)
+    ax.set_xlabel("x (DU)")
+    ax.set_ylabel("y (DU)")
+    ax.set_zlabel("z (DU)")
 
-    dv_dep_phys = dv_departure * VU * 1000
-    dv_ins_phys = dv_insertion * VU * 1000
+    dv_dep_phys = dv_departure * VU / 1000
+    dv_ins_phys = dv_insertion * VU / 1000
     ax.set_title(
-        f"Transfer orbit: α={alpha:.3f}, T={transfer_time:.2f} TU\n"
-        f"Δv_dep={dv_dep_phys:.1f} m/s, Δv_ins={dv_ins_phys:.1f} m/s",
-        fontsize=11,
+        f"DRO→GEO  α={alpha:.4f}  T={transfer_time:.2f} TU ({transfer_time * TU:.1f}天)\n"
+        f"Δv_dep={dv_dep_phys:.4f} km/s  Δv_ins={dv_ins_phys:.4f} km/s"
     )
-    ax.set_xlabel("X (DU)", fontsize=10)
-    ax.set_ylabel("Y (DU)", fontsize=10)
-    ax.set_zlabel("Z (DU)", fontsize=10)
-    ax.legend(loc="upper right", fontsize=9)
-    ax.view_init(elev=0, azim=-90)
+    ax.legend(fontsize=7, loc="upper left")
+
+    # 等比例轴
+    all_pts = np.concatenate([transfer_states[:, :3], departure_orbit.states[:, :3]])
+    mid = all_pts.mean(axis=0)
+    half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
+    ax.set_xlim(mid[0] - half, mid[0] + half)
+    ax.set_ylim(mid[1] - half, mid[1] + half)
+    ax.set_zlim(mid[2] - half, mid[2] + half)
+    ax.set_box_aspect([1, 1, 1])
+
     return ax
 
 
@@ -617,7 +518,7 @@ def interactive_browse_by_time(
 
         if fig is not None:
             plt.close(fig)
-        fig = plt.figure(figsize=(12, 10))
+        fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection="3d")
         _plot_single_transfer_orbit(
             departure_orbit=dro_orbit,
@@ -829,7 +730,7 @@ def main() -> None:
                 else float("nan")
             )
 
-            fig = plt.figure(figsize=(12, 10))
+            fig = plt.figure(figsize=(12, 8))
             ax = fig.add_subplot(111, projection="3d")
             ax = _plot_single_transfer_orbit(
                 departure_orbit=dro_orbit,
@@ -844,33 +745,16 @@ def main() -> None:
                 ax=ax,
             )
         else:
-            fig = plt.figure(figsize=(12, 10))
+            fig = plt.figure(figsize=(12, 8))
             ax = fig.add_subplot(111, projection="3d")
 
             # DRO
-            ax.plot(
-                dro_orbit.states[:, 0],
-                dro_orbit.states[:, 1],
-                dro_orbit.states[:, 2],
-                "-",
-                color="steelblue",
-                lw=1.0,
-                alpha=0.5,
-                label="DRO (departure)",
-            )
+            ax.plot(dro_orbit.states[:, 0], dro_orbit.states[:, 1],
+                    dro_orbit.states[:, 2], color="royalblue", lw=0.8, label="DRO")
 
             # GEO 球面
-            geo_pts = _geo_sphere_points(200)
-            ax.plot(
-                geo_pts[:, 0],
-                geo_pts[:, 1],
-                geo_pts[:, 2],
-                "--",
-                color="gray",
-                lw=1.0,
-                alpha=0.5,
-                label=f"GEO (r={R_GEO:.4f} DU)",
-            )
+            gx, gy = _geo_circle_points()
+            ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--", lw=0.8, label="GEO")
 
             # 转移轨迹（过滤积分失败的结果）
             cmap = plt.cm.plasma
@@ -886,66 +770,39 @@ def main() -> None:
                 )
 
                 color = cmap(cm_idx / max(n_sel - 1, 1))
-                ax.plot(
-                    transfer_states[:, 0],
-                    transfer_states[:, 1],
-                    transfer_states[:, 2],
-                    "-",
-                    color=color,
-                    lw=1.2,
-                    alpha=0.7,
-                )
-                ax.scatter(
-                    [departure_state[0]],
-                    [departure_state[1]],
-                    [departure_state[2]],
-                    color=color,
-                    s=30,
-                    alpha=0.8,
-                )
-                # GEO 穿越点
-                ax.scatter(
-                    [transfer_states[-1, 0]],
-                    [transfer_states[-1, 1]],
-                    [transfer_states[-1, 2]],
-                    color=color,
-                    s=30,
-                    alpha=0.8,
-                    marker="s",
-                )
+                ax.plot(transfer_states[:, 0], transfer_states[:, 1],
+                        transfer_states[:, 2], color=color, lw=1.2, alpha=0.7)
+                ax.scatter(*departure_state[:3], color=color, s=30, alpha=0.8)
 
             if n_skipped:
                 print(f"  警告: {n_skipped}/{n_sel} 条转移轨迹积分失败，已跳过")
 
-            viz = OrbitVisualizer(system=system)
-            viz.plot_primary_bodies(ax=ax, is_3d=True)
-            viz.plot_libration_points(ax=ax, is_3d=True, show_labels=True)
+            # 地球和月球
+            ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
+            ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
+            ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=7, ha="center")
+            ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=7, ha="center")
 
-            all_x = np.concatenate([dro_orbit.states[:, 0], geo_pts[:, 0]])
-            all_y = np.concatenate([dro_orbit.states[:, 1], geo_pts[:, 1]])
-            all_z = np.concatenate([dro_orbit.states[:, 2], geo_pts[:, 2]])
-            cx = (all_x.max() + all_x.min()) / 2
-            cy = (all_y.max() + all_y.min()) / 2
-            cz = (all_z.max() + all_z.min()) / 2
-            span = (
-                max(
-                    all_x.max() - all_x.min(),
-                    all_y.max() - all_y.min(),
-                    all_z.max() - all_z.min(),
-                )
-                / 2
-            )
-            span = max(span, 0.3) * 1.2
-            ax.set_xlim(cx - span, cx + span)
-            ax.set_ylim(cy - span, cy + span)
-            ax.set_zlim(cz - span, cz + span)
+            # 平动点
+            system.compute_libration_points()
+            for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
+                ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
+                ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
 
-            ax.set_xlabel("X (DU)", fontsize=10)
-            ax.set_ylabel("Y (DU)", fontsize=10)
-            ax.set_zlabel("Z (DU)", fontsize=10)
-            ax.set_title(f"Transfer orbits: {n_sel} feasible solutions", fontsize=11)
-            ax.legend(loc="upper right", fontsize=9)
-            ax.view_init(elev=0, azim=-90)
+            ax.set_xlabel("x (DU)")
+            ax.set_ylabel("y (DU)")
+            ax.set_zlabel("z (DU)")
+            ax.set_title(f"DRO→GEO: {n_sel} 条转移轨道")
+            ax.legend(fontsize=7, loc="upper left")
+
+            # 等比例轴
+            all_pts = dro_orbit.states[:, :3]
+            mid = all_pts.mean(axis=0)
+            half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
+            ax.set_xlim(mid[0] - half, mid[0] + half)
+            ax.set_ylim(mid[1] - half, mid[1] + half)
+            ax.set_zlim(mid[2] - half, mid[2] + half)
+            ax.set_box_aspect([1, 1, 1])
 
         if args.save:
             png = Path(args.save).expanduser().resolve()
@@ -966,18 +823,8 @@ def main() -> None:
             times = times_all[idx]
             dvs = dvs_all[idx]
 
-            fig, ax = plt.subplots(figsize=(12, 8))
-            ax.tick_params(axis="both", which="major", labelsize=13)
-            ax.tick_params(axis="both", which="minor", labelsize=11)
+            fig, ax = plt.subplots(figsize=(10, 6))
             plot_transfer_time_delta_v(ax, times, dvs)
-            ax.title.set_fontsize(16)
-            ax.xaxis.label.set_fontsize(14)
-            ax.yaxis.label.set_fontsize(14)
-            fig.suptitle(
-                f"N={len(rows)} rows, {n_feas} feasible, {len(idx)} points drawn",
-                fontsize=13,
-                y=1.02,
-            )
             fig.tight_layout()
 
             if args.save:
@@ -991,20 +838,15 @@ def main() -> None:
                 plt.show()
             plt.close(fig)
         else:
-            # ── α–Δv 散点图（原有功能）─────────────────────────────────────
+            # ── α–Δv 散点图 ─────────────────────────────────────────────
             alpha_all, dv_all = feasible_alpha_and_departure_dv(rows)
             n_feas = len(alpha_all)
             idx = subsample_indices(n_feas, args.max_points, args.seed)
             alpha = alpha_all[idx]
             dv = dv_all[idx]
 
-            fig, ax = plt.subplots(figsize=(7, 5))
+            fig, ax = plt.subplots(figsize=(10, 6))
             plot_alpha_delta_v(ax, alpha, dv)
-            fig.suptitle(
-                f"N={len(rows)} rows, {n_feas} feasible, {len(idx)} points drawn",
-                fontsize=11,
-                y=1.02,
-            )
             fig.tight_layout()
 
             if args.save:

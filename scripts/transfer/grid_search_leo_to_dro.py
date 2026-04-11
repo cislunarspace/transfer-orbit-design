@@ -23,7 +23,7 @@ import e2m2e
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from e2m2e.core.orbit import Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
-from scripts.utils.common import DU, MU, TU
+from scripts.utils.common import DU, MU, TU, VU
 from scripts.utils.leo import (
     R_LEO,
     V_CIRCULAR_LEO,
@@ -115,7 +115,7 @@ def main() -> None:
     print("LEO → DRO 网格搜索")
     print("=" * 70)
     print(f"  LEO: 高度 {LEO_ALT_KM:.0f} km, R={R_LEO:.6f} DU = {R_LEO * DU:.0f} km")
-    print(f"       V_circ={V_CIRCULAR_LEO:.4f} VU = {V_CIRCULAR_LEO * 1023.23:.0f} m/s")
+    print(f"       V_circ={V_CIRCULAR_LEO:.4f} VU = {V_CIRCULAR_LEO * VU:.0f} m/s")
     print(f"       T={T_LEO:.6f} TU = {T_LEO * TU:.4f} 天")
     print(f"  DRO: {dro_orbit.states.shape[0]} 点, "
           f"周期={dro_orbit.period:.4f} TU = {dro_orbit.period * TU:.2f} 天")
@@ -231,7 +231,7 @@ def main() -> None:
             al = r.get("alpha", 0)
             print(f"  #{i+1}: dep_idx={r.get('departure_time_index')}, "
                   f"α={al:.4f}, T={tt:.2f} TU ({tt * TU:.1f} 天), "
-                  f"dv_dep={dv:.4f} VU ({dv * 1023.23:.0f} m/s), "
+                  f"dv_dep={dv:.4f} VU ({dv * VU:.0f} m/s), "
                   f"min_dist={md:.6f} DU ({md * DU:.0f} km), "
                   f"相交={r.get('intersection_found', False)}")
     else:

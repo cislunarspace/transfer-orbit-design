@@ -114,7 +114,7 @@ def plot_alpha_delta_v(ax, alpha, delta_v):
     if len(alpha) == 0:
         ax.text(0.5, 0.5, "无可行解", transform=ax.transAxes, ha="center", va="center")
         return
-    ax.scatter(alpha * VU / 1000, delta_v * VU / 1000, s=6, alpha=0.6, c="steelblue")
+    ax.scatter(alpha, delta_v * VU / 1000, s=6, alpha=0.6, c="steelblue")
     ax.set_xlabel("α")
     ax.set_ylabel("Δv_departure (km/s)")
     ax.set_title("GEO → DRO: α vs Δv_departure")
