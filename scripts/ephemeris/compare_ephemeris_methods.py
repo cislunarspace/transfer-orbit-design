@@ -28,6 +28,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -402,7 +403,7 @@ def plot_residual_convergence(direct_info, homotopy_info):
 
     cum_iter = 0
     n_steps = len(homotopy_info["homotopy_log"])
-    colors = plt.cm.RdYlGn(np.linspace(0.2, 0.8, max(n_steps, 1)))
+    colors = matplotlib.colormaps["RdYlGn"](np.linspace(0.2, 0.8, max(n_steps, 1)))
     for i, step in enumerate(homotopy_info["homotopy_log"]):
         res_hist = step["residual_history"]
         iters = range(cum_iter + 1, cum_iter + len(res_hist) + 1)
@@ -467,7 +468,7 @@ def plot_trajectory_comparison(direct_info, homotopy_info, setup):
         linewidth=1.5,
         label=f"直接法 ({N_PERIODS}T)",
     )
-    ax1.scatter([0], [0], [0], color="green", s=100, zorder=5, label="Earth")
+    ax1.scatter(0, 0, 0, color="green", s=100, zorder=5, label="Earth")
     ax1.set_xlabel("X (×10⁵ km)")
     ax1.set_ylabel("Y (×10⁵ km)")
     ax1.set_zlabel("Z (×10⁵ km)")
@@ -494,7 +495,7 @@ def plot_trajectory_comparison(direct_info, homotopy_info, setup):
         linewidth=1.5,
         label=f"同伦法 ({N_PERIODS}T)",
     )
-    ax2.scatter([0], [0], [0], color="green", s=100, zorder=5, label="Earth")
+    ax2.scatter(0, 0, 0, color="green", s=100, zorder=5, label="Earth")
     ax2.set_xlabel("X (×10⁵ km)")
     ax2.set_ylabel("Y (×10⁵ km)")
     ax2.set_zlabel("Z (×10⁵ km)")

@@ -32,6 +32,7 @@ orbit = Orbit.load_from_file(filename=orbit_path, system=system)
 
 print(f"加载轨道: {orbit_filename}")
 print(f"  状态数: {len(orbit.states)}")
+assert orbit.period is not None
 print(f"  周期: {orbit.period:.6f} TU ({orbit.period * TU:.2f} days)")
 if orbit.jacobi_constants is not None:
     print(f"  Jacobi常数: {orbit.jacobi_constants[0]:.6f}")

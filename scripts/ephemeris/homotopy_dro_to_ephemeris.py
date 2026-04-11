@@ -129,6 +129,7 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
     current_t = t_patch_j2000.copy()
     current_states = states_j2000.copy()
 
+    result = None
     for step_idx, lam in enumerate(HOMOTOPY_STEPS):
         print(f"\n{'─' * 50}")
         print(f"  Homotopy step {step_idx + 1}/{len(HOMOTOPY_STEPS)}: λ = {lam:.4f}")

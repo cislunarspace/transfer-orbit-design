@@ -73,7 +73,7 @@ print("正在计算稳定性指数...")
 stability_values = compute_stability_for_family(family_result, system)
 print(f"稳定性指数范围: {min(stability_values):.6f} ~ {max(stability_values):.6f}")
 
-subset_family = OrbitFamily(system)
+subset_family = OrbitFamily(system=system)
 for i in range(plot_start, plot_end + 1):
     subset_family.add_orbit(family_result[i])
 jacobi_values_subset = jacobi_values[plot_start : plot_end + 1]

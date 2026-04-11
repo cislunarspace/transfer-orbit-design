@@ -165,8 +165,8 @@ def main():
             label="Ephemeris corrected",
         )
 
-        ax1.scatter([1 - MU], [0], [0], color="silver", s=80, label="Moon")
-        ax1.scatter([-MU], [0], [0], color="blue", s=200, label="Earth")
+        ax1.scatter(1 - MU, 0, 0, color="silver", s=80, label="Moon")
+        ax1.scatter(-MU, 0, 0, color="blue", s=200, label="Earth")
 
         ax1.set_xlabel("X (n.d.)")
         ax1.set_ylabel("Y (n.d.)")
@@ -199,7 +199,7 @@ def main():
             label=f"Ephemeris corrected ({N_PERIODS}T)",
         )
 
-        ax2.scatter([0], [0], [0], color="green", s=100, zorder=5, label="Earth")
+        ax2.scatter(0, 0, 0, color="green", s=100, zorder=5, label="Earth")
 
         ax2.set_xlabel("X (×10⁵ km)")
         ax2.set_ylabel("Y (×10⁵ km)")

@@ -143,7 +143,7 @@ def main():
 
     # 创建可视化器
     orbit_plotter = OrbitVisualizer(system=system)
-    orbit_plotter.figsize = FIGURE_SIZE
+    orbit_plotter.config.figsize_2d = FIGURE_SIZE
 
     # 设置天体和拉格朗日点样式（参考 plot_32_ro_family.py）
     orbit_plotter.primary_body_color = "blue"
@@ -231,6 +231,7 @@ def main():
 
         # 3D视图
         if SHOW_3D:
+            assert ax_3d is not None
             orbit_plotter.plot_primary_bodies(ax=ax_3d, is_3d=True)
             orbit_plotter.plot_libration_points(ax=ax_3d, is_3d=True, show_labels=True)
             orbit_plotter.plot_3d_orbit(orbit, color=orbit_color, label=label, ax=ax_3d)

@@ -244,14 +244,14 @@ def optimize_one_case(
     optimizer.enable_cache(True)
 
     bounds = Bounds(
-        lb=[alpha_min, 1.0, 0.0],
-        ub=[alpha_max, 30.0, 10.0],
+        lb=[alpha_min, 1.0, 0.0],  # type: ignore[arg-type]
+        ub=[alpha_max, 30.0, 10.0],  # type: ignore[arg-type]
     )
 
     constraints = [{"type": "eq", "fun": optimizer.constraint_position}]
 
+    cos_theta_max = np.cos(velocity_angle_tol)
     if use_relaxed_velocity:
-        cos_theta_max = np.cos(velocity_angle_tol)
         constraints.append(
             {"type": "ineq", "fun": lambda y: cos_theta_max - optimizer._compute_cos_angle(y)}
         )

@@ -178,7 +178,7 @@ def optimize_one_case(
 
     y0 = np.array([alpha_0, T_0])
 
-    cache_holder = [None]
+    cache_holder: list[dict | None] = [None]
 
     def objective(y):
         c = _nlp_eval(y, departure_state, nlp_dynamics)
@@ -196,7 +196,7 @@ def optimize_one_case(
             return 1e6
         return c["pos_violation"]
 
-    bounds = Bounds(lb=[alpha_min, t_min], ub=[alpha_max, t_max])
+    bounds = Bounds(lb=[alpha_min, t_min], ub=[alpha_max, t_max])  # type: ignore[arg-type]
     constraints = [{"type": "eq", "fun": constraint_position}]
 
     try:

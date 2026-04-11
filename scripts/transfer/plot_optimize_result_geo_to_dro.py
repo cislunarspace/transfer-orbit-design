@@ -29,6 +29,7 @@ import matplotlib
 
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
+from matplotlib.colors import Normalize
 
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "SimSun", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
@@ -303,6 +304,7 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
 
         # 平动点
         system.compute_libration_points()
+        assert system.L1 is not None and system.L2 is not None
         for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
             ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
             ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
@@ -341,7 +343,7 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         obj_values = [r["objective_value"] for r in sel_records]
         obj_min, obj_max = min(obj_values), max(obj_values)
         obj_range = obj_max - obj_min if obj_max > obj_min else 1.0
-        cmap = plt.cm.plasma
+        cmap = matplotlib.colormaps["plasma"]
 
         all_transfer_pts = []
         for rec in sel_records:
@@ -361,11 +363,12 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
 
         # 平动点
         system.compute_libration_points()
+        assert system.L1 is not None and system.L2 is not None
         for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
             ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
             ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
 
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=Normalize(
             vmin=obj_min * VU / 1000, vmax=obj_max * VU / 1000))
         sm.set_array([])
         plt.colorbar(sm, ax=ax, label="总 Δv (km/s)")
@@ -436,6 +439,7 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
 
     # 预计算平动点
     system.compute_libration_points()
+    assert system.L1 is not None and system.L2 is not None
     lp_data = [("L1", system.L1[0]), ("L2", system.L2[0])]
 
     print(f"\nInteractive browse: GEO -> DRO optimized transfers")

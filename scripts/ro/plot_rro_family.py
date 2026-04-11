@@ -67,7 +67,7 @@ print(f"将绘制第 {plot_start} 至 第 {plot_end} 条轨道，共 {n_orbits_t
 # =============================================================================
 print("正在计算Jacobi常数和稳定性指数...")
 
-subset_family = OrbitFamily(system)
+subset_family = OrbitFamily(system=system)
 for i in range(plot_start, plot_end + 1):
     subset_family.add_orbit(family_result[i])
 

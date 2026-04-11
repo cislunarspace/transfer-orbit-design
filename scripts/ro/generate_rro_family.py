@@ -79,6 +79,8 @@ def main():
                 )
                 analysis.compute_floquet_multipliers()
 
+                if analysis.eigenvalues is None:
+                    continue
                 for lam in analysis.eigenvalues:
                     diff = abs(lam - 1.0)
                     if diff < min_diff:

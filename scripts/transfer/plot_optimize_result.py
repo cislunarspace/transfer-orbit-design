@@ -27,6 +27,8 @@ import matplotlib
 
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.colors import Normalize
 import numpy as np
 
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "SimSun", "DejaVu Sans"]
@@ -156,7 +158,7 @@ def _select_indices(
 # =====================================================================
 
 
-def plot_dv_summary(records: List[Dict[str, Any]], ax: plt.Axes) -> None:
+def plot_dv_summary(records: List[Dict[str, Any]], ax: Axes) -> None:
     if not records:
         ax.text(0.5, 0.5, "无数据", ha="center", va="center", transform=ax.transAxes)
         return
@@ -197,7 +199,7 @@ def plot_dv_summary(records: List[Dict[str, Any]], ax: plt.Axes) -> None:
     ax.grid(True, alpha=0.3)
 
 
-def plot_dv_scatter(records: List[Dict[str, Any]], ax: plt.Axes) -> None:
+def plot_dv_scatter(records: List[Dict[str, Any]], ax: Axes) -> None:
     success = [r for r in records if r["success"]]
     if not success:
         ax.text(0.5, 0.5, "无成功结果", ha="center", va="center", transform=ax.transAxes)
@@ -227,7 +229,7 @@ def plot_dv_scatter(records: List[Dict[str, Any]], ax: plt.Axes) -> None:
     )
 
 
-def plot_transfer_time_vs_dv(records: List[Dict[str, Any]], ax: plt.Axes) -> None:
+def plot_transfer_time_vs_dv(records: List[Dict[str, Any]], ax: Axes) -> None:
     success = [r for r in records if r["success"]]
     if not success:
         ax.text(0.5, 0.5, "无成功结果", ha="center", va="center", transform=ax.transAxes)
@@ -312,6 +314,7 @@ def plot_orbit_3d(
 
         # 平动点
         system.compute_libration_points()
+        assert system.L1 is not None and system.L2 is not None
         for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
             ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
             ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
@@ -350,7 +353,7 @@ def plot_orbit_3d(
         ax.plot(ro_orbit.states[:, 0], ro_orbit.states[:, 1],
                 ro_orbit.states[:, 2], color="seagreen", lw=0.8, label="RO")
 
-        cmap = plt.cm.plasma
+        cmap = matplotlib.colormaps["plasma"]
         obj_vals = [records[i]["objective_value"] for i in sel_indices]
         obj_min, obj_max = min(obj_vals), max(obj_vals)
         obj_range = obj_max - obj_min if obj_max > obj_min else 1.0
@@ -380,11 +383,12 @@ def plot_orbit_3d(
 
         # 平动点
         system.compute_libration_points()
+        assert system.L1 is not None and system.L2 is not None
         for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
             ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
             ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
 
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=Normalize(
             vmin=obj_min * VU / 1000, vmax=obj_max * VU / 1000))
         sm.set_array([])
         plt.colorbar(sm, ax=ax, label="总 Δv (km/s)")

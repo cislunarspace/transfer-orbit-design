@@ -52,7 +52,7 @@ project_root = Path(__file__).resolve().parent.parent.parent
 # 配置 — 运行前须更新文件路径
 # =====================================================================
 SEARCH_RESULTS_FILE = project_root / (
-    "output/transfer/search_geo_dro_10-200-1-1.5-2.2998_3858756480.json"
+    "output/transfer/search_geo_dro_10-200-1-1.5-2.2998_1775916430.json"
 )
 DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
 

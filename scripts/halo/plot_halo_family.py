@@ -144,7 +144,7 @@ def plot_halo_family(
 
     print(f"绘制索引 [{ps}, {pe}]，共 {pe - ps + 1} 条")
 
-    subset_family = OrbitFamily(system)
+    subset_family = OrbitFamily(system=system)
     for i in range(ps, pe + 1):
         subset_family.add_orbit(family_result[i])
 

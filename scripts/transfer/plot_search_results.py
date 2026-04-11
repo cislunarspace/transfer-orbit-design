@@ -356,6 +356,7 @@ def _plot_single_transfer_orbit(
 
     # 平动点
     system.compute_libration_points()
+    assert system.L1 is not None and system.L2 is not None
     for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
         ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
         ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
@@ -438,7 +439,7 @@ def _select_feasible_indices(
         rng = np.random.default_rng(seed)
         chosen = rng.integers(0, n)
         print(f"  [random] 随机选择索引 {chosen}（seed={seed}）")
-        return [chosen]
+        return [int(chosen)]
     else:
         i = int(idx_arg)
         if i < 0 or i >= n:
@@ -608,7 +609,7 @@ def main() -> None:
             ax.plot(ro_orbit.states[:, 0], ro_orbit.states[:, 1],
                     ro_orbit.states[:, 2], color="seagreen", lw=0.8, label="RO")
 
-            cmap = plt.cm.plasma
+            cmap = matplotlib.colormaps["plasma"]
             for cm_idx in range(n_sel):
                 transfer_states, alpha, dv_departure = results[cm_idx]
                 sel_idx = sel_indices[cm_idx]
@@ -629,6 +630,7 @@ def main() -> None:
 
             # 平动点
             system.compute_libration_points()
+            assert system.L1 is not None and system.L2 is not None
             for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
                 ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
                 ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")

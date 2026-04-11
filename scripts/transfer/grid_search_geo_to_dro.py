@@ -186,7 +186,7 @@ def main() -> None:
         return x
 
     def serialize_result(r):
-        serialized = _json_safe({
+        serialized: dict = _json_safe({  # type: ignore[assignment]
             "departure_time_index": r.get("departure_time_index"),
             "departure_time": r.get("departure_time"),
             "alpha": r.get("alpha"),

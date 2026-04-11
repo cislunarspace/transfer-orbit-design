@@ -57,7 +57,8 @@ def load_search_results(path: Path) -> list[dict]:
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     if isinstance(data, dict) and "results" in data:
-        return data["results"]
+        return list(data["results"])
+    assert isinstance(data, list), f"期望 list 或含 'results' key 的 dict, 实际 {type(data)}"
     return data
 
 
@@ -220,6 +221,7 @@ def _plot_single_transfer_orbit(
 
     # 平动点
     system.compute_libration_points()
+    assert system.L1 is not None and system.L2 is not None
     for lp_name, lp_x in [("L1", system.L1[0]),
                            ("L2", system.L2[0])]:
         ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
@@ -291,6 +293,7 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
     dro_y = dro_orbit.states[:, 1]
     dro_z = dro_orbit.states[:, 2]
     system.compute_libration_points()
+    assert system.L1 is not None and system.L2 is not None
     lp_data = [("L1", system.L1[0]), ("L2", system.L2[0])]
 
     print("\nInteractive browse: GEO -> DRO search results")
