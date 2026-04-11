@@ -21,7 +21,7 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent.parent
 
 import e2m2e
-from fontTools.misc.timeTools import timestampNow
+import time
 from scripts.utils.common import MU, TU
 
 OUTPUT_DIR = project_root / "output"
@@ -193,7 +193,7 @@ def main():
         print(f"RRO 族延拓完成，共 {len(family_rro)} 条轨道")
 
         # 保存 RRO 族
-        rro_output_file = OUTPUT_DIR / "ro" / f"rro_32_family_{timestampNow()}.json"
+        rro_output_file = OUTPUT_DIR / "ro" / f"rro_32_family_{int(time.time())}.json"
         family_rro.save_to_file(filename=str(rro_output_file))
         print(f"RRO 族已保存至: {rro_output_file}")
 

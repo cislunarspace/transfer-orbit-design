@@ -27,7 +27,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from fontTools.misc.timeTools import timestampNow
 from scipy.optimize import Bounds, minimize
 from tqdm.auto import tqdm
 
@@ -344,7 +343,7 @@ def main() -> None:
 
     output_dir = project_root / "output/transfer"
     output_dir.mkdir(parents=True, exist_ok=True)
-    out_path = output_dir / f"optimization_dro_geo_{timestampNow()}.json"
+    out_path = output_dir / f"optimization_dro_geo_{int(time.time())}.json"
 
     cpu_n = multiprocessing.cpu_count() or 1
     n_workers_req = N_WORKERS if N_WORKERS is not None else max(1, cpu_n)

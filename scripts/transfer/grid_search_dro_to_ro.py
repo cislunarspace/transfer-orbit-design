@@ -1,56 +1,39 @@
 """
-DRO → GEO 网格搜索
+DRO-RO 网格搜索
 
-将目标从 RO（周期轨道）替换为 GEO（固定半径球面）。
-结构与 grid_search.py 一致，使用 GeoTransferSearch 类。
+使用方法:
+    1. 修改 main() 函数中的搜索参数
+    2. 确保轨道数据JSON文件存在
+    3. 运行: python grid_search.py
 
-运行: python scripts/transfer/grid_search_dro_geo.py
+输出文件名：``search_results_{nDep}-{nAlpha}-{αmin}-{αmax}-{tmax}_{timestamp}.json``。
 
-Windows 多进程需要 ``if __name__ == "__main__"``。
+Windows 多进程需要 ``if __name__ == "__main__"``，请勿删除末尾保护。
 """
 
 import json
 import os
 import numpy as np
-from pathlib import Path
-from fontTools.misc.timeTools import timestampNow
-
 import e2m2e
-from e2m2e.transfer import GeoTransferSearch, load_orbit_from_json
+from pathlib import Path
+import time
+from e2m2e.transfer import TransferSearch, load_orbit_from_json
 from scripts.utils.common import DU, MU, TU
 
 
 def main() -> None:
-    project_root = Path(__file__).resolve().parent.parent.parent
-
     # =========================================================================
     # 搜索参数配置
     # =========================================================================
+
+    # 轨道数据文件路径
+    project_root = Path(__file__).resolve().parent.parent.parent
     dro_file = project_root / "output/dro/dro_31_3857693511.json"
-
-    n_departure = 200
-    n_alpha = 100
-    alpha_min = 0.5
-    alpha_max = 2.5
-    max_transfer_time = 100.0 / TU
-
-    geo_threshold = 100.0 / DU
-    earth_radius = 200.0 / DU
-    moon_radius = 100.0 / DU
+    ro_file = project_root / "output/ro/ro_31_3857693516.json"
 
     # =========================================================================
     # 初始化系统
     # =========================================================================
-    for _k in [
-        "OMP_NUM_THREADS",
-        "MKL_NUM_THREADS",
-        "OPENBLAS_NUM_THREADS",
-        "GOTO_NUM_THREADS",
-        "VECLIB_MAXIMUM_THREADS",
-        "NUMEXPR_NUM_THREADS",
-    ]:
-        os.environ[_k] = "1"
-
     system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
     dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
     dynamics.integrator = "DOP853"
@@ -58,34 +41,65 @@ def main() -> None:
     dynamics.atol = 1e-12
     dynamics.max_step = 1.0 / (24.0 * TU)
 
+    _blas_keys = [
+        "OMP_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "GOTO_NUM_THREADS",
+        "VECLIB_MAXIMUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+    ]
+    for _k in _blas_keys:
+        os.environ[_k] = "1"
+
+    # 加载轨道数据
     dro_orbit = load_orbit_from_json(str(dro_file))
+    ro_orbit = load_orbit_from_json(str(ro_file))
 
     # =========================================================================
     # 执行搜索
     # =========================================================================
     print("\n" + "=" * 70)
-    print("DRO → GEO 网格搜索")
+    print("开始网格搜索")
     print("=" * 70)
 
-    searcher = GeoTransferSearch(dynamics, geo_threshold=geo_threshold)
-    results = searcher.search(
+    # 搜索参数
+    n_departure = 200
+    n_alpha = 100
+    max_transfer_time = 100.0 / TU
+
+    # alpha 参数搜索范围
+    alpha_min = 0.5
+    alpha_max = 2.5
+
+    # 可行解判定条件
+    intersection_threshold = 0.001  # 相交判定距离阈值
+    min_distance_threshold = 100.0 / DU
+
+    # 碰撞检测半径
+    earth_radius = 200 / DU
+    moon_radius = 100 / DU
+
+    transfer_searcher = TransferSearch(dynamics=dynamics)
+    results = transfer_searcher.search(
         alpha_min=alpha_min,
         alpha_max=alpha_max,
         n_alpha=n_alpha,
         n_departure=n_departure,
         max_transfer_time=max_transfer_time,
-        intersection_threshold=0.001,
-        min_distance_threshold=geo_threshold,
+        intersection_threshold=intersection_threshold,
+        min_distance_threshold=min_distance_threshold,
         collision_earth_radius=earth_radius,
         collision_moon_radius=moon_radius,
         integration_dt=dynamics.max_step,
         departure_orbit=dro_orbit,
+        arrival_orbit=ro_orbit,
         n_workers=None,
     )
 
     print(f"\n搜索完成，共找到 {len(results)} 个候选解")
 
-    feasible_results = searcher.get_feasible_results()
+    feasible_results = [r for r in results if transfer_searcher._is_feasible(r)]
     print(f"其中 {len(feasible_results)} 个为可行解")
 
     # =========================================================================
@@ -93,11 +107,12 @@ def main() -> None:
     # =========================================================================
     output_dir = project_root / "output/transfer"
     output_file = output_dir / (
-        f"search_dro_geo_{n_departure}-{n_alpha}-{alpha_min:g}-{alpha_max:g}-"
-        f"{max_transfer_time:.6f}_{timestampNow()}.json"
+        f"search_results_{n_departure}-{n_alpha}-{alpha_min:g}-{alpha_max:g}-"
+        f"{max_transfer_time:.6f}_{int(time.time())}.json"
     )
 
     def _json_safe(x):
+        """将 NumPy 标量/数组及嵌套结构转为 JSON 可序列化的 Python 类型。"""
         if x is None:
             return None
         if isinstance(x, np.generic):
@@ -113,18 +128,26 @@ def main() -> None:
     def serialize_result(r):
         return _json_safe(
             {
-                "departure_time_index": r.get("departure_time_index"),
+                "departure_orbit_name": r.get("departure_orbit_name"),
+                "arrival_orbit_name": r.get("arrival_orbit_name"),
                 "departure_time": r.get("departure_time"),
+                "departure_state": r.get("departure_state"),
                 "alpha": r.get("alpha"),
                 "transfer_time": r.get("transfer_time"),
-                "dv_departure": r.get("dv_departure"),
-                "dv_insertion": r.get("dv_insertion"),
-                "geo_crossing_found": r.get("geo_crossing_found"),
-                "min_distance_to_geo": r.get("min_distance_to_geo"),
+                "min_distance": r.get("min_distance"),
+                "min_distance_idx": r.get("min_distance_idx"),
+                "intersection_found": r.get("intersection_found"),
+                "intersection_point": r.get("intersection_point"),
+                "intersection_idx": r.get("intersection_idx"),
+                "local_minimum_found": r.get("local_minimum_found"),
+                "local_minimum_distance": r.get("local_minimum_distance"),
                 "collision_found": r.get("collision_found"),
                 "collision_body": r.get("collision_body"),
                 "status": r.get("status"),
-                "is_feasible": searcher._is_feasible(r),
+                "is_feasible": transfer_searcher._is_feasible(r),
+                "dv_departure": r.get("dv_departure"),
+                "dv_insertion": r.get("dv_insertion"),
+                "min_distance_orbit_idx": r.get("min_distance_orbit_idx"),
             }
         )
 

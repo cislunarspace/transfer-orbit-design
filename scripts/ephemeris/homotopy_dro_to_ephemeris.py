@@ -40,7 +40,7 @@ from e2m2e.core import HomotopyEphemerisDynamics
 from e2m2e.core import SynodicJ2000Transformation, BodyName
 from e2m2e.algorithms import MultipleShooting, sample_patch_points, convert_to_j2000
 
-from scripts.utils.params import MU, DU, TU
+from scripts.utils.common import MU, DU, TU
 
 project_root = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "ephemeris"

@@ -15,7 +15,7 @@ pip install -r requirements.txt           # installs deps + this repo as editabl
 pip install -e /home/ouyangjiahong/codes/e2m2e  # algorithm library
 ```
 
-Python >=3.10 (3.13 tested). No linter/formatter in this repo.
+Python >=3.10 (3.13 tested). No linter/formatter in this repo (Ruff lives in e2m2e).
 
 ## Common Commands
 
@@ -27,57 +27,104 @@ pyright                              # type checking (extraPaths includes ../e2m
 
 Scripts are run from repo root: `python scripts/<module>/<script>.py`
 
-For full pipeline commands (generate orbits → grid search → optimize → visualize) and config knobs, see `AGENTS.md`.
+## Transfer Pipelines (order matters within each)
+
+### DRO → RO
+```bash
+python scripts/transfer/grid_search_dro_to_ro.py   # 1. grid search
+python scripts/transfer/optimize_dro_to_ro.py      # 2. NLP optimization
+python scripts/transfer/plot_search_results.py <results.json> [--time-dv] [--orbit] [--idx N]
+```
+
+### DRO → GEO
+```bash
+python scripts/transfer/grid_search_dro_to_geo.py
+python scripts/transfer/optimize_dro_to_geo.py
+```
+
+### GEO → DRO
+```bash
+python scripts/transfer/grid_search_geo_to_dro.py
+python scripts/transfer/optimize_geo_to_dro.py
+```
+
+### LEO → DRO
+```bash
+python scripts/transfer/grid_search_leo_to_dro.py
+python scripts/transfer/optimize_leo_to_dro.py
+```
+
+### Ephemeris Correction (CR3BP → ephemeris)
+```bash
+python scripts/ephemeris/correct_dro_to_ephemeris.py    # multiple shooting
+python scripts/ephemeris/homotopy_dro_to_ephemeris.py   # homotopy λ-continuation
+```
+Requires SPICE kernels (`de440.bsp`, `naif0012.tls`) in `e2m2e/kernels/`. Set `SPICE_KERNEL_DIR` env var or use default `../e2m2e/kernels`.
+
+### Generate Baseline Orbits
+```bash
+python scripts/dro/generate_31_dro_orbit.py     # single 3:1 DRO
+python scripts/dro/generate_dro_family.py        # DRO family
+python scripts/ro/generate_31_ro_family.py       # 3:1 RO family
+python scripts/ro/generate_32_ro_family.py       # 3:2 RO family
+python scripts/halo/generate_halo_family.py      # Halo orbit family
+```
 
 ## Architecture
 
 ```
 scripts/
-  utils/        # Shared constants (common.py, params.py, geo.py, leo.py) and file helpers
-  dro/          # DRO orbit generation
-  ro/           # Resonant orbit families (3:1, 3:2, RRO, ARO)
-  halo/         # Halo orbit generation
-  transfer/     # Grid search + NLP optimization (DRO→RO, DRO→GEO, GEO→DRO, LEO→DRO)
-  ephemeris/    # CR3BP → ephemeris correction (multiple shooting, homotopy)
-  plot_*.py     # Standalone visualization tools
-output/         # Generated data (gitignored, created on demand)
-tests/          # pytest tests
+  utils/           # Shared constants (constants.py) and file helpers (common.py, geo.py, leo.py)
+  dro/             # DRO orbit generation
+  ro/              # Resonant orbit families (3:1, 3:2, RRO, ARO)
+  halo/            # Halo orbit generation
+  transfer/        # Grid search + NLP optimization (DRO↔RO, DRO↔GEO, GEO↔DRO, LEO↔DRO)
+  ephemeris/       # CR3BP → ephemeris correction (multiple shooting, homotopy)
+  inspection/      # Standalone orbit visualization tools
+output/            # Generated data (gitignored, created on demand)
+tests/             # pytest tests
 ```
 
 **Pipeline stages** (must run in order):
 1. Generate baseline orbits (DRO, RO) → JSON files in `output/`
-2. Grid search over departure points (`grid_search.py`) → search results JSON
-3. NLP optimization on feasible results (`optimize.py`) → optimization results JSON
+2. Grid search over departure points → search results JSON
+3. NLP optimization on feasible results → optimization results JSON
 4. Visualization and analysis scripts
 
-**DRO→GEO pipeline**: Same structure using `grid_search_dro_geo.py`, `optimize_dro_geo.py`, `plot_search_results_geo.py` (interactive browsing supported via `--interactive`). Target is GEO sphere around Earth.
+**Key e2m2e API surface**: `e2m2e.core.CR3BP_System`, `e2m2e.core.CR3BP_Dynamics`, `e2m2e.core.orbit.Orbit`, `e2m2e.core.OrbitFamily`, `e2m2e.transfer.TransferSearch`, `e2m2e.transfer.DROTRONLPOptimizer`, `e2m2e.transfer.GeoTransferSearch`, `e2m2e.transfer.load_orbit_from_json`
 
-**GEO→DRO pipeline**: Reverse direction using `grid_search_geo_to_dro.py`, `optimize_geo_to_dro.py`, `plot_search_results_geo_to_dro.py`. Departure from GEO (approximate circular orbit), arrival at DRO. Alpha range [1.0, 1.5].
+## Constants
 
-**LEO→DRO pipeline**: Same structure using `grid_search_leo_to_dro.py`, `optimize_leo_to_dro.py`. Departure from LEO (400 km altitude), requires larger alpha and longer transfer time. LEO constants in `scripts/utils/leo.py`.
+| File | Exports |
+|------|---------|
+| `scripts/utils/constants.py` | All physical constants: `MU, DU, TU, VU, T_MOON, M_SUN, OMEGA_SUN, RHO` |
+| `scripts/utils/common.py` | Re-exports constants + file helpers (`ensure_output_dir`, `get_latest_family_file`, `save_family_to_file`) |
+| `scripts/utils/geo.py` | GEO orbit constants (`R_GEO`, `EARTH_CENTER`, `V_CIRCULAR_GEO`, `T_GEO`) + helpers |
+| `scripts/utils/leo.py` | LEO orbit constants (`R_LEO`, `V_CIRCULAR_LEO`, `T_LEO`) at 400 km altitude |
 
-**Ephemeris correction**: `correct_dro_to_ephemeris.py` (multiple shooting) and `homotopy_dro_to_ephemeris.py` (homotopy λ-continuation). Requires SPICE kernels (`de440.bsp`, `naif0012.tls`).
-
-**Key e2m2e API surface**: `e2m2e.core.CR3BP_System`, `e2m2e.core.CR3BP_Dynamics`, `e2m2e.core.orbit.Orbit`, `e2m2e.core.OrbitFamily`, `e2m2e.transfer.TransferSearch`, `e2m2e.transfer.DROTRONLPOptimizer`, `e2m2e.transfer.load_orbit_from_json`, `e2m2e.transfer.GeoTransferSearch`
-
-## Critical Constants
-
-- **MU = 1.21506683e-2** — do not use rounded `0.01215`
-- Defined in both `scripts/utils/common.py` (CR3BP) and `params.py` (adds BR4BP: `M_SUN`, `OMEGA_SUN`, `RHO`)
-- `scripts/utils/geo.py` has GEO-specific constants (`R_GEO`, `V_CIRCULAR_GEO`, etc.)
-- `scripts/utils/leo.py` has LEO-specific constants (`R_LEO`, `V_CIRCULAR_LEO`, etc.)
+**μ = 1.21506683e-2** — do not use the rounded `0.01215`.
 
 ## Key Patterns
 
 - All scripts use `if __name__ == "__main__"` guard (required for Windows multiprocessing)
-- Output timestamps use `fonttools.misc.timeTools.timestampNow` (not `time.time()`)
-- Hardcoded JSON file paths in `grid_search.py` and `optimize.py` must be updated before running
+- Output timestamps use `int(time.time())`
 - Orbit data format: JSON with `states`, `times`, `period`, `orbit_type` keys
+- Hardcoded JSON file paths in `grid_search*.py` and `optimize*.py` must be updated before running
+- Transfer script naming: `{action}_{source}_to_{target}.py`
+
+## optimize_* Config Knobs
+
+- `USE_COPT=False` — enable with `pip install coptpy`; `FALLBACK_TO_SCIPY=True` auto-falls back
+- `USE_RELAXED_VELOCITY=True` / `VELOCITY_ANGLE_TOL=0.05` — velocity direction tolerance
+- `COMPUTE_T_INS_FROM_TRAJECTORY=True` — derive insertion time from trajectory
+- `N_WORKERS`, `PARALLEL_BACKEND="processes"`, `TOP_K_FEASIBLE`, `MAX_CASES`
+- Env vars: `OPTIMIZE_NO_TQDM=1`, `OPTIMIZE_BLAS_THREADS_PER_WORKER`
 
 ## Test Quirks
 
 - `test_data_loading.py` requires pre-generated RO JSON files in `output/ro/`
 - Missing e2m2e causes tests to **pass silently** (ImportError caught), not fail
+- Tests use `matplotlib.use("Agg")` for headless plotting
 
 ## Plan Tracking
 

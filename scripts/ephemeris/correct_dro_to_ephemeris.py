@@ -35,7 +35,7 @@ from e2m2e.core import SPICEManager, EphemerisSystem, EphemerisDynamics
 from e2m2e.core import SynodicJ2000Transformation, BodyName
 from e2m2e.algorithms import MultipleShooting, sample_patch_points, convert_to_j2000
 
-from scripts.utils.params import MU, DU, TU
+from scripts.utils.common import MU, DU, TU
 
 # =============================================================================
 # 输入输出路径设置

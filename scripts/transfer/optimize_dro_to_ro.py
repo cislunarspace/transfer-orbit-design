@@ -26,7 +26,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from fontTools.misc.timeTools import timestampNow
 from scipy.optimize import Bounds, minimize
 from tqdm.auto import tqdm
 
@@ -639,7 +638,7 @@ def main() -> None:
 
     output_dir = project_root / "output/transfer"
     output_dir.mkdir(parents=True, exist_ok=True)
-    out_path = output_dir / f"optimization_results_{timestampNow()}.json"
+    out_path = output_dir / f"optimization_results_{int(time.time())}.json"
 
     backend = PARALLEL_BACKEND.strip().lower()
     if backend not in ("threads", "processes"):

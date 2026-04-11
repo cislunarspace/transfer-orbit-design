@@ -21,7 +21,7 @@ import numpy as np
 
 project_root = Path(__file__).resolve().parent.parent.parent
 
-from fontTools.misc.timeTools import timestampNow
+import time
 
 from scripts.utils.common import MU
 
@@ -89,7 +89,7 @@ def main():
     print(f"\n[ok] 轨道族生成完成: 共{len(family_result)}条轨道")
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    ts = timestampNow()
+    ts = int(time.time())
     family_name = f"halo_L{libration_point}_{'N' if halo_class == 0 else 'S'}_family_{ts}"
     family_result.save_to_file(filename=str(OUTPUT_DIR / f"{family_name}.json"))
 

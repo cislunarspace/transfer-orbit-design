@@ -17,7 +17,7 @@ import os
 from pathlib import Path
 
 import numpy as np
-from fontTools.misc.timeTools import timestampNow
+import time
 
 import e2m2e
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
@@ -154,7 +154,7 @@ def main() -> None:
     output_dir = project_root / "output/transfer"
     output_file = output_dir / (
         f"search_leo_dro_{N_DEPARTURE}-{N_ALPHA}-{ALPHA_MIN:g}-{ALPHA_MAX:g}-"
-        f"{MAX_TRANSFER_TIME:.4f}_{timestampNow()}.json"
+        f"{MAX_TRANSFER_TIME:.4f}_{int(time.time())}.json"
     )
 
     def _json_safe(x):

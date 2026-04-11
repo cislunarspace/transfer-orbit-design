@@ -15,7 +15,7 @@
 
 from pathlib import Path
 
-from fontTools.misc.timeTools import timestampNow
+import time
 
 import e2m2e
 from e2m2e.core import Orbit
@@ -89,7 +89,7 @@ def main():
         print(f"  周期误差: {abs(orbit_result.period - target_period):.6e}")
 
         # 保存轨道数据
-        ts = timestampNow()
+        ts = int(time.time())
         output_file = OUTPUT_DIR / f"ro_31_{ts}.json"
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         orbit_result.save_to_file(filename=str(output_file))

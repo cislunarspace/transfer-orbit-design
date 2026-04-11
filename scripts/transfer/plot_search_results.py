@@ -240,7 +240,7 @@ def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
 
 
 def _build_transfer_search() -> TransferSearch:
-    """构建并配置 TransferSearch 实例（积分器参数与 grid_search.py 一致）。"""
+    """构建并配置 TransferSearch 实例（积分器参数与 grid_search_dro_to_ro.py 一致）。"""
     DT = 1.0 / (24.0 * TU)
     system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
     dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)

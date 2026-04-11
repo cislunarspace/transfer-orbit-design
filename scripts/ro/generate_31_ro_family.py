@@ -19,7 +19,7 @@
 from pathlib import Path
 
 import e2m2e
-from fontTools.misc.timeTools import timestampNow
+import time
 
 from scripts.utils.common import MU, TU
 
@@ -72,7 +72,7 @@ def main():
     # 5. 保存轨道数据
     # =============================================================================
     # 命名规则：ro_31_family_x0start-x0end-stepsize_timestamp.json
-    ts = timestampNow()
+    ts = int(time.time())
     family_result.save_to_file(
         filename=str(
             OUTPUT_DIR

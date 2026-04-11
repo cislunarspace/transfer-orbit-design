@@ -273,11 +273,12 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         dep_state = rec["departure_state"]
         alpha = rec["alpha"]
         tt = rec["transfer_time"]
+        t_ins = rec.get("t_ins") or tt
 
-        print(f"积分转移轨道: a={alpha:.6f}, T={tt:.4f} TU ({tt * TU:.1f} d) ...")
-        states, times = _integrate_transfer(dep_state, alpha, tt, dynamics)
+        print(f"积分转移轨道: a={alpha:.6f}, T={t_ins:.4f} TU ({t_ins * TU:.1f} d) ...")
+        states, times = _integrate_transfer(dep_state, alpha, t_ins, dynamics)
 
-        fig = plt.figure(figsize=(14, 10))
+        fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection="3d")
 
         # GEO 圆
@@ -290,16 +291,18 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
 
         # 转移轨道
         ax.plot(states[:, 0], states[:, 1], states[:, 2],
-                color="crimson", lw=1.5, label="Transfer")
+                color="crimson", lw=1.2, label="转移轨道")
 
         # 出发点和终点
         dep_pos = np.asarray(dep_state, dtype=float)[:3]
-        ax.scatter(*dep_pos, color="green", s=60, zorder=5, label="Departure")
-        ax.scatter(*states[-1, :3], color="orange", s=60, marker="s", zorder=5, label="Arrival")
+        ax.scatter(*dep_pos, color="green", s=40, zorder=5, label="出发点")
+        ax.scatter(*states[-1, :3], color="orange", s=40, marker="s", zorder=5, label="终点")
 
         # 地球月球
-        ax.scatter(*EARTH_CENTER, color="blue", s=80, zorder=5)
-        ax.scatter(1.0 - MU, 0, 0, color="gray", s=40, zorder=5)
+        ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
+        ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
+        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=7, ha="center")
+        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=7, ha="center")
 
         # 平动点
         system.compute_libration_points()
@@ -314,54 +317,78 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         dv2_ms = rec["delta_v2"] * VU
         total_ms = rec["objective_value"] * VU
         ax.set_title(
-            f"GEO->DRO\n"
-            f"a={alpha:.4f}  T={tt:.2f} TU ({tt * TU:.1f} d)  "
-            f"t_ins={rec.get('t_ins', 'N/A'):.4f} TU\n"
-            f"dv1={dv1_ms:.0f} m/s  dv2={dv2_ms:.0f} m/s  "
-            f"Total={total_ms:.0f} m/s",
-            fontsize=11,
+            f"GEO→DRO  α={alpha:.4f}  T={tt:.2f} TU ({tt * TU:.1f}天)\n"
+            f"Δv_dep={dv1_ms:.0f} m/s  Δv_ins={dv2_ms:.0f} m/s  "
+            f"Total={total_ms:.0f} m/s"
         )
-        ax.legend(fontsize=8)
-        ax.view_init(elev=0, azim=-90)
+        ax.legend(fontsize=7, loc="upper left")
+
+        # 等比例轴
+        all_pts = np.concatenate([states[:, :3], dro_orbit.states[:, :3]])
+        mid = all_pts.mean(axis=0)
+        half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
+        ax.set_xlim(mid[0] - half, mid[0] + half)
+        ax.set_ylim(mid[1] - half, mid[1] + half)
+        ax.set_zlim(mid[2] - half, mid[2] + half)
+        ax.set_box_aspect([1, 1, 1])
     else:
-        fig = plt.figure(figsize=(14, 10))
+        fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection="3d")
 
         # 背景轨道
         gx, gy = _geo_circle_points()
-        ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--", lw=0.5, label="GEO")
+        ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--", lw=0.8, label="GEO")
         ax.plot(dro_orbit.states[:, 0], dro_orbit.states[:, 1], dro_orbit.states[:, 2],
-                color="royalblue", lw=0.5, alpha=0.5, label="DRO")
+                color="royalblue", lw=0.8, label="DRO")
 
         obj_values = [r["objective_value"] for r in sel_records]
         obj_min, obj_max = min(obj_values), max(obj_values)
         obj_range = obj_max - obj_min if obj_max > obj_min else 1.0
         cmap = plt.cm.plasma
 
+        all_transfer_pts = []
         for rec in sel_records:
             dep_state = rec["departure_state"]
             alpha = rec["alpha"]
-            tt = rec["transfer_time"]
-            states, _ = _integrate_transfer(dep_state, alpha, tt, dynamics)
+            t_ins = rec.get("t_ins") or rec["transfer_time"]
+            states, _ = _integrate_transfer(dep_state, alpha, t_ins, dynamics)
             norm_val = (rec["objective_value"] - obj_min) / obj_range
             color = cmap(norm_val)
-            ax.plot(states[:, 0], states[:, 1], states[:, 2], color=color, lw=0.8, alpha=0.7)
+            ax.plot(states[:, 0], states[:, 1], states[:, 2], color=color, lw=1.2, alpha=0.7)
+            all_transfer_pts.append(states[:, :3])
 
         # 地球月球
         ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
         ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
+        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=7, ha="center")
+        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=7, ha="center")
+
+        # 平动点
+        system.compute_libration_points()
+        for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
+            ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
+            ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
 
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(
             vmin=obj_min * VU, vmax=obj_max * VU))
         sm.set_array([])
         cbar = plt.colorbar(sm, ax=ax, label="dv_total (m/s)", shrink=0.6, pad=0.1)
 
-        ax.set_xlabel("X (DU)")
-        ax.set_ylabel("Y (DU)")
-        ax.set_zlabel("Z (DU)")
-        ax.set_title(f"GEO->DRO: {len(sel_records)} transfer orbits", fontsize=11)
-        ax.legend(loc="upper right", fontsize=9)
-        ax.view_init(elev=0, azim=-90)
+        ax.set_xlabel("x (DU)")
+        ax.set_ylabel("y (DU)")
+        ax.set_zlabel("z (DU)")
+        ax.set_title(f"GEO→DRO: {len(sel_records)} 条转移轨道")
+        ax.legend(fontsize=7, loc="upper left")
+
+        # 等比例轴
+        if all_transfer_pts:
+            all_pts = np.concatenate(all_transfer_pts + [dro_orbit.states[:, :3]])
+            mid = all_pts.mean(axis=0)
+            half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
+            ax.set_xlim(mid[0] - half, mid[0] + half)
+            ax.set_ylim(mid[1] - half, mid[1] + half)
+            ax.set_zlim(mid[2] - half, mid[2] + half)
+            ax.set_box_aspect([1, 1, 1])
 
     if save_path:
         save_path = Path(save_path)
@@ -441,7 +468,8 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
             continue
 
         try:
-            states, times = _integrate_transfer(dep_state, alpha, tt, dynamics)
+            t_ins = rec.get("t_ins") or tt
+            states, times = _integrate_transfer(dep_state, alpha, t_ins, dynamics)
         except Exception as e:
             print(f"  integration failed: {e}")
             current += 1

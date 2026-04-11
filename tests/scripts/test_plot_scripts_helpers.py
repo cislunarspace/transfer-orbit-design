@@ -123,7 +123,7 @@ class TestPlotScriptImports:
         mock_system.return_value = MagicMock()
 
         script_path = (
-            project_root / "scripts" / "plot_interactive_orbit_inspector.py"
+            project_root / "scripts" / "inspection" / "plot_interactive_orbit_inspector.py"
         )
         spec = importlib.util.spec_from_file_location(
             "plot_interactive_orbit_inspector", script_path

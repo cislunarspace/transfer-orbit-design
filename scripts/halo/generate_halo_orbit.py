@@ -15,7 +15,7 @@
 
 from pathlib import Path
 
-from fontTools.misc.timeTools import timestampNow
+import time
 
 project_root = Path(__file__).resolve().parent.parent.parent
 
@@ -102,7 +102,7 @@ def main():
         print(f"  周期误差: {abs(orbit_result.period - target_period):.6e}")
         print(f"  初始状态: {orbit_result.states[0].tolist()}")
 
-        ts = timestampNow()
+        ts = int(time.time())
         output_file = (
             OUTPUT_DIR
             / f"halo_L{libration_point}_{'N' if halo_class == 0 else 'S'}_{amplitude_z}_{ts}.json"

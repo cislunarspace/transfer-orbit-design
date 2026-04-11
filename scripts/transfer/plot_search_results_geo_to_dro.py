@@ -44,7 +44,7 @@ project_root = Path(__file__).resolve().parent.parent.parent
 # =====================================================================
 # 配置 — 运行前须更新
 # =====================================================================
-RESULTS_JSON = project_root / "output/transfer/search_geo_dro_200-100-1-1.5-50.0000_3858582979.json"
+RESULTS_JSON = project_root / "output/transfer/search_geo_dro_10-200-1-1.5-2.2998_3858756480.json"
 DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
 
 
@@ -234,13 +234,14 @@ def _plot_single_transfer_orbit(
     )
     ax.legend(fontsize=7, loc="upper left")
 
-    # 自动调整视角
-    all_x = np.concatenate([transfer_states[:, 0], dro_orbit.states[:, 0]])
-    all_y = np.concatenate([transfer_states[:, 1], dro_orbit.states[:, 1]])
-    margin = 0.1
-    ax.set_xlim(all_x.min() - margin, all_x.max() + margin)
-    ax.set_ylim(all_y.min() - margin, all_y.max() + margin)
-    ax.set_zlim(-0.2, 0.2)
+    # 等比例轴：三轴范围取数据包围盒的最大跨度，居中对齐
+    all_pts = np.concatenate([transfer_states[:, :3], dro_orbit.states[:, :3]])
+    mid = all_pts.mean(axis=0)
+    half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
+    ax.set_xlim(mid[0] - half, mid[0] + half)
+    ax.set_ylim(mid[1] - half, mid[1] + half)
+    ax.set_zlim(mid[2] - half, mid[2] + half)
+    ax.set_box_aspect([1, 1, 1])
 
     return ax
 
@@ -352,6 +353,16 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
             fontsize=10,
         )
         ax.legend(fontsize=7, loc="upper left")
+
+        # 等比例轴
+        dro_pts = np.column_stack([dro_x, dro_y, dro_z])
+        all_pts = np.concatenate([transfer_states[:, :3], dro_pts])
+        mid = all_pts.mean(axis=0)
+        half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
+        ax.set_xlim(mid[0] - half, mid[0] + half)
+        ax.set_ylim(mid[1] - half, mid[1] + half)
+        ax.set_zlim(mid[2] - half, mid[2] + half)
+        ax.set_box_aspect([1, 1, 1])
 
         fig.canvas.draw()
         fig.canvas.flush_events()

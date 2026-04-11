@@ -4,29 +4,10 @@
 包含在多个脚本中重复使用的函数和常量。
 """
 
-import math
 import os
 
-# ============================================================
-# 系统参数（论文Table 1）
-# ============================================================
-# 地月系统质量比，μ = m2/(m1+m2)，其中m1为地球质量，m2为月球质量
-MU = 1.21506683e-2  # Mass ratio of the Earth–moon system
-
-# 距离单位：1 DU = 384405 km，地月平均距离
-DU = 3.84405000e5  # Distance unit km
-
-# 时间单位：1 TU = 4.34811305 天，地月系统的特征时间尺度
-TU = 4.34811305  # Time unit days
-
-# 速度单位：1 VU = 1023.23281 m/s，基于DU和TU计算得出
-VU = 1023.23281  # Velocity unit m/s
-
-# 月球轨道周期（无量纲）
-T_MOON = 2.0 * math.pi  # 2π ≈ 6.283
-
-# 轨道族统一文件名
-FAMILY_FILENAME = "family.json"
+# 常量从 constants.py 集中定义，此处 re-export 以保持向后兼容
+from .constants import DU, FAMILY_FILENAME, MU, T_MOON, TU, VU
 
 
 # ============================================================
@@ -126,13 +107,12 @@ def save_family_to_file(family_result, output_dir, family_filename=FAMILY_FILENA
         family_dir: 保存的目录路径
     """
     import shutil
-
-    from fontTools.misc.timeTools import timestampNow
+    import time
 
     ensure_output_dir(output_dir)
 
     # 生成时间戳作为子目录名（使用 epoch 整数，与生成脚本一致）
-    timestamp = str(timestampNow())
+    timestamp = str(int(time.time()))
     family_dir = os.path.join(output_dir, timestamp)
     os.makedirs(family_dir, exist_ok=True)
 

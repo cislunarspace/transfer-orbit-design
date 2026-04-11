@@ -1,7 +1,7 @@
 """
-可视化 grid_search_dro_geo 输出的搜索结果 JSON：可行解的 α–Δv 散点图、转移时间–Δv 散点图与转移轨道示意图。
+可视化 grid_search_dro_to_geo 输出的搜索结果 JSON：可行解的 α–Δv 散点图、转移时间–Δv 散点图与转移轨道示意图。
 
-在下方 ``RESULTS_JSON`` 中指定要绘制的 grid_search_dro_geo 输出 JSON（相对仓库根目录或绝对路径均可）。
+在下方 ``RESULTS_JSON`` 中指定要绘制的 grid_search_dro_to_geo 输出 JSON（相对仓库根目录或绝对路径均可）。
 
 Δv 优先使用 JSON 中的 dv_departure，否则由 departure_state 与 α 按搜索阶段速度扰动模型计算。
 
@@ -55,7 +55,7 @@ from scripts.utils.common import MU, DU, TU, VU
 from scripts.utils.geo import R_GEO, V_CIRCULAR_GEO
 
 # =============================================================================
-# 数据文件：grid_search_dro_geo 输出的 JSON
+# 数据文件：grid_search_dro_to_geo 输出的 JSON
 # =============================================================================
 RESULTS_JSON = (
     project_root
@@ -122,7 +122,7 @@ def compute_actual_transfer_time(r: dict, dt: float = 1.0 / (24.0 * TU)) -> floa
     """
     计算实际转移时间。
 
-    grid_search_dro_geo 输出的 transfer_time 已经是到达 GEO 球面的实际转移时间，
+    grid_search_dro_to_geo 输出的 transfer_time 已经是到达 GEO 球面的实际转移时间，
     不需要额外计算。这里直接使用 transfer_time。
     """
     transfer_time = r.get("transfer_time")
@@ -240,7 +240,7 @@ def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
 
 
 def _build_transfer_search() -> TransferSearch:
-    """构建并配置 TransferSearch 实例（积分器参数与 grid_search_dro_geo.py 一致）。"""
+    """构建并配置 TransferSearch 实例（积分器参数与 grid_search_dro_to_geo.py 一致）。"""
     DT = 1.0 / (24.0 * TU)
     system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
     dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
@@ -677,7 +677,7 @@ def interactive_browse_by_time(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="绘制 grid_search_dro_geo 结果（α–Δv 散点图 / 转移轨道示意图）"
+        description="绘制 grid_search_dro_to_geo 结果（α–Δv 散点图 / 转移轨道示意图）"
     )
     parser.add_argument(
         "--save",

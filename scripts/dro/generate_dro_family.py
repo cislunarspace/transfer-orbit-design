@@ -11,7 +11,7 @@
 
 from pathlib import Path
 
-from fontTools.misc.timeTools import timestampNow
+import time
 from scripts.utils.common import MU
 
 import e2m2e
@@ -69,7 +69,7 @@ def main():
     family_result.save_to_file(
         filename=str(
             OUTPUT_DIR
-            / f"dro_family_{param_min}-{param_max}-{step_size}_{timestampNow()}.json"
+            / f"dro_family_{param_min}-{param_max}-{step_size}_{int(time.time())}.json"
         )
     )
 

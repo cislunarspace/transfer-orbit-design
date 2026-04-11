@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from fontTools.misc.timeTools import timestampNow
+import time
 from scipy.optimize import Bounds, minimize
 
 import e2m2e
@@ -52,7 +52,7 @@ project_root = Path(__file__).resolve().parent.parent.parent
 # 配置 — 运行前须更新文件路径
 # =====================================================================
 SEARCH_RESULTS_FILE = project_root / (
-    "output/transfer/search_geo_dro_200-100-1-1.5-50.0000_3858582979.json"
+    "output/transfer/search_geo_dro_10-200-1-1.5-2.2998_3858756480.json"
 )
 DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
 
@@ -569,7 +569,7 @@ def main() -> None:
 
     output_dir = project_root / "output/transfer"
     output_dir.mkdir(parents=True, exist_ok=True)
-    out_path = output_dir / f"optimization_geo_dro_{timestampNow()}.json"
+    out_path = output_dir / f"optimization_geo_dro_{int(time.time())}.json"
 
     cpu_n = multiprocessing.cpu_count() or 1
     n_workers_req = N_WORKERS if N_WORKERS is not None else max(1, cpu_n)

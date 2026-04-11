@@ -43,7 +43,7 @@ from e2m2e.core import (
     BodyName,
 )
 
-from scripts.utils.params import MU, DU, TU
+from scripts.utils.common import MU, DU, TU
 
 project_root = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "ephemeris"

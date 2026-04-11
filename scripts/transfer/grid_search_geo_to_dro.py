@@ -14,7 +14,7 @@ import os
 from pathlib import Path
 
 import numpy as np
-from fontTools.misc.timeTools import timestampNow
+import time
 
 import e2m2e
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
@@ -30,6 +30,33 @@ from scripts.utils.geo import (
 )
 
 project_root = Path(__file__).resolve().parent.parent.parent
+
+
+# =====================================================================
+# 配置
+# =====================================================================
+
+# DRO 轨道文件（运行前确认路径）
+DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
+
+# 搜索参数（基于预研结果调整）
+N_DEPARTURE = 10       # GEO 上的出发点数量
+N_ALPHA = 200           # alpha 方向网格密度
+ALPHA_MIN = 1.0         # 切向速度比下界（1.0=不加速）
+ALPHA_MAX = 1.5         # 切向速度比上界（预研发现有效范围 1.37-1.42）
+MAX_TRANSFER_TIME = 10.0 / TU  # 最大转移时间 (TU)
+
+# 检测阈值
+INTERSECTION_THRESHOLD = 100.0 / DU  # 相交判定距离 (DU)
+MIN_DISTANCE_THRESHOLD = 100.0 / DU  # 候选解最小距离阈值 (DU)
+EARTH_RADIUS = 200.0 / DU            # 地球碰撞半径
+MOON_RADIUS = 100.0 / DU             # 月球碰撞半径
+
+# 积分参数
+INTEGRATION_DT = 1.0 / (24.0 * TU)  # 输出步长（约 10 分钟）
+
+# GEO 轨道采样点数
+GEO_N_POINTS = 1000
 
 
 # =====================================================================
@@ -61,33 +88,6 @@ def generate_geo_orbit(n_points: int = 500) -> Orbit:
     orbit = Orbit(states, times)
     orbit.period = T_GEO
     return orbit
-
-
-# =====================================================================
-# 配置
-# =====================================================================
-
-# DRO 轨道文件（运行前确认路径）
-DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
-
-# 搜索参数（基于预研结果调整）
-N_DEPARTURE = 200       # GEO 上的出发点数量
-N_ALPHA = 100           # alpha 方向网格密度
-ALPHA_MIN = 1.0         # 切向速度比下界（1.0=不加速）
-ALPHA_MAX = 1.5         # 切向速度比上界（预研发现有效范围 1.37-1.42）
-MAX_TRANSFER_TIME = 50.0  # 最大转移时间 (TU)，约 217 天
-
-# 检测阈值
-INTERSECTION_THRESHOLD = 0.001       # 相交判定距离 (DU)
-MIN_DISTANCE_THRESHOLD = 100.0 / DU  # 候选解最小距离阈值 (DU)
-EARTH_RADIUS = 200.0 / DU           # 地球碰撞半径
-MOON_RADIUS = 100.0 / DU            # 月球碰撞半径
-
-# 积分参数
-INTEGRATION_DT = 1.0 / (24.0 * TU)  # 输出步长（约 10 分钟）
-
-# GEO 轨道采样点数
-GEO_N_POINTS = 500
 
 
 def main() -> None:
@@ -169,7 +169,7 @@ def main() -> None:
     output_dir = project_root / "output/transfer"
     output_file = output_dir / (
         f"search_geo_dro_{N_DEPARTURE}-{N_ALPHA}-{ALPHA_MIN:g}-{ALPHA_MAX:g}-"
-        f"{MAX_TRANSFER_TIME:.4f}_{timestampNow()}.json"
+        f"{MAX_TRANSFER_TIME:.4f}_{int(time.time())}.json"
     )
 
     def _json_safe(x):
