@@ -271,17 +271,30 @@ def _select_feasible_indices(feasible_rows, idx_arg, seed=42, max_indices=200):
 
 
 def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
-    """按转移时间排序，交互式逐条浏览 GEO→DRO 转移轨道。"""
+    """按转移时间排序，交互式逐条浏览 GEO→DRO 转移轨道。同一窗口内重绘。"""
     sorted_rows = sorted(feasible_rows, key=lambda r: r.get("transfer_time", 0))
     n = len(sorted_rows)
     current = 0
 
-    plt.ion()
-    fig = None
+    if n == 0:
+        print("No feasible results to browse")
+        return
 
-    print("\n交互式浏览 GEO → DRO 转移轨道")
-    print(f"共 {n} 个可行解，按转移时间排序")
-    print("命令: Enter=下一条, q=退出, s N=跳N条, j N=跳到第N条, r=重绘")
+    plt.ion()
+    fig = plt.figure(figsize=(12, 8))
+    ax = fig.add_subplot(111, projection="3d")
+
+    # 预计算固定元素
+    gx, gy = _geo_circle_points()
+    dro_x = dro_orbit.states[:, 0]
+    dro_y = dro_orbit.states[:, 1]
+    dro_z = dro_orbit.states[:, 2]
+    system.compute_libration_points()
+    lp_data = [("L1", system.L1[0]), ("L2", system.L2[0])]
+
+    print("\nInteractive browse: GEO -> DRO search results")
+    print(f"{n} feasible results, sorted by transfer time")
+    print("Commands: Enter=next, q=quit, s N=skip N, j N=jump to #N, r=redraw")
 
     while 0 <= current < n:
         row = sorted_rows[current]
@@ -290,35 +303,59 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
         dep_state = row.get("departure_state")
         dv = row.get("dv_departure", 0)
 
-        print(f"\n[{current+1}/{n}] α={alpha:.4f}, T={tt:.2f} TU ({tt * TU:.1f}天), "
-              f"Δv={dv:.4f} VU ({dv * VU:.0f} m/s), "
+        print(f"\n[{current+1}/{n}] a={alpha:.4f}, T={tt:.2f} TU ({tt * TU:.1f} d), "
+              f"dv={dv:.4f} VU ({dv * VU:.0f} m/s), "
               f"min_dist={row.get('min_distance', 'N/A')}")
 
         if dep_state is None:
-            print("  无出发状态，跳过")
+            print("  no departure state, skip")
             current += 1
             continue
 
         try:
             transfer_states, times = _reintegrate_transfer(dynamics, dep_state, alpha, tt)
         except Exception as e:
-            print(f"  积分失败: {e}")
+            print(f"  integration failed: {e}")
             current += 1
             continue
 
-        if fig is not None:
-            plt.close(fig)
-        fig = plt.figure(figsize=(12, 8))
-        ax = fig.add_subplot(111, projection="3d")
+        # 清空 axes 并重绘，不关闭窗口
+        ax.cla()
 
-        _plot_single_transfer_orbit(
-            generate_geo_orbit(), dro_orbit, transfer_states,
-            dep_state, dv, alpha, tt, system, fig, ax,
+        # GEO 圆
+        ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--", lw=0.8, label="GEO")
+        # DRO
+        ax.plot(dro_x, dro_y, dro_z, color="royalblue", lw=0.8, label="DRO")
+        # 转移
+        ax.plot(transfer_states[:, 0], transfer_states[:, 1], transfer_states[:, 2],
+                color="crimson", lw=1.2, label="Transfer")
+        # 出发/到达
+        dep_pos = np.asarray(dep_state, dtype=float)[:3]
+        ax.scatter(*dep_pos, color="green", s=40, zorder=5, label="Departure")
+        ax.scatter(*transfer_states[-1, :3], color="orange", s=40, marker="s", zorder=5, label="Arrival")
+        # 天体
+        ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
+        ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
+        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "Earth", fontsize=7, ha="center")
+        ax.text(1.0 - MU, 0.03, 0, "Moon", fontsize=7, ha="center")
+        # 平动点
+        for lp_name, lp_x in lp_data:
+            ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
+            ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
+
+        ax.set_xlabel("x (DU)")
+        ax.set_ylabel("y (DU)")
+        ax.set_zlabel("z (DU)")
+        ax.set_title(
+            f"[{current+1}/{n}] a={alpha:.4f}  T={tt:.2f} TU ({tt * TU:.1f} d)  "
+            f"dv={dv * VU:.0f} m/s",
+            fontsize=10,
         )
+        ax.legend(fontsize=7, loc="upper left")
 
         fig.canvas.draw()
         fig.canvas.flush_events()
-        plt.pause(0.1)
+        plt.pause(0.05)
 
         try:
             cmd = input("> ").strip().lower()
@@ -338,13 +375,12 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
             except (ValueError, IndexError):
                 current += 1
         elif cmd == "r":
-            pass  # 重绘当前
+            pass  # redraw current
         else:
             current += 1
 
     plt.ioff()
-    if fig is not None:
-        plt.close(fig)
+    plt.close(fig)
     print("退出浏览")
 
 

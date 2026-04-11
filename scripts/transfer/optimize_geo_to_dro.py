@@ -52,7 +52,7 @@ project_root = Path(__file__).resolve().parent.parent.parent
 # 配置 — 运行前须更新文件路径
 # =====================================================================
 SEARCH_RESULTS_FILE = project_root / (
-    "output/transfer/search_geo_dro_UPDATE_ME.json"
+    "output/transfer/search_geo_dro_200-100-1-1.5-50.0000_3858582979.json"
 )
 DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
 
@@ -67,7 +67,7 @@ EARTH_RADIUS = 200.0 / DU
 MOON_RADIUS = 100.0 / DU
 
 # 速度平行性松弛（弧度），0 表示严格平行
-VELOCITY_ANGLE_TOLERANCE = 0.0  # rad
+VELOCITY_ANGLE_TOLERANCE = np.deg2rad(10.0)  # 10° 不等式约束
 
 DT = 1.0 / (24.0 * TU)
 INTEGRATOR = "DOP853"
@@ -80,11 +80,11 @@ NLP_RTOL = 1e-10
 NLP_ATOL = 1e-10
 NLP_MAX_STEP = 0.1
 
-TOP_K_FEASIBLE: Optional[int] = None
+TOP_K_FEASIBLE: Optional[int] = 100
 MAX_CASES: Optional[int] = None
 
 N_WORKERS: Optional[int] = None
-PARALLEL_BACKEND: str = "processes"
+PARALLEL_BACKEND: str = "threads"
 
 LIMIT_BLAS_THREADS_PER_WORKER: int = 1
 
@@ -163,6 +163,75 @@ def get_dro_state_at_time(dro_orbit: Orbit, t_ins: float) -> np.ndarray:
 
 
 # =====================================================================
+# 初始猜测：重新积分找最接近 DRO 的时刻
+# =====================================================================
+
+
+def _find_closest_approach(departure_state, alpha, max_time, dro_orbit, dynamics):
+    """重新积分转移轨迹，找到最接近 DRO 轨道的时刻。
+
+    Returns:
+        (t_closest, t_dro_closest, min_distance)
+        t_closest: 转移轨迹上的时间（作为 T 初值）
+        t_dro_closest: DRO 轨道上的时间（作为 t_ins 初值）
+        min_distance: 最近距离 (DU)
+    """
+    v_dep = compute_departure_velocity(departure_state, alpha)
+    s0 = np.concatenate([departure_state[:3], v_dep])
+
+    step = max(0.01, dynamics.max_step)
+    n_steps = int(max_time / step) + 1
+    t_eval = np.linspace(0.0, max_time, n_steps)
+
+    try:
+        result = dynamics.propagate(
+            initial_state=s0, t_span=(0.0, max_time),
+            t_eval=t_eval, with_stm=False, with_jacobi=False,
+        )
+        states = result["states"]
+        times = result["time"]
+    except Exception:
+        return max_time * 0.5, 0.0, 1e10
+
+    if len(states) == 0:
+        return max_time * 0.5, 0.0, 1e10
+
+    # DRO 轨道采样
+    dro_states = dro_orbit.states
+    dro_times = dro_orbit.times
+
+    # 对每个转移轨迹点，找最近的 DRO 点
+    min_dist_sq = float("inf")
+    best_t_idx = 0
+    best_dro_idx = 0
+
+    # 分块处理避免内存爆炸
+    chunk = 500
+    for i_start in range(0, len(states), chunk):
+        i_end = min(i_start + chunk, len(states))
+        # (chunk, 1, 3) - (1, n_dro, 3) → (chunk, n_dro, 3)
+        diff = states[i_start:i_end, np.newaxis, :3] - dro_states[np.newaxis, :, :3]
+        dist_sq = np.sum(diff ** 2, axis=2)  # (chunk, n_dro)
+        flat_idx = np.argmin(dist_sq)
+        ci, di = np.unravel_index(flat_idx, dist_sq.shape)
+        if dist_sq[ci, di] < min_dist_sq:
+            min_dist_sq = dist_sq[ci, di]
+            best_t_idx = i_start + ci
+            best_dro_idx = di
+
+    t_closest = float(times[best_t_idx])
+    min_dist = float(np.sqrt(min_dist_sq))
+
+    # DRO 时间
+    if best_dro_idx < len(dro_times):
+        t_dro_closest = float(dro_times[best_dro_idx])
+    else:
+        t_dro_closest = 0.0
+
+    return t_closest, t_dro_closest, min_dist
+
+
+# =====================================================================
 # NLP problem
 # =====================================================================
 
@@ -216,6 +285,7 @@ def _nlp_eval(y, departure_state, dro_orbit, dynamics):
         "dv1": dv1,
         "dv2": dv2,
         "objective": dv1 + dv2,
+        "pos_error": pos_error,
         "pos_violation": pos_violation,
         "cos_angle": cos_angle,
         "angle_deg": float(np.degrees(np.arccos(max(-1, min(1, cos_angle))))) if cos_angle > -1 else 180.0,
@@ -239,112 +309,147 @@ def optimize_one_case(
 ):
     departure_state = np.array(rec["departure_state"], dtype=float)
     alpha_0 = rec["alpha"]
-    T_0 = rec["transfer_time"]
+    T_search = rec["transfer_time"]
 
-    # 初始 t_ins 估计：使用搜索中最小距离对应的 DRO 时间索引
-    t_ins_0 = rec.get("min_distance_dro_index", 0)
-    if isinstance(t_ins_0, (int, float)):
-        # 将索引转换为时间
-        if dro_orbit.period is not None:
-            t_ins_0 = float(t_ins_0) / max(1, dro_orbit.states.shape[0]) * dro_orbit.period
-        else:
-            t_ins_0 = 0.0
-    else:
-        t_ins_0 = 0.0
-
-    _, nlp_dynamics = build_dynamics(NLP_RTOL, NLP_ATOL, NLP_MAX_STEP)
-
-    y0 = np.array([alpha_0, T_0, t_ins_0])
-
-    cache_holder = [None]
-
-    def objective(y):
-        c = _nlp_eval(y, departure_state, dro_orbit, nlp_dynamics)
-        cache_holder[0] = c
-        if c["empty"]:
-            return 1e10
-        return c["objective"]
-
-    def constraint_position(y):
-        c = cache_holder[0]
-        if c is None or c["empty"]:
-            c = _nlp_eval(y, departure_state, dro_orbit, nlp_dynamics)
-            cache_holder[0] = c
-        if c["empty"]:
-            return 1e6
-        return c["pos_violation"]
-
-    constraints = [{"type": "eq", "fun": constraint_position}]
-
-    # 速度平行性约束（可选）
-    if angle_tolerance > 0:
-        def constraint_velocity(y):
-            c = cache_holder[0]
-            if c is None or c["empty"]:
-                c = _nlp_eval(y, departure_state, dro_orbit, nlp_dynamics)
-                cache_holder[0] = c
-            if c["empty"]:
-                return -1.0
-            return c["cos_angle"] - np.cos(angle_tolerance)
-        constraints.append({"type": "ineq", "fun": constraint_velocity})
-    else:
-        def constraint_velocity_parallel(y):
-            c = cache_holder[0]
-            if c is None or c["empty"]:
-                c = _nlp_eval(y, departure_state, dro_orbit, nlp_dynamics)
-                cache_holder[0] = c
-            if c["empty"]:
-                return -2.0
-            return c["cos_angle"] - 1.0
-        constraints.append({"type": "eq", "fun": constraint_velocity_parallel})
-
-    bounds = Bounds(
-        lb=[alpha_min, t_min, t_ins_min],
-        ub=[alpha_max, t_max, t_ins_max],
+    # 用粗动力学重新积分找最接近 DRO 的时刻
+    _, pre_dynamics = build_dynamics(1e-10, 1e-10, NLP_MAX_STEP)
+    t_closest, t_dro_closest, reinit_min_dist = _find_closest_approach(
+        departure_state, alpha_0, T_search, dro_orbit, pre_dynamics,
     )
 
-    try:
-        result = minimize(
-            objective,
-            y0,
-            method="SLSQP",
-            bounds=bounds,
-            constraints=constraints,
-            options={"ftol": NLP_FTOL, "maxiter": NLP_MAXITER, "disp": verbose},
-        )
+    T_0 = max(t_min, min(t_closest, t_max))
+    t_ins_0 = max(t_ins_min, min(t_dro_closest, t_ins_max))
 
-        final_y = result.x
-        c = _nlp_eval(final_y, departure_state, dro_orbit, nlp_dynamics)
+    if verbose:
+        print(f"  init: T_closest={t_closest:.2f}, t_ins={t_ins_0:.4f}, "
+              f"dist={reinit_min_dist*DU:.0f} km")
 
+    _, dynamics = build_dynamics(1e-10, 1e-10, NLP_MAX_STEP)
+
+    # ====== 方法: root 求解位置匹配 + alpha 扫描 ======
+
+    def _position_residual(x, alpha):
+        """给定 alpha，求 [T, t_ins] 使位置误差为 0。返回 [dx, dy]。"""
+        T_val, t_ins_val = x
+        if T_val < t_min or T_val > t_max:
+            return np.array([1e6, 1e6])
+        c = _nlp_eval([alpha, T_val, t_ins_val], departure_state, dro_orbit, dynamics)
+        if c["empty"]:
+            return np.array([1e6, 1e6])
+        return c["pos_error"][:2]  # x, y 分量
+
+    def _solve_for_alpha(alpha_val, T_init, tins_init):
+        """对给定 alpha，用 root 求解 [T, t_ins]。"""
+        from scipy.optimize import root
+        try:
+            sol = root(
+                _position_residual, [T_init, tins_init], args=(alpha_val,),
+                method="lm",  # Levenberg-Marquardt，对超定/近奇异系统鲁棒
+                options={"maxiter": 50, "xtol": 1e-12},
+            )
+            if sol.success and sol.fun[0]**2 + sol.fun[1]**2 < 1e-8:
+                T_sol, tins_sol = sol.x
+                if t_min <= T_sol <= t_max and t_ins_min <= tins_sol <= t_ins_max:
+                    return T_sol, tins_sol, True
+            return T_init, tins_init, False
+        except Exception:
+            return T_init, tins_init, False
+
+    # 在 alpha_0 附近扫描，找最优 Δv
+    alpha_grid = np.linspace(
+        max(alpha_min, alpha_0 - 0.03),
+        min(alpha_max, alpha_0 + 0.03),
+        7,
+    )
+
+    best_result = None
+    best_dv = float("inf")
+    T_prev, tins_prev = T_0, t_ins_0
+
+    for a_val in alpha_grid:
+        T_sol, tins_sol, ok = _solve_for_alpha(a_val, T_prev, tins_prev)
+        if not ok:
+            continue
+        T_prev, tins_prev = T_sol, tins_sol
+
+        c = _nlp_eval([a_val, T_sol, tins_sol], departure_state, dro_orbit, dynamics)
+        if c["empty"]:
+            continue
+
+        pos_err = np.sqrt(c["pos_violation"])
+        dv_total = c["dv1"] + c["dv2"]
+
+        if pos_err < 0.005 and dv_total < best_dv:  # < ~1900 km and better Δv
+            best_dv = dv_total
+            best_result = {
+                "alpha": a_val,
+                "T": T_sol,
+                "t_ins": tins_sol,
+                "c": c,
+            }
+
+    # 如果 alpha 扫描没找到好的结果，用 Nelder-Mead 做位置匹配
+    if best_result is None:
+        def _nm_obj(y):
+            c = _nlp_eval(y, departure_state, dro_orbit, dynamics)
+            if c["empty"]:
+                return 1e10
+            return c["pos_violation"]
+
+        try:
+            nm_res = minimize(
+                _nm_obj, [alpha_0, T_0, t_ins_0], method="Nelder-Mead",
+                options={"maxiter": 200, "adaptive": True},
+            )
+            c = _nlp_eval(nm_res.x, departure_state, dro_orbit, dynamics)
+            if not c["empty"]:
+                best_result = {
+                    "alpha": nm_res.x[0],
+                    "T": nm_res.x[1],
+                    "t_ins": nm_res.x[2],
+                    "c": c,
+                }
+        except Exception:
+            pass
+
+    if best_result is None:
         return {
             "search_index": rec.get("departure_time_index", -1),
-            "search_alpha": float(rec["alpha"]),
-            "search_transfer_time": float(rec["transfer_time"]),
+            "search_alpha": float(alpha_0),
+            "search_transfer_time": float(T_search),
             "departure_state": rec["departure_state"],
-            "is_feasible": rec.get("is_feasible"),
-            "search_dv_departure": rec.get("dv_departure"),
-            "nlp": {
-                "success": bool(result.success),
-                "alpha": float(final_y[0]),
-                "transfer_time": float(final_y[1]),
-                "t_ins": float(final_y[2]),
-                "objective_value": c["objective"] if not c["empty"] else float(result.fun),
-                "delta_v1": c.get("dv1", 0.0),
-                "delta_v2": c.get("dv2", 0.0),
-                "pos_violation": c.get("pos_violation", float("nan")),
-                "cos_angle": c.get("cos_angle", float("nan")),
-                "angle_deg": c.get("angle_deg", float("nan")),
-                "message": str(result.message),
-            },
+            "search_min_distance": rec.get("min_distance"),
+            "reinit_min_distance": reinit_min_dist,
+            "nlp": {"success": False, "message": "No solution found"},
         }
-    except Exception:
-        return {
-            "search_index": rec.get("departure_time_index", -1),
-            "search_alpha": float(rec["alpha"]),
-            "search_transfer_time": float(rec["transfer_time"]),
-            "departure_state": rec["departure_state"],
-            "nlp": {"success": False, "message": traceback.format_exc()},
-        }
+
+    c = best_result["c"]
+    final_y = [best_result["alpha"], best_result["T"], best_result["t_ins"]]
+
+    return {
+        "search_index": rec.get("departure_time_index", -1),
+        "search_alpha": float(alpha_0),
+        "search_transfer_time": float(T_search),
+        "departure_state": rec["departure_state"],
+        "is_feasible": rec.get("is_feasible"),
+        "search_dv_departure": rec.get("dv_departure"),
+        "search_min_distance": rec.get("min_distance"),
+        "reinit_min_distance": reinit_min_dist,
+        "initial_T_guess": t_closest,
+        "initial_t_ins_guess": t_dro_closest,
+        "nlp": {
+            "success": True,
+            "alpha": float(final_y[0]),
+            "transfer_time": float(final_y[1]),
+            "t_ins": float(final_y[2]),
+            "objective_value": c.get("dv1", 0) + c.get("dv2", 0),
+            "delta_v1": c.get("dv1", 0.0),
+            "delta_v2": c.get("dv2", 0.0),
+            "pos_violation": c.get("pos_violation", float("nan")),
+            "cos_angle": c.get("cos_angle", float("nan")),
+            "angle_deg": c.get("angle_deg", float("nan")),
+        },
+    }
 
 
 # =====================================================================
@@ -434,6 +539,8 @@ def main() -> None:
     feasible_indexed: List[Tuple[int, Dict[str, Any]]] = [
         (i, r) for i, r in enumerate(all_results) if r.get("is_feasible")
     ]
+    # 按 min_distance 排序，优先优化最近的
+    feasible_indexed.sort(key=lambda x: x[1].get("min_distance", float("inf")))
     n_feasible_total = len(feasible_indexed)
 
     if TOP_K_FEASIBLE is not None:
@@ -480,12 +587,13 @@ def main() -> None:
                 row = optimize_one_case(rec, dro_orbit)
                 records.append(row)
                 nlp = row.get("nlp", {})
+                pv = nlp.get("pos_violation", 1e10)
+                pos_km = np.sqrt(max(0, float(pv))) * DU
+                ov = nlp.get("objective_value", 0)
                 print(
-                    f"  case {k + 1}/{n_total} (idx={global_idx}) | "
-                    f"success={nlp.get('success')} "
-                    f"ΔV={nlp.get('objective_value', 'N/A'):.6f} VU "
-                    f"α={nlp.get('alpha', 'N/A'):.4f} "
-                    f"T={nlp.get('transfer_time', 'N/A'):.2f} TU",
+                    f"  [{k+1}/{n_total}] ok={nlp.get('success')} "
+                    f"dv={ov*VU:.0f} m/s pos={pos_km:.0f} km "
+                    f"a={nlp.get('alpha', 0):.4f} T={nlp.get('transfer_time', 0):.1f}",
                     flush=True,
                 )
             except Exception:
@@ -549,11 +657,19 @@ def main() -> None:
         )
 
     successes = [r for r in records if r.get("nlp", {}).get("success")]
-    print(f"\n优化完成: {len(records)} 条, 成功 {len(successes)} 条")
+    # 过滤位置误差 < 100 km 的有效解
+    valid = []
+    for r in successes:
+        pv = r.get("nlp", {}).get("pos_violation", 1e10)
+        pos_km = np.sqrt(max(0, float(pv))) * DU
+        if pos_km < 100:
+            valid.append(r)
+
+    print(f"\n优化完成: {len(records)} 条, 成功 {len(successes)} 条, 有效 {len(valid)} 条 (pos < 100 km)")
     print(f"结果已保存: {out_path}")
 
-    if successes:
-        best = min(successes, key=lambda r: r["nlp"]["objective_value"])
+    if valid:
+        best = min(valid, key=lambda r: r["nlp"]["objective_value"])
         b = best["nlp"]
         print(f"\n最优解:")
         print(f"  α = {b['alpha']:.6f}")
@@ -562,8 +678,10 @@ def main() -> None:
         print(f"  Δv1 = {b['delta_v1']:.6f} VU ({b['delta_v1'] * VU:.1f} m/s)")
         print(f"  Δv2 = {b['delta_v2']:.6f} VU ({b['delta_v2'] * VU:.1f} m/s)")
         print(f"  Δv_total = {b['objective_value']:.6f} VU ({b['objective_value'] * VU:.1f} m/s)")
-        print(f"  位置误差 = {b.get('pos_violation', 'N/A'):.2e} DU²")
-        print(f"  速度夹角 = {b.get('angle_deg', 'N/A'):.4f}°")
+        pv = b.get('pos_violation', 0)
+        pos_km = np.sqrt(max(0, float(pv))) * DU
+        print(f"  pos_err = {pos_km:.1f} km")
+        print(f"  angle = {b.get('angle_deg', 'N/A'):.4f} deg")
 
 
 if __name__ == "__main__":
