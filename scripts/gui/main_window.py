@@ -33,7 +33,7 @@ from PyQt6.QtWidgets import (
 from scripts.gui.file_discovery import FileInfo, discover_files, filter_files, format_size
 from scripts.gui.job_manager import JobManager
 from scripts.gui.output_panel import JobCard, StructuredOutputWidget
-from scripts.gui.script_registry import SCRIPTS, CliParam, EnvParam, ScriptEntry
+from scripts.gui.script_registry import SCRIPTS, UNIT_GROUPS, CliParam, EnvParam, ScriptEntry
 
 FILE_PATH_ROLE = Qt.ItemDataRole.UserRole + 1
 
@@ -199,7 +199,9 @@ class MainWindow(QMainWindow):
 
         self._env_widgets: dict[str, QComboBox] = {}
         self._cli_widgets: dict[str, QCheckBox | QLineEdit | QSpinBox | QComboBox] = {}
-        self._param_defaults: dict[QWidget, str] = {}  # 控件 → 默认值
+        self._param_defaults: dict[QWidget, str] = {}  # 控件 → 默认值（标准单位）
+        self._unit_combos: dict[QLineEdit, QComboBox] = {}  # QLineEdit → 单位选择 QComboBox
+        self._unit_groups: dict[QLineEdit, str] = {}        # QLineEdit → unit_group 名称
 
         tabs.addTab(self._params_scroll, "运行参数")
 
@@ -318,12 +320,58 @@ class MainWindow(QMainWindow):
             current = str(widget.value())
         else:
             return
+
+        # 带单位的参数：将当前值转换到标准单位后再与默认值比较
+        if isinstance(widget, QLineEdit) and widget in self._unit_groups:
+            current = self._to_standard_unit(widget)
+
         # 先清除旧的高亮边框，再按需添加
         base_ss = widget.styleSheet().replace(self._PARAM_BORDER_MODIFIED, "")
         if current and current != default:
             widget.setStyleSheet(base_ss + self._PARAM_BORDER_MODIFIED)
         else:
             widget.setStyleSheet(base_ss)
+
+    def _to_standard_unit(self, line_edit: QLineEdit) -> str:
+        """将 QLineEdit 中的值从当前显示单位转换为标准单位的字符串表示。"""
+        text = line_edit.text().strip()
+        if not text:
+            return text
+        group_name = self._unit_groups.get(line_edit)
+        if not group_name:
+            return text
+        unit_combo = self._unit_combos.get(line_edit)
+        if not unit_combo:
+            return text
+        try:
+            value = float(text)
+        except ValueError:
+            return text
+        group = UNIT_GROUPS[group_name]
+        units = list(group.keys())
+        factor = group[units[unit_combo.currentIndex()]]
+        return f"{value * factor:.10g}"
+
+    def _on_unit_changed(self, line_edit: QLineEdit, combo: QComboBox, group_name: str) -> None:
+        """单位选择器切换时，将已有数值转换到新单位。"""
+        text = line_edit.text().strip()
+        if not text:
+            combo.setProperty("prev_idx", combo.currentIndex())
+            return
+        try:
+            value = float(text)
+        except ValueError:
+            combo.setProperty("prev_idx", combo.currentIndex())
+            return
+        old_idx = combo.property("prev_idx") or 0
+        new_idx = combo.currentIndex()
+        group = UNIT_GROUPS[group_name]
+        units = list(group.keys())
+        # 从旧单位转到标准单位，再转到新单位
+        standard = value * group[units[old_idx]]
+        new_value = standard / group[units[new_idx]]
+        line_edit.setText(f"{new_value:.10g}")
+        combo.setProperty("prev_idx", new_idx)
 
     def _find_cli_param(self, key: str) -> CliParam | None:
         """根据 key 查找当前脚本的 CliParam。"""
@@ -369,6 +417,9 @@ class MainWindow(QMainWindow):
                 text = widget.text().strip()
                 default = cli_param.default
                 if text and text != default:
+                    # 将显示单位值转换回标准单位
+                    if widget in self._unit_combos:
+                        text = self._to_standard_unit(widget)
                     extra_args.extend([cli_param.flag, text])
             elif isinstance(widget, QComboBox):
                 text = widget.currentText().strip()
@@ -804,6 +855,8 @@ class MainWindow(QMainWindow):
         self._env_widgets.clear()
         self._cli_widgets.clear()
         self._param_defaults.clear()
+        self._unit_combos.clear()
+        self._unit_groups.clear()
 
         self._params_layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
         self._params_layout.setFieldGrowthPolicy(
@@ -865,6 +918,38 @@ class MainWindow(QMainWindow):
                     widget.setToolTip(cli_param.help)
                     widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
                     widget.setMinimumWidth(100)
+
+                    # 带单位的参数：在输入框右侧添加单位选择下拉框
+                    if cli_param.unit_group and cli_param.unit_group in UNIT_GROUPS:
+                        field_layout = QHBoxLayout()
+                        field_layout.setContentsMargins(0, 0, 0, 0)
+                        field_layout.setSpacing(4)
+
+                        unit_combo = QComboBox()
+                        unit_combo.addItems(UNIT_GROUPS[cli_param.unit_group].keys())
+                        unit_combo.setFixedWidth(55)
+                        unit_combo.setProperty("prev_idx", 0)
+                        unit_combo.currentIndexChanged.connect(
+                            lambda _, le=widget, uc=unit_combo, ug=cli_param.unit_group:
+                                self._on_unit_changed(le, uc, ug)
+                        )
+
+                        field_layout.addWidget(widget)
+                        field_layout.addWidget(unit_combo)
+
+                        self._unit_combos[widget] = unit_combo
+                        self._unit_groups[widget] = cli_param.unit_group
+
+                        # 将 layout 包裹为 widget 以便加入 QFormLayout
+                        field_widget = QWidget()
+                        field_widget.setLayout(field_layout)
+                        self._params_layout.addRow(f"{cli_param.label}:", field_widget)
+                        self._cli_widgets[key] = widget
+                        self._param_defaults[widget] = cli_param.default or ""
+                        widget.textChanged.connect(
+                            lambda _, w=widget: self._update_param_highlight(w)
+                        )
+                        continue
                 else:  # str
                     if cli_param.file_category:
                         widget = QComboBox()
