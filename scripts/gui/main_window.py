@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QSpinBox,
     QSplitter,
     QStatusBar,
@@ -576,6 +577,11 @@ class MainWindow(QMainWindow):
         self._env_widgets.clear()
         self._cli_widgets.clear()
 
+        self._params_layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+        self._params_layout.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
+        )
+
         has_any = False
 
         # 环境变量参数（文件选择下拉框）
@@ -594,6 +600,8 @@ class MainWindow(QMainWindow):
                     combo.addItem(fi.name, fi.abs_path)
 
                 combo.setToolTip(env_param.env_var)
+                combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+                combo.setMinimumWidth(100)
                 self._params_layout.addRow(f"{env_param.label}:", combo)
                 self._env_widgets[key] = combo
 
@@ -617,6 +625,8 @@ class MainWindow(QMainWindow):
                     if cli_param.default:
                         widget.setValue(int(cli_param.default))
                     widget.setToolTip(cli_param.help)
+                    widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+                    widget.setMinimumWidth(80)
                 elif cli_param.param_type == "float":
                     widget = QLineEdit()
                     validator = QDoubleValidator(-99999.0, 99999.0, 15)
@@ -625,6 +635,8 @@ class MainWindow(QMainWindow):
                     if cli_param.default:
                         widget.setText(cli_param.default)
                     widget.setToolTip(cli_param.help)
+                    widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+                    widget.setMinimumWidth(100)
                 else:  # str
                     if cli_param.file_category:
                         widget = QComboBox()
@@ -640,11 +652,15 @@ class MainWindow(QMainWindow):
                         if cli_param.default:
                             widget.setCurrentText(cli_param.default)
                         widget.setToolTip(cli_param.help)
+                        widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+                        widget.setMinimumWidth(100)
                     else:
                         widget = QLineEdit()
                         if cli_param.default:
                             widget.setText(cli_param.default)
                         widget.setToolTip(cli_param.help)
+                        widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+                        widget.setMinimumWidth(100)
 
                 if cli_param.param_type == "bool":
                     self._params_layout.addRow(widget)
