@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 import matplotlib
 import e2m2e
@@ -25,12 +26,26 @@ config = PlotConfig(
 )
 config.apply_rcparams()          # 将配置应用到 matplotlib 全局参数
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="绘制 DRO 轨道族")
+    parser.add_argument("--json-file", type=str, default=None, help="轨道族 JSON 文件路径")
+    return parser.parse_args()
+
+
 # =============================================================================
 # Load data
 # =============================================================================
-family_name = "dro_family_0.141886-0.9-0.005_3857978855"
+args = parse_args()
 output_dir = project_root / "output" / "dro"
-family_path = output_dir / f"{family_name}.json"
+
+if args.json_file:
+    family_path = Path(args.json_file)
+    family_name = family_path.stem
+else:
+    family_name = "dro_family_0.141886-0.9-0.005_3857978855"
+    family_path = output_dir / f"{family_name}.json"
+
 system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
 if not family_path.exists():

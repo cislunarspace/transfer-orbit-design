@@ -70,6 +70,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "绘制 DRO 轨道族",
             "scripts/dro/plot_dro_family.py",
             output_dir="output/dro",
+            cli_params=[
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
+            ],
         ),
     ],
     "RO": [
@@ -145,24 +148,44 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "绘制 3:1 共振轨道族",
             "scripts/ro/plot_31_ro_family.py",
             output_dir="output/ro",
+            cli_params=[
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
+                CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
+                CliParam("--end", "结束索引", "int", "-1", "结束轨道索引（含），-1 表示到最后一条"),
+            ],
         ),
         ScriptEntry(
             "ro", "plot_32_ro_family",
             "绘制 3:2 共振轨道族",
             "scripts/ro/plot_32_ro_family.py",
             output_dir="output/ro",
+            cli_params=[
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
+                CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
+                CliParam("--end", "结束索引", "int", "42", "结束轨道索引（含），-1 表示到最后一条"),
+            ],
         ),
         ScriptEntry(
             "ro", "plot_aro_family",
             "绘制 ARO 轨道族",
             "scripts/ro/plot_aro_family.py",
             output_dir="output/ro",
+            cli_params=[
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
+                CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
+                CliParam("--end", "结束索引", "int", "-1", "结束轨道索引（含），-1 表示到最后一条"),
+            ],
         ),
         ScriptEntry(
             "ro", "plot_rro_family",
             "绘制 RRO 轨道族",
             "scripts/ro/plot_rro_family.py",
             output_dir="output/ro",
+            cli_params=[
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
+                CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
+                CliParam("--end", "结束索引", "int", "-1", "结束轨道索引（含），-1 表示到最后一条"),
+            ],
         ),
     ],
     "Halo": [
@@ -214,9 +237,14 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ),
         ScriptEntry(
             "halo", "plot_halo_orbit",
-            "绘制单条 Halo 轨道",
+            "绘制 Halo 轨道族（含 Jacobi/稳定性分析）",
             "scripts/halo/plot_halo_orbit.py",
             output_dir="output/halo",
+            cli_params=[
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
+                CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
+                CliParam("--end", "结束索引", "int", "-1", "结束轨道索引（含），-1 表示到最后一条"),
+            ],
         ),
     ],
     "Transfer": [
@@ -529,6 +557,10 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "scripts/ephemeris/plot_ephemeris_correction.py",
             output_dir="output/ephemeris",
             needs_spice=True,
+            cli_params=[
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径"),
+                CliParam("--ephemeris-file", "星历修正文件", "str", help="星历修正 JSON 文件路径"),
+            ],
         ),
     ],
     "Inspection": [
@@ -536,11 +568,20 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "inspection", "plot_interactive_orbit_inspector",
             "交互式轨道检查器（逐步遍历轨道族）",
             "scripts/inspection/plot_interactive_orbit_inspector.py",
+            cli_params=[
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
+                CliParam("--plane", "投影平面", "str", "xy", "投影平面: xy, xz, yz"),
+                CliParam("--show-3d", "显示 3D 视图", "bool", help="同时显示 3D 视图"),
+                CliParam("--fig-size", "图形大小", "str", "10 8", "图形大小 (宽 高)"),
+            ],
         ),
         ScriptEntry(
             "inspection", "plot_single_orbit",
             "绘制单条轨道（2D + 3D 视图）",
             "scripts/inspection/plot_single_orbit.py",
+            cli_params=[
+                CliParam("--json-file", "轨道文件", "str", help="轨道 JSON 文件路径"),
+            ],
         ),
     ],
 }

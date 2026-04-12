@@ -12,6 +12,7 @@
   to Resonant Orbits", JGCD, Vol.48, No.6
 """
 
+import argparse
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -22,12 +23,28 @@ from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization import PlotConfig, FamilyPlotter, compute_stability_for_family
 from scripts.utils.common import MU, TU
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="绘制 3:1 共振轨道族")
+    parser.add_argument("--json-file", type=str, default=None, help="轨道族 JSON 文件路径")
+    parser.add_argument("--start", type=int, default=-1, help="起始轨道索引，-1 表示从第一条")
+    parser.add_argument("--end", type=int, default=-1, help="结束轨道索引（含），-1 表示到最后一条")
+    return parser.parse_args()
+
+
 # =============================================================================
 # 加载轨道数据
 # =============================================================================
-family_name = "ro_31_family_-0.8905--0.8304999999999999-0.001_3857720079"
+args = parse_args()
 output_dir = project_root / "output" / "ro"
-family_path = output_dir / f"{family_name}.json"
+
+if args.json_file:
+    family_path = Path(args.json_file)
+    family_name = family_path.stem
+else:
+    family_name = "ro_31_family_-0.8905--0.8304999999999999-0.001_3857720079"
+    family_path = output_dir / f"{family_name}.json"
+
 system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
 if not family_path.exists():
@@ -43,8 +60,8 @@ print(f"加载了 {n_orbits} 条 3:1 RO轨道")
 # =============================================================================
 # 绘制范围控制变量
 # =============================================================================
-PLOT_START_IDX = -1
-PLOT_END_IDX = -1
+PLOT_START_IDX = args.start
+PLOT_END_IDX = args.end
 
 if PLOT_START_IDX == -1 and PLOT_END_IDX == -1:
     plot_start = 0

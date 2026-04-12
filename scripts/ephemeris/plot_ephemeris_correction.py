@@ -7,6 +7,7 @@
 DRO 为 3:1 共振轨道，需 3 个周期才在 J2000 中闭合。
 """
 
+import argparse
 import json
 import os
 from pathlib import Path
@@ -25,12 +26,17 @@ from e2m2e.core import (
 from scripts.utils.common import DU, MU, TU
 
 project_root = Path(__file__).resolve().parent.parent.parent
+output_dir = project_root / "output" / "ephemeris"
 
-DRO_JSON_FILE = project_root / "output" / "dro" / "dro_31_3857864736.json"
-EPHEMERIS_JSON_FILE = (
-    project_root / "output" / "ephemeris" / "dro_ephemeris_correction_20260406_120419.json"
-)
-OUTPUT_DIR = project_root / "output" / "ephemeris"
+DRO_JSON_DEFAULT = project_root / "output" / "dro" / "dro_31_3857864736.json"
+EPHEMERIS_JSON_DEFAULT = output_dir / "dro_ephemeris_correction_20260406_120419.json"
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="绘制 DRO 星历修正前后对比图")
+    parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
+    parser.add_argument("--ephemeris-file", type=str, default=None, help="星历修正 JSON 文件路径")
+    return parser.parse_args()
 
 REFERENCE_EPOCH = "2025-06-21T11:00:06"
 SPICE_KERNEL_DIR = os.environ.get(
@@ -75,8 +81,13 @@ def tile_orbit_n_periods(orbit, n):
 
 
 def main():
-    if not EPHEMERIS_JSON_FILE.is_file():
-        raise FileNotFoundError(f"星历修正数据文件不存在: {EPHEMERIS_JSON_FILE}")
+    args = parse_args()
+
+    dro_json_file = Path(args.dro_file) if args.dro_file else DRO_JSON_DEFAULT
+    ephemeris_json_file = Path(args.ephemeris_file) if args.ephemeris_file else EPHEMERIS_JSON_DEFAULT
+
+    if not ephemeris_json_file.is_file():
+        raise FileNotFoundError(f"星历修正数据文件不存在: {ephemeris_json_file}")
 
     spice = SPICEManager()
     kernel_path = spice.find_ephemeris_kernel(SPICE_KERNEL_DIR)
@@ -94,7 +105,7 @@ def main():
             spice=spice,
         )
 
-        dro_orbit = Orbit.load_from_file(filename=DRO_JSON_FILE, system=cr3bp_system)
+        dro_orbit = Orbit.load_from_file(filename=dro_json_file, system=cr3bp_system)
         dro_syn_1p = np.array(dro_orbit.states)
         dro_syn_3t, dro_times_3t = tile_orbit_n_periods(dro_orbit, N_PERIODS)
 
@@ -104,7 +115,7 @@ def main():
             et0=reference_et,
         )
 
-        with open(EPHEMERIS_JSON_FILE, encoding="utf-8") as f:
+        with open(ephemeris_json_file, encoding="utf-8") as f:
             eph_data = json.load(f)
 
         converged = eph_data["converged"]
@@ -136,7 +147,7 @@ def main():
         print(f"CR3BP DRO (synodic, 1 period): {len(dro_syn_1p)} 个状态点")
         print(f"CR3BP DRO (J2000, 3 periods): {len(dro_j2000)} 个状态点")
         print(f"星历轨迹 (3 periods): {len(eph_j2000)} 个状态点")
-        print(f"修正结果: {EPHEMERIS_JSON_FILE.name}")
+        print(f"修正结果: {ephemeris_json_file.name}")
 
         fig = plt.figure(figsize=(20, 9))
 
@@ -219,8 +230,8 @@ def main():
         )
         plt.tight_layout()
 
-        out_name = EPHEMERIS_JSON_FILE.name.replace(".json", "_compare_3d.png")
-        out_path = OUTPUT_DIR / out_name
+        out_name = ephemeris_json_file.name.replace(".json", "_compare_3d.png")
+        out_path = output_dir / out_name
         fig.savefig(out_path, dpi=300, bbox_inches="tight")
         print(f"已保存: {out_path}")
         plt.show()

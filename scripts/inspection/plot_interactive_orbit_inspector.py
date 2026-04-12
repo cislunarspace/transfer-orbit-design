@@ -19,6 +19,7 @@
   to Resonant Orbits", JGCD, Vol.48, No.6
 """
 
+import argparse
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
@@ -33,33 +34,20 @@ from matplotlib.colors import Normalize
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
-# =============================================================================
-# 配置区 - 修改这里选择要检查的轨道族
-# =============================================================================
-FAMILY_NAME = (
-    "ro_31_family_0.8905--0.8304999999999999-0.001_3856910376"  # 3:1 RO 轨道族
-)
-# FAMILY_NAME = "ro_31_family_-1.0--0.7-0.005_3856907185"  # 3:1 RO 轨道族
-# FAMILY_NAME = "dro_family_0.6-0.8-0.005_3856837322"  # DRO 轨道族
-
-# 自动判断 output 子目录
-if FAMILY_NAME.startswith("dro_"):
-    output_dir = project_root / "output" / "dro"
-else:
-    output_dir = project_root / "output" / "ro"
-FAMILY_PATH = output_dir / f"{FAMILY_NAME}.json"
-
-# 可视化配置
-PLANE = "xy"  # 投影平面: "xy", "xz", "yz"
-SHOW_3D = False  # 是否同时显示3D视图 (注意: 3D模式在某些环境下有matplotlib bug)
-FIGURE_SIZE = (10, 8)  # 图形大小
+def parse_args():
+    parser = argparse.ArgumentParser(description="交互式轨道检查器")
+    parser.add_argument("--json-file", type=str, default=None, help="轨道族 JSON 文件路径")
+    parser.add_argument("--plane", type=str, default="xy", choices=["xy", "xz", "yz"], help="投影平面")
+    parser.add_argument("--show-3d", action="store_true", default=False, help="同时显示3D视图")
+    parser.add_argument("--fig-size", type=int, nargs=2, default=[10, 8], help="图形大小 (宽 高)")
+    return parser.parse_args()
 
 
-# =============================================================================
-# 主程序
-# =============================================================================
-# 创建全局图形窗口
-fig = plt.figure(figsize=FIGURE_SIZE)
+DEFAULT_FAMILY_NAME = "ro_31_family_0.8905--0.8304999999999999-0.001_3856910376"
+
+
+# 全局图形窗口（在 main() 中初始化）
+fig = None
 
 
 def compute_orbit_jacobi(orbit, system):
@@ -118,14 +106,37 @@ def compute_global_axis_limits(family, plane="xy", margin=1.15):
 
 
 def main():
+    global fig
+
+    args = parse_args()
+
+    # 解析参数
+    if args.json_file:
+        _family_path = Path(args.json_file)
+        _family_name = _family_path.stem
+    else:
+        _family_name = DEFAULT_FAMILY_NAME
+        if _family_name.startswith("dro_"):
+            _family_dir = project_root / "output" / "dro"
+        else:
+            _family_dir = project_root / "output" / "ro"
+        _family_path = _family_dir / f"{_family_name}.json"
+
+    _plane = args.plane
+    _show_3d = args.show_3d
+    _figure_size = tuple(args.fig_size)
+
     plt.ion()  # 开启交互模式
+
+    # 创建全局图形窗口
+    fig = plt.figure(figsize=_figure_size)
 
     # 加载系统
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
     # 加载轨道族
-    print(f"加载轨道族: {FAMILY_NAME}")
-    family = OrbitFamily.load_from_file(filename=FAMILY_PATH, system=system)
+    print(f"加载轨道族: {_family_name}")
+    family = OrbitFamily.load_from_file(filename=_family_path, system=system)
     n_orbits = len(family)
     print(f"共 {n_orbits} 条轨道")
 
@@ -138,12 +149,12 @@ def main():
 
     # 计算全局轴范围
     print("正在计算轴范围...")
-    xlim, ylim = compute_global_axis_limits(family, plane=PLANE)
+    xlim, ylim = compute_global_axis_limits(family, plane=_plane)
     print(f"轴范围: [{xlim:.3f}, {ylim:.3f}]")
 
     # 创建可视化器
     orbit_plotter = OrbitVisualizer(system=system)
-    orbit_plotter.config.figsize_2d = FIGURE_SIZE
+    orbit_plotter.config.figsize_2d = _figure_size
 
     # 设置天体和拉格朗日点样式（参考 plot_32_ro_family.py）
     orbit_plotter.primary_body_color = "blue"
@@ -187,7 +198,7 @@ def main():
         fig.clf()
 
         # 2D投影
-        if SHOW_3D:
+        if _show_3d:
             ax_2d = fig.add_subplot(1, 2, 1)
             ax_3d = fig.add_subplot(1, 2, 2, projection="3d")
         else:
@@ -209,7 +220,7 @@ def main():
         # 绘制轨道
         label = f"Orbit {current_idx + 1} (C={jacobi:.4f})"
         orbit_plotter.plot_2d_projection(
-            orbit, plane=PLANE, color=orbit_color, label=label, ax=ax_2d
+            orbit, plane=_plane, color=orbit_color, label=label, ax=ax_2d
         )
         ax_2d.set_title(f"XY Plane - Orbit {current_idx + 1}/{n_orbits}")
         ax_2d.legend(loc="upper right")
@@ -230,7 +241,7 @@ def main():
         cbar.set_label("Jacobi Constant", fontsize=10)
 
         # 3D视图
-        if SHOW_3D:
+        if _show_3d:
             assert ax_3d is not None
             orbit_plotter.plot_primary_bodies(ax=ax_3d, is_3d=True)
             orbit_plotter.plot_libration_points(ax=ax_3d, is_3d=True, show_labels=True)
