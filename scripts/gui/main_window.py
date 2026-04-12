@@ -32,6 +32,8 @@ from scripts.gui.file_discovery import FileInfo, discover_files, filter_files, f
 from scripts.gui.process_runner import ScriptRunner
 from scripts.gui.script_registry import SCRIPTS, CliParam, EnvParam, ScriptEntry
 
+SORT_ROLE = Qt.ItemDataRole.UserRole + 1
+
 
 class MainWindow(QMainWindow):
     def __init__(self, repo_root: str, parent=None):
@@ -211,6 +213,7 @@ class MainWindow(QMainWindow):
         self._file_tree.setHeaderLabels(["Filename", "Size", "Modified", "Type"])
         self._file_tree.setAlternatingRowColors(True)
         self._file_tree.setRootIsDecorated(True)
+        self._file_tree.setSortRole(SORT_ROLE)
         self._file_tree.itemDoubleClicked.connect(self._on_file_double_clicked)
         tabs.addTab(self._file_tree, "Files")
 
@@ -349,6 +352,12 @@ class MainWindow(QMainWindow):
             self._rebuild_params_panel(self._current_script)
 
     def _rebuild_file_tree(self) -> None:
+        # 保存当前排序状态
+        sort_col = self._file_tree.sortColumn()
+        sort_order = self._file_tree.header().sortIndicatorOrder()
+        had_sort = self._file_tree.isSortingEnabled()
+
+        self._file_tree.setSortingEnabled(False)
         self._file_tree.clear()
         categories: dict[str, QTreeWidgetItem] = {}
 
@@ -364,6 +373,17 @@ class MainWindow(QMainWindow):
             item = QTreeWidgetItem(parent, [fi.name, size_str, mod_str, fi.file_type])
             item.setData(0, Qt.ItemDataRole.UserRole, fi.abs_path)
             item.setToolTip(0, fi.abs_path)
+            # 存储原始排序键值
+            item.setData(0, SORT_ROLE, fi.name)
+            item.setData(1, SORT_ROLE, fi.size)
+            item.setData(2, SORT_ROLE, fi.modified.timestamp())
+            item.setData(3, SORT_ROLE, fi.file_type)
+
+        self._file_tree.setSortingEnabled(True)
+        if had_sort and sort_col >= 0:
+            self._file_tree.sortByColumn(sort_col, sort_order)
+        else:
+            self._file_tree.sortByColumn(2, Qt.SortOrder.DescendingOrder)
 
         # 自动调整列宽
         for col in range(4):
