@@ -116,7 +116,8 @@ tests/             # pytest tests
 PyQt6 desktop app (`scripts/gui/main.py`) for browsing and running scripts.
 - `script_registry.py` — `ScriptEntry` dataclass metadata for every script (module, description, env params, CLI params)
 - `main_window.py` — tabbed UI grouped by module (DRO, RO, Halo, Transfer, Ephemeris, Inspection)
-- `process_runner.py` — runs scripts as subprocess with live stdout/stderr capture
+- `job_manager.py` — multi-process manager, one QProcess per job with job_id routing
+- `output_panel.py` — per-job structured output (ANSI stripping, timestamps, stderr coloring) + JobCard widget
 - `file_discovery.py` — finds JSON files in `output/` for file-selection dropdowns
 - Scripts with `env_params` get file picker dropdowns; scripts with `cli_params` get typed input controls
 
