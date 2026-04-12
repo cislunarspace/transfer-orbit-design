@@ -254,10 +254,6 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "DRO→RO 转移轨道网格搜索",
             "scripts/transfer/grid_search_dro_to_ro.py",
             output_dir="output/transfer",
-            env_params={
-                "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
-                "ro_file": EnvParam("RO_FILE", "RO 轨道文件", "ro"),
-            },
             cli_params=[
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
                 CliParam("--ro-file", "RO 文件", "str", help="RO 轨道 JSON 文件路径", file_category="ro"),
@@ -277,9 +273,6 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "DRO→GEO 转移轨道网格搜索",
             "scripts/transfer/grid_search_dro_to_geo.py",
             output_dir="output/transfer",
-            env_params={
-                "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
-            },
             cli_params=[
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
                 CliParam("--n-departure", "出发点数", "int", "200", "出发时间网格数"),
@@ -297,9 +290,6 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "GEO→DRO 转移轨道网格搜索",
             "scripts/transfer/grid_search_geo_to_dro.py",
             output_dir="output/transfer",
-            env_params={
-                "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
-            },
             cli_params=[
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
                 CliParam("--n-departure", "GEO 出发点数", "int", "10", "GEO 出发点数量"),
@@ -319,9 +309,6 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "LEO→DRO 转移轨道网格搜索",
             "scripts/transfer/grid_search_leo_to_dro.py",
             output_dir="output/transfer",
-            env_params={
-                "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
-            },
             cli_params=[
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
                 CliParam("--n-departure", "出发点数", "int", "200", "出发时间网格数"),
@@ -341,11 +328,6 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "DRO→RO 转移 NLP 优化（SLSQP 最小化 Δv）",
             "scripts/transfer/optimize_dro_to_ro.py",
             output_dir="output/transfer",
-            env_params={
-                "search_results": EnvParam("SEARCH_RESULTS_FILE", "搜索结果文件", "transfer"),
-                "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
-                "ro_file": EnvParam("RO_FILE", "RO 轨道文件", "ro"),
-            },
             cli_params=[
                 CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径", file_category="transfer"),
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
@@ -365,10 +347,6 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "DRO→GEO 转移 NLP 优化",
             "scripts/transfer/optimize_dro_to_geo.py",
             output_dir="output/transfer",
-            env_params={
-                "search_results": EnvParam("SEARCH_RESULTS_FILE", "搜索结果文件", "transfer"),
-                "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
-            },
             cli_params=[
                 CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径", file_category="transfer"),
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
@@ -388,10 +366,6 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "GEO→DRO 转移 NLP 优化",
             "scripts/transfer/optimize_geo_to_dro.py",
             output_dir="output/transfer",
-            env_params={
-                "search_results": EnvParam("SEARCH_RESULTS_FILE", "搜索结果文件", "transfer"),
-                "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
-            },
             cli_params=[
                 CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径", file_category="transfer"),
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
@@ -414,10 +388,6 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "LEO→DRO 转移 NLP 优化",
             "scripts/transfer/optimize_leo_to_dro.py",
             output_dir="output/transfer",
-            env_params={
-                "search_results": EnvParam("SEARCH_RESULTS_FILE", "搜索结果文件", "transfer"),
-                "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
-            },
             cli_params=[
                 CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径", file_category="transfer"),
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),

@@ -336,6 +336,16 @@ class MainWindow(QMainWindow):
                 default = cli_param.default
                 if text and text != default:
                     extra_args.extend([cli_param.flag, text])
+                    # 同步设置对应环境变量（兼容脚本内的 os.environ 回退）
+                    if cli_param.file_category:
+                        _CLI_TO_ENV: dict[str, str] = {
+                            "--dro-file": "DRO_FILE",
+                            "--ro-file": "RO_FILE",
+                            "--search-file": "SEARCH_RESULTS_FILE",
+                        }
+                        env_var = _CLI_TO_ENV.get(cli_param.flag)
+                        if env_var:
+                            env_overrides[env_var] = text
 
         # 如果脚本支持 --file 且用户在文件树中选中了文件
         if self._current_script.accepts_file_arg:
