@@ -32,7 +32,7 @@ from scripts.gui.file_discovery import FileInfo, discover_files, filter_files, f
 from scripts.gui.process_runner import ScriptRunner
 from scripts.gui.script_registry import SCRIPTS, CliParam, EnvParam, ScriptEntry
 
-SORT_ROLE = Qt.ItemDataRole.UserRole + 1
+FILE_PATH_ROLE = Qt.ItemDataRole.UserRole + 1
 
 
 class MainWindow(QMainWindow):
@@ -213,7 +213,6 @@ class MainWindow(QMainWindow):
         self._file_tree.setHeaderLabels(["Filename", "Size", "Modified", "Type"])
         self._file_tree.setAlternatingRowColors(True)
         self._file_tree.setRootIsDecorated(True)
-        self._file_tree.setSortRole(SORT_ROLE)
         self._file_tree.itemDoubleClicked.connect(self._on_file_double_clicked)
         tabs.addTab(self._file_tree, "Files")
 
@@ -290,7 +289,7 @@ class MainWindow(QMainWindow):
         if self._current_script.accepts_file_arg:
             selected = self._file_tree.currentItem()
             if selected:
-                abs_path = selected.data(0, Qt.ItemDataRole.UserRole)
+                abs_path = selected.data(0, FILE_PATH_ROLE)
                 if abs_path:
                     extra_args = ["--file", abs_path] + extra_args
 
@@ -323,7 +322,7 @@ class MainWindow(QMainWindow):
         self._append_output(f"\n[ERROR] {msg}\n")
 
     def _on_file_double_clicked(self, item: QTreeWidgetItem, _column: int) -> None:
-        abs_path = item.data(0, Qt.ItemDataRole.UserRole)
+        abs_path = item.data(0, FILE_PATH_ROLE)
         if abs_path:
             self._append_output(f"[选中文件] {abs_path}\n")
 
@@ -371,13 +370,13 @@ class MainWindow(QMainWindow):
             size_str = format_size(fi.size)
             mod_str = fi.modified.strftime("%Y-%m-%d %H:%M")
             item = QTreeWidgetItem(parent, [fi.name, size_str, mod_str, fi.file_type])
-            item.setData(0, Qt.ItemDataRole.UserRole, fi.abs_path)
+            item.setData(0, FILE_PATH_ROLE, fi.abs_path)
             item.setToolTip(0, fi.abs_path)
-            # 存储原始排序键值
-            item.setData(0, SORT_ROLE, fi.name)
-            item.setData(1, SORT_ROLE, fi.size)
-            item.setData(2, SORT_ROLE, fi.modified.timestamp())
-            item.setData(3, SORT_ROLE, fi.file_type)
+            # 存储原始排序键值（UserRole 为 sortByColumn 默认使用的角色）
+            item.setData(0, Qt.ItemDataRole.UserRole, fi.name)
+            item.setData(1, Qt.ItemDataRole.UserRole, fi.size)
+            item.setData(2, Qt.ItemDataRole.UserRole, fi.modified.timestamp())
+            item.setData(3, Qt.ItemDataRole.UserRole, fi.file_type)
 
         self._file_tree.setSortingEnabled(True)
         if had_sort and sort_col >= 0:
