@@ -202,7 +202,7 @@ class MainWindow(QMainWindow):
         self._params_scroll.setWidget(self._params_container)
 
         self._env_widgets: dict[str, QComboBox] = {}
-        self._cli_widgets: dict[str, QCheckBox | QLineEdit | QSpinBox] = {}
+        self._cli_widgets: dict[str, QCheckBox | QLineEdit | QSpinBox | QComboBox] = {}
 
         tabs.addTab(self._params_scroll, "运行参数")
 
@@ -274,6 +274,11 @@ class MainWindow(QMainWindow):
                     extra_args.extend([cli_param.flag, str(val)])
             elif isinstance(widget, QLineEdit):
                 text = widget.text().strip()
+                default = cli_param.default
+                if text and text != default:
+                    extra_args.extend([cli_param.flag, text])
+            elif isinstance(widget, QComboBox):
+                text = widget.currentText().strip()
                 default = cli_param.default
                 if text and text != default:
                     extra_args.extend([cli_param.flag, text])
@@ -422,7 +427,7 @@ class MainWindow(QMainWindow):
                 key = cli_param.flag.lstrip("-").replace("-", "_")
 
                 if cli_param.param_type == "bool":
-                    widget: QCheckBox | QLineEdit | QSpinBox = QCheckBox(cli_param.label)
+                    widget: QCheckBox | QLineEdit | QSpinBox | QComboBox = QCheckBox(cli_param.label)
                     widget.setToolTip(cli_param.help)
                 elif cli_param.param_type == "int":
                     widget = QSpinBox()
@@ -439,10 +444,25 @@ class MainWindow(QMainWindow):
                         widget.setText(cli_param.default)
                     widget.setToolTip(cli_param.help)
                 else:  # str
-                    widget = QLineEdit()
-                    if cli_param.default:
-                        widget.setText(cli_param.default)
-                    widget.setToolTip(cli_param.help)
+                    if cli_param.file_category:
+                        widget = QComboBox()
+                        widget.setEditable(True)
+                        widget.addItem("")
+                        matching = filter_files(
+                            self._files,
+                            category=cli_param.file_category,
+                            file_type="json",
+                        )
+                        for fi in matching:
+                            widget.addItem(fi.abs_path)
+                        if cli_param.default:
+                            widget.setCurrentText(cli_param.default)
+                        widget.setToolTip(cli_param.help)
+                    else:
+                        widget = QLineEdit()
+                        if cli_param.default:
+                            widget.setText(cli_param.default)
+                        widget.setToolTip(cli_param.help)
 
                 if cli_param.param_type == "bool":
                     self._params_layout.addRow(widget)

@@ -22,6 +22,7 @@ class CliParam:
     param_type: str        # "bool", "int", "str", "float"
     default: str = ""
     help: str = ""
+    file_category: str | None = None  # 非 None 时 GUI 渲染为文件下拉框（editable combo）
 
 
 @dataclass(frozen=True)
@@ -71,7 +72,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "scripts/dro/plot_dro_family.py",
             output_dir="output/dro",
             cli_params=[
-                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="dro"),
             ],
         ),
     ],
@@ -121,7 +122,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "scripts/ro/generate_aro_family.py",
             output_dir="output/ro",
             cli_params=[
-                CliParam("--ro-file", "RO 文件", "str", help="3:2 RO 轨道 JSON 文件路径"),
+                CliParam("--ro-file", "RO 文件", "str", help="3:2 RO 轨道 JSON 文件路径", file_category="ro"),
                 CliParam("--target-x0", "目标 x0", "float", "-1.0878", "目标 x0 分岔点"),
                 CliParam("--z0", "固定 z0", "float", "0.1999", "固定 z0 坐标（无量纲）"),
                 CliParam("--vy0", "初始 vy 速度", "float", "0.4", "初始 y 方向速度猜测（无量纲）"),
@@ -137,7 +138,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "scripts/ro/generate_rro_family.py",
             output_dir="output/ro",
             cli_params=[
-                CliParam("--ro-file", "RO 文件", "str", help="3:2 RO 轨道 JSON 文件路径"),
+                CliParam("--ro-file", "RO 文件", "str", help="3:2 RO 轨道 JSON 文件路径", file_category="ro"),
                 CliParam("--target-x0", "目标 x0", "float", "-1.1318", "目标 x0 分岔点"),
                 CliParam("--z-max", "最大 z 幅值", "float", "0.5", "最大 z 幅值"),
                 CliParam("--step-size", "延拓步长", "float", "0.01", "延拓步长"),
@@ -149,7 +150,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "scripts/ro/plot_31_ro_family.py",
             output_dir="output/ro",
             cli_params=[
-                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
                 CliParam("--end", "结束索引", "int", "-1", "结束轨道索引（含），-1 表示到最后一条"),
             ],
@@ -160,7 +161,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "scripts/ro/plot_32_ro_family.py",
             output_dir="output/ro",
             cli_params=[
-                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
                 CliParam("--end", "结束索引", "int", "42", "结束轨道索引（含），-1 表示到最后一条"),
             ],
@@ -171,7 +172,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "scripts/ro/plot_aro_family.py",
             output_dir="output/ro",
             cli_params=[
-                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
                 CliParam("--end", "结束索引", "int", "-1", "结束轨道索引（含），-1 表示到最后一条"),
             ],
@@ -182,7 +183,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "scripts/ro/plot_rro_family.py",
             output_dir="output/ro",
             cli_params=[
-                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
                 CliParam("--end", "结束索引", "int", "-1", "结束轨道索引（含），-1 表示到最后一条"),
             ],
@@ -241,7 +242,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "scripts/halo/plot_halo_orbit.py",
             output_dir="output/halo",
             cli_params=[
-                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="halo"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
                 CliParam("--end", "结束索引", "int", "-1", "结束轨道索引（含），-1 表示到最后一条"),
             ],
@@ -258,8 +259,8 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
                 "ro_file": EnvParam("RO_FILE", "RO 轨道文件", "ro"),
             },
             cli_params=[
-                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径"),
-                CliParam("--ro-file", "RO 文件", "str", help="RO 轨道 JSON 文件路径"),
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
+                CliParam("--ro-file", "RO 文件", "str", help="RO 轨道 JSON 文件路径", file_category="ro"),
                 CliParam("--n-departure", "出发点数", "int", "200", "出发时间网格数"),
                 CliParam("--n-alpha", "alpha 密度", "int", "100", "alpha 网格密度"),
                 CliParam("--alpha-min", "alpha 下界", "float", "0.5", "alpha 搜索下界"),
@@ -280,7 +281,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
                 "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
             },
             cli_params=[
-                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径"),
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
                 CliParam("--n-departure", "出发点数", "int", "200", "出发时间网格数"),
                 CliParam("--n-alpha", "alpha 密度", "int", "100", "alpha 网格密度"),
                 CliParam("--alpha-min", "alpha 下界", "float", "0.5", "alpha 搜索下界"),
@@ -300,7 +301,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
                 "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
             },
             cli_params=[
-                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径"),
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
                 CliParam("--n-departure", "GEO 出发点数", "int", "10", "GEO 出发点数量"),
                 CliParam("--n-alpha", "alpha 密度", "int", "200", "alpha 网格密度"),
                 CliParam("--alpha-min", "alpha 下界", "float", "1.0", "alpha 搜索下界"),
@@ -322,7 +323,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
                 "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
             },
             cli_params=[
-                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径"),
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
                 CliParam("--n-departure", "出发点数", "int", "200", "出发时间网格数"),
                 CliParam("--n-alpha", "alpha 密度", "int", "100", "alpha 网格密度"),
                 CliParam("--alpha-min", "alpha 下界", "float", "1.2", "alpha 搜索下界"),
@@ -346,9 +347,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
                 "ro_file": EnvParam("RO_FILE", "RO 轨道文件", "ro"),
             },
             cli_params=[
-                CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径"),
-                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径"),
-                CliParam("--ro-file", "RO 文件", "str", help="RO 轨道 JSON 文件路径"),
+                CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径", file_category="transfer"),
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
+                CliParam("--ro-file", "RO 文件", "str", help="RO 轨道 JSON 文件路径", file_category="ro"),
                 CliParam("--alpha-min", "alpha 下界", "float", "0.5", "alpha 搜索下界"),
                 CliParam("--alpha-max", "alpha 上界", "float", "2.5", "alpha 搜索上界"),
                 CliParam("--nlp-maxiter", "NLP 最大迭代", "int", "100", "NLP 最大迭代次数"),
@@ -369,8 +370,8 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
                 "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
             },
             cli_params=[
-                CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径"),
-                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径"),
+                CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径", file_category="transfer"),
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
                 CliParam("--alpha-min", "alpha 下界", "float", "0.5", "alpha 搜索下界"),
                 CliParam("--alpha-max", "alpha 上界", "float", "2.5", "alpha 搜索上界"),
                 CliParam("--t-min", "转移时间下界", "float", "0.5", "转移时间下界（无量纲）"),
@@ -392,8 +393,8 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
                 "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
             },
             cli_params=[
-                CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径"),
-                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径"),
+                CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径", file_category="transfer"),
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
                 CliParam("--alpha-min", "alpha 下界", "float", "1.0", "alpha 搜索下界"),
                 CliParam("--alpha-max", "alpha 上界", "float", "1.5", "alpha 搜索上界"),
                 CliParam("--t-min", "转移时间下界", "float", "5.0", "转移时间下界（无量纲）"),
@@ -418,8 +419,8 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
                 "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
             },
             cli_params=[
-                CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径"),
-                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径"),
+                CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径", file_category="transfer"),
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
                 CliParam("--alpha-min", "alpha 下界", "float", "1.2", "alpha 搜索下界"),
                 CliParam("--alpha-max", "alpha 上界", "float", "2.0", "alpha 搜索上界"),
                 CliParam("--t-min", "转移时间下界", "float", "5.0", "转移时间下界（无量纲）"),
@@ -558,8 +559,8 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/ephemeris",
             needs_spice=True,
             cli_params=[
-                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径"),
-                CliParam("--ephemeris-file", "星历修正文件", "str", help="星历修正 JSON 文件路径"),
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
+                CliParam("--ephemeris-file", "星历修正文件", "str", help="星历修正 JSON 文件路径", file_category="ephemeris"),
             ],
         ),
     ],
