@@ -833,7 +833,7 @@ if __name__ == "__main__":
 - NLP约束条件: 论文Eq. (13)-(16)
 
 ### 文件位置
-- 网格搜索脚本: `scripts/transfer/grid_search.py`
-- 优化脚本: `scripts/transfer/optimize.py`
+- 网格搜索脚本: `scripts/transfer/grid_search_dro_to_ro.py`
+- 优化脚本: `scripts/transfer/optimize_dro_to_ro.py`
 - 算法文档: `scripts/transfer/search-optimization-method.md`
 - 实现计划: `plan/grid-search-implementation-v2.md`

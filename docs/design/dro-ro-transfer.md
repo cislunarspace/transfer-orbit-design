@@ -131,24 +131,24 @@
 
 ## 脚本使用
 
-### grid_search.py
+### grid_search_dro_to_ro.py
 
 网格搜索转移轨道：
 
 ```bash
-python scripts/transfer/grid_search.py
+python scripts/transfer/grid_search_dro_to_ro.py
 ```
 
 **搜索变量**：
 - `alpha`：切向速度比（0.5 ~ 2.5）
 - 出发点位置沿 DRO 轨道分布
 
-### optimize.py
+### optimize_dro_to_ro.py
 
 优化阶段（NLP/SQP）：
 
 ```bash
-python scripts/transfer/optimize.py
+python scripts/transfer/optimize_dro_to_ro.py
 ```
 
 ### plot_search_results.py

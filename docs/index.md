@@ -11,9 +11,13 @@
 | [DRO 生成](design/dro-generation.md) | `dro/generate_dro_family.py`, `dro/plot_dro_family.py` | 远距离逆行轨道族生成 |
 | [RO 生成](design/ro-generation.md) | `ro/generate_31_ro_family.py`, `ro/generate_32_ro_family.py`, `ro/plot_*_ro_family.py` | 共振轨道族生成 |
 | [RRO/ARO 生成](design/rro-aro-generation.md) | `ro/generate_rro_family.py`, `ro/generate_aro_family.py`, `ro/plot_rro_family.py`, `ro/plot_aro_family.py` | 3D 共振轨道生成 |
-| [DRO-RO 转移](design/dro-ro-transfer.md) | `transfer/grid_search.py`, `transfer/optimize.py`, `transfer/plot_search_results.py`, `transfer/plot_optimize_result.py` | 两脉冲转移设计 |
-| DRO→GEO 转移 | `transfer/grid_search_dro_geo.py`, `transfer/optimize_dro_geo.py`, `transfer/plot_search_results_geo.py` | DRO 到 GEO 转移设计 |
-| 星历修正 | `ephemeris/correct_dro_to_ephemeris.py`, `ephemeris/homotopy_dro_to_ephemeris.py` | CR3BP → 星历模型修正 |
+| [DRO-RO 转移](design/dro-ro-transfer.md) | `transfer/grid_search_dro_to_ro.py`, `transfer/optimize_dro_to_ro.py`, `transfer/plot_search_results.py`, `transfer/plot_optimize_result.py` | 两脉冲转移设计 |
+| DRO→GEO 转移 | `transfer/grid_search_dro_to_geo.py`, `transfer/optimize_dro_to_geo.py`, `transfer/plot_search_results_geo.py` | DRO 到 GEO 转移设计 |
+| GEO→DRO 转移 | `transfer/grid_search_geo_to_dro.py`, `transfer/optimize_geo_to_dro.py`, `transfer/plot_search_results_geo_to_dro.py` | GEO 到 DRO 转移设计 |
+| LEO→DRO 转移 | `transfer/grid_search_leo_to_dro.py`, `transfer/optimize_leo_to_dro.py` | LEO 到 DRO 转移设计 |
+| 星历修正 | `ephemeris/correct_dro_to_ephemeris.py`, `ephemeris/homotopy_dro_to_ephemeris.py`, `ephemeris/compare_ephemeris_methods.py`, `ephemeris/plot_ephemeris_correction.py` | CR3BP → 星历模型修正 |
+| Halo 轨道 | `halo/generate_halo_orbit.py`, `halo/generate_halo_family.py`, `halo/plot_halo_orbit.py`, `halo/plot_halo_family.py` | Halo 轨道生成与可视化 |
+| 轨道检查 | `inspection/plot_single_orbit.py`, `inspection/plot_interactive_orbit_inspector.py` | 单轨道与交互式轨道可视化 |
 
 ### 算法说明（`algorithms/`）
 
@@ -36,6 +40,7 @@
 |------|------|
 | [系统概述](guides/system-overview.md) | 项目架构、依赖和安装 |
 | [开发指南](guides/development-guide.md) | e2m2e 依赖管理、IDE 配置 |
+| GUI 使用 | PyQt6 桌面应用，浏览和运行脚本（`scripts/gui/main.py`） |
 
 ### 参考（`reference/`）
 
@@ -44,13 +49,9 @@
 | [API 参考](reference/api-reference.md) | e2m2e 库 API 文档 |
 | [脚本参考](reference/scripts-reference.md) | 所有脚本详细参数说明 |
 
-### 项目计划（`plan/`）
+### 项目计划
 
-| 文档 | 描述 |
-|------|------|
-| [复现计划](plan/feature-orbit-transfer-replication-1.md) | 完整的轨道转移复现计划与进度 |
-| [优化实现](plan/optimize-implementation.md) | NLP 优化阶段实现笔记 |
-| [PLAN](plan/PLAN.md) | 系统重构与 bug 修复计划 |
+任务计划位于仓库根目录 `plan/` 目录。
 
 ## 快速开始
 
@@ -74,10 +75,10 @@ python scripts/ro/generate_31_ro_family.py
 python scripts/ro/generate_32_ro_family.py
 
 # 网格搜索转移轨道
-python scripts/transfer/grid_search.py
+python scripts/transfer/grid_search_dro_to_ro.py
 
 # NLP 优化阶段
-python scripts/transfer/optimize.py
+python scripts/transfer/optimize_dro_to_ro.py
 
 # DRO→GEO 转移管线
 python scripts/transfer/grid_search_dro_geo.py

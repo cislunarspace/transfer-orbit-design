@@ -80,7 +80,7 @@ pip install -e /path/to/e2m2e  # 本地 e2m2e 依赖库
 #    - 3:1 RO: output/ro/ro_31_*.json
 
 # 2. 执行网格搜索 (使用论文Table 3参数)
-python scripts/transfer/grid_search.py
+python scripts/transfer/grid_search_dro_to_ro.py
 
 # 输出: output/transfer/search_results_*.json
 ```
@@ -89,7 +89,7 @@ python scripts/transfer/grid_search.py
 
 ```bash
 # 对网格搜索结果进行 NLP 优化
-python scripts/transfer/optimize.py
+python scripts/transfer/optimize_dro_to_ro.py
 
 # 输出: output/transfer/optimization_results_*.json
 ```
@@ -170,7 +170,7 @@ python scripts/transfer/plot_search_results.py <results.json>
 
 ## 复现计划
 
-详细进度跟踪见 [docs/plan/feature-orbit-transfer-replication-1.md](docs/plan/feature-orbit-transfer-replication-1.md)
+详细进度跟踪见 `plan/` 目录
 
 ### 阶段一：基线轨道生成（平面）
 
@@ -189,8 +189,8 @@ python scripts/transfer/plot_search_results.py <results.json>
 
 ### 阶段二：CR3BP 中的转移设计
 
-- [x] 网格搜索阶段（`scripts/transfer/grid_search.py` + `e2m2e.transfer.TransferSearch`）
-- [x] NLP 优化阶段（`scripts/transfer/optimize.py` + `e2m2e.transfer.DROTRONLPOptimizer`）
+- [x] 网格搜索阶段（`scripts/transfer/grid_search_dro_to_ro.py` + `e2m2e.transfer.TransferSearch`）
+- [x] NLP 优化阶段（`scripts/transfer/optimize_dro_to_ro.py` + `e2m2e.transfer.DROTRONLPOptimizer`）
 - [ ] TASK-014：计算四种平面转移路径（2:1/3:1 DRO → 3:2/3:1 RO）
 - [ ] TASK-015：分类三种典型转移类型（直接/LGA/外部）
 - [ ] TASK-016：绘制解平面（转移时间 vs 总脉冲 Δv）
@@ -266,26 +266,36 @@ e2m2e/
 | `halo/plot_halo_orbit.py` | 单个 Halo 轨道可视化 |
 | `halo/plot_halo_family.py` | Halo 轨道族可视化 |
 | **转移设计** | |
-| `transfer/grid_search.py` | 网格搜索 DRO→RO 转移轨道 |
-| `transfer/optimize.py` | NLP 优化阶段 |
-| `transfer/plot_search_results.py` | 搜索结果可视化（散点图、转移轨迹） |
-| `transfer/plot_optimize_result.py` | 优化结果可视化 |
-| `transfer/grid_search_dro_geo.py` | 网格搜索 DRO→GEO 转移轨道 |
-| `transfer/optimize_dro_geo.py` | DRO→GEO NLP 优化 |
+| `transfer/grid_search_dro_to_ro.py` | 网格搜索 DRO→RO 转移轨道 |
+| `transfer/optimize_dro_to_ro.py` | DRO→RO NLP 优化 |
+| `transfer/plot_search_results.py` | DRO→RO 搜索结果可视化 |
+| `transfer/plot_optimize_result.py` | DRO→RO 优化结果可视化 |
+| `transfer/grid_search_dro_to_geo.py` | 网格搜索 DRO→GEO 转移轨道 |
+| `transfer/optimize_dro_to_geo.py` | DRO→GEO NLP 优化 |
 | `transfer/plot_search_results_geo.py` | DRO→GEO 搜索结果可视化 |
+| `transfer/grid_search_geo_to_dro.py` | 网格搜索 GEO→DRO 转移轨道 |
+| `transfer/optimize_geo_to_dro.py` | GEO→DRO NLP 优化 |
+| `transfer/plot_search_results_geo_to_dro.py` | GEO→DRO 搜索结果可视化 |
+| `transfer/plot_optimize_result_geo_to_dro.py` | GEO→DRO 优化结果可视化 |
+| `transfer/grid_search_leo_to_dro.py` | 网格搜索 LEO→DRO 转移轨道 |
+| `transfer/optimize_leo_to_dro.py` | LEO→DRO NLP 优化 |
+| `transfer/validate_geo_to_dro.py` | 验证 GEO→DRO 搜索可行性 |
 | **星历修正** | |
 | `ephemeris/correct_dro_to_ephemeris.py` | 多重打靶法星历修正 |
 | `ephemeris/homotopy_dro_to_ephemeris.py` | 同伦法星历修正 |
 | `ephemeris/compare_ephemeris_methods.py` | 修正方法对比 |
 | `ephemeris/plot_ephemeris_correction.py` | 星历修正可视化 |
-| **通用工具** | |
-| `plot_single_orbit.py` | 单轨道可视化（2D/3D） |
-| `plot_interactive_orbit_inspector.py` | 交互式轨道逐条检查 |
+| **轨道检查** | |
+| `inspection/plot_single_orbit.py` | 单轨道可视化（2D/3D） |
+| `inspection/plot_interactive_orbit_inspector.py` | 交互式轨道逐条检查 |
+| **GUI** | |
+| `gui/main.py` | PyQt6 桌面应用（浏览和运行脚本） |
 
 ### 输出目录
 
 - `output/dro/`：DRO 轨道数据
 - `output/ro/`：RO/RRO/ARO 轨道数据
+- `output/halo/`：Halo 轨道数据
 - `output/transfer/`：转移搜索与优化结果
 - `output/ephemeris/`：星历修正结果
 

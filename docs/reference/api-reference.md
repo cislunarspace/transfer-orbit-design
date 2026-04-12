@@ -100,6 +100,51 @@ family = continuation.natural_continuation(
 )
 ```
 
+## e2m2e 转移设计
+
+### e2m2e.transfer.TransferSearch
+
+DRO→RO 网格搜索。
+
+```python
+from e2m2e.transfer import TransferSearch
+
+search = TransferSearch(dro_orbit, ro_orbit, system)
+results = search.run(n_departure=200, n_alpha=100, alpha_range=(0.5, 2.5))
+```
+
+### e2m2e.transfer.DROTRONLPOptimizer
+
+DRO→RO NLP 优化。
+
+```python
+from e2m2e.transfer import DROTRONLPOptimizer
+
+optimizer = DROTRONLPOptimizer(dro_orbit, ro_orbit, system)
+result = optimizer.optimize(search_result, maxiter=100)
+```
+
+### e2m2e.transfer.GeoTransferSearch
+
+DRO→GEO 网格搜索。
+
+```python
+from e2m2e.transfer import GeoTransferSearch
+
+search = GeoTransferSearch(dro_orbit, system)
+results = search.run(n_departure=200, n_alpha=100)
+```
+
+### e2m2e.transfer.load_orbit_from_json
+
+从 JSON 文件加载轨道。
+
+```python
+from e2m2e.transfer import load_orbit_from_json
+
+orbit = load_orbit_from_json("output/dro/family.json", system)
+```
+
 ## e2m2e 可视化
 
 ### e2m2e.visualization.config.PlotConfig
@@ -147,16 +192,34 @@ plot_eigenvalues(family)
 from e2m2e.visualization.plotting import FamilyPlotter, TransferPlotter, PlotConfig
 ```
 
-## 本地脚本
+## 本地脚本模块
 
-### scripts/utils/params.py
+### scripts/utils/constants.py
 
-论文 Table 1 的物理常数。
+物理常数（论文 Table 1）。
 
 ### scripts/utils/common.py
 
-共享工具函数。
+共享工具函数和常量 re-export。
 
 ```python
 from scripts.utils.common import MU, DU, TU, VU, T_MOON
+from scripts.utils.common import ensure_output_dir, get_latest_family_file, save_family_to_file
+```
+
+### scripts/utils/geo.py
+
+GEO 轨道常量和辅助函数（DRO→GEO 转移用）。
+
+```python
+from scripts.utils.geo import R_GEO, V_CIRCULAR_GEO, EARTH_CENTER
+from scripts.utils.geo import detect_geo_sphere_crossing, compute_geo_dv2
+```
+
+### scripts/utils/leo.py
+
+LEO 轨道常量（LEO→DRO 转移用）。
+
+```python
+from scripts.utils.leo import R_LEO, V_CIRCULAR_LEO
 ```

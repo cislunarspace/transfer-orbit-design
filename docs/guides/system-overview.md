@@ -30,7 +30,10 @@ transfer-orbit-design/
 │   ├── ro/                  # RO/RRO/ARO 轨道生成与可视化
 │   ├── halo/                # Halo 轨道生成与可视化
 │   ├── transfer/            # 转移设计（搜索、优化、可视化）
-│   └── utils/               # 共享参数和辅助函数
+│   ├── ephemeris/           # CR3BP → 星历模型修正
+│   ├── inspection/          # 单轨道与交互式轨道可视化
+│   ├── gui/                 # PyQt6 桌面 GUI
+│   └── utils/               # 共享常量和辅助函数
 ├── tests/                   # 测试
 ├── requirements.txt
 └── README.md
@@ -43,8 +46,8 @@ transfer-orbit-design/
 | numpy | ≥2.4.0 | 数值计算 |
 | scipy | ≥1.17.0 | 科学计算（ODE 积分、优化） |
 | matplotlib | ≥3.10.0 | 可视化 |
-| fonttools | ≥4.0.0 | 字体处理 |
 | tqdm | ≥4.66 | 进度条 |
+| PyQt6 | ≥6.6.0 | GUI 桌面应用 |
 | e2m2e | (editable) | 核心轨道力学库 |
 
 ### e2m2e 库
@@ -53,13 +56,19 @@ transfer-orbit-design/
 
 | 模块 | 用途 |
 |------|------|
-| `e2m2e.core.system` | CR3BP 系统参数、 librations 点 |
+| `e2m2e.core.system` | CR3BP 系统参数、Lagrange 点 |
 | `e2m2e.core.dynamics` | CR3BP 运动方程、STM 积分 |
 | `e2m2e.core.orbit` | `Orbit` 和 `OrbitFamily` 数据结构 |
 | `e2m2e.algorithms.differential_correction` | 周期轨道修正 |
 | `e2m2e.algorithms.continuation` | 自然/伪弧长延拓 |
 | `e2m2e.algorithms.stability` | 单值矩阵特征值分析 |
-| `e2m2e.visualization.plotting` | 2D/3D 轨道绘图（shim，实际由 config/family/transfer/stability 子模块提供） |
+| `e2m2e.transfer.TransferSearch` | DRO→RO 网格搜索 |
+| `e2m2e.transfer.DROTRONLPOptimizer` | DRO→RO NLP 优化 |
+| `e2m2e.transfer.GeoTransferSearch` | DRO→GEO 网格搜索 |
+| `e2m2e.visualization.config` | `PlotConfig` 绘图配置 |
+| `e2m2e.visualization.family` | `FamilyPlotter` 轨道族绘图 |
+| `e2m2e.visualization.transfer` | `TransferPlotter` 转移绘图 |
+| `e2m2e.visualization.stability` | 稳定性可视化 |
 
 ## 物理参数
 
