@@ -11,6 +11,7 @@ DRO-RO 网格搜索
 Windows 多进程需要 ``if __name__ == "__main__"``，请勿删除末尾保护。
 """
 
+import argparse
 import json
 import os
 import numpy as np
@@ -21,15 +22,33 @@ from e2m2e.transfer import TransferSearch, load_orbit_from_json
 from scripts.utils.common import DU, MU, TU
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="DRO→RO 转移轨道网格搜索")
+    parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
+    parser.add_argument("--ro-file", type=str, default=None, help="RO 轨道 JSON 文件路径")
+    parser.add_argument("--n-departure", type=int, default=200, help="出发时间网格数")
+    parser.add_argument("--n-alpha", type=int, default=100, help="alpha 网格密度")
+    parser.add_argument("--max-transfer-time", type=float, default=100.0 / TU, help="最大转移时间（无量纲）")
+    parser.add_argument("--alpha-min", type=float, default=0.5, help="alpha 搜索下界")
+    parser.add_argument("--alpha-max", type=float, default=2.5, help="alpha 搜索上界")
+    parser.add_argument("--intersection-threshold", type=float, default=0.001, help="相交判定距离阈值")
+    parser.add_argument("--min-distance", type=float, default=100.0 / DU, help="候选解最小距离阈值")
+    parser.add_argument("--earth-radius", type=float, default=200.0 / DU, help="地球碰撞检测半径")
+    parser.add_argument("--moon-radius", type=float, default=100.0 / DU, help="月球碰撞检测半径")
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
+
     # =========================================================================
     # 搜索参数配置
     # =========================================================================
 
-    # 轨道数据文件路径（支持通过环境变量 DRO_FILE / RO_FILE 覆盖）
+    # 轨道数据文件路径（CLI > 环境变量 > 默认值）
     project_root = Path(__file__).resolve().parent.parent.parent
-    dro_file = Path(os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857693511.json")))
-    ro_file = Path(os.environ.get("RO_FILE", str(project_root / "output/ro/ro_31_3857693516.json")))
+    dro_file = Path(args.dro_file or os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857693511.json")))
+    ro_file = Path(args.ro_file or os.environ.get("RO_FILE", str(project_root / "output/ro/ro_31_3857693516.json")))
 
     # =========================================================================
     # 初始化系统
@@ -64,21 +83,21 @@ def main() -> None:
     print("=" * 70)
 
     # 搜索参数
-    n_departure = 200
-    n_alpha = 100
-    max_transfer_time = 100.0 / TU
+    n_departure = args.n_departure
+    n_alpha = args.n_alpha
+    max_transfer_time = args.max_transfer_time
 
     # alpha 参数搜索范围
-    alpha_min = 0.5
-    alpha_max = 2.5
+    alpha_min = args.alpha_min
+    alpha_max = args.alpha_max
 
     # 可行解判定条件
-    intersection_threshold = 0.001  # 相交判定距离阈值
-    min_distance_threshold = 100.0 / DU
+    intersection_threshold = args.intersection_threshold  # 相交判定距离阈值
+    min_distance_threshold = args.min_distance
 
     # 碰撞检测半径
-    earth_radius = 200 / DU
-    moon_radius = 100 / DU
+    earth_radius = args.earth_radius
+    moon_radius = args.moon_radius
 
     transfer_searcher = TransferSearch(dynamics=dynamics)
     results = transfer_searcher.search(

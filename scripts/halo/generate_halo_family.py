@@ -14,6 +14,7 @@
     （由 step_size / step_size_negative 控制）。
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -31,7 +32,20 @@ from e2m2e.core import Orbit, OrbitFamily
 OUTPUT_DIR = project_root / "output" / "halo"
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="生成 Halo 轨道族（伪弧长延拓）")
+    parser.add_argument("--libration-point", type=int, default=1, help="平动点：1=L1, 2=L2")
+    parser.add_argument("--amplitude-z", type=float, default=0.23, help="Z 方向振幅（无量纲）")
+    parser.add_argument("--halo-class", type=int, default=0, help="0=北 Halo, 1=南 Halo")
+    parser.add_argument("--n-orbits", type=int, default=20, help="延拓轨道数量")
+    parser.add_argument("--step-size", type=float, default=0.0045, help="正向延拓步长")
+    parser.add_argument("--step-size-negative", type=float, default=0.009, help="负向延拓步长")
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
+
     # =============================================================================
     # 1. 系统与动力学模型初始化
     # =============================================================================
@@ -41,9 +55,9 @@ def main():
     # =============================================================================
     # 2. Halo轨道参数
     # =============================================================================
-    libration_point = 1  # 1=L1, 2=L2
-    amplitude_z = 0.23  # Z方向振幅
-    halo_class = 0  # 0=北Halo (Class I), 1=南Halo (Class II)
+    libration_point = args.libration_point  # 1=L1, 2=L2
+    amplitude_z = args.amplitude_z  # Z方向振幅
+    halo_class = args.halo_class  # 0=北Halo (Class I), 1=南Halo (Class II)
 
     # =============================================================================
     # 3. 创建延拓器并生成种子轨道
@@ -73,9 +87,9 @@ def main():
     # =============================================================================
     print(f"\n开始Halo轨道族伪弧长延拓（continuation_PAL_CR3BP 流程）...")
 
-    n_orbits = 20
-    step_size = 0.0045
-    step_size_negative = 0.009
+    n_orbits = args.n_orbits
+    step_size = args.step_size
+    step_size_negative = args.step_size_negative
 
     family_result = continuation.halo_pseudo_arclength_continuation(
         seed_orbit=seed_halo,

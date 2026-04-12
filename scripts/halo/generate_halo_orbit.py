@@ -13,6 +13,7 @@
     tf = 1.8397 (完整周期)
 """
 
+import argparse
 from pathlib import Path
 
 import time
@@ -27,7 +28,22 @@ from scripts.utils.common import MU, TU
 OUTPUT_DIR = project_root / "output" / "halo"
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="生成 Halo 轨道（Richardson 三阶近似 + 微分修正）")
+    parser.add_argument("--libration-point", type=int, default=1, help="平动点：1=L1, 2=L2")
+    parser.add_argument("--amplitude-z", type=float, default=0.23, help="Z 方向振幅（无量纲）")
+    parser.add_argument("--halo-class", type=int, default=0, help="0=北 Halo (Class I), 1=南 Halo (Class II)")
+    parser.add_argument("--period", type=float, default=1.839732, help="目标周期（无量纲）")
+    parser.add_argument("--x0", type=float, default=0.9305269194214338, help="初始 x 坐标（无量纲）")
+    parser.add_argument("--vy0", type=float, default=0.10431508546142665, help="初始 y 方向速度（无量纲）")
+    parser.add_argument("--max-iterations", type=int, default=150, help="最大迭代次数")
+    parser.add_argument("--tolerance", type=float, default=1e-6, help="修正容差")
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
+
     # =============================================================================
     # 1. 系统与动力学模型初始化
     # =============================================================================
@@ -40,12 +56,12 @@ def main():
     # Halo轨道特征：关于XZ平面对称，在拉格朗日点(L1/L2)附近振荡
     # 状态向量格式：[x, y, z, vx, vy, vz]，均为无量纲量
 
-    libration_point = 1  # 1=L1, 2=L2
-    amplitude_z = 0.23  # Z方向振幅
-    halo_class = 0  # 0=北Halo (Class I), 1=南Halo (Class II)
+    libration_point = args.libration_point  # 1=L1, 2=L2
+    amplitude_z = args.amplitude_z  # Z方向振幅
+    halo_class = args.halo_class  # 0=北Halo (Class I), 1=南Halo (Class II)
 
     # 目标参数
-    target_period = 1.839732  # 完整周期（无量纲时间单位）
+    target_period = args.period  # 完整周期（无量纲时间单位）
     t_half = target_period / 2  # 半周期
 
     print(f"目标轨道: L{libration_point} {'北' if halo_class == 0 else '南'} Halo")
@@ -70,9 +86,9 @@ def main():
     # =============================================================================
     # 4. 初始猜测（来自Richardson三阶近似）
     # =============================================================================
-    x0 = 0.9305269194214338  # L1位置附近
+    x0 = args.x0  # L1位置附近
     z0 = amplitude_z if halo_class == 0 else -amplitude_z
-    vy0 = 0.10431508546142665
+    vy0 = args.vy0
 
     initial_state = [x0, 0.0, z0, 0.0, vy0, 0.0]
     times = [0]
@@ -87,8 +103,8 @@ def main():
     # =============================================================================
     # 5. 执行迭代修正
     # =============================================================================
-    corrector.max_iterations = 150
-    corrector.tolerance = 1e-6
+    corrector.max_iterations = args.max_iterations
+    corrector.tolerance = args.tolerance
 
     print(f"\n开始迭代修正...")
     orbit_result = corrector.iterate_correction(initial_guess=orbit_init, verbose=True)

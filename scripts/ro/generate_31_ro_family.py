@@ -16,6 +16,7 @@
   to Resonant Orbits", JGCD, Vol.48, No.6
 """
 
+import argparse
 from pathlib import Path
 
 import e2m2e
@@ -27,7 +28,20 @@ project_root = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = project_root / "output"
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="生成 3:1 共振轨道族（差分修正 + 自然延拓）")
+    parser.add_argument("--x0", type=float, default=-0.8805, help="初始 x 坐标（无量纲）")
+    parser.add_argument("--vy0", type=float, default=0.3921, help="初始 y 方向速度（无量纲）")
+    parser.add_argument("--period", type=float, default=27.32 / TU, help="轨道周期（无量纲）")
+    parser.add_argument("--param-min", type=float, default=-0.8905, help="延拓参数范围下限")
+    parser.add_argument("--param-max", type=float, default=-0.8305, help="延拓参数范围上限")
+    parser.add_argument("--step-size", type=float, default=0.001, help="延拓步长")
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
+
     # =============================================================================
     # 1. 系统与动力学模型初始化
     # =============================================================================
@@ -39,14 +53,14 @@ def main():
     # =============================================================================
     # 3:1 RO特征：平面内运动（y幅值点处y_dot=0），关于x轴对称（vx=vz=0）
     # 初始状态向量格式：[x, y, z, vx, vy, vz]，均为无量纲量
-    x0 = -0.8805  # 初始x坐标（无量纲）
+    x0 = args.x0  # 初始x坐标（无量纲）
     z0 = 0.0  # 初始z坐标（无量纲）
-    vy0 = 0.3921  # 初始y方向速度（无量纲）
+    vy0 = args.vy0  # 初始y方向速度（无量纲）
     vz0 = 0.0  # 初始z方向速度（无量纲）
     initial_state = [x0, 0.0, z0, 0.0, vy0, vz0]
     times = [0]  # 第一个历元时刻
     seed_orbit = e2m2e.core.orbit.Orbit(states=[initial_state], times=times)
-    seed_orbit.period = 27.32 / TU  # 轨道周期（无量纲时间）
+    seed_orbit.period = args.period  # 轨道周期（无量纲时间）
 
     # =============================================================================
     # 3. 种子轨道差分修正
@@ -59,9 +73,9 @@ def main():
     # 4. 自然延拓生成轨道族
     # =============================================================================
     continuator = e2m2e.algorithms.Continuation(corrector=corrector)
-    step_size = 0.001
-    param_min = -0.8905
-    param_max = x0 + 0.05
+    step_size = args.step_size
+    param_min = args.param_min
+    param_max = args.param_max
     family_result = continuator.natural_continuation(
         seed_orbit=seed_RO,
         param_range=(param_min, param_max),  # x0参数延拓范围

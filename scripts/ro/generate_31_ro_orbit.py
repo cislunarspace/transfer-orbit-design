@@ -13,6 +13,7 @@
     - T = 27.32 days ≈ 6.283 TU (轨道周期)
 """
 
+import argparse
 from pathlib import Path
 
 import time
@@ -26,7 +27,17 @@ project_root = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "ro"
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="生成 3:1 RO 轨道（固定周期微分校正）")
+    parser.add_argument("--x0", type=float, default=-0.8805, help="初始 x 坐标（无量纲）")
+    parser.add_argument("--vy0", type=float, default=0.3921, help="初始 y 方向速度（无量纲）")
+    parser.add_argument("--period", type=float, default=27.32 / TU, help="目标周期（无量纲）")
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
+
     # =============================================================================
     # 1. 系统与动力学模型初始化
     # =============================================================================
@@ -38,12 +49,12 @@ def main():
     # =============================================================================
     # RO特征：平面内运动（y=z=0），关于x轴对称（vx=vz=0）
     # 状态向量格式：[x, y, z, vx, vy, vz]，均为无量纲量
-    x0 = -0.8805  # 初始x坐标（无量纲）
-    vy0 = 0.3921  # 初始y方向速度（无量纲）
+    x0 = args.x0  # 初始x坐标（无量纲）
+    vy0 = args.vy0  # 初始y方向速度（无量纲）
 
     # 目标周期：27.32 days ≈ 6.283 TU (Time Unit)
     # TU = 4.34811305 days (lunar sidereal period)
-    target_period = 27.32 / TU  # 转换为无量纲时间单位
+    target_period = args.period  # 转换为无量纲时间单位
     t_half = target_period / 2  # 半周期
 
     print(f"目标轨道: 3:1 RO")

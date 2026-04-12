@@ -12,6 +12,7 @@ LEO 比 GEO 更接近地球，速度更高，需要更大的 alpha 值才能到�
 Windows 多进程需要 ``if __name__ == "__main__"``。
 """
 
+import argparse
 import json
 import os
 from pathlib import Path
@@ -51,12 +52,10 @@ def generate_leo_orbit(n_points: int = 500) -> Orbit:
 # 配置
 # =====================================================================
 
-# DRO 轨道文件（支持通过环境变量 DRO_FILE 覆盖）
-DRO_FILE = Path(os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857864736.json")))
+# DRO 轨道文件默认值
+DRO_FILE_DEFAULT = str(project_root / "output/dro/dro_31_3857864736.json")
 
-# 搜索参数
-# LEO 圆速度 ~7.5 VU，逃逸速度 ~10.6 VU，alpha ≈ 10.6/7.5 ≈ 1.41
-# 但 LEO 附近受地球引力主导，实际需要的 alpha 可能更大
+# 搜索参数默认值
 N_DEPARTURE = 200
 N_ALPHA = 100
 ALPHA_MIN = 1.2          # 略加速
@@ -72,7 +71,25 @@ INTEGRATION_DT = 1.0 / (24.0 * TU)
 LEO_N_POINTS = 500
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="LEO→DRO 转移轨道网格搜索")
+    parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
+    parser.add_argument("--n-departure", type=int, default=N_DEPARTURE, help="出发时间网格数")
+    parser.add_argument("--n-alpha", type=int, default=N_ALPHA, help="alpha 网格密度")
+    parser.add_argument("--alpha-min", type=float, default=ALPHA_MIN, help="alpha 搜索下界")
+    parser.add_argument("--alpha-max", type=float, default=ALPHA_MAX, help="alpha 搜索上界")
+    parser.add_argument("--max-transfer-time", type=float, default=MAX_TRANSFER_TIME, help="最大转移时间（无量纲）")
+    parser.add_argument("--intersection-threshold", type=float, default=INTERSECTION_THRESHOLD, help="相交判定距离阈值")
+    parser.add_argument("--min-distance", type=float, default=MIN_DISTANCE_THRESHOLD, help="候选解最小距离阈值")
+    parser.add_argument("--earth-radius", type=float, default=EARTH_RADIUS, help="地球碰撞检测半径")
+    parser.add_argument("--moon-radius", type=float, default=MOON_RADIUS, help="月球碰撞检测半径")
+    parser.add_argument("--leo-n-points", type=int, default=LEO_N_POINTS, help="LEO 轨道采样点数")
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
+
     # =========================================================================
     # 初始化
     # =========================================================================
@@ -82,8 +99,19 @@ def main() -> None:
     ]:
         os.environ[_k] = "1"
 
-    # 查找 DRO 文件
-    dro_file = DRO_FILE
+    # 查找 DRO 文件（CLI > 环境变量 > 默认值）
+    dro_file = Path(args.dro_file or os.environ.get("DRO_FILE", DRO_FILE_DEFAULT))
+    n_departure = args.n_departure
+    n_alpha = args.n_alpha
+    alpha_min = args.alpha_min
+    alpha_max = args.alpha_max
+    max_transfer_time = args.max_transfer_time
+    intersection_threshold = args.intersection_threshold
+    min_distance_threshold = args.min_distance
+    earth_radius = args.earth_radius
+    moon_radius = args.moon_radius
+    leo_n_points = args.leo_n_points
+
     if not dro_file.exists():
         dro_dir = project_root / "output/dro"
         dro_files = sorted(dro_dir.glob("dro_31_*.json"))
@@ -107,7 +135,7 @@ def main() -> None:
     dro_orbit.period = dro_data.get("properties", {}).get("period", None)
 
     # 生成 LEO 轨道
-    leo_orbit = generate_leo_orbit(n_points=LEO_N_POINTS)
+    leo_orbit = generate_leo_orbit(n_points=leo_n_points)
 
     # =========================================================================
     # 参数报告
@@ -120,9 +148,9 @@ def main() -> None:
     print(f"       T={T_LEO:.6f} TU = {T_LEO * TU:.4f} 天")
     print(f"  DRO: {dro_orbit.states.shape[0]} 点, "
           f"周期={dro_orbit.period:.4f} TU = {dro_orbit.period * TU:.2f} 天")
-    print(f"  α: [{ALPHA_MIN}, {ALPHA_MAX}], n={N_ALPHA}")
-    print(f"  出发点: {N_DEPARTURE}")
-    print(f"  最大转移时间: {MAX_TRANSFER_TIME:.1f} TU = {MAX_TRANSFER_TIME * TU:.1f} 天")
+    print(f"  α: [{alpha_min}, {alpha_max}], n={n_alpha}")
+    print(f"  出发点: {n_departure}")
+    print(f"  最大转移时间: {max_transfer_time:.1f} TU = {max_transfer_time * TU:.1f} 天")
     print("=" * 70)
 
     # =========================================================================
@@ -132,15 +160,15 @@ def main() -> None:
     results = searcher.search(
         departure_orbit=leo_orbit,
         arrival_orbit=dro_orbit,
-        alpha_min=ALPHA_MIN,
-        alpha_max=ALPHA_MAX,
-        n_alpha=N_ALPHA,
-        n_departure=N_DEPARTURE,
-        max_transfer_time=MAX_TRANSFER_TIME,
-        intersection_threshold=INTERSECTION_THRESHOLD,
-        min_distance_threshold=MIN_DISTANCE_THRESHOLD,
-        collision_earth_radius=EARTH_RADIUS,
-        collision_moon_radius=MOON_RADIUS,
+        alpha_min=alpha_min,
+        alpha_max=alpha_max,
+        n_alpha=n_alpha,
+        n_departure=n_departure,
+        max_transfer_time=max_transfer_time,
+        intersection_threshold=intersection_threshold,
+        min_distance_threshold=min_distance_threshold,
+        collision_earth_radius=earth_radius,
+        collision_moon_radius=moon_radius,
         integration_dt=INTEGRATION_DT,
         verbose=True,
         n_workers=None,
@@ -154,8 +182,8 @@ def main() -> None:
     # =========================================================================
     output_dir = project_root / "output/transfer"
     output_file = output_dir / (
-        f"search_leo_dro_{N_DEPARTURE}-{N_ALPHA}-{ALPHA_MIN:g}-{ALPHA_MAX:g}-"
-        f"{MAX_TRANSFER_TIME:.4f}_{int(time.time())}.json"
+        f"search_leo_dro_{n_departure}-{n_alpha}-{alpha_min:g}-{alpha_max:g}-"
+        f"{max_transfer_time:.4f}_{int(time.time())}.json"
     )
 
     def _json_safe(x):
@@ -204,13 +232,13 @@ def main() -> None:
         "leo_radius": float(R_LEO),
         "leo_period": float(T_LEO),
         "search_params": {
-            "n_departure": N_DEPARTURE,
-            "n_alpha": N_ALPHA,
-            "alpha_min": ALPHA_MIN,
-            "alpha_max": ALPHA_MAX,
-            "max_transfer_time": MAX_TRANSFER_TIME,
-            "intersection_threshold": INTERSECTION_THRESHOLD,
-            "min_distance_threshold": MIN_DISTANCE_THRESHOLD,
+            "n_departure": n_departure,
+            "n_alpha": n_alpha,
+            "alpha_min": alpha_min,
+            "alpha_max": alpha_max,
+            "max_transfer_time": max_transfer_time,
+            "intersection_threshold": intersection_threshold,
+            "min_distance_threshold": min_distance_threshold,
         },
         "n_total": len(results_data),
         "n_feasible": len(feasible),

@@ -16,6 +16,7 @@
   to Resonant Orbits", JGCD, Vol.48, No.6
 """
 
+import argparse
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -27,13 +28,29 @@ from scripts.utils.common import MU, TU
 OUTPUT_DIR = project_root / "output"
 RO_32_FAMILY_FILE = OUTPUT_DIR / "ro" / "ro_32_family_-1.2--0.8-0.005_3856904629.json"
 
-# ARO 目标 x0（来自论文 Table 2）
-TARGET_X0_ARO = -1.1318
-Z0_ARO = 0.1999  # 固定 z0
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="生成 ARO 轴向共振轨道族（从 3:2 RO 分岔）")
+    parser.add_argument("--ro-file", type=str, default=None,
+                        help="3:2 RO 轨道族 JSON 文件路径")
+    parser.add_argument("--target-x0", type=float, default=-1.1318,
+                        help="ARO 目标 x0（分岔点搜索）")
+    parser.add_argument("--z0", type=float, default=0.1999, help="固定 z0 坐标（无量纲）")
+    parser.add_argument("--vy0", type=float, default=0.4, help="初始 y 方向速度猜测（无量纲）")
+    parser.add_argument("--period", type=float, default=60.0 / TU, help="初始周期猜测（无量纲）")
+    parser.add_argument("--x-min", type=float, default=-1.2, help="延拓 x0 范围下限")
+    parser.add_argument("--x-max", type=float, default=-0.9, help="延拓 x0 范围上限")
+    parser.add_argument("--step-size", type=float, default=0.005, help="延拓步长")
+    return parser.parse_args()
 
 
 def main():
+    args = parse_args()
     family_aro = None
+
+    ro_32_family_file = args.ro_file or str(RO_32_FAMILY_FILE)
+    target_x0_aro = args.target_x0
+    z0_aro = args.z0
 
     # =============================================================================
     # 1. 系统与动力学模型初始化
@@ -46,7 +63,7 @@ def main():
     # =============================================================================
     print("=" * 60)
     print("加载 3:2 RO 族数据...")
-    family_32 = e2m2e.core.orbit.OrbitFamily.load_from_file(str(RO_32_FAMILY_FILE))
+    family_32 = e2m2e.core.orbit.OrbitFamily.load_from_file(ro_32_family_file)
     print(f"已加载 {len(family_32)} 条 3:2 RO 轨道")
 
     # =============================================================================
@@ -135,12 +152,12 @@ def main():
     aro_bp = None
     if bifurcation_points:
         print("\n" + "=" * 60)
-        print(f"搜索接近 x0={TARGET_X0_ARO} 的分岔点（ARO种子）...")
+        print(f"搜索接近 x0={target_x0_aro} 的分岔点（ARO种子）...")
 
         aro_bp = e2m2e.algorithms.StabilityAnalysis.find_nearest_bifurcation(
             orbits=family_32.orbits,
             dynamics=dynamics,
-            target_x0=TARGET_X0_ARO,
+            target_x0=target_x0_aro,
             tolerance=0.1,
         )
 
@@ -161,7 +178,7 @@ def main():
     print("从分岔点生成 ARO 族...")
 
     # ARO 的种子来自论文 Table 2: x=-1.1318, z=0.1999
-    z0_aro = Z0_ARO  # 固定 z0
+    z0_aro = args.z0  # 固定 z0
 
     # 配置 3D XZ 对称修正器（固定 z0）
     corrector_aro = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamics)
@@ -171,12 +188,12 @@ def main():
     if aro_bp:
         x0_aro = aro_bp["orbit"].states[0][0]
     else:
-        x0_aro = TARGET_X0_ARO
+        x0_aro = target_x0_aro
 
-    y_dot0_aro = 0.4  # 初始猜测
+    y_dot0_aro = args.vy0  # 初始猜测
     seed_state_aro = [x0_aro, 0.0, z0_aro, 0.0, y_dot0_aro, 0.0]
     seed_orbit_aro = e2m2e.core.orbit.Orbit(states=[seed_state_aro], times=[0])
-    seed_orbit_aro.period = 60.0 / TU  # 初始周期猜测
+    seed_orbit_aro.period = args.period  # 初始周期猜测
 
     # 先修正种子轨道
     try:
@@ -194,15 +211,15 @@ def main():
         print("使用默认种子继续...")
 
     # 延拓参数：x0 范围
-    x_min = -1.2
-    x_max = -0.9
+    x_min = args.x_min
+    x_max = args.x_max
 
     # 自然延拓生成 ARO 族
     continuator_aro = e2m2e.algorithms.Continuation(corrector=corrector_aro)
     family_aro = continuator_aro.natural_continuation(
         seed_orbit=seed_orbit_aro,
         param_range=(x_min, x_max),
-        step_size=0.005,
+        step_size=args.step_size,
         verbose=False,
     )
 

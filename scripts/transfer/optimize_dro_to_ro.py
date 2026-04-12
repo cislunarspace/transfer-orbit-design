@@ -13,6 +13,7 @@ Windows 须保留末尾 ``if __name__ == "__main__"``。
 
 from __future__ import annotations
 
+import argparse
 import json
 import multiprocessing
 import os
@@ -44,12 +45,13 @@ from scripts.utils.common import DU, MU, TU
 
 project_root = Path(__file__).resolve().parent.parent.parent
 
-SEARCH_RESULTS_FILE = Path(os.environ.get(
-    "SEARCH_RESULTS_FILE",
-    str(project_root / "output/transfer/search_results_200-100-0.5-2.5-22.998482_3857865736.json"),
-))
-DRO_FILE = Path(os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857864736.json")))
-RO_FILE = Path(os.environ.get("RO_FILE", str(project_root / "output/ro/ro_31_3857864753.json")))
+SEARCH_RESULTS_DEFAULT = str(project_root / "output/transfer/search_results_200-100-0.5-2.5-22.998482_3857865736.json")
+DRO_FILE_DEFAULT = str(project_root / "output/dro/dro_31_3857864736.json")
+RO_FILE_DEFAULT = str(project_root / "output/ro/ro_31_3857864753.json")
+
+SEARCH_RESULTS_FILE = Path(os.environ.get("SEARCH_RESULTS_FILE", SEARCH_RESULTS_DEFAULT))
+DRO_FILE = Path(os.environ.get("DRO_FILE", DRO_FILE_DEFAULT))
+RO_FILE = Path(os.environ.get("RO_FILE", RO_FILE_DEFAULT))
 
 ALPHA_MIN = 0.5
 ALPHA_MAX = 2.5
@@ -87,6 +89,22 @@ VELOCITY_ANGLE_TOL = 0.05
 DEBUG_DEPARTURE_POINT: Optional[Tuple[float, float, float]] = None
 
 COMPUTE_T_INS_FROM_TRAJECTORY = True
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="DRO→RO 转移 NLP 优化（SLSQP 最小化 Δv）")
+    parser.add_argument("--search-file", type=str, default=None, help="网格搜索结果 JSON 文件路径")
+    parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
+    parser.add_argument("--ro-file", type=str, default=None, help="RO 轨道 JSON 文件路径")
+    parser.add_argument("--alpha-min", type=float, default=ALPHA_MIN, help="alpha 搜索下界")
+    parser.add_argument("--alpha-max", type=float, default=ALPHA_MAX, help="alpha 搜索上界")
+    parser.add_argument("--nlp-maxiter", type=int, default=NLP_MAXITER, help="NLP 最大迭代次数")
+    parser.add_argument("--nlp-ftol", type=float, default=NLP_FTOL, help="NLP 函数容差")
+    parser.add_argument("--top-k", type=int, default=None, help="取前 K 个可行解优化")
+    parser.add_argument("--max-cases", type=int, default=None, help="最大优化案例数")
+    parser.add_argument("--n-workers", type=int, default=None, help="并行 worker 数")
+    parser.add_argument("--velocity-angle-tol", type=float, default=VELOCITY_ANGLE_TOL, help="速度方向容差（弧度）")
+    return parser.parse_args()
 
 
 # ---------------------------------------------------------------------------
@@ -528,45 +546,60 @@ def worker_run_thread(args):
 
 def main() -> None:
     """加载网格与轨道、筛选可行解、按并行设置跑 NLP，并写出 ``optimization_results_*.json``。"""
+    args = parse_args()
+
+    # CLI 参数覆盖模块级常量
+    search_file = Path(args.search_file or os.environ.get("SEARCH_RESULTS_FILE", SEARCH_RESULTS_DEFAULT))
+    dro_file = Path(args.dro_file or os.environ.get("DRO_FILE", DRO_FILE_DEFAULT))
+    ro_file = Path(args.ro_file or os.environ.get("RO_FILE", RO_FILE_DEFAULT))
+    alpha_min = args.alpha_min
+    alpha_max = args.alpha_max
+    nlp_maxiter = args.nlp_maxiter
+    nlp_ftol = args.nlp_ftol
+    top_k = args.top_k if args.top_k is not None else TOP_K_FEASIBLE
+    max_cases = args.max_cases if args.max_cases is not None else MAX_CASES
+    n_workers = args.n_workers if args.n_workers is not None else N_WORKERS
+    velocity_angle_tol = args.velocity_angle_tol
+
     print("=" * 70, flush=True)
     print("DRO-RO 转移 NLP 优化（Cui et al. 2025；e2m2e DROTRONLPOptimizer）", flush=True)
     print("=" * 70, flush=True)
 
-    if not SEARCH_RESULTS_FILE.is_file():
-        raise FileNotFoundError(f"未找到网格结果文件: {SEARCH_RESULTS_FILE}")
-    if not DRO_FILE.is_file():
-        raise FileNotFoundError(f"未找到 DRO 文件: {DRO_FILE}")
-    if not RO_FILE.is_file():
-        raise FileNotFoundError(f"未找到 RO 文件: {RO_FILE}")
+    if not search_file.is_file():
+        raise FileNotFoundError(f"未找到网格结果文件: {search_file}")
+    if not dro_file.is_file():
+        raise FileNotFoundError(f"未找到 DRO 文件: {dro_file}")
+    if not ro_file.is_file():
+        raise FileNotFoundError(f"未找到 RO 文件: {ro_file}")
 
     print(f"\n优化配置:", flush=True)
     _cpu = multiprocessing.cpu_count() or 1
     print(
-        f"  并行: n_workers={N_WORKERS}（None=逻辑 CPU 数 {_cpu}）, backend={PARALLEL_BACKEND}",
+        f"  并行: n_workers={n_workers}（None=逻辑 CPU 数 {_cpu}）, backend={PARALLEL_BACKEND}",
         flush=True,
     )
-    print(f"  TOP_K_FEASIBLE: {TOP_K_FEASIBLE}")
-    print(f"  MAX_CASES: {MAX_CASES}")
-    print(f"  α 范围: [{ALPHA_MIN:.2f}, {ALPHA_MAX:.2f}]")
+    print(f"  TOP_K_FEASIBLE: {top_k}")
+    print(f"  MAX_CASES: {max_cases}")
+    print(f"  α 范围: [{alpha_min:.2f}, {alpha_max:.2f}]")
     print(f"  积分步长（1 小时）: {DT:.8f} TU")
     print(f"  碰撞半径: 地球={EARTH_RADIUS:.4f}, 月球={MOON_RADIUS:.4f}")
     print(f"  进度条: {'开启（tqdm）' if USE_TQDM else '关闭（OPTIMIZE_NO_TQDM）'}")
     print(f"  自动推算 t_ins: {COMPUTE_T_INS_FROM_TRAJECTORY}")
 
     print(f"\n加载网格结果:", flush=True)
-    print(f"  文件: {SEARCH_RESULTS_FILE}", flush=True)
+    print(f"  文件: {search_file}", flush=True)
     print("  正在读取 JSON（大文件可能较慢）…", flush=True)
-    all_results = load_search_results(SEARCH_RESULTS_FILE)
+    all_results = load_search_results(search_file)
     total_records = len(all_results)
     feasible_indexed: List[Tuple[int, Dict[str, Any]]] = [
         (i, r) for i, r in enumerate(all_results) if r.get("is_feasible")
     ]
 
     n_feasible_total = len(feasible_indexed)
-    if TOP_K_FEASIBLE is not None:
-        feasible_indexed = feasible_indexed[:TOP_K_FEASIBLE]
-    if MAX_CASES is not None:
-        feasible_indexed = feasible_indexed[:MAX_CASES]
+    if top_k is not None:
+        feasible_indexed = feasible_indexed[:top_k]
+    if max_cases is not None:
+        feasible_indexed = feasible_indexed[:max_cases]
 
     del all_results
 
@@ -585,12 +618,12 @@ def main() -> None:
         return
 
     print(f"\n加载轨道数据:", flush=True)
-    dro_orbit = load_orbit_from_json(str(DRO_FILE))
-    ro_orbit = load_orbit_from_json(str(RO_FILE))
-    print(f"  DRO: {DRO_FILE}", flush=True)
-    print(f"  RO: {RO_FILE}", flush=True)
+    dro_orbit = load_orbit_from_json(str(dro_file))
+    ro_orbit = load_orbit_from_json(str(ro_file))
+    print(f"  DRO: {dro_file}", flush=True)
+    print(f"  RO: {ro_file}", flush=True)
 
-    with open(RO_FILE, encoding="utf-8") as f:
+    with open(ro_file, encoding="utf-8") as f:
         ro_json = json.load(f)
     if "properties" in ro_json and "period" in ro_json["properties"]:
         ro_orbit.period = float(ro_json["properties"]["period"])
@@ -613,8 +646,8 @@ def main() -> None:
 
     pack_cfg = NlpPackConfig(
         mu=float(MU),
-        alpha_min=float(ALPHA_MIN),
-        alpha_max=float(ALPHA_MAX),
+        alpha_min=float(alpha_min),
+        alpha_max=float(alpha_max),
         earth_radius=float(EARTH_RADIUS),
         moon_radius=float(MOON_RADIUS),
         dt=float(DT),
@@ -622,17 +655,17 @@ def main() -> None:
         integrator_rtol=float(INTEGRATOR_RTOL),
         integrator_atol=float(INTEGRATOR_ATOL),
         use_relaxed_velocity=bool(USE_RELAXED_VELOCITY),
-        velocity_angle_tol=float(VELOCITY_ANGLE_TOL),
+        velocity_angle_tol=float(velocity_angle_tol),
         use_copt=bool(USE_COPT),
         fallback_to_scipy=bool(FALLBACK_TO_SCIPY),
     )
     thread_nlp = ThreadNlpParams(
-        alpha_min=float(ALPHA_MIN),
-        alpha_max=float(ALPHA_MAX),
+        alpha_min=float(alpha_min),
+        alpha_max=float(alpha_max),
         earth_radius=float(EARTH_RADIUS),
         moon_radius=float(MOON_RADIUS),
         use_relaxed_velocity=bool(USE_RELAXED_VELOCITY),
-        velocity_angle_tol=float(VELOCITY_ANGLE_TOL),
+        velocity_angle_tol=float(velocity_angle_tol),
         use_copt=bool(USE_COPT),
         fallback_to_scipy=bool(FALLBACK_TO_SCIPY),
     )
@@ -646,10 +679,10 @@ def main() -> None:
         raise ValueError("PARALLEL_BACKEND 须为 'threads' 或 'processes'")
 
     cpu_n = multiprocessing.cpu_count() or 1
-    if N_WORKERS is None:
+    if n_workers is None:
         n_workers_req = max(1, cpu_n)
     else:
-        n_workers_req = max(1, int(N_WORKERS))
+        n_workers_req = max(1, int(n_workers))
 
     n_total = len(feasible_indexed)
     disable_tqdm = not USE_TQDM or n_total <= 0
@@ -680,12 +713,12 @@ def main() -> None:
                     system,
                     dynamics,
                     verbose=False,
-                    alpha_min=float(ALPHA_MIN),
-                    alpha_max=float(ALPHA_MAX),
+                    alpha_min=float(alpha_min),
+                    alpha_max=float(alpha_max),
                     earth_radius=float(EARTH_RADIUS),
                     moon_radius=float(MOON_RADIUS),
                     use_relaxed_velocity=bool(USE_RELAXED_VELOCITY),
-                    velocity_angle_tol=float(VELOCITY_ANGLE_TOL),
+                    velocity_angle_tol=float(velocity_angle_tol),
                     use_copt=bool(USE_COPT),
                     fallback_to_scipy=bool(FALLBACK_TO_SCIPY),
                     progress_callback=cb,
@@ -777,15 +810,15 @@ def main() -> None:
         json.dump(
             {
                 "meta": {
-                    "search_results_file": str(SEARCH_RESULTS_FILE),
-                    "dro_file": str(DRO_FILE),
-                    "ro_file": str(RO_FILE),
-                    "alpha_range": [ALPHA_MIN, ALPHA_MAX],
+                    "search_results_file": str(search_file),
+                    "dro_file": str(dro_file),
+                    "ro_file": str(ro_file),
+                    "alpha_range": [alpha_min, alpha_max],
                     "nlp_solver": "copt_with_scipy_fallback" if USE_COPT else "scipy_slsqp",
                     "use_relaxed_velocity": USE_RELAXED_VELOCITY,
                     "n_optimized": len(records),
                     "parallel_backend": PARALLEL_BACKEND,
-                    "n_workers_requested": N_WORKERS,
+                    "n_workers_requested": n_workers,
                     "integrator_rtol": INTEGRATOR_RTOL,
                     "integrator_atol": INTEGRATOR_ATOL,
                     "blas_threads_per_worker": blas_threads_per_worker(

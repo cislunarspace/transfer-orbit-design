@@ -6,6 +6,7 @@ import platform
 from pathlib import Path
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QDoubleValidator
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -17,7 +18,6 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSpinBox,
-    QDoubleSpinBox,
     QSplitter,
     QStatusBar,
     QTabWidget,
@@ -202,7 +202,7 @@ class MainWindow(QMainWindow):
         self._params_scroll.setWidget(self._params_container)
 
         self._env_widgets: dict[str, QComboBox] = {}
-        self._cli_widgets: dict[str, QCheckBox | QLineEdit | QSpinBox | QDoubleSpinBox] = {}
+        self._cli_widgets: dict[str, QCheckBox | QLineEdit | QSpinBox] = {}
 
         tabs.addTab(self._params_scroll, "运行参数")
 
@@ -264,7 +264,7 @@ class MainWindow(QMainWindow):
             if isinstance(widget, QCheckBox):
                 if widget.isChecked():
                     extra_args.append(cli_param.flag)
-            elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+            elif isinstance(widget, QSpinBox):
                 val = widget.value()
                 default = cli_param.default
                 if default:
@@ -422,7 +422,7 @@ class MainWindow(QMainWindow):
                 key = cli_param.flag.lstrip("-").replace("-", "_")
 
                 if cli_param.param_type == "bool":
-                    widget: QCheckBox | QLineEdit | QSpinBox | QDoubleSpinBox = QCheckBox(cli_param.label)
+                    widget: QCheckBox | QLineEdit | QSpinBox = QCheckBox(cli_param.label)
                     widget.setToolTip(cli_param.help)
                 elif cli_param.param_type == "int":
                     widget = QSpinBox()
@@ -431,11 +431,12 @@ class MainWindow(QMainWindow):
                         widget.setValue(int(cli_param.default))
                     widget.setToolTip(cli_param.help)
                 elif cli_param.param_type == "float":
-                    widget = QDoubleSpinBox()
-                    widget.setRange(-99999.0, 99999.0)
-                    widget.setDecimals(2)
+                    widget = QLineEdit()
+                    validator = QDoubleValidator(-99999.0, 99999.0, 15)
+                    validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+                    widget.setValidator(validator)
                     if cli_param.default:
-                        widget.setValue(float(cli_param.default))
+                        widget.setText(cli_param.default)
                     widget.setToolTip(cli_param.help)
                 else:  # str
                     widget = QLineEdit()

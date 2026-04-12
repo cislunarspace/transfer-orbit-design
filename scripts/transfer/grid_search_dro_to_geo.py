@@ -9,6 +9,7 @@ DRO → GEO 网格搜索
 Windows 多进程需要 ``if __name__ == "__main__"``。
 """
 
+import argparse
 import json
 import os
 import numpy as np
@@ -20,23 +21,38 @@ from e2m2e.transfer import GeoTransferSearch, load_orbit_from_json
 from scripts.utils.common import DU, MU, TU
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="DRO→GEO 转移轨道网格搜索")
+    parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
+    parser.add_argument("--n-departure", type=int, default=200, help="出发时间网格数")
+    parser.add_argument("--n-alpha", type=int, default=100, help="alpha 网格密度")
+    parser.add_argument("--alpha-min", type=float, default=0.5, help="alpha 搜索下界")
+    parser.add_argument("--alpha-max", type=float, default=2.5, help="alpha 搜索上界")
+    parser.add_argument("--max-transfer-time", type=float, default=100.0 / TU, help="最大转移时间（无量纲）")
+    parser.add_argument("--geo-threshold", type=float, default=100.0 / DU, help="GEO 相交距离阈值")
+    parser.add_argument("--earth-radius", type=float, default=200.0 / DU, help="地球碰撞检测半径")
+    parser.add_argument("--moon-radius", type=float, default=100.0 / DU, help="月球碰撞检测半径")
+    return parser.parse_args()
+
+
 def main() -> None:
+    args = parse_args()
     project_root = Path(__file__).resolve().parent.parent.parent
 
     # =========================================================================
     # 搜索参数配置
     # =========================================================================
-    dro_file = Path(os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857693511.json")))
+    dro_file = Path(args.dro_file or os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857693511.json")))
 
-    n_departure = 200
-    n_alpha = 100
-    alpha_min = 0.5
-    alpha_max = 2.5
-    max_transfer_time = 100.0 / TU
+    n_departure = args.n_departure
+    n_alpha = args.n_alpha
+    alpha_min = args.alpha_min
+    alpha_max = args.alpha_max
+    max_transfer_time = args.max_transfer_time
 
-    geo_threshold = 100.0 / DU
-    earth_radius = 200.0 / DU
-    moon_radius = 100.0 / DU
+    geo_threshold = args.geo_threshold
+    earth_radius = args.earth_radius
+    moon_radius = args.moon_radius
 
     # =========================================================================
     # 初始化系统

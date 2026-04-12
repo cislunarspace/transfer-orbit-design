@@ -16,6 +16,7 @@
   to Resonant Orbits", JGCD, Vol.48, No.6
 """
 
+import argparse
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -27,12 +28,24 @@ from scripts.utils.common import MU, TU
 OUTPUT_DIR = project_root / "output"
 RO_32_FAMILY_FILE = OUTPUT_DIR / "ro" / "ro_32_family_-1.2--0.8-0.005_3856904629.json"
 
-# RRO 目标 x0（来自论文 Table 2）
-TARGET_X0_RRO = -1.0878
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="生成 RRO 反射共振轨道族（从 3:2 RO 分岔）")
+    parser.add_argument("--ro-file", type=str, default=None,
+                        help="3:2 RO 轨道族 JSON 文件路径")
+    parser.add_argument("--target-x0", type=float, default=-1.0878,
+                        help="RRO 目标 x0（分岔点搜索）")
+    parser.add_argument("--z-max", type=float, default=0.5, help="最大 z 幅值")
+    parser.add_argument("--step-size", type=float, default=0.01, help="延拓步长")
+    return parser.parse_args()
 
 
 def main():
+    args = parse_args()
     family_rro = None
+
+    ro_32_family_file = args.ro_file or str(RO_32_FAMILY_FILE)
+    target_x0_rro = args.target_x0
 
     # =============================================================================
     # 1. 系统与动力学模型初始化
@@ -45,7 +58,7 @@ def main():
     # =============================================================================
     print("=" * 60)
     print("加载 3:2 RO 族数据...")
-    family_32 = e2m2e.core.orbit.OrbitFamily.load_from_file(str(RO_32_FAMILY_FILE))
+    family_32 = e2m2e.core.orbit.OrbitFamily.load_from_file(ro_32_family_file)
     print(f"已加载 {len(family_32)} 条 3:2 RO 轨道")
 
     # =============================================================================
@@ -135,12 +148,12 @@ def main():
     rro_bp = None
     if bifurcation_points:
         print("\n" + "=" * 60)
-        print(f"搜索接近 x0={TARGET_X0_RRO} 的分岔点（RRO种子）...")
+        print(f"搜索接近 x0={target_x0_rro} 的分岔点（RRO种子）...")
 
         rro_bp = e2m2e.algorithms.StabilityAnalysis.find_nearest_bifurcation(
             orbits=family_32.orbits,
             dynamics=dynamics,
-            target_x0=TARGET_X0_RRO,
+            target_x0=target_x0_rro,
             tolerance=0.1,
         )
 
@@ -180,8 +193,8 @@ def main():
 
         # 延拓参数：z0 从种子值开始
         z_min = z0_seed
-        z_max = 0.5  # 最大 z 幅值
-        step_size = 0.01
+        z_max = args.z_max  # 最大 z 幅值
+        step_size = args.step_size
 
         # 自然延拓生成 RRO 族
         continuator_rro = e2m2e.algorithms.Continuation(corrector=corrector_rro)

@@ -21,6 +21,7 @@ Windows 须保留 ``if __name__ == "__main__"``。
 
 from __future__ import annotations
 
+import argparse
 import json
 import multiprocessing
 import os
@@ -51,11 +52,11 @@ project_root = Path(__file__).resolve().parent.parent.parent
 # =====================================================================
 # 配置 — 运行前须更新文件路径
 # =====================================================================
-SEARCH_RESULTS_FILE = Path(os.environ.get(
-    "SEARCH_RESULTS_FILE",
-    str(project_root / "output/transfer/search_geo_dro_10-200-1-1.5-2.2998_1775916430.json"),
-))
-DRO_FILE = Path(os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857864736.json")))
+SEARCH_RESULTS_DEFAULT = str(project_root / "output/transfer/search_geo_dro_10-200-1-1.5-2.2998_1775916430.json")
+DRO_FILE_DEFAULT = str(project_root / "output/dro/dro_31_3857864736.json")
+
+SEARCH_RESULTS_FILE = Path(os.environ.get("SEARCH_RESULTS_FILE", SEARCH_RESULTS_DEFAULT))
+DRO_FILE = Path(os.environ.get("DRO_FILE", DRO_FILE_DEFAULT))
 
 ALPHA_MIN = 1.0
 ALPHA_MAX = 1.5
@@ -88,6 +89,25 @@ N_WORKERS: Optional[int] = None
 PARALLEL_BACKEND: str = "threads"
 
 LIMIT_BLAS_THREADS_PER_WORKER: int = 1
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="GEO→DRO 转移 NLP 优化")
+    parser.add_argument("--search-file", type=str, default=None, help="网格搜索结果 JSON 文件路径")
+    parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
+    parser.add_argument("--alpha-min", type=float, default=ALPHA_MIN, help="alpha 搜索下界")
+    parser.add_argument("--alpha-max", type=float, default=ALPHA_MAX, help="alpha 搜索上界")
+    parser.add_argument("--t-min", type=float, default=T_MIN, help="转移时间下界（无量纲）")
+    parser.add_argument("--t-max", type=float, default=T_MAX, help="转移时间上界（无量纲）")
+    parser.add_argument("--t-ins-min", type=float, default=T_INS_MIN, help="DRO 插入时间下界")
+    parser.add_argument("--t-ins-max", type=float, default=T_INS_MAX, help="DRO 插入时间上界")
+    parser.add_argument("--velocity-angle-tol", type=float, default=None, help="速度平行性容差（度）")
+    parser.add_argument("--nlp-maxiter", type=int, default=NLP_MAXITER, help="NLP 最大迭代次数")
+    parser.add_argument("--nlp-ftol", type=float, default=NLP_FTOL, help="NLP 函数容差")
+    parser.add_argument("--top-k", type=int, default=None, help="取前 K 个可行解优化")
+    parser.add_argument("--max-cases", type=int, default=None, help="最大优化案例数")
+    parser.add_argument("--n-workers", type=int, default=None, help="并行 worker 数")
+    return parser.parse_args()
 
 
 # =====================================================================
@@ -497,15 +517,30 @@ def nlp_worker_packed(payload):
 
 
 def main() -> None:
+    args = parse_args()
+
+    # CLI 参数覆盖
+    search_file = Path(args.search_file or os.environ.get("SEARCH_RESULTS_FILE", SEARCH_RESULTS_DEFAULT))
+    dro_file = Path(args.dro_file or os.environ.get("DRO_FILE", DRO_FILE_DEFAULT))
+    alpha_min = args.alpha_min
+    alpha_max = args.alpha_max
+    t_min = args.t_min
+    t_max = args.t_max
+    t_ins_min = args.t_ins_min
+    t_ins_max = args.t_ins_max
+    angle_tol = np.deg2rad(args.velocity_angle_tol) if args.velocity_angle_tol is not None else VELOCITY_ANGLE_TOLERANCE
+    top_k = args.top_k if args.top_k is not None else TOP_K_FEASIBLE
+    max_cases = args.max_cases if args.max_cases is not None else MAX_CASES
+    n_workers = args.n_workers if args.n_workers is not None else N_WORKERS
+
     print("=" * 70, flush=True)
     print("GEO → DRO 转移 NLP 优化", flush=True)
     print("=" * 70, flush=True)
 
-    if not SEARCH_RESULTS_FILE.is_file():
-        raise FileNotFoundError(f"未找到搜索结果: {SEARCH_RESULTS_FILE}")
+    if not search_file.is_file():
+        raise FileNotFoundError(f"未找到搜索结果: {search_file}")
 
     # 查找 DRO 文件
-    dro_file = DRO_FILE
     if not dro_file.exists():
         dro_dir = project_root / "output/dro"
         dro_files = sorted(dro_dir.glob("dro_31_*.json"))
@@ -521,14 +556,14 @@ def main() -> None:
 
     _cpu = multiprocessing.cpu_count() or 1
     print(f"\n优化配置:", flush=True)
-    print(f"  并行: n_workers={N_WORKERS}（None=逻辑CPU数 {_cpu}）, backend={PARALLEL_BACKEND}")
-    print(f"  α 范围: [{ALPHA_MIN}, {ALPHA_MAX}]")
-    print(f"  T 范围: [{T_MIN}, {T_MAX}] TU = [{T_MIN * TU:.1f}, {T_MAX * TU:.1f}] 天")
-    print(f"  t_ins 范围: [{T_INS_MIN}, {T_INS_MAX}]")
+    print(f"  并行: n_workers={n_workers}（None=逻辑CPU数 {_cpu}）, backend={PARALLEL_BACKEND}")
+    print(f"  α 范围: [{alpha_min}, {alpha_max}]")
+    print(f"  T 范围: [{t_min}, {t_max}] TU = [{t_min * TU:.1f}, {t_max * TU:.1f}] 天")
+    print(f"  t_ins 范围: [{t_ins_min}, {t_ins_max}]")
     print(f"  DRO 周期: {dro_orbit.period:.4f} TU = {dro_orbit.period * TU:.2f} 天")
-    print(f"  速度平行性容差: {np.degrees(VELOCITY_ANGLE_TOLERANCE):.2f}°")
+    print(f"  速度平行性容差: {np.degrees(angle_tol):.2f}°")
 
-    with open(SEARCH_RESULTS_FILE, encoding="utf-8") as f:
+    with open(search_file, encoding="utf-8") as f:
         search_data = json.load(f)
 
     # 兼容有/无 meta 的格式
@@ -544,10 +579,10 @@ def main() -> None:
     feasible_indexed.sort(key=lambda x: x[1].get("min_distance", float("inf")))
     n_feasible_total = len(feasible_indexed)
 
-    if TOP_K_FEASIBLE is not None:
-        feasible_indexed = feasible_indexed[:TOP_K_FEASIBLE]
-    if MAX_CASES is not None:
-        feasible_indexed = feasible_indexed[:MAX_CASES]
+    if top_k is not None:
+        feasible_indexed = feasible_indexed[:top_k]
+    if max_cases is not None:
+        feasible_indexed = feasible_indexed[:max_cases]
 
     print(f"\n可行解总数: {n_feasible_total}", flush=True)
     print(f"本次待优化: {len(feasible_indexed)}", flush=True)
@@ -557,15 +592,15 @@ def main() -> None:
         return
 
     pack_cfg = NlpPackConfig(
-        alpha_min=float(ALPHA_MIN),
-        alpha_max=float(ALPHA_MAX),
-        t_min=float(T_MIN),
-        t_max=float(T_MAX),
-        t_ins_min=float(T_INS_MIN),
-        t_ins_max=float(T_INS_MAX),
+        alpha_min=float(alpha_min),
+        alpha_max=float(alpha_max),
+        t_min=float(t_min),
+        t_max=float(t_max),
+        t_ins_min=float(t_ins_min),
+        t_ins_max=float(t_ins_max),
         earth_radius=float(EARTH_RADIUS),
         moon_radius=float(MOON_RADIUS),
-        angle_tolerance=float(VELOCITY_ANGLE_TOLERANCE),
+        angle_tolerance=float(angle_tol),
     )
 
     output_dir = project_root / "output/transfer"
@@ -573,7 +608,7 @@ def main() -> None:
     out_path = output_dir / f"optimization_geo_dro_{int(time.time())}.json"
 
     cpu_n = multiprocessing.cpu_count() or 1
-    n_workers_req = N_WORKERS if N_WORKERS is not None else max(1, cpu_n)
+    n_workers_req = n_workers if n_workers is not None else max(1, cpu_n)
     n_total = len(feasible_indexed)
 
     print("\n" + "=" * 70, flush=True)
@@ -639,16 +674,16 @@ def main() -> None:
             {
                 "meta": {
                     "direction": "GEO_to_DRO",
-                    "search_results_file": str(SEARCH_RESULTS_FILE),
+                    "search_results_file": str(search_file),
                     "dro_file": str(dro_file),
-                    "alpha_range": [ALPHA_MIN, ALPHA_MAX],
-                    "transfer_time_range": [T_MIN, T_MAX],
-                    "t_ins_range": [T_INS_MIN, T_INS_MAX],
-                    "velocity_angle_tolerance_rad": VELOCITY_ANGLE_TOLERANCE,
+                    "alpha_range": [alpha_min, alpha_max],
+                    "transfer_time_range": [t_min, t_max],
+                    "t_ins_range": [t_ins_min, t_ins_max],
+                    "velocity_angle_tolerance_rad": angle_tol,
                     "nlp_solver": "scipy_slsqp",
                     "n_optimized": len(records),
                     "parallel_backend": PARALLEL_BACKEND,
-                    "n_workers_requested": N_WORKERS,
+                    "n_workers_requested": n_workers,
                 },
                 "results": records,
             },
