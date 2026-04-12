@@ -47,10 +47,11 @@ project_root = Path(__file__).resolve().parent.parent.parent
 # =====================================================================
 # 配置 — 运行前须更新文件路径
 # =====================================================================
-SEARCH_RESULTS_FILE = project_root / (
-    "output/transfer/search_dro_geo_200-100-0.5-2.5-22.9985_UPDATE_ME.json"
-)
-DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
+SEARCH_RESULTS_FILE = Path(os.environ.get(
+    "SEARCH_RESULTS_FILE",
+    str(project_root / "output/transfer/search_dro_geo_200-100-0.5-2.5-22.9985_UPDATE_ME.json"),
+))
+DRO_FILE = Path(os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857864736.json")))
 
 ALPHA_MIN = 0.5
 ALPHA_MAX = 2.5

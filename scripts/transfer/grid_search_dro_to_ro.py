@@ -26,10 +26,10 @@ def main() -> None:
     # 搜索参数配置
     # =========================================================================
 
-    # 轨道数据文件路径
+    # 轨道数据文件路径（支持通过环境变量 DRO_FILE / RO_FILE 覆盖）
     project_root = Path(__file__).resolve().parent.parent.parent
-    dro_file = project_root / "output/dro/dro_31_3857693511.json"
-    ro_file = project_root / "output/ro/ro_31_3857693516.json"
+    dro_file = Path(os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857693511.json")))
+    ro_file = Path(os.environ.get("RO_FILE", str(project_root / "output/ro/ro_31_3857693516.json")))
 
     # =========================================================================
     # 初始化系统

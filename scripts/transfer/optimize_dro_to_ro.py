@@ -44,11 +44,12 @@ from scripts.utils.common import DU, MU, TU
 
 project_root = Path(__file__).resolve().parent.parent.parent
 
-SEARCH_RESULTS_FILE = project_root / (
-    "output/transfer/search_results_200-100-0.5-2.5-22.998482_3857865736.json"
-)
-DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
-RO_FILE = project_root / "output/ro/ro_31_3857864753.json"
+SEARCH_RESULTS_FILE = Path(os.environ.get(
+    "SEARCH_RESULTS_FILE",
+    str(project_root / "output/transfer/search_results_200-100-0.5-2.5-22.998482_3857865736.json"),
+))
+DRO_FILE = Path(os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857864736.json")))
+RO_FILE = Path(os.environ.get("RO_FILE", str(project_root / "output/ro/ro_31_3857864753.json")))
 
 ALPHA_MIN = 0.5
 ALPHA_MAX = 2.5

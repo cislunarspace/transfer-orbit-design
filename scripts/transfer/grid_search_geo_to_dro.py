@@ -36,8 +36,8 @@ project_root = Path(__file__).resolve().parent.parent.parent
 # 配置
 # =====================================================================
 
-# DRO 轨道文件（运行前确认路径）
-DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
+# DRO 轨道文件（支持通过环境变量 DRO_FILE 覆盖）
+DRO_FILE = Path(os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857864736.json")))
 
 # 搜索参数（基于预研结果调整）
 N_DEPARTURE = 10       # GEO 上的出发点数量

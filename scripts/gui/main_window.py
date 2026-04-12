@@ -7,12 +7,17 @@ from pathlib import Path
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
     QFormLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
+    QSpinBox,
+    QDoubleSpinBox,
     QSplitter,
     QStatusBar,
     QTabWidget,
@@ -23,9 +28,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from scripts.gui.file_discovery import FileInfo, discover_files, format_size
+from scripts.gui.file_discovery import FileInfo, discover_files, filter_files, format_size
 from scripts.gui.process_runner import ScriptRunner
-from scripts.gui.script_registry import SCRIPTS, ScriptEntry
+from scripts.gui.script_registry import SCRIPTS, CliParam, EnvParam, ScriptEntry
 
 
 class MainWindow(QMainWindow):
@@ -187,7 +192,21 @@ class MainWindow(QMainWindow):
 
         tabs.addTab(info_widget, "Script Info")
 
-        # Tab 2: File Browser
+        # Tab 2: 运行参数
+        self._params_scroll = QScrollArea()
+        self._params_scroll.setWidgetResizable(True)
+        self._params_container = QWidget()
+        self._params_layout = QFormLayout(self._params_container)
+        self._params_layout.setContentsMargins(12, 12, 12, 12)
+        self._params_layout.setSpacing(8)
+        self._params_scroll.setWidget(self._params_container)
+
+        self._env_widgets: dict[str, QComboBox] = {}
+        self._cli_widgets: dict[str, QCheckBox | QLineEdit | QSpinBox | QDoubleSpinBox] = {}
+
+        tabs.addTab(self._params_scroll, "运行参数")
+
+        # Tab 3: File Browser
         self._file_tree = QTreeWidget()
         self._file_tree.setHeaderLabels(["Filename", "Size", "Modified", "Type"])
         self._file_tree.setAlternatingRowColors(True)
@@ -213,6 +232,9 @@ class MainWindow(QMainWindow):
         if entry.output_dir:
             self._highlight_category(Path(entry.output_dir).name)
 
+        # 重建参数面板
+        self._rebuild_params_panel(entry)
+
     def _on_run(self) -> None:
         if self._current_script is None:
             return
@@ -222,13 +244,47 @@ class MainWindow(QMainWindow):
         extra_args: list[str] = []
         env_overrides: dict[str, str] = {}
 
+        # 收集环境变量参数（文件选择）
+        for key, combo in self._env_widgets.items():
+            abs_path = combo.currentData()
+            if abs_path and key in self._current_script.env_params:
+                env_param = self._current_script.env_params[key]
+                env_overrides[env_param.env_var] = abs_path
+
+        # 收集命令行参数
+        for key, widget in self._cli_widgets.items():
+            cli_param = None
+            for p in self._current_script.cli_params:
+                if p.flag.lstrip("-").replace("-", "_") == key:
+                    cli_param = p
+                    break
+            if cli_param is None:
+                continue
+
+            if isinstance(widget, QCheckBox):
+                if widget.isChecked():
+                    extra_args.append(cli_param.flag)
+            elif isinstance(widget, (QSpinBox, QDoubleSpinBox)):
+                val = widget.value()
+                default = cli_param.default
+                if default:
+                    if abs(val - float(default)) > 1e-9:
+                        extra_args.extend([cli_param.flag, str(val)])
+                elif abs(val) > 1e-9:
+                    extra_args.extend([cli_param.flag, str(val)])
+            elif isinstance(widget, QLineEdit):
+                text = widget.text().strip()
+                default = cli_param.default
+                if text and text != default:
+                    extra_args.extend([cli_param.flag, text])
+
         # 如果脚本支持 --file 且用户在文件树中选中了文件
         if self._current_script.accepts_file_arg:
             selected = self._file_tree.currentItem()
             if selected:
                 abs_path = selected.data(0, Qt.ItemDataRole.UserRole)
                 if abs_path:
-                    extra_args = ["--file", abs_path]
+                    extra_args = ["--file", abs_path] + extra_args
 
         self._runner.run(self._current_script, extra_args, env_overrides)
 
@@ -283,6 +339,9 @@ class MainWindow(QMainWindow):
     def _refresh_files(self) -> None:
         self._files = discover_files(self._repo_root)
         self._rebuild_file_tree()
+        # 刷新参数面板中的文件下拉框
+        if self._current_script:
+            self._rebuild_params_panel(self._current_script)
 
     def _rebuild_file_tree(self) -> None:
         self._file_tree.clear()
@@ -316,3 +375,84 @@ class MainWindow(QMainWindow):
                 cat_item.setExpanded(True)
                 self._file_tree.scrollToItem(cat_item)
                 break
+
+    # ── 参数面板 ───────────────────────────────────────────────
+
+    def _rebuild_params_panel(self, entry: ScriptEntry) -> None:
+        """根据选中的脚本重建运行参数面板。"""
+        # 清空旧控件
+        while self._params_layout.count():
+            item = self._params_layout.takeAt(0)
+            if item.widget():
+                item.widget().setParent(None)
+
+        self._env_widgets.clear()
+        self._cli_widgets.clear()
+
+        has_any = False
+
+        # 环境变量参数（文件选择下拉框）
+        if entry.env_params:
+            section_label = QLabel("数据文件")
+            section_label.setStyleSheet("font-weight: bold; font-size: 12px; padding: 4px 0;")
+            self._params_layout.addRow(section_label)
+
+            for key, env_param in entry.env_params.items():
+                combo = QComboBox()
+                combo.addItem("（使用脚本默认值）", None)
+
+                # 填充对应类别的文件
+                matching = filter_files(self._files, category=env_param.file_category, file_type=env_param.file_type)
+                for fi in matching:
+                    combo.addItem(fi.name, fi.abs_path)
+
+                combo.setToolTip(env_param.env_var)
+                self._params_layout.addRow(f"{env_param.label}:", combo)
+                self._env_widgets[key] = combo
+
+            has_any = True
+
+        # 命令行参数
+        if entry.cli_params:
+            section_label = QLabel("命令行选项")
+            section_label.setStyleSheet("font-weight: bold; font-size: 12px; padding: 4px 0;")
+            self._params_layout.addRow(section_label)
+
+            for cli_param in entry.cli_params:
+                key = cli_param.flag.lstrip("-").replace("-", "_")
+
+                if cli_param.param_type == "bool":
+                    widget: QCheckBox | QLineEdit | QSpinBox | QDoubleSpinBox = QCheckBox(cli_param.label)
+                    widget.setToolTip(cli_param.help)
+                elif cli_param.param_type == "int":
+                    widget = QSpinBox()
+                    widget.setRange(-99999, 99999)
+                    if cli_param.default:
+                        widget.setValue(int(cli_param.default))
+                    widget.setToolTip(cli_param.help)
+                elif cli_param.param_type == "float":
+                    widget = QDoubleSpinBox()
+                    widget.setRange(-99999.0, 99999.0)
+                    widget.setDecimals(2)
+                    if cli_param.default:
+                        widget.setValue(float(cli_param.default))
+                    widget.setToolTip(cli_param.help)
+                else:  # str
+                    widget = QLineEdit()
+                    if cli_param.default:
+                        widget.setText(cli_param.default)
+                    widget.setToolTip(cli_param.help)
+
+                if cli_param.param_type == "bool":
+                    self._params_layout.addRow(widget)
+                else:
+                    self._params_layout.addRow(f"{cli_param.label}:", widget)
+
+                self._cli_widgets[key] = widget
+
+            has_any = True
+
+        if not has_any:
+            label = QLabel("此脚本无可配置参数")
+            label.setStyleSheet("color: #999; font-style: italic;")
+            self._params_layout.addRow(label)

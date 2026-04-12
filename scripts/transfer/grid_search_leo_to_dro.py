@@ -51,7 +51,8 @@ def generate_leo_orbit(n_points: int = 500) -> Orbit:
 # 配置
 # =====================================================================
 
-DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
+# DRO 轨道文件（支持通过环境变量 DRO_FILE 覆盖）
+DRO_FILE = Path(os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857864736.json")))
 
 # 搜索参数
 # LEO 圆速度 ~7.5 VU，逃逸速度 ~10.6 VU，alpha ≈ 10.6/7.5 ≈ 1.41

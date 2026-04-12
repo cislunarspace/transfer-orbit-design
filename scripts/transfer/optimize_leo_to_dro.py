@@ -12,6 +12,7 @@ LEO 出发需要更大的 alpha 和更长的转移时间。
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -28,10 +29,11 @@ base_opt.T_MIN = 5.0
 base_opt.T_MAX = 80.0
 base_opt.T_INS_MAX = 10.0
 
-# LEO 搜索结果文件（运行前更新）
-base_opt.SEARCH_RESULTS_FILE = project_root / (
-    "output/transfer/search_leo_dro_UPDATE_ME.json"
-)
+# LEO 搜索结果文件（支持通过环境变量 SEARCH_RESULTS_FILE 覆盖）
+base_opt.SEARCH_RESULTS_FILE = Path(os.environ.get(
+    "SEARCH_RESULTS_FILE",
+    str(project_root / "output/transfer/search_leo_dro_UPDATE_ME.json"),
+))
 
 
 def main() -> None:

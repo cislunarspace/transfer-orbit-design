@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QObject, QProcess, QTimer, pyqtSignal
+from PyQt6.QtCore import QProcessEnvironment, QObject, QProcess, QTimer, pyqtSignal
 
 from scripts.gui.script_registry import ScriptEntry
 
@@ -47,17 +47,12 @@ class ScriptRunner(QObject):
             args.extend(extra_args)
 
         # 构建环境变量：继承系统环境 + 强制无缓冲输出
-        env_dict: dict[str, str] = {}
-        for entry in QProcess.systemEnvironment():
-            if "=" in entry:
-                k, v = entry.split("=", 1)
-                env_dict[k] = v
-        env_dict["PYTHONUNBUFFERED"] = "1"
+        proc_env = QProcessEnvironment.systemEnvironment()
+        proc_env.insert("PYTHONUNBUFFERED", "1")
         if env_overrides:
-            env_dict.update(env_overrides)
-        self._process.setEnvironment(  # type: ignore[attr-defined]
-            [f"{k}={v}" for k, v in env_dict.items()]
-        )
+            for k, v in env_overrides.items():
+                proc_env.insert(k, v)
+        self._process.setProcessEnvironment(proc_env)
 
         self._process.start("python", args)
         self.script_started.emit(script_entry.name)

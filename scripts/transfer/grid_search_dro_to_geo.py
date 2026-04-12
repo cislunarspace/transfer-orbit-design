@@ -26,7 +26,7 @@ def main() -> None:
     # =========================================================================
     # 搜索参数配置
     # =========================================================================
-    dro_file = project_root / "output/dro/dro_31_3857693511.json"
+    dro_file = Path(os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857693511.json")))
 
     n_departure = 200
     n_alpha = 100

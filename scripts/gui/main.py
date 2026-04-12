@@ -1,7 +1,11 @@
 """GUI 入口 — python scripts/gui/main.py"""
 
+import os
 import sys
 from pathlib import Path
+
+# 屏蔽 Qt 字体后端的警告日志（Windows DirectWrite 兼容旧字体时的日志噪音）
+os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.fonts=false")
 
 # 确保 repo root 在 sys.path 中
 repo_root = Path(__file__).resolve().parent.parent.parent
