@@ -44,12 +44,16 @@ python scripts/transfer/plot_search_results.py <results.json> [--time-dv] [--orb
 ```bash
 python scripts/transfer/grid_search_dro_to_geo.py
 python scripts/transfer/optimize_dro_to_geo.py
+python scripts/transfer/plot_search_results_geo.py <results.json>
+python scripts/transfer/plot_optimize_result.py <results.json>
 ```
 
 ### GEO → DRO
 ```bash
 python scripts/transfer/grid_search_geo_to_dro.py
 python scripts/transfer/optimize_geo_to_dro.py
+python scripts/transfer/plot_search_results_geo_to_dro.py <results.json>
+python scripts/transfer/plot_optimize_result_geo_to_dro.py <results.json>
 ```
 
 ### LEO → DRO
@@ -119,7 +123,8 @@ PyQt6 desktop app (`scripts/gui/main.py`) for browsing and running scripts.
 - `job_manager.py` — multi-process manager, one QProcess per job with job_id routing
 - `output_panel.py` — per-job structured output (ANSI stripping, timestamps, stderr coloring) + JobCard widget
 - `file_discovery.py` — finds JSON files in `output/` for file-selection dropdowns
-- Scripts with `env_params` get file picker dropdowns; scripts with `cli_params` get typed input controls
+- `CliParam` with non-None `file_category` also renders as file dropdown (editable combo)
+- Scripts with `env_params` get file picker dropdowns; other `cli_params` get typed input controls
 
 ## Key Patterns
 
@@ -146,5 +151,4 @@ PyQt6 desktop app (`scripts/gui/main.py`) for browsing and running scripts.
 ## Plan Tracking
 
 - `plan/` — dated active task plans
-- `docs/plan/` — feature-level design plans
 - Check `plan/` for in-progress work before starting new tasks

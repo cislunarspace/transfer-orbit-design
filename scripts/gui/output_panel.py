@@ -11,6 +11,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
+    QProgressBar,
     QPushButton,
     QSizePolicy,
     QTextBrowser,
@@ -49,6 +50,8 @@ def _html_escape(text: str) -> str:
 class StructuredOutputWidget(QWidget):
     """单个 Job 的结构化输出面板：时间戳、着色、自动滚动。"""
 
+    status_message = pyqtSignal(str)  # 向主窗口状态栏发送消息
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._start_time = datetime.now()
@@ -80,7 +83,30 @@ class StructuredOutputWidget(QWidget):
         toolbar.addWidget(self._clear_btn)
         toolbar.addStretch()
 
+        # 已用时间
+        self._elapsed_label = QLabel("00:00:00")
+        self._elapsed_label.setStyleSheet("color: #888; font-size: 10px;")
+        self._elapsed_label.setMinimumWidth(60)
+        toolbar.addWidget(self._elapsed_label)
+
         layout.addLayout(toolbar)
+
+        # 进度条
+        self._progress_bar = QProgressBar()
+        self._progress_bar.setRange(0, 100)
+        self._progress_bar.setValue(0)
+        self._progress_bar.setFixedHeight(6)
+        self._progress_bar.setTextVisible(False)
+        self._progress_bar.setStyleSheet(
+            "QProgressBar {"
+            "  background-color: #333; border: none; border-radius: 3px;"
+            "}"
+            "QProgressBar::chunk {"
+            "  background-color: #0e639c; border-radius: 3px;"
+            "}"
+        )
+        self._progress_bar.hide()
+        layout.addWidget(self._progress_bar)
 
         # 输出文本区域
         self._browser = QTextBrowser()
@@ -113,6 +139,11 @@ class StructuredOutputWidget(QWidget):
         self._browser.verticalScrollBar().valueChanged.connect(
             self._on_scroll_changed
         )
+
+        # 已用时间定时器
+        self._elapsed_timer = QTimer(self)
+        self._elapsed_timer.timeout.connect(self._update_elapsed_label)
+        self._elapsed_timer.start(1000)
 
     def append_output(self, text: str, stream: str) -> None:
         """追加输出文本。stream 为 'stdout' 或 'stderr'。"""
@@ -150,6 +181,9 @@ class StructuredOutputWidget(QWidget):
                 prog_match = _PROGRESS_RE.search(line)
                 if prog_match:
                     pct = int(prog_match.group(1))
+                    # 更新进度条
+                    self._progress_bar.show()
+                    self._progress_bar.setValue(min(pct, 100))
                     html = (
                         f'<span style="color:#dcdcaa;">'
                         f"[{ts}] {_html_escape(line)} ({pct}%)"
@@ -179,9 +213,16 @@ class StructuredOutputWidget(QWidget):
         self._raw_lines.clear()
 
     def _copy_all(self) -> None:
-        from PyQt6.QtWidgets import QApplication
+        from PyQt6.QtWidgets import QApplication, QToolTip
 
         QApplication.clipboard().setText(self._browser.toPlainText())
+        # 复制确认提示
+        QToolTip.showText(
+            self._copy_btn.mapToGlobal(self._copy_btn.rect().center()),
+            "已复制！",
+            self._copy_btn,
+        )
+        QTimer.singleShot(1500, QToolTip.hideText)
 
     def _save_to_file(self) -> None:
         from PyQt6.QtWidgets import QFileDialog
@@ -194,11 +235,29 @@ class StructuredOutputWidget(QWidget):
         )
         if path:
             Path(path).write_text(self._browser.toPlainText(), encoding="utf-8")
+            self.status_message.emit(f"输出已保存到 {Path(path).name}")
 
     def _on_scroll_changed(self, value: int) -> None:
         sb = self._browser.verticalScrollBar()
         # 如果用户手动滚到底部附近，恢复自动滚动
         self._auto_scroll = value >= sb.maximum() - 20
+
+    def _update_elapsed_label(self) -> None:
+        elapsed = datetime.now() - self._start_time
+        total_secs = int(elapsed.total_seconds())
+        h, rem = divmod(total_secs, 3600)
+        m, s = divmod(rem, 60)
+        self._elapsed_label.setText(f"{h:02d}:{m:02d}:{s:02d}")
+
+    def set_finished(self) -> None:
+        """标记作业完成，停止计时并显示最终耗时。"""
+        self._elapsed_timer.stop()
+        elapsed = datetime.now() - self._start_time
+        total_secs = int(elapsed.total_seconds())
+        h, rem = divmod(total_secs, 3600)
+        m, s = divmod(rem, 60)
+        self._elapsed_label.setText(f"完成 {h:02d}:{m:02d}:{s:02d}")
+        self._progress_bar.hide()
 
 
 class JobCard(QWidget):
@@ -275,6 +334,12 @@ class JobCard(QWidget):
         self._start_time = datetime.now()
         self._timer.start(1000)
 
+        # 徽章脉动定时器
+        self._pulse_timer = QTimer(self)
+        self._pulse_timer.timeout.connect(self._toggle_pulse)
+        self._pulse_phase = False
+        self._pulse_timer.start(1000)
+
     def mouseDoubleClickEvent(self, event) -> None:
         self.clicked.emit(self.job_id)
 
@@ -297,6 +362,15 @@ class JobCard(QWidget):
         self._stop_btn.setVisible(self._is_running)
         if not self._is_running:
             self._timer.stop()
+            self._pulse_timer.stop()
+
+    def _toggle_pulse(self) -> None:
+        """脉动效果：交替亮/暗绿色。"""
+        if not self._is_running:
+            return
+        self._pulse_phase = not self._pulse_phase
+        color = "#4ec9b0" if self._pulse_phase else "#2a7a6a"
+        self._badge.setStyleSheet(f"color: {color}; font-size: 14px;")
 
     def _update_elapsed(self) -> None:
         elapsed = datetime.now() - self._start_time

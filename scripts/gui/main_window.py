@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import time
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QDoubleValidator, QKeySequence, QShortcut
@@ -14,6 +15,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -119,6 +121,7 @@ class MainWindow(QMainWindow):
         layout.setSpacing(2)
 
         self._script_buttons: dict[str, QPushButton] = {}
+        self._active_script_btn: QPushButton | None = None
 
         for category, scripts in SCRIPTS.items():
             header = QLabel(category)
@@ -179,18 +182,7 @@ class MainWindow(QMainWindow):
         self._run_btn = QPushButton("Run")
         self._run_btn.setEnabled(False)
         self._run_btn.clicked.connect(self._on_run)
-        self._run_btn.setStyleSheet(
-            "QPushButton {"
-            "  padding: 8px 24px;"
-            "  font-weight: bold;"
-            "  background-color: #0e639c;"
-            "  color: white;"
-            "  border: none;"
-            "  border-radius: 4px;"
-            "}"
-            "QPushButton:hover { background-color: #1177bb; }"
-            "QPushButton:disabled { background-color: #3c3c3c; color: #888; }"
-        )
+        self._run_btn.setStyleSheet(self._RUN_STYLE_READY)
         info_layout.addWidget(self._run_btn)
         info_layout.addStretch()
 
@@ -207,6 +199,7 @@ class MainWindow(QMainWindow):
 
         self._env_widgets: dict[str, QComboBox] = {}
         self._cli_widgets: dict[str, QCheckBox | QLineEdit | QSpinBox | QComboBox] = {}
+        self._param_defaults: dict[QWidget, str] = {}  # 控件 → 默认值
 
         tabs.addTab(self._params_scroll, "运行参数")
 
@@ -284,12 +277,62 @@ class MainWindow(QMainWindow):
         self._info_output_dir.setText(entry.output_dir or "—")
         self._run_btn.setEnabled(True)
 
+        # 高亮选中的脚本按钮
+        self._highlight_script_button(entry.name)
+
         # 高亮关联的输出目录
         if entry.output_dir:
             self._highlight_category(Path(entry.output_dir).name)
 
         # 重建参数面板
         self._rebuild_params_panel(entry)
+
+    _BTN_STYLE_NORMAL = (
+        "QPushButton { text-align: left; padding: 4px 8px; }"
+        "QPushButton:hover { background-color: #e0e0e0; }"
+    )
+    _BTN_STYLE_ACTIVE = (
+        "QPushButton { text-align: left; padding: 4px 8px; "
+        "background-color: #d4e8ff; border-left: 3px solid #0e639c; }"
+    )
+
+    def _highlight_script_button(self, name: str) -> None:
+        """高亮选中的脚本按钮，取消之前的高亮。"""
+        if self._active_script_btn is not None:
+            self._active_script_btn.setStyleSheet(self._BTN_STYLE_NORMAL)
+        btn = self._script_buttons.get(name)
+        if btn:
+            btn.setStyleSheet(self._BTN_STYLE_ACTIVE)
+        self._active_script_btn = btn
+
+    _PARAM_BORDER_MODIFIED = "border: 1px solid #4da6ff;"
+
+    def _update_param_highlight(self, widget: QWidget) -> None:
+        """比较控件当前值与默认值，不同时加蓝色边框。"""
+        default = self._param_defaults.get(widget, "")
+        if isinstance(widget, QLineEdit):
+            current = widget.text().strip()
+        elif isinstance(widget, QComboBox):
+            current = widget.currentText().strip()
+        elif isinstance(widget, QSpinBox):
+            current = str(widget.value())
+        else:
+            return
+        # 先清除旧的高亮边框，再按需添加
+        base_ss = widget.styleSheet().replace(self._PARAM_BORDER_MODIFIED, "")
+        if current and current != default:
+            widget.setStyleSheet(base_ss + self._PARAM_BORDER_MODIFIED)
+        else:
+            widget.setStyleSheet(base_ss)
+
+    def _find_cli_param(self, key: str) -> CliParam | None:
+        """根据 key 查找当前脚本的 CliParam。"""
+        if self._current_script is None:
+            return None
+        for p in self._current_script.cli_params:
+            if p.flag.lstrip("-").replace("-", "_") == key:
+                return p
+        return None
 
     def _on_run(self) -> None:
         if self._current_script is None:
@@ -307,11 +350,7 @@ class MainWindow(QMainWindow):
 
         # 收集命令行参数
         for key, widget in self._cli_widgets.items():
-            cli_param = None
-            for p in self._current_script.cli_params:
-                if p.flag.lstrip("-").replace("-", "_") == key:
-                    cli_param = p
-                    break
+            cli_param = self._find_cli_param(key)
             if cli_param is None:
                 continue
 
@@ -355,7 +394,67 @@ class MainWindow(QMainWindow):
                 if abs_path:
                     extra_args = ["--file", abs_path] + extra_args
 
+        if not self._validate_params():
+            return
+
         self._job_manager.start_job(self._current_script, extra_args, env_overrides)
+
+    def _validate_params(self) -> bool:
+        """验证参数，返回 True 表示通过。"""
+        for key, widget in self._cli_widgets.items():
+            cli_param = self._find_cli_param(key)
+            if cli_param is None:
+                continue
+
+            # 必需文件参数验证
+            if cli_param.file_category and not cli_param.default:
+                if isinstance(widget, QComboBox):
+                    text = widget.currentText().strip()
+                    if not text:
+                        QMessageBox.warning(
+                            self,
+                            "参数缺失",
+                            f"脚本需要参数 '{cli_param.label}'，但未选择文件。\n"
+                            "请从下拉列表中选择一个文件或手动输入路径。",
+                        )
+                        widget.setFocus()
+                        return False
+
+            # float 参数合法性
+            if cli_param.param_type == "float" and isinstance(widget, QLineEdit):
+                text = widget.text().strip()
+                if text:
+                    try:
+                        float(text)
+                    except ValueError:
+                        QMessageBox.warning(
+                            self,
+                            "参数无效",
+                            f"参数 '{cli_param.label}' 需要数值，当前输入 '{text}' 无效。",
+                        )
+                        widget.setFocus()
+                        return False
+
+            # 文件存在性预检查
+            if cli_param.file_category:
+                if isinstance(widget, QComboBox):
+                    text = widget.currentText().strip()
+                elif isinstance(widget, QLineEdit):
+                    text = widget.text().strip()
+                else:
+                    continue
+                if text and not Path(text).is_file():
+                    reply = QMessageBox.question(
+                        self,
+                        "文件不存在",
+                        f"参数 '{cli_param.label}' 引用的文件不存在：\n{text}\n\n仍然继续？",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.No,
+                    )
+                    if reply != QMessageBox.StandardButton.Yes:
+                        return False
+
+        return True
 
     # ── Slots: Job Lifecycle ───────────────────────────────────
 
@@ -370,6 +469,9 @@ class MainWindow(QMainWindow):
 
         # 创建输出面板
         output_widget = StructuredOutputWidget()
+        output_widget.status_message.connect(
+            lambda msg: self._status_bar.showMessage(msg, 5000)
+        )
         self._job_outputs[job_id] = output_widget
         tab_idx = self._output_tabs.addTab(output_widget, name)
         self._output_tabs.setCurrentIndex(tab_idx)
@@ -377,7 +479,7 @@ class MainWindow(QMainWindow):
         # 创建 Job Card
         card = JobCard(job_id, name)
         card.clicked.connect(self._on_job_card_clicked)
-        card.stop_requested.connect(self._job_manager.stop_job)
+        card.stop_requested.connect(self._on_stop_job_requested)
         self._job_cards[job_id] = card
         # 插入到 stretch 之前
         self._job_cards_layout.insertWidget(
@@ -399,11 +501,26 @@ class MainWindow(QMainWindow):
             status = job.status if job else ("completed" if exit_code == 0 else "error")
             card.set_status(status)
 
+        # 任务栏闪烁通知
+        from PyQt6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app:
+            app.alert(self)
+
+        # 状态栏详细消息
+        if exit_code == 0:
+            self._status_bar.showMessage(f"脚本 '{name}' 完成 (exit code: 0)", 5000)
+        else:
+            self._status_bar.showMessage(
+                f"脚本 '{name}' 失败 (exit code: {exit_code})", 8000
+            )
+
         # 在输出面板追加结束信息
         output = self._job_outputs.get(job_id)
         if output:
             banner = f"\n{'='*60}\n[进程结束] exit code: {exit_code}\n{'='*60}\n"
             output.append_output(banner, "stdout")
+            output.set_finished()
 
         self._update_job_count()
 
@@ -436,8 +553,30 @@ class MainWindow(QMainWindow):
         current_widget = self._output_tabs.currentWidget()
         for job_id, widget in self._job_outputs.items():
             if widget is current_widget:
-                self._job_manager.stop_job(job_id)
+                self._confirm_and_stop(job_id)
                 break
+
+    def _on_stop_job_requested(self, job_id: str) -> None:
+        """JobCard 停止按钮 — 长时间运行的作业需要确认。"""
+        self._confirm_and_stop(job_id)
+
+    def _confirm_and_stop(self, job_id: str) -> None:
+        """停止作业，运行超过 60 秒时弹出确认。"""
+        job = self._job_manager.get_job(job_id)
+        if job is None:
+            return
+        elapsed = time.time() - job.started_at
+        if elapsed > 60:
+            reply = QMessageBox.question(
+                self,
+                "确认停止",
+                f"脚本 '{job.script_entry.name}' 已运行 {int(elapsed)} 秒。\n确定停止？",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
+        self._job_manager.stop_job(job_id)
 
     def _on_output_tab_close(self, index: int) -> None:
         """关闭输出 tab。"""
@@ -450,9 +589,18 @@ class MainWindow(QMainWindow):
                 break
 
         if job_id_to_remove:
-            # 如果 job 还在运行，先停止
+            # 如果 job 还在运行，先确认
             job = self._job_manager.get_job(job_id_to_remove)
             if job and job.status == "running":
+                reply = QMessageBox.question(
+                    self,
+                    "确认关闭",
+                    f"脚本 '{job.script_entry.name}' 正在运行。\n停止并关闭？",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                if reply != QMessageBox.StandardButton.Yes:
+                    return
                 self._job_manager.stop_job(job_id_to_remove)
             del self._job_outputs[job_id_to_remove]
 
@@ -490,6 +638,31 @@ class MainWindow(QMainWindow):
 
         self._update_job_count()
 
+    _RUN_STYLE_READY = (
+        "QPushButton {"
+        "  padding: 8px 24px;"
+        "  font-weight: bold;"
+        "  background-color: #0e639c;"
+        "  color: white;"
+        "  border: none;"
+        "  border-radius: 4px;"
+        "}"
+        "QPushButton:hover { background-color: #1177bb; }"
+        "QPushButton:disabled { background-color: #3c3c3c; color: #888; }"
+    )
+    _RUN_STYLE_FULL = (
+        "QPushButton {"
+        "  padding: 8px 24px;"
+        "  font-weight: bold;"
+        "  background-color: #b8860b;"
+        "  color: white;"
+        "  border: none;"
+        "  border-radius: 4px;"
+        "}"
+        "QPushButton:hover { background-color: #cc9a1a; }"
+        "QPushButton:disabled { background-color: #3c3c3c; color: #888; }"
+    )
+
     def _update_job_count(self) -> None:
         running = sum(1 for c in self._job_cards.values() if c.is_running)
         total = len(self._job_cards)
@@ -504,9 +677,32 @@ class MainWindow(QMainWindow):
             else "Ready"
         )
 
+        # 更新运行按钮状态
+        if self._current_script is not None:
+            if running >= JobManager.MAX_CONCURRENT:
+                self._run_btn.setText(f"已达上限 ({JobManager.MAX_CONCURRENT})")
+                self._run_btn.setStyleSheet(self._RUN_STYLE_FULL)
+                self._run_btn.setEnabled(True)  # 仍可点击以显示错误
+            else:
+                self._run_btn.setText("Run")
+                self._run_btn.setStyleSheet(self._RUN_STYLE_READY)
+                self._run_btn.setEnabled(True)
+
     # ── Window Events ─────────────────────────────────────────
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
+        running = self._job_manager.running_jobs()
+        if running:
+            reply = QMessageBox.question(
+                self,
+                "确认关闭",
+                f"仍有 {len(running)} 个作业正在运行。\n关闭窗口将停止所有作业。确定关闭？",
+                QMessageBox.StandardButton.Close | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Cancel,
+            )
+            if reply != QMessageBox.StandardButton.Close:
+                event.ignore()
+                return
         self._job_manager.stop_all()
         super().closeEvent(event)
 
@@ -523,6 +719,13 @@ class MainWindow(QMainWindow):
         # 刷新参数面板中的文件下拉框
         if self._current_script:
             self._rebuild_params_panel(self._current_script)
+        # 反馈
+        n = len(self._files)
+        categories = len({f.category for f in self._files})
+        if n > 0:
+            self._status_bar.showMessage(f"已刷新：{n} 个文件，{categories} 个类别", 5000)
+        else:
+            self._status_bar.showMessage("未找到输出文件。运行脚本以生成数据。", 5000)
 
     def _rebuild_file_tree(self) -> None:
         # 保存当前排序状态
@@ -533,6 +736,20 @@ class MainWindow(QMainWindow):
         self._file_tree.setSortingEnabled(False)
         self._file_tree.clear()
         categories: dict[str, QTreeWidgetItem] = {}
+
+        # 空状态提示
+        if not self._files:
+            empty = QTreeWidgetItem(
+                self._file_tree,
+                ["尚未生成输出文件。运行脚本以生成轨道数据。"],
+            )
+            empty.setFlags(empty.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+            font = empty.font(0)
+            font.setItalic(True)
+            empty.setFont(0, font)
+            empty.setForeground(0, Qt.GlobalColor.gray)
+            self._file_tree.setSortingEnabled(False)
+            return
 
         for fi in self._files:
             if fi.category not in categories:
@@ -586,6 +803,7 @@ class MainWindow(QMainWindow):
 
         self._env_widgets.clear()
         self._cli_widgets.clear()
+        self._param_defaults.clear()
 
         self._params_layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
         self._params_layout.setFieldGrowthPolicy(
@@ -678,6 +896,22 @@ class MainWindow(QMainWindow):
                     self._params_layout.addRow(f"{cli_param.label}:", widget)
 
                 self._cli_widgets[key] = widget
+
+                # 记录默认值并连接修改指示器
+                default_val = cli_param.default or ""
+                self._param_defaults[widget] = default_val
+                if isinstance(widget, QLineEdit):
+                    widget.textChanged.connect(
+                        lambda _, w=widget: self._update_param_highlight(w)
+                    )
+                elif isinstance(widget, QComboBox):
+                    widget.currentIndexChanged.connect(
+                        lambda _, w=widget: self._update_param_highlight(w)
+                    )
+                elif isinstance(widget, QSpinBox):
+                    widget.valueChanged.connect(
+                        lambda _, w=widget: self._update_param_highlight(w)
+                    )
 
             has_any = True
 
