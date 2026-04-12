@@ -27,6 +27,10 @@ pyright                              # type checking (extraPaths includes ../e2m
 
 Scripts are run from repo root: `python scripts/<module>/<script>.py`
 
+```bash
+python scripts/gui/main.py             # launch PyQt6 GUI
+```
+
 ## Transfer Pipelines (order matters within each)
 
 ### DRO → RO
@@ -81,6 +85,7 @@ scripts/
   transfer/        # Grid search + NLP optimization (DRO↔RO, DRO↔GEO, GEO↔DRO, LEO↔DRO)
   ephemeris/       # CR3BP → ephemeris correction (multiple shooting, homotopy)
   inspection/      # Standalone orbit visualization tools
+  gui/             # PyQt6 GUI — browse & run scripts with parameter controls
 output/            # Generated data (gitignored, created on demand)
 tests/             # pytest tests
 ```
@@ -103,6 +108,17 @@ tests/             # pytest tests
 | `scripts/utils/leo.py` | LEO orbit constants (`R_LEO`, `V_CIRCULAR_LEO`, `T_LEO`) at 400 km altitude |
 
 **μ = 1.21506683e-2** — do not use the rounded `0.01215`.
+
+`FAMILY_FILENAME = "family.json"` — standard filename for orbit family JSON files.
+
+## GUI
+
+PyQt6 desktop app (`scripts/gui/main.py`) for browsing and running scripts.
+- `script_registry.py` — `ScriptEntry` dataclass metadata for every script (module, description, env params, CLI params)
+- `main_window.py` — tabbed UI grouped by module (DRO, RO, Halo, Transfer, Ephemeris, Inspection)
+- `process_runner.py` — runs scripts as subprocess with live stdout/stderr capture
+- `file_discovery.py` — finds JSON files in `output/` for file-selection dropdowns
+- Scripts with `env_params` get file picker dropdowns; scripts with `cli_params` get typed input controls
 
 ## Key Patterns
 

@@ -9,6 +9,7 @@
 
 """
 
+import argparse
 from pathlib import Path
 
 import time
@@ -21,7 +22,26 @@ project_root = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "dro"
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="生成 DRO 轨道族（差分修正 + 自然延拓）")
+    parser.add_argument("--x0", type=float, default=0.79188556619742,
+                        help="种子轨道初始 x 坐标（无量纲）")
+    parser.add_argument("--vy0", type=float, default=0.53682,
+                        help="种子轨道初始 vy 速度（无量纲）")
+    parser.add_argument("--period", type=float, default=3.472526005624708,
+                        help="初始周期猜测（无量纲）")
+    parser.add_argument("--param-min", type=float, default=0.141886,
+                        help="延拓参数范围下限（x0 最小值）")
+    parser.add_argument("--param-max", type=float, default=0.9,
+                        help="延拓参数范围上限（x0 最大值）")
+    parser.add_argument("--step-size", type=float, default=0.005,
+                        help="延拓步长")
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
+
     # =============================================================================
     # 1. 系统与动力学模型初始化
     # =============================================================================
@@ -33,14 +53,14 @@ def main():
     # =============================================================================
     # DRO特征：平面内运动（y=z=0），关于x轴对称（vx=vz=0）
     # 初始状态向量格式：[x, y, z, vx, vy, vz]，均为无量纲量
-    x0 = 0.79188556619742  # 初始x坐标（无量纲）
-    vy0 = 0.53682  # 初始y方向速度（无量纲）
+    x0 = args.x0  # 初始x坐标（无量纲）
+    vy0 = args.vy0  # 初始y方向速度（无量纲）
 
     initial_state = [x0, 0.0, 0.0, 0.0, vy0, 0.0]
     times = [0]  # 第一个历元时刻
 
     seed_state = Orbit(states=[initial_state], times=times)
-    seed_state.period = 3.472526005624708  # 初始周期猜测（无量纲时间）
+    seed_state.period = args.period  # 初始周期猜测（无量纲时间）
 
     # =============================================================================
     # 3. 种子轨道差分修正
@@ -53,9 +73,9 @@ def main():
     # 4. 自然延拓生成轨道族
     # =============================================================================
     continuation = e2m2e.algorithms.Continuation(corrector=corrector)
-    param_min = 0.141886  # 延拓到再下一步，就发散了（2026年3月21日21:16:19计算得到的结论）
-    param_max = 0.9
-    step_size = 0.005
+    param_min = args.param_min
+    param_max = args.param_max
+    step_size = args.step_size
     family_result = continuation.natural_continuation(
         seed_orbit=seed_DRO,
         param_range=(param_min, param_max),  # x0参数延拓范围

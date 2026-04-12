@@ -51,6 +51,14 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "生成 DRO 轨道族（差分修正 + 自然延拓）",
             "scripts/dro/generate_dro_family.py",
             output_dir="output/dro",
+            cli_params=[
+                CliParam("--x0", "初始 x 坐标", "float", "0.79188556619742", "种子轨道初始 x 坐标（无量纲）"),
+                CliParam("--vy0", "初始 vy 速度", "float", "0.53682", "种子轨道初始 vy 速度（无量纲）"),
+                CliParam("--period", "初始周期", "float", "3.472526005624708", "初始周期猜测（无量纲）"),
+                CliParam("--param-min", "延拓下限", "float", "0.141886", "延拓参数范围下限（x0 最小值）"),
+                CliParam("--param-max", "延拓上限", "float", "0.9", "延拓参数范围上限（x0 最大值）"),
+                CliParam("--step-size", "延拓步长", "float", "0.005", "延拓步长"),
+            ],
         ),
         ScriptEntry(
             "dro", "plot_dro_family",
