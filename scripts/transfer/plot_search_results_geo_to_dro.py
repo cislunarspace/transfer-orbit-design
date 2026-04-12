@@ -103,7 +103,7 @@ def subsample_indices(n, max_points, seed=42):
     if n <= max_points:
         return np.arange(n)
     rng = np.random.default_rng(seed)
-    return rng.choice(n, size=max_points, replace=False)
+    return np.sort(rng.choice(n, size=max_points, replace=False))
 
 
 # =====================================================================
@@ -406,6 +406,11 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
 def main():
     parser = argparse.ArgumentParser(description="GEO → DRO 搜索结果可视化")
     parser.add_argument("--file", type=str, default=None, help="搜索结果 JSON 路径")
+    parser.add_argument("--save", type=str, default=None, help="保存 PNG 路径；不传则弹窗显示")
+    parser.add_argument("--max-points", type=int, default=50000,
+                        help="散点最多绘制的可行点数（过多时随机子采样）")
+    parser.add_argument("--seed", type=int, default=0, help="子采样随机种子")
+    parser.add_argument("--dpi", type=int, default=150)
     parser.add_argument("--time-dv", action="store_true", help="绘制转移时间 vs Δv 散点图")
     parser.add_argument("--orbit", action="store_true", help="绘制 3D 转移轨道图")
     parser.add_argument("--interactive", action="store_true", help="交互式浏览模式")
@@ -451,13 +456,15 @@ def main():
         interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics)
 
     elif args.orbit:
-        indices = _select_feasible_indices(feasible_rows, args.idx)
+        indices = _select_feasible_indices(feasible_rows, args.idx,
+                                           seed=args.seed, max_indices=args.max_points)
         dynamics = CR3BP_Dynamics(system=system)
         dynamics.integrator = "DOP853"
         dynamics.rtol = 1e-12
         dynamics.atol = 1e-12
         dynamics.max_step = 1.0 / (24.0 * TU)
 
+        fig = None
         for i in indices:
             row = feasible_rows[i]
             dep_state = row.get("departure_state")
@@ -476,21 +483,42 @@ def main():
                 dep_state, dv, alpha, tt, system, fig, ax,
             )
 
-        plt.show()
+        if fig is not None:
+            if args.save:
+                fig.savefig(args.save, dpi=args.dpi, bbox_inches="tight")
+                print(f"图片保存至: {args.save}")
+            else:
+                plt.show()
 
     elif args.time_dv:
-        tt, dv = feasible_transfer_time_and_dv(rows)
+        tt_all, dv_all = feasible_transfer_time_and_dv(rows)
+        n = len(tt_all)
+        idx = subsample_indices(n, args.max_points, args.seed)
+        tt = tt_all[idx]
+        dv = dv_all[idx]
         fig, ax = plt.subplots(figsize=(10, 6))
         plot_transfer_time_delta_v(ax, tt, dv)
         fig.tight_layout()
-        plt.show()
+        if args.save:
+            fig.savefig(args.save, dpi=args.dpi, bbox_inches="tight")
+            print(f"图片保存至: {args.save}")
+        else:
+            plt.show()
 
     else:
-        alpha, dv = feasible_alpha_and_departure_dv(rows)
+        alpha_all, dv_all = feasible_alpha_and_departure_dv(rows)
+        n = len(alpha_all)
+        idx = subsample_indices(n, args.max_points, args.seed)
+        alpha = alpha_all[idx]
+        dv = dv_all[idx]
         fig, ax = plt.subplots(figsize=(10, 6))
         plot_alpha_delta_v(ax, alpha, dv)
         fig.tight_layout()
-        plt.show()
+        if args.save:
+            fig.savefig(args.save, dpi=args.dpi, bbox_inches="tight")
+            print(f"图片保存至: {args.save}")
+        else:
+            plt.show()
 
 
 if __name__ == "__main__":

@@ -11,11 +11,16 @@ Scripts for designing two-impulse transfer orbits between Lunar Distant Retrogra
 ## Setup
 
 ```bash
-pip install -r requirements.txt           # installs deps + this repo as editable
-pip install -e /home/ouyangjiahong/codes/e2m2e  # algorithm library
+conda create -n orbit-py313 python=3.13 && conda activate orbit-py313
+pip install -r requirements.txt           # installs deps + this repo as editable (-e .)
+pip install -e /home/ouyangjiahong/codes/e2m2e  # algorithm library (sibling repo)
 ```
 
-Python >=3.10 (3.13 tested). No linter/formatter in this repo (Ruff lives in e2m2e).
+- `requirements.txt` ends with `-e .` — no separate editable install needed for this repo
+- e2m2e can also be installed from gitee: `pip install "e2m2e @ git+https://gitee.com/cislunarspace/e2m2e.git"`
+- e2m2e has its own `AGENTS.md` — consult it before modifying e2m2e code
+- Dev deps: `pip install -e ".[dev]"` or just `pip install pytest`
+- Python >=3.10 (3.13 tested). No linter/formatter in this repo (Ruff lives in e2m2e).
 
 ## Common Commands
 
@@ -73,12 +78,18 @@ Requires SPICE kernels (`de440.bsp`, `naif0012.tls`) in `e2m2e/kernels/`. Set `S
 ```bash
 python scripts/dro/generate_31_dro_orbit.py     # single 3:1 DRO
 python scripts/dro/generate_dro_family.py        # DRO family
+python scripts/ro/generate_31_ro_orbit.py        # single 3:1 RO
 python scripts/ro/generate_31_ro_family.py       # 3:1 RO family
 python scripts/ro/generate_32_ro_family.py       # 3:2 RO family
+python scripts/ro/generate_rro_family.py         # 3D RRO family
+python scripts/ro/generate_aro_family.py         # 3D ARO family
+python scripts/halo/generate_halo_orbit.py       # single Halo orbit
 python scripts/halo/generate_halo_family.py      # Halo orbit family
 ```
 
 ## Architecture
+
+**This repo is scripts-only.** All core algorithms live in the separate `e2m2e` library (sibling repo at `../e2m2e`). The `scripts/` directory is importable as a package via editable install so `from scripts.utils.common import ...` works from any working directory.
 
 ```
 scripts/
@@ -130,9 +141,25 @@ PyQt6 desktop app (`scripts/gui/main.py`) for browsing and running scripts.
 
 - All scripts use `if __name__ == "__main__"` guard (required for Windows multiprocessing)
 - Output timestamps use `int(time.time())`
-- Orbit data format: JSON with `states`, `times`, `period`, `orbit_type` keys
-- Hardcoded JSON file paths in `grid_search*.py` and `optimize*.py` must be updated before running
+- Orbit data format: JSON with `states` (Nx6 arrays), `times`, `period`, `orbit_type` keys
 - Transfer script naming: `{action}_{source}_to_{target}.py`
+- All scripts use `argparse` for CLI parameters
+
+## File Naming Conventions
+
+- Single orbit: `dro_31_<timestamp>.json`
+- Family: `ro_31_family_<x0_range>_<timestamp>.json`
+- Family "latest" copy: `family.json` (overwritten each run — do not rely on it)
+- Search results: `search_results_{nDep}-{nAlpha}-{amin}-{amax}-{tmax}_{timestamp}.json`
+- Optimization: `optimization_results_<timestamp>.json` / `optimization_dro_geo_<timestamp>.json`
+
+## Hardcoded Paths — Must Edit Before Running
+
+- `scripts/transfer/grid_search_dro_to_ro.py`: DRO/RO file paths hardcoded near `main()`
+- `scripts/transfer/optimize_dro_to_ro.py`: `SEARCH_RESULTS_FILE`, `DRO_FILE`, `RO_FILE` constants (~lines 48-52)
+- `scripts/transfer/grid_search_dro_to_geo.py`: DRO file path hardcoded
+- `scripts/transfer/optimize_dro_to_geo.py`: search results file path hardcoded
+- Recent work has added CLI/env var overrides for some of these — check `parse_args()` first
 
 ## optimize_* Config Knobs
 
@@ -144,9 +171,17 @@ PyQt6 desktop app (`scripts/gui/main.py`) for browsing and running scripts.
 
 ## Test Quirks
 
-- `test_data_loading.py` requires pre-generated RO JSON files in `output/ro/`
-- Missing e2m2e causes tests to **pass silently** (ImportError caught), not fail
+- `test_data_loading.py` requires pre-generated RO JSON files in `output/ro/` — generate RO family first or skip
+- Missing e2m2e causes tests to **pass silently** (ImportError caught via `pytest.skip`), not fail
 - Tests use `matplotlib.use("Agg")` for headless plotting
+- Tests are lightweight: mostly parameter validation and import checking, not numerical correctness
+
+## Common Pitfalls
+
+1. **Missing e2m2e**: `ModuleNotFoundError: No module named 'e2m2e'` — run `pip install -e <path/to/e2m2e>`
+2. **Wrong working directory**: Always run scripts from repo root after editable install
+3. **Stale hardcoded paths**: `grid_search_dro_to_ro.py` and `optimize_dro_to_ro.py` have hardcoded JSON file paths — update them before running
+4. **μ precision**: Always use `MU = 1.21506683e-2`, never the rounded `0.01215`
 
 ## Plan Tracking
 

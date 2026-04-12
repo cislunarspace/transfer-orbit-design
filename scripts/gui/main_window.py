@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -202,6 +203,7 @@ class MainWindow(QMainWindow):
         self._param_defaults: dict[QWidget, str] = {}  # 控件 → 默认值（标准单位）
         self._unit_combos: dict[QLineEdit, QComboBox] = {}  # QLineEdit → 单位选择 QComboBox
         self._unit_groups: dict[QLineEdit, str] = {}        # QLineEdit → unit_group 名称
+        self._wrapped_widgets: dict[QWidget, QWidget] = {}   # 原始控件 → 单位选择器包裹后的 widget
 
         tabs.addTab(self._params_scroll, "运行参数")
 
@@ -844,6 +846,121 @@ class MainWindow(QMainWindow):
 
     # ── 参数面板 ───────────────────────────────────────────────
 
+    def _make_cli_widget(self, cli_param: CliParam) -> tuple[str, QWidget]:
+        """根据 CliParam 定义创建对应的控件，返回 (key, widget)。
+
+        widget 是用于读取值的原始控件（QLineEdit/QSpinBox 等），
+        可能被单位选择器包裹 — 此时返回的 widget 仍是原始控件。
+        调用方需用 _display_widget() 获取用于添加到布局的显示 widget。
+        """
+        key = cli_param.flag.lstrip("-").replace("-", "_")
+
+        if cli_param.param_type == "bool":
+            widget: QCheckBox | QLineEdit | QSpinBox | QComboBox = QCheckBox(cli_param.label)
+            widget.setToolTip(cli_param.help)
+        elif cli_param.param_type == "int":
+            widget = QSpinBox()
+            widget.setRange(-99999, 99999)
+            if cli_param.default:
+                widget.setValue(int(cli_param.default))
+            widget.setToolTip(cli_param.help)
+            widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            widget.setMinimumWidth(80)
+        elif cli_param.param_type == "float":
+            widget = QLineEdit()
+            validator = QDoubleValidator(-99999.0, 99999.0, 15)
+            validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+            widget.setValidator(validator)
+            if cli_param.default:
+                widget.setText(cli_param.default)
+            widget.setToolTip(cli_param.help)
+            widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            widget.setMinimumWidth(100)
+        else:  # str
+            if cli_param.file_category:
+                widget = QComboBox()
+                widget.setEditable(True)
+                widget.addItem("")
+                matching = filter_files(
+                    self._files,
+                    category=cli_param.file_category,
+                    file_type="json",
+                )
+                for fi in matching:
+                    widget.addItem(fi.abs_path)
+                if cli_param.default:
+                    widget.setCurrentText(cli_param.default)
+                widget.setToolTip(cli_param.help)
+                widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+                widget.setMinimumWidth(100)
+            else:
+                widget = QLineEdit()
+                if cli_param.default:
+                    widget.setText(cli_param.default)
+                widget.setToolTip(cli_param.help)
+                widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+                widget.setMinimumWidth(100)
+
+        # 带单位的 float 参数：用单位选择器包裹
+        if (cli_param.param_type == "float"
+                and cli_param.unit_group and cli_param.unit_group in UNIT_GROUPS):
+            field_layout = QHBoxLayout()
+            field_layout.setContentsMargins(0, 0, 0, 0)
+            field_layout.setSpacing(4)
+
+            unit_combo = QComboBox()
+            unit_combo.addItems(UNIT_GROUPS[cli_param.unit_group].keys())
+            unit_combo.setFixedWidth(55)
+            unit_combo.setProperty("prev_idx", 0)
+            unit_combo.currentIndexChanged.connect(
+                lambda _, le=widget, uc=unit_combo, ug=cli_param.unit_group:
+                    self._on_unit_changed(le, uc, ug)
+            )
+
+            field_layout.addWidget(widget)
+            field_layout.addWidget(unit_combo)
+
+            self._unit_combos[widget] = unit_combo
+            self._unit_groups[widget] = cli_param.unit_group
+
+            wrapper = QWidget()
+            wrapper.setLayout(field_layout)
+            self._wrapped_widgets[widget] = wrapper
+
+        return key, widget
+
+    def _display_widget(self, widget: QWidget) -> QWidget:
+        """返回用于添加到布局的 widget（可能已被单位选择器包裹）。"""
+        return self._wrapped_widgets.get(widget, widget)
+
+    def _add_cli_param_row(self, cli_param: CliParam) -> None:
+        """创建控件并添加到参数面板的当前表单布局中。"""
+        key, widget = self._make_cli_widget(cli_param)
+        display = self._display_widget(widget)
+        self._cli_widgets[key] = widget
+        self._param_defaults[widget] = cli_param.default or ""
+        self._connect_param_highlight(widget)
+
+        if cli_param.param_type == "bool":
+            self._params_layout.addRow(display)
+        else:
+            self._params_layout.addRow(f"{cli_param.label}:", display)
+
+    def _connect_param_highlight(self, widget: QWidget) -> None:
+        """连接控件值变化信号到默认值高亮更新。"""
+        if isinstance(widget, QLineEdit):
+            widget.textChanged.connect(
+                lambda _, w=widget: self._update_param_highlight(w)
+            )
+        elif isinstance(widget, QComboBox):
+            widget.currentIndexChanged.connect(
+                lambda _, w=widget: self._update_param_highlight(w)
+            )
+        elif isinstance(widget, QSpinBox):
+            widget.valueChanged.connect(
+                lambda _, w=widget: self._update_param_highlight(w)
+            )
+
     def _rebuild_params_panel(self, entry: ScriptEntry) -> None:
         """根据选中的脚本重建运行参数面板。"""
         # 清空旧控件
@@ -857,6 +974,7 @@ class MainWindow(QMainWindow):
         self._param_defaults.clear()
         self._unit_combos.clear()
         self._unit_groups.clear()
+        self._wrapped_widgets.clear()
 
         self._params_layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
         self._params_layout.setFieldGrowthPolicy(
@@ -890,113 +1008,41 @@ class MainWindow(QMainWindow):
 
         # 命令行参数
         if entry.cli_params:
-            section_label = QLabel("命令行选项")
-            section_label.setStyleSheet("font-weight: bold; font-size: 12px; padding: 4px 0;")
-            self._params_layout.addRow(section_label)
+            regular_params = [p for p in entry.cli_params if not p.advanced]
+            advanced_params = [p for p in entry.cli_params if p.advanced]
 
-            for cli_param in entry.cli_params:
-                key = cli_param.flag.lstrip("-").replace("-", "_")
+            if regular_params:
+                section_label = QLabel("运行参数")
+                section_label.setStyleSheet("font-weight: bold; font-size: 12px; padding: 4px 0;")
+                self._params_layout.addRow(section_label)
 
-                if cli_param.param_type == "bool":
-                    widget: QCheckBox | QLineEdit | QSpinBox | QComboBox = QCheckBox(cli_param.label)
-                    widget.setToolTip(cli_param.help)
-                elif cli_param.param_type == "int":
-                    widget = QSpinBox()
-                    widget.setRange(-99999, 99999)
-                    if cli_param.default:
-                        widget.setValue(int(cli_param.default))
-                    widget.setToolTip(cli_param.help)
-                    widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-                    widget.setMinimumWidth(80)
-                elif cli_param.param_type == "float":
-                    widget = QLineEdit()
-                    validator = QDoubleValidator(-99999.0, 99999.0, 15)
-                    validator.setNotation(QDoubleValidator.Notation.StandardNotation)
-                    widget.setValidator(validator)
-                    if cli_param.default:
-                        widget.setText(cli_param.default)
-                    widget.setToolTip(cli_param.help)
-                    widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-                    widget.setMinimumWidth(100)
+                for cli_param in regular_params:
+                    self._add_cli_param_row(cli_param)
 
-                    # 带单位的参数：在输入框右侧添加单位选择下拉框
-                    if cli_param.unit_group and cli_param.unit_group in UNIT_GROUPS:
-                        field_layout = QHBoxLayout()
-                        field_layout.setContentsMargins(0, 0, 0, 0)
-                        field_layout.setSpacing(4)
+            if advanced_params:
+                adv_group = QGroupBox("高级选项")
+                adv_group.setCheckable(True)
+                adv_group.setChecked(False)
+                adv_layout = QFormLayout()
+                adv_layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+                adv_layout.setFieldGrowthPolicy(
+                    QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
+                )
 
-                        unit_combo = QComboBox()
-                        unit_combo.addItems(UNIT_GROUPS[cli_param.unit_group].keys())
-                        unit_combo.setFixedWidth(55)
-                        unit_combo.setProperty("prev_idx", 0)
-                        unit_combo.currentIndexChanged.connect(
-                            lambda _, le=widget, uc=unit_combo, ug=cli_param.unit_group:
-                                self._on_unit_changed(le, uc, ug)
-                        )
+                for cli_param in advanced_params:
+                    key, widget = self._make_cli_widget(cli_param)
+                    display = self._display_widget(widget)
+                    self._cli_widgets[key] = widget
+                    self._param_defaults[widget] = cli_param.default or ""
+                    self._connect_param_highlight(widget)
 
-                        field_layout.addWidget(widget)
-                        field_layout.addWidget(unit_combo)
-
-                        self._unit_combos[widget] = unit_combo
-                        self._unit_groups[widget] = cli_param.unit_group
-
-                        # 将 layout 包裹为 widget 以便加入 QFormLayout
-                        field_widget = QWidget()
-                        field_widget.setLayout(field_layout)
-                        self._params_layout.addRow(f"{cli_param.label}:", field_widget)
-                        self._cli_widgets[key] = widget
-                        self._param_defaults[widget] = cli_param.default or ""
-                        widget.textChanged.connect(
-                            lambda _, w=widget: self._update_param_highlight(w)
-                        )
-                        continue
-                else:  # str
-                    if cli_param.file_category:
-                        widget = QComboBox()
-                        widget.setEditable(True)
-                        widget.addItem("")
-                        matching = filter_files(
-                            self._files,
-                            category=cli_param.file_category,
-                            file_type="json",
-                        )
-                        for fi in matching:
-                            widget.addItem(fi.abs_path)
-                        if cli_param.default:
-                            widget.setCurrentText(cli_param.default)
-                        widget.setToolTip(cli_param.help)
-                        widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-                        widget.setMinimumWidth(100)
+                    if cli_param.param_type == "bool":
+                        adv_layout.addRow(display)
                     else:
-                        widget = QLineEdit()
-                        if cli_param.default:
-                            widget.setText(cli_param.default)
-                        widget.setToolTip(cli_param.help)
-                        widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-                        widget.setMinimumWidth(100)
+                        adv_layout.addRow(f"{cli_param.label}:", display)
 
-                if cli_param.param_type == "bool":
-                    self._params_layout.addRow(widget)
-                else:
-                    self._params_layout.addRow(f"{cli_param.label}:", widget)
-
-                self._cli_widgets[key] = widget
-
-                # 记录默认值并连接修改指示器
-                default_val = cli_param.default or ""
-                self._param_defaults[widget] = default_val
-                if isinstance(widget, QLineEdit):
-                    widget.textChanged.connect(
-                        lambda _, w=widget: self._update_param_highlight(w)
-                    )
-                elif isinstance(widget, QComboBox):
-                    widget.currentIndexChanged.connect(
-                        lambda _, w=widget: self._update_param_highlight(w)
-                    )
-                elif isinstance(widget, QSpinBox):
-                    widget.valueChanged.connect(
-                        lambda _, w=widget: self._update_param_highlight(w)
-                    )
+                adv_group.setLayout(adv_layout)
+                self._params_layout.addRow(adv_group)
 
             has_any = True
 

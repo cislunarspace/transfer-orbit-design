@@ -582,6 +582,12 @@ def main() -> None:
         description="绘制 grid_search_dro_to_geo 结果（α–Δv 散点图 / 转移轨道示意图）"
     )
     parser.add_argument(
+        "--file",
+        type=str,
+        default=None,
+        help="搜索结果 JSON 路径（默认使用硬编码路径）",
+    )
+    parser.add_argument(
         "--save",
         type=str,
         default=None,
@@ -626,7 +632,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    path = Path(RESULTS_JSON).expanduser().resolve()
+    path = Path(args.file).expanduser().resolve() if args.file else Path(RESULTS_JSON).expanduser().resolve()
     if not path.is_file():
         raise FileNotFoundError(path)
     print(f"读取: {path}")
