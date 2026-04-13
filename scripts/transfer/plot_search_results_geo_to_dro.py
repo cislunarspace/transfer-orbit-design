@@ -16,7 +16,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional  # noqa: F401
 
 import numpy as np
 import matplotlib
@@ -174,7 +174,27 @@ def _build_dynamics():
     return system, dynamics
 
 
-def _reintegrate_transfer(dynamics, departure_state, alpha, max_transfer_time):
+def _find_approach_index(transfer_states, dro_orbit):
+    """找到转移轨道上最接近 DRO 轨道的点的索引。"""
+    traj_pos = transfer_states[:, :3]
+    dro_pos = dro_orbit.states[:, :3]
+
+    min_dist_sq = float("inf")
+    best_idx = 0
+    chunk = 500
+    for i_start in range(0, len(traj_pos), chunk):
+        i_end = min(i_start + chunk, len(traj_pos))
+        diff = traj_pos[i_start:i_end, np.newaxis, :] - dro_pos[np.newaxis, :, :]
+        dist_sq = np.sum(diff ** 2, axis=2)
+        flat_idx = np.argmin(dist_sq)
+        ci, _ = np.unravel_index(flat_idx, dist_sq.shape)
+        if dist_sq.flat[flat_idx] < min_dist_sq:
+            min_dist_sq = dist_sq.flat[flat_idx]
+            best_idx = i_start + ci
+    return best_idx
+
+
+def _reintegrate_transfer(dynamics, departure_state, alpha, max_transfer_time, dro_orbit=None):
     state = np.asarray(departure_state, dtype=float)
     v_new = compute_departure_velocity(state, alpha)
     s0 = np.concatenate([state[:3], v_new])
@@ -185,14 +205,21 @@ def _reintegrate_transfer(dynamics, departure_state, alpha, max_transfer_time):
         initial_state=s0, t_span=(0.0, max_transfer_time),
         t_eval=t_eval, with_stm=False, with_jacobi=False,
     )
-    return result["states"], result["time"]
+    states = result["states"]
+    times = result["time"]
+    if dro_orbit is not None and len(states) > 1:
+        idx = _find_approach_index(states, dro_orbit)
+        idx = max(idx, 1)  # 至少保留出发后的第一个点
+        return states[: idx + 1], times[: idx + 1]
+    return states, times
 
 
 def _plot_single_transfer_orbit(
     geo_states, dro_orbit, transfer_states, departure_state,
     dv_departure, alpha, transfer_time, system, fig, ax,
+    actual_transfer_time=None,
 ):
-    """绘制单条 GEO→DRO 转移轨道。"""
+    """绘制单条 GEO→DRO 转移轨道（截断到最近 DRO 的点）。"""
     # GEO 圆
     gx, gy = _geo_circle_points()
     ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--", lw=0.8, label="GEO")
@@ -209,7 +236,7 @@ def _plot_single_transfer_orbit(
     dep_pos = np.asarray(departure_state, dtype=float)[:3]
     ax.scatter(*dep_pos, color="green", s=40, zorder=5, label="出发点")
 
-    # 终点（最近 DRO 的点）
+    # 终点（截断后的最近 DRO 点）
     final_pos = transfer_states[-1, :3]
     ax.scatter(*final_pos, color="orange", s=40, marker="s", zorder=5, label="终点")
 
@@ -230,8 +257,9 @@ def _plot_single_transfer_orbit(
     ax.set_xlabel("x (DU)")
     ax.set_ylabel("y (DU)")
     ax.set_zlabel("z (DU)")
+    t_disp = actual_transfer_time if actual_transfer_time is not None else transfer_time
     ax.set_title(
-        f"GEO→DRO  α={alpha:.4f}  T={transfer_time:.2f} TU ({transfer_time * TU:.1f}天)\n"
+        f"GEO→DRO  α={alpha:.4f}  T={t_disp:.2f} TU ({t_disp * TU:.1f}天)\n"
         f"Δv_dep={dv_departure:.4f} VU ({dv_departure * VU:.0f} m/s)"
     )
     ax.legend(fontsize=7, loc="upper left")
@@ -307,7 +335,7 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
         dep_state = row.get("departure_state")
         dv = row.get("dv_departure", 0)
 
-        print(f"\n[{current+1}/{n}] a={alpha:.4f}, T={tt:.2f} TU ({tt * TU:.1f} d), "
+        print(f"\n[{current+1}/{n}] a={alpha:.4f}, T_search={tt:.2f} TU ({tt * TU:.1f} d), "
               f"dv={dv:.4f} VU ({dv * VU:.0f} m/s), "
               f"min_dist={row.get('min_distance', 'N/A')}")
 
@@ -317,7 +345,7 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
             continue
 
         try:
-            transfer_states, times = _reintegrate_transfer(dynamics, dep_state, alpha, tt)
+            transfer_states, times = _reintegrate_transfer(dynamics, dep_state, alpha, tt, dro_orbit=dro_orbit)
         except Exception as e:
             print(f"  integration failed: {e}")
             current += 1
@@ -351,7 +379,7 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
         ax.set_ylabel("y (DU)")
         ax.set_zlabel("z (DU)")
         ax.set_title(
-            f"[{current+1}/{n}] a={alpha:.4f}  T={tt:.2f} TU ({tt * TU:.1f} d)  "
+            f"[{current+1}/{n}] a={alpha:.4f}  T={times[-1]:.2f} TU ({times[-1] * TU:.1f} d)  "
             f"dv={dv * VU:.0f} m/s",
             fontsize=10,
         )
@@ -474,13 +502,14 @@ def main():
             tt = row.get("transfer_time", 30.0)
             dv = row.get("dv_departure", 0)
 
-            transfer_states, times = _reintegrate_transfer(dynamics, dep_state, alpha, tt)
+            transfer_states, times = _reintegrate_transfer(dynamics, dep_state, alpha, tt, dro_orbit=dro_orbit)
 
             fig = plt.figure(figsize=(12, 8))
             ax = fig.add_subplot(111, projection="3d")
             _plot_single_transfer_orbit(
                 generate_geo_orbit(), dro_orbit, transfer_states,
                 dep_state, dv, alpha, tt, system, fig, ax,
+                actual_transfer_time=times[-1],
             )
 
         if fig is not None:
