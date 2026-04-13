@@ -42,10 +42,8 @@ from scripts.utils.geo import (
 project_root = Path(__file__).resolve().parent.parent.parent
 
 # =====================================================================
-# 配置 — 运行前须更新
+# 配置 — 默认自动发现最新文件，可用环境变量覆盖
 # =====================================================================
-RESULTS_JSON = project_root / "output/transfer/search_geo_dro_10-200-1-1.5-2.2998_3858756480.json"
-DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
 
 
 # =====================================================================
@@ -446,23 +444,30 @@ def main():
                         help="轨道选择: all, best, best:N, random, 或序号")
     args = parser.parse_args()
 
-    results_file = Path(args.file) if args.file else RESULTS_JSON
-    if not results_file.exists():
-        # 自动查找
-        candidates = sorted((project_root / "output/transfer").glob("search_geo_dro_*.json"))
-        if not candidates:
-            print(f"未找到搜索结果文件: {results_file}")
-            return
-        results_file = candidates[-1]
-        print(f"使用: {results_file}")
+    # 搜索结果文件: CLI > 环境变量 > 自动发现
+    if args.file:
+        results_file = Path(args.file)
+    else:
+        env_val = os.environ.get("SEARCH_RESULTS_FILE")
+        if env_val:
+            results_file = Path(env_val)
+        else:
+            candidates = sorted((project_root / "output/transfer").glob("search_geo_dro_*.json"))
+            if not candidates:
+                print("未找到搜索结果文件，请用 --file 指定")
+                return
+            results_file = candidates[-1]
+            print(f"自动发现: {results_file}")
 
     rows = load_search_results(results_file)
     feasible_rows = [r for r in rows if r.get("is_feasible")]
     print(f"加载 {len(rows)} 条记录, {len(feasible_rows)} 个可行解")
 
-    # 加载 DRO
-    dro_file = DRO_FILE
-    if not dro_file.exists():
+    # DRO 文件: CLI > 环境变量 > 自动发现
+    dro_file_env = os.environ.get("DRO_FILE")
+    if dro_file_env:
+        dro_file = Path(dro_file_env)
+    else:
         dro_files = sorted((project_root / "output/dro").glob("dro_31_*.json"))
         if not dro_files:
             print("找不到 DRO 文件")
@@ -504,6 +509,8 @@ def main():
 
             transfer_states, times = _reintegrate_transfer(dynamics, dep_state, alpha, tt, dro_orbit=dro_orbit)
 
+            if fig is not None:
+                plt.close(fig)
             fig = plt.figure(figsize=(12, 8))
             ax = fig.add_subplot(111, projection="3d")
             _plot_single_transfer_orbit(
@@ -512,12 +519,17 @@ def main():
                 actual_transfer_time=times[-1],
             )
 
-        if fig is not None:
             if args.save:
-                fig.savefig(args.save, dpi=args.dpi, bbox_inches="tight")
-                print(f"图片保存至: {args.save}")
-            else:
+                save_path = args.save
+                base, ext = os.path.splitext(save_path)
+                save_path = f"{base}_{i}{ext}" if len(indices) > 1 else save_path
+                fig.savefig(save_path, dpi=args.dpi, bbox_inches="tight")
+                print(f"图片保存至: {save_path}")
+
+        if fig is not None:
+            if not args.save:
                 plt.show()
+            plt.close(fig)
 
     elif args.time_dv:
         tt_all, dv_all = feasible_transfer_time_and_dv(rows)

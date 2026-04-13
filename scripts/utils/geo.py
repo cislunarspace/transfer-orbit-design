@@ -41,7 +41,7 @@ def geo_circular_velocity_rotating(position: np.ndarray) -> np.ndarray:
     tangential = np.array([-r_rel[1], r_rel[0], 0.0]) / r_rel_xy
     v_inertial = V_CIRCULAR_GEO * tangential
 
-    omega_cross_r = np.array([-position[1], position[0], 0.0])
+    omega_cross_r = np.array([-r_rel[1], r_rel[0], 0.0])
     return v_inertial - omega_cross_r
 
 

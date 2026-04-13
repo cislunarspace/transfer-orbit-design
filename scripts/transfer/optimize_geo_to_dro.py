@@ -2,7 +2,7 @@
 GEO → DRO NLP 优化
 
 从 GEO 出发的转移轨道 NLP 优化（第二步）。
-读取搜索结果，对可行解进行 SLSQP 精细化。
+读取搜索结果，对可行解进行 root-LM + Nelder-Mead 精细化。
 
 优化变量: y = [α, T, t_ins]
   - α: GEO 出发切向速度比
@@ -12,7 +12,7 @@ GEO → DRO NLP 优化
 目标函数: J(y) = Δv1 + Δv2
 约束:
   - 位置连续性: ||pos_final - pos_DRO(t_ins)||² = 0
-  - 速度平行性: cos(angle) - 1 = 0（可松弛）
+  - 速度平行性: 后过滤 cos(angle) ≥ cos(tolerance)
 
 运行: python scripts/transfer/optimize_geo_to_dro.py
 
@@ -44,6 +44,7 @@ from scripts.utils.common import DU, MU, TU, VU
 from scripts.utils.geo import (
     R_GEO,
     EARTH_CENTER,
+    compute_departure_velocity,
     geo_circular_velocity_rotating,
 )
 
@@ -123,20 +124,6 @@ def build_dynamics(rtol, atol, max_step):
     dynamics.atol = atol
     dynamics.max_step = max_step
     return system, dynamics
-
-
-def compute_departure_velocity(state: np.ndarray, alpha: float) -> np.ndarray:
-    """切向速度缩放（与 TransferSearch._compute_departure_velocity 一致）。"""
-    pos = state[:3]
-    vel = state[3:]
-    r_xy = np.sqrt(pos[0] ** 2 + pos[1] ** 2)
-    if r_xy < 1e-10:
-        return vel.copy()
-    tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
-    radial = pos / np.linalg.norm(pos)
-    v_rad = np.dot(vel, radial)
-    v_tan = np.dot(vel, tangential)
-    return v_rad * radial + alpha * v_tan * tangential
 
 
 def forward_integrate(dynamics, initial_state, transfer_time):
@@ -332,10 +319,10 @@ def optimize_one_case(
     alpha_0 = rec["alpha"]
     T_search = rec["transfer_time"]
 
-    # 用粗动力学重新积分找最接近 DRO 的时刻
-    _, pre_dynamics = build_dynamics(1e-10, 1e-10, NLP_MAX_STEP)
+    # 用动力学对象重新积分找最接近 DRO 的时刻
+    _, dynamics = build_dynamics(1e-10, 1e-10, NLP_MAX_STEP)
     t_closest, t_dro_closest, reinit_min_dist = _find_closest_approach(
-        departure_state, alpha_0, T_search, dro_orbit, pre_dynamics,
+        departure_state, alpha_0, T_search, dro_orbit, dynamics,
     )
 
     T_0 = max(t_min, min(t_closest, t_max))
@@ -344,8 +331,6 @@ def optimize_one_case(
     if verbose:
         print(f"  init: T_closest={t_closest:.2f}, t_ins={t_ins_0:.4f}, "
               f"dist={reinit_min_dist*DU:.0f} km")
-
-    _, dynamics = build_dynamics(1e-10, 1e-10, NLP_MAX_STEP)
 
     # ====== 方法: root 求解位置匹配 + alpha 扫描 ======
 
@@ -400,7 +385,8 @@ def optimize_one_case(
         pos_err = np.sqrt(c["pos_violation"])
         dv_total = c["dv1"] + c["dv2"]
 
-        if pos_err < 0.005 and dv_total < best_dv:  # < ~1900 km and better Δv
+        pos_err_km = pos_err * DU
+        if pos_err_km < 384 and dv_total < best_dv:  # < ~384 km; final filter at 100 km in main()
             best_dv = dv_total
             best_result = {
                 "alpha": a_val,
@@ -445,6 +431,22 @@ def optimize_one_case(
         }
 
     c = best_result["c"]
+
+    # 后过滤: 速度角度超过容限则拒绝
+    if c["cos_angle"] < np.cos(angle_tolerance):
+        return {
+            "search_index": rec.get("departure_time_index", -1),
+            "search_alpha": float(alpha_0),
+            "search_transfer_time": float(T_search),
+            "departure_state": rec["departure_state"],
+            "search_min_distance": rec.get("min_distance"),
+            "reinit_min_distance": reinit_min_dist,
+            "nlp": {
+                "success": False,
+                "message": f"速度角度 {c['angle_deg']:.1f}° 超过容限 {np.degrees(angle_tolerance):.1f}°",
+            },
+        }
+
     final_y = [best_result["alpha"], best_result["T"], best_result["t_ins"]]
 
     return {
@@ -518,6 +520,13 @@ def nlp_worker_packed(payload):
 
 def main() -> None:
     args = parse_args()
+
+    # 限制 BLAS 线程，避免过量订阅
+    for _k in [
+        "OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
+        "GOTO_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS",
+    ]:
+        os.environ.setdefault(_k, str(LIMIT_BLAS_THREADS_PER_WORKER))
 
     # CLI 参数覆盖
     search_file = Path(args.search_file or os.environ.get("SEARCH_RESULTS_FILE", SEARCH_RESULTS_DEFAULT))
@@ -638,13 +647,6 @@ def main() -> None:
         n_pool = min(n_workers_req, n_total)
         backend = PARALLEL_BACKEND.strip().lower()
 
-        if backend == "processes":
-            for _k in [
-                "OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
-                "GOTO_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS",
-            ]:
-                os.environ[_k] = str(LIMIT_BLAS_THREADS_PER_WORKER)
-
         payloads = []
         for global_idx, rec in feasible_indexed:
             payloads.append({
@@ -680,7 +682,7 @@ def main() -> None:
                     "transfer_time_range": [t_min, t_max],
                     "t_ins_range": [t_ins_min, t_ins_max],
                     "velocity_angle_tolerance_rad": angle_tol,
-                    "nlp_solver": "scipy_slsqp",
+                    "nlp_solver": "scipy_root_lm+nm_fallback",
                     "n_optimized": len(records),
                     "parallel_backend": PARALLEL_BACKEND,
                     "n_workers_requested": n_workers,
@@ -693,12 +695,13 @@ def main() -> None:
         )
 
     successes = [r for r in records if r.get("nlp", {}).get("success")]
-    # 过滤位置误差 < 100 km 的有效解
+    # 过滤位置误差 < 100 km 且速度角度在容限内的有效解
     valid = []
     for r in successes:
         pv = r.get("nlp", {}).get("pos_violation", 1e10)
         pos_km = np.sqrt(max(0, float(pv))) * DU
-        if pos_km < 100:
+        cos_a = r.get("nlp", {}).get("cos_angle", -1)
+        if pos_km < 100 and cos_a >= np.cos(angle_tol):
             valid.append(r)
 
     print(f"\n优化完成: {len(records)} 条, 成功 {len(successes)} 条, 有效 {len(valid)} 条 (pos < 100 km)")
