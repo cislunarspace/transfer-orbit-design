@@ -68,6 +68,7 @@ class JobManager(QObject):
 
         proc_env = QProcessEnvironment.systemEnvironment()
         proc_env.insert("PYTHONUNBUFFERED", "1")
+        proc_env.insert("PYTHONIOENCODING", "utf-8")
         if env_overrides:
             for k, v in env_overrides.items():
                 proc_env.insert(k, v)
@@ -145,14 +146,14 @@ class JobManager(QObject):
         job = self._jobs.get(job_id)
         if job is None:
             return
-        data = job.process.readAllStandardOutput().data().decode(errors="replace")
+        data = job.process.readAllStandardOutput().data().decode("utf-8", errors="replace")
         self.job_output.emit(job_id, data, "stdout")
 
     def _on_stderr(self, job_id: str) -> None:
         job = self._jobs.get(job_id)
         if job is None:
             return
-        data = job.process.readAllStandardError().data().decode(errors="replace")
+        data = job.process.readAllStandardError().data().decode("utf-8", errors="replace")
         self.job_output.emit(job_id, data, "stderr")
 
     def _on_finished(self, job_id: str, exit_code: int, _exit_status) -> None:
