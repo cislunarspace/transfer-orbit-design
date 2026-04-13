@@ -912,7 +912,15 @@ class MainWindow(QMainWindow):
             unit_combo.addItems(UNIT_GROUPS[cli_param.unit_group].keys())
             unit_combo.setMinimumContentsLength(3)
             unit_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
-            unit_combo.setProperty("prev_idx", 0)
+
+            # 根据 default_unit 设置默认选中项
+            default_idx = 0
+            if cli_param.default_unit:
+                units = list(UNIT_GROUPS[cli_param.unit_group].keys())
+                if cli_param.default_unit in units:
+                    default_idx = units.index(cli_param.default_unit)
+            unit_combo.setCurrentIndex(default_idx)
+            unit_combo.setProperty("prev_idx", default_idx)
             unit_combo.currentIndexChanged.connect(
                 lambda _, le=widget, uc=unit_combo, ug=cli_param.unit_group:
                     self._on_unit_changed(le, uc, ug)
