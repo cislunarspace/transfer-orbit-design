@@ -11,5 +11,15 @@ ExecStart=/home/ouyangjiahong/miniconda3/envs/orbit-py313/bin/python -m uvicorn 
 Restart=always
 RestartSec=5
 
+# 安全加固
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ouyangjiahong/codes/transfer-orbit-design/output
+ReadOnlyPaths=/home/ouyangjiahong/codes/transfer-orbit-design/scripts
+ReadOnlyPaths=/home/ouyangjiahong/codes/transfer-orbit-design/api
+ReadOnlyPaths=/home/ouyangjiahong/codes/e2m2e
+LimitNOFILE=1024
+
 [Install]
 WantedBy=multi-user.target

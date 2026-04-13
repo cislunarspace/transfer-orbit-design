@@ -1,4 +1,8 @@
 """脚本注册表 API — 返回所有脚本元数据和参数定义"""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from fastapi import APIRouter
 
 from api.models import (
@@ -9,10 +13,13 @@ from api.models import (
     UnitOption,
 )
 
+if TYPE_CHECKING:
+    from scripts.gui.script_registry import ScriptEntry, EnvParam, CliParam
+
 router = APIRouter()
 
 
-def _convert_env_param(p) -> EnvParamSchema:
+def _convert_env_param(p: EnvParam) -> EnvParamSchema:
     return EnvParamSchema(
         env_var=p.env_var,
         label=p.label,
@@ -21,7 +28,7 @@ def _convert_env_param(p) -> EnvParamSchema:
     )
 
 
-def _convert_cli_param(p) -> CliParamSchema:
+def _convert_cli_param(p: CliParam) -> CliParamSchema:
     return CliParamSchema(
         flag=p.flag,
         label=p.label,
@@ -34,7 +41,7 @@ def _convert_cli_param(p) -> CliParamSchema:
     )
 
 
-def _convert_script(e) -> ScriptSchema:
+def _convert_script(e: ScriptEntry) -> ScriptSchema:
     return ScriptSchema(
         module=e.module,
         name=e.name,
