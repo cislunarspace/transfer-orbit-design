@@ -910,7 +910,8 @@ class MainWindow(QMainWindow):
 
             unit_combo = QComboBox()
             unit_combo.addItems(UNIT_GROUPS[cli_param.unit_group].keys())
-            unit_combo.setFixedWidth(55)
+            unit_combo.setMinimumContentsLength(3)
+            unit_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
             unit_combo.setProperty("prev_idx", 0)
             unit_combo.currentIndexChanged.connect(
                 lambda _, le=widget, uc=unit_combo, ug=cli_param.unit_group:

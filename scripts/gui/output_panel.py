@@ -57,6 +57,8 @@ class StructuredOutputWidget(QWidget):
         self._start_time = datetime.now()
         self._auto_scroll = True
         self._raw_lines: list[str] = []
+        self._pending_line: str = ""
+        self._replacing: bool = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -146,9 +148,40 @@ class StructuredOutputWidget(QWidget):
         self._elapsed_timer.start(1000)
 
     def append_output(self, text: str, stream: str) -> None:
-        """追加输出文本。stream 为 'stdout' 或 'stderr'。"""
+        """追加输出文本。stream 为 'stdout' 或 'stderr'。
+
+        使用 \n 分段、\r 检测行覆盖，正确处理进度条输出。
+        """
         cleaned = _strip_ansi(text)
         if not cleaned:
+            return
+
+        # 按 \n 分段，再按 \r 检测替换意图
+        newline_segments = cleaned.split("\n")
+        for i, segment in enumerate(newline_segments):
+            cr_parts = segment.split("\r")
+            for j, part in enumerate(cr_parts):
+                if j > 0:
+                    # \r 到达：先刷新当前缓冲为替换模式
+                    self._flush_line(stream)
+                    self._replacing = True
+                if part:
+                    self._pending_line += part
+
+            # 段末 \n：刷新当前行
+            if i < len(newline_segments) - 1:
+                self._flush_line(stream)
+
+        if self._auto_scroll:
+            sb = self._browser.verticalScrollBar()
+            sb.setValue(sb.maximum())
+
+    def _flush_line(self, stream: str) -> None:
+        """将 _pending_line 缓冲区内容显示到浏览器。"""
+        line = self._pending_line
+        self._pending_line = ""
+        if not line:
+            self._replacing = False
             return
 
         elapsed = datetime.now() - self._start_time
@@ -156,57 +189,67 @@ class StructuredOutputWidget(QWidget):
         minutes, seconds = divmod(remainder, 60)
         ts = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
-        # 逐行处理
-        for line in cleaned.splitlines():
+        # 追踪原始行
+        if self._replacing and self._raw_lines:
+            self._raw_lines[-1] = line
+        else:
             self._raw_lines.append(line)
 
-            # 检测进度行：用 \r 覆盖的行，只保留最新
-            if "\r" in line:
-                continue
-
-            if _SECTION_RE.match(line):
+        # 构建 HTML
+        if _SECTION_RE.match(line):
+            html = (
+                f'<div style="color:#888; margin:4px 0;">'
+                f"{_html_escape(line)}"
+                f"</div>"
+            )
+        elif stream == "stderr":
+            html = (
+                f'<span style="color:#f44747;">'
+                f"[{ts}] {_html_escape(line)}"
+                f"</span><br>"
+            )
+        else:
+            prog_match = _PROGRESS_RE.search(line)
+            if prog_match:
+                pct = int(prog_match.group(1))
+                self._progress_bar.show()
+                self._progress_bar.setValue(min(pct, 100))
                 html = (
-                    f'<div style="color:#888; margin:4px 0;">'
-                    f"{_html_escape(line)}"
-                    f"</div>"
-                )
-            elif stream == "stderr":
-                html = (
-                    f'<span style="color:#f44747;">'
-                    f"[{ts}] {_html_escape(line)}"
+                    f'<span style="color:#dcdcaa;">'
+                    f"[{ts}] {_html_escape(line)} ({pct}%)"
                     f"</span><br>"
                 )
             else:
-                # 检测进度百分比
-                prog_match = _PROGRESS_RE.search(line)
-                if prog_match:
-                    pct = int(prog_match.group(1))
-                    # 更新进度条
-                    self._progress_bar.show()
-                    self._progress_bar.setValue(min(pct, 100))
-                    html = (
-                        f'<span style="color:#dcdcaa;">'
-                        f"[{ts}] {_html_escape(line)} ({pct}%)"
-                        f"</span><br>"
-                    )
-                else:
-                    html = f"[{_html_escape(ts)}] {_html_escape(line)}<br>"
+                html = f"[{_html_escape(ts)}] {_html_escape(line)}<br>"
 
+        if self._replacing:
+            self._replace_last_line(html)
+        else:
             self._browser.append(html)
 
-            # 缓冲限制：截断时回退为纯文本（丢失 HTML 着色，但保证内存可控）
-            if len(self._browser.toPlainText()) > _MAX_BUFFER:
-                # 截断前半部分
-                full = self._browser.toPlainText()
-                keep = full[_MAX_BUFFER // 2 :]
-                self._browser.setPlainText(keep)
-                self._browser.moveCursor(
-                    self._browser.textCursor().End
-                )
+        self._replacing = False
 
-        if self._auto_scroll:
-            sb = self._browser.verticalScrollBar()
-            sb.setValue(sb.maximum())
+        # 缓冲限制
+        if len(self._browser.toPlainText()) > _MAX_BUFFER:
+            full = self._browser.toPlainText()
+            keep = full[_MAX_BUFFER // 2:]
+            self._browser.setPlainText(keep)
+            self._browser.moveCursor(
+                self._browser.textCursor().End
+            )
+
+    def _replace_last_line(self, html: str) -> None:
+        """用 QTextCursor 替换浏览器中最后一行的内容。"""
+        cursor = self._browser.textCursor()
+        cursor.movePosition(cursor.MoveOperation.End)
+        # 从文档末尾选到当前块（最后一块）起始，正确替换最后的块
+        cursor.movePosition(
+            cursor.MoveOperation.StartOfBlock,
+            cursor.MoveMode.KeepAnchor,
+        )
+        cursor.removeSelectedText()
+        cursor.insertHtml(html)
+        self._browser.setTextCursor(cursor)
 
     def clear(self) -> None:
         self._browser.clear()
