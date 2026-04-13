@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import time
 
@@ -43,6 +44,7 @@ class MainWindow(QMainWindow):
     def __init__(self, repo_root: str, parent=None):
         super().__init__(parent)
         self._repo_root = Path(repo_root)
+        self._gui_defaults = self._load_gui_defaults()
         self._current_script: ScriptEntry | None = None
         self._files: list[FileInfo] = []
 
@@ -169,7 +171,7 @@ class MainWindow(QMainWindow):
         self._info_desc.setWordWrap(True)
         self._info_cmd = QLabel()
         self._info_cmd.setWordWrap(True)
-        self._info_cmd.setStyleSheet("font-family: Consolas, Monospace; font-size: 9pt;")
+        self._info_cmd.setStyleSheet("font-family: \"Cascadia Code\", \"Consolas\", \"Menlo\", \"DejaVu Sans Mono\", \"Liberation Mono\", monospace; font-size: 9pt;")
         self._info_output_dir = QLabel()
 
         form.addRow("名称:", self._info_name)
@@ -384,6 +386,93 @@ class MainWindow(QMainWindow):
                 return p
         return None
 
+    # ── GUI 默认值持久化 ────────────────────────────────────────────
+
+    _GUI_DEFAULTS_FILE = "gui_defaults.json"
+
+    def _load_gui_defaults(self) -> dict[str, dict[str, str]]:
+        """从 gui_defaults.json 加载用户自定义默认值。"""
+        path = self._repo_root / self._GUI_DEFAULTS_FILE
+        if path.exists():
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                return {}
+        return {}
+
+    def _save_gui_defaults(self) -> None:
+        """将当前 _gui_defaults 写入 gui_defaults.json。"""
+        path = self._repo_root / self._GUI_DEFAULTS_FILE
+        try:
+            path.write_text(
+                json.dumps(self._gui_defaults, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except OSError as e:
+            self.statusBar().showMessage(f"保存默认值失败: {e}", 5000)
+
+    def _on_save_defaults(self) -> None:
+        """将当前参数值保存为当前脚本的默认值。"""
+        if self._current_script is None:
+            return
+
+        saved: dict[str, str] = {}
+        for key, widget in self._cli_widgets.items():
+            cli_param = self._find_cli_param(key)
+            if cli_param is None:
+                continue
+
+            if isinstance(widget, QCheckBox):
+                saved[cli_param.flag] = str(widget.isChecked())
+            elif isinstance(widget, QSpinBox):
+                saved[cli_param.flag] = str(widget.value())
+            elif isinstance(widget, QLineEdit):
+                # 保存标准单位值（与 _param_defaults / _on_run 一致）
+                if widget in self._unit_combos:
+                    saved[cli_param.flag] = self._to_standard_unit(widget)
+                else:
+                    saved[cli_param.flag] = widget.text().strip()
+            elif isinstance(widget, QComboBox):
+                saved[cli_param.flag] = widget.currentText().strip()
+
+        self._gui_defaults[self._current_script.name] = saved
+        self._save_gui_defaults()
+
+        # 更新 _param_defaults 以同步高亮逻辑
+        for key, widget in self._cli_widgets.items():
+            cli_param = self._find_cli_param(key)
+            if cli_param is None:
+                continue
+            flag = cli_param.flag
+            if flag in saved:
+                self._param_defaults[widget] = saved[flag]
+                self._update_param_highlight(widget)
+
+        self.statusBar().showMessage("默认值已保存", 3000)
+
+    def _on_reset_defaults(self) -> None:
+        """恢复为 script_registry 中定义的出厂默认值。"""
+        if self._current_script is None:
+            return
+
+        # 从持久化存储中移除该脚本的自定义默认值
+        self._gui_defaults.pop(self._current_script.name, None)
+        self._save_gui_defaults()
+
+        # 将控件恢复为 CliParam.default 并更新 _param_defaults
+        for key, widget in self._cli_widgets.items():
+            cli_param = self._find_cli_param(key)
+            if cli_param is None:
+                continue
+
+            factory_default = cli_param.default or ""
+
+            self._set_widget_std_value(widget, factory_default)
+            self._param_defaults[widget] = factory_default
+            self._update_param_highlight(widget)
+
+        self.statusBar().showMessage("已恢复出厂默认值", 3000)
+
     def _on_run(self) -> None:
         if self._current_script is None:
             return
@@ -409,7 +498,7 @@ class MainWindow(QMainWindow):
                     extra_args.append(cli_param.flag)
             elif isinstance(widget, QSpinBox):
                 val = widget.value()
-                default = cli_param.default
+                default = self._param_defaults.get(widget, "")
                 if default:
                     if abs(val - float(default)) > 1e-9:
                         extra_args.extend([cli_param.flag, str(val)])
@@ -417,15 +506,17 @@ class MainWindow(QMainWindow):
                     extra_args.extend([cli_param.flag, str(val)])
             elif isinstance(widget, QLineEdit):
                 text = widget.text().strip()
-                default = cli_param.default
-                if text and text != default:
-                    # 将显示单位值转换回标准单位
-                    if widget in self._unit_combos:
-                        text = self._to_standard_unit(widget)
+                default = self._param_defaults.get(widget, "")
+                # 带单位的参数：先转到标准单位再比较
+                if widget in self._unit_combos:
+                    std_text = self._to_standard_unit(widget)
+                    if std_text and std_text != default:
+                        extra_args.extend([cli_param.flag, std_text])
+                elif text and text != default:
                     extra_args.extend([cli_param.flag, text])
             elif isinstance(widget, QComboBox):
                 text = widget.currentText().strip()
-                default = cli_param.default
+                default = self._param_defaults.get(widget, "")
                 if text and text != default:
                     extra_args.extend([cli_param.flag, text])
                     # 同步设置对应环境变量（兼容脚本内的 os.environ 回退）
@@ -921,6 +1012,17 @@ class MainWindow(QMainWindow):
                     default_idx = units.index(cli_param.default_unit)
             unit_combo.setCurrentIndex(default_idx)
             unit_combo.setProperty("prev_idx", default_idx)
+
+            # 如果默认单位不是标准单位，转换显示值
+            if default_idx != 0 and cli_param.default:
+                try:
+                    group = UNIT_GROUPS[cli_param.unit_group]
+                    units = list(group.keys())
+                    std_val = float(cli_param.default)
+                    display_val = std_val / group[units[default_idx]]
+                    widget.setText(f"{display_val:.10g}")
+                except (ValueError, ZeroDivisionError):
+                    pass
             unit_combo.currentIndexChanged.connect(
                 lambda _, le=widget, uc=unit_combo, ug=cli_param.unit_group:
                     self._on_unit_changed(le, uc, ug)
@@ -941,6 +1043,29 @@ class MainWindow(QMainWindow):
     def _display_widget(self, widget: QWidget) -> QWidget:
         """返回用于添加到布局的 widget（可能已被单位选择器包裹）。"""
         return self._wrapped_widgets.get(widget, widget)
+
+    def _set_widget_std_value(self, widget: QWidget, std_val_str: str) -> None:
+        """将标准单位值设置到控件（带单位的 QLineEdit 会自动转换到当前显示单位）。"""
+        if isinstance(widget, QCheckBox):
+            widget.setChecked(std_val_str.lower() == "true")
+        elif isinstance(widget, QSpinBox):
+            if std_val_str:
+                widget.setValue(int(float(std_val_str)))
+        elif isinstance(widget, QLineEdit):
+            if widget in self._unit_combos and std_val_str:
+                combo = self._unit_combos[widget]
+                group = UNIT_GROUPS[self._unit_groups[widget]]
+                units = list(group.keys())
+                try:
+                    std_val = float(std_val_str)
+                    display_val = std_val / group[units[combo.currentIndex()]]
+                    widget.setText(f"{display_val:.10g}")
+                except (ValueError, ZeroDivisionError):
+                    widget.setText(std_val_str)
+            else:
+                widget.setText(std_val_str)
+        elif isinstance(widget, QComboBox):
+            widget.setCurrentText(std_val_str)
 
     def _add_cli_param_row(self, cli_param: CliParam) -> None:
         """创建控件并添加到参数面板的当前表单布局中。"""
@@ -1054,6 +1179,34 @@ class MainWindow(QMainWindow):
                 self._params_layout.addRow(adv_group)
 
             has_any = True
+
+        # 应用用户保存的自定义默认值（存储为标准单位）
+        saved = self._gui_defaults.get(entry.name, {})
+        if saved:
+            for key, widget in self._cli_widgets.items():
+                cli_param = self._find_cli_param(key)
+                if cli_param is None or cli_param.flag not in saved:
+                    continue
+                val = saved[cli_param.flag]
+                self._set_widget_std_value(widget, val)
+                self._param_defaults[widget] = val
+
+        # 保存/恢复默认值按钮
+        if has_any:
+            btn_layout = QHBoxLayout()
+            btn_layout.setContentsMargins(0, 8, 0, 0)
+            save_btn = QPushButton("保存为默认值")
+            save_btn.setToolTip("将当前参数值保存为此脚本的默认值")
+            save_btn.clicked.connect(self._on_save_defaults)
+            reset_btn = QPushButton("恢复出厂默认")
+            reset_btn.setToolTip("恢复为系统预设的默认参数值")
+            reset_btn.clicked.connect(self._on_reset_defaults)
+            btn_layout.addWidget(save_btn)
+            btn_layout.addWidget(reset_btn)
+            btn_layout.addStretch()
+            btn_wrapper = QWidget()
+            btn_wrapper.setLayout(btn_layout)
+            self._params_layout.addRow(btn_wrapper)
 
         if not has_any:
             label = QLabel("此脚本无可配置参数")

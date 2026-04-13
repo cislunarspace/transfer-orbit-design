@@ -218,6 +218,9 @@ Desktop.ini
 /scripts/output/
 /results/
 
+# GUI 用户自定义默认值（可能包含本地路径）
+gui_defaults.json
+
 # e2m2e 符号链接（指向 ~/codes/e2m2e/e2m2e，由 setup_symlink.sh 管理）
 e2m2e
 
