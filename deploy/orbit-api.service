@@ -1,0 +1,15 @@
+[Unit]
+Description=Transfer Orbit Design API
+After=network.target
+
+[Service]
+Type=simple
+User=ouyangjiahong
+WorkingDirectory=/home/ouyangjiahong/codes/transfer-orbit-design
+Environment=PATH=/home/ouyangjiahong/miniconda3/envs/orbit-py313/bin:/usr/bin
+ExecStart=/home/ouyangjiahong/miniconda3/envs/orbit-py313/bin/python -m uvicorn api.main:app --host 0.0.0.0 --port 8900
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
