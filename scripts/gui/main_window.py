@@ -171,7 +171,7 @@ class MainWindow(QMainWindow):
         self._info_desc.setWordWrap(True)
         self._info_cmd = QLabel()
         self._info_cmd.setWordWrap(True)
-        self._info_cmd.setStyleSheet("font-family: \"Cascadia Code\", \"Consolas\", \"Menlo\", \"DejaVu Sans Mono\", \"Liberation Mono\", monospace; font-size: 9pt;")
+        self._info_cmd.setStyleSheet("font-family: 'Cascadia Code', 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Liberation Mono', monospace; font-size: 9pt;")
         self._info_output_dir = QLabel()
 
         form.addRow("名称:", self._info_name)

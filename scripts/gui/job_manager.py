@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -97,7 +98,7 @@ class JobManager(QObject):
         args = [script_entry.script_path]
         if extra_args:
             args.extend(extra_args)
-        process.start("python", args)
+        process.start(sys.executable, args)
         self.job_started.emit(job_id, script_entry.name)
         return job_id
 
@@ -182,7 +183,7 @@ class JobManager(QObject):
             self.job_error.emit(
                 job_id,
                 f"脚本启动失败: {name}\n"
-                "命令 'python' 未找到，请确认 Python 已安装并加入 PATH",
+                "Python 解释器未找到，请确认 Python 已正确安装",
             )
         elif error != QProcess.ProcessError.UnknownError:
             err_name = error.name if hasattr(error, "name") else str(error)

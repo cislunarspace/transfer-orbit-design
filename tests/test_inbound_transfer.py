@@ -75,6 +75,7 @@ class TestLeoUtils:
 
     def test_leo_constants(self):
         from scripts.utils.leo import R_LEO, V_CIRCULAR_LEO, T_LEO, DU
+        from scripts.utils.common import VU
 
         # LEO 半径 ~6771 km (6371 + 400)
         assert abs(R_LEO * DU - 6771.0) < 1.0

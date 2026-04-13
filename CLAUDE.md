@@ -183,6 +183,33 @@ PyQt6 desktop app (`scripts/gui/main.py`) for browsing and running scripts.
 3. **Stale hardcoded paths**: `grid_search_dro_to_ro.py` and `optimize_dro_to_ro.py` have hardcoded JSON file paths — update them before running
 4. **μ precision**: Always use `MU = 1.21506683e-2`, never the rounded `0.01215`
 
+## Cross-Platform Notes
+
+This project supports **Windows, Linux, and macOS**.
+
+### Line Endings
+- `.gitattributes` enforces LF for all text files (`.py`, `.md`, `.json`, `.yml`, `.toml`)
+- Windows batch/PowerShell scripts use CRLF
+- After cloning, run `git config core.autocrlf input` (or `false`) on Windows
+
+### Python Executable
+- GUI uses `sys.executable` to launch child processes (works on all platforms)
+- On Linux/macOS, if `python` is not found, use `python3` directly in terminal
+- Scripts use `if __name__ == "__main__"` guard for Windows multiprocessing compatibility
+
+### PyQt6 System Dependencies
+- **Linux**: May need `sudo apt install libxcb-xinerama0 libxcb-cursor0` (or equivalent)
+- **macOS**: `pip install PyQt6` should work out of the box
+- **Windows**: Wheels include all dependencies
+
+### SPICE Kernels
+- Default path: `../e2m2e/kernels/` (sibling directory, works on all OS via `pathlib`)
+- Override with `SPICE_KERNEL_DIR` environment variable for non-standard layouts
+
+### CI/CD
+- GitHub Actions runs tests on all three platforms (Windows, Linux, macOS) with Python 3.10 and 3.13
+- Release workflow triggers on `v*` tags to create GitHub Releases
+
 ## Plan Tracking
 
 - `plan/` — dated active task plans
