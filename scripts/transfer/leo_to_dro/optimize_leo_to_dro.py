@@ -4,7 +4,7 @@ LEO → DRO NLP 优化
 与 optimize_geo_to_dro.py 结构完全一致，仅调整默认参数范围。
 LEO 出发需要更大的 alpha 和更长的转移时间。
 
-运行: python scripts/transfer/optimize_leo_to_dro.py
+运行: python scripts/transfer/leo_to_dro/optimize_leo_to_dro.py
 
 注: 此脚本通过修改 optimize_geo_to_dro.py 的默认参数实现，
     如需更深定制可直接修改该脚本。
@@ -18,7 +18,7 @@ from pathlib import Path
 
 # 复用 GEO→DRO 优化脚本的全部逻辑
 # 仅覆盖默认参数
-import scripts.transfer.optimize_geo_to_dro as base_opt
+import scripts.transfer.geo_to_dro.optimize_geo_to_dro as base_opt
 
 project_root = Path(__file__).resolve().parent.parent.parent
 

@@ -7,7 +7,7 @@
 3. 用少量网格点测试正向积分轨迹是否能到达月球附近
 4. 测试 TransferSearch(departure=GEO, arrival=DRO) 的网格搜索
 
-运行: python scripts/transfer/validate_geo_to_dro.py
+运行: python scripts/transfer/geo_to_dro/validate_geo_to_dro.py
 """
 
 import numpy as np

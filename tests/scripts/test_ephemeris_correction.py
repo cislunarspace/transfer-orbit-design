@@ -41,7 +41,7 @@ class TestEphemerisScriptImports:
         """Test that correct_dro_to_ephemeris.py can be imported without errors"""
         mock_corr.return_value.iterate_correction.return_value = MagicMock()
 
-        script_path = project_root / "scripts" / "ephemeris" / "correct_dro_to_ephemeris.py"
+        script_path = project_root / "scripts" / "ephemeris" / "correct" / "correct_dro_to_ephemeris.py"
         spec = importlib.util.spec_from_file_location("correct_dro_to_ephemeris", script_path)
         module = importlib.util.module_from_spec(spec)
 

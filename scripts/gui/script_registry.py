@@ -45,12 +45,13 @@ class ScriptEntry:
     module: str           # 类别: "dro", "ro", "halo", "transfer", "ephemeris", "inspection"
     name: str             # 文件名（不含 .py）
     description: str      # 中文描述
-    script_path: str      # 相对路径 "scripts/dro/generate_31_dro_orbit.py"
+    script_path: str      # 相对路径，如 "scripts/dro/generate/generate_31_dro_orbit.py"
     output_dir: str | None = None                     # 关联输出目录，用于文件浏览器高亮
     accepts_file_arg: bool = False                    # 是否支持 --file 参数
     needs_spice: bool = False                         # 是否需要 SPICE_KERNEL_DIR
     env_params: dict[str, EnvParam] = field(default_factory=dict)
     cli_params: list[CliParam] = field(default_factory=list)
+    group_label: str = ""                             # GUI 分组标签，如 "生成"、"绘图"；空表示不分组
 
 
 # 按类别分组的脚本注册表，顺序决定 UI 中的显示顺序
@@ -59,8 +60,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "dro", "generate_31_dro_orbit",
             "生成 3:1 DRO 轨道（固定周期微分校正）",
-            "scripts/dro/generate_31_dro_orbit.py",
+            "scripts/dro/generate/generate_31_dro_orbit.py",
             output_dir="output/dro",
+            group_label="生成",
             cli_params=[
                 CliParam("--x0", "初始 x 坐标", "float", "1.1202", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="km"),
                 CliParam("--vy0", "初始 vy 速度", "float", "-0.4618", "初始 y 方向速度（无量纲）", unit_group="velocity"),
@@ -70,8 +72,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "dro", "generate_dro_family",
             "生成 DRO 轨道族（差分修正 + 自然延拓）",
-            "scripts/dro/generate_dro_family.py",
+            "scripts/dro/generate/generate_dro_family.py",
             output_dir="output/dro",
+            group_label="生成",
             cli_params=[
                 CliParam("--x0", "初始 x 坐标", "float", "0.79188556619742", "种子轨道初始 x 坐标（无量纲）", unit_group="distance", default_unit="km"),
                 CliParam("--vy0", "初始 vy 速度", "float", "0.53682", "种子轨道初始 vy 速度（无量纲）", unit_group="velocity"),
@@ -84,8 +87,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "dro", "plot_dro_family",
             "绘制 DRO 轨道族",
-            "scripts/dro/plot_dro_family.py",
+            "scripts/dro/plot/plot_dro_family.py",
             output_dir="output/dro",
+            group_label="绘图",
             cli_params=[
                 CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="dro"),
             ],
@@ -95,8 +99,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "generate_31_ro_orbit",
             "生成 3:1 RO 轨道（固定周期微分校正）",
-            "scripts/ro/generate_31_ro_orbit.py",
+            "scripts/ro/generate/generate_31_ro_orbit.py",
             output_dir="output/ro",
+            group_label="生成",
             cli_params=[
                 CliParam("--x0", "初始 x 坐标", "float", "-0.8805", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="km"),
                 CliParam("--vy0", "初始 vy 速度", "float", "0.3921", "初始 y 方向速度（无量纲）", unit_group="velocity"),
@@ -106,8 +111,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "generate_31_ro_family",
             "生成 3:1 共振轨道族（差分修正 + 自然延拓）",
-            "scripts/ro/generate_31_ro_family.py",
+            "scripts/ro/generate/generate_31_ro_family.py",
             output_dir="output/ro",
+            group_label="生成",
             cli_params=[
                 CliParam("--x0", "初始 x 坐标", "float", "-0.8805", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="km"),
                 CliParam("--vy0", "初始 vy 速度", "float", "0.3921", "初始 y 方向速度（无量纲）", unit_group="velocity"),
@@ -120,8 +126,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "generate_32_ro_family",
             "生成 3:2 共振轨道族（差分修正 + 自然延拓）",
-            "scripts/ro/generate_32_ro_family.py",
+            "scripts/ro/generate/generate_32_ro_family.py",
             output_dir="output/ro",
+            group_label="生成",
             cli_params=[
                 CliParam("--x0", "初始 x 坐标", "float", "-1.1453", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="km"),
                 CliParam("--vy0", "初始 vy 速度", "float", "0.4633", "初始 y 方向速度（无量纲）", unit_group="velocity"),
@@ -134,8 +141,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "generate_aro_family",
             "生成 ARO 轴向共振轨道族（从 3:2 RO 分岔）",
-            "scripts/ro/generate_aro_family.py",
+            "scripts/ro/generate/generate_aro_family.py",
             output_dir="output/ro",
+            group_label="生成",
             cli_params=[
                 CliParam("--ro-file", "RO 文件", "str", help="3:2 RO 轨道 JSON 文件路径", file_category="ro"),
                 CliParam("--target-x0", "目标 x0", "float", "-1.0878", "目标 x0 分岔点", unit_group="distance", default_unit="km"),
@@ -150,8 +158,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "generate_rro_family",
             "生成 RRO 反射共振轨道族（从 3:2 RO 分岔）",
-            "scripts/ro/generate_rro_family.py",
+            "scripts/ro/generate/generate_rro_family.py",
             output_dir="output/ro",
+            group_label="生成",
             cli_params=[
                 CliParam("--ro-file", "RO 文件", "str", help="3:2 RO 轨道 JSON 文件路径", file_category="ro"),
                 CliParam("--target-x0", "目标 x0", "float", "-1.1318", "目标 x0 分岔点", unit_group="distance", default_unit="km"),
@@ -162,8 +171,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "plot_31_ro_family",
             "绘制 3:1 共振轨道族",
-            "scripts/ro/plot_31_ro_family.py",
+            "scripts/ro/plot/plot_31_ro_family.py",
             output_dir="output/ro",
+            group_label="绘图",
             cli_params=[
                 CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
@@ -173,8 +183,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "plot_32_ro_family",
             "绘制 3:2 共振轨道族",
-            "scripts/ro/plot_32_ro_family.py",
+            "scripts/ro/plot/plot_32_ro_family.py",
             output_dir="output/ro",
+            group_label="绘图",
             cli_params=[
                 CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
@@ -184,8 +195,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "plot_aro_family",
             "绘制 ARO 轨道族",
-            "scripts/ro/plot_aro_family.py",
+            "scripts/ro/plot/plot_aro_family.py",
             output_dir="output/ro",
+            group_label="绘图",
             cli_params=[
                 CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
@@ -195,8 +207,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "plot_rro_family",
             "绘制 RRO 轨道族",
-            "scripts/ro/plot_rro_family.py",
+            "scripts/ro/plot/plot_rro_family.py",
             output_dir="output/ro",
+            group_label="绘图",
             cli_params=[
                 CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
@@ -208,8 +221,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "halo", "generate_halo_orbit",
             "生成 Halo 轨道（Richardson 三阶近似 + 微分修正）",
-            "scripts/halo/generate_halo_orbit.py",
+            "scripts/halo/generate/generate_halo_orbit.py",
             output_dir="output/halo",
+            group_label="生成",
             cli_params=[
                 CliParam("--libration-point", "平动点", "int", "1", "平动点：1=L1, 2=L2"),
                 CliParam("--amplitude-z", "Z 振幅", "float", "0.23", "Z 方向振幅（无量纲）", unit_group="distance", default_unit="km"),
@@ -224,8 +238,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "halo", "generate_halo_family",
             "生成 Halo 轨道族（伪弧长延拓）",
-            "scripts/halo/generate_halo_family.py",
+            "scripts/halo/generate/generate_halo_family.py",
             output_dir="output/halo",
+            group_label="生成",
             cli_params=[
                 CliParam("--libration-point", "平动点", "int", "1", "平动点：1=L1, 2=L2"),
                 CliParam("--amplitude-z", "Z 振幅", "float", "0.23", "Z 方向振幅（无量纲）", unit_group="distance", default_unit="km"),
@@ -238,8 +253,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "halo", "plot_halo_family",
             "绘制 Halo 轨道族",
-            "scripts/halo/plot_halo_family.py",
+            "scripts/halo/plot/plot_halo_family.py",
             output_dir="output/halo",
+            group_label="绘图",
             env_params={
                 "json_file": EnvParam("HALO_FAMILY_FILE", "Halo 轨道族文件", "halo"),
             },
@@ -254,8 +270,9 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "halo", "plot_halo_orbit",
             "绘制 Halo 轨道族（含 Jacobi/稳定性分析）",
-            "scripts/halo/plot_halo_orbit.py",
+            "scripts/halo/plot/plot_halo_orbit.py",
             output_dir="output/halo",
+            group_label="绘图",
             cli_params=[
                 CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="halo"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
@@ -264,11 +281,13 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ),
     ],
     "Transfer": [
+        # ── DRO→RO ──────────────────────────────────────────────
         ScriptEntry(
             "transfer", "grid_search_dro_to_ro",
             "DRO→RO 转移轨道网格搜索",
-            "scripts/transfer/grid_search_dro_to_ro.py",
+            "scripts/transfer/dro_to_ro/grid_search_dro_to_ro.py",
             output_dir="output/transfer",
+            group_label="DRO→RO",
             cli_params=[
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
                 CliParam("--ro-file", "RO 文件", "str", help="RO 轨道 JSON 文件路径", file_category="ro"),
@@ -284,65 +303,11 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             ],
         ),
         ScriptEntry(
-            "transfer", "grid_search_dro_to_geo",
-            "DRO→GEO 转移轨道网格搜索",
-            "scripts/transfer/grid_search_dro_to_geo.py",
-            output_dir="output/transfer",
-            cli_params=[
-                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
-                CliParam("--n-departure", "出发点数", "int", "200", "出发时间网格数"),
-                CliParam("--n-alpha", "alpha 密度", "int", "100", "alpha 网格密度"),
-                CliParam("--alpha-min", "alpha 下界", "float", "0.5", "alpha 搜索下界"),
-                CliParam("--alpha-max", "alpha 上界", "float", "2.5", "alpha 搜索上界"),
-                CliParam("--max-transfer-time", "最大转移时间", "float", str(round(100.0 / 0.3482, 6)), "最大转移时间（无量纲）", unit_group="time", default_unit="days"),
-                CliParam("--geo-threshold", "GEO 相交阈值", "float", str(round(100.0 / 384400, 6)), "GEO 相交距离阈值", unit_group="distance", default_unit="km"),
-                CliParam("--earth-radius", "地球半径", "float", str(round(200.0 / 384400, 6)), "地球碰撞检测半径", unit_group="distance", default_unit="km"),
-                CliParam("--moon-radius", "月球半径", "float", str(round(100.0 / 384400, 6)), "月球碰撞检测半径", unit_group="distance", default_unit="km"),
-            ],
-        ),
-        ScriptEntry(
-            "transfer", "grid_search_geo_to_dro",
-            "GEO→DRO 转移轨道网格搜索",
-            "scripts/transfer/grid_search_geo_to_dro.py",
-            output_dir="output/transfer",
-            cli_params=[
-                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
-                CliParam("--n-departure", "GEO 出发点数", "int", "10", "GEO 出发点数量"),
-                CliParam("--n-alpha", "alpha 密度", "int", "200", "alpha 网格密度"),
-                CliParam("--alpha-min", "alpha 下界", "float", "1.0", "alpha 搜索下界"),
-                CliParam("--alpha-max", "alpha 上界", "float", "1.5", "alpha 搜索上界"),
-                CliParam("--max-transfer-time", "最大转移时间", "float", str(round(10.0 / 0.3482, 6)), "最大转移时间（无量纲）", unit_group="time", default_unit="days"),
-                CliParam("--intersection-threshold", "相交阈值", "float", str(round(100.0 / 384400, 6)), "相交判定距离阈值", unit_group="distance", default_unit="km"),
-                CliParam("--min-distance", "最小距离阈值", "float", str(round(100.0 / 384400, 6)), "候选解最小距离阈值", unit_group="distance", default_unit="km"),
-                CliParam("--earth-radius", "地球半径", "float", str(round(200.0 / 384400, 6)), "地球碰撞检测半径", unit_group="distance", default_unit="km"),
-                CliParam("--moon-radius", "月球半径", "float", str(round(100.0 / 384400, 6)), "月球碰撞检测半径", unit_group="distance", default_unit="km"),
-                CliParam("--geo-n-points", "GEO 采样点数", "int", "1000", "GEO 轨道采样点数"),
-            ],
-        ),
-        ScriptEntry(
-            "transfer", "grid_search_leo_to_dro",
-            "LEO→DRO 转移轨道网格搜索",
-            "scripts/transfer/grid_search_leo_to_dro.py",
-            output_dir="output/transfer",
-            cli_params=[
-                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
-                CliParam("--n-departure", "出发点数", "int", "200", "出发时间网格数"),
-                CliParam("--n-alpha", "alpha 密度", "int", "100", "alpha 网格密度"),
-                CliParam("--alpha-min", "alpha 下界", "float", "1.2", "alpha 搜索下界"),
-                CliParam("--alpha-max", "alpha 上界", "float", "2.0", "alpha 搜索上界"),
-                CliParam("--max-transfer-time", "最大转移时间", "float", "80.0", "最大转移时间（无量纲）", unit_group="time", default_unit="days"),
-                CliParam("--intersection-threshold", "相交阈值", "float", "0.001", "相交判定距离阈值", unit_group="distance", default_unit="km"),
-                CliParam("--min-distance", "最小距离阈值", "float", str(round(500.0 / 384400, 6)), "候选解最小距离阈值", unit_group="distance", default_unit="km"),
-                CliParam("--earth-radius", "地球半径", "float", str(round(200.0 / 384400, 6)), "地球碰撞检测半径", unit_group="distance", default_unit="km"),
-                CliParam("--moon-radius", "月球半径", "float", str(round(100.0 / 384400, 6)), "月球碰撞检测半径", unit_group="distance", default_unit="km"),
-                CliParam("--leo-n-points", "LEO 采样点数", "int", "500", "LEO 轨道采样点数"),
-            ],
-        ),
-        ScriptEntry(
             "transfer", "optimize_dro_to_ro",
             "DRO→RO 转移 NLP 优化（SLSQP 最小化 Δv）",
-            "scripts/transfer/optimize_dro_to_ro.py",
+            "scripts/transfer/dro_to_ro/optimize_dro_to_ro.py",
             output_dir="output/transfer",
+            group_label="DRO→RO",
             cli_params=[
                 CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径", file_category="transfer"),
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
@@ -358,10 +323,65 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             ],
         ),
         ScriptEntry(
+            "transfer", "plot_search_results_dro_to_ro",
+            "绘制 DRO→RO 网格搜索结果",
+            "scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py",
+            output_dir="output/transfer",
+            group_label="DRO→RO",
+            cli_params=[
+                CliParam("--file", "搜索结果文件", "str", help="搜索结果 JSON 文件路径", file_category="transfer"),
+                CliParam("--orbit", "转移轨道图（3D）", "bool", help="重新积分并绘制转移轨道 3D 示意图"),
+                CliParam("--time-dv", "转移时间-Δv 散点图", "bool", help="绘制转移时间 vs Δv 散点图"),
+                CliParam("--idx", "选中轨道（--orbit 模式）", "str", "0", "整数索引 / best / best:N / random / all"),
+                CliParam("--save", "保存图片路径", "str", help="不填则弹窗显示"),
+                CliParam("--max-points", "最大散点数", "int", "50000", "散点子采样上限，避免过多点导致卡顿", advanced=True),
+                CliParam("--seed", "随机种子", "int", "0", "子采样随机种子", advanced=True),
+                CliParam("--dpi", "图片 DPI", "int", "150", "保存图片的分辨率", advanced=True),
+                CliParam("--n-workers", "并行 worker 数", "int", help="并行积分进程数，仅 --orbit 模式", advanced=True),
+            ],
+        ),
+        ScriptEntry(
+            "transfer", "plot_optimize_result_dro_to_ro",
+            "绘制 DRO→RO NLP 优化结果",
+            "scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py",
+            output_dir="output/transfer",
+            group_label="DRO→RO",
+            cli_params=[
+                CliParam("--file", "优化结果文件", "str", help="优化结果 JSON 文件路径", file_category="transfer"),
+                CliParam("--orbit", "转移轨道图（3D）", "bool", help="重新积分并绘制转移轨道 3D 示意图"),
+                CliParam("--time-dv", "转移时间-Δv 散点图", "bool", help="转移时间 vs Δv 散点图"),
+                CliParam("--idx", "选中轨道（--orbit 模式）", "str", "best", "整数索引 / best / best:N / random / all"),
+                CliParam("--save", "保存图片路径", "str", help="不填则弹窗显示"),
+                CliParam("--max-points", "最大绘制轨道数", "int", "500", "--idx all 时最多绘制条数", advanced=True),
+                CliParam("--seed", "随机种子", "int", "0", "子采样随机种子", advanced=True),
+                CliParam("--dpi", "图片 DPI", "int", "150", "保存图片的分辨率", advanced=True),
+            ],
+        ),
+        # ── DRO→GEO ────────────────────────────────────────────
+        ScriptEntry(
+            "transfer", "grid_search_dro_to_geo",
+            "DRO→GEO 转移轨道网格搜索",
+            "scripts/transfer/dro_to_geo/grid_search_dro_to_geo.py",
+            output_dir="output/transfer",
+            group_label="DRO→GEO",
+            cli_params=[
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
+                CliParam("--n-departure", "出发点数", "int", "200", "出发时间网格数"),
+                CliParam("--n-alpha", "alpha 密度", "int", "100", "alpha 网格密度"),
+                CliParam("--alpha-min", "alpha 下界", "float", "0.5", "alpha 搜索下界"),
+                CliParam("--alpha-max", "alpha 上界", "float", "2.5", "alpha 搜索上界"),
+                CliParam("--max-transfer-time", "最大转移时间", "float", str(round(100.0 / 0.3482, 6)), "最大转移时间（无量纲）", unit_group="time", default_unit="days"),
+                CliParam("--geo-threshold", "GEO 相交阈值", "float", str(round(100.0 / 384400, 6)), "GEO 相交距离阈值", unit_group="distance", default_unit="km"),
+                CliParam("--earth-radius", "地球半径", "float", str(round(200.0 / 384400, 6)), "地球碰撞检测半径", unit_group="distance", default_unit="km"),
+                CliParam("--moon-radius", "月球半径", "float", str(round(100.0 / 384400, 6)), "月球碰撞检测半径", unit_group="distance", default_unit="km"),
+            ],
+        ),
+        ScriptEntry(
             "transfer", "optimize_dro_to_geo",
             "DRO→GEO 转移 NLP 优化",
-            "scripts/transfer/optimize_dro_to_geo.py",
+            "scripts/transfer/dro_to_geo/optimize_dro_to_geo.py",
             output_dir="output/transfer",
+            group_label="DRO→GEO",
             cli_params=[
                 CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径", file_category="transfer"),
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
@@ -377,10 +397,51 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             ],
         ),
         ScriptEntry(
+            "transfer", "plot_search_results_dro_to_geo",
+            "绘制 DRO→GEO 网格搜索结果",
+            "scripts/transfer/dro_to_geo/plot_search_results_dro_to_geo.py",
+            output_dir="output/transfer",
+            group_label="DRO→GEO",
+            cli_params=[
+                CliParam("--file", "搜索结果文件", "str", help="搜索结果 JSON 文件路径", file_category="transfer"),
+                CliParam("--orbit", "转移轨道图（3D）", "bool", help="重新积分并绘制转移轨道 3D 示意图"),
+                CliParam("--time-dv", "转移时间-Δv 散点图", "bool", help="绘制转移时间 vs Δv 散点图"),
+                CliParam("--interactive", "逐条浏览模式", "bool", help="按转移时间排序逐条浏览"),
+                CliParam("--idx", "选中轨道（--orbit 模式）", "str", "0", "整数索引 / best / best:N / random / all"),
+                CliParam("--save", "保存图片路径", "str", help="不填则弹窗显示"),
+                CliParam("--max-points", "最大散点数", "int", "50000", "散点子采样上限，避免过多点导致卡顿", advanced=True),
+                CliParam("--seed", "随机种子", "int", "0", "子采样随机种子", advanced=True),
+                CliParam("--dpi", "图片 DPI", "int", "150", "保存图片的分辨率", advanced=True),
+                CliParam("--n-workers", "并行 worker 数", "int", help="并行积分进程数，仅 --orbit 模式", advanced=True),
+            ],
+        ),
+        # ── GEO→DRO ────────────────────────────────────────────
+        ScriptEntry(
+            "transfer", "grid_search_geo_to_dro",
+            "GEO→DRO 转移轨道网格搜索",
+            "scripts/transfer/geo_to_dro/grid_search_geo_to_dro.py",
+            output_dir="output/transfer",
+            group_label="GEO→DRO",
+            cli_params=[
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
+                CliParam("--n-departure", "GEO 出发点数", "int", "10", "GEO 出发点数量"),
+                CliParam("--n-alpha", "alpha 密度", "int", "200", "alpha 网格密度"),
+                CliParam("--alpha-min", "alpha 下界", "float", "1.0", "alpha 搜索下界"),
+                CliParam("--alpha-max", "alpha 上界", "float", "1.5", "alpha 搜索上界"),
+                CliParam("--max-transfer-time", "最大转移时间", "float", str(round(10.0 / 0.3482, 6)), "最大转移时间（无量纲）", unit_group="time", default_unit="days"),
+                CliParam("--intersection-threshold", "相交阈值", "float", str(round(100.0 / 384400, 6)), "相交判定距离阈值", unit_group="distance", default_unit="km"),
+                CliParam("--min-distance", "最小距离阈值", "float", str(round(100.0 / 384400, 6)), "候选解最小距离阈值", unit_group="distance", default_unit="km"),
+                CliParam("--earth-radius", "地球半径", "float", str(round(200.0 / 384400, 6)), "地球碰撞检测半径", unit_group="distance", default_unit="km"),
+                CliParam("--moon-radius", "月球半径", "float", str(round(100.0 / 384400, 6)), "月球碰撞检测半径", unit_group="distance", default_unit="km"),
+                CliParam("--geo-n-points", "GEO 采样点数", "int", "1000", "GEO 轨道采样点数"),
+            ],
+        ),
+        ScriptEntry(
             "transfer", "optimize_geo_to_dro",
             "GEO→DRO 转移 NLP 优化",
-            "scripts/transfer/optimize_geo_to_dro.py",
+            "scripts/transfer/geo_to_dro/optimize_geo_to_dro.py",
             output_dir="output/transfer",
+            group_label="GEO→DRO",
             cli_params=[
                 CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径", file_category="transfer"),
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
@@ -399,10 +460,76 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             ],
         ),
         ScriptEntry(
+            "transfer", "plot_search_results_geo_to_dro",
+            "绘制 GEO→DRO 网格搜索结果",
+            "scripts/transfer/geo_to_dro/plot_search_results_geo_to_dro.py",
+            output_dir="output/transfer",
+            group_label="GEO→DRO",
+            cli_params=[
+                CliParam("--file", "搜索结果文件", "str", help="搜索结果 JSON 文件路径", file_category="transfer"),
+                CliParam("--orbit", "转移轨道图（3D）", "bool", help="重新积分并绘制转移轨道 3D 示意图"),
+                CliParam("--time-dv", "转移时间-Δv 散点图", "bool", help="绘制转移时间 vs Δv 散点图"),
+                CliParam("--interactive", "逐条浏览模式", "bool", help="按转移时间排序逐条浏览"),
+                CliParam("--idx", "选中轨道（--orbit 模式）", "str", "best:10", "all / best / best:N / random / 序号"),
+                CliParam("--save", "保存图片路径", "str", help="不填则弹窗显示"),
+                CliParam("--max-points", "最大散点数", "int", "50000", "散点子采样上限，避免过多点导致卡顿", advanced=True),
+                CliParam("--seed", "随机种子", "int", "0", "子采样随机种子", advanced=True),
+                CliParam("--dpi", "图片 DPI", "int", "150", "保存图片的分辨率", advanced=True),
+            ],
+        ),
+        ScriptEntry(
+            "transfer", "plot_optimize_result_geo_to_dro",
+            "绘制 GEO→DRO NLP 优化结果",
+            "scripts/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py",
+            output_dir="output/transfer",
+            group_label="GEO→DRO",
+            cli_params=[
+                CliParam("--file", "优化结果文件", "str", help="优化结果 JSON 文件路径", file_category="transfer"),
+                CliParam("--orbit", "转移轨道图（3D）", "bool", help="重新积分并绘制转移轨道 3D 示意图"),
+                CliParam("--time-dv", "转移时间-Δv 散点图", "bool", help="转移时间 vs Δv 散点图"),
+                CliParam("--interactive", "逐条浏览模式", "bool", help="按转移时间排序逐条浏览"),
+                CliParam("--idx", "选中轨道（--orbit 模式）", "str", "best:5", "all / best / best:N / random / 序号"),
+                CliParam("--max-pos-err", "最大位置误差 (km)", "float", "100.0", "过滤：位置误差超过此值的结果不显示"),
+                CliParam("--save", "保存图片路径", "str", help="不填则弹窗显示"),
+                CliParam("--max-points", "最大绘制轨道数", "int", "200", "--idx all 时最多绘制条数", advanced=True),
+                CliParam("--seed", "随机种子", "int", "42", "子采样随机种子", advanced=True),
+                CliParam("--dpi", "图片 DPI", "int", "150", "保存图片的分辨率", advanced=True),
+            ],
+        ),
+        ScriptEntry(
+            "transfer", "validate_geo_to_dro",
+            "验证 GEO→DRO 转移轨道搜索可行性",
+            "scripts/transfer/geo_to_dro/validate_geo_to_dro.py",
+            output_dir="output/transfer",
+            group_label="GEO→DRO",
+        ),
+        # ── LEO→DRO ────────────────────────────────────────────
+        ScriptEntry(
+            "transfer", "grid_search_leo_to_dro",
+            "LEO→DRO 转移轨道网格搜索",
+            "scripts/transfer/leo_to_dro/grid_search_leo_to_dro.py",
+            output_dir="output/transfer",
+            group_label="LEO→DRO",
+            cli_params=[
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
+                CliParam("--n-departure", "出发点数", "int", "200", "出发时间网格数"),
+                CliParam("--n-alpha", "alpha 密度", "int", "100", "alpha 网格密度"),
+                CliParam("--alpha-min", "alpha 下界", "float", "1.2", "alpha 搜索下界"),
+                CliParam("--alpha-max", "alpha 上界", "float", "2.0", "alpha 搜索上界"),
+                CliParam("--max-transfer-time", "最大转移时间", "float", "80.0", "最大转移时间（无量纲）", unit_group="time", default_unit="days"),
+                CliParam("--intersection-threshold", "相交阈值", "float", "0.001", "相交判定距离阈值", unit_group="distance", default_unit="km"),
+                CliParam("--min-distance", "最小距离阈值", "float", str(round(500.0 / 384400, 6)), "候选解最小距离阈值", unit_group="distance", default_unit="km"),
+                CliParam("--earth-radius", "地球半径", "float", str(round(200.0 / 384400, 6)), "地球碰撞检测半径", unit_group="distance", default_unit="km"),
+                CliParam("--moon-radius", "月球半径", "float", str(round(100.0 / 384400, 6)), "月球碰撞检测半径", unit_group="distance", default_unit="km"),
+                CliParam("--leo-n-points", "LEO 采样点数", "int", "500", "LEO 轨道采样点数"),
+            ],
+        ),
+        ScriptEntry(
             "transfer", "optimize_leo_to_dro",
             "LEO→DRO 转移 NLP 优化",
-            "scripts/transfer/optimize_leo_to_dro.py",
+            "scripts/transfer/leo_to_dro/optimize_leo_to_dro.py",
             output_dir="output/transfer",
+            group_label="LEO→DRO",
             cli_params=[
                 CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径", file_category="transfer"),
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
@@ -420,106 +547,15 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
                 CliParam("--n-workers", "并行 worker 数", "int", help="并行 worker 数"),
             ],
         ),
-        ScriptEntry(
-            "transfer", "validate_geo_to_dro",
-            "验证 GEO→DRO 转移轨道搜索可行性",
-            "scripts/transfer/validate_geo_to_dro.py",
-            output_dir="output/transfer",
-        ),
-        ScriptEntry(
-            "transfer", "plot_search_results",
-            "绘制 DRO-RO 网格搜索结果",
-            "scripts/transfer/plot_search_results.py",
-            output_dir="output/transfer",
-            cli_params=[
-                CliParam("--file", "搜索结果文件", "str", help="搜索结果 JSON 文件路径", file_category="transfer"),
-                CliParam("--orbit", "转移轨道图（3D）", "bool", help="重新积分并绘制转移轨道 3D 示意图"),
-                CliParam("--time-dv", "转移时间-Δv 散点图", "bool", help="绘制转移时间 vs Δv 散点图"),
-                CliParam("--idx", "选中轨道（--orbit 模式）", "str", "0", "整数索引 / best / best:N / random / all"),
-                CliParam("--save", "保存图片路径", "str", help="不填则弹窗显示"),
-                CliParam("--max-points", "最大散点数", "int", "50000", "散点子采样上限，避免过多点导致卡顿", advanced=True),
-                CliParam("--seed", "随机种子", "int", "0", "子采样随机种子", advanced=True),
-                CliParam("--dpi", "图片 DPI", "int", "150", "保存图片的分辨率", advanced=True),
-                CliParam("--n-workers", "并行 worker 数", "int", help="并行积分进程数，仅 --orbit 模式", advanced=True),
-            ],
-        ),
-        ScriptEntry(
-            "transfer", "plot_search_results_geo",
-            "绘制 DRO-GEO 网格搜索结果",
-            "scripts/transfer/plot_search_results_geo.py",
-            output_dir="output/transfer",
-            cli_params=[
-                CliParam("--file", "搜索结果文件", "str", help="搜索结果 JSON 文件路径", file_category="transfer"),
-                CliParam("--orbit", "转移轨道图（3D）", "bool", help="重新积分并绘制转移轨道 3D 示意图"),
-                CliParam("--time-dv", "转移时间-Δv 散点图", "bool", help="绘制转移时间 vs Δv 散点图"),
-                CliParam("--interactive", "逐条浏览模式", "bool", help="按转移时间排序逐条浏览"),
-                CliParam("--idx", "选中轨道（--orbit 模式）", "str", "0", "整数索引 / best / best:N / random / all"),
-                CliParam("--save", "保存图片路径", "str", help="不填则弹窗显示"),
-                CliParam("--max-points", "最大散点数", "int", "50000", "散点子采样上限，避免过多点导致卡顿", advanced=True),
-                CliParam("--seed", "随机种子", "int", "0", "子采样随机种子", advanced=True),
-                CliParam("--dpi", "图片 DPI", "int", "150", "保存图片的分辨率", advanced=True),
-                CliParam("--n-workers", "并行 worker 数", "int", help="并行积分进程数，仅 --orbit 模式", advanced=True),
-            ],
-        ),
-        ScriptEntry(
-            "transfer", "plot_search_results_geo_to_dro",
-            "绘制 GEO-DRO 网格搜索结果",
-            "scripts/transfer/plot_search_results_geo_to_dro.py",
-            output_dir="output/transfer",
-            cli_params=[
-                CliParam("--file", "搜索结果文件", "str", help="搜索结果 JSON 文件路径", file_category="transfer"),
-                CliParam("--orbit", "转移轨道图（3D）", "bool", help="重新积分并绘制转移轨道 3D 示意图"),
-                CliParam("--time-dv", "转移时间-Δv 散点图", "bool", help="绘制转移时间 vs Δv 散点图"),
-                CliParam("--interactive", "逐条浏览模式", "bool", help="按转移时间排序逐条浏览"),
-                CliParam("--idx", "选中轨道（--orbit 模式）", "str", "best:10", "all / best / best:N / random / 序号"),
-                CliParam("--save", "保存图片路径", "str", help="不填则弹窗显示"),
-                CliParam("--max-points", "最大散点数", "int", "50000", "散点子采样上限，避免过多点导致卡顿", advanced=True),
-                CliParam("--seed", "随机种子", "int", "0", "子采样随机种子", advanced=True),
-                CliParam("--dpi", "图片 DPI", "int", "150", "保存图片的分辨率", advanced=True),
-            ],
-        ),
-        ScriptEntry(
-            "transfer", "plot_optimize_result",
-            "绘制 DRO-RO NLP 优化结果",
-            "scripts/transfer/plot_optimize_result.py",
-            output_dir="output/transfer",
-            cli_params=[
-                CliParam("--file", "优化结果文件", "str", help="优化结果 JSON 文件路径", file_category="transfer"),
-                CliParam("--orbit", "转移轨道图（3D）", "bool", help="重新积分并绘制转移轨道 3D 示意图"),
-                CliParam("--time-dv", "转移时间-Δv 散点图", "bool", help="转移时间 vs Δv 散点图"),
-                CliParam("--idx", "选中轨道（--orbit 模式）", "str", "best", "整数索引 / best / best:N / random / all"),
-                CliParam("--save", "保存图片路径", "str", help="不填则弹窗显示"),
-                CliParam("--max-points", "最大绘制轨道数", "int", "500", "--idx all 时最多绘制条数", advanced=True),
-                CliParam("--seed", "随机种子", "int", "0", "子采样随机种子", advanced=True),
-                CliParam("--dpi", "图片 DPI", "int", "150", "保存图片的分辨率", advanced=True),
-            ],
-        ),
-        ScriptEntry(
-            "transfer", "plot_optimize_result_geo_to_dro",
-            "绘制 GEO-DRO NLP 优化结果",
-            "scripts/transfer/plot_optimize_result_geo_to_dro.py",
-            output_dir="output/transfer",
-            cli_params=[
-                CliParam("--file", "优化结果文件", "str", help="优化结果 JSON 文件路径", file_category="transfer"),
-                CliParam("--orbit", "转移轨道图（3D）", "bool", help="重新积分并绘制转移轨道 3D 示意图"),
-                CliParam("--time-dv", "转移时间-Δv 散点图", "bool", help="转移时间 vs Δv 散点图"),
-                CliParam("--interactive", "逐条浏览模式", "bool", help="按转移时间排序逐条浏览"),
-                CliParam("--idx", "选中轨道（--orbit 模式）", "str", "best:5", "all / best / best:N / random / 序号"),
-                CliParam("--max-pos-err", "最大位置误差 (km)", "float", "100.0", "过滤：位置误差超过此值的结果不显示"),
-                CliParam("--save", "保存图片路径", "str", help="不填则弹窗显示"),
-                CliParam("--max-points", "最大绘制轨道数", "int", "200", "--idx all 时最多绘制条数", advanced=True),
-                CliParam("--seed", "随机种子", "int", "42", "子采样随机种子", advanced=True),
-                CliParam("--dpi", "图片 DPI", "int", "150", "保存图片的分辨率", advanced=True),
-            ],
-        ),
     ],
     "Ephemeris": [
         ScriptEntry(
             "ephemeris", "correct_dro_to_ephemeris",
             "CR3BP DRO 星历修正（多重打靶法）",
-            "scripts/ephemeris/correct_dro_to_ephemeris.py",
+            "scripts/ephemeris/correct/correct_dro_to_ephemeris.py",
             output_dir="output/ephemeris",
             needs_spice=True,
+            group_label="星历修正",
             env_params={
                 "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
             },
@@ -527,9 +563,10 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ephemeris", "homotopy_dro_to_ephemeris",
             "CR3BP DRO 星历修正（同伦法 λ 延续）",
-            "scripts/ephemeris/homotopy_dro_to_ephemeris.py",
+            "scripts/ephemeris/correct/homotopy_dro_to_ephemeris.py",
             output_dir="output/ephemeris",
             needs_spice=True,
+            group_label="星历修正",
             env_params={
                 "dro_file": EnvParam("DRO_FILE", "DRO 轨道文件", "dro"),
             },
@@ -537,16 +574,18 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ephemeris", "compare_ephemeris_methods",
             "对比直接法与同伦法星历修正效率",
-            "scripts/ephemeris/compare_ephemeris_methods.py",
+            "scripts/ephemeris/compare/compare_ephemeris_methods.py",
             output_dir="output/ephemeris",
             needs_spice=True,
+            group_label="对比分析",
         ),
         ScriptEntry(
             "ephemeris", "plot_ephemeris_correction",
             "绘制 DRO 星历修正前后对比图",
-            "scripts/ephemeris/plot_ephemeris_correction.py",
+            "scripts/ephemeris/plot/plot_ephemeris_correction.py",
             output_dir="output/ephemeris",
             needs_spice=True,
+            group_label="绘图",
             cli_params=[
                 CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
                 CliParam("--ephemeris-file", "星历修正文件", "str", help="星历修正 JSON 文件路径", file_category="ephemeris"),
@@ -558,6 +597,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "inspection", "plot_interactive_orbit_inspector",
             "交互式轨道检查器（逐步遍历轨道族）",
             "scripts/inspection/plot_interactive_orbit_inspector.py",
+            group_label="交互式检查",
             cli_params=[
                 CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
                 CliParam("--plane", "投影平面", "str", "xy", "投影平面: xy, xz, yz"),
@@ -569,6 +609,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             "inspection", "plot_single_orbit",
             "绘制单条轨道（2D + 3D 视图）",
             "scripts/inspection/plot_single_orbit.py",
+            group_label="单轨道绘图",
             cli_params=[
                 CliParam("--json-file", "轨道文件", "str", help="轨道 JSON 文件路径"),
             ],

@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFormLayout,
+    QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -134,11 +135,24 @@ class MainWindow(QMainWindow):
             )
             layout.addWidget(header)
 
+            current_group: str | None = None
             for entry in scripts:
+                # Secondary group header
+                if entry.group_label and entry.group_label != current_group:
+                    current_group = entry.group_label
+                    grp_lbl = QLabel(current_group)
+                    grp_lbl.setStyleSheet(
+                        "font-weight: bold; font-size: 11px; "
+                        "padding: 6px 16px 2px 16px; color: #888;"
+                    )
+                    layout.addWidget(grp_lbl)
+
                 btn = QPushButton(entry.name)
                 btn.setToolTip(entry.description)
+                indent = "20px" if entry.group_label else "4px"
                 btn.setStyleSheet(
-                    "QPushButton { text-align: left; padding: 4px 8px; }"
+                    f"QPushButton {{ text-align: left; padding: 4px 8px; "
+                    f"padding-left: {indent}; }}"
                     "QPushButton:hover { background-color: #e0e0e0; }"
                 )
                 btn.clicked.connect(
@@ -156,44 +170,16 @@ class MainWindow(QMainWindow):
     def _build_right_panel(self) -> QTabWidget:
         tabs = QTabWidget()
 
-        # Tab 1: Script Info（含 Run 按钮）
-        info_widget = QWidget()
-        info_layout = QVBoxLayout(info_widget)
-        info_layout.setContentsMargins(12, 12, 12, 12)
-        info_layout.setSpacing(8)
+        # ── Merged Tab: Script Info + Params ───────────────────
+        merged_widget = QWidget()
+        merged_layout = QVBoxLayout(merged_widget)
+        merged_layout.setContentsMargins(0, 0, 0, 0)
+        merged_layout.setSpacing(0)
 
-        form = QFormLayout()
-        form.setSpacing(8)
-
-        self._info_name = QLabel("(未选择)")
-        self._info_name.setWordWrap(True)
-        self._info_desc = QLabel()
-        self._info_desc.setWordWrap(True)
-        self._info_cmd = QLabel()
-        self._info_cmd.setWordWrap(True)
-        self._info_cmd.setStyleSheet("font-family: 'Cascadia Code', 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Liberation Mono', monospace; font-size: 9pt;")
-        self._info_output_dir = QLabel()
-
-        form.addRow("名称:", self._info_name)
-        form.addRow("描述:", self._info_desc)
-        form.addRow("命令:", self._info_cmd)
-        form.addRow("输出目录:", self._info_output_dir)
-
-        info_layout.addLayout(form)
-
-        # Run 按钮放在表单下方
-        self._run_btn = QPushButton("Run")
-        self._run_btn.setEnabled(False)
-        self._run_btn.clicked.connect(self._on_run)
-        self._run_btn.setStyleSheet(self._RUN_STYLE_READY)
-        info_layout.addWidget(self._run_btn)
-        info_layout.addStretch()
-
-        tabs.addTab(info_widget, "Script Info")
-
-        # Tab 2: 运行参数
+        # Scrollable params area (script info prepended at top by _rebuild_params_panel)
         self._params_scroll = QScrollArea()
         self._params_scroll.setWidgetResizable(True)
+        self._params_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self._params_container = QWidget()
         self._params_layout = QFormLayout(self._params_container)
         self._params_layout.setContentsMargins(12, 12, 12, 12)
@@ -207,9 +193,23 @@ class MainWindow(QMainWindow):
         self._unit_groups: dict[QLineEdit, str] = {}        # QLineEdit → unit_group 名称
         self._wrapped_widgets: dict[QWidget, QWidget] = {}   # 原始控件 → 单位选择器包裹后的 widget
 
-        tabs.addTab(self._params_scroll, "运行参数")
+        merged_layout.addWidget(self._params_scroll, stretch=1)
 
-        # Tab 3: File Browser
+        # Run 按钮固定在底部（始终可见）
+        self._run_btn = QPushButton("Run")
+        self._run_btn.setEnabled(False)
+        self._run_btn.clicked.connect(self._on_run)
+        self._run_btn.setStyleSheet(self._RUN_STYLE_READY)
+        self._run_btn.setMinimumHeight(36)
+        btn_container = QWidget()
+        btn_layout = QHBoxLayout(btn_container)
+        btn_layout.setContentsMargins(12, 8, 12, 8)
+        btn_layout.addWidget(self._run_btn)
+        merged_layout.addWidget(btn_container)
+
+        tabs.addTab(merged_widget, "Script Info")
+
+        # ── File Browser Tab ────────────────────────────────────
         self._file_tree = QTreeWidget()
         self._file_tree.setHeaderLabels(["Filename", "Size", "Modified", "Type"])
         self._file_tree.setAlternatingRowColors(True)
@@ -277,10 +277,6 @@ class MainWindow(QMainWindow):
 
     def _on_script_selected(self, entry: ScriptEntry) -> None:
         self._current_script = entry
-        self._info_name.setText(entry.name)
-        self._info_desc.setText(entry.description)
-        self._info_cmd.setText(f"python {entry.script_path}")
-        self._info_output_dir.setText(entry.output_dir or "—")
         self._run_btn.setEnabled(True)
 
         # 高亮选中的脚本按钮
@@ -290,7 +286,7 @@ class MainWindow(QMainWindow):
         if entry.output_dir:
             self._highlight_category(Path(entry.output_dir).name)
 
-        # 重建参数面板
+        # 重建参数面板（含 Script Info 表头）
         self._rebuild_params_panel(entry)
 
     _BTN_STYLE_NORMAL = (
@@ -1114,6 +1110,47 @@ class MainWindow(QMainWindow):
         self._params_layout.setFieldGrowthPolicy(
             QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
         )
+
+        # ── Script Info Section ───────────────────────────────────
+        # 让 field 列自动拉伸填满可用宽度
+        self._params_layout.setColumnStretch(1, 1)
+
+        title = QLabel(entry.name)
+        title.setStyleSheet("font-size: 15px; font-weight: bold; padding: 4px 0;")
+        self._params_layout.addRow(title)
+
+        if entry.description:
+            desc_label = QLabel(entry.description)
+            desc_label.setStyleSheet("color: #555; padding: 0 0 8px 0;")
+            desc_label.setWordWrap(True)
+            self._params_layout.addRow(desc_label)
+
+        cmd_label = QLabel(f"python {entry.script_path}")
+        cmd_label.setStyleSheet(
+            "font-family: 'Cascadia Code', 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Liberation Mono', monospace; "
+            "font-size: 9pt; color: #666; background-color: #f5f5f5; "
+            "padding: 4px 6px; border-radius: 3px;"
+        )
+        cmd_label.setWordWrap(True)
+        cmd_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self._params_layout.addRow("命令:", cmd_label)
+
+        if entry.output_dir:
+            out_label = QLabel(entry.output_dir)
+            out_label.setStyleSheet(
+                "font-family: 'Cascadia Code', 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Liberation Mono', monospace; "
+                "font-size: 9pt; color: #666; background-color: #f5f5f5; "
+                "padding: 4px 6px; border-radius: 3px;"
+            )
+            out_label.setWordWrap(True)
+            out_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+            self._params_layout.addRow("输出目录:", out_label)
+
+        # 分隔线
+        divider = QFrame()
+        divider.setFrameShape(QFrame.Shape.HLine)
+        divider.setStyleSheet("margin: 4px 0 8px 0;")
+        self._params_layout.addRow(divider)
 
         has_any = False
 

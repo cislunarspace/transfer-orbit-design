@@ -1,7 +1,8 @@
 """
-可视化 grid_search 输出的搜索结果 JSON：可行解的 α–Δv 散点图、转移时间–Δv 散点图与转移轨道示意图。
+DRO → RO 转移轨道网格搜索结果可视化
 
-在下方 ``RESULTS_JSON`` 中指定要绘制的 grid_search 输出 JSON（相对仓库根目录或绝对路径均可）。
+可视化 dro_to_ro/grid_search_dro_to_ro.py 输出的搜索结果 JSON：
+可行解的 α–Δv 散点图、转移时间–Δv 散点图与转移轨道 3D 示意图。
 
 Δv 优先使用 JSON 中的 dv_departure，否则由 departure_state 与 α 按搜索阶段速度扰动模型计算。
 
@@ -9,16 +10,16 @@
 叠加绘制 DRO 出发轨道与 RO 到达轨道，直观展示转移路径。
 
 用法:
-    python plot_search_results.py                                      # 仅 α–Δv 散点图 //TODO 通过alpha-dv图可以判断哪一个alpha是最适合转移的
-    python plot_search_results.py --time-dv                           # 转移时间–Δv 散点图
-    python plot_search_results.py --orbit                            # 转移轨道 3D 示意图
-    python plot_search_results.py --orbit --save output/transfer/figures/search_orbit.png
-    python plot_search_results.py --orbit --idx 0                      # 绘制第 idx 个可行解
-    python plot_search_results.py --orbit --idx best                  # 绘制 Δv 最小的可行解
-    python plot_search_results.py --orbit --idx random --seed 42      # 随机一个可行解
-    python plot_search_results.py --orbit --idx all                    # 绘制全部可行解（子采样受 --max-points 控制）
-    python plot_search_results.py --orbit --idx all --max-points 100  # 最多绘制 100 条
-    python plot_search_results.py --orbit --idx best:10                # 绘制 Δv 最小的 10 条轨道
+    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py              # 仅 α–Δv 散点图
+    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --time-dv   # 转移时间–Δv 散点图
+    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit      # 转移轨道 3D 示意图
+    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --save output/transfer/figures/search_orbit.png
+    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --idx 0        # 绘制第 idx 个可行解
+    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --idx best        # 绘制 Δv 最小的可行解
+    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --idx random --seed 42  # 随机一个可行解
+    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --idx all          # 绘制全部可行解（子采样受 --max-points 控制）
+    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --idx all --max-points 100  # 最多绘制 100 条
+    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --idx best:10      # 绘制 Δv 最小的 10 条轨道
 """
 
 from __future__ import annotations

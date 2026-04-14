@@ -1,18 +1,19 @@
 """
-可视化 optimize 阶段输出的 NLP 优化结果 JSON：
+DRO → RO 转移轨道 NLP 优化结果可视化
 
+可视化 dro_to_ro/optimize_dro_to_ro.py 输出的 NLP 优化结果 JSON：
 - **散点图**（默认）: 每条 NLP 结果的 Δv1、Δv2、总 Δv 汇总
 - **转移轨道 3D 示意图** (--orbit): 重新积分 NLP 最优解，叠加绘制 DRO / RO / 转移弧
 
 用法:
-    python plot_optimize_result.py                                         # Δv 汇总散点图
-    python plot_optimize_result.py --orbit                                 # 绘制最优解的转移轨道
-    python plot_optimize_result.py --orbit --idx best                      # 同上
-    python plot_optimize_result.py --orbit --idx 0                         # 绘制第 0 条结果
-    python plot_optimize_result.py --orbit --idx all                       # 绘制全部
-    python plot_optimize_result.py --orbit --idx best:5                    # Δv 最小的 5 条
-    python plot_optimize_result.py --orbit --idx random --seed 42
-    python plot_optimize_result.py --save output/transfer/figures/opt.png
+    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py                 # Δv 汇总散点图
+    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --orbit          # 绘制最优解的转移轨道
+    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --orbit --idx best       # 同上
+    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --orbit --idx 0            # 绘制第 0 条结果
+    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --orbit --idx all          # 绘制全部
+    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --orbit --idx best:5      # Δv 最小的 5 条
+    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --orbit --idx random --seed 42
+    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --save output/transfer/figures/opt.png
 """
 
 from __future__ import annotations

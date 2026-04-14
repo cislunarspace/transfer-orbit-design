@@ -1,13 +1,12 @@
 """
-DRO → GEO NLP 优化
+DRO → GEO 转移 NLP 优化
 
-参考 optimize.py，将目标从 RO（周期轨道）替换为 GEO（固定半径球面）。
-
+在网格搜索结果的基础上，对 DRO→GEO 转移轨道进行 NLP 优化（SciPy SLSQP）。
 优化变量: y = [α, T]
 目标函数: J(y) = Δv1 + Δv2
-约束: |r_final - r_earth| = r_GEO  (GEO 球面约束)
+约束: |r_final - r_earth| = r_GEO（到达 GEO 球面）
 
-运行: python scripts/transfer/optimize_dro_geo.py
+运行: python scripts/transfer/dro_to_geo/optimize_dro_to_geo.py
 
 进度条: tqdm；关闭: OPTIMIZE_NO_TQDM=1
 Windows 须保留 ``if __name__ == "__main__"``。
