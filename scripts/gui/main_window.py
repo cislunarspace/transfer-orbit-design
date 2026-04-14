@@ -443,7 +443,6 @@ class MainWindow(QMainWindow):
                 if widget in self._path_mode_toggles:
                     mode_combo = self._path_mode_toggles[widget]
                     mode = "relative" if mode_combo.currentText() == "相对" else "absolute"
-                    import json
                     saved[cli_param.flag] = json.dumps({"mode": mode, "path": text}, ensure_ascii=False)
                 else:
                     saved[cli_param.flag] = text
@@ -1143,7 +1142,6 @@ class MainWindow(QMainWindow):
         elif isinstance(widget, QComboBox):
             # 文件下拉框：尝试解析 {"mode": ..., "path": ...} 格式
             if widget in self._path_mode_toggles and std_val_str.startswith("{"):
-                import json
                 try:
                     data = json.loads(std_val_str)
                     mode_combo = self._path_mode_toggles[widget]
