@@ -39,6 +39,7 @@ class CliParam:
     default_unit: str | None = None   # 默认选中的单位（如 "km"、"days"），None 则使用 unit_group 首项
     advanced: bool = False            # True 时 GUI 折叠到"高级选项"区域，默认收起
     choices: tuple[str, ...] | None = None  # 非 None 时 GUI 渲染为下拉选择框
+    path_mode: str = "absolute"       # "absolute" | "relative" — 文件下拉框的路径显示模式
 
 
 @dataclass(frozen=True)
@@ -104,7 +105,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/ro",
             group_label="生成",
             cli_params=[
-                CliParam("--x0", "初始 x 坐标", "float", "-0.8805", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="km"),
+                CliParam("--x0", "初始 x 坐标", "float", "-0.8805", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="DU"),
                 CliParam("--vy0", "初始 vy 速度", "float", "0.3921", "初始 y 方向速度（无量纲）", unit_group="velocity"),
                 CliParam("--period", "目标周期", "float", str(round(27.32 / 0.3482, 6)), "目标周期（无量纲）", unit_group="time", default_unit="days"),
             ],
@@ -116,11 +117,11 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/ro",
             group_label="生成",
             cli_params=[
-                CliParam("--x0", "初始 x 坐标", "float", "-0.8805", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="km"),
+                CliParam("--x0", "初始 x 坐标", "float", "-0.8805", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="DU"),
                 CliParam("--vy0", "初始 vy 速度", "float", "0.3921", "初始 y 方向速度（无量纲）", unit_group="velocity"),
                 CliParam("--period", "轨道周期", "float", str(round(27.32 / 0.3482, 6)), "轨道周期（无量纲）", unit_group="time", default_unit="days"),
-                CliParam("--param-min", "延拓下限", "float", "-0.8905", "延拓参数范围下限", unit_group="distance", default_unit="km"),
-                CliParam("--param-max", "延拓上限", "float", "-0.8305", "延拓参数范围上限", unit_group="distance", default_unit="km"),
+                CliParam("--param-min", "延拓下限", "float", "-0.8905", "延拓参数范围下限", unit_group="distance", default_unit="DU"),
+                CliParam("--param-max", "延拓上限", "float", "-0.8305", "延拓参数范围上限", unit_group="distance", default_unit="DU"),
                 CliParam("--step-size", "延拓步长", "float", "0.001", "延拓步长"),
             ],
         ),
@@ -131,11 +132,11 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/ro",
             group_label="生成",
             cli_params=[
-                CliParam("--x0", "初始 x 坐标", "float", "-1.1453", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="km"),
+                CliParam("--x0", "初始 x 坐标", "float", "-1.1453", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="DU"),
                 CliParam("--vy0", "初始 vy 速度", "float", "0.4633", "初始 y 方向速度（无量纲）", unit_group="velocity"),
                 CliParam("--period", "轨道周期", "float", str(round(54.64 / 0.3482, 6)), "轨道周期（无量纲）", unit_group="time", default_unit="days"),
-                CliParam("--param-min", "延拓下限", "float", "-1.2", "延拓参数范围下限", unit_group="distance", default_unit="km"),
-                CliParam("--param-max", "延拓上限", "float", "-0.8", "延拓参数范围上限", unit_group="distance", default_unit="km"),
+                CliParam("--param-min", "延拓下限", "float", "-1.2", "延拓参数范围下限", unit_group="distance", default_unit="DU"),
+                CliParam("--param-max", "延拓上限", "float", "-0.8", "延拓参数范围上限", unit_group="distance", default_unit="DU"),
                 CliParam("--step-size", "延拓步长", "float", "0.005", "延拓步长"),
             ],
         ),
@@ -147,12 +148,12 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             group_label="生成",
             cli_params=[
                 CliParam("--ro-file", "RO 文件", "str", help="3:2 RO 轨道 JSON 文件路径", file_category="ro"),
-                CliParam("--target-x0", "目标 x0", "float", "-1.0878", "目标 x0 分岔点", unit_group="distance", default_unit="km"),
-                CliParam("--z0", "固定 z0", "float", "0.1999", "固定 z0 坐标（无量纲）", unit_group="distance", default_unit="km"),
+                CliParam("--target-x0", "目标 x0", "float", "-1.0878", "目标 x0 分岔点", unit_group="distance", default_unit="DU"),
+                CliParam("--z0", "固定 z0", "float", "0.1999", "固定 z0 坐标（无量纲）", unit_group="distance", default_unit="DU"),
                 CliParam("--vy0", "初始 vy 速度", "float", "0.4", "初始 y 方向速度猜测（无量纲）", unit_group="velocity"),
                 CliParam("--period", "初始周期", "float", str(round(60.0 / 0.3482, 6)), "初始周期猜测（无量纲）", unit_group="time", default_unit="days"),
-                CliParam("--x-min", "x 下限", "float", "-1.2", "延拓 x0 范围下限", unit_group="distance", default_unit="km"),
-                CliParam("--x-max", "x 上限", "float", "-0.9", "延拓 x0 范围上限", unit_group="distance", default_unit="km"),
+                CliParam("--x-min", "x 下限", "float", "-1.2", "延拓 x0 范围下限", unit_group="distance", default_unit="DU"),
+                CliParam("--x-max", "x 上限", "float", "-0.9", "延拓 x0 范围上限", unit_group="distance", default_unit="DU"),
                 CliParam("--step-size", "延拓步长", "float", "0.005", "延拓步长"),
             ],
         ),
@@ -164,8 +165,8 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             group_label="生成",
             cli_params=[
                 CliParam("--ro-file", "RO 文件", "str", help="3:2 RO 轨道 JSON 文件路径", file_category="ro"),
-                CliParam("--target-x0", "目标 x0", "float", "-1.1318", "目标 x0 分岔点", unit_group="distance", default_unit="km"),
-                CliParam("--z-max", "最大 z 幅值", "float", "0.5", "最大 z 幅值", unit_group="distance", default_unit="km"),
+                CliParam("--target-x0", "目标 x0", "float", "-1.1318", "目标 x0 分岔点", unit_group="distance", default_unit="DU"),
+                CliParam("--z-max", "最大 z 幅值", "float", "0.5", "最大 z 幅值", unit_group="distance", default_unit="DU"),
                 CliParam("--step-size", "延拓步长", "float", "0.01", "延拓步长"),
             ],
         ),

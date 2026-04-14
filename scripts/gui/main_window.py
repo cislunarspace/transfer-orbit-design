@@ -195,6 +195,7 @@ class MainWindow(QMainWindow):
         self._unit_combos: dict[QLineEdit, QComboBox] = {}  # QLineEdit → 单位选择 QComboBox
         self._unit_groups: dict[QLineEdit, str] = {}        # QLineEdit → unit_group 名称
         self._wrapped_widgets: dict[QWidget, QWidget] = {}   # 原始控件 → 单位选择器包裹后的 widget
+        self._path_mode_toggles: dict[QComboBox, QComboBox] = {}  # file dropdown → path mode toggle
 
         merged_layout.addWidget(self._params_scroll, stretch=1)
 
@@ -437,7 +438,15 @@ class MainWindow(QMainWindow):
                 else:
                     saved[cli_param.flag] = widget.text().strip()
             elif isinstance(widget, QComboBox):
-                saved[cli_param.flag] = widget.currentText().strip()
+                text = widget.currentText().strip()
+                # 文件下拉框：同时保存路径模式和路径文本
+                if widget in self._path_mode_toggles:
+                    mode_combo = self._path_mode_toggles[widget]
+                    mode = "relative" if mode_combo.currentText() == "相对" else "absolute"
+                    import json
+                    saved[cli_param.flag] = json.dumps({"mode": mode, "path": text}, ensure_ascii=False)
+                else:
+                    saved[cli_param.flag] = text
 
         self._gui_defaults[self._current_script.name] = saved
         self._save_gui_defaults()
@@ -941,6 +950,30 @@ class MainWindow(QMainWindow):
 
     # ── 参数面板 ───────────────────────────────────────────────
 
+    def _on_path_mode_changed(self, file_combo: QComboBox, mode_combo: QComboBox) -> None:
+        """Path mode toggle 切换时：重新填充下拉框（相对路径 vs 绝对路径）。"""
+        file_category = mode_combo.property("file_category") or ""
+        is_relative = mode_combo.currentText() == "相对"
+        current_text = file_combo.currentText()
+        file_combo.blockSignals(True)
+        file_combo.clear()
+        file_combo.addItem("")
+        matching = filter_files(self._files, category=file_category, file_type="json")
+        for fi in matching:
+            if is_relative:
+                file_combo.addItem(fi.path)
+            else:
+                file_combo.addItem(fi.abs_path)
+        # Try to restore previous selection
+        if current_text:
+            idx = file_combo.findText(current_text)
+            if idx >= 0:
+                file_combo.setCurrentIndex(idx)
+            else:
+                # Text doesn't match any option (e.g. user typed custom path) — preserve as-is
+                file_combo.setEditText(current_text)
+        file_combo.blockSignals(False)
+
     def _make_cli_widget(self, cli_param: CliParam) -> tuple[str, QWidget]:
         """根据 CliParam 定义创建对应的控件，返回 (key, widget)。
 
@@ -981,21 +1014,52 @@ class MainWindow(QMainWindow):
             widget.setMinimumWidth(100)
         else:  # str
             if cli_param.file_category:
-                widget = QComboBox()
-                widget.setEditable(True)
-                widget.addItem("")
+                is_relative = cli_param.path_mode == "relative"
+                # 文件下拉框 + 路径模式切换按钮（水平布局）
+                file_combo: QComboBox = QComboBox()
+                file_combo.setEditable(True)
+                file_combo.addItem("")
                 matching = filter_files(
                     self._files,
                     category=cli_param.file_category,
                     file_type="json",
                 )
                 for fi in matching:
-                    widget.addItem(fi.abs_path)
+                    if is_relative:
+                        file_combo.addItem(fi.path)
+                    else:
+                        file_combo.addItem(fi.abs_path)
                 if cli_param.default:
-                    widget.setCurrentText(cli_param.default)
-                widget.setToolTip(cli_param.help)
-                widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-                widget.setMinimumWidth(100)
+                    file_combo.setCurrentText(cli_param.default)
+                file_combo.setToolTip(cli_param.help)
+                file_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+                file_combo.setMinimumWidth(100)
+
+                # 路径模式切换
+                mode_combo = QComboBox()
+                mode_combo.addItems(["绝对", "相对"])
+                mode_combo.setCurrentText("相对" if is_relative else "绝对")
+                mode_combo.setMinimumContentsLength(2)
+                mode_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
+                mode_combo.setProperty("file_category", cli_param.file_category)
+                mode_combo.currentIndexChanged.connect(
+                    lambda _, fc=file_combo, mc=mode_combo:
+                        self._on_path_mode_changed(fc, mc)
+                )
+
+                # 水平布局：file_combo | mode_combo
+                file_layout = QHBoxLayout()
+                file_layout.setContentsMargins(0, 0, 0, 0)
+                file_layout.setSpacing(4)
+                file_layout.addWidget(file_combo, stretch=1)
+                file_layout.addWidget(mode_combo)
+
+                container = QWidget()
+                container.setLayout(file_layout)
+                self._wrapped_widgets[file_combo] = container
+                self._path_mode_toggles[file_combo] = mode_combo
+
+                widget = file_combo
             else:
                 widget = QLineEdit()
                 if cli_param.default:
@@ -1077,6 +1141,21 @@ class MainWindow(QMainWindow):
             else:
                 widget.setText(std_val_str)
         elif isinstance(widget, QComboBox):
+            # 文件下拉框：尝试解析 {"mode": ..., "path": ...} 格式
+            if widget in self._path_mode_toggles and std_val_str.startswith("{"):
+                import json
+                try:
+                    data = json.loads(std_val_str)
+                    mode_combo = self._path_mode_toggles[widget]
+                    mode_combo.blockSignals(True)
+                    mode_combo.setCurrentText("相对" if data.get("mode") == "relative" else "绝对")
+                    mode_combo.blockSignals(False)
+                    # Repopulate dropdown to match new mode, then set path
+                    self._on_path_mode_changed(widget, mode_combo)
+                    widget.setCurrentText(data.get("path", ""))
+                    return
+                except (json.JSONDecodeError, KeyError):
+                    pass
             widget.setCurrentText(std_val_str)
 
     def _add_cli_param_row(self, cli_param: CliParam) -> None:
@@ -1121,6 +1200,7 @@ class MainWindow(QMainWindow):
         self._unit_combos.clear()
         self._unit_groups.clear()
         self._wrapped_widgets.clear()
+        self._path_mode_toggles.clear()
 
         self._params_layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
         self._params_layout.setFieldGrowthPolicy(
