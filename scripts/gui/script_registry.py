@@ -38,6 +38,7 @@ class CliParam:
     unit_group: str | None = None     # "distance", "time", "velocity", "angle" — GUI 显示单位选择器
     default_unit: str | None = None   # 默认选中的单位（如 "km"、"days"），None 则使用 unit_group 首项
     advanced: bool = False            # True 时 GUI 折叠到"高级选项"区域，默认收起
+    choices: tuple[str, ...] | None = None  # 非 None 时 GUI 渲染为下拉选择框
 
 
 @dataclass(frozen=True)
@@ -64,24 +65,24 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/dro",
             group_label="生成",
             cli_params=[
-                CliParam("--x0", "初始 x 坐标", "float", "1.1202", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="km"),
+                CliParam("--x0", "初始 x 坐标", "float", "1.1202", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="DU"),
                 CliParam("--vy0", "初始 vy 速度", "float", "-0.4618", "初始 y 方向速度（无量纲）", unit_group="velocity"),
                 CliParam("--period", "目标周期", "float", "2.095", "目标周期（无量纲）", unit_group="time", default_unit="days"),
             ],
         ),
         ScriptEntry(
             "dro", "generate_dro_family",
-            "生成 DRO 轨道族（差分修正 + 自然延拓）",
+            "生成 DRO 轨道族（微分修正 + 自然延拓）",
             "scripts/dro/generate/generate_dro_family.py",
             output_dir="output/dro",
             group_label="生成",
             cli_params=[
-                CliParam("--x0", "初始 x 坐标", "float", "0.79188556619742", "种子轨道初始 x 坐标（无量纲）", unit_group="distance", default_unit="km"),
+                CliParam("--x0", "初始 x 坐标", "float", "0.79188556619742", "种子轨道初始 x 坐标（无量纲）", unit_group="distance", default_unit="DU"),
                 CliParam("--vy0", "初始 vy 速度", "float", "0.53682", "种子轨道初始 vy 速度（无量纲）", unit_group="velocity"),
                 CliParam("--period", "初始周期", "float", "3.472526005624708", "初始周期猜测（无量纲）", unit_group="time", default_unit="days"),
-                CliParam("--param-min", "延拓下限", "float", "0.141886", "延拓参数范围下限（x0 最小值）", unit_group="distance", default_unit="km"),
-                CliParam("--param-max", "延拓上限", "float", "0.9", "延拓参数范围上限（x0 最大值）", unit_group="distance", default_unit="km"),
-                CliParam("--step-size", "延拓步长", "float", "0.005", "延拓步长"),
+                CliParam("--param-min", "延拓下限", "float", "0.141886", "延拓参数范围下限（x0 最小值）", unit_group="distance", default_unit="DU"),
+                CliParam("--param-max", "延拓上限", "float", "0.9", "延拓参数范围上限（x0 最大值）", unit_group="distance", default_unit="DU"),
+                CliParam("--step-size", "延拓步长", "float", "0.005", "延拓步长", unit_group="distance", default_unit="DU"),
             ],
         ),
         ScriptEntry(
@@ -225,12 +226,12 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/halo",
             group_label="生成",
             cli_params=[
-                CliParam("--libration-point", "平动点", "int", "1", "平动点：1=L1, 2=L2"),
-                CliParam("--amplitude-z", "Z 振幅", "float", "0.23", "Z 方向振幅（无量纲）", unit_group="distance", default_unit="km"),
+                CliParam("--libration-point", "平动点", "str", "L1", "平动点：L1, L2, L3", choices=("L1", "L2", "L3")),
+                CliParam("--amplitude-z", "Z 振幅", "float", "0.23", "Z 方向振幅", unit_group="distance", default_unit="DU"),
                 CliParam("--halo-class", "Halo 类型", "int", "0", "0=北 Halo, 1=南 Halo"),
                 CliParam("--period", "目标周期", "float", "1.839732", "目标周期（无量纲）", unit_group="time", default_unit="days"),
-                CliParam("--x0", "初始 x 坐标", "float", "0.9305269194214338", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="km"),
-                CliParam("--vy0", "初始 vy 速度", "float", "0.10431508546142665", "初始 y 方向速度（无量纲）", unit_group="velocity"),
+                CliParam("--x0", "初始 x 坐标", "float", "0.9305269194214338", "初始 x 坐标", unit_group="distance", default_unit="DU"),
+                CliParam("--vy0", "初始 vy 速度", "float", "0.10431508546142665", "初始 y 方向速度", unit_group="velocity", default_unit="VU"),
                 CliParam("--max-iterations", "最大迭代次数", "int", "150", "最大迭代次数"),
                 CliParam("--tolerance", "修正容差", "float", "1e-6", "修正容差"),
             ],
@@ -242,8 +243,8 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/halo",
             group_label="生成",
             cli_params=[
-                CliParam("--libration-point", "平动点", "int", "1", "平动点：1=L1, 2=L2"),
-                CliParam("--amplitude-z", "Z 振幅", "float", "0.23", "Z 方向振幅（无量纲）", unit_group="distance", default_unit="km"),
+                CliParam("--libration-point", "平动点", "str", "L1", "平动点：L1, L2, L3", choices=("L1", "L2", "L3")),
+                CliParam("--amplitude-z", "Z 振幅", "float", "0.23", "Z 方向振幅", unit_group="distance", default_unit="DU"),
                 CliParam("--halo-class", "Halo 类型", "int", "0", "0=北 Halo, 1=南 Halo"),
                 CliParam("--n-orbits", "轨道数量", "int", "20", "延拓轨道数量"),
                 CliParam("--step-size", "正向步长", "float", "0.0045", "正向延拓步长"),

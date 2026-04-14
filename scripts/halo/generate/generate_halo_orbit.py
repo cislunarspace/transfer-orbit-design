@@ -30,7 +30,7 @@ OUTPUT_DIR = project_root / "output" / "halo"
 
 def parse_args():
     parser = argparse.ArgumentParser(description="生成 Halo 轨道（Richardson 三阶近似 + 微分修正）")
-    parser.add_argument("--libration-point", type=int, default=1, help="平动点：1=L1, 2=L2")
+    parser.add_argument("--libration-point", type=str, default="L1", choices=["L1", "L2", "L3"], help="平动点：L1, L2, L3")
     parser.add_argument("--amplitude-z", type=float, default=0.23, help="Z 方向振幅（无量纲）")
     parser.add_argument("--halo-class", type=int, default=0, help="0=北 Halo (Class I), 1=南 Halo (Class II)")
     parser.add_argument("--period", type=float, default=1.839732, help="目标周期（无量纲）")
@@ -56,7 +56,8 @@ def main():
     # Halo轨道特征：关于XZ平面对称，在拉格朗日点(L1/L2)附近振荡
     # 状态向量格式：[x, y, z, vx, vy, vz]，均为无量纲量
 
-    libration_point = args.libration_point  # 1=L1, 2=L2
+    LIBRATION_POINT_MAP = {"L1": 1, "L2": 2, "L3": 3}
+    libration_point = LIBRATION_POINT_MAP[args.libration_point]  # 1=L1, 2=L2, 3=L3
     amplitude_z = args.amplitude_z  # Z方向振幅
     halo_class = args.halo_class  # 0=北Halo (Class I), 1=南Halo (Class II)
 

@@ -34,7 +34,7 @@ OUTPUT_DIR = project_root / "output" / "halo"
 
 def parse_args():
     parser = argparse.ArgumentParser(description="生成 Halo 轨道族（伪弧长延拓）")
-    parser.add_argument("--libration-point", type=int, default=1, help="平动点：1=L1, 2=L2")
+    parser.add_argument("--libration-point", type=str, default="L1", choices=["L1", "L2", "L3"], help="平动点：L1, L2, L3")
     parser.add_argument("--amplitude-z", type=float, default=0.23, help="Z 方向振幅（无量纲）")
     parser.add_argument("--halo-class", type=int, default=0, help="0=北 Halo, 1=南 Halo")
     parser.add_argument("--n-orbits", type=int, default=20, help="延拓轨道数量")
@@ -55,7 +55,8 @@ def main():
     # =============================================================================
     # 2. Halo轨道参数
     # =============================================================================
-    libration_point = args.libration_point  # 1=L1, 2=L2
+    LIBRATION_POINT_MAP = {"L1": 1, "L2": 2, "L3": 3}
+    libration_point = LIBRATION_POINT_MAP[args.libration_point]  # 1=L1, 2=L2, 3=L3
     amplitude_z = args.amplitude_z  # Z方向振幅
     halo_class = args.halo_class  # 0=北Halo (Class I), 1=南Halo (Class II)
 

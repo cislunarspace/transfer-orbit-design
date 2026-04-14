@@ -953,6 +953,14 @@ class MainWindow(QMainWindow):
         if cli_param.param_type == "bool":
             widget: QCheckBox | QLineEdit | QSpinBox | QComboBox = QCheckBox(cli_param.label)
             widget.setToolTip(cli_param.help)
+        elif cli_param.choices:
+            widget = QComboBox()
+            widget.addItems(cli_param.choices)
+            if cli_param.default in cli_param.choices:
+                widget.setCurrentText(cli_param.default)
+            widget.setToolTip(cli_param.help)
+            widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+            widget.setMinimumWidth(80)
         elif cli_param.param_type == "int":
             widget = QSpinBox()
             widget.setRange(-99999, 99999)
