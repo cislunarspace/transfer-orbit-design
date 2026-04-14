@@ -125,7 +125,9 @@ class MainWindow(QMainWindow):
         layout.setSpacing(2)
 
         self._script_buttons: dict[str, QPushButton] = {}
+        self._button_indent: dict[str, str] = {}  # button name -> padding-left value
         self._active_script_btn: QPushButton | None = None
+        self._active_script_btn_name: str | None = None
 
         for category, scripts in SCRIPTS.items():
             header = QLabel(category)
@@ -150,6 +152,7 @@ class MainWindow(QMainWindow):
                 btn = QPushButton(entry.name)
                 btn.setToolTip(entry.description)
                 indent = "20px" if entry.group_label else "4px"
+                self._button_indent[entry.name] = indent
                 btn.setStyleSheet(
                     f"QPushButton {{ text-align: left; padding: 4px 8px; "
                     f"padding-left: {indent}; }}"
@@ -290,22 +293,27 @@ class MainWindow(QMainWindow):
         self._rebuild_params_panel(entry)
 
     _BTN_STYLE_NORMAL = (
-        "QPushButton { text-align: left; padding: 4px 8px; }"
+        "QPushButton { text-align: left; padding: 4px 8px; "
+        "padding-left: %s; }"
         "QPushButton:hover { background-color: #e0e0e0; }"
     )
     _BTN_STYLE_ACTIVE = (
         "QPushButton { text-align: left; padding: 4px 8px; "
-        "background-color: #d4e8ff; border-left: 3px solid #0e639c; }"
+        "background-color: #d4e8ff; border-left: 3px solid #0e639c; "
+        "padding-left: %s; }"
     )
 
     def _highlight_script_button(self, name: str) -> None:
         """高亮选中的脚本按钮，取消之前的高亮。"""
         if self._active_script_btn is not None:
-            self._active_script_btn.setStyleSheet(self._BTN_STYLE_NORMAL)
+            prev_indent = self._button_indent.get(self._active_script_btn_name or "", "4px")
+            self._active_script_btn.setStyleSheet(self._BTN_STYLE_NORMAL % prev_indent)
         btn = self._script_buttons.get(name)
         if btn:
-            btn.setStyleSheet(self._BTN_STYLE_ACTIVE)
+            indent = self._button_indent.get(name, "4px")
+            btn.setStyleSheet(self._BTN_STYLE_ACTIVE % indent)
         self._active_script_btn = btn
+        self._active_script_btn_name = name
 
     _PARAM_BORDER_MODIFIED = "border: 1px solid #4da6ff;"
 
@@ -1111,17 +1119,13 @@ class MainWindow(QMainWindow):
             QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
         )
 
-        # ── Script Info Section ───────────────────────────────────
-        # 让 field 列自动拉伸填满可用宽度
-        self._params_layout.setColumnStretch(1, 1)
-
         title = QLabel(entry.name)
         title.setStyleSheet("font-size: 15px; font-weight: bold; padding: 4px 0;")
         self._params_layout.addRow(title)
 
         if entry.description:
             desc_label = QLabel(entry.description)
-            desc_label.setStyleSheet("color: #555; padding: 0 0 8px 0;")
+            desc_label.setStyleSheet("color: #555; font-size: 11px; padding: 0 0 8px 0;")
             desc_label.setWordWrap(True)
             self._params_layout.addRow(desc_label)
 
