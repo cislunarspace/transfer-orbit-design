@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
 import sys
 import time
 import uuid
@@ -110,6 +112,17 @@ class JobManager(QObject):
             return
         job._intentional_stop = True
         if job.process.state() != QProcess.ProcessState.NotRunning:
+            # Windows: 使用 taskkill /F /T 杀死整个进程树，避免子进程残留
+            if os.name == "nt":
+                try:
+                    subprocess.run(
+                        ["taskkill", "/F", "/T", "/PID", str(job.process.processId())],
+                        capture_output=True,
+                        timeout=5,
+                    )
+                except (OSError, subprocess.TimeoutExpired):
+                    pass
+                return
             job.process.terminate()
             QTimer.singleShot(
                 _KILL_TIMEOUT_MS,
@@ -117,9 +130,19 @@ class JobManager(QObject):
             )
 
     def stop_all(self) -> None:
-        """停止所有运行中的 job（用于应用关闭）。"""
-        for job_id in list(self._jobs):
+        """停止所有运行中的 job 并等待其退出（用于应用关闭）。"""
+        running_ids = [jid for jid, j in self._jobs.items() if j.status == "running"]
+        for job_id in running_ids:
             self.stop_job(job_id)
+        # 等待进程真正退出（最多 5s）
+        for job_id in running_ids:
+            job = self._jobs.get(job_id)
+            if job is None:
+                continue
+            try:
+                job.process.waitForFinished(5000)
+            except RuntimeError:
+                pass
 
     def get_job(self, job_id: str) -> Job | None:
         return self._jobs.get(job_id)

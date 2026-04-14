@@ -22,6 +22,7 @@ def main() -> None:
     app.setApplicationName("Transfer Orbit Design")
     window = MainWindow(repo_root=str(repo_root))
     window.show()
+    app.aboutToQuit.connect(window._job_manager.stop_all)
     sys.exit(app.exec())
 
 
