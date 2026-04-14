@@ -27,7 +27,10 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import matplotlib
 
-matplotlib.use("TkAgg")
+try:
+    matplotlib.use("TkAgg")
+except ImportError:
+    pass
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 
