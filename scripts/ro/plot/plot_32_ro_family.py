@@ -26,9 +26,15 @@ from scripts.utils.common import MU, TU
 
 def parse_args():
     parser = argparse.ArgumentParser(description="绘制 3:2 共振轨道族")
-    parser.add_argument("--json-file", type=str, default=None, help="轨道族 JSON 文件路径")
-    parser.add_argument("--start", type=int, default=-1, help="起始轨道索引，-1 表示从第一条")
-    parser.add_argument("--end", type=int, default=42, help="结束轨道索引（含），-1 表示到最后一条")
+    parser.add_argument(
+        "--json-file", type=str, default=None, help="轨道族 JSON 文件路径"
+    )
+    parser.add_argument(
+        "--start", type=int, default=-1, help="起始轨道索引，-1 表示从第一条"
+    )
+    parser.add_argument(
+        "--end", type=int, default=42, help="结束轨道索引（含），-1 表示到最后一条"
+    )
     return parser.parse_args()
 
 
@@ -101,8 +107,16 @@ target_period = 4 * np.pi
 # 创建绘图器
 # =============================================================================
 config = PlotConfig(
-    title=32, label=28, tick=26, legend=28, colorbar=26, suptitle=36, lp_label=32,
-    title_y_offset=-0.12, title_y_offset_3d=-0.08, title_y_offset_dual=-0.18,
+    title=32,
+    label=28,
+    tick=26,
+    legend=28,
+    colorbar=26,
+    suptitle=36,
+    lp_label=32,
+    title_y_offset=-0.12,
+    title_y_offset_3d=-0.08,
+    title_y_offset_dual=-0.18,
     title_y_offset_subplot=-0.15,
 )
 config.apply_rcparams()
@@ -178,7 +192,7 @@ plotter.plot_jacobi_period_stability(
         f"Period Target: {target_period:.4f} TU ({target_period * TU:.2f} days)"
     ),
     target_period=target_period,
-    save_path=output_dir / f"{family_name}_period_stability.png",
+    save_path=str(output_dir / f"{family_name}_period_stability.png"),
     show=True,
 )
 

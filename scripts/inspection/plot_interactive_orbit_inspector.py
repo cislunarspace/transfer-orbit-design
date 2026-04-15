@@ -26,7 +26,7 @@ project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 import e2m2e
 from e2m2e.core import OrbitFamily, CR3BP_System
-from e2m2e.visualization.plotting import OrbitVisualizer
+from e2m2e.visualization.base import OrbitVisualizer
 from scripts.utils.common import MU, TU
 import matplotlib.pyplot as plt
 import matplotlib
@@ -36,10 +36,18 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 def parse_args():
     parser = argparse.ArgumentParser(description="交互式轨道检查器")
-    parser.add_argument("--json-file", type=str, default=None, help="轨道族 JSON 文件路径")
-    parser.add_argument("--plane", type=str, default="xy", choices=["xy", "xz", "yz"], help="投影平面")
-    parser.add_argument("--show-3d", action="store_true", default=False, help="同时显示3D视图")
-    parser.add_argument("--fig-size", type=int, nargs=2, default=[10, 8], help="图形大小 (宽 高)")
+    parser.add_argument(
+        "--json-file", type=str, default=None, help="轨道族 JSON 文件路径"
+    )
+    parser.add_argument(
+        "--plane", type=str, default="xy", choices=["xy", "xz", "yz"], help="投影平面"
+    )
+    parser.add_argument(
+        "--show-3d", action="store_true", default=False, help="同时显示3D视图"
+    )
+    parser.add_argument(
+        "--fig-size", type=int, nargs=2, default=[10, 8], help="图形大小 (宽 高)"
+    )
     return parser.parse_args()
 
 
@@ -220,7 +228,11 @@ def main():
         # 绘制轨道
         label = f"Orbit {current_idx + 1} (C={jacobi:.4f})"
         orbit_plotter.plot_2d_projection(
-            orbit, plane=_plane, color=orbit_color, label=label, ax=ax_2d
+            orbit,
+            plane=_plane,
+            color=orbit_color,  # type: ignore[arg-type]
+            label=label,
+            ax=ax_2d,
         )
         ax_2d.set_title(f"XY Plane - Orbit {current_idx + 1}/{n_orbits}")
         ax_2d.legend(loc="upper right")
@@ -245,7 +257,7 @@ def main():
             assert ax_3d is not None
             orbit_plotter.plot_primary_bodies(ax=ax_3d, is_3d=True)
             orbit_plotter.plot_libration_points(ax=ax_3d, is_3d=True, show_labels=True)
-            orbit_plotter.plot_3d_orbit(orbit, color=orbit_color, label=label, ax=ax_3d)
+            orbit_plotter.plot_3d_orbit(orbit, color=orbit_color, label=label, ax=ax_3d)  # type: ignore[arg-type]
             ax_3d.set_title(f"3D View - Orbit {current_idx + 1}/{n_orbits}")
             ax_3d.legend(loc="upper right")
 

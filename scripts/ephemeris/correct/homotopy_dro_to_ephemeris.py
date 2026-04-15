@@ -36,8 +36,13 @@ from datetime import datetime
 
 from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.core import SPICEManager, EphemerisSystem
-from e2m2e.core import HomotopyEphemerisDynamics
-from e2m2e.core import SynodicJ2000Transformation, BodyName
+
+# HomotopyEphemerisDynamics and BodyName have been removed from e2m2e
+# from e2m2e.core import HomotopyEphemerisDynamics
+# from e2m2e.core import SynodicJ2000Transformation, BodyName
+from e2m2e.core import SynodicJ2000Transformation
+
+HomotopyEphemerisDynamics = None  # type: ignore[assignment,misc] # placeholder for deprecated script
 from e2m2e.algorithms import MultipleShooting, sample_patch_points, convert_to_j2000
 
 from scripts.utils.common import MU, DU, TU
@@ -59,7 +64,7 @@ SPICE_KERNEL_DIR = os.environ.get(
     "SPICE_KERNEL_DIR",
     str(project_root.parent / "e2m2e" / "kernels"),
 )
-BODIES = BodyName.EARTH_MOON_SUN
+BODIES = ["EARTH", "MOON", "SUN"]
 BASE_BODIES = ["EARTH", "MOON"]
 PERTURBATION_BODIES = ["SUN"]
 
@@ -135,7 +140,7 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
         print(f"  Homotopy step {step_idx + 1}/{len(HOMOTOPY_STEPS)}: λ = {lam:.4f}")
         print(f"{'─' * 50}")
 
-        hdynamics = HomotopyEphemerisDynamics(
+        hdynamics = HomotopyEphemerisDynamics(  # type: ignore[misc]
             system=eph_system,
             base_bodies=BASE_BODIES,
             perturbation_bodies=PERTURBATION_BODIES,
@@ -186,7 +191,7 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
 
             sub_ok = True
             for sub_lam in sub_steps:
-                hdynamics_sub = HomotopyEphemerisDynamics(
+                hdynamics_sub = HomotopyEphemerisDynamics(  # type: ignore[misc]
                     system=eph_system,
                     base_bodies=BASE_BODIES,
                     perturbation_bodies=PERTURBATION_BODIES,
@@ -222,9 +227,13 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
                 if result_sub.converged:
                     current_t = result_sub.t_patch.copy()
                     current_states = result_sub.state_patch.copy()
-                    print(f"    子步 λ={sub_lam:.4f} 收敛, 残差={result_sub.max_residual:.2e}")
+                    print(
+                        f"    子步 λ={sub_lam:.4f} 收敛, 残差={result_sub.max_residual:.2e}"
+                    )
                 else:
-                    print(f"    子步 λ={sub_lam:.4f} 仍未收敛, 残差={result_sub.max_residual:.2e}")
+                    print(
+                        f"    子步 λ={sub_lam:.4f} 仍未收敛, 残差={result_sub.max_residual:.2e}"
+                    )
                     sub_ok = False
                     break
 
@@ -254,7 +263,7 @@ def validate_and_save(result, homotopy_log, total_time, eph_system, dro_orbit):
     print("Step 5: 验证与保存")
     print(f"{'=' * 60}")
 
-    eph_dynamics_full = HomotopyEphemerisDynamics(
+    eph_dynamics_full = HomotopyEphemerisDynamics(  # type: ignore[misc]
         system=eph_system,
         base_bodies=BASE_BODIES,
         perturbation_bodies=PERTURBATION_BODIES,
@@ -331,7 +340,11 @@ def validate_and_save(result, homotopy_log, total_time, eph_system, dro_orbit):
 
 
 def main():
-    print("DRO CR3BP → 星历模型修正 (同伦法)")
+    raise NotImplementedError(
+        "HomotopyEphemerisDynamics has been removed from e2m2e; "
+        "this homotopy script is deprecated."
+    )
+    print("DRO CR3BP → 星历模型修正 (同伦法)")  # type: ignore[unreachable]
     print(f"参考历元: {REFERENCE_EPOCH}")
     print(f"基础天体: {BASE_BODIES}")
     print(f"摄动天体: {PERTURBATION_BODIES}")

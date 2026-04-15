@@ -25,9 +25,15 @@ from scripts.utils.common import MU
 
 def parse_args():
     parser = argparse.ArgumentParser(description="绘制 Halo 轨道族")
-    parser.add_argument("--json-file", type=str, default=None, help="轨道族 JSON 文件路径")
-    parser.add_argument("--start", type=int, default=-1, help="起始轨道索引，-1 表示从第一条")
-    parser.add_argument("--end", type=int, default=-1, help="结束轨道索引（含），-1 表示到最后一条")
+    parser.add_argument(
+        "--json-file", type=str, default=None, help="轨道族 JSON 文件路径"
+    )
+    parser.add_argument(
+        "--start", type=int, default=-1, help="起始轨道索引，-1 表示从第一条"
+    )
+    parser.add_argument(
+        "--end", type=int, default=-1, help="结束轨道索引（含），-1 表示到最后一条"
+    )
     return parser.parse_args()
 
 
@@ -103,8 +109,16 @@ stability_sorted = np.array(stability_subset)[sort_idx].tolist()
 # 创建绘图器
 # =============================================================================
 config = PlotConfig(
-    title=32, label=28, tick=26, legend=28, colorbar=26, suptitle=36, lp_label=32,
-    title_y_offset=-0.12, title_y_offset_3d=-0.08, title_y_offset_dual=-0.18,
+    title=32,
+    label=28,
+    tick=26,
+    legend=28,
+    colorbar=26,
+    suptitle=36,
+    lp_label=32,
+    title_y_offset=-0.12,
+    title_y_offset_3d=-0.08,
+    title_y_offset_dual=-0.18,
     title_y_offset_subplot=-0.15,
 )
 config.apply_rcparams()
@@ -121,15 +135,20 @@ seed_stability = stability_values[0]
 # 1. 全局2D视图（XZ平面 - Halo轨道的特征平面）
 # =============================================================================
 fig_2d, ax_2d = plotter.plot_family_2d(
-    subset_family, jacobi_subset,
+    subset_family,
+    jacobi_subset,
     title=f"Halo Orbit Family in Earth-Moon CR3BP (XZ Plane) - {n_orbits} orbits\n"
-          f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+    f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
     plane="xz",
-    show_bodies=True, show_libration=True, show_colorbar=True,
+    show_bodies=True,
+    show_libration=True,
+    show_colorbar=True,
     show=False,
 )
 plotter.plot_2d_projection(
-    seed_orbit, plane="xz", color="red",
+    seed_orbit,
+    plane="xz",
+    color="red",
     label=f"Seed Halo (C={seed_jacobi:.4f}, λmax={seed_stability:.4f})",
     ax=ax_2d,
 )
@@ -141,16 +160,22 @@ plt.show()
 # 2. 全局3D视图
 # =============================================================================
 fig_3d, ax_3d = plotter.plot_family_3d(
-    subset_family, jacobi_subset,
+    subset_family,
+    jacobi_subset,
     title=f"Halo Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
-          f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
-    center=(0.9, 0, 0), radius=0.4, elev=20, azim=-60,
+    f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+    center=(0.9, 0, 0),
+    radius=0.4,
+    elev=20,
+    azim=-60,
     show=False,
 )
 plotter.plot_3d_orbit(
-    seed_orbit, color="red",
+    seed_orbit,
+    color="red",
     label=f"Seed Halo (C={seed_jacobi:.4f})",
-    ax=ax_3d, show_start=True,
+    ax=ax_3d,
+    show_start=True,
 )
 plt.tight_layout()
 plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
@@ -160,9 +185,11 @@ plt.show()
 # 3. Jacobi常数-周期-稳定性图（双纵轴）
 # =============================================================================
 plotter.plot_jacobi_period_stability(
-    jacobi_sorted, periods_sorted, stability_sorted,
+    jacobi_sorted,
+    periods_sorted,
+    stability_sorted,
     title=f"Halo Orbit Family - Period and Stability\n(n = {n_orbits} orbits)",
-    save_path=output_dir / f"{family_name}_period_stability.png",
+    save_path=str(output_dir / f"{family_name}_period_stability.png"),
     show=True,
 )
 
@@ -170,11 +197,17 @@ plotter.plot_jacobi_period_stability(
 # 4. 综合概览图（四子图）
 # =============================================================================
 plotter.plot_family_overview(
-    subset_family, jacobi_subset, subset_family.periods, stability_subset,
+    subset_family,
+    jacobi_subset,
+    subset_family.periods,
+    stability_subset,
     suptitle=f"Halo Orbit Family Overview - Earth-Moon CR3BP (n = {n_orbits})",
-    plane="xz", center_3d=(0.9, 0, 0), radius_3d=0.4,
-    elev=20, azim=-60,
-    save_path=output_dir / f"{family_name}_overview.png",
+    plane="xz",
+    center_3d=(0.9, 0, 0),
+    radius_3d=0.4,
+    elev=20,
+    azim=-60,
+    save_path=str(output_dir / f"{family_name}_overview.png"),
     show=True,
 )
 
