@@ -11,16 +11,9 @@ Scripts for designing two-impulse transfer orbits between Lunar Distant Retrogra
 ## Setup
 
 ```bash
-conda create -n orbit-py313 python=3.13 && conda activate orbit-py313
-pip install -r requirements.txt           # installs deps + this repo as editable (-e .)
-pip install -e /home/ouyangjiahong/codes/e2m2e  # algorithm library (sibling repo)
+uv sync                        # 创建环境 + 安装所有依赖
+uv run python scripts/gui/main.py
 ```
-
-- `requirements.txt` ends with `-e .` — no separate editable install needed for this repo
-- e2m2e can also be installed from gitee: `pip install "e2m2e @ git+https://gitee.com/cislunarspace/e2m2e.git"`
-- e2m2e has its own `AGENTS.md` — consult it before modifying e2m2e code
-- Dev deps: `pip install -e ".[dev]"` or just `pip install pytest`
-- Python >=3.10 (3.13 tested). No linter/formatter in this repo (Ruff lives in e2m2e).
 
 ## Common Commands
 
