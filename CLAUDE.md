@@ -18,15 +18,10 @@ uv run python scripts/gui/main.py
 ## Common Commands
 
 ```bash
-pytest tests/                        # run all tests
-pytest tests/scripts/test_file.py    # single test file
+uv run pytest tests/                        # run all tests
+uv run pytest tests/scripts/test_file.py    # single test file
+uv run python scripts/gui/main.py           # launch PyQt6 GUI
 pyright                              # type checking (extraPaths includes ../e2m2e)
-```
-
-Scripts are run from repo root: `python scripts/<module>/<script>.py`
-
-```bash
-python scripts/gui/main.py             # launch PyQt6 GUI
 ```
 
 ## Transfer Pipelines (order matters within each)
@@ -171,7 +166,7 @@ PyQt6 desktop app (`scripts/gui/main.py`) for browsing and running scripts.
 
 ## Common Pitfalls
 
-1. **Missing e2m2e**: `ModuleNotFoundError: No module named 'e2m2e'` — run `pip install -e <path/to/e2m2e>`
+1. **Missing e2m2e**: `ModuleNotFoundError: No module named 'e2m2e'` — run `uv sync`
 2. **Wrong working directory**: Always run scripts from repo root after editable install
 3. **Stale hardcoded paths**: `grid_search_dro_to_ro.py` and `optimize_dro_to_ro.py` have hardcoded JSON file paths — update them before running
 4. **μ precision**: Always use `MU = 1.21506683e-2`, never the rounded `0.01215`
@@ -200,7 +195,7 @@ This project supports **Windows, Linux, and macOS**.
 - Override with `SPICE_KERNEL_DIR` environment variable for non-standard layouts
 
 ### CI/CD
-- GitHub Actions runs tests on all three platforms (Windows, Linux, macOS) with Python 3.10 and 3.13
+- GitHub Actions runs tests on all three platforms (Windows, Linux, macOS) with Python 3.11 and 3.13
 - Release workflow triggers on `v*` tags to create GitHub Releases
 
 ## Plan Tracking
