@@ -254,3 +254,6 @@ test_results/
 /out
 # uv virtualenv
 .venv/
+
+# Git worktrees
+.worktrees/
