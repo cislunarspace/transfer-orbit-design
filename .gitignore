@@ -252,3 +252,5 @@ test_results/
 
 # 轨道数据
 /out
+# uv virtualenv
+.venv/
