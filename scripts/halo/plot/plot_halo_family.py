@@ -164,8 +164,16 @@ def plot_halo_family(
     stability_sorted = np.array(stability_subset)[sort_idx].tolist()
 
     config = PlotConfig(
-        title=32, label=28, tick=26, legend=28, colorbar=26, suptitle=36, lp_label=32,
-        title_y_offset=-0.12, title_y_offset_3d=-0.08, title_y_offset_dual=-0.18,
+        title=32,
+        label=28,
+        tick=26,
+        legend=28,
+        colorbar=26,
+        suptitle=36,
+        lp_label=32,
+        title_y_offset=-0.12,
+        title_y_offset_3d=-0.08,
+        title_y_offset_dual=-0.18,
         title_y_offset_subplot=-0.15,
     )
     config.apply_rcparams()
@@ -180,15 +188,20 @@ def plot_halo_family(
 
     # ---------- 1. XZ ----------
     fig_2d, ax_2d = plotter.plot_family_2d(
-        subset_family, jacobi_subset,
+        subset_family,
+        jacobi_subset,
         title=f"Halo Orbit Family (XZ) — {n_orbits} orbits\n"
-              f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+        f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
         plane="xz",
-        show_bodies=True, show_libration=True, show_colorbar=True,
+        show_bodies=True,
+        show_libration=True,
+        show_colorbar=True,
         show=False,
     )
     plotter.plot_2d_projection(
-        seed_orbit, plane="xz", color="red",
+        seed_orbit,
+        plane="xz",
+        color="red",
         label=f"Seed Halo (C={seed_jacobi:.4f}, λmax={seed_stability:.4f})",
         ax=ax_2d,
     )
@@ -201,16 +214,22 @@ def plot_halo_family(
 
     # ---------- 2. 3D ----------
     fig_3d, ax_3d = plotter.plot_family_3d(
-        subset_family, jacobi_subset,
+        subset_family,
+        jacobi_subset,
         title=f"Halo Orbit Family (3D) — {n_orbits} orbits\n"
-              f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
-        center=(0.9, 0, 0), radius=0.4, elev=20, azim=-60,
+        f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+        center=(0.9, 0, 0),
+        radius=0.4,
+        elev=20,
+        azim=-60,
         show=False,
     )
     plotter.plot_3d_orbit(
-        seed_orbit, color="red",
+        seed_orbit,
+        color="red",
         label=f"Seed Halo (C={seed_jacobi:.4f})",
-        ax=ax_3d, show_start=True,
+        ax=ax_3d,
+        show_start=True,
     )
     plt.tight_layout()
     plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
@@ -221,19 +240,27 @@ def plot_halo_family(
 
     # ---------- 3. Period & stability ----------
     plotter.plot_jacobi_period_stability(
-        jacobi_sorted, periods_sorted, stability_sorted,
+        jacobi_sorted,
+        periods_sorted,
+        stability_sorted,
         title=f"Halo Orbit Family — Period and Stability (n = {n_orbits})",
-        save_path=output_dir / f"{family_name}_period_stability.png",
+        save_path=str(output_dir / f"{family_name}_period_stability.png"),
         show=show,
     )
 
     # ---------- 4. Overview ----------
     plotter.plot_family_overview(
-        subset_family, jacobi_subset, subset_family.periods, stability_subset,
+        subset_family,
+        jacobi_subset,
+        subset_family.periods,
+        stability_subset,
         suptitle=f"Halo Orbit Family Overview — Earth–Moon CR3BP (n = {n_orbits})",
-        plane="xz", center_3d=(0.9, 0, 0), radius_3d=0.4,
-        elev=20, azim=-60,
-        save_path=output_dir / f"{family_name}_overview.png",
+        plane="xz",
+        center_3d=(0.9, 0, 0),
+        radius_3d=0.4,
+        elev=20,
+        azim=-60,
+        save_path=str(output_dir / f"{family_name}_overview.png"),
         show=show,
     )
 
@@ -279,7 +306,9 @@ def main() -> None:
 
     if not family_path.is_file():
         print(f"[error] 文件不存在: {family_path}")
-        print("请修改本脚本顶部的 FAMILY_JSON_PATH，或传入 JSON 路径，或使用 --latest。")
+        print(
+            "请修改本脚本顶部的 FAMILY_JSON_PATH，或传入 JSON 路径，或使用 --latest。"
+        )
         sys.exit(1)
 
     output_dir = Path(args.output_dir) if args.output_dir else family_path.parent

@@ -41,12 +41,21 @@ class TestEphemerisScriptImports:
         """Test that correct_dro_to_ephemeris.py can be imported without errors"""
         mock_corr.return_value.iterate_correction.return_value = MagicMock()
 
-        script_path = project_root / "scripts" / "ephemeris" / "correct" / "correct_dro_to_ephemeris.py"
-        spec = importlib.util.spec_from_file_location("correct_dro_to_ephemeris", script_path)
+        script_path = (
+            project_root
+            / "scripts"
+            / "ephemeris"
+            / "correct"
+            / "correct_dro_to_ephemeris.py"
+        )
+        spec = importlib.util.spec_from_file_location(
+            "correct_dro_to_ephemeris", script_path
+        )
+        assert spec is not None
         module = importlib.util.module_from_spec(spec)
 
         try:
-            spec.loader.exec_module(module)
+            spec.loader.exec_module(module)  # type: ignore[union-attr]
         except ImportError as e:
             pytest.skip(f"Missing dependency: {e}")
         except Exception as e:

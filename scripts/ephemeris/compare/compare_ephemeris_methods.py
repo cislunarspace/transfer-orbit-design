@@ -37,12 +37,14 @@ from e2m2e.core import (
     CR3BP_System,
     EphemerisDynamics,
     EphemerisSystem,
-    HomotopyEphemerisDynamics,
     Orbit,
     SPICEManager,
     SynodicJ2000Transformation,
-    BodyName,
 )
+
+# HomotopyEphemerisDynamics and BodyName have been removed from e2m2e
+# from e2m2e.core import HomotopyEphemerisDynamics, BodyName
+HomotopyEphemerisDynamics = None  # type: ignore[assignment,misc] # placeholder for deprecated script
 
 from scripts.utils.common import MU, DU, TU
 
@@ -54,7 +56,9 @@ TU_SECONDS = TU * 86400
 DRO_JSON_FILE = project_root / "output" / "dro" / "dro_31_3857864736.json"
 
 N_PATCH_POINTS = 8
-POSITION_CONTINUITY_TOL = 1e-6  # 比典型 1e-3 km 更严格；patch-point 连续性需要亚毫米精度
+POSITION_CONTINUITY_TOL = (
+    1e-6  # 比典型 1e-3 km 更严格；patch-point 连续性需要亚毫米精度
+)
 N_WORKERS = multiprocessing.cpu_count()
 
 REFERENCE_EPOCH = "2025-06-21T11:00:06"
@@ -62,7 +66,7 @@ SPICE_KERNEL_DIR = os.environ.get(
     "SPICE_KERNEL_DIR",
     str(project_root.parent / "e2m2e" / "kernels"),
 )
-BODIES = BodyName.EARTH_MOON_SUN
+BODIES = ["EARTH", "MOON", "SUN"]
 BASE_BODIES = ["EARTH", "MOON"]
 PERTURBATION_BODIES = ["SUN"]
 
@@ -102,13 +106,17 @@ def setup_shared_infrastructure():
         print(f"  参考历元: {REFERENCE_EPOCH} (ET={reference_et:.2f} s)")
 
         cr3bp_system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
-        eph_system = EphemerisSystem(bodies=BODIES, spice=spice, origin="EARTH", frame="J2000")
+        eph_system = EphemerisSystem(
+            bodies=BODIES, spice=spice, origin="EARTH", frame="J2000"
+        )
 
         dro_orbit = Orbit.load_from_file(filename=DRO_JSON_FILE, system=cr3bp_system)
         if dro_orbit.period is None:
             dro_orbit._estimate_period()
         assert dro_orbit.period is not None
-        print(f"  DRO 周期: {dro_orbit.period:.6f} TU ({dro_orbit.period * TU:.2f} days)")
+        print(
+            f"  DRO 周期: {dro_orbit.period:.6f} TU ({dro_orbit.period * TU:.2f} days)"
+        )
 
         t_patch_syn, states_syn = sample_patch_points(dro_orbit, N_PATCH_POINTS)
 
@@ -195,7 +203,7 @@ def run_homotopy_method(eph_system, t_patch_j2000, states_j2000):
         print(f"\n  {'─' * 40}")
         print(f"  λ = {lam:.4f} ({step_idx + 1}/{len(HOMOTOPY_STEPS)})")
 
-        hdynamics = HomotopyEphemerisDynamics(
+        hdynamics = HomotopyEphemerisDynamics(  # type: ignore[misc]
             system=eph_system,
             base_bodies=BASE_BODIES,
             perturbation_bodies=PERTURBATION_BODIES,
@@ -244,7 +252,7 @@ def run_homotopy_method(eph_system, t_patch_j2000, states_j2000):
             sub_steps = np.linspace(HOMOTOPY_STEPS[step_idx - 1], lam, 3)[1:]
             sub_ok = True
             for sub_lam in sub_steps:
-                hdynamics_sub = HomotopyEphemerisDynamics(
+                hdynamics_sub = HomotopyEphemerisDynamics(  # type: ignore[misc]
                     system=eph_system,
                     base_bodies=BASE_BODIES,
                     perturbation_bodies=PERTURBATION_BODIES,
@@ -272,7 +280,9 @@ def run_homotopy_method(eph_system, t_patch_j2000, states_j2000):
                         "converged": result_sub.converged,
                         "iterations": result_sub.iterations,
                         "max_residual": float(result_sub.max_residual),
-                        "residual_history": [float(r) for r in result_sub.residual_history],
+                        "residual_history": [
+                            float(r) for r in result_sub.residual_history
+                        ],
                         "time_s": round(dt_sub, 3),
                         "note": "sub-step",
                     }
@@ -281,7 +291,9 @@ def run_homotopy_method(eph_system, t_patch_j2000, states_j2000):
                 if result_sub.converged:
                     current_t = result_sub.t_patch.copy()
                     current_states = result_sub.state_patch.copy()
-                    print(f"      子步 λ={sub_lam:.4f} ok, res={result_sub.max_residual:.2e}")
+                    print(
+                        f"      子步 λ={sub_lam:.4f} ok, res={result_sub.max_residual:.2e}"
+                    )
                 else:
                     print(f"      子步 λ={sub_lam:.4f} 失败")
                     sub_ok = False
@@ -350,7 +362,9 @@ def print_comparison_table(direct_info, homotopy_info):
         f"{homotopy_info['total_iterations']:>18}"
     )
 
-    print(f"{'运行时间 (s)':<22} {direct_info['time_s']:>18.2f} {homotopy_info['time_s']:>18.2f}")
+    print(
+        f"{'运行时间 (s)':<22} {direct_info['time_s']:>18.2f} {homotopy_info['time_s']:>18.2f}"
+    )
 
     print(
         f"{'最终残差 (km)':<22} {direct_info['max_residual']:>18.2e} "
@@ -571,7 +585,11 @@ def save_comparison_report(direct_info, homotopy_info, setup):
 
 
 def main():
-    print("DRO→星历模型修正：直接法 vs 同伦法效率对比")
+    raise NotImplementedError(
+        "HomotopyEphemerisDynamics has been removed from e2m2e; "
+        "this comparison script is deprecated."
+    )
+    print("DRO→星历模型修正：直接法 vs 同伦法效率对比")  # type: ignore[unreachable]
     print(f"参考历元: {REFERENCE_EPOCH}")
     print(f"Patch points: {N_PATCH_POINTS}")
     print(f"容差: {MS_TOLERANCE:.1e} km")

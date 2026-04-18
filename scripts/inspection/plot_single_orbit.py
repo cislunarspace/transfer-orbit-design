@@ -18,12 +18,14 @@ import matplotlib
 import matplotlib.pyplot as plt
 import e2m2e
 from e2m2e.core import Orbit, CR3BP_System
-from e2m2e.visualization.plotting import OrbitVisualizer
+from e2m2e.visualization.base import OrbitVisualizer
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="绘制单条轨道")
-    parser.add_argument("--json-file", type=str, default=None, help="轨道 JSON 文件路径")
+    parser.add_argument(
+        "--json-file", type=str, default=None, help="轨道 JSON 文件路径"
+    )
     return parser.parse_args()
 
 
@@ -86,8 +88,7 @@ def main():
     ax_2d.set_xlabel("X (nondimensional)", fontsize=12)
     ax_2d.set_ylabel("Y (nondimensional)", fontsize=12)
     ax_2d.set_title(
-        f"Single Orbit (XY Plane)\n"
-        f"Period = {orbit.period:.4f} TU, {_jacobi_title}",
+        f"Single Orbit (XY Plane)\nPeriod = {orbit.period:.4f} TU, {_jacobi_title}",
         fontsize=12,
     )
     ax_2d.legend(loc="upper right", fontsize=10)
@@ -131,8 +132,7 @@ def main():
     ax_3d.set_ylabel("Y (nondimensional)", fontsize=12)
     ax_3d.set_zlabel("Z (nondimensional)", fontsize=12)
     ax_3d.set_title(
-        f"Single Orbit (3D View)\n"
-        f"Period = {orbit.period:.4f} TU, {_jacobi_title}",
+        f"Single Orbit (3D View)\nPeriod = {orbit.period:.4f} TU, {_jacobi_title}",
         fontsize=12,
     )
     ax_3d.legend(loc="upper right", fontsize=10)
