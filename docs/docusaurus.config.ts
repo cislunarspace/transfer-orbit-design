@@ -27,6 +27,7 @@ const config: Config = {
       "classic",
       {
         docs: {
+          path: ".",
           sidebarPath: "./sidebars.ts",
           editUrl: "https://github.com/ouyangjiahong/transfer-orbit-design/edit/master/",
         },
