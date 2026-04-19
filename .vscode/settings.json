@@ -13,5 +13,8 @@
         "tests"
     ],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "editor.fontFamily": "FiraCode Nerd Font",
+    "editor.fontSize": 14,
+    "editor.fontLigatures": true
 }
