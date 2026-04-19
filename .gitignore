@@ -245,6 +245,9 @@ secrets.json
 docs/_build/
 docs/_static/
 docs/_templates/
+docs/.docusaurus/
+docs/node_modules/
+docs/superpowers/
 
 # 测试相关
 test_output/
