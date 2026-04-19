@@ -12,6 +12,7 @@ from PyQt6.QtGui import QDoubleValidator, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
     QFormLayout,
     QFrame,
     QGroupBox,
@@ -38,8 +39,43 @@ from scripts.gui.file_discovery import FileInfo, discover_files, filter_files, f
 from scripts.gui.job_manager import JobManager
 from scripts.gui.output_panel import JobCard, StructuredOutputWidget
 from scripts.gui.script_registry import SCRIPTS, UNIT_GROUPS, CliParam, ScriptEntry
+from scripts.gui.settings_dialog import SettingItem
 
 FILE_PATH_ROLE = Qt.ItemDataRole.UserRole + 1
+
+
+def _is_system_dark() -> bool:
+    """检测系统是否使用暗色模式（仅作辅助函数，不直接使用）。"""
+    from PyQt6.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app is None:
+        return False
+    palette = app.palette()
+    window_color = palette.color(palette.ColorRole.Window)
+    luminance = 0.299 * window_color.red() + 0.587 * window_color.green() + 0.114 * window_color.blue()
+    return luminance < 128
+
+
+def _resolve_theme() -> str:
+    """返回当前应使用的主题：light / dark。"""
+    mode = getattr(MainWindow, '_current_theme_mode', 'system')
+    if mode == 'system':
+        return 'dark' if _is_system_dark() else 'light'
+    return mode
+
+
+# Settings schema — each entry defines one setting item.
+# Add new SettingItem entries here to extend settings.
+SETTINGS_SCHEMA: list[SettingItem] = [
+    SettingItem(
+        key="theme",
+        label="主题 (Theme)",
+        type="choice",
+        choices=["light", "dark", "system"],
+        default="system",
+        on_changed=None,
+    ),
+]
 
 
 class MainWindow(QMainWindow):
@@ -55,6 +91,10 @@ class MainWindow(QMainWindow):
         self._job_cards: dict[str, JobCard] = {}
         self._job_outputs: dict[str, StructuredOutputWidget] = {}
         self._has_jobs = False
+
+        # 从设置加载 theme
+        self._current_theme_mode = self._gui_defaults.get("settings", {}).get("theme", "system")
+        MainWindow._current_theme_mode = self._current_theme_mode
 
         self.setWindowTitle("Transfer Orbit Design")
         self.resize(1200, 800)
@@ -77,6 +117,37 @@ class MainWindow(QMainWindow):
 
         self._refresh_files()
 
+    # ── Settings ───────────────────────────────────────────────
+
+    def _on_settings(self) -> None:
+        from scripts.gui.settings_dialog import SettingsDialog
+        current = dict(self._gui_defaults.get("settings", {}))
+        dialog = SettingsDialog(current, SETTINGS_SCHEMA, self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            settings = dialog.get_settings()
+            if "settings" not in self._gui_defaults:
+                self._gui_defaults["settings"] = {}
+            self._gui_defaults["settings"].update(settings)
+            self._save_gui_defaults()
+
+            if "theme" in settings:
+                self._current_theme_mode = settings["theme"]
+                MainWindow._current_theme_mode = settings["theme"]
+                self._on_theme_changed()
+
+    def _on_theme_changed(self) -> None:
+        """主题变化后，重建左侧面板和参数面板的颜色。"""
+        # 重建左侧面板
+        old_panel = self._left_splitter.widget(0)
+        new_left = self._build_left_panel()
+        self._left_splitter.replaceWidget(0, new_left)
+        old_panel.hide()
+        old_panel.deleteLater()
+
+        # 重建参数面板（如果当前有选中脚本）
+        if self._current_script is not None:
+            self._rebuild_params_panel(self._current_script)
+
     # ── Toolbar ────────────────────────────────────────────────
 
     def _build_toolbar(self) -> None:
@@ -88,6 +159,10 @@ class MainWindow(QMainWindow):
         refresh_btn.clicked.connect(self._refresh_files)
         toolbar.addWidget(refresh_btn)
 
+        settings_btn = QPushButton("Settings")
+        settings_btn.clicked.connect(self._on_settings)
+        toolbar.addWidget(settings_btn)
+
     # ── Central Widget ─────────────────────────────────────────
 
     def _build_central(self) -> None:
@@ -97,6 +172,7 @@ class MainWindow(QMainWindow):
         # 左侧：脚本按钮 + 右侧 tabs
         left_splitter = QSplitter(Qt.Orientation.Horizontal)
         left_splitter.addWidget(self._build_left_panel())
+        self._left_splitter = left_splitter
         left_splitter.addWidget(self._build_right_panel())
         left_splitter.setStretchFactor(0, 1)
         left_splitter.setStretchFactor(1, 2)
@@ -132,9 +208,10 @@ class MainWindow(QMainWindow):
 
         for category, scripts in SCRIPTS.items():
             header = QLabel(category)
+            hdr_color = "#aaa" if _resolve_theme() == "dark" else "#555"
             header.setStyleSheet(
-                "font-weight: bold; font-size: 13px; "
-                "padding: 8px 4px 4px 4px; color: #555;"
+                f"font-weight: bold; font-size: 13px; "
+                f"padding: 8px 4px 4px 4px; color: {hdr_color};"
             )
             layout.addWidget(header)
 
@@ -144,9 +221,10 @@ class MainWindow(QMainWindow):
                 if entry.group_label and entry.group_label != current_group:
                     current_group = entry.group_label
                     grp_lbl = QLabel(current_group)
+                    grp_color = "#aaa" if _resolve_theme() == "dark" else "#555"
                     grp_lbl.setStyleSheet(
-                        "font-weight: bold; font-size: 11px; "
-                        "padding: 6px 16px 2px 16px; color: #888;"
+                        f"font-weight: bold; font-size: 11px; "
+                        f"padding: 6px 16px 2px 16px; color: {grp_color};"
                     )
                     layout.addWidget(grp_lbl)
 
@@ -1225,14 +1303,16 @@ class MainWindow(QMainWindow):
 
         if entry.description:
             desc_label = QLabel(entry.description)
-            desc_label.setStyleSheet("color: #555; font-size: 11px; padding: 0 0 8px 0;")
+            text_color = "#ccc" if _resolve_theme() == "dark" else "#333"
+            desc_label.setStyleSheet(f"color: {text_color}; font-size: 11px; padding: 0 0 8px 0;")
             desc_label.setWordWrap(True)
             self._params_layout.addRow(desc_label)
 
         cmd_label = QLabel(f"python {entry.script_path}")
+        code_color = "#bbb" if _resolve_theme() == "dark" else "#444"
         cmd_label.setStyleSheet(
-            "font-family: 'Cascadia Code', 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Liberation Mono', monospace; "
-            "font-size: 9pt; color: #666; background-color: #f5f5f5; "
+            f"font-family: 'Cascadia Code', 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Liberation Mono', monospace; "
+            f"font-size: 9pt; color: {code_color}; background-color: #f5f5f5; "
             "padding: 4px 6px; border-radius: 3px;"
         )
         cmd_label.setWordWrap(True)
@@ -1241,9 +1321,10 @@ class MainWindow(QMainWindow):
 
         if entry.output_dir:
             out_label = QLabel(entry.output_dir)
+            code_color = "#bbb" if _resolve_theme() == "dark" else "#444"
             out_label.setStyleSheet(
-                "font-family: 'Cascadia Code', 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Liberation Mono', monospace; "
-                "font-size: 9pt; color: #666; background-color: #f5f5f5; "
+                f"font-family: 'Cascadia Code', 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Liberation Mono', monospace; "
+                f"font-size: 9pt; color: {code_color}; background-color: #f5f5f5; "
                 "padding: 4px 6px; border-radius: 3px;"
             )
             out_label.setWordWrap(True)
