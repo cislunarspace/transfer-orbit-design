@@ -208,7 +208,7 @@ def main():
         print(f"RRO 族延拓完成，共 {len(family_rro)} 条轨道")
 
         # 保存 RRO 族
-        rro_output_file = OUTPUT_DIR / "ro" / f"rro_32_family_{int(time.time())}.json"
+        rro_output_file = OUTPUT_DIR / "ro" / f"rro_32_family_{z_min}-{z_max}-{args.step_size}_{int(time.time())}.json"
         family_rro.save_to_file(filename=str(rro_output_file))
         print(f"RRO 族已保存至: {rro_output_file}")
 
