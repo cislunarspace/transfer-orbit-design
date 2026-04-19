@@ -105,7 +105,7 @@ def main():
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     ts = int(time.time())
-    family_name = f"halo_L{libration_point}_{'N' if halo_class == 0 else 'S'}_family_{ts}"
+    family_name = f"halo_L{libration_point}_{'N' if halo_class == 0 else 'S'}_family_{amplitude_z}_{ts}"
     family_result.save_to_file(filename=str(OUTPUT_DIR / f"{family_name}.json"))
 
     print(f"\n[ok] 轨道族已保存至: {OUTPUT_DIR / f'{family_name}.json'}")
