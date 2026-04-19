@@ -23,6 +23,7 @@ class EnvParam:
     label: str             # UI 显示名，如 "DRO 轨道文件"
     file_category: str     # 文件类别过滤，如 "dro", "ro", "transfer"
     file_type: str = "json"  # 文件类型过滤
+    name_pattern: str | None = None  # 文件名过滤模式，如 "*_family_*.json"
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,7 @@ class CliParam:
     advanced: bool = False            # True 时 GUI 折叠到"高级选项"区域，默认收起
     choices: tuple[str, ...] | None = None  # 非 None 时 GUI 渲染为下拉选择框
     path_mode: str = "absolute"       # "absolute" | "relative" — 文件下拉框的路径显示模式
+    name_pattern: str | None = None  # 文件名过滤模式，如 "*_family_*.json"
 
 
 @dataclass(frozen=True)
@@ -93,7 +95,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/dro",
             group_label="绘图",
             cli_params=[
-                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="dro"),
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="dro", name_pattern="*_family_*.json"),
             ],
         ),
     ],
@@ -177,7 +179,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/ro",
             group_label="绘图",
             cli_params=[
-                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro"),
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro", name_pattern="*_family_*.json"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
                 CliParam("--end", "结束索引", "int", "-1", "结束轨道索引（含），-1 表示到最后一条"),
             ],
@@ -189,7 +191,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/ro",
             group_label="绘图",
             cli_params=[
-                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro"),
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro", name_pattern="*_family_*.json"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
                 CliParam("--end", "结束索引", "int", "42", "结束轨道索引（含），-1 表示到最后一条"),
             ],
@@ -201,7 +203,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/ro",
             group_label="绘图",
             cli_params=[
-                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro"),
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro", name_pattern="*_family_*.json"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
                 CliParam("--end", "结束索引", "int", "-1", "结束轨道索引（含），-1 表示到最后一条"),
             ],
@@ -213,7 +215,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/ro",
             group_label="绘图",
             cli_params=[
-                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro"),
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="ro", name_pattern="*_family_*.json"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
                 CliParam("--end", "结束索引", "int", "-1", "结束轨道索引（含），-1 表示到最后一条"),
             ],
@@ -259,7 +261,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/halo",
             group_label="绘图",
             env_params={
-                "json_file": EnvParam("HALO_FAMILY_FILE", "Halo 轨道族文件", "halo"),
+                "json_file": EnvParam("HALO_FAMILY_FILE", "Halo 轨道族文件", "halo", name_pattern="*_family_*.json"),
             },
             cli_params=[
                 CliParam("--latest", "使用最新文件", "bool", help="使用 output/halo 下最新的 halo_*_family_*.json"),
@@ -276,7 +278,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             output_dir="output/halo",
             group_label="绘图",
             cli_params=[
-                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="halo"),
+                CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="halo", name_pattern="*_family_*.json"),
                 CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
                 CliParam("--end", "结束索引", "int", "-1", "结束轨道索引（含），-1 表示到最后一条"),
             ],
