@@ -11,7 +11,7 @@ sidebar_position: 4
 使用微分修正和自然延拓生成远距离逆行轨道族。
 
 ```bash
-python scripts/dro/generate_dro_family.py
+uv run python scripts/dro/generate/generate_dro_family.py
 ```
 
 **输出**：`output/dro/` 中的 JSON 文件
@@ -28,7 +28,7 @@ python scripts/dro/generate_dro_family.py
 生成单个 3:1 DRO 轨道。
 
 ```bash
-python scripts/dro/generate_31_dro_orbit.py
+uv run python scripts/dro/generate/generate_31_dro_orbit.py
 ```
 
 **关键参数**：
@@ -41,7 +41,7 @@ python scripts/dro/generate_31_dro_orbit.py
 绘制带有 Jacobi 常数和稳定性着色的 DRO 族。
 
 ```bash
-python scripts/dro/plot_dro_family.py
+uv run python scripts/dro/plot/plot_dro_family.py
 ```
 
 **关键参数**：
@@ -56,7 +56,7 @@ python scripts/dro/plot_dro_family.py
 生成单个 3:1 共振轨道（固定周期微分修正）。
 
 ```bash
-python scripts/ro/generate_31_ro_orbit.py
+uv run python scripts/ro/generate/generate_31_ro_orbit.py
 ```
 
 **关键参数**：
@@ -67,7 +67,7 @@ python scripts/ro/generate_31_ro_orbit.py
 生成 3:1 共振轨道族。
 
 ```bash
-python scripts/ro/generate_31_ro_family.py
+uv run python scripts/ro/generate/generate_31_ro_family.py
 ```
 
 **关键参数**：
@@ -80,7 +80,7 @@ python scripts/ro/generate_31_ro_family.py
 生成 3:2 共振轨道族。
 
 ```bash
-python scripts/ro/generate_32_ro_family.py
+uv run python scripts/ro/generate/generate_32_ro_family.py
 ```
 
 **关键参数**：
@@ -93,8 +93,8 @@ python scripts/ro/generate_32_ro_family.py
 可视化 RO 轨道族。
 
 ```bash
-python scripts/ro/plot_31_ro_family.py [--json-file path] [--start N] [--end N]
-python scripts/ro/plot_32_ro_family.py [--json-file path] [--start N] [--end N]
+uv run python scripts/ro/plot/plot_31_ro_family.py [--json-file path] [--start N] [--end N]
+uv run python scripts/ro/plot/plot_32_ro_family.py [--json-file path] [--start N] [--end N]
 ```
 
 ## 3D 轨道脚本（RRO/ARO）
@@ -104,7 +104,7 @@ python scripts/ro/plot_32_ro_family.py [--json-file path] [--start N] [--end N]
 生成反射共振轨道族（RRO），从 3:2 RO 分岔。
 
 ```bash
-python scripts/ro/generate_rro_family.py --ro-file <path> --target-x0 -1.1318
+uv run python scripts/ro/generate/generate_rro_family.py --ro-file <path> --target-x0 -1.1318
 ```
 
 **关键参数**：
@@ -118,7 +118,7 @@ python scripts/ro/generate_rro_family.py --ro-file <path> --target-x0 -1.1318
 生成轴向共振轨道族（ARO），从 3:2 RO 分岔。
 
 ```bash
-python scripts/ro/generate_aro_family.py --ro-file <path> --target-x0 -1.0878
+uv run python scripts/ro/generate/generate_aro_family.py --ro-file <path> --target-x0 -1.0878
 ```
 
 **关键参数**：
@@ -133,8 +133,8 @@ python scripts/ro/generate_aro_family.py --ro-file <path> --target-x0 -1.0878
 可视化 3D 轨道族。
 
 ```bash
-python scripts/ro/plot_rro_family.py [--json-file path] [--start N] [--end N]
-python scripts/ro/plot_aro_family.py [--json-file path] [--start N] [--end N]
+uv run python scripts/ro/plot/plot_rro_family.py [--json-file path] [--start N] [--end N]
+uv run python scripts/ro/plot/plot_aro_family.py [--json-file path] [--start N] [--end N]
 ```
 
 ## Halo 轨道脚本
@@ -144,7 +144,7 @@ python scripts/ro/plot_aro_family.py [--json-file path] [--start N] [--end N]
 使用 Richardson 三阶近似作为初始猜测，再通过微分修正生成精确的 Halo 周期轨道。
 
 ```bash
-python scripts/halo/generate_halo_orbit.py [--libration-point 1] [--amplitude-z 0.23] [--halo-class 0]
+uv run python scripts/halo/generate/generate_halo_orbit.py [--libration-point 1] [--amplitude-z 0.23] [--halo-class 0]
 ```
 
 **关键参数**：
@@ -159,7 +159,7 @@ python scripts/halo/generate_halo_orbit.py [--libration-point 1] [--amplitude-z 
 从 Richardson 三阶近似种子轨道出发，使用伪弧长延拓生成 Halo 轨道族。
 
 ```bash
-python scripts/halo/generate_halo_family.py [--libration-point 1] [--amplitude-z 0.23]
+uv run python scripts/halo/generate/generate_halo_family.py [--libration-point 1] [--amplitude-z 0.23]
 ```
 
 **关键参数**：
@@ -172,7 +172,7 @@ python scripts/halo/generate_halo_family.py [--libration-point 1] [--amplitude-z
 可视化单个 Halo 轨道数据（2D/3D 视图及周期-稳定性参数图）。
 
 ```bash
-python scripts/halo/plot_halo_orbit.py [--json-file path] [--start N] [--end N]
+uv run python scripts/halo/plot/plot_halo_orbit.py [--json-file path] [--start N] [--end N]
 ```
 
 ### plot_halo_family.py
@@ -180,9 +180,9 @@ python scripts/halo/plot_halo_orbit.py [--json-file path] [--start N] [--end N]
 可视化 Halo 轨道族。
 
 ```bash
-python scripts/halo/plot_halo_family.py <path/to/family.json>
-python scripts/halo/plot_halo_family.py --latest
-python scripts/halo/plot_halo_family.py --latest --no-show
+uv run python scripts/halo/plot/plot_halo_family.py <path/to/family.json>
+uv run python scripts/halo/plot/plot_halo_family.py --latest
+uv run python scripts/halo/plot/plot_halo_family.py --latest --no-show
 ```
 
 **参数**：
@@ -200,7 +200,7 @@ python scripts/halo/plot_halo_family.py --latest --no-show
 网格搜索 DRO 到 RO 的可行转移轨迹：
 
 ```bash
-python scripts/transfer/grid_search_dro_to_ro.py [--dro-file path] [--ro-file path]
+uv run python scripts/transfer/dro_to_ro/grid_search_dro_to_ro.py [--dro-file path] [--ro-file path]
 ```
 
 **搜索变量**：出发点位置、切向速度比 alpha（0.5 ~ 2.5）
@@ -217,7 +217,7 @@ python scripts/transfer/grid_search_dro_to_ro.py [--dro-file path] [--ro-file pa
 对网格搜索结果进行 NLP 优化（SLSQP 最小化总 Δv）：
 
 ```bash
-python scripts/transfer/optimize_dro_to_ro.py --search-file <path> --dro-file <path> --ro-file <path>
+uv run python scripts/transfer/dro_to_ro/optimize_dro_to_ro.py --search-file <path> --dro-file <path> --ro-file <path>
 ```
 
 **决策变量**：`y = {α, T, t_ins}`，**目标函数**：`J(y) = Δv₁ + Δv₂`
@@ -235,7 +235,7 @@ python scripts/transfer/optimize_dro_to_ro.py --search-file <path> --dro-file <p
 网格搜索 DRO 到 GEO 的可行转移轨迹，目标为 GEO 球面而非 RO 轨道：
 
 ```bash
-python scripts/transfer/grid_search_dro_to_geo.py [--dro-file path]
+uv run python scripts/transfer/dro_to_geo/grid_search_dro_to_geo.py [--dro-file path]
 ```
 
 **关键参数**：
@@ -247,7 +247,7 @@ python scripts/transfer/grid_search_dro_to_geo.py [--dro-file path]
 优化 DRO→GEO 转移轨道：
 
 ```bash
-python scripts/transfer/optimize_dro_to_geo.py --search-file <path> --dro-file <path>
+uv run python scripts/transfer/dro_to_geo/optimize_dro_to_geo.py --search-file <path> --dro-file <path>
 ```
 
 **关键参数**：
@@ -261,7 +261,7 @@ python scripts/transfer/optimize_dro_to_geo.py --search-file <path> --dro-file <
 从 GEO 出发搜索到 DRO 的可行转移轨迹：
 
 ```bash
-python scripts/transfer/grid_search_geo_to_dro.py [--dro-file path]
+uv run python scripts/transfer/geo_to_dro/grid_search_geo_to_dro.py [--dro-file path]
 ```
 
 **关键参数**：
@@ -275,7 +275,7 @@ python scripts/transfer/grid_search_geo_to_dro.py [--dro-file path]
 GEO→DRO 转移 NLP 优化：
 
 ```bash
-python scripts/transfer/optimize_geo_to_dro.py --search-file <path> --dro-file <path>
+uv run python scripts/transfer/geo_to_dro/optimize_geo_to_dro.py --search-file <path> --dro-file <path>
 ```
 
 **关键参数**：
@@ -288,7 +288,7 @@ python scripts/transfer/optimize_geo_to_dro.py --search-file <path> --dro-file <
 验证 GEO→DRO 转移轨道搜索可行性（调试用）：
 
 ```bash
-python scripts/transfer/validate_geo_to_dro.py
+uv run python scripts/transfer/geo_to_dro/validate_geo_to_dro.py
 ```
 
 ### LEO→DRO 转移
@@ -298,7 +298,7 @@ python scripts/transfer/validate_geo_to_dro.py
 从 LEO 出发搜索到 DRO 的可行转移轨迹：
 
 ```bash
-python scripts/transfer/grid_search_leo_to_dro.py [--dro-file path]
+uv run python scripts/transfer/leo_to_dro/grid_search_leo_to_dro.py [--dro-file path]
 ```
 
 **关键参数**：
@@ -311,19 +311,19 @@ python scripts/transfer/grid_search_leo_to_dro.py [--dro-file path]
 LEO→DRO 转移 NLP 优化：
 
 ```bash
-python scripts/transfer/optimize_leo_to_dro.py --search-file <path> --dro-file <path>
+uv run python scripts/transfer/leo_to_dro/optimize_leo_to_dro.py --search-file <path> --dro-file <path>
 ```
 
 **关键参数**：与 `optimize_geo_to_dro.py` 类似，`--t-max` 默认 80.0
 
 ### 可视化脚本
 
-#### plot_search_results.py
+#### plot_search_results_dro_to_ro.py
 
 可视化 DRO-RO 网格搜索结果：
 
 ```bash
-python scripts/transfer/plot_search_results.py <results.json> [--orbit] [--time-dv] [--idx N]
+uv run python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py <results.json> [--orbit] [--time-dv] [--idx N]
 ```
 
 **参数**：
@@ -332,24 +332,28 @@ python scripts/transfer/plot_search_results.py <results.json> [--orbit] [--time-
 - `--idx <int|best|random|all|best:N>`：选择绘制的可行解
 - `--max-points`（默认 50000）、`--seed`、`--save`、`--n-workers`
 
-#### plot_search_results_geo.py
+#### plot_search_results_dro_to_geo.py
 
 可视化 DRO-GEO 网格搜索结果（参数同上，额外支持 `--interactive` 交互式浏览）。
+
+```bash
+uv run python scripts/transfer/dro_to_geo/plot_search_results_dro_to_geo.py <results.json> [--orbit] [--time-dv] [--idx N]
+```
 
 #### plot_search_results_geo_to_dro.py
 
 可视化 GEO-DRO 网格搜索结果：
 
 ```bash
-python scripts/transfer/plot_search_results_geo_to_dro.py [--time-dv] [--orbit] [--interactive] [--idx best:10]
+uv run python scripts/transfer/geo_to_dro/plot_search_results_geo_to_dro.py [--time-dv] [--orbit] [--interactive] [--idx best:10]
 ```
 
-#### plot_optimize_result.py
+#### plot_optimize_result_dro_to_ro.py
 
 可视化 DRO-RO NLP 优化结果：
 
 ```bash
-python scripts/transfer/plot_optimize_result.py [--orbit] [--time-dv] [--idx best]
+uv run python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py [--orbit] [--time-dv] [--idx best]
 ```
 
 #### plot_optimize_result_geo_to_dro.py
@@ -357,7 +361,7 @@ python scripts/transfer/plot_optimize_result.py [--orbit] [--time-dv] [--idx bes
 可视化 GEO-DRO NLP 优化结果：
 
 ```bash
-python scripts/transfer/plot_optimize_result_geo_to_dro.py [--orbit] [--time-dv] [--interactive] [--idx best:5]
+uv run python scripts/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py [--orbit] [--time-dv] [--interactive] [--idx best:5]
 ```
 
 **特有参数**：`--max-pos-err`（最大位置误差 km，默认 100.0）
@@ -369,7 +373,7 @@ python scripts/transfer/plot_optimize_result_geo_to_dro.py [--orbit] [--time-dv]
 使用多重打靶法将 CR3BP DRO 修正为星历模型下的轨道：
 
 ```bash
-python scripts/ephemeris/correct_dro_to_ephemeris.py [--dro-file path]
+uv run python scripts/ephemeris/correct/correct_dro_to_ephemeris.py [--dro-file path]
 ```
 
 需要 SPICE 内核文件（`de440.bsp`, `naif0012.tls`）。设置 `SPICE_KERNEL_DIR` 环境变量或默认使用 `../e2m2e/kernels/`。
@@ -379,7 +383,7 @@ python scripts/ephemeris/correct_dro_to_ephemeris.py [--dro-file path]
 使用同伦 λ-延拓方法将 CR3BP DRO 修正为星历模型下的轨道：
 
 ```bash
-python scripts/ephemeris/homotopy_dro_to_ephemeris.py [--dro-file path]
+uv run python scripts/ephemeris/correct/homotopy_dro_to_ephemeris.py [--dro-file path]
 ```
 
 ### compare_ephemeris_methods.py
@@ -387,7 +391,7 @@ python scripts/ephemeris/homotopy_dro_to_ephemeris.py [--dro-file path]
 对比多重打靶法和同伦法的修正效果：
 
 ```bash
-python scripts/ephemeris/compare_ephemeris_methods.py
+uv run python scripts/ephemeris/compare/compare_ephemeris_methods.py
 ```
 
 ### plot_ephemeris_correction.py
@@ -395,7 +399,7 @@ python scripts/ephemeris/compare_ephemeris_methods.py
 可视化星历修正前后对比（会合坐标系 + J2000 惯性系）：
 
 ```bash
-python scripts/ephemeris/plot_ephemeris_correction.py [--dro-file path] [--ephemeris-file path]
+uv run python scripts/ephemeris/plot/plot_ephemeris_correction.py [--dro-file path] [--ephemeris-file path]
 ```
 
 ## 轨道检查脚本
@@ -405,7 +409,7 @@ python scripts/ephemeris/plot_ephemeris_correction.py [--dro-file path] [--ephem
 加载并绘制单个 `Orbit` 对象的 2D 和 3D 视图。
 
 ```bash
-python scripts/inspection/plot_single_orbit.py --json-file <path>
+uv run python scripts/inspection/plot_single_orbit.py --json-file <path>
 ```
 
 ### plot_interactive_orbit_inspector.py
@@ -413,7 +417,7 @@ python scripts/inspection/plot_single_orbit.py --json-file <path>
 交互式轨道逐条检查工具，用于调试和质量检查。
 
 ```bash
-python scripts/inspection/plot_interactive_orbit_inspector.py --json-file <path> [--plane xy] [--show-3d]
+uv run python scripts/inspection/plot_interactive_orbit_inspector.py --json-file <path> [--plane xy] [--show-3d]
 ```
 
 **交互操作**：

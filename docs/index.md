@@ -12,16 +12,16 @@ sidebar_position: 1
 
 | 文档 | 对应脚本 | 描述 |
 |------|----------|------|
-| [DRO 生成](design/dro-generation.md) | `dro/generate_dro_family.py`, `dro/plot_dro_family.py` | 远距离逆行轨道族生成 |
-| [RO 生成](design/ro-generation.md) | `ro/generate_31_ro_family.py`, `ro/generate_32_ro_family.py`, `ro/plot_*_ro_family.py` | 共振轨道族生成 |
-| [RRO/ARO 生成](design/rro-aro-generation.md) | `ro/generate_rro_family.py`, `ro/generate_aro_family.py`, `ro/plot_rro_family.py`, `ro/plot_aro_family.py` | 3D 共振轨道生成 |
-| [DRO-RO 转移](design/dro-ro-transfer.md) | `transfer/grid_search_dro_to_ro.py`, `transfer/optimize_dro_to_ro.py`, `transfer/plot_search_results.py`, `transfer/plot_optimize_result.py` | 两脉冲转移设计 |
-| DRO→GEO 转移 | `transfer/grid_search_dro_to_geo.py`, `transfer/optimize_dro_to_geo.py`, `transfer/plot_search_results_geo.py` | DRO 到 GEO 转移设计 |
-| GEO→DRO 转移 | `transfer/grid_search_geo_to_dro.py`, `transfer/optimize_geo_to_dro.py`, `transfer/plot_search_results_geo_to_dro.py` | GEO 到 DRO 转移设计 |
-| LEO→DRO 转移 | `transfer/grid_search_leo_to_dro.py`, `transfer/optimize_leo_to_dro.py` | LEO 到 DRO 转移设计 |
-| 星历修正 | `ephemeris/correct_dro_to_ephemeris.py`, `ephemeris/homotopy_dro_to_ephemeris.py`, `ephemeris/compare_ephemeris_methods.py`, `ephemeris/plot_ephemeris_correction.py` | CR3BP → 星历模型修正 |
-| Halo 轨道 | `halo/generate_halo_orbit.py`, `halo/generate_halo_family.py`, `halo/plot_halo_orbit.py`, `halo/plot_halo_family.py` | Halo 轨道生成与可视化 |
-| 轨道检查 | `inspection/plot_single_orbit.py`, `inspection/plot_interactive_orbit_inspector.py` | 单轨道与交互式轨道可视化 |
+| [DRO 生成](design/dro-generation.md) | `dro/generate/generate_dro_family.py`, `dro/plot/plot_dro_family.py` | 远距离逆行轨道族生成 |
+| [RO 生成](design/ro-generation.md) | `ro/generate/generate_31_ro_family.py`, `ro/generate/generate_32_ro_family.py`, `ro/plot/plot_*_ro_family.py` | 共振轨道族生成 |
+| [RRO/ARO 生成](design/rro-aro-generation.md) | `ro/generate/generate_rro_family.py`, `ro/generate/generate_aro_family.py`, `ro/plot/plot_rro_family.py`, `ro/plot/plot_aro_family.py` | 3D 共振轨道生成 |
+| [DRO-RO 转移](design/dro-ro-transfer.md) | `dro_to_ro/grid_search_dro_to_ro.py`, `dro_to_ro/optimize_dro_to_ro.py`, `dro_to_ro/plot_search_results_dro_to_ro.py`, `dro_to_ro/plot_optimize_result_dro_to_ro.py` | 两脉冲转移设计 |
+| DRO→GEO 转移 | `dro_to_geo/grid_search_dro_to_geo.py`, `dro_to_geo/optimize_dro_to_geo.py`, `dro_to_geo/plot_search_results_dro_to_geo.py` | DRO 到 GEO 转移设计 |
+| GEO→DRO 转移 | `geo_to_dro/grid_search_geo_to_dro.py`, `geo_to_dro/optimize_geo_to_dro.py`, `geo_to_dro/plot_search_results_geo_to_dro.py` | GEO 到 DRO 转移设计 |
+| LEO→DRO 转移 | `leo_to_dro/grid_search_leo_to_dro.py`, `leo_to_dro/optimize_leo_to_dro.py` | LEO 到 DRO 转移设计 |
+| 星历修正 | `correct/correct_dro_to_ephemeris.py`, `correct/homotopy_dro_to_ephemeris.py`, `compare/compare_ephemeris_methods.py`, `plot/plot_ephemeris_correction.py` | CR3BP → 星历模型修正 |
+| Halo 轨道 | `halo/generate/generate_halo_orbit.py`, `halo/generate/generate_halo_family.py`, `halo/plot/plot_halo_orbit.py`, `halo/plot/plot_halo_family.py` | Halo 轨道生成与可视化 |
+| 轨道检查 | `plot_single_orbit.py`, `plot_interactive_orbit_inspector.py` | 单轨道与交互式轨道可视化 |
 
 ### 算法说明（`algorithms/`）
 
@@ -60,42 +60,42 @@ sidebar_position: 1
 ## 快速开始
 
 ```bash
-# 安装依赖
-pip install -r requirements.txt
+# 安装依赖（使用 uv）
+uv sync
 
 # 安装本地 e2m2e 依赖库（需要先克隆 e2m2e 仓库）
-pip install -e /path/to/e2m2e
+uv pip install -e /path/to/e2m2e
 
 # 生成 DRO 族
-python scripts/dro/generate_dro_family.py
+uv run python scripts/dro/generate/generate_dro_family.py
 
 # 生成单个 3:1 DRO 轨道
-python scripts/dro/generate_31_dro_orbit.py
+uv run python scripts/dro/generate/generate_31_dro_orbit.py
 
 # 生成 3:1 RO 族
-python scripts/ro/generate_31_ro_family.py
+uv run python scripts/ro/generate/generate_31_ro_family.py
 
 # 生成 3:2 RO 族
-python scripts/ro/generate_32_ro_family.py
+uv run python scripts/ro/generate/generate_32_ro_family.py
 
 # 网格搜索转移轨道
-python scripts/transfer/grid_search_dro_to_ro.py
+uv run python scripts/transfer/dro_to_ro/grid_search_dro_to_ro.py
 
 # NLP 优化阶段
-python scripts/transfer/optimize_dro_to_ro.py
+uv run python scripts/transfer/dro_to_ro/optimize_dro_to_ro.py
 
 # DRO→GEO 转移管线
-python scripts/transfer/grid_search_dro_geo.py
-python scripts/transfer/optimize_dro_geo.py
+uv run python scripts/transfer/dro_to_geo/grid_search_dro_to_geo.py
+uv run python scripts/transfer/dro_to_geo/optimize_dro_to_geo.py
 
 # 星历修正（需要 SPICE 内核）
-python scripts/ephemeris/correct_dro_to_ephemeris.py
+uv run python scripts/ephemeris/correct/correct_dro_to_ephemeris.py
 
 # 可视化结果
-python scripts/dro/plot_dro_family.py
-python scripts/ro/plot_31_ro_family.py
-python scripts/ro/plot_32_ro_family.py
-python scripts/transfer/plot_search_results.py <results.json>
+uv run python scripts/dro/plot/plot_dro_family.py
+uv run python scripts/ro/plot/plot_31_ro_family.py
+uv run python scripts/ro/plot/plot_32_ro_family.py
+uv run python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py <results.json>
 ```
 
 ## 轨道类型

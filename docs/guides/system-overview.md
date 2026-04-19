@@ -25,21 +25,35 @@ transfer-orbit-design/
 ├── output/
 │   ├── dro/                 # 生成的 DRO 族 JSON 文件
 │   ├── ro/                  # 生成的 RO/RRO/ARO 族 JSON 文件
+│   ├── halo/                # 生成的 Halo 族 JSON 文件
 │   ├── transfer/            # 转移搜索与优化结果
 │   └── ephemeris/           # 星历修正结果
 ├── paper/                   # 参考论文（中文翻译）
 ├── plan/                    # 实施计划
 ├── scripts/
-│   ├── dro/                 # DRO 轨道生成与可视化
-│   ├── ro/                  # RO/RRO/ARO 轨道生成与可视化
-│   ├── halo/                # Halo 轨道生成与可视化
+│   ├── dro/
+│   │   ├── generate/        # DRO 轨道生成脚本
+│   │   └── plot/           # DRO 轨道可视化脚本
+│   ├── ro/
+│   │   ├── generate/        # RO/RRO/ARO 轨道生成脚本
+│   │   └── plot/           # RO/RRO/ARO 轨道可视化脚本
+│   ├── halo/
+│   │   ├── generate/        # Halo 轨道生成脚本
+│   │   └── plot/           # Halo 轨道可视化脚本
 │   ├── transfer/            # 转移设计（搜索、优化、可视化）
+│   │   ├── dro_to_ro/      # DRO→RO 转移
+│   │   ├── dro_to_geo/     # DRO→GEO 转移
+│   │   ├── geo_to_dro/     # GEO→DRO 转移
+│   │   └── leo_to_dro/     # LEO→DRO 转移
 │   ├── ephemeris/           # CR3BP → 星历模型修正
+│   │   ├── correct/        # 多重打靶法修正
+│   │   ├── homotopy/        # 同伦 λ-延拓修正
+│   │   ├── compare/         # 方法对比
+│   │   └── plot/            # 星历修正可视化
 │   ├── inspection/          # 单轨道与交互式轨道可视化
 │   ├── gui/                 # PyQt6 桌面 GUI
 │   └── utils/               # 共享常量和辅助函数
 ├── tests/                   # 测试
-├── requirements.txt
 └── README.md
 ```
 
@@ -96,9 +110,10 @@ transfer-orbit-design/
 git clone <repository-url> transfer-orbit-design
 git clone <repository-url> e2m2e
 
-# 安装依赖
-pip install -r transfer-orbit-design/requirements.txt
+# 安装依赖（使用 uv）
+cd transfer-orbit-design
+uv sync
 
 # 以可编辑模式安装 e2m2e
-pip install -e /path/to/e2m2e
+uv pip install -e /path/to/e2m2e
 ```

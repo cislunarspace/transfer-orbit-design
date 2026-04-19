@@ -6,7 +6,7 @@ sidebar_position: 3
 
 ## e2m2e 依赖管理
 
-本项目依赖 e2m2e 库（地月空间转移轨道设计）。推荐使用 `pip install -e` 可编辑安装，使 `from e2m2e.core...` 导入在任意工作目录下均可正确解析。
+本项目依赖 e2m2e 库（地月空间转移轨道设计）。推荐使用 `uv pip install -e` 可编辑安装，使 `from e2m2e.core...` 导入在任意工作目录下均可正确解析。
 
 ### 安装方式
 
@@ -15,10 +15,10 @@ sidebar_position: 3
 git clone <e2m2e-repository-url> /path/to/e2m2e
 
 # 以可编辑模式安装
-pip install -e /path/to/e2m2e
+uv pip install -e /path/to/e2m2e
 ```
 
-`requirements.txt` 末尾的 `-e .` 会把本仓库（transfer-orbit-design）也以可编辑包形式安装，使 `from scripts.utils...` 等导入无需额外配置 `PYTHONPATH`。
+`pyproject.toml` 中的 `uv sync` 会把本仓库（transfer-orbit-design）作为可编辑包安装，使 `from scripts.utils...` 等导入无需额外配置 `PYTHONPATH`。
 
 ### IDE 配置（Cursor / VS Code）
 
