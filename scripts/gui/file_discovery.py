@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from fnmatch import fnmatch
 from pathlib import Path
 
 
@@ -74,6 +75,7 @@ def filter_files(
     files: list[FileInfo],
     category: str | None = None,
     file_type: str | None = None,
+    name_pattern: str | None = None,
 ) -> list[FileInfo]:
     """按类别和/或文件类型过滤。"""
     result = files
@@ -81,4 +83,6 @@ def filter_files(
         result = [f for f in result if f.category == category]
     if file_type:
         result = [f for f in result if f.file_type == file_type]
+    if name_pattern:
+        result = [f for f in result if fnmatch(f.name, name_pattern)]
     return result
