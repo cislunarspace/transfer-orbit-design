@@ -35,7 +35,7 @@ from scripts.utils.leo import (
     leo_circular_velocity_rotating,
 )
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def generate_leo_orbit(n_points: int = 500) -> Orbit:

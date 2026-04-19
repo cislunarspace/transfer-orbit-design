@@ -43,7 +43,7 @@ from scripts.utils.common import MU, DU, TU
 # =============================================================================
 # 输入输出路径设置
 # =============================================================================
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "ephemeris"
 DRO_JSON_FILE = project_root / "output" / "dro" / "dro_31_3857864736.json"
 

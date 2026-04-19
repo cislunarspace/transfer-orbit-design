@@ -47,7 +47,7 @@ from e2m2e.algorithms import MultipleShooting, sample_patch_points, convert_to_j
 
 from scripts.utils.common import MU, DU, TU
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "ephemeris"
 
 TU_SECONDS = TU * 86400

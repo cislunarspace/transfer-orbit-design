@@ -46,7 +46,7 @@ from scripts.utils.geo import (
     compute_departure_velocity,
 )
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 # =====================================================================
 # 配置

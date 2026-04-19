@@ -25,7 +25,7 @@ from e2m2e.core import (
 
 from scripts.utils.common import DU, MU, TU
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 output_dir = project_root / "output" / "ephemeris"
 
 DRO_JSON_DEFAULT = project_root / "output" / "dro" / "dro_31_3857864736.json"

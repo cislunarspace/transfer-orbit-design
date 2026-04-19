@@ -58,7 +58,7 @@ def main() -> None:
         "use TransferSearch or DROTransferSearch instead."
     )
     args = parse_args()  # type: ignore[unreachable]
-    project_root = Path(__file__).resolve().parent.parent.parent
+    project_root = Path(__file__).resolve().parent.parent.parent.parent
 
     # =========================================================================
     # 搜索参数配置

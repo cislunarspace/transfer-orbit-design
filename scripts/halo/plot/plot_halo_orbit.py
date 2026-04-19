@@ -12,7 +12,7 @@ import argparse
 from pathlib import Path
 import sys
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 import numpy as np
 import matplotlib.pyplot as plt

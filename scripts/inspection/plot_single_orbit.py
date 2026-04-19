@@ -11,7 +11,7 @@
 import argparse
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 from scripts.utils.common import MU, TU
 
 import matplotlib

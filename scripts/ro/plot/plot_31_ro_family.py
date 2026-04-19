@@ -32,7 +32,7 @@ def parse_args():
 
 def main() -> None:
     args = parse_args()
-    project_root = Path(__file__).resolve().parent.parent.parent
+    project_root = Path(__file__).resolve().parent.parent.parent.parent
     output_dir = project_root / "output" / "ro"
 
     if args.json_file:

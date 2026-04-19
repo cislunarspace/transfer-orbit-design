@@ -30,7 +30,7 @@ import os
 import sys
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 import matplotlib
 import numpy as np

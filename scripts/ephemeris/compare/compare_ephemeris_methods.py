@@ -48,7 +48,7 @@ HomotopyEphemerisDynamics = None  # type: ignore[assignment,misc] # placeholder 
 
 from scripts.utils.common import MU, DU, TU
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "ephemeris"
 
 TU_SECONDS = TU * 86400

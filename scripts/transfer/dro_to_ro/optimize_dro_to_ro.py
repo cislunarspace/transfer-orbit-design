@@ -43,7 +43,7 @@ from e2m2e.transfer import (
 
 from scripts.utils.common import DU, MU, TU
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 SEARCH_RESULTS_DEFAULT = str(project_root / "output/transfer/search_results_200-100-0.5-2.5-22.998482_3857865736.json")
 DRO_FILE_DEFAULT = str(project_root / "output/dro/dro_31_3857864736.json")

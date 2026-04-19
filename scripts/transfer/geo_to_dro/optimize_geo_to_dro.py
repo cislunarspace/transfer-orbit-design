@@ -48,7 +48,7 @@ from scripts.utils.geo import (
     geo_circular_velocity_rotating,
 )
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 # =====================================================================
 # 配置 — 运行前须更新文件路径

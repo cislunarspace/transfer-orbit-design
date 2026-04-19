@@ -38,7 +38,7 @@ import numpy as np
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "SimSun", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics

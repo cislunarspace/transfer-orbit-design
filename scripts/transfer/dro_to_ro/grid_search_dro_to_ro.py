@@ -46,7 +46,7 @@ def main() -> None:
     # =========================================================================
 
     # 轨道数据文件路径（CLI > 环境变量 > 默认值）
-    project_root = Path(__file__).resolve().parent.parent.parent
+    project_root = Path(__file__).resolve().parent.parent.parent.parent
     dro_file = Path(args.dro_file or os.environ.get("DRO_FILE", str(project_root / "output/dro/dro_31_3857693511.json")))
     ro_file = Path(args.ro_file or os.environ.get("RO_FILE", str(project_root / "output/ro/ro_31_3857693516.json")))
 

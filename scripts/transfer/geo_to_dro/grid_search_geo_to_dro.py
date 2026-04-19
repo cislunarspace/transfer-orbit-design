@@ -30,7 +30,7 @@ from scripts.utils.geo import (
     geo_circular_velocity_rotating,
 )
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 
 # =====================================================================

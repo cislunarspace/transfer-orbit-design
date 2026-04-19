@@ -19,7 +19,7 @@
 import argparse
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 import e2m2e
 import time

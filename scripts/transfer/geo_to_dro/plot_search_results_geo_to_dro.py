@@ -42,7 +42,7 @@ from scripts.utils.geo import (
     check_collision,
 )
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 # =====================================================================
 # 配置 — 默认自动发现最新文件，可用环境变量覆盖

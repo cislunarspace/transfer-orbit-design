@@ -43,7 +43,7 @@ import numpy as np
 plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "SimSun", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 import e2m2e

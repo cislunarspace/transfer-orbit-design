@@ -20,7 +20,7 @@ from pathlib import Path
 # 仅覆盖默认参数
 import scripts.transfer.geo_to_dro.optimize_geo_to_dro as base_opt
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 # 覆盖默认参数（在 import 后修改）
 base_opt.ALPHA_MIN = 1.2
