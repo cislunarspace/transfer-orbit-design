@@ -215,11 +215,11 @@ class MainWindow(QMainWindow):
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
 
-        refresh_btn = QPushButton("Refresh Files")
+        refresh_btn = QPushButton("刷新文件")
         refresh_btn.clicked.connect(self._refresh_files)
         toolbar.addWidget(refresh_btn)
 
-        settings_btn = QPushButton("Settings")
+        settings_btn = QPushButton("设置")
         settings_btn.clicked.connect(self._on_settings)
         toolbar.addWidget(settings_btn)
 
@@ -339,7 +339,7 @@ class MainWindow(QMainWindow):
         merged_layout.addWidget(self._params_scroll, stretch=1)
 
         # Run 按钮固定在底部（始终可见）
-        self._run_btn = QPushButton("Run")
+        self._run_btn = QPushButton("运行")
         self._run_btn.setEnabled(False)
         self._run_btn.clicked.connect(self._on_run)
         self._run_btn.setStyleSheet(self._RUN_STYLE_READY)
@@ -376,7 +376,7 @@ class MainWindow(QMainWindow):
         self._job_count_label.setStyleSheet("font-weight: bold; font-size: 13px;")
         header.addWidget(self._job_count_label)
         header.addStretch()
-        self._clear_completed_btn = QPushButton("Clear Completed")
+        self._clear_completed_btn = QPushButton("清除已完成")
         self._clear_completed_btn.setToolTip("清除所有已完成的任务")
         self._clear_completed_btn.setStyleSheet(
             "QPushButton { padding: 2px 8px; font-size: 11px; }"
@@ -1004,7 +1004,7 @@ class MainWindow(QMainWindow):
                 self._run_btn.setStyleSheet(self._RUN_STYLE_FULL)
                 self._run_btn.setEnabled(True)  # 仍可点击以显示错误
             else:
-                self._run_btn.setText("Run")
+                self._run_btn.setText("运行")
                 self._run_btn.setStyleSheet(self._RUN_STYLE_READY)
                 self._run_btn.setEnabled(True)
 
@@ -1381,26 +1381,42 @@ class MainWindow(QMainWindow):
 
         if entry.description:
             desc_label = QLabel(entry.description)
-            text_color = "#ccc" if _resolve_theme() == "dark" else "#333"
-            desc_label.setStyleSheet(f"color: {text_color}; font-size: 11px; padding: 0 0 8px 0;")
+            if _resolve_theme() == "dark":
+                desc_label.setStyleSheet(
+                    "font-size: 12px; padding: 6px 10px; border-radius: 4px; color: #aaaaaa;"
+                    "background-color: #252525;"
+                )
+            else:
+                desc_label.setStyleSheet(
+                    "font-size: 12px; padding: 6px 10px; border-radius: 4px; color: #444444;"
+                    "background-color: #f0f0f0;"
+                )
             desc_label.setWordWrap(True)
             self._params_layout.addRow(desc_label)
 
         # 命令行容器（含 label + 复制按钮）
         cmd_label = QLabel(f"python {entry.script_path}")
-        code_color = "#bbb" if _resolve_theme() == "dark" else "#444"
+        if _resolve_theme() == "dark":
+            cmd_bg = "#2d2d2d"
+            cmd_color = "#bbbbbb"
+            cmd_accent = "#4da6ff"
+        else:
+            cmd_bg = "#e8e8e8"
+            cmd_color = "#333333"
+            cmd_accent = "#1976d2"
+
         cmd_label.setStyleSheet(
             f"font-family: 'Cascadia Code', 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Liberation Mono', monospace; "
-            f"font-size: 9pt; color: {code_color}; background-color: #f5f5f5; "
-            "padding: 4px 6px; border-radius: 3px;"
+            f"font-size: 9pt; color: {cmd_color}; background-color: {cmd_bg}; "
+            f"padding: 6px 10px; border-radius: 4px; border-left: 3px solid {cmd_accent};"
         )
         cmd_label.setWordWrap(True)
         cmd_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
         # 绝对路径复制按钮
-        cmd_abs_btn = QPushButton("[Abs]")
+        cmd_abs_btn = QPushButton("复制路径")
         cmd_abs_btn.setStyleSheet(
-            "QPushButton { padding: 2px 6px; font-size: 9px; }"
+            "QPushButton { padding: 2px 8px; font-size: 9pt; }"
             "QPushButton:flat { border: none; }"
         )
         cmd_abs_btn.setToolTip("复制绝对路径")
@@ -1410,9 +1426,9 @@ class MainWindow(QMainWindow):
         )
 
         # 相对路径复制按钮
-        cmd_rel_btn = QPushButton("[Rel]")
+        cmd_rel_btn = QPushButton("复制相对路径")
         cmd_rel_btn.setStyleSheet(
-            "QPushButton { padding: 2px 6px; font-size: 9px; }"
+            "QPushButton { padding: 2px 8px; font-size: 9pt; }"
             "QPushButton:flat { border: none; }"
         )
         cmd_rel_btn.setToolTip("复制相对路径（相对于项目根目录）")
@@ -1434,19 +1450,27 @@ class MainWindow(QMainWindow):
 
         if entry.output_dir:
             out_label = QLabel(entry.output_dir)
-            code_color = "#bbb" if _resolve_theme() == "dark" else "#444"
+            if _resolve_theme() == "dark":
+                out_bg = "#2d2d2d"
+                out_color = "#bbbbbb"
+                out_accent = "#4caf50"
+            else:
+                out_bg = "#e8e8e8"
+                out_color = "#333333"
+                out_accent = "#388e3c"
+
             out_label.setStyleSheet(
                 f"font-family: 'Cascadia Code', 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Liberation Mono', monospace; "
-                f"font-size: 9pt; color: {code_color}; background-color: #f5f5f5; "
-                "padding: 4px 6px; border-radius: 3px;"
+                f"font-size: 9pt; color: {out_color}; background-color: {out_bg}; "
+                f"padding: 6px 10px; border-radius: 4px; border-left: 3px solid {out_accent};"
             )
             out_label.setWordWrap(True)
             out_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
             # 绝对路径复制按钮
-            out_abs_btn = QPushButton("[Abs]")
+            out_abs_btn = QPushButton("复制路径")
             out_abs_btn.setStyleSheet(
-                "QPushButton { padding: 2px 6px; font-size: 9px; }"
+                "QPushButton { padding: 2px 8px; font-size: 9pt; }"
                 "QPushButton:flat { border: none; }"
             )
             out_abs_btn.setToolTip("复制绝对路径")
@@ -1456,9 +1480,9 @@ class MainWindow(QMainWindow):
             )
 
             # 相对路径复制按钮
-            out_rel_btn = QPushButton("[Rel]")
+            out_rel_btn = QPushButton("复制相对路径")
             out_rel_btn.setStyleSheet(
-                "QPushButton { padding: 2px 6px; font-size: 9px; }"
+                "QPushButton { padding: 2px 8px; font-size: 9pt; }"
                 "QPushButton:flat { border: none; }"
             )
             out_rel_btn.setToolTip("复制相对路径（相对于项目根目录）")
