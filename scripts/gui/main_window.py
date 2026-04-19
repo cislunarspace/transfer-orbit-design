@@ -1410,7 +1410,7 @@ class MainWindow(QMainWindow):
             f"font-size: 9pt; color: {cmd_color}; background-color: {cmd_bg}; "
             f"padding: 6px 10px; border-radius: 4px; border-left: 3px solid {cmd_accent};"
         )
-        cmd_label.setWordWrap(True)
+        cmd_label.setWordWrap(False)
         cmd_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
         # 绝对路径复制按钮
@@ -1464,7 +1464,7 @@ class MainWindow(QMainWindow):
                 f"font-size: 9pt; color: {out_color}; background-color: {out_bg}; "
                 f"padding: 6px 10px; border-radius: 4px; border-left: 3px solid {out_accent};"
             )
-            out_label.setWordWrap(True)
+            out_label.setWordWrap(False)
             out_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
             # 绝对路径复制按钮
