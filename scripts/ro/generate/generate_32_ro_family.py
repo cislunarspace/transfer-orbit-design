@@ -85,7 +85,7 @@ def main():
     # =============================================================================
     # 5. 保存轨道数据
     # =============================================================================
-    # 命名规则：ro_32_family_x0start-x0end-stepsize_timestamp.json
+    # 命名规则：ro_32_family_{param_min}-{param_max}-{step_size}_{ts}.json
     ts = int(time.time())
     family_result.save_to_file(
         filename=str(
