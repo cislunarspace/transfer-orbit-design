@@ -85,13 +85,14 @@ def main():
     # =============================================================================
     # 5. 保存轨道数据
     # =============================================================================
-    # 命名规则：dro_family_x0start-x0end-stepsize_timestamp.json
+    # 命名规则：dro_31_family_{param_min}-{param_max}-{step_size}_{ts}.json
     family_result.save_to_file(
         filename=str(
             OUTPUT_DIR
-            / f"dro_family_{param_min}-{param_max}-{step_size}_{int(time.time())}.json"
+            / f"dro_31_family_{param_min}-{param_max}-{step_size}_{int(time.time())}.json"
         )
     )
+    print(f"已保存至：dro_31_family_{param_min}-{param_max}-{step_size}_{int(time.time())}.json")
 
 
 if __name__ == "__main__":
