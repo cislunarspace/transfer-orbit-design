@@ -7,7 +7,7 @@ from pathlib import Path
 import time
 from typing import cast
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QDoubleValidator, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QCheckBox,
