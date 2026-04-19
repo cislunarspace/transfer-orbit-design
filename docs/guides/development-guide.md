@@ -1,3 +1,7 @@
+---
+sidebar_position: 3
+---
+
 # 开发指南
 
 ## e2m2e 依赖管理

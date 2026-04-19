@@ -1,3 +1,7 @@
+---
+sidebar_position: 1
+---
+
 # 转移轨道设计 - 技术文档
 
 本文档涵盖 transfer-orbit-design 项目，该项目复现了 Cui 等人（2025）关于从月球远距离逆行轨道（DRO）到共振轨道（RO）的两脉冲转移研究。

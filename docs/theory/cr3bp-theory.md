@@ -1,3 +1,7 @@
+---
+sidebar_position: 9
+---
+
 # CR3BP 理论
 
 ## 圆型限制性三体问题

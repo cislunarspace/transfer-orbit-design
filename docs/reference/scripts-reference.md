@@ -1,3 +1,7 @@
+---
+sidebar_position: 4
+---
+
 # 脚本参考
 
 ## DRO 轨道脚本
