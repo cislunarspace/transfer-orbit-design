@@ -965,6 +965,24 @@ class MainWindow(QMainWindow):
         "QPushButton:disabled { background-color: #3c3c3c; color: #888; }"
     )
 
+    def _copy_path_to_clipboard(self, path: str, target_btn: QWidget) -> None:
+        """将路径复制到剪贴板，显示复制确认 tooltip。
+
+        path: 要复制的路径
+        target_btn: 复制按钮控件，用于显示 tooltip 定位
+        """
+        from PyQt6.QtWidgets import QApplication, QToolTip
+
+        cb = QApplication.clipboard()
+        if cb is not None:
+            cb.setText(path)
+        QToolTip.showText(
+            target_btn.mapToGlobal(target_btn.rect().center()),
+            "已复制！",
+            target_btn,
+        )
+        QTimer.singleShot(1500, QToolTip.hideText)
+
     def _update_job_count(self) -> None:
         running = sum(1 for c in self._job_cards.values() if c.is_running)
         total = len(self._job_cards)
@@ -1368,6 +1386,7 @@ class MainWindow(QMainWindow):
             desc_label.setWordWrap(True)
             self._params_layout.addRow(desc_label)
 
+        # 命令行容器（含 label + 复制按钮）
         cmd_label = QLabel(f"python {entry.script_path}")
         code_color = "#bbb" if _resolve_theme() == "dark" else "#444"
         cmd_label.setStyleSheet(
@@ -1377,7 +1396,41 @@ class MainWindow(QMainWindow):
         )
         cmd_label.setWordWrap(True)
         cmd_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        self._params_layout.addRow("命令:", cmd_label)
+
+        # 绝对路径复制按钮
+        cmd_abs_btn = QPushButton("[Abs]")
+        cmd_abs_btn.setStyleSheet(
+            "QPushButton { padding: 2px 6px; font-size: 9px; }"
+            "QPushButton:flat { border: none; }"
+        )
+        cmd_abs_btn.setToolTip("复制绝对路径")
+        abs_cmd_path = str(self._repo_root / entry.script_path)
+        cmd_abs_btn.clicked.connect(
+            lambda _, p=abs_cmd_path, b=cmd_abs_btn: self._copy_path_to_clipboard(p, b)
+        )
+
+        # 相对路径复制按钮
+        cmd_rel_btn = QPushButton("[Rel]")
+        cmd_rel_btn.setStyleSheet(
+            "QPushButton { padding: 2px 6px; font-size: 9px; }"
+            "QPushButton:flat { border: none; }"
+        )
+        cmd_rel_btn.setToolTip("复制相对路径（相对于项目根目录）")
+        cmd_rel_btn.clicked.connect(
+            lambda _, p=entry.script_path, b=cmd_rel_btn: self._copy_path_to_clipboard(p, b)
+        )
+
+        # 水平布局：label + 按钮组
+        cmd_row_widget = QWidget()
+        cmd_row_layout = QHBoxLayout(cmd_row_widget)
+        cmd_row_layout.setContentsMargins(0, 0, 0, 0)
+        cmd_row_layout.setSpacing(4)
+        cmd_row_layout.addWidget(cmd_label)
+        cmd_row_layout.addWidget(cmd_abs_btn)
+        cmd_row_layout.addWidget(cmd_rel_btn)
+        cmd_row_layout.addStretch()
+
+        self._params_layout.addRow("命令:", cmd_row_widget)
 
         if entry.output_dir:
             out_label = QLabel(entry.output_dir)
@@ -1389,7 +1442,41 @@ class MainWindow(QMainWindow):
             )
             out_label.setWordWrap(True)
             out_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            self._params_layout.addRow("输出目录:", out_label)
+
+            # 绝对路径复制按钮
+            out_abs_btn = QPushButton("[Abs]")
+            out_abs_btn.setStyleSheet(
+                "QPushButton { padding: 2px 6px; font-size: 9px; }"
+                "QPushButton:flat { border: none; }"
+            )
+            out_abs_btn.setToolTip("复制绝对路径")
+            abs_out_path = str(self._repo_root / entry.output_dir)
+            out_abs_btn.clicked.connect(
+                lambda _, p=abs_out_path, b=out_abs_btn: self._copy_path_to_clipboard(p, b)
+            )
+
+            # 相对路径复制按钮
+            out_rel_btn = QPushButton("[Rel]")
+            out_rel_btn.setStyleSheet(
+                "QPushButton { padding: 2px 6px; font-size: 9px; }"
+                "QPushButton:flat { border: none; }"
+            )
+            out_rel_btn.setToolTip("复制相对路径（相对于项目根目录）")
+            out_rel_btn.clicked.connect(
+                lambda _, p=entry.output_dir, b=out_rel_btn: self._copy_path_to_clipboard(p, b)
+            )
+
+            # 水平布局：label + 按钮组
+            out_row_widget = QWidget()
+            out_row_layout = QHBoxLayout(out_row_widget)
+            out_row_layout.setContentsMargins(0, 0, 0, 0)
+            out_row_layout.setSpacing(4)
+            out_row_layout.addWidget(out_label)
+            out_row_layout.addWidget(out_abs_btn)
+            out_row_layout.addWidget(out_rel_btn)
+            out_row_layout.addStretch()
+
+            self._params_layout.addRow("输出目录:", out_row_widget)
 
         # 分隔线
         divider = QFrame()
