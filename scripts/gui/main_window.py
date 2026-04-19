@@ -78,6 +78,60 @@ SETTINGS_SCHEMA: list[SettingItem] = [
 ]
 
 
+# Theme stylesheets
+_THEME_STYLESHEETS = {
+    "dark": """
+        QMainWindow, QWidget { background-color: #1e1e1e; color: #cccccc; }
+        QLabel { color: #cccccc; }
+        QPushButton { background-color: #2d2d2d; color: #cccccc; border: 1px solid #444; padding: 4px 8px; }
+        QPushButton:hover { background-color: #3d3d3d; }
+        QPushButton:disabled { background-color: #2d2d2d; color: #666; }
+        QScrollArea { background-color: #1e1e1e; border: none; }
+        QTabWidget::pane { border: 1px solid #444; background-color: #1e1e1e; }
+        QTabBar::tab { background-color: #2d2d2d; color: #cccccc; padding: 6px 12px; }
+        QTabBar::tab:selected { background-color: #3d3d3d; }
+        QTextEdit, QPlainTextEdit { background-color: #1e1e1e; color: #cccccc; border: 1px solid #444; }
+        QTreeWidget { background-color: #1e1e1e; color: #cccccc; border: 1px solid #444; }
+        QHeaderView::section { background-color: #2d2d2d; color: #cccccc; border: 1px solid #444; }
+        QComboBox { background-color: #2d2d2d; color: #cccccc; border: 1px solid #444; padding: 4px; }
+        QComboBox QAbstractItemView { background-color: #2d2d2d; color: #cccccc; selection-background-color: #4a4a4a; }
+        QLineEdit { background-color: #2d2d2d; color: #cccccc; border: 1px solid #444; padding: 4px; }
+        QSpinBox { background-color: #2d2d2d; color: #cccccc; border: 1px solid #444; padding: 4px; }
+        QCheckBox { color: #cccccc; }
+        QGroupBox { color: #cccccc; border: 1px solid #444; margin-top: 8px; padding-top: 8px; }
+        QStatusBar { background-color: #2d2d2d; color: #cccccc; }
+        QToolBar { background-color: #2d2d2d; border: none; }
+    """,
+    "light": """
+        QMainWindow, QWidget { background-color: #f5f5f5; color: #333333; }
+        QLabel { color: #333333; }
+        QPushButton { background-color: #e0e0e0; color: #333333; border: 1px solid #bbb; padding: 4px 8px; }
+        QPushButton:hover { background-color: #d0d0d0; }
+        QPushButton:disabled { background-color: #e0e0e0; color: #999; }
+        QScrollArea { background-color: #f5f5f5; border: none; }
+        QTabWidget::pane { border: 1px solid #ccc; background-color: #f5f5f5; }
+        QTabBar::tab { background-color: #e0e0e0; color: #333333; padding: 6px 12px; }
+        QTabBar::tab:selected { background-color: #f5f5f5; }
+        QTextEdit, QPlainTextEdit { background-color: #ffffff; color: #333333; border: 1px solid #ccc; }
+        QTreeWidget { background-color: #ffffff; color: #333333; border: 1px solid #ccc; }
+        QHeaderView::section { background-color: #e0e0e0; color: #333333; border: 1px solid #ccc; }
+        QComboBox { background-color: #ffffff; color: #333333; border: 1px solid #ccc; padding: 4px; }
+        QComboBox QAbstractItemView { background-color: #ffffff; color: #333333; selection-background-color: #d0d0d0; }
+        QLineEdit { background-color: #ffffff; color: #333333; border: 1px solid #ccc; padding: 4px; }
+        QSpinBox { background-color: #ffffff; color: #333333; border: 1px solid #ccc; padding: 4px; }
+        QCheckBox { color: #333333; }
+        QGroupBox { color: #333333; border: 1px solid #ccc; margin-top: 8px; padding-top: 8px; }
+        QStatusBar { background-color: #e0e0e0; color: #333333; }
+        QToolBar { background-color: #e0e0e0; border: none; }
+    """,
+}
+
+
+def _get_theme_stylesheet() -> str:
+    """返回当前主题对应的样式表。"""
+    return _THEME_STYLESHEETS.get(_resolve_theme(), _THEME_STYLESHEETS["light"])
+
+
 class MainWindow(QMainWindow):
     def __init__(self, repo_root: str, parent=None):
         super().__init__(parent)
@@ -104,6 +158,9 @@ class MainWindow(QMainWindow):
         self._status_bar = QStatusBar()
         self.setStatusBar(self._status_bar)
         self._status_bar.showMessage("Ready")
+
+        # 应用初始主题样式表
+        self.setStyleSheet(_get_theme_stylesheet())
 
         # 连接 Job 信号
         self._job_manager.job_started.connect(self._on_job_started)
@@ -136,7 +193,10 @@ class MainWindow(QMainWindow):
                 self._on_theme_changed()
 
     def _on_theme_changed(self) -> None:
-        """主题变化后，重建左侧面板和参数面板的颜色。"""
+        """主题变化后，重建左侧面板和参数面板的颜色，并应用新样式表。"""
+        # 应用新样式表
+        self.setStyleSheet(_get_theme_stylesheet())
+
         # 重建左侧面板
         old_panel = self._left_splitter.widget(0)
         new_left = self._build_left_panel()
