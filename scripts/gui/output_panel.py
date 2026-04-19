@@ -138,9 +138,9 @@ class StructuredOutputWidget(QWidget):
         layout.addWidget(self._browser)
 
         # 追踪滚动位置以实现 "上滚暂停自动滚动"
-        self._browser.verticalScrollBar().valueChanged.connect(
-            self._on_scroll_changed
-        )
+        vsb = self._browser.verticalScrollBar()
+        if vsb is not None:
+            vsb.valueChanged.connect(self._on_scroll_changed)
 
         # 已用时间定时器
         self._elapsed_timer = QTimer(self)
@@ -174,7 +174,8 @@ class StructuredOutputWidget(QWidget):
 
         if self._auto_scroll:
             sb = self._browser.verticalScrollBar()
-            sb.setValue(sb.maximum())
+            if sb is not None:
+                sb.setValue(sb.maximum())
 
     def _flush_line(self, stream: str) -> None:
         """将 _pending_line 缓冲区内容显示到浏览器。"""
@@ -235,7 +236,7 @@ class StructuredOutputWidget(QWidget):
             keep = full[_MAX_BUFFER // 2:]
             self._browser.setPlainText(keep)
             self._browser.moveCursor(
-                self._browser.textCursor().End
+                self._browser.textCursor().End  # type: ignore[attr-defined]
             )
 
     def _replace_last_line(self, html: str) -> None:
@@ -258,7 +259,9 @@ class StructuredOutputWidget(QWidget):
     def _copy_all(self) -> None:
         from PyQt6.QtWidgets import QApplication, QToolTip
 
-        QApplication.clipboard().setText(self._browser.toPlainText())
+        cb = QApplication.clipboard()
+        if cb is not None:
+            cb.setText(self._browser.toPlainText())
         # 复制确认提示
         QToolTip.showText(
             self._copy_btn.mapToGlobal(self._copy_btn.rect().center()),
@@ -283,7 +286,7 @@ class StructuredOutputWidget(QWidget):
     def _on_scroll_changed(self, value: int) -> None:
         sb = self._browser.verticalScrollBar()
         # 如果用户手动滚到底部附近，恢复自动滚动
-        self._auto_scroll = value >= sb.maximum() - 20
+        self._auto_scroll = sb is not None and value >= sb.maximum() - 20
 
     def _update_elapsed_label(self) -> None:
         elapsed = datetime.now() - self._start_time
@@ -383,7 +386,8 @@ class JobCard(QWidget):
         self._pulse_phase = False
         self._pulse_timer.start(1000)
 
-    def mouseDoubleClickEvent(self, event) -> None:
+    def mouseDoubleClickEvent(self, event) -> None:  # type: ignore[override]
+        """Triggered when user double-clicks the job card."""
         self.clicked.emit(self.job_id)
 
     @property

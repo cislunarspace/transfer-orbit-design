@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import time
+from typing import cast
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QDoubleValidator, QKeySequence, QShortcut
@@ -36,7 +37,7 @@ from PyQt6.QtWidgets import (
 from scripts.gui.file_discovery import FileInfo, discover_files, filter_files, format_size
 from scripts.gui.job_manager import JobManager
 from scripts.gui.output_panel import JobCard, StructuredOutputWidget
-from scripts.gui.script_registry import SCRIPTS, UNIT_GROUPS, CliParam, EnvParam, ScriptEntry
+from scripts.gui.script_registry import SCRIPTS, UNIT_GROUPS, CliParam, ScriptEntry
 
 FILE_PATH_ROLE = Qt.ItemDataRole.UserRole + 1
 
@@ -414,7 +415,9 @@ class MainWindow(QMainWindow):
                 encoding="utf-8",
             )
         except OSError as e:
-            self.statusBar().showMessage(f"保存默认值失败: {e}", 5000)
+            sb = self.statusBar()
+            if sb:
+                sb.showMessage(f"保存默认值失败: {e}", 5000)
 
     def _on_save_defaults(self) -> None:
         """将当前参数值保存为当前脚本的默认值。"""
@@ -460,7 +463,9 @@ class MainWindow(QMainWindow):
                 self._param_defaults[widget] = saved[flag]
                 self._update_param_highlight(widget)
 
-        self.statusBar().showMessage("默认值已保存", 3000)
+        sb = self.statusBar()
+        if sb:
+            sb.showMessage("默认值已保存", 3000)
 
     def _on_reset_defaults(self) -> None:
         """恢复为 script_registry 中定义的出厂默认值。"""
@@ -483,7 +488,9 @@ class MainWindow(QMainWindow):
             self._param_defaults[widget] = factory_default
             self._update_param_highlight(widget)
 
-        self.statusBar().showMessage("已恢复出厂默认值", 3000)
+        sb = self.statusBar()
+        if sb:
+            sb.showMessage("已恢复出厂默认值", 3000)
 
     def _on_run(self) -> None:
         if self._current_script is None:
@@ -657,11 +664,12 @@ class MainWindow(QMainWindow):
             status = job.status if job else ("completed" if exit_code == 0 else "error")
             card.set_status(status)
 
-        # 任务栏闪烁通知
+        # 任务栏闪烁通知（仅 macOS 支持）
         from PyQt6.QtWidgets import QApplication
+        import platform
         app = QApplication.instance()
-        if app:
-            app.alert(self)
+        if app and platform.system() == "Darwin":
+            app.alert(self)  # type: ignore[attr-defined]
 
         # 状态栏详细消息
         if exit_code == 0:
@@ -886,7 +894,8 @@ class MainWindow(QMainWindow):
     def _rebuild_file_tree(self) -> None:
         # 保存当前排序状态
         sort_col = self._file_tree.sortColumn()
-        sort_order = self._file_tree.header().sortIndicatorOrder()
+        header = self._file_tree.header()
+        sort_order = header.sortIndicatorOrder() if header else None
         had_sort = self._file_tree.isSortingEnabled()
 
         self._file_tree.setSortingEnabled(False)
@@ -926,7 +935,7 @@ class MainWindow(QMainWindow):
             item.setData(3, Qt.ItemDataRole.UserRole, fi.file_type)
 
         self._file_tree.setSortingEnabled(True)
-        if had_sort and sort_col >= 0:
+        if had_sort and sort_col >= 0 and sort_order is not None:
             self._file_tree.sortByColumn(sort_col, sort_order)
         else:
             self._file_tree.sortByColumn(2, Qt.SortOrder.DescendingOrder)
@@ -973,7 +982,7 @@ class MainWindow(QMainWindow):
                 file_combo.setEditText(current_text)
         file_combo.blockSignals(False)
 
-    def _make_cli_widget(self, cli_param: CliParam) -> tuple[str, QWidget]:
+    def _make_cli_widget(self, cli_param: CliParam) -> tuple[str, QCheckBox | QLineEdit | QSpinBox | QComboBox]:
         """根据 CliParam 定义创建对应的控件，返回 (key, widget)。
 
         widget 是用于读取值的原始控件（QLineEdit/QSpinBox 等），
@@ -1095,19 +1104,19 @@ class MainWindow(QMainWindow):
                     units = list(group.keys())
                     std_val = float(cli_param.default)
                     display_val = std_val / group[units[default_idx]]
-                    widget.setText(f"{display_val:.10g}")
+                    cast(QLineEdit, widget).setText(f"{display_val:.10g}")
                 except (ValueError, ZeroDivisionError):
                     pass
             unit_combo.currentIndexChanged.connect(
-                lambda _, le=widget, uc=unit_combo, ug=cli_param.unit_group:
+                lambda _, le=cast(QLineEdit, widget), uc=unit_combo, ug=cli_param.unit_group:
                     self._on_unit_changed(le, uc, ug)
             )
 
             field_layout.addWidget(widget)
             field_layout.addWidget(unit_combo)
 
-            self._unit_combos[widget] = unit_combo
-            self._unit_groups[widget] = cli_param.unit_group
+            self._unit_combos[cast(QLineEdit, widget)] = unit_combo
+            self._unit_groups[cast(QLineEdit, widget)] = cli_param.unit_group
 
             wrapper = QWidget()
             wrapper.setLayout(field_layout)
@@ -1189,8 +1198,10 @@ class MainWindow(QMainWindow):
         # 清空旧控件
         while self._params_layout.count():
             item = self._params_layout.takeAt(0)
-            if item.widget():
-                item.widget().setParent(None)
+            if item is not None:
+                w = item.widget()
+                if w is not None:
+                    w.setParent(None)
 
         self._env_widgets.clear()
         self._cli_widgets.clear()
