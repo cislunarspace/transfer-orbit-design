@@ -961,12 +961,13 @@ class MainWindow(QMainWindow):
     def _on_path_mode_changed(self, file_combo: QComboBox, mode_combo: QComboBox) -> None:
         """Path mode toggle 切换时：重新填充下拉框（相对路径 vs 绝对路径）。"""
         file_category = mode_combo.property("file_category") or ""
+        name_pattern = mode_combo.property("name_pattern") or None
         is_relative = mode_combo.currentText() == "相对"
         current_text = file_combo.currentText()
         file_combo.blockSignals(True)
         file_combo.clear()
         file_combo.addItem("")
-        matching = filter_files(self._files, category=file_category, file_type="json")
+        matching = filter_files(self._files, category=file_category, file_type="json", name_pattern=name_pattern)
         for fi in matching:
             if is_relative:
                 file_combo.addItem(fi.path)
@@ -1031,6 +1032,7 @@ class MainWindow(QMainWindow):
                     self._files,
                     category=cli_param.file_category,
                     file_type="json",
+                    name_pattern=cli_param.name_pattern,
                 )
                 for fi in matching:
                     if is_relative:
@@ -1050,6 +1052,7 @@ class MainWindow(QMainWindow):
                 mode_combo.setMinimumContentsLength(2)
                 mode_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
                 mode_combo.setProperty("file_category", cli_param.file_category)
+                mode_combo.setProperty("name_pattern", cli_param.name_pattern)
                 mode_combo.currentIndexChanged.connect(
                     lambda _, fc=file_combo, mc=mode_combo:
                         self._on_path_mode_changed(fc, mc)
@@ -1266,7 +1269,12 @@ class MainWindow(QMainWindow):
                 combo.addItem("（使用脚本默认值）", None)
 
                 # 填充对应类别的文件
-                matching = filter_files(self._files, category=env_param.file_category, file_type=env_param.file_type)
+                matching = filter_files(
+                    self._files,
+                    category=env_param.file_category,
+                    file_type=env_param.file_type,
+                    name_pattern=env_param.name_pattern,
+                )
                 for fi in matching:
                     combo.addItem(fi.name, fi.abs_path)
 
