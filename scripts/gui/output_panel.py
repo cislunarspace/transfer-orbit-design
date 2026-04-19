@@ -390,6 +390,11 @@ class JobCard(QWidget):
         """Triggered when user double-clicks the job card."""
         self.clicked.emit(self.job_id)
 
+    def mousePressEvent(self, event) -> None:  # type: ignore[override]
+        """Triggered when user clicks the job card — single click navigates to output tab."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit(self.job_id)
+
     @property
     def is_running(self) -> bool:
         return self._is_running
