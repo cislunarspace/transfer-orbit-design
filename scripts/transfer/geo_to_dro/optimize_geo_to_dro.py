@@ -417,7 +417,7 @@ def optimize_one_case(
                     "c": c,
                 }
         except Exception:
-            pass
+            print(f"    警告: Nelder-Mead 精修失败 (departure_idx={rec.get('departure_time_index', '?')})", flush=True)
 
     if best_result is None:
         return {

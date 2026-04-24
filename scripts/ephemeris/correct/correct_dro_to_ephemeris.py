@@ -107,7 +107,8 @@ def main():
         # Step 1: 从 JSON 文件加载 CR3BP 下的 DRO 轨道
         print("Step 1: 加载 DRO 轨道 (JSON)")
         dro_orbit = Orbit.load_from_file(filename=DRO_JSON_FILE, system=cr3bp_system)
-        assert dro_orbit.period is not None, "无法确定 DRO 轨道周期"
+        if dro_orbit.period is None:
+            raise ValueError("无法确定 DRO 轨道周期")
         print(f"  文件: {DRO_JSON_FILE.name}")
         print(f"  状态数: {len(dro_orbit.states)}")
         print(f"  周期: {dro_orbit.period:.6f} TU ({dro_orbit.period * TU:.2f} days)")

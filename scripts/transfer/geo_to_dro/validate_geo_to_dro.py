@@ -221,7 +221,8 @@ def test_transfer_search():
         dro_data = json.load(f)
     dro_orbit.period = dro_data.get("properties", {}).get("period", None)
 
-    assert dro_orbit.period is not None, "DRO 轨道周期缺失"
+    if dro_orbit.period is None:
+        raise ValueError("DRO 轨道周期缺失")
     print(f"DRO 轨道: {dro_orbit.states.shape[0]} 个状态点, "
           f"周期={dro_orbit.period:.6f} TU = {dro_orbit.period * TU:.3f} 天")
     print(f"DRO x 范围: [{dro_orbit.states[:, 0].min():.6f}, {dro_orbit.states[:, 0].max():.6f}]")
@@ -230,7 +231,8 @@ def test_transfer_search():
     geo_orbit = generate_geo_orbit(n_points=200)
     geo_orbit.system = system
 
-    assert geo_orbit.period is not None
+    if geo_orbit.period is None:
+        raise ValueError("GEO 轨道周期缺失")
     print(f"GEO 轨道: {geo_orbit.states.shape[0]} 个状态点, "
           f"周期={geo_orbit.period:.6f} TU = {geo_orbit.period * TU:.3f} 天")
 

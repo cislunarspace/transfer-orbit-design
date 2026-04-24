@@ -83,7 +83,8 @@ def load_dro_orbit(system):
     if dro_orbit.period is None:
         dro_orbit._estimate_period()
 
-    assert dro_orbit.period is not None, "无法确定 DRO 轨道周期"
+    if dro_orbit.period is None:
+        raise ValueError("无法确定 DRO 轨道周期")
 
     print(f"  文件: {DRO_JSON_FILE.name}")
     print(f"  状态数: {len(dro_orbit.states)}")

@@ -254,7 +254,8 @@ def main():
 
         # 3D视图
         if _show_3d:
-            assert ax_3d is not None
+            if ax_3d is None:
+                raise RuntimeError("3D axis not initialized")
             orbit_plotter.plot_primary_bodies(ax=ax_3d, is_3d=True)
             orbit_plotter.plot_libration_points(ax=ax_3d, is_3d=True, show_labels=True)
             orbit_plotter.plot_3d_orbit(orbit, color=orbit_color, label=label, ax=ax_3d)  # type: ignore[arg-type]

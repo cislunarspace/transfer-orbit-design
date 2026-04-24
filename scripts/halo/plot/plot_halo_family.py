@@ -273,7 +273,14 @@ def plot_halo_family(
 
 def _resolve_json_path(user_path: str) -> Path:
     p = Path(user_path)
-    return p.resolve() if p.is_absolute() else (project_root / p).resolve()
+    resolved = p.resolve() if p.is_absolute() else (project_root / p).resolve()
+    # 路径遍历防护：检查解析后的路径是否在项目根目录内
+    try:
+        resolved.relative_to(project_root.resolve())
+    except ValueError:
+        print(f"安全拒绝: {resolved} 不在项目根目录 {project_root} 内")
+        sys.exit(1)
+    return resolved
 
 
 def main() -> None:

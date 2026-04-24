@@ -59,7 +59,8 @@ def load_search_results(path: Path) -> list[dict]:
         data = json.load(f)
     if isinstance(data, dict) and "results" in data:
         return list(data["results"])
-    assert isinstance(data, list), f"期望 list 或含 'results' key 的 dict, 实际 {type(data)}"
+    if not isinstance(data, list):
+        raise TypeError(f"期望 list 或含 'results' key 的 dict, 实际 {type(data)}")
     return data
 
 
@@ -100,11 +101,10 @@ def feasible_transfer_time_and_dv(rows):
     return np.array(tt_list), np.array(dv_list)
 
 
+from scripts.utils.plot_helpers import subsample_indices as _subsample_indices
+
 def subsample_indices(n, max_points, seed=42):
-    if n <= max_points:
-        return np.arange(n)
-    rng = np.random.default_rng(seed)
-    return np.sort(rng.choice(n, size=max_points, replace=False))
+    return _subsample_indices(n, max_points, seed)
 
 
 # =====================================================================
@@ -249,7 +249,8 @@ def _plot_single_transfer_orbit(
 
     # 平动点
     system.compute_libration_points()
-    assert system.L1 is not None and system.L2 is not None
+    if system.L1 is None or system.L2 is None:
+        raise RuntimeError("L1/L2 平动点未计算")
     for lp_name, lp_x in [("L1", system.L1[0]),
                            ("L2", system.L2[0])]:
         ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
@@ -322,7 +323,8 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
     dro_y = dro_orbit.states[:, 1]
     dro_z = dro_orbit.states[:, 2]
     system.compute_libration_points()
-    assert system.L1 is not None and system.L2 is not None
+    if system.L1 is None or system.L2 is None:
+        raise RuntimeError("L1/L2 平动点未计算")
     lp_data = [("L1", system.L1[0]), ("L2", system.L2[0])]
 
     print("\nInteractive browse: GEO -> DRO search results")

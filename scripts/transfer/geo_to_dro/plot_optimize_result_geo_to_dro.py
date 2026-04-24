@@ -307,7 +307,8 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
 
         # 平动点
         system.compute_libration_points()
-        assert system.L1 is not None and system.L2 is not None
+        if system.L1 is None or system.L2 is None:
+            raise RuntimeError("L1/L2 平动点未计算")
         for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
             ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
             ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
@@ -366,7 +367,8 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
 
         # 平动点
         system.compute_libration_points()
-        assert system.L1 is not None and system.L2 is not None
+        if system.L1 is None or system.L2 is None:
+            raise RuntimeError("L1/L2 平动点未计算")
         for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
             ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
             ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
@@ -442,7 +444,8 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
 
     # 预计算平动点
     system.compute_libration_points()
-    assert system.L1 is not None and system.L2 is not None
+    if system.L1 is None or system.L2 is None:
+        raise RuntimeError("L1/L2 平动点未计算")
     lp_data = [("L1", system.L1[0]), ("L2", system.L2[0])]
 
     print(f"\nInteractive browse: GEO -> DRO optimized transfers")
@@ -567,7 +570,13 @@ def main():
     args = parser.parse_args()
 
     if args.file:
-        opt_path = Path(args.file)
+        opt_path = Path(args.file).expanduser().resolve()
+        # 路径遍历防护
+        try:
+            opt_path.relative_to(project_root.resolve())
+        except ValueError:
+            print(f"安全拒绝: {opt_path} 不在项目根目录 {project_root} 内")
+            sys.exit(1)
     else:
         opt_path = _latest_optimization_json()
     if opt_path is None or not opt_path.exists():

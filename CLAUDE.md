@@ -21,7 +21,7 @@ uv run python scripts/gui/main.py
 uv run pytest tests/                        # run all tests
 uv run pytest tests/scripts/test_file.py    # single test file
 uv run python scripts/gui/main.py           # launch PyQt6 GUI
-pyright                              # type checking (extraPaths includes ../e2m2e)
+uv run pyright                      # type checking (extraPaths includes ../e2m2e)
 ```
 
 ## Transfer Pipelines (order matters within each)
@@ -81,7 +81,8 @@ python scripts/halo/generate_halo_family.py      # Halo orbit family
 
 ```
 scripts/
-  utils/           # Shared constants (constants.py) and file helpers (common.py, geo.py, leo.py)
+  utils/           # Shared constants (constants.py) and helpers (common.py, geo.py, leo.py,
+                   #   optimize_helpers.py, plot_helpers.py)
   dro/             # DRO orbit generation
   ro/              # Resonant orbit families (3:1, 3:2, RRO, ARO)
   halo/            # Halo orbit generation
@@ -89,6 +90,9 @@ scripts/
   ephemeris/       # CR3BP → ephemeris correction (multiple shooting, homotopy)
   inspection/      # Standalone orbit visualization tools
   gui/             # PyQt6 GUI — browse & run scripts with parameter controls
+                   #   main_window.py, script_registry.py, job_manager.py,
+                   #   output_panel.py, file_discovery.py, params_panel.py,
+                   #   settings_dialog.py, themes/
 output/            # Generated data (gitignored, created on demand)
 tests/             # pytest tests
 ```
@@ -106,7 +110,9 @@ tests/             # pytest tests
 | File | Exports |
 |------|---------|
 | `scripts/utils/constants.py` | All physical constants: `MU, DU, TU, VU, T_MOON, M_SUN, OMEGA_SUN, RHO` |
-| `scripts/utils/common.py` | Re-exports constants + file helpers (`ensure_output_dir`, `get_latest_family_file`, `save_family_to_file`) |
+| `scripts/utils/common.py` | Re-exports constants + file helpers (`ensure_output_dir`, `get_latest_family_file`, `save_family_to_file`, `safe_resolve_within`) |
+| `scripts/utils/optimize_helpers.py` | BLAS thread control (`blas_threads_per_worker`, `apply_blas_env_for_child_processes`) + `OptimizationProgress` |
+| `scripts/utils/plot_helpers.py` | Shared plot utilities (`subsample_indices`) |
 | `scripts/utils/geo.py` | GEO orbit constants (`R_GEO`, `EARTH_CENTER`, `V_CIRCULAR_GEO`, `T_GEO`) + helpers |
 | `scripts/utils/leo.py` | LEO orbit constants (`R_LEO`, `V_CIRCULAR_LEO`, `T_LEO`) at 400 km altitude |
 
@@ -122,6 +128,9 @@ PyQt6 desktop app (`scripts/gui/main.py`) for browsing and running scripts.
 - `job_manager.py` — multi-process manager, one QProcess per job with job_id routing
 - `output_panel.py` — per-job structured output (ANSI stripping, timestamps, stderr coloring) + JobCard widget
 - `file_discovery.py` — finds JSON files in `output/` for file-selection dropdowns
+- `params_panel.py` — `CliWidgetFactory` creates Qt widgets from CliParam definitions
+- `settings_dialog.py` — theme/display settings dialog
+- `themes/` — dark.qss / light.qss stylesheets loaded at runtime
 - `CliParam` with non-None `file_category` also renders as file dropdown (editable combo)
 - Scripts with `env_params` get file picker dropdowns; other `cli_params` get typed input controls
 

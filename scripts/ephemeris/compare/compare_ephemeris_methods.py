@@ -113,7 +113,8 @@ def setup_shared_infrastructure():
         dro_orbit = Orbit.load_from_file(filename=DRO_JSON_FILE, system=cr3bp_system)
         if dro_orbit.period is None:
             dro_orbit._estimate_period()
-        assert dro_orbit.period is not None
+        if dro_orbit.period is None:
+            raise ValueError("无法确定 DRO 轨道周期")
         print(
             f"  DRO 周期: {dro_orbit.period:.6f} TU ({dro_orbit.period * TU:.2f} days)"
         )

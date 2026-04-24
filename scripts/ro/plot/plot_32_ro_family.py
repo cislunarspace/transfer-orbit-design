@@ -175,7 +175,7 @@ def main() -> None:
             f"Period Target: {target_period:.4f} TU ({target_period * TU:.2f} days)"
         ),
         target_period=target_period,
-        save_path=output_dir / f"{family_name}_period_stability.png",
+        save_path=str(output_dir / f"{family_name}_period_stability.png"),
         show=True,
     )
 

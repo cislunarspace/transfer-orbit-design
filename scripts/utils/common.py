@@ -5,9 +5,28 @@
 """
 
 import os
+from pathlib import Path
 
 # 常量从 constants.py 集中定义，此处 re-export 以保持向后兼容
 from .constants import DU, FAMILY_FILENAME, MU, T_MOON, TU, VU
+
+
+def safe_resolve_within(user_path: str, allowed_root: Path) -> Path | None:
+    """安全解析用户路径，验证其位于 allowed_root 内。
+
+    Args:
+        user_path: 用户提供的路径字符串
+        allowed_root: 允许访问的根目录
+
+    Returns:
+        解析后的绝对路径；若路径在 allowed_root 外则返回 None
+    """
+    resolved = Path(user_path).expanduser().resolve()
+    try:
+        resolved.relative_to(allowed_root.resolve())
+    except ValueError:
+        return None
+    return resolved
 
 
 # ============================================================
@@ -84,6 +103,15 @@ def load_or_compute(
                     family_path = os.path.join(output_dir, args.load, family_filename)
 
         if family_path and os.path.exists(family_path):
+            # 路径遍历防护：解析真实路径并检查是否在项目根目录内
+            resolved_root = Path(output_dir).resolve()
+            resolved_path = Path(family_path).resolve()
+            try:
+                resolved_path.relative_to(resolved_root)
+            except ValueError:
+                print(f"安全拒绝: {family_path} 不在 {resolved_root} 内")
+                return system, None
+
             print(f"加载轨道族数据: {family_path}")
             family_result = OrbitFamily.load_from_file(family_path, system)
             print(f"已加载 {len(family_result)} 条轨道")

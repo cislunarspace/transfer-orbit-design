@@ -16,7 +16,7 @@ class SettingItem:
     type: str  # "choice" | "bool"
     choices: list[str] | None = None  # 仅 choice 类型
     default: str = ""
-    on_changed: Callable[[str], None] = None
+    on_changed: Callable[[str], None] | None = None
 
 
 class SettingsDialog(QDialog):

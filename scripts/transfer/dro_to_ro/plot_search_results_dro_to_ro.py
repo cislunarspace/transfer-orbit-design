@@ -50,7 +50,7 @@ import e2m2e
 from e2m2e.core import CR3BP_System, Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
 
-from scripts.utils.common import MU, TU, VU
+from scripts.utils.common import MU, TU, VU, safe_resolve_within
 from scripts.utils.geo import EARTH_CENTER
 
 # =============================================================================
@@ -111,11 +111,7 @@ def load_search_results(path: Path) -> list[dict]:
         return json.load(f)
 
 
-def subsample_indices(n: int, max_points: int | None, seed: int) -> np.ndarray:
-    if max_points is None or n <= max_points:
-        return np.arange(n)
-    rng = np.random.default_rng(seed)
-    return np.sort(rng.choice(n, size=max_points, replace=False))
+from scripts.utils.plot_helpers import subsample_indices  # noqa: E402 — 重用共享工具
 
 
 def compute_actual_transfer_time(r: dict, dt: float = 1.0 / (24.0 * TU)) -> float:
@@ -360,7 +356,8 @@ def _plot_single_transfer_orbit(
 
     # 平动点
     system.compute_libration_points()
-    assert system.L1 is not None and system.L2 is not None
+    if system.L1 is None or system.L2 is None:
+        raise RuntimeError("L1/L2 平动点未计算")
     for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
         ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
         ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
@@ -504,6 +501,10 @@ def main() -> None:
     path = Path(args.file).expanduser().resolve() if args.file else Path(RESULTS_JSON).expanduser().resolve()
     if not path.is_file():
         raise FileNotFoundError(path)
+    # 路径遍历防护：仅在用户通过 --file 指定路径时检查
+    if args.file and safe_resolve_within(args.file, project_root) is None:
+        print(f"安全拒绝: {args.file} 不在项目根目录 {project_root} 内")
+        sys.exit(1)
     print(f"读取: {path}")
 
     rows = load_search_results(path)
@@ -640,7 +641,8 @@ def main() -> None:
 
             # 平动点
             system.compute_libration_points()
-            assert system.L1 is not None and system.L2 is not None
+            if system.L1 is None or system.L2 is None:
+                raise RuntimeError("L1/L2 平动点未计算")
             for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
                 ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
                 ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")

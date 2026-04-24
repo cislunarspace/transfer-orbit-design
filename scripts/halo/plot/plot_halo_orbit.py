@@ -160,7 +160,7 @@ def main() -> None:
     plotter.plot_jacobi_period_stability(
         jacobi_sorted, periods_sorted, stability_sorted,
         title=f"Halo Orbit Family - Period and Stability\n(n = {n_orbits} orbits)",
-        save_path=output_dir / f"{family_name}_period_stability.png",
+        save_path=str(output_dir / f"{family_name}_period_stability.png"),
         show=True,
     )
 
@@ -172,7 +172,7 @@ def main() -> None:
         suptitle=f"Halo Orbit Family Overview - Earth-Moon CR3BP (n = {n_orbits})",
         plane="xz", center_3d=(0.9, 0, 0), radius_3d=0.4,
         elev=20, azim=-60,
-        save_path=output_dir / f"{family_name}_overview.png",
+        save_path=str(output_dir / f"{family_name}_overview.png"),
         show=True,
     )
 

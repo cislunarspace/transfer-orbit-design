@@ -38,7 +38,8 @@ from PyQt6.QtWidgets import (
 from scripts.gui.file_discovery import FileInfo, discover_files, filter_files, format_size
 from scripts.gui.job_manager import JobManager
 from scripts.gui.output_panel import JobCard, StructuredOutputWidget
-from scripts.gui.script_registry import SCRIPTS, UNIT_GROUPS, CliParam, ScriptEntry
+from scripts.gui.params_panel import UNIT_GROUPS, CliWidgetFactory
+from scripts.gui.script_registry import SCRIPTS, CliParam, ScriptEntry
 from scripts.gui.settings_dialog import SettingItem
 
 FILE_PATH_ROLE = Qt.ItemDataRole.UserRole + 1
@@ -46,9 +47,10 @@ FILE_PATH_ROLE = Qt.ItemDataRole.UserRole + 1
 
 def _is_system_dark() -> bool:
     """检测系统是否使用暗色模式（仅作辅助函数，不直接使用）。"""
+    from PyQt6.QtGui import QGuiApplication
     from PyQt6.QtWidgets import QApplication
     app = QApplication.instance()
-    if app is None:
+    if app is None or not isinstance(app, QGuiApplication):
         return False
     palette = app.palette()
     window_color = palette.color(palette.ColorRole.Window)
@@ -73,63 +75,17 @@ SETTINGS_SCHEMA: list[SettingItem] = [
         type="choice",
         choices=["light", "dark", "system"],
         default="system",
-        on_changed=None,
+        on_changed=lambda _: None,
     ),
 ]
 
 
-# Theme stylesheets
-_THEME_STYLESHEETS = {
-    "dark": """
-        QMainWindow, QWidget { background-color: #1e1e1e; color: #cccccc; }
-        QLabel { color: #cccccc; }
-        QPushButton { background-color: #2d2d2d; color: #cccccc; border: 1px solid #444; padding: 4px 8px; }
-        QPushButton:hover { background-color: #3d3d3d; }
-        QPushButton:disabled { background-color: #2d2d2d; color: #666; }
-        QScrollArea { background-color: #1e1e1e; border: none; }
-        QTabWidget::pane { border: 1px solid #444; background-color: #1e1e1e; }
-        QTabBar::tab { background-color: #2d2d2d; color: #cccccc; padding: 6px 12px; }
-        QTabBar::tab:selected { background-color: #3d3d3d; }
-        QTextEdit, QPlainTextEdit { background-color: #1e1e1e; color: #cccccc; border: 1px solid #444; }
-        QTreeWidget { background-color: #1e1e1e; color: #cccccc; border: 1px solid #444; }
-        QHeaderView::section { background-color: #2d2d2d; color: #cccccc; border: 1px solid #444; }
-        QComboBox { background-color: #2d2d2d; color: #cccccc; border: 1px solid #444; padding: 4px; }
-        QComboBox QAbstractItemView { background-color: #2d2d2d; color: #cccccc; selection-background-color: #4a4a4a; }
-        QLineEdit { background-color: #2d2d2d; color: #cccccc; border: 1px solid #444; padding: 4px; }
-        QSpinBox { background-color: #2d2d2d; color: #cccccc; border: 1px solid #444; padding: 4px; }
-        QCheckBox { color: #cccccc; }
-        QGroupBox { color: #cccccc; border: 1px solid #444; margin-top: 8px; padding-top: 8px; }
-        QStatusBar { background-color: #2d2d2d; color: #cccccc; }
-        QToolBar { background-color: #2d2d2d; border: none; }
-    """,
-    "light": """
-        QMainWindow, QWidget { background-color: #f5f5f5; color: #333333; }
-        QLabel { color: #333333; }
-        QPushButton { background-color: #e0e0e0; color: #333333; border: 1px solid #bbb; padding: 4px 8px; }
-        QPushButton:hover { background-color: #d0d0d0; }
-        QPushButton:disabled { background-color: #e0e0e0; color: #999; }
-        QScrollArea { background-color: #f5f5f5; border: none; }
-        QTabWidget::pane { border: 1px solid #ccc; background-color: #f5f5f5; }
-        QTabBar::tab { background-color: #e0e0e0; color: #333333; padding: 6px 12px; }
-        QTabBar::tab:selected { background-color: #f5f5f5; }
-        QTextEdit, QPlainTextEdit { background-color: #ffffff; color: #333333; border: 1px solid #ccc; }
-        QTreeWidget { background-color: #ffffff; color: #333333; border: 1px solid #ccc; }
-        QHeaderView::section { background-color: #e0e0e0; color: #333333; border: 1px solid #ccc; }
-        QComboBox { background-color: #ffffff; color: #333333; border: 1px solid #ccc; padding: 4px; }
-        QComboBox QAbstractItemView { background-color: #ffffff; color: #333333; selection-background-color: #d0d0d0; }
-        QLineEdit { background-color: #ffffff; color: #333333; border: 1px solid #ccc; padding: 4px; }
-        QSpinBox { background-color: #ffffff; color: #333333; border: 1px solid #ccc; padding: 4px; }
-        QCheckBox { color: #333333; }
-        QGroupBox { color: #333333; border: 1px solid #ccc; margin-top: 8px; padding-top: 8px; }
-        QStatusBar { background-color: #e0e0e0; color: #333333; }
-        QToolBar { background-color: #e0e0e0; border: none; }
-    """,
-}
+from scripts.gui.themes import load_stylesheet
 
 
 def _get_theme_stylesheet() -> str:
-    """返回当前主题对应的样式表。"""
-    return _THEME_STYLESHEETS.get(_resolve_theme(), _THEME_STYLESHEETS["light"])
+    """返回当前主题对应的样式表，从外部 .qss 文件加载。"""
+    return load_stylesheet(_resolve_theme())
 
 
 class MainWindow(QMainWindow):
@@ -201,8 +157,9 @@ class MainWindow(QMainWindow):
         old_panel = self._left_splitter.widget(0)
         new_left = self._build_left_panel()
         self._left_splitter.replaceWidget(0, new_left)
-        old_panel.hide()
-        old_panel.deleteLater()
+        if old_panel is not None:
+            old_panel.hide()
+            old_panel.deleteLater()
 
         # 重建参数面板（如果当前有选中脚本）
         if self._current_script is not None:
@@ -329,12 +286,13 @@ class MainWindow(QMainWindow):
         self._params_scroll.setWidget(self._params_container)
 
         self._env_widgets: dict[str, QComboBox] = {}
-        self._cli_widgets: dict[str, QCheckBox | QLineEdit | QSpinBox | QComboBox] = {}
+        self._cli_widgets: dict[str, QWidget] = {}
         self._param_defaults: dict[QWidget, str] = {}  # 控件 → 默认值（标准单位）
-        self._unit_combos: dict[QLineEdit, QComboBox] = {}  # QLineEdit → 单位选择 QComboBox
-        self._unit_groups: dict[QLineEdit, str] = {}        # QLineEdit → unit_group 名称
-        self._wrapped_widgets: dict[QWidget, QWidget] = {}   # 原始控件 → 单位选择器包裹后的 widget
-        self._path_mode_toggles: dict[QComboBox, QComboBox] = {}  # file dropdown → path mode toggle
+        self._widget_factory = CliWidgetFactory(
+            files=self._files,
+            on_path_mode_changed=self._on_path_mode_changed,
+            on_unit_changed=self._on_unit_changed,
+        )
 
         merged_layout.addWidget(self._params_scroll, stretch=1)
 
@@ -470,7 +428,7 @@ class MainWindow(QMainWindow):
             return
 
         # 带单位的参数：将当前值转换到标准单位后再与默认值比较
-        if isinstance(widget, QLineEdit) and widget in self._unit_groups:
+        if isinstance(widget, QLineEdit) and widget in self._widget_factory.unit_groups:
             current = self._to_standard_unit(widget)
 
         # 先清除旧的高亮边框，再按需添加
@@ -485,10 +443,10 @@ class MainWindow(QMainWindow):
         text = line_edit.text().strip()
         if not text:
             return text
-        group_name = self._unit_groups.get(line_edit)
+        group_name = self._widget_factory.unit_groups.get(line_edit)
         if not group_name:
             return text
-        unit_combo = self._unit_combos.get(line_edit)
+        unit_combo = self._widget_factory.unit_combos.get(line_edit)
         if not unit_combo:
             return text
         try:
@@ -574,15 +532,15 @@ class MainWindow(QMainWindow):
                 saved[cli_param.flag] = str(widget.value())
             elif isinstance(widget, QLineEdit):
                 # 保存标准单位值（与 _param_defaults / _on_run 一致）
-                if widget in self._unit_combos:
+                if widget in self._widget_factory.unit_combos:
                     saved[cli_param.flag] = self._to_standard_unit(widget)
                 else:
                     saved[cli_param.flag] = widget.text().strip()
             elif isinstance(widget, QComboBox):
                 text = widget.currentText().strip()
                 # 文件下拉框：同时保存路径模式和路径文本
-                if widget in self._path_mode_toggles:
-                    mode_combo = self._path_mode_toggles[widget]
+                if widget in self._widget_factory.path_mode_toggles:
+                    mode_combo = self._widget_factory.path_mode_toggles[widget]
                     mode = "relative" if mode_combo.currentText() == "相对" else "absolute"
                     saved[cli_param.flag] = json.dumps({"mode": mode, "path": text}, ensure_ascii=False)
                 else:
@@ -665,7 +623,7 @@ class MainWindow(QMainWindow):
                 text = widget.text().strip()
                 default = self._param_defaults.get(widget, "")
                 # 带单位的参数：先转到标准单位再比较
-                if widget in self._unit_combos:
+                if widget in self._widget_factory.unit_combos:
                     std_text = self._to_standard_unit(widget)
                     if std_text and std_text != default:
                         extra_args.extend([cli_param.flag, std_text])
@@ -1139,153 +1097,11 @@ class MainWindow(QMainWindow):
                 file_combo.setEditText(current_text)
         file_combo.blockSignals(False)
 
-    def _make_cli_widget(self, cli_param: CliParam) -> tuple[str, QCheckBox | QLineEdit | QSpinBox | QComboBox]:
-        """根据 CliParam 定义创建对应的控件，返回 (key, widget)。
-
-        widget 是用于读取值的原始控件（QLineEdit/QSpinBox 等），
-        可能被单位选择器包裹 — 此时返回的 widget 仍是原始控件。
-        调用方需用 _display_widget() 获取用于添加到布局的显示 widget。
-        """
-        key = cli_param.flag.lstrip("-").replace("-", "_")
-
-        if cli_param.param_type == "bool":
-            widget: QCheckBox | QLineEdit | QSpinBox | QComboBox = QCheckBox(cli_param.label)
-            widget.setToolTip(cli_param.help)
-        elif cli_param.choices:
-            widget = QComboBox()
-            widget.addItems(cli_param.choices)
-            if cli_param.default in cli_param.choices:
-                widget.setCurrentText(cli_param.default)
-            widget.setToolTip(cli_param.help)
-            widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            widget.setMinimumWidth(80)
-        elif cli_param.param_type == "int":
-            widget = QSpinBox()
-            widget.setRange(-99999, 99999)
-            if cli_param.default:
-                widget.setValue(int(cli_param.default))
-            widget.setToolTip(cli_param.help)
-            widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            widget.setMinimumWidth(80)
-        elif cli_param.param_type == "float":
-            widget = QLineEdit()
-            validator = QDoubleValidator(-99999.0, 99999.0, 15)
-            validator.setNotation(QDoubleValidator.Notation.StandardNotation)
-            widget.setValidator(validator)
-            if cli_param.default:
-                widget.setText(cli_param.default)
-            widget.setToolTip(cli_param.help)
-            widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-            widget.setMinimumWidth(100)
-        else:  # str
-            if cli_param.file_category:
-                is_relative = cli_param.path_mode == "relative"
-                # 文件下拉框 + 路径模式切换按钮（水平布局）
-                file_combo: QComboBox = QComboBox()
-                file_combo.setEditable(True)
-                file_combo.addItem("")
-                matching = filter_files(
-                    self._files,
-                    category=cli_param.file_category,
-                    file_type="json",
-                    name_pattern=cli_param.name_pattern,
-                )
-                for fi in matching:
-                    if is_relative:
-                        file_combo.addItem(fi.path)
-                    else:
-                        file_combo.addItem(fi.abs_path)
-                if cli_param.default:
-                    file_combo.setCurrentText(cli_param.default)
-                file_combo.setToolTip(cli_param.help)
-                file_combo.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-                file_combo.setMinimumWidth(100)
-
-                # 路径模式切换
-                mode_combo = QComboBox()
-                mode_combo.addItems(["绝对", "相对"])
-                mode_combo.setCurrentText("相对" if is_relative else "绝对")
-                mode_combo.setMinimumContentsLength(2)
-                mode_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
-                mode_combo.setProperty("file_category", cli_param.file_category)
-                mode_combo.setProperty("name_pattern", cli_param.name_pattern)
-                mode_combo.currentIndexChanged.connect(
-                    lambda _, fc=file_combo, mc=mode_combo:
-                        self._on_path_mode_changed(fc, mc)
-                )
-
-                # 水平布局：file_combo | mode_combo
-                file_layout = QHBoxLayout()
-                file_layout.setContentsMargins(0, 0, 0, 0)
-                file_layout.setSpacing(4)
-                file_layout.addWidget(file_combo, stretch=1)
-                file_layout.addWidget(mode_combo)
-
-                container = QWidget()
-                container.setLayout(file_layout)
-                self._wrapped_widgets[file_combo] = container
-                self._path_mode_toggles[file_combo] = mode_combo
-
-                widget = file_combo
-            else:
-                widget = QLineEdit()
-                if cli_param.default:
-                    widget.setText(cli_param.default)
-                widget.setToolTip(cli_param.help)
-                widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-                widget.setMinimumWidth(100)
-
-        # 带单位的 float 参数：用单位选择器包裹
-        if (cli_param.param_type == "float"
-                and cli_param.unit_group and cli_param.unit_group in UNIT_GROUPS):
-            field_layout = QHBoxLayout()
-            field_layout.setContentsMargins(0, 0, 0, 0)
-            field_layout.setSpacing(4)
-
-            unit_combo = QComboBox()
-            unit_combo.addItems(UNIT_GROUPS[cli_param.unit_group].keys())
-            unit_combo.setMinimumContentsLength(3)
-            unit_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
-
-            # 根据 default_unit 设置默认选中项
-            default_idx = 0
-            if cli_param.default_unit:
-                units = list(UNIT_GROUPS[cli_param.unit_group].keys())
-                if cli_param.default_unit in units:
-                    default_idx = units.index(cli_param.default_unit)
-            unit_combo.setCurrentIndex(default_idx)
-            unit_combo.setProperty("prev_idx", default_idx)
-
-            # 如果默认单位不是标准单位，转换显示值
-            if default_idx != 0 and cli_param.default:
-                try:
-                    group = UNIT_GROUPS[cli_param.unit_group]
-                    units = list(group.keys())
-                    std_val = float(cli_param.default)
-                    display_val = std_val / group[units[default_idx]]
-                    cast(QLineEdit, widget).setText(f"{display_val:.10g}")
-                except (ValueError, ZeroDivisionError):
-                    pass
-            unit_combo.currentIndexChanged.connect(
-                lambda _, le=cast(QLineEdit, widget), uc=unit_combo, ug=cli_param.unit_group:
-                    self._on_unit_changed(le, uc, ug)
-            )
-
-            field_layout.addWidget(widget)
-            field_layout.addWidget(unit_combo)
-
-            self._unit_combos[cast(QLineEdit, widget)] = unit_combo
-            self._unit_groups[cast(QLineEdit, widget)] = cli_param.unit_group
-
-            wrapper = QWidget()
-            wrapper.setLayout(field_layout)
-            self._wrapped_widgets[widget] = wrapper
-
-        return key, widget
+    def _make_cli_widget(self, cli_param: CliParam) -> tuple[str, QWidget]:
+        return self._widget_factory.make_widget(cli_param)
 
     def _display_widget(self, widget: QWidget) -> QWidget:
-        """返回用于添加到布局的 widget（可能已被单位选择器包裹）。"""
-        return self._wrapped_widgets.get(widget, widget)
+        return self._widget_factory.display_widget(widget)
 
     def _set_widget_std_value(self, widget: QWidget, std_val_str: str) -> None:
         """将标准单位值设置到控件（带单位的 QLineEdit 会自动转换到当前显示单位）。"""
@@ -1295,9 +1111,9 @@ class MainWindow(QMainWindow):
             if std_val_str:
                 widget.setValue(int(float(std_val_str)))
         elif isinstance(widget, QLineEdit):
-            if widget in self._unit_combos and std_val_str:
-                combo = self._unit_combos[widget]
-                group = UNIT_GROUPS[self._unit_groups[widget]]
+            if widget in self._widget_factory.unit_combos and std_val_str:
+                combo = self._widget_factory.unit_combos[widget]
+                group = UNIT_GROUPS[self._widget_factory.unit_groups[widget]]
                 units = list(group.keys())
                 try:
                     std_val = float(std_val_str)
@@ -1309,10 +1125,10 @@ class MainWindow(QMainWindow):
                 widget.setText(std_val_str)
         elif isinstance(widget, QComboBox):
             # 文件下拉框：尝试解析 {"mode": ..., "path": ...} 格式
-            if widget in self._path_mode_toggles and std_val_str.startswith("{"):
+            if widget in self._widget_factory.path_mode_toggles and std_val_str.startswith("{"):
                 try:
                     data = json.loads(std_val_str)
-                    mode_combo = self._path_mode_toggles[widget]
+                    mode_combo = self._widget_factory.path_mode_toggles[widget]
                     mode_combo.blockSignals(True)
                     mode_combo.setCurrentText("相对" if data.get("mode") == "relative" else "绝对")
                     mode_combo.blockSignals(False)
@@ -1365,10 +1181,8 @@ class MainWindow(QMainWindow):
         self._env_widgets.clear()
         self._cli_widgets.clear()
         self._param_defaults.clear()
-        self._unit_combos.clear()
-        self._unit_groups.clear()
-        self._wrapped_widgets.clear()
-        self._path_mode_toggles.clear()
+        self._widget_factory.reset()
+        self._widget_factory._files = self._files
 
         self._params_layout.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
         self._params_layout.setFieldGrowthPolicy(
