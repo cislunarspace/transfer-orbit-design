@@ -40,6 +40,7 @@ class CliParam:
     default_unit: str | None = None   # 默认选中的单位（如 "km"、"days"），None 则使用 unit_group 首项
     advanced: bool = False            # True 时 GUI 折叠到"高级选项"区域，默认收起
     choices: tuple[str, ...] | None = None  # 非 None 时 GUI 渲染为下拉选择框
+    choice_values: dict[str, str] | None = None  # 显示标签 → CLI 值映射（如 {"北族": "0"}）
     path_mode: str = "absolute"       # "absolute" | "relative" — 文件下拉框的路径显示模式
     name_pattern: str | None = None  # 文件名过滤模式，如 "*_family_*.json"
 
@@ -231,7 +232,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             cli_params=[
                 CliParam("--libration-point", "平动点", "str", "L1", "平动点：L1, L2, L3", choices=("L1", "L2", "L3")),
                 CliParam("--amplitude-z", "Z 振幅", "float", "0.23", "Z 方向振幅", unit_group="distance", default_unit="DU"),
-                CliParam("--halo-class", "Halo 类型", "int", "0", "0=北 Halo, 1=南 Halo"),
+                CliParam("--halo-class", "Halo 类型", "str", "北族", help="Halo 轨道族类型", choices=("北族", "南族"), choice_values={"北族": "0", "南族": "1"}),
                 CliParam("--period", "目标周期", "float", "1.839732", "目标周期（无量纲）", unit_group="time", default_unit="days"),
                 CliParam("--x0", "初始 x 坐标", "float", "0.9305269194214338", "初始 x 坐标", unit_group="distance", default_unit="DU"),
                 CliParam("--vy0", "初始 vy 速度", "float", "0.10431508546142665", "初始 y 方向速度", unit_group="velocity", default_unit="VU"),
@@ -248,7 +249,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             cli_params=[
                 CliParam("--libration-point", "平动点", "str", "L1", "平动点：L1, L2, L3", choices=("L1", "L2", "L3")),
                 CliParam("--amplitude-z", "Z 振幅", "float", "0.23", "Z 方向振幅", unit_group="distance", default_unit="DU"),
-                CliParam("--halo-class", "Halo 类型", "int", "0", "0=北 Halo, 1=南 Halo"),
+                CliParam("--halo-class", "Halo 类型", "str", "北族", help="Halo 轨道族类型", choices=("北族", "南族"), choice_values={"北族": "0", "南族": "1"}),
                 CliParam("--n-orbits", "轨道数量", "int", "20", "延拓轨道数量"),
                 CliParam("--step-size", "正向步长", "float", "0.0045", "正向延拓步长"),
                 CliParam("--step-size-negative", "负向步长", "float", "0.009", "负向延拓步长"),

@@ -580,6 +580,12 @@ class MainWindow(QMainWindow):
 
             factory_default = cli_param.default or ""
 
+            # choice_values 反向映射：CLI 值 → 显示标签
+            if cli_param.choice_values:
+                reverse = {v: k for k, v in cli_param.choice_values.items()}
+                if factory_default in reverse:
+                    factory_default = reverse[factory_default]
+
             self._set_widget_std_value(widget, factory_default)
             self._param_defaults[widget] = factory_default
             self._update_param_highlight(widget)
@@ -633,6 +639,9 @@ class MainWindow(QMainWindow):
                 text = widget.currentText().strip()
                 default = self._param_defaults.get(widget, "")
                 if text and text != default:
+                    # 显示标签 → CLI 值映射
+                    if cli_param.choice_values and text in cli_param.choice_values:
+                        text = cli_param.choice_values[text]
                     extra_args.extend([cli_param.flag, text])
                     # 同步设置对应环境变量（兼容脚本内的 os.environ 回退）
                     if cli_param.file_category:
@@ -1124,6 +1133,12 @@ class MainWindow(QMainWindow):
             else:
                 widget.setText(std_val_str)
         elif isinstance(widget, QComboBox):
+            # 查找 cli_param 以支持 choice_values 反向映射
+            cli_param = None
+            for k, w in self._cli_widgets.items():
+                if w is widget:
+                    cli_param = self._find_cli_param(k)
+                    break
             # 文件下拉框：尝试解析 {"mode": ..., "path": ...} 格式
             if widget in self._widget_factory.path_mode_toggles and std_val_str.startswith("{"):
                 try:
@@ -1138,6 +1153,11 @@ class MainWindow(QMainWindow):
                     return
                 except (json.JSONDecodeError, KeyError):
                     pass
+            # choice_values 反向映射：CLI 值 → 显示标签
+            if cli_param and cli_param.choice_values:
+                reverse = {v: k for k, v in cli_param.choice_values.items()}
+                if std_val_str in reverse:
+                    std_val_str = reverse[std_val_str]
             widget.setCurrentText(std_val_str)
 
     def _add_cli_param_row(self, cli_param: CliParam) -> None:
