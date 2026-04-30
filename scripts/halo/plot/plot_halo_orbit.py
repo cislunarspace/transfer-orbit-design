@@ -14,10 +14,12 @@ import sys
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 
+import json
+
 import numpy as np
 import matplotlib.pyplot as plt
 import e2m2e
-from e2m2e.core import OrbitFamily, CR3BP_System
+from e2m2e.core import Orbit, OrbitFamily, CR3BP_System
 from e2m2e.visualization import PlotConfig, FamilyPlotter, compute_stability_for_family
 
 from scripts.utils.common import MU
@@ -45,7 +47,16 @@ def main() -> None:
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
     try:
-        family_result = OrbitFamily.load_from_file(filename=family_path, system=system)
+        with open(family_path, "r") as f:
+            data = json.load(f)
+
+        if "orbits" in data:
+            family_result = OrbitFamily.load_from_file(filename=family_path, system=system)
+        else:
+            orbit = Orbit.load_from_file(filename=family_path, system=system)
+            family_result = OrbitFamily(system=system)
+            family_result.add_orbit(orbit)
+
         n_orbits = len(family_result)
         print(f"加载了 {n_orbits} 条 Halo 轨道")
     except FileNotFoundError:
