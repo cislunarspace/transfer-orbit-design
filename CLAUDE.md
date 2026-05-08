@@ -211,3 +211,17 @@ This project supports **Windows, Linux, and macOS**.
 
 - `plan/` — dated active task plans
 - Check `plan/` for in-progress work before starting new tasks
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs live as GitHub issues. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default GitHub label vocabulary — `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
