@@ -114,7 +114,7 @@ wheels = [
 [[package]]
 name = "e2m2e"
 version = "4.0.0"
-source = { git = "https://github.com/cislunarspace/e2m2e.git#a3c9e337a61c58c713e56126381aadfc1c4d8f13" }
+source = { directory = "C:/Users/ouyan/codes/e2m2e" }
 dependencies = [
     { name = "matplotlib" },
     { name = "numpy" },
@@ -123,6 +123,20 @@ dependencies = [
     { name = "spiceypy" },
     { name = "tqdm" },
 ]
+
+[package.metadata]
+requires-dist = [
+    { name = "matplotlib", specifier = ">=3.7" },
+    { name = "numpy", specifier = ">=1.24" },
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1" },
+    { name = "scipy", specifier = ">=1.10" },
+    { name = "spiceypy", specifier = ">=8.1.0" },
+    { name = "tqdm", specifier = ">=4.66" },
+]
+provides-extras = ["dev"]
 
 [[package]]
 name = "fonttools"
@@ -896,7 +910,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "e2m2e", git = "https://github.com/cislunarspace/e2m2e.git" },
+    { name = "e2m2e", directory = "C:/Users/ouyan/codes/e2m2e" },
     { name = "matplotlib", specifier = ">=3.10.0" },
     { name = "numpy", specifier = ">=2.4.0" },
     { name = "pyqt6", specifier = ">=6.6.0" },

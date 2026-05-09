@@ -6,123 +6,121 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Scripts for designing two-impulse transfer orbits between Lunar Distant Retrograde Orbits (DRO), Resonant Orbits (RO), GEO, and LEO, reproducing results from Cui et al. (2025). Works in Chinese (comments, print output, docs).
 
-**This repo is scripts-only.** All core algorithms live in the separate `e2m2e` library (sibling repo at `../e2m2e`). The `scripts/` directory is importable as a package via editable install.
+**This repo is scripts-only.** All core algorithms live in the separate `e2m2e` library (sibling repo at `../e2m2e`). The `tod/` directory is importable as a package via editable install.
 
 ## Setup
 
 ```bash
 uv sync                        # 创建环境 + 安装所有依赖
-uv run python scripts/gui/main.py
+uv run python -m tod.gui.main
 ```
 
 ## Common Commands
 
 ```bash
 uv run pytest tests/                        # run all tests
-uv run pytest tests/scripts/test_file.py    # single test file
-uv run python scripts/gui/main.py           # launch PyQt6 GUI
-uv run pyright                      # type checking (extraPaths includes ../e2m2e)
+uv run pytest tests/tod/test_params.py       # single test file
+uv run python -m tod.gui.main                # launch PyQt6 GUI
+uv run pyright                              # type checking (extraPaths includes ../e2m2e)
 ```
 
 ## Transfer Pipelines (order matters within each)
 
 ### DRO → RO
 ```bash
-python scripts/transfer/grid_search_dro_to_ro.py   # 1. grid search
-python scripts/transfer/optimize_dro_to_ro.py      # 2. NLP optimization
-python scripts/transfer/plot_search_results.py <results.json> [--time-dv] [--orbit] [--idx N]
+python -m tod.pipelines.transfer.dro_to_ro.grid_search   # 1. grid search
+python -m tod.pipelines.transfer.dro_to_ro.optimize      # 2. NLP optimization
 ```
 
 ### DRO → GEO
 ```bash
-python scripts/transfer/grid_search_dro_to_geo.py
-python scripts/transfer/optimize_dro_to_geo.py
-python scripts/transfer/plot_search_results_geo.py <results.json>
-python scripts/transfer/plot_optimize_result.py <results.json>
+python -m tod.pipelines.transfer.dro_to_geo.grid_search
+python -m tod.pipelines.transfer.dro_to_geo.optimize
 ```
 
 ### GEO → DRO
 ```bash
-python scripts/transfer/grid_search_geo_to_dro.py
-python scripts/transfer/optimize_geo_to_dro.py
-python scripts/transfer/plot_search_results_geo_to_dro.py <results.json>
-python scripts/transfer/plot_optimize_result_geo_to_dro.py <results.json>
+python -m tod.pipelines.transfer.geo_to_dro.grid_search
+python -m tod.pipelines.transfer.geo_to_dro.optimize
 ```
 
 ### LEO → DRO
 ```bash
-python scripts/transfer/grid_search_leo_to_dro.py
-python scripts/transfer/optimize_leo_to_dro.py
+python -m tod.pipelines.transfer.leo_to_dro.grid_search
+python -m tod.pipelines.transfer.leo_to_dro.optimize
 ```
 
 ### Ephemeris Correction (CR3BP → ephemeris)
 ```bash
-python scripts/ephemeris/correct_dro_to_ephemeris.py    # multiple shooting
-python scripts/ephemeris/homotopy_dro_to_ephemeris.py   # homotopy λ-continuation
+python -m tod.pipelines.ephemeris.correct.correct_dro_to_ephemeris    # multiple shooting
+python -m tod.pipelines.ephemeris.correct.homotopy_dro_to_ephemeris   # homotopy λ-continuation
 ```
 Requires SPICE kernels (`de440.bsp`, `naif0012.tls`) in `e2m2e/kernels/`. Set `SPICE_KERNEL_DIR` env var or use default `../e2m2e/kernels`.
 
 ### Generate Baseline Orbits
 ```bash
-python scripts/dro/generate_31_dro_orbit.py     # single 3:1 DRO
-python scripts/dro/generate_dro_family.py        # DRO family
-python scripts/ro/generate_31_ro_orbit.py        # single 3:1 RO
-python scripts/ro/generate_31_ro_family.py       # 3:1 RO family
-python scripts/ro/generate_32_ro_family.py       # 3:2 RO family
-python scripts/ro/generate_rro_family.py         # 3D RRO family
-python scripts/ro/generate_aro_family.py         # 3D ARO family
-python scripts/halo/generate_halo_orbit.py       # single Halo orbit
-python scripts/halo/generate_halo_family.py      # Halo orbit family
+python -m tod.pipelines.dro.generate.generate_31_dro_orbit     # single 3:1 DRO
+python -m tod.pipelines.dro.generate.generate_dro_family        # DRO family
+python -m tod.pipelines.ro.generate.generate_31_ro_orbit         # single 3:1 RO
+python -m tod.pipelines.ro.generate.generate_31_ro_family        # 3:1 RO family
+python -m tod.pipelines.ro.generate.generate_32_ro_family       # 3:2 RO family
+python -m tod.pipelines.ro.generate.generate_rro_family         # 3D RRO family
+python -m tod.pipelines.ro.generate.generate_aro_family           # 3D ARO family
+python -m tod.pipelines.halo.generate.generate_halo_orbit       # single Halo orbit
+python -m tod.pipelines.halo.generate.generate_halo_family      # Halo orbit family
 ```
 
 ## Architecture
 
-**This repo is scripts-only.** All core algorithms live in the separate `e2m2e` library (sibling repo at `../e2m2e`). The `scripts/` directory is importable as a package via editable install so `from scripts.utils.common import ...` works from any working directory.
+**This repo is scripts-only.** All core algorithms live in the separate `e2m2e` library (sibling repo at `../e2m2e`). The `tod/` directory is importable as a package via editable install so `from tod.commons import ...` works from any working directory.
 
 ```
-scripts/
-  utils/           # Shared constants (constants.py) and helpers (common.py, geo.py, leo.py,
-                   #   optimize_helpers.py, plot_helpers.py)
-  dro/             # DRO orbit generation
-  ro/              # Resonant orbit families (3:1, 3:2, RRO, ARO)
-  halo/            # Halo orbit generation
-  transfer/        # Grid search + NLP optimization (DRO↔RO, DRO↔GEO, GEO↔DRO, LEO↔DRO)
-  ephemeris/       # CR3BP → ephemeris correction (multiple shooting, homotopy)
-  inspection/      # Standalone orbit visualization tools
-  gui/             # PyQt6 GUI — browse & run scripts with parameter controls
-                   #   main_window.py, script_registry.py, job_manager.py,
-                   #   output_panel.py, file_discovery.py, params_panel.py,
-                   #   settings_dialog.py, themes/
-output/            # Generated data (gitignored, created on demand)
-tests/             # pytest tests
+tod/
+  commons/        # Shared constants (constants.py), helpers (io.py, optimize_helpers.py, plot_helpers.py)
+                  # CR3BP constants (MU, DU, TU, VU, T_MOON) re-exported from e2m2e.CR3BP_System
+                  # BR4BP constants (M_SUN, OMEGA_SUN, RHO) and FAMILY_FILENAME defined locally
+  pipelines/      # 计算入口（轨道生成、网格搜索、NLP 优化、星历修正）
+    dro/          # DRO orbit generation
+    ro/           # Resonant orbit families (3:1, 3:2, RRO, ARO)
+    halo/         # Halo orbit generation
+    transfer/     # Grid search + NLP optimization (DRO↔RO, DRO↔GEO, GEO↔DRO, LEO↔DRO)
+    ephemeris/    # CR3BP → ephemeris correction (multiple shooting, homotopy)
+    inspection/   # Standalone orbit visualization tools
+    output/       # Generated data (gitignored, created on demand)
+  gui/            # PyQt6 GUI — browse & run scripts with parameter controls
+                  #   main.py, main_window.py, script_registry.py, job_manager.py,
+                  #   output_panel.py, file_discovery.py, params_panel.py,
+                  #   settings_dialog.py, themes/
+output/            # 软链接到 tod/pipelines/output
+tests/            # pytest tests (mirrors tod/ structure: tests/tod/commons/, tests/tod/gui/)
 ```
 
 **Pipeline stages** (must run in order):
-1. Generate baseline orbits (DRO, RO) → JSON files in `output/`
+1. Generate baseline orbits (DRO, RO) → JSON files in `tod/pipelines/output/`
 2. Grid search over departure points → search results JSON
 3. NLP optimization on feasible results → optimization results JSON
 4. Visualization and analysis scripts
 
 **Key e2m2e API surface**: `e2m2e.core.CR3BP_System`, `e2m2e.core.CR3BP_Dynamics`, `e2m2e.core.orbit.Orbit`, `e2m2e.core.OrbitFamily`, `e2m2e.transfer.TransferSearch`, `e2m2e.transfer.DROTRONLPOptimizer`, `e2m2e.transfer.GeoTransferSearch`, `e2m2e.transfer.load_orbit_from_json`
 
+**GEO/LEO algorithms** live in `e2m2e.orbits.geo` and `e2m2e.orbits.leo`.
+
 ## Constants
 
 | File | Exports |
 |------|---------|
-| `scripts/utils/constants.py` | All physical constants: `MU, DU, TU, VU, T_MOON, M_SUN, OMEGA_SUN, RHO` |
-| `scripts/utils/common.py` | Re-exports constants + file helpers (`ensure_output_dir`, `get_latest_family_file`, `save_family_to_file`, `safe_resolve_within`) |
-| `scripts/utils/optimize_helpers.py` | BLAS thread control (`blas_threads_per_worker`, `apply_blas_env_for_child_processes`) + `OptimizationProgress` |
-| `scripts/utils/plot_helpers.py` | Shared plot utilities (`subsample_indices`) |
-| `scripts/utils/geo.py` | GEO orbit constants (`R_GEO`, `EARTH_CENTER`, `V_CIRCULAR_GEO`, `T_GEO`) + helpers |
-| `scripts/utils/leo.py` | LEO orbit constants (`R_LEO`, `V_CIRCULAR_LEO`, `T_LEO`) at 400 km altitude |
+| `tod/commons/constants.py` | CR3BP constants from `e2m2e.CR3BP_System`: `MU, DU, TU, VU, T_MOON`; BR4BP: `M_SUN, OMEGA_SUN, RHO`; `FAMILY_FILENAME` |
+| `tod/commons/io.py` | File helpers (`ensure_output_dir`, `get_latest_family_file`, `save_family_to_file`, `safe_resolve_within`, `load_or_compute`) |
+| `tod/commons/optimize_helpers.py` | BLAS thread control + `OptimizationProgress` |
+| `tod/commons/plot_helpers.py` | Shared plot utilities (`subsample_indices`) |
 
-**μ = 1.21506683e-2** — do not use the rounded `0.01215`.
+**μ = 1.21506683e-2** — from `e2m2e.CR3BP_System.from_known_system("earth_moon")`. Do not use the rounded `0.01215`.
 
 `FAMILY_FILENAME = "family.json"` — standard filename for orbit family JSON files.
 
 ## GUI
 
-PyQt6 desktop app (`scripts/gui/main.py`) for browsing and running scripts.
+PyQt6 desktop app (`tod/gui/main.py`) for browsing and running scripts.
 - `script_registry.py` — `ScriptEntry` dataclass metadata for every script (module, description, env params, CLI params)
 - `main_window.py` — tabbed UI grouped by module (DRO, RO, Halo, Transfer, Ephemeris, Inspection)
 - `job_manager.py` — multi-process manager, one QProcess per job with job_id routing
@@ -152,10 +150,10 @@ PyQt6 desktop app (`scripts/gui/main.py`) for browsing and running scripts.
 
 ## Hardcoded Paths — Must Edit Before Running
 
-- `scripts/transfer/grid_search_dro_to_ro.py`: DRO/RO file paths hardcoded near `main()`
-- `scripts/transfer/optimize_dro_to_ro.py`: `SEARCH_RESULTS_FILE`, `DRO_FILE`, `RO_FILE` constants (~lines 48-52)
-- `scripts/transfer/grid_search_dro_to_geo.py`: DRO file path hardcoded
-- `scripts/transfer/optimize_dro_to_geo.py`: search results file path hardcoded
+- `tod/pipelines/transfer/dro_to_ro/grid_search_dro_to_ro.py`: DRO/RO file paths hardcoded near `main()`
+- `tod/pipelines/transfer/dro_to_ro/optimize_dro_to_ro.py`: `SEARCH_RESULTS_FILE`, `DRO_FILE`, `RO_FILE` constants
+- `tod/pipelines/transfer/dro_to_geo/grid_search_dro_to_geo.py`: DRO file path hardcoded
+- `tod/pipelines/transfer/dro_to_geo/optimize_dro_to_geo.py`: search results file path hardcoded
 - Recent work has added CLI/env var overrides for some of these — check `parse_args()` first
 
 ## optimize_* Config Knobs
@@ -168,7 +166,7 @@ PyQt6 desktop app (`scripts/gui/main.py`) for browsing and running scripts.
 
 ## Test Quirks
 
-- `test_data_loading.py` requires pre-generated RO JSON files in `output/ro/` — generate RO family first or skip
+- `tests/tod/test_data_loading.py` requires pre-generated RO JSON files in `tod/pipelines/output/ro/` — generate RO family first or skip
 - Missing e2m2e causes tests to **pass silently** (ImportError caught via `pytest.skip`), not fail
 - Tests use `matplotlib.use("Agg")` for headless plotting
 - Tests are lightweight: mostly parameter validation and import checking, not numerical correctness

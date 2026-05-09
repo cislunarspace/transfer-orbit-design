@@ -3,100 +3,90 @@
 ## Setup
 ```bash
 conda create -n orbit-py313 python=3.13 && conda activate orbit-py313
-pip install -r requirements.txt           # installs deps + this repo as editable (-e .)
-pip install -e /home/ouyangjiahong/codes/e2m2e  # sibling repo, v3.1.11
+uv sync                                # installs deps + e2m2e from local sibling + this repo as editable
 ```
-- `requirements.txt` ends with `-e .` — no separate editable install needed for this repo
-- e2m2e can also be installed from gitee: `pip install "e2m2e @ git+https://gitee.com/cislunarspace/e2m2e.git"` (see `environment.yml`)
+- `pyproject.toml` ends with `e2m2e @ file:///C:/Users/ouyan/codes/e2m2e` — no separate editable install needed for e2m2e
 - e2m2e has its own `AGENTS.md` — consult it before modifying e2m2e code
-- Dev deps: `pip install -e ".[dev]"` or just `pip install pytest`
-- Python `>=3.10`; `3.13` tested
+- Dev deps: `pytest` is included; linter/formatter lives in e2m2e, not here
+- Python `>=3.11`; `3.13` tested
 
 ## Key Commands
 
 ### Generate Baseline Orbits
 ```bash
-python scripts/dro/generate_31_dro_orbit.py     # single 3:1 DRO
-python scripts/dro/generate_dro_family.py        # DRO family
-python scripts/ro/generate_31_ro_orbit.py        # single 3:1 RO
-python scripts/ro/generate_31_ro_family.py       # 3:1 RO family
-python scripts/ro/generate_32_ro_family.py       # 3:2 RO family
-python scripts/ro/generate_rro_family.py         # 3D RRO family
-python scripts/ro/generate_aro_family.py         # 3D ARO family
-python scripts/halo/generate_halo_orbit.py       # single Halo orbit
-python scripts/halo/generate_halo_family.py      # Halo orbit family
+python -m tod.pipelines.dro.generate.generate_31_dro_orbit     # single 3:1 DRO
+python -m tod.pipelines.dro.generate.generate_dro_family        # DRO family
+python -m tod.pipelines.ro.generate.generate_31_ro_orbit         # single 3:1 RO
+python -m tod.pipelines.ro.generate.generate_31_ro_family        # 3:1 RO family
+python -m tod.pipelines.ro.generate.generate_32_ro_family       # 3:2 RO family
+python -m tod.pipelines.ro.generate.generate_rro_family          # 3D RRO family
+python -m tod.pipelines.ro.generate.generate_aro_family           # 3D ARO family
+python -m tod.pipelines.halo.generate.generate_halo_orbit       # single Halo orbit
+python -m tod.pipelines.halo.generate.generate_halo_family      # Halo orbit family
 ```
 
 ### DRO → RO Transfer Pipeline (order matters)
 ```bash
-# 1. Grid search — requires pre-generated DRO/RO JSON files
-python scripts/transfer/grid_search_dro_to_ro.py
-
-# 2. NLP optimization
-python scripts/transfer/optimize_dro_to_ro.py
-
-# 3. Visualize
-python scripts/transfer/plot_search_results.py <results.json> [--time-dv] [--orbit] [--idx N] [--save]
-python scripts/transfer/plot_optimize_result.py <optimization_results.json>
+python -m tod.pipelines.transfer.dro_to_ro.grid_search   # 1. Grid search
+python -m tod.pipelines.transfer.dro_to_ro.optimize      # 2. NLP optimization
 ```
 
 ### DRO → GEO Transfer Pipeline
 ```bash
-python scripts/transfer/grid_search_dro_to_geo.py   # grid search to GEO sphere
-python scripts/transfer/optimize_dro_to_geo.py      # NLP optimization
+python -m tod.pipelines.transfer.dro_to_geo.grid_search   # grid search to GEO sphere
+python -m tod.pipelines.transfer.dro_to_geo.optimize      # NLP optimization
 ```
 
 ### GEO → DRO Transfer Pipeline
 ```bash
-python scripts/transfer/grid_search_geo_to_dro.py
-python scripts/transfer/optimize_geo_to_dro.py
+python -m tod.pipelines.transfer.geo_to_dro.grid_search
+python -m tod.pipelines.transfer.geo_to_dro.optimize
 ```
 
 ### LEO → DRO Transfer Pipeline
 ```bash
-python scripts/transfer/grid_search_leo_to_dro.py
-python scripts/transfer/optimize_leo_to_dro.py
+python -m tod.pipelines.transfer.leo_to_dro.grid_search
+python -m tod.pipelines.transfer.leo_to_dro.optimize
 ```
 
 ### Ephemeris Correction (CR3BP → ephemeris)
 ```bash
-python scripts/ephemeris/correct_dro_to_ephemeris.py    # Multiple Shooting method
-python scripts/ephemeris/homotopy_dro_to_ephemeris.py   # homotopy λ-continuation method
-python scripts/ephemeris/compare_ephemeris_methods.py   # benchmark both methods
-python scripts/ephemeris/plot_ephemeris_correction.py   # visualize results
+python -m tod.pipelines.ephemeris.correct.correct_dro_to_ephemeris    # Multiple Shooting method
+python -m tod.pipelines.ephemeris.correct.homotopy_dro_to_ephemeris   # homotopy λ-continuation method
+python -m tod.pipelines.ephemeris.compare.compare_ephemeris_methods   # benchmark both methods
 ```
 - Requires SPICE kernels (`de440.bsp`, `naif0012.tls`) in `e2m2e/kernels/`
 - Kernel path: set `SPICE_KERNEL_DIR` env var; default is `../e2m2e/kernels` (works when repos are siblings)
 
 ### Tests & Type Checking
 ```bash
-pytest tests/                        # all tests
-pytest tests/scripts/<test_file.py>  # single file
-pyright                              # configured in pyproject.toml; extraPaths = ["../e2m2e"]
+pytest tests/                           # all tests
+pytest tests/tod/test_params.py           # single file
+pyright                                 # configured in pyproject.toml; extraPaths = ["../e2m2e"]
 ```
-- No linter or formatter in this repo (Ruff lives in e2m2e, not here)
 
 ## Architecture
-- **This repo**: Scripts only — not a library. `scripts/` is importable as a package so `from scripts.utils.common import ...` works after editable install
-- **All algorithms**: In `e2m2e` (separate repo). Key public API: `e2m2e.core`, `e2m2e.algorithms`, `e2m2e.transfer`, `e2m2e.visualization`
-- **Output directories**: `output/dro/`, `output/ro/`, `output/transfer/`, `output/ephemeris/` (created on demand)
+- **This repo**: Scripts only — not a library. `tod/` is importable as a package so `from tod.commons import ...` works after editable install
+- **All algorithms**: In `e2m2e` (separate repo). Key public API: `e2m2e.core`, `e2m2e.algorithms`, `e2m2e.transfer`, `e2m2e.visualization`, `e2m2e.orbits`
+- **Output directories**: `tod/pipelines/output/dro/`, `tod/pipelines/output/ro/`, etc. (created on demand)
 - **Data format**: JSON with `states`, `times`, `period`, `orbit_type` keys
 - **Transfer naming**: `{action}_{source}_to_{target}.py` convention
 
 ## Constants — Source of Truth
 | File | Exports |
 |------|---------|
-| `scripts/utils/constants.py` | All physical constants: `MU, DU, TU, VU, T_MOON, M_SUN, OMEGA_SUN, RHO` |
-| `scripts/utils/common.py` | Re-exports constants + file helpers (`ensure_output_dir`, `get_latest_family_file`, `save_family_to_file`) |
-| `scripts/utils/geo.py` | GEO orbit constants (`R_GEO`, `EARTH_CENTER`, `V_CIRCULAR_GEO`, `T_GEO`) + helpers for GEO sphere crossing, dv2, collision detection |
+| `tod/commons/constants.py` | CR3BP constants from `e2m2e.CR3BP_System`: `MU, DU, TU, VU, T_MOON`; BR4BP: `M_SUN, OMEGA_SUN, RHO`; `FAMILY_FILENAME` |
+| `tod/commons/io.py` | File helpers (`ensure_output_dir`, `get_latest_family_file`, `save_family_to_file`, `load_or_compute`) |
+| `e2m2e.orbits.geo` | GEO orbit constants (`R_GEO`, `EARTH_CENTER`, `V_CIRCULAR_GEO`, `T_GEO`) + sphere crossing, dv2, collision helpers |
+| `e2m2e.orbits.leo` | LEO orbit constants + helpers |
 
-- **μ = 1.21506683e-2** — do not use the rounded `0.01215`
+- **μ = 1.21506683e-2** — from `e2m2e.CR3BP_System.from_known_system("earth_moon")`. Do not use the rounded `0.01215`
 
 ## Hardcoded Paths — Must Edit Before Running
-- `scripts/transfer/grid_search_dro_to_ro.py`: DRO/RO file paths hardcoded near `main()` — update to match your generated files
-- `scripts/transfer/optimize_dro_to_ro.py`: `SEARCH_RESULTS_FILE`, `DRO_FILE`, `RO_FILE` constants at top of file (~lines 48-52)
-- `scripts/transfer/grid_search_dro_to_geo.py`: DRO file path hardcoded
-- `scripts/transfer/optimize_dro_to_geo.py`: search results file path hardcoded
+- `tod/pipelines/transfer/dro_to_ro/grid_search.py`: DRO/RO file paths hardcoded near `main()` — update to match your generated files
+- `tod/pipelines/transfer/dro_to_ro/optimize.py`: hardcoded file paths at top
+- `tod/pipelines/transfer/dro_to_geo/grid_search.py`: DRO file path hardcoded
+- `tod/pipelines/transfer/dro_to_geo/optimize.py`: search results file path hardcoded
 
 ## optimize_* Config Knobs
 - `USE_COPT=False` — enable with `pip install coptpy`; `FALLBACK_TO_SCIPY=True` auto-falls back
@@ -111,16 +101,16 @@ pyright                              # configured in pyproject.toml; extraPaths 
 - Single orbit: `dro_31_<timestamp>.json`
 - Family: `ro_31_family_<x0_range>_<timestamp>.json`
 - Family "latest" copy: `family.json` (overwritten each run — do not rely on it)
-- Search results: `search_results_{nDep}-{nAlpha}-{αmin}-{αmax}-{tmax}_{timestamp>.json`
+- Search results: `search_results_{nDep}-{nAlpha}-{αmin}-{αmax}-{tmax}_{timestamp}.json`
 - Optimization: `optimization_results_<timestamp>.json` / `optimization_dro_geo_<timestamp>.json`
 
 ## Test Quirks
-- `tests/scripts/test_data_loading.py` requires `output/ro/*.json` to exist — skip or generate RO family first
+- `tests/tod/test_data_loading.py` requires `tod/pipelines/output/ro/*.json` to exist — skip or generate RO family first
 - Missing e2m2e causes import tests to **pass silently** (ImportError is caught), not fail
 - All scripts use `if __name__ == "__main__"` guard — required on Windows for multiprocessing
 
 ## Common Pitfalls
-1. **Missing e2m2e**: `ModuleNotFoundError: No module named 'e2m2e'` — run `pip install -e <path/to/e2m2e>`
+1. **Missing e2m2e**: `ModuleNotFoundError: No module named 'e2m2e'` — run `uv sync`
 2. **Wrong working directory**: Always run scripts from repo root after editable install
 3. **Stale hardcoded paths**: `grid_search_dro_to_ro.py` and `optimize_dro_to_ro.py` have hardcoded JSON file paths — update them
 

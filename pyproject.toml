@@ -25,7 +25,7 @@ dependencies = [
     "tqdm>=4.66",
     "PyQt6>=6.6.0",
     "pytest>=7.0",
-    "e2m2e @ git+https://github.com/cislunarspace/e2m2e.git",
+    "e2m2e @ file:///C:/Users/ouyan/codes/e2m2e",
 ]
 
 [project.urls]
@@ -37,4 +37,5 @@ pythonVersion = "3.13"
 
 [tool.setuptools.packages.find]
 where = ["."]
-exclude = ["tests*"]
+include = ["tod*"]
+exclude = ["tests*", "scripts*"]
