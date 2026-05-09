@@ -25,7 +25,7 @@ from pathlib import Path
 
 import numpy as np
 
-project_root = Path(__file__).resolve().parent.parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 import time
 

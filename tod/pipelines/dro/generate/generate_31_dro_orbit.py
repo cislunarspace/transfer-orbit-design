@@ -21,7 +21,7 @@ import e2m2e
 from e2m2e.core import Orbit
 from tod.commons.common import MU, TU
 
-project_root = Path(__file__).resolve().parent.parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 # 项目根目录
 OUTPUT_DIR = project_root / "output" / "dro"

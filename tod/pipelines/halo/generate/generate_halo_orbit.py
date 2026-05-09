@@ -18,7 +18,7 @@ from pathlib import Path
 
 import time
 
-project_root = Path(__file__).resolve().parent.parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 import e2m2e
 from e2m2e.core import Orbit

@@ -23,7 +23,7 @@ from e2m2e.core import Orbit
 
 from tod.commons.common import MU, TU
 
-project_root = Path(__file__).resolve().parent.parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "ro"
 
 
