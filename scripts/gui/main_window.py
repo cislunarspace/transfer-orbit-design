@@ -10,6 +10,7 @@ from typing import cast
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QDoubleValidator, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QDialog,
@@ -20,6 +21,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
+    QMenu,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -29,6 +31,7 @@ from PyQt6.QtWidgets import (
     QStatusBar,
     QTabWidget,
     QToolBar,
+    QToolButton,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -36,13 +39,23 @@ from PyQt6.QtWidgets import (
 )
 
 from scripts.gui.file_discovery import FileInfo, discover_files, filter_files, format_size
+from scripts.gui.file_operations import (
+    FILE_PATH_ROLE,
+    format_delete_confirmation,
+    get_selected_paths,
+    make_relative_paths,
+    reveal_in_file_manager,
+)
 from scripts.gui.job_manager import JobManager
 from scripts.gui.output_panel import JobCard, StructuredOutputWidget
 from scripts.gui.params_panel import UNIT_GROUPS, CliWidgetFactory
 from scripts.gui.script_registry import SCRIPTS, CliParam, ScriptEntry
 from scripts.gui.settings_dialog import SettingItem
-
-FILE_PATH_ROLE = Qt.ItemDataRole.UserRole + 1
+from scripts.utils.plot_helpers import (
+    PLOT_FONT_SETTING_KEYS,
+    STANDARD_PLOT_FONT_SIZES,
+    plot_font_env_from_settings,
+)
 
 
 def _is_system_dark() -> bool:
@@ -76,6 +89,62 @@ SETTINGS_SCHEMA: list[SettingItem] = [
         choices=["light", "dark", "system"],
         default="system",
         on_changed=lambda _: None,
+    ),
+    SettingItem(
+        key=PLOT_FONT_SETTING_KEYS["title"],
+        label="子图标题字号",
+        type="int",
+        default=str(int(STANDARD_PLOT_FONT_SIZES["title"])),
+        min_value=6,
+        max_value=80,
+    ),
+    SettingItem(
+        key=PLOT_FONT_SETTING_KEYS["label"],
+        label="坐标轴标签字号",
+        type="int",
+        default=str(int(STANDARD_PLOT_FONT_SIZES["label"])),
+        min_value=6,
+        max_value=80,
+    ),
+    SettingItem(
+        key=PLOT_FONT_SETTING_KEYS["tick"],
+        label="刻度标签字号",
+        type="int",
+        default=str(int(STANDARD_PLOT_FONT_SIZES["tick"])),
+        min_value=6,
+        max_value=80,
+    ),
+    SettingItem(
+        key=PLOT_FONT_SETTING_KEYS["legend"],
+        label="图例字号",
+        type="int",
+        default=str(int(STANDARD_PLOT_FONT_SIZES["legend"])),
+        min_value=6,
+        max_value=80,
+    ),
+    SettingItem(
+        key=PLOT_FONT_SETTING_KEYS["colorbar"],
+        label="色标字号",
+        type="int",
+        default=str(int(STANDARD_PLOT_FONT_SIZES["colorbar"])),
+        min_value=6,
+        max_value=80,
+    ),
+    SettingItem(
+        key=PLOT_FONT_SETTING_KEYS["suptitle"],
+        label="总标题字号",
+        type="int",
+        default=str(int(STANDARD_PLOT_FONT_SIZES["suptitle"])),
+        min_value=6,
+        max_value=80,
+    ),
+    SettingItem(
+        key=PLOT_FONT_SETTING_KEYS["lp_label"],
+        label="Lagrange 点标注字号",
+        type="int",
+        default=str(int(STANDARD_PLOT_FONT_SIZES["lp_label"])),
+        min_value=6,
+        max_value=80,
     ),
 ]
 
@@ -311,12 +380,59 @@ class MainWindow(QMainWindow):
         tabs.addTab(merged_widget, "Script Info")
 
         # ── File Browser Tab ────────────────────────────────────
+        files_widget = QWidget()
+        files_layout = QVBoxLayout(files_widget)
+        files_layout.setContentsMargins(0, 0, 0, 0)
+        files_layout.setSpacing(4)
+
+        # 工具栏
+        toolbar_layout = QHBoxLayout()
+        toolbar_layout.setContentsMargins(4, 4, 4, 4)
+        toolbar_layout.setSpacing(4)
+
+        self._copy_btn = QToolButton()
+        self._copy_btn.setText("复制")
+        self._copy_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+        copy_menu = QMenu(self)
+        copy_abs_action = copy_menu.addAction("复制绝对路径")
+        copy_rel_action = copy_menu.addAction("复制相对路径")
+        if copy_abs_action is not None:
+            copy_abs_action.triggered.connect(self._on_copy_abs)
+        if copy_rel_action is not None:
+            copy_rel_action.triggered.connect(self._on_copy_rel)
+        self._copy_btn.setMenu(copy_menu)
+        self._copy_btn.setEnabled(False)
+        toolbar_layout.addWidget(self._copy_btn)
+
+        self._reveal_btn = QPushButton("打开")
+        self._reveal_btn.clicked.connect(self._on_reveal_in_file_manager)
+        self._reveal_btn.setEnabled(False)
+        toolbar_layout.addWidget(self._reveal_btn)
+
+        self._delete_btn = QPushButton("删除")
+        self._delete_btn.clicked.connect(self._on_delete_files)
+        self._delete_btn.setEnabled(False)
+        toolbar_layout.addWidget(self._delete_btn)
+
+        self._refresh_btn = QPushButton("刷新")
+        self._refresh_btn.clicked.connect(self._refresh_files)
+        toolbar_layout.addWidget(self._refresh_btn)
+
+        toolbar_layout.addStretch()
+        files_layout.addLayout(toolbar_layout)
+
         self._file_tree = QTreeWidget()
         self._file_tree.setHeaderLabels(["Filename", "Size", "Modified", "Type"])
         self._file_tree.setAlternatingRowColors(True)
         self._file_tree.setRootIsDecorated(True)
         self._file_tree.itemDoubleClicked.connect(self._on_file_double_clicked)
-        tabs.addTab(self._file_tree, "Files")
+        self._file_tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self._file_tree.customContextMenuRequested.connect(self._on_file_tree_context_menu)
+        self._file_tree.itemSelectionChanged.connect(self._update_file_toolbar_state)
+        QShortcut(QKeySequence("Delete"), self._file_tree, self._on_delete_files)
+        files_layout.addWidget(self._file_tree, stretch=1)
+
+        tabs.addTab(files_widget, "Files")
 
         return tabs
 
@@ -665,6 +781,7 @@ class MainWindow(QMainWindow):
         if not self._validate_params():
             return
 
+        env_overrides.update(plot_font_env_from_settings(self._gui_defaults.get("settings", {})))
         self._job_manager.start_job(self._current_script, extra_args, env_overrides)
 
     def _validate_params(self) -> bool:
@@ -999,6 +1116,78 @@ class MainWindow(QMainWindow):
         abs_path = item.data(0, FILE_PATH_ROLE)
         if abs_path:
             self._status_bar.showMessage(f"Selected: {abs_path}")
+
+    # ── File Tree Operations ───────────────────────────────────
+
+    def _on_copy_abs(self) -> None:
+        paths = get_selected_paths(self._file_tree)
+        if not paths:
+            return
+        text = "\n".join(paths)
+        cb = QApplication.clipboard()
+        if cb is not None:
+            cb.setText(text)
+        self._status_bar.showMessage(f"已复制绝对路径（{len(paths)} 个文件）", 3000)
+
+    def _on_copy_rel(self) -> None:
+        paths = get_selected_paths(self._file_tree)
+        if not paths:
+            return
+        rel_paths = make_relative_paths(paths, self._repo_root)
+        text = "\n".join(rel_paths)
+        cb = QApplication.clipboard()
+        if cb is not None:
+            cb.setText(text)
+        self._status_bar.showMessage(f"已复制相对路径（{len(paths)} 个文件）", 3000)
+
+    def _on_reveal_in_file_manager(self) -> None:
+        paths = get_selected_paths(self._file_tree)
+        if not paths:
+            return
+        # 多选时只打开第一个
+        reveal_in_file_manager(paths[0])
+
+    def _on_delete_files(self) -> None:
+        paths = get_selected_paths(self._file_tree)
+        if not paths:
+            return
+        title, message = format_delete_confirmation(paths)
+        reply = QMessageBox.question(
+            self,
+            title,
+            message,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        import os
+        for p in paths:
+            try:
+                os.remove(p)
+            except OSError as e:
+                self._status_bar.showMessage(f"删除失败: {e}", 5000)
+                return
+        self._refresh_files()
+        self._status_bar.showMessage(f"已删除 {len(paths)} 个文件", 3000)
+
+    def _update_file_toolbar_state(self) -> None:
+        has_selection = bool(get_selected_paths(self._file_tree))
+        self._copy_btn.setEnabled(has_selection)
+        self._reveal_btn.setEnabled(has_selection)
+        self._delete_btn.setEnabled(has_selection)
+
+    def _on_file_tree_context_menu(self, position) -> None:
+        menu = QMenu(self)
+        menu.addAction("复制绝对路径", self._on_copy_abs)
+        menu.addAction("复制相对路径", self._on_copy_rel)
+        menu.addSeparator()
+        menu.addAction("在文件夹中显示", self._on_reveal_in_file_manager)
+        menu.addSeparator()
+        menu.addAction("删除", self._on_delete_files)
+        viewport = self._file_tree.viewport()
+        if viewport is not None:
+            menu.exec(viewport.mapToGlobal(position))
 
     def _refresh_files(self) -> None:
         self._files = discover_files(self._repo_root)
