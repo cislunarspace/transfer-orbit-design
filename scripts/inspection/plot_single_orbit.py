@@ -13,12 +13,15 @@ from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 from scripts.utils.common import MU, TU
+from scripts.utils.plot_helpers import apply_standard_plot_config
 
 import matplotlib
 import matplotlib.pyplot as plt
 import e2m2e
 from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.visualization.base import OrbitVisualizer
+
+PLOT_CONFIG = apply_standard_plot_config()
 
 
 def parse_args():
@@ -86,13 +89,13 @@ def main():
     orbit_plotter.plot_primary_bodies(ax=ax_2d)
     orbit_plotter.plot_libration_points(ax=ax_2d)
 
-    ax_2d.set_xlabel("X (nondimensional)", fontsize=12)
-    ax_2d.set_ylabel("Y (nondimensional)", fontsize=12)
+    ax_2d.set_xlabel("X (nondimensional)", fontsize=PLOT_CONFIG.label)
+    ax_2d.set_ylabel("Y (nondimensional)", fontsize=PLOT_CONFIG.label)
     ax_2d.set_title(
         f"Single Orbit (XY Plane)\nPeriod = {orbit.period:.4f} TU, {_jacobi_title}",
-        fontsize=12,
+        fontsize=PLOT_CONFIG.title,
     )
-    ax_2d.legend(loc="upper right", fontsize=10)
+    ax_2d.legend(loc="upper right", fontsize=PLOT_CONFIG.legend)
     ax_2d.set_aspect("equal")
 
     plt.tight_layout()
@@ -129,14 +132,14 @@ def main():
     ax_3d.set_ylim(center_y - max_range, center_y + max_range)
     ax_3d.set_zlim(center_z - max_range, center_z + max_range)
 
-    ax_3d.set_xlabel("X (nondimensional)", fontsize=12)
-    ax_3d.set_ylabel("Y (nondimensional)", fontsize=12)
-    ax_3d.set_zlabel("Z (nondimensional)", fontsize=12)
+    ax_3d.set_xlabel("X (nondimensional)", fontsize=PLOT_CONFIG.label)
+    ax_3d.set_ylabel("Y (nondimensional)", fontsize=PLOT_CONFIG.label)
+    ax_3d.set_zlabel("Z (nondimensional)", fontsize=PLOT_CONFIG.label)
     ax_3d.set_title(
         f"Single Orbit (3D View)\nPeriod = {orbit.period:.4f} TU, {_jacobi_title}",
-        fontsize=12,
+        fontsize=PLOT_CONFIG.title,
     )
-    ax_3d.legend(loc="upper right", fontsize=10)
+    ax_3d.legend(loc="upper right", fontsize=PLOT_CONFIG.legend)
 
     # 设置视角：侧视
     ax_3d.view_init(elev=20, azim=-60)
@@ -162,12 +165,13 @@ def main():
         )
         orbit_plotter.plot_primary_bodies(ax=ax)
         orbit_plotter.plot_libration_points(ax=ax)
-        ax.set_xlabel("X (nondimensional)", fontsize=10)
+        ax.set_xlabel("X (nondimensional)", fontsize=PLOT_CONFIG.label)
         ax.set_ylabel(
-            "Y (nondimensional)" if plane == "xy" else "Z (nondimensional)", fontsize=10
+            "Y (nondimensional)" if plane == "xy" else "Z (nondimensional)",
+            fontsize=PLOT_CONFIG.label,
         )
-        ax.set_title(title, fontsize=12)
-        ax.legend(loc="upper right", fontsize=8)
+        ax.set_title(title, fontsize=PLOT_CONFIG.title)
+        ax.legend(loc="upper right", fontsize=PLOT_CONFIG.legend)
         ax.set_aspect("equal")
 
     plt.tight_layout()

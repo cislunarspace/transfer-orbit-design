@@ -144,6 +144,26 @@ class TestPlotScriptImports:
         except (Exception, SystemExit) as e:
             pass
 
+    def test_plot_halo_orbit_uses_env_plot_config(self, monkeypatch):
+        """plot_halo_orbit should apply GUI font overrides at module startup."""
+        monkeypatch.setenv("PLOT_FONT_TITLE", "44")
+        monkeypatch.setenv("PLOT_FONT_LABEL", "41")
+        monkeypatch.setenv("PLOT_FONT_TICK", "39")
+
+        script_path = project_root / "scripts" / "halo" / "plot" / "plot_halo_orbit.py"
+        spec = importlib.util.spec_from_file_location("plot_halo_orbit_env", script_path)
+        assert spec is not None
+        module = importlib.util.module_from_spec(spec)
+
+        try:
+            spec.loader.exec_module(module)  # type: ignore[union-attr]
+        except ImportError as e:
+            pytest.skip(f"Missing dependency: {e}")
+
+        assert module.PLOT_CONFIG.title == 44
+        assert module.PLOT_CONFIG.label == 41
+        assert module.PLOT_CONFIG.tick == 39
+
 
 class TestJacobiComputation:
     """Test Jacobi constant computation logic"""

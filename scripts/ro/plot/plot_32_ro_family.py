@@ -18,8 +18,9 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from e2m2e.core import OrbitFamily, CR3BP_System
-from e2m2e.visualization import PlotConfig, FamilyPlotter, compute_stability_for_family
+from e2m2e.visualization import FamilyPlotter, compute_stability_for_family
 from scripts.utils.common import MU, TU
+from scripts.utils.plot_helpers import apply_standard_plot_config
 
 
 def parse_args():
@@ -97,12 +98,7 @@ def main() -> None:
     # =============================================================================
     # 创建绘图器
     # =============================================================================
-    config = PlotConfig(
-        title=32, label=28, tick=26, legend=28, colorbar=26, suptitle=36, lp_label=32,
-        title_y_offset=-0.12, title_y_offset_3d=-0.08, title_y_offset_dual=-0.18,
-        title_y_offset_subplot=-0.15,
-    )
-    config.apply_rcparams()
+    config = apply_standard_plot_config()
     plotter = FamilyPlotter(system, config)
 
     jacobi_min = min(jacobi_values_subset)

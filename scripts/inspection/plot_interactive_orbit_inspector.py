@@ -28,10 +28,13 @@ import e2m2e
 from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization.base import OrbitVisualizer
 from scripts.utils.common import MU, TU
+from scripts.utils.plot_helpers import apply_standard_plot_config, style_colorbar
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.colors import Normalize
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+PLOT_CONFIG = apply_standard_plot_config()
 
 
 def parse_args():
@@ -250,7 +253,7 @@ def main():
         divider = make_axes_locatable(ax_2d)
         cax = divider.append_axes("right", size="2%", pad=0.1)
         cbar = plt.colorbar(sm, cax=cax)
-        cbar.set_label("Jacobi Constant", fontsize=10)
+        style_colorbar(cbar, PLOT_CONFIG, "Jacobi Constant")
 
         # 3D视图
         if _show_3d:

@@ -35,11 +35,12 @@ from matplotlib.axes import Axes
 from matplotlib.colors import Normalize
 import numpy as np
 
-plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "SimSun", "DejaVu Sans"]
-plt.rcParams["axes.unicode_minus"] = False
-
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+from scripts.utils.plot_helpers import apply_standard_plot_config, style_colorbar
+
+PLOT_CONFIG = apply_standard_plot_config()
 
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from e2m2e.core.orbit import Orbit
@@ -181,7 +182,7 @@ def plot_dv_summary(records: List[Dict[str, Any]], ax: Axes) -> None:
         ax.bar(idx, dv2, bar_w, label="Δv₂ (入轨)", color="coral")
         ax.bar(idx + bar_w, total, bar_w, label="总 Δv", color="seagreen")
         ax.set_xticks(idx)
-        ax.set_xticklabels([str(i) for i in idx], fontsize=8)
+        ax.set_xticklabels([str(i) for i in idx], fontsize=PLOT_CONFIG.tick)
 
     if fail:
         n_s = len(success)
@@ -199,7 +200,7 @@ def plot_dv_summary(records: List[Dict[str, Any]], ax: Axes) -> None:
     ax.set_xlabel("结果索引")
     ax.set_ylabel("Δv (km/s)")
     ax.set_title("NLP 优化: Δv 汇总")
-    ax.legend(fontsize=8)
+    ax.legend(fontsize=PLOT_CONFIG.legend)
     ax.grid(True, alpha=0.3)
 
 
@@ -214,7 +215,7 @@ def plot_dv_scatter(records: List[Dict[str, Any]], ax: Axes) -> None:
     total = np.array([r["objective_value"] for r in success]) * VU / 1000
 
     sc = ax.scatter(dv1, dv2, c=total, cmap="viridis", s=6, alpha=0.6)
-    plt.colorbar(sc, ax=ax, label="总 Δv (km/s)")
+    style_colorbar(plt.colorbar(sc, ax=ax, label="总 Δv (km/s)"), PLOT_CONFIG)
     ax.set_xlabel("Δv₁ (km/s)")
     ax.set_ylabel("Δv₂ (km/s)")
     ax.set_title("NLP: Δv₁ vs Δv₂ (颜色=总 Δv)")
@@ -227,7 +228,7 @@ def plot_dv_scatter(records: List[Dict[str, Any]], ax: Axes) -> None:
         xy=(dv1[best_idx], dv2[best_idx]),
         xytext=(10, 10),
         textcoords="offset points",
-        fontsize=8,
+        fontsize=PLOT_CONFIG.legend,
         arrowprops=dict(arrowstyle="->", color="red"),
         color="red",
     )
@@ -243,7 +244,7 @@ def plot_transfer_time_vs_dv(records: List[Dict[str, Any]], ax: Axes) -> None:
     total_dv = np.array([r["objective_value"] * VU / 1000 for r in success])
 
     sc = ax.scatter(tt_days, total_dv, c=total_dv, cmap="viridis", s=6, alpha=0.6)
-    plt.colorbar(sc, ax=ax, label="总 Δv (km/s)")
+    style_colorbar(plt.colorbar(sc, ax=ax, label="总 Δv (km/s)"), PLOT_CONFIG)
     ax.set_xlabel("转移时间 (天)")
     ax.set_ylabel("总 Δv (km/s)")
     ax.set_title("NLP: 转移时间 vs 总 Δv")
@@ -255,7 +256,7 @@ def plot_transfer_time_vs_dv(records: List[Dict[str, Any]], ax: Axes) -> None:
         xy=(tt_days[best_idx], total_dv[best_idx]),
         xytext=(10, 10),
         textcoords="offset points",
-        fontsize=8,
+        fontsize=PLOT_CONFIG.legend,
         arrowprops=dict(arrowstyle="->", color="red"),
         color="red",
     )
@@ -313,8 +314,8 @@ def plot_orbit_3d(
         # 地球和月球
         ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
         ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=7, ha="center")
-        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=7, ha="center")
+        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=PLOT_CONFIG.lp_label, ha="center")
+        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=PLOT_CONFIG.lp_label, ha="center")
 
         # 平动点
         system.compute_libration_points()
@@ -322,7 +323,7 @@ def plot_orbit_3d(
             raise RuntimeError("L1/L2 平动点未计算")
         for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
             ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-            ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
+            ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
 
         ax.set_xlabel("x (DU)")
         ax.set_ylabel("y (DU)")
@@ -336,7 +337,7 @@ def plot_orbit_3d(
             f"Δv_dep={dv1_km:.4f} km/s  Δv_ins={dv2_km:.4f} km/s  "
             f"Total={total_km:.4f} km/s"
         )
-        ax.legend(fontsize=7, loc="upper left")
+        ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
         # 等比例轴
         all_pts = np.concatenate([states[:, :3], dro_orbit.states[:, :3],
@@ -383,8 +384,8 @@ def plot_orbit_3d(
         # 地球和月球
         ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
         ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=7, ha="center")
-        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=7, ha="center")
+        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=PLOT_CONFIG.lp_label, ha="center")
+        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=PLOT_CONFIG.lp_label, ha="center")
 
         # 平动点
         system.compute_libration_points()
@@ -392,18 +393,18 @@ def plot_orbit_3d(
             raise RuntimeError("L1/L2 平动点未计算")
         for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
             ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-            ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
+            ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
 
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=Normalize(
             vmin=obj_min * VU / 1000, vmax=obj_max * VU / 1000))
         sm.set_array([])
-        plt.colorbar(sm, ax=ax, label="总 Δv (km/s)")
+        style_colorbar(plt.colorbar(sm, ax=ax, label="总 Δv (km/s)"), PLOT_CONFIG)
 
         ax.set_xlabel("x (DU)")
         ax.set_ylabel("y (DU)")
         ax.set_zlabel("z (DU)")
         ax.set_title(f"DRO→RO: {n_sel} 条转移轨道")
-        ax.legend(fontsize=7, loc="upper left")
+        ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
         # 等比例轴
         all_pts = np.concatenate([dro_orbit.states[:, :3], ro_orbit.states[:, :3]])

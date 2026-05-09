@@ -24,9 +24,11 @@ from e2m2e.core import (
 )
 
 from scripts.utils.common import DU, MU, TU
+from scripts.utils.plot_helpers import apply_standard_plot_config
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 output_dir = project_root / "output" / "ephemeris"
+PLOT_CONFIG = apply_standard_plot_config()
 
 DRO_JSON_DEFAULT = project_root / "output" / "dro" / "dro_31_3857864736.json"
 EPHEMERIS_JSON_DEFAULT = output_dir / "dro_ephemeris_correction_20260406_120419.json"
@@ -182,8 +184,8 @@ def main():
         ax1.set_xlabel("X (n.d.)")
         ax1.set_ylabel("Y (n.d.)")
         ax1.set_zlabel("Z (n.d.)")
-        ax1.set_title("Synodic Frame (Rotating)", fontsize=12)
-        ax1.legend(fontsize=8, loc="upper left")
+        ax1.set_title("Synodic Frame (Rotating)", fontsize=PLOT_CONFIG.title)
+        ax1.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
         ax1.view_init(elev=25, azim=-60)
         set_axes_equal(ax1)
 
@@ -216,8 +218,8 @@ def main():
         ax2.set_ylabel("Y (×10⁵ km)")
         ax2.set_zlabel("Z (×10⁵ km)")
         status = "Converged" if converged else "Not converged"
-        ax2.set_title(f"J2000 Inertial Frame ({status})", fontsize=12)
-        ax2.legend(fontsize=8, loc="upper left")
+        ax2.set_title(f"J2000 Inertial Frame ({status})", fontsize=PLOT_CONFIG.title)
+        ax2.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
         ax2.view_init(elev=25, azim=-60)
         set_axes_equal(ax2)
 
@@ -225,7 +227,7 @@ def main():
             f"DRO CR3BP vs Ephemeris Correction\n"
             f"ref: {eph_data['reference_epoch']}, "
             f"bodies: {', '.join(eph_data['bodies'])}",
-            fontsize=13,
+            fontsize=PLOT_CONFIG.suptitle,
             y=1.02,
         )
         plt.tight_layout()

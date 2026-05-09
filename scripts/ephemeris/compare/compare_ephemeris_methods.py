@@ -47,6 +47,9 @@ from e2m2e.core import (
 HomotopyEphemerisDynamics = None  # type: ignore[assignment,misc] # placeholder for deprecated script
 
 from scripts.utils.common import MU, DU, TU
+from scripts.utils.plot_helpers import apply_standard_plot_config
+
+PLOT_CONFIG = apply_standard_plot_config()
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "ephemeris"
@@ -445,10 +448,10 @@ def plot_residual_convergence(direct_info, homotopy_info):
     ax2.set_xlabel("累计迭代次数")
     ax2.set_ylabel("最大残差 (km)")
     ax2.set_title("同伦法 — 残差收敛")
-    ax2.legend(fontsize=8)
+    ax2.legend(fontsize=PLOT_CONFIG.legend)
     ax2.grid(True, alpha=0.3)
 
-    fig.suptitle("DRO→星历模型修正：残差收敛对比", fontsize=14, y=1.02)
+    fig.suptitle("DRO→星历模型修正：残差收敛对比", fontsize=PLOT_CONFIG.suptitle, y=1.02)
     plt.tight_layout()
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -488,8 +491,8 @@ def plot_trajectory_comparison(direct_info, homotopy_info, setup):
     ax1.set_ylabel("Y (×10⁵ km)")
     ax1.set_zlabel("Z (×10⁵ km)")
     d_status = "收敛" if direct_info["converged"] else "未收敛"
-    ax1.set_title(f"直接多重打靶法 ({d_status})", fontsize=12)
-    ax1.legend(fontsize=8)
+    ax1.set_title(f"直接多重打靶法 ({d_status})", fontsize=PLOT_CONFIG.title)
+    ax1.legend(fontsize=PLOT_CONFIG.legend)
     ax1.view_init(elev=25, azim=-60)
     set_axes_equal(ax1)
 
@@ -515,14 +518,14 @@ def plot_trajectory_comparison(direct_info, homotopy_info, setup):
     ax2.set_ylabel("Y (×10⁵ km)")
     ax2.set_zlabel("Z (×10⁵ km)")
     h_status = "收敛" if homotopy_info["converged"] else "未收敛"
-    ax2.set_title(f"同伦法 ({h_status})", fontsize=12)
-    ax2.legend(fontsize=8)
+    ax2.set_title(f"同伦法 ({h_status})", fontsize=PLOT_CONFIG.title)
+    ax2.legend(fontsize=PLOT_CONFIG.legend)
     ax2.view_init(elev=25, azim=-60)
     set_axes_equal(ax2)
 
     fig.suptitle(
         f"DRO→星历模型修正：轨迹对比\nref: {REFERENCE_EPOCH}, bodies: {', '.join(BODIES)}",
-        fontsize=13,
+        fontsize=PLOT_CONFIG.suptitle,
         y=1.02,
     )
     plt.tight_layout()

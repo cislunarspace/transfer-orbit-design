@@ -3,9 +3,10 @@ from pathlib import Path
 import matplotlib
 import e2m2e
 from e2m2e.core import OrbitFamily, CR3BP_System
-from e2m2e.visualization import PlotConfig, FamilyPlotter, compute_stability_for_family
+from e2m2e.visualization import FamilyPlotter, compute_stability_for_family
 
 from scripts.utils.common import MU
+from scripts.utils.plot_helpers import apply_standard_plot_config
 
 
 def parse_args():
@@ -29,20 +30,7 @@ def main() -> None:
     # =============================================================================
     # Configuration
     # =============================================================================
-    config = PlotConfig(
-        title=32,                    # 子图标题字号
-        label=28,                    # 坐标轴标签字号
-        tick=26,                     # 刻度标签字号
-        legend=28,                   # 图例字号
-        colorbar=26,                 # 色标字号
-        suptitle=36,                 # 总标题字号
-        lp_label=32,                 # Lagrange点标注字号
-        title_y_offset=-0.12,        # 2D子图标题Y方向偏移
-        title_y_offset_3d=-0.08,     # 3D子图标题Y方向偏移
-        title_y_offset_dual=-0.18,   # 双子图标题Y方向偏移
-        title_y_offset_subplot=-0.15,# 多子图标题Y方向偏移
-    )
-    config.apply_rcparams()          # 将配置应用到 matplotlib 全局参数
+    config = apply_standard_plot_config()          # 将配置应用到 matplotlib 全局参数
 
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 

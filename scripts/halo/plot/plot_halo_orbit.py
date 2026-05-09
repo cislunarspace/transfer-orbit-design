@@ -13,6 +13,11 @@ from pathlib import Path
 import sys
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from scripts.utils.plot_helpers import apply_standard_plot_config
+
+PLOT_CONFIG = apply_standard_plot_config()
 
 import json
 
@@ -20,7 +25,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import e2m2e
 from e2m2e.core import Orbit, OrbitFamily, CR3BP_System
-from e2m2e.visualization import PlotConfig, FamilyPlotter, compute_stability_for_family
+from e2m2e.visualization import FamilyPlotter, compute_stability_for_family
 
 from scripts.utils.common import MU
 
@@ -111,14 +116,23 @@ def main() -> None:
     # =============================================================================
     # 创建绘图器
     # =============================================================================
-    config = PlotConfig(
-        title=32, label=28, tick=26, legend=28, colorbar=26, suptitle=36, lp_label=32,
-        title_y_offset=-0.12, title_y_offset_3d=-0.08, title_y_offset_dual=-0.18,
-        title_y_offset_subplot=-0.15,
-    )
-    config.apply_rcparams()
+    config = PLOT_CONFIG
 
     plotter = FamilyPlotter(system, config)
+
+    # Halo 轨道靠近拉格朗日点，尺度较小；减小标记大小避免遮挡轨道
+    plotter.primary_body_size = 60
+    plotter.secondary_body_size = 30
+    plotter.libration_point_sizes = [20, 20, 20, 20, 20]
+
+    # 计算轨道数据包围盒，用于聚焦视图到轨道附近区域
+    all_states = np.vstack([orbit.states for orbit in subset_family])
+    x_min, x_max = all_states[:, 0].min(), all_states[:, 0].max()
+    z_min, z_max = all_states[:, 2].min(), all_states[:, 2].max()
+    x_pad = max(0.05, (x_max - x_min) * 0.1)
+    z_pad = max(0.05, (z_max - z_min) * 0.1)
+    xlim_2d = (float(x_min - x_pad), float(x_max + x_pad))
+    ylim_2d = (float(z_min - z_pad), float(z_max + z_pad))
 
     jmin, jmax = min(jacobi_subset), max(jacobi_subset)
     smin, smax = min(stability_subset), max(stability_subset)
@@ -135,6 +149,8 @@ def main() -> None:
               f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
         plane="xz",
         show_bodies=True, show_libration=True, show_colorbar=True,
+        xlim=xlim_2d,
+        ylim=ylim_2d,
         show=False,
     )
     plotter.plot_2d_projection(
@@ -182,6 +198,8 @@ def main() -> None:
         subset_family, jacobi_subset, subset_family.periods, stability_subset,
         suptitle=f"Halo Orbit Family Overview - Earth-Moon CR3BP (n = {n_orbits})",
         plane="xz", center_3d=(0.9, 0, 0), radius_3d=0.4,
+        zoom_xlim=xlim_2d,
+        zoom_ylim=ylim_2d,
         elev=20, azim=-60,
         save_path=str(output_dir / f"{family_name}_overview.png"),
         show=True,

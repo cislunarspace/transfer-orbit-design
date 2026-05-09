@@ -34,9 +34,6 @@ except ImportError:
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 
-plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "SimSun", "DejaVu Sans"]
-plt.rcParams["axes.unicode_minus"] = False
-
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from e2m2e.transfer import load_orbit_from_json
 from scripts.utils.common import DU, MU, TU, VU
@@ -47,6 +44,11 @@ from scripts.utils.geo import (
 )
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from scripts.utils.plot_helpers import apply_standard_plot_config, style_colorbar
+
+PLOT_CONFIG = apply_standard_plot_config()
 
 # =====================================================================
 # 配置
@@ -162,7 +164,7 @@ def plot_dv_summary(records, ax):
     ax.set_xlabel("结果索引")
     ax.set_ylabel("Δv (km/s)")
     ax.set_title("GEO→DRO: Δv 汇总")
-    ax.legend(fontsize=8)
+    ax.legend(fontsize=PLOT_CONFIG.legend)
     ax.set_xticks(x)
 
 
@@ -177,13 +179,13 @@ def plot_dv_scatter(records, ax):
     obj = np.array([r["objective_value"] for r in success]) * VU / 1000
 
     sc = ax.scatter(dv1, dv2, c=obj, cmap="viridis", s=6, alpha=0.6)
-    plt.colorbar(sc, ax=ax, label="总 Δv (km/s)")
+    style_colorbar(plt.colorbar(sc, ax=ax, label="总 Δv (km/s)"), PLOT_CONFIG)
 
     best = min(success, key=lambda r: r["objective_value"])
     ax.annotate(
         f"最优: α={best['alpha']:.4f}\nΔv={best['objective_value'] * VU / 1000:.3f} km/s",
         xy=(best["delta_v1"] * VU / 1000, best["delta_v2"] * VU / 1000),
-        fontsize=8, color="red",
+        fontsize=PLOT_CONFIG.legend, color="red",
         arrowprops=dict(arrowstyle="->", color="red"),
         xytext=(10, 10), textcoords="offset points",
     )
@@ -204,13 +206,13 @@ def plot_transfer_time_vs_dv(records, ax):
     total_dv = np.array([r["objective_value"] * VU / 1000 for r in success])
 
     sc = ax.scatter(tt_days, total_dv, c=total_dv, cmap="viridis", s=6, alpha=0.6)
-    plt.colorbar(sc, ax=ax, label="总 Δv (km/s)")
+    style_colorbar(plt.colorbar(sc, ax=ax, label="总 Δv (km/s)"), PLOT_CONFIG)
 
     best = min(success, key=lambda r: r["objective_value"])
     ax.annotate(
         f"最优: T={best['transfer_time'] * TU:.1f} 天\nΔv={best['objective_value'] * VU / 1000:.3f} km/s",
         xy=(best["transfer_time"] * TU, best["objective_value"] * VU / 1000),
-        fontsize=8, color="red",
+        fontsize=PLOT_CONFIG.legend, color="red",
         arrowprops=dict(arrowstyle="->", color="red"),
         xytext=(10, 10), textcoords="offset points",
     )
@@ -302,8 +304,8 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         # 地球月球
         ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
         ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=7, ha="center")
-        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=7, ha="center")
+        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=PLOT_CONFIG.lp_label, ha="center")
+        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=PLOT_CONFIG.lp_label, ha="center")
 
         # 平动点
         system.compute_libration_points()
@@ -311,7 +313,7 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
             raise RuntimeError("L1/L2 平动点未计算")
         for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
             ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-            ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
+            ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
 
         ax.set_xlabel("x (DU)")
         ax.set_ylabel("y (DU)")
@@ -324,7 +326,7 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
             f"Δv_dep={dv1_km:.4f} km/s  Δv_ins={dv2_km:.4f} km/s  "
             f"Total={total_km:.4f} km/s"
         )
-        ax.legend(fontsize=7, loc="upper left")
+        ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
         # 等比例轴
         all_pts = np.concatenate([states[:, :3], dro_orbit.states[:, :3]])
@@ -362,8 +364,8 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         # 地球月球
         ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
         ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=7, ha="center")
-        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=7, ha="center")
+        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=PLOT_CONFIG.lp_label, ha="center")
+        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=PLOT_CONFIG.lp_label, ha="center")
 
         # 平动点
         system.compute_libration_points()
@@ -371,18 +373,18 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
             raise RuntimeError("L1/L2 平动点未计算")
         for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
             ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-            ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
+            ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
 
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=Normalize(
             vmin=obj_min * VU / 1000, vmax=obj_max * VU / 1000))
         sm.set_array([])
-        plt.colorbar(sm, ax=ax, label="总 Δv (km/s)")
+        style_colorbar(plt.colorbar(sm, ax=ax, label="总 Δv (km/s)"), PLOT_CONFIG)
 
         ax.set_xlabel("x (DU)")
         ax.set_ylabel("y (DU)")
         ax.set_zlabel("z (DU)")
         ax.set_title(f"GEO→DRO: {len(sel_records)} 条转移轨道")
-        ax.legend(fontsize=7, loc="upper left")
+        ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
         # 等比例轴
         if all_transfer_pts:
@@ -500,7 +502,7 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
         # 平动点
         for lp_name, lp_x in lp_data:
             ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-            ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
+            ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
 
         ax.set_xlabel("x (DU)")
         ax.set_ylabel("y (DU)")
@@ -508,9 +510,9 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
         ax.set_title(
             f"[{current+1}/{n}] a={alpha:.4f}  T={tt * TU:.1f} 天  "
             f"Δv={total * VU / 1000:.4f} km/s  pos={pos_km:.1f} km",
-            fontsize=10,
+            fontsize=PLOT_CONFIG.title,
         )
-        ax.legend(fontsize=7, loc="upper left")
+        ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
         fig.canvas.draw()
         fig.canvas.flush_events()
@@ -644,7 +646,7 @@ def main():
             meta = data.get("meta", {})
             fig.suptitle(
                 f"N={len(valid_records)} 条有效结果 | {meta.get('nlp_solver', '')}",
-                fontsize=12, y=1.02,
+                fontsize=PLOT_CONFIG.suptitle, y=1.02,
             )
             fig.tight_layout()
 

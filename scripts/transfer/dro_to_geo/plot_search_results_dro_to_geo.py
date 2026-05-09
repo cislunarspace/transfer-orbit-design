@@ -40,11 +40,12 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 import numpy as np
 
-plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "SimSun", "DejaVu Sans"]
-plt.rcParams["axes.unicode_minus"] = False
-
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+from scripts.utils.plot_helpers import apply_standard_plot_config, style_colorbar, subsample_indices
+
+PLOT_CONFIG = apply_standard_plot_config()
 
 import e2m2e
 from e2m2e.core import CR3BP_System, Orbit
@@ -110,7 +111,6 @@ def load_search_results(path: Path) -> list[dict]:
         return json.load(f)
 
 
-from scripts.utils.plot_helpers import subsample_indices  # noqa: E402 — 重用共享工具
 
 
 def compute_actual_transfer_time(r: dict, dt: float = 1.0 / (24.0 * TU)) -> float:
@@ -179,7 +179,7 @@ def plot_transfer_time_delta_v(
         return
     sc = ax.scatter(transfer_time * TU, delta_v * VU / 1000, s=6, alpha=0.6,
                     c=transfer_time * TU, cmap="viridis")
-    plt.colorbar(sc, ax=ax, label="转移时间 (天)")
+    style_colorbar(plt.colorbar(sc, ax=ax, label="转移时间 (天)"), PLOT_CONFIG)
     ax.set_xlabel("转移时间 (天)")
     ax.set_ylabel("Δv_departure (km/s)")
     ax.set_title("DRO→GEO: 转移时间 vs Δv_departure")
@@ -350,8 +350,8 @@ def _plot_single_transfer_orbit(
     # 地球和月球
     ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
     ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-    ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=7, ha="center")
-    ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=7, ha="center")
+    ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=PLOT_CONFIG.lp_label, ha="center")
+    ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=PLOT_CONFIG.lp_label, ha="center")
 
     # 平动点
     system.compute_libration_points()
@@ -359,7 +359,7 @@ def _plot_single_transfer_orbit(
         raise RuntimeError("L1/L2 平动点未计算")
     for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
         ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-        ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
+        ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
 
     ax.set_xlabel("x (DU)")
     ax.set_ylabel("y (DU)")
@@ -371,7 +371,7 @@ def _plot_single_transfer_orbit(
         f"DRO→GEO  α={alpha:.4f}  T={transfer_time:.2f} TU ({transfer_time * TU:.1f}天)\n"
         f"Δv_dep={dv_dep_phys:.4f} km/s  Δv_ins={dv_ins_phys:.4f} km/s"
     )
-    ax.legend(fontsize=7, loc="upper left")
+    ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
     # 等比例轴
     all_pts = np.concatenate([transfer_states[:, :3], departure_orbit.states[:, :3]])
@@ -791,8 +791,8 @@ def main() -> None:
             # 地球和月球
             ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
             ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-            ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=7, ha="center")
-            ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=7, ha="center")
+            ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=PLOT_CONFIG.lp_label, ha="center")
+            ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=PLOT_CONFIG.lp_label, ha="center")
 
             # 平动点
             system.compute_libration_points()
@@ -800,13 +800,13 @@ def main() -> None:
                 raise RuntimeError("L1/L2 平动点未计算")
             for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
                 ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-                ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
+                ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
 
             ax.set_xlabel("x (DU)")
             ax.set_ylabel("y (DU)")
             ax.set_zlabel("z (DU)")
             ax.set_title(f"DRO→GEO: {n_sel} 条转移轨道")
-            ax.legend(fontsize=7, loc="upper left")
+            ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
             # 等比例轴
             all_pts = dro_orbit.states[:, :3]

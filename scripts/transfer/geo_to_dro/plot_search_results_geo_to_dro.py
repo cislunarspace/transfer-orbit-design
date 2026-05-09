@@ -27,9 +27,6 @@ except ImportError:
     pass
 import matplotlib.pyplot as plt
 
-plt.rcParams["font.sans-serif"] = ["SimHei", "Microsoft YaHei", "SimSun", "DejaVu Sans"]
-plt.rcParams["axes.unicode_minus"] = False
-
 import e2m2e
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from e2m2e.transfer import load_orbit_from_json
@@ -43,6 +40,11 @@ from scripts.utils.geo import (
 )
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from scripts.utils.plot_helpers import apply_standard_plot_config, style_colorbar, subsample_indices
+
+PLOT_CONFIG = apply_standard_plot_config()
 
 # =====================================================================
 # 配置 — 默认自动发现最新文件，可用环境变量覆盖
@@ -101,10 +103,6 @@ def feasible_transfer_time_and_dv(rows):
     return np.array(tt_list), np.array(dv_list)
 
 
-from scripts.utils.plot_helpers import subsample_indices as _subsample_indices
-
-def subsample_indices(n, max_points, seed=42):
-    return _subsample_indices(n, max_points, seed)
 
 
 # =====================================================================
@@ -129,7 +127,7 @@ def plot_transfer_time_delta_v(ax, transfer_time, delta_v):
         return
     sc = ax.scatter(transfer_time * TU, delta_v * VU / 1000, s=6, alpha=0.6,
                     c=transfer_time * TU, cmap="viridis")
-    plt.colorbar(sc, ax=ax, label="转移时间 (天)")
+    style_colorbar(plt.colorbar(sc, ax=ax, label="转移时间 (天)"), PLOT_CONFIG)
     ax.set_xlabel("转移时间 (天)")
     ax.set_ylabel("Δv_departure (km/s)")
     ax.set_title("GEO → DRO: 转移时间 vs Δv_departure")
@@ -244,8 +242,8 @@ def _plot_single_transfer_orbit(
     # 地球和月球
     ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
     ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-    ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=7, ha="center")
-    ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=7, ha="center")
+    ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=PLOT_CONFIG.lp_label, ha="center")
+    ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=PLOT_CONFIG.lp_label, ha="center")
 
     # 平动点
     system.compute_libration_points()
@@ -254,7 +252,7 @@ def _plot_single_transfer_orbit(
     for lp_name, lp_x in [("L1", system.L1[0]),
                            ("L2", system.L2[0])]:
         ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-        ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
+        ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
 
     ax.set_xlabel("x (DU)")
     ax.set_ylabel("y (DU)")
@@ -264,7 +262,7 @@ def _plot_single_transfer_orbit(
         f"GEO→DRO  α={alpha:.4f}  T={t_disp:.2f} TU ({t_disp * TU:.1f}天)\n"
         f"Δv_dep={dv_departure:.4f} VU ({dv_departure * VU:.0f} m/s)"
     )
-    ax.legend(fontsize=7, loc="upper left")
+    ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
     # 等比例轴：三轴范围取数据包围盒的最大跨度，居中对齐
     all_pts = np.concatenate([transfer_states[:, :3], dro_orbit.states[:, :3]])
@@ -371,12 +369,12 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
         # 天体
         ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
         ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "Earth", fontsize=7, ha="center")
-        ax.text(1.0 - MU, 0.03, 0, "Moon", fontsize=7, ha="center")
+        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "Earth", fontsize=PLOT_CONFIG.lp_label, ha="center")
+        ax.text(1.0 - MU, 0.03, 0, "Moon", fontsize=PLOT_CONFIG.lp_label, ha="center")
         # 平动点
         for lp_name, lp_x in lp_data:
             ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-            ax.text(lp_x, 0.02, 0, lp_name, fontsize=6, ha="center", color="red")
+            ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
 
         ax.set_xlabel("x (DU)")
         ax.set_ylabel("y (DU)")
@@ -384,9 +382,9 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
         ax.set_title(
             f"[{current+1}/{n}] a={alpha:.4f}  T={times[-1]:.2f} TU ({times[-1] * TU:.1f} d)  "
             f"dv={dv * VU:.0f} m/s",
-            fontsize=10,
+            fontsize=PLOT_CONFIG.title,
         )
-        ax.legend(fontsize=7, loc="upper left")
+        ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
         # 等比例轴
         dro_pts = np.column_stack([dro_x, dro_y, dro_z])
