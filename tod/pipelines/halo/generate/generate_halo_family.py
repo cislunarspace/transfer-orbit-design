@@ -69,14 +69,15 @@ def _tag_halo_seed_orbit(
 
 
 def parse_args(argv=None):
-    parser = argparse.ArgumentParser(description="生成 Halo 轨道族（伪弧长延拓）")
+    parser = argparse.ArgumentParser(description="生成 Halo 轨道族")
     parser.add_argument("--libration-point", type=str, default="L1", choices=["L1", "L2", "L3"], help="平动点：L1, L2, L3")
-    parser.add_argument("--amplitude-z", type=float, default=0.23, help="Z 方向振幅（无量纲）")
+    parser.add_argument("--amplitude-z", type=float, default=0.001, help="Z 方向振幅（无量纲）")
     parser.add_argument("--halo-class", type=int, default=0, help="0=北 Halo, 1=南 Halo")
     parser.add_argument("--n-orbits", type=int, default=20, help="延拓轨道数量")
-    parser.add_argument("--step-size", type=float, default=0.0045, help="正向延拓步长")
-    parser.add_argument("--step-size-negative", type=float, default=0.009, help="负向延拓步长")
+    parser.add_argument("--step-size", type=float, default=0.002, help="自然参数延拓 z 方向步长")
+    parser.add_argument("--direction", type=str, default="positive", choices=["positive", "negative", "both"], help="延拓方向")
     parser.add_argument("--seed-file", type=str, default=None, help="种子轨道 JSON 文件路径（提供时跳过种子生成）")
+    parser.add_argument("--method", type=str, default="natural", choices=["natural", "pseudo_arclength"], help="延拓方法")
     return parser.parse_args(argv)
 
 
@@ -125,8 +126,30 @@ def main():
         )
 
         if seed_halo is None:
-            print("[error] 种子轨道生成失败")
-            sys.exit(1)
+            # Richardson 对大振幅失效，尝试硬编码的 L1 北 Halo 参考值
+            if libration_point == 1 and halo_class == 0 and amplitude_z >= 0.01:
+                print("  Richardson 近似失效，使用硬编码参考值生成种子...")
+                x0_ref = 0.9305269194214338
+                vy0_ref = 0.10431508546142665
+                T_ref = 1.839732
+                state0 = np.array([x0_ref, 0.0, amplitude_z if halo_class == 0 else -amplitude_z, 0.0, vy0_ref, 0.0])
+                corrector.setup_halo_orbit_fixed_z0(
+                    z0=amplitude_z if halo_class == 0 else -amplitude_z,
+                    libration_point=libration_point,
+                )
+                corrector.max_iterations = 150
+                corrector.tolerance = 1e-6
+                guess = e2m2e.core.Orbit(states=state0.reshape(1, -1), times=np.array([0.0]), system=system)
+                guess.period = T_ref
+                seed_halo = corrector.iterate_correction(guess, verbose=False)
+                if seed_halo is not None and seed_halo.correction_success:
+                    print(f"  [ok] 硬编码种子修正成功: 周期={seed_halo.period:.6f} TU")
+                else:
+                    print("[error] 硬编码种子修正也失败")
+                    sys.exit(1)
+            else:
+                print("[error] 种子轨道生成失败")
+                sys.exit(1)
 
         amplitude_z = _tag_halo_seed_orbit(
             seed_halo,
@@ -138,22 +161,37 @@ def main():
         print(f"  x0={np.asarray(seed_halo.states)[0, 0]:.6f}, z0={np.asarray(seed_halo.states)[0, 2]:.6f}")
 
     # =============================================================================
-    # 4. 使用halo_pseudo_arclength_continuation生成轨道族
+    # 4. 生成轨道族
     # =============================================================================
-    print(f"\n开始Halo轨道族伪弧长延拓（continuation_PAL_CR3BP 流程）...")
-
     n_orbits = args.n_orbits
     step_size = args.step_size
-    step_size_negative = args.step_size_negative
+    method = args.method
 
-    family_result = continuation.halo_pseudo_arclength_continuation(
-        seed_orbit=seed_halo,
-        n_orbits=n_orbits,
-        direction="both",
-        step_size=step_size,
-        step_size_negative=step_size_negative,
-        verbose=True,
-    )
+    if method == "natural":
+        print(f"\n开始 Halo 轨道族自然参数延拓（沿 z 方向）...")
+        family_result = continuation.generate_halo_family(
+            seed_orbit=seed_halo,
+            n_orbits=n_orbits,
+            direction=args.direction,
+            step_size=step_size,
+            verbose=True,
+        )
+        # generate_halo_family 返回 list[Orbit]，需要包装为 OrbitFamily
+        from e2m2e.core.orbit import OrbitFamily
+        family = OrbitFamily([seed_halo])
+        for o in family_result[1:]:
+            family.add_orbit(o)
+        family_result = family
+    else:
+        print(f"\n开始 Halo 轨道族伪弧长延拓（continuation_PAL_CR3BP 流程）...")
+        family_result = continuation.halo_pseudo_arclength_continuation(
+            seed_orbit=seed_halo,
+            n_orbits=n_orbits,
+            direction="both",
+            step_size=step_size,
+            step_size_negative=step_size,
+            verbose=True,
+        )
 
     print(f"\n[ok] 轨道族生成完成: 共{len(family_result)}条轨道")
 
