@@ -113,7 +113,7 @@ wheels = [
 
 [[package]]
 name = "e2m2e"
-version = "4.0.0"
+version = "4.1.0"
 source = { directory = "C:/Users/ouyan/codes/e2m2e" }
 dependencies = [
     { name = "matplotlib" },
@@ -133,10 +133,17 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1" },
     { name = "scipy", specifier = ">=1.10" },
+    { name = "sphinx", marker = "extra == 'docs'", specifier = ">=7.0" },
+    { name = "sphinx-copybutton", marker = "extra == 'docs'", specifier = ">=0.5" },
+    { name = "sphinx-rtd-theme", marker = "extra == 'docs'", specifier = ">=2.0" },
+    { name = "sphinxcontrib-mermaid", marker = "extra == 'docs'", specifier = ">=0.9" },
     { name = "spiceypy", specifier = ">=8.1.0" },
     { name = "tqdm", specifier = ">=4.66" },
 ]
-provides-extras = ["dev"]
+provides-extras = ["dev", "docs"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=9.0.3" }]
 
 [[package]]
 name = "fonttools"
