@@ -66,7 +66,7 @@ RO 轨道使用与 DRO 相同的 **2D 对称 X-Fixed** 微分修正算法：
 生成 3:1 RO 轨道族：
 
 ```bash
-python scripts/ro/generate_31_ro_family.py
+python -m tod.pipelines.ro.generate_31_ro_family
 ```
 
 **关键参数**：
@@ -86,7 +86,7 @@ python scripts/ro/generate_31_ro_family.py
 仅生成 3:2 RO 轨道族：
 
 ```bash
-python scripts/ro/generate_32_ro_family.py
+python -m tod.pipelines.ro.generate_32_ro_family
 ```
 
 **关键参数**：
@@ -107,10 +107,10 @@ python scripts/ro/generate_32_ro_family.py
 
 ```bash
 # 可视化 3:1 RO
-python scripts/ro/plot_31_ro_family.py
+python -m tod.pipelines.ro.plot_31_ro_family
 
 # 可视化 3:2 RO
-python scripts/ro/plot_32_ro_family.py
+python -m tod.pipelines.ro.plot_32_ro_family
 ```
 
 **输出**：

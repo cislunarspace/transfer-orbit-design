@@ -16,7 +16,7 @@ GUI 界面中，Plot 类脚本的文件选择器无法区分单轨道文件和�
 
 ### 改动范围
 
-#### 1. `scripts/gui/file_discovery.py`
+#### 1. 
 
 `filter_files` 增加 `name_pattern: str | None` 参数：
 
@@ -39,7 +39,7 @@ def filter_files(
     return result
 ```
 
-#### 2. `scripts/gui/script_registry.py`
+#### 2. 
 
 **`CliParam` 和 `EnvParam` 新增字段：**
 
@@ -67,7 +67,7 @@ class EnvParam:
 | `plot_halo_family` | env `json_file` | `"*_family_*.json"` |
 | `plot_halo_orbit` | `--json-file` | `"*_family_*.json"` |
 
-#### 3. `scripts/gui/main_window.py`
+#### 3. 
 
 三处调用 `filter_files` 的位置都需要传入 `name_pattern`：
 
@@ -95,15 +95,15 @@ class EnvParam:
 
 | 文件 | 改动 |
 |------|------|
-| `scripts/dro/generate/generate_31_dro_orbit.py` | 输出文件名改为 `dro_31_{ts}.json`（当前已是） |
-| `scripts/dro/generate/generate_dro_family.py` | 输出文件名改为 `dro_31_family_{pmin}-{pmax}-{step}_{ts}.json`（当前缺少 `_31`） |
-| `scripts/ro/generate/generate_31_ro_orbit.py` | 输出文件名改为 `ro_31_{ts}.json`（当前已是） |
-| `scripts/ro/generate/generate_31_ro_family.py` | 输出文件名改为 `ro_31_family_{pmin}-{pmax}-{step}_{ts}.json`（当前已是） |
-| `scripts/ro/generate/generate_32_ro_family.py` | 输出文件名改为 `ro_32_family_{pmin}-{pmax}-{step}_{ts}.json`（当前缺少 `_32` 前缀中的 32） |
-| `scripts/ro/generate/generate_aro_family.py` | 输出文件名改为 `aro_32_family_{pmin}-{pmax}-{step}_{ts}.json`，补充参数范围 |
-| `scripts/ro/generate/generate_rro_family.py` | 输出文件名改为 `rro_32_family_{pmin}-{pmax}-{step}_{ts}.json`，补充参数范围 |
-| `scripts/halo/generate/generate_halo_orbit.py` | 输出文件名改为 `halo_{L}_{N|S}_{amp}_{ts}.json`（当前已类似） |
-| `scripts/halo/generate/generate_halo_family.py` | 输出文件名改为 `halo_{L}_{N|S}_family_{amp}_{ts}.json`，补充参数范围 |
+|  | 输出文件名改为 `dro_31_{ts}.json`（当前已是） |
+|  | 输出文件名改为 `dro_31_family_{pmin}-{pmax}-{step}_{ts}.json`（当前缺少 `_31`） |
+|  | 输出文件名改为 `ro_31_{ts}.json`（当前已是） |
+|  | 输出文件名改为 `ro_31_family_{pmin}-{pmax}-{step}_{ts}.json`（当前已是） |
+|  | 输出文件名改为 `ro_32_family_{pmin}-{pmax}-{step}_{ts}.json`（当前缺少 `_32` 前缀中的 32） |
+|  | 输出文件名改为 `aro_32_family_{pmin}-{pmax}-{step}_{ts}.json`，补充参数范围 |
+|  | 输出文件名改为 `rro_32_family_{pmin}-{pmax}-{step}_{ts}.json`，补充参数范围 |
+|  | 输出文件名改为 `halo_{L}_{N|S}_{amp}_{ts}.json`（当前已类似） |
+|  | 输出文件名改为 `halo_{L}_{N|S}_family_{amp}_{ts}.json`，补充参数范围 |
 
 ### Halo 族命名补充说明
 

@@ -58,7 +58,7 @@ DRO 种子轨道使用 **2D 对称 X-Fixed** 微分修正算法生成：
 生成 DRO 轨道族：
 
 ```bash
-python scripts/dro/generate_dro_family.py
+python -m tod.pipelines.dro.generate_dro_family
 ```
 
 **关键参数**：
@@ -78,7 +78,7 @@ python scripts/dro/generate_dro_family.py
 可视化 DRO 轨道族：
 
 ```bash
-python scripts/dro/plot_dro_family.py
+python -m tod.pipelines.dro.plot_dro_family
 ```
 
 **输出**：

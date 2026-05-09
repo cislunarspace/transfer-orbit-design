@@ -74,6 +74,6 @@ ${workspaceFolder}/.venv/Scripts/python.exe
 ## 验证
 
 - VSCode 打开项目时，Python 扩展应自动检测到 `.venv` 中的解释器
-- 运行 `uv run python scripts/gui/main.py` 应正常启动 GUI
+- 运行 `uv run python -m tod.pipelines.gui.main` 应正常启动 GUI
 - `uv run pytest tests/` 应正常执行测试
 - 调试（按 F5）应正常工作

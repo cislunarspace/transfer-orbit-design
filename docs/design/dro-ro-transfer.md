@@ -140,7 +140,7 @@ sidebar_position: 8
 网格搜索转移轨道：
 
 ```bash
-python scripts/transfer/grid_search_dro_to_ro.py
+python -m tod.pipelines.transfer.grid_search_dro_to_ro
 ```
 
 **搜索变量**：
@@ -152,7 +152,7 @@ python scripts/transfer/grid_search_dro_to_ro.py
 优化阶段（NLP/SQP）：
 
 ```bash
-python scripts/transfer/optimize_dro_to_ro.py
+python -m tod.pipelines.transfer.optimize_dro_to_ro
 ```
 
 ### plot_search_results.py
@@ -160,7 +160,7 @@ python scripts/transfer/optimize_dro_to_ro.py
 可视化转移搜索结果：
 
 ```bash
-python scripts/transfer/plot_search_results.py <results.json>
+python -m tod.pipelines.transfer.plot_search_results <results.json>
 ```
 
 **参数**：

@@ -43,7 +43,7 @@ dependencies = [
 
 ```bash
 uv sync                        # 创建环境 + 安装所有依赖
-uv run python scripts/gui/main.py
+uv run python -m tod.pipelines.gui.main
 ```
 
 移除 conda 相关命令。

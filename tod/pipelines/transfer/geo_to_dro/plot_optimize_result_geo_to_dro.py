@@ -37,7 +37,7 @@ from matplotlib.colors import Normalize
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from e2m2e.transfer import load_orbit_from_json
 from tod.commons.common import DU, MU, TU, VU
-from tod.commons.geo import (
+from e2m2e.orbits.geo import (
     R_GEO,
     EARTH_CENTER,
     compute_departure_velocity,

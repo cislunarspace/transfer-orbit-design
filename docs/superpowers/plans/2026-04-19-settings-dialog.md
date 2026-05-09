@@ -14,15 +14,15 @@
 
 | File | Action | Responsibility |
 |------|--------|----------------|
-| `scripts/gui/settings_dialog.py` | Create | `SettingItem` dataclass, `SettingsDialog` class |
-| `scripts/gui/main_window.py` | Modify | `SETTINGS_SCHEMA`, `_current_theme_mode`, `_resolve_theme()`, toolbar button, callbacks |
+|  | Create | `SettingItem` dataclass, `SettingsDialog` class |
+|  | Modify | `SETTINGS_SCHEMA`, `_current_theme_mode`, `_resolve_theme()`, toolbar button, callbacks |
 
 ---
 
 ## Task 1: Create settings_dialog.py
 
 **Files:**
-- Create: `scripts/gui/settings_dialog.py`
+- Create: 
 
 - [ ] **Step 1: Write the file**
 
@@ -234,7 +234,7 @@ git commit -m "feat(gui): add Settings dialog and theme selection"
 
 ## Verification
 
-1. Launch GUI: `uv run python scripts/gui/main.py`
+1. Launch GUI: `uv run python -m tod.pipelines.gui.main`
 2. Click "Settings" button in toolbar
 3. Verify dialog shows theme dropdown with light/dark/system options
 4. Change theme and click OK — verify left panel and params panel colors update

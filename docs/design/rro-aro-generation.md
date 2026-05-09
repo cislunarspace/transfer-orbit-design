@@ -69,7 +69,7 @@ sidebar_position: 7
 生成 RRO 轨道族：
 
 ```bash
-python scripts/ro/generate_rro_family.py
+python -m tod.pipelines.ro.generate_rro_family
 ```
 
 **关键参数**：
@@ -86,7 +86,7 @@ python scripts/ro/generate_rro_family.py
 生成 ARO 轨道族：
 
 ```bash
-python scripts/ro/generate_aro_family.py
+python -m tod.pipelines.ro.generate_aro_family
 ```
 
 **关键参数**：
@@ -105,10 +105,10 @@ python scripts/ro/generate_aro_family.py
 
 ```bash
 # 可视化 RRO
-python scripts/ro/plot_rro_family.py
+python -m tod.pipelines.ro.plot_rro_family
 
 # 可视化 ARO
-python scripts/ro/plot_aro_family.py
+python -m tod.pipelines.ro.plot_aro_family
 ```
 
 ## 与 e2m2e 库的接口

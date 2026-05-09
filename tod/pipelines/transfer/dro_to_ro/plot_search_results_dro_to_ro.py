@@ -52,7 +52,7 @@ from e2m2e.core import CR3BP_System, Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
 
 from tod.commons.common import MU, TU, VU, safe_resolve_within
-from tod.commons.geo import EARTH_CENTER
+from e2m2e.orbits.geo import EARTH_CENTER
 
 # =============================================================================
 # 数据文件：grid_search 输出的 JSON

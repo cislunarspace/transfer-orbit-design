@@ -44,7 +44,7 @@ sidebar_position: 1
 |------|------|
 | [系统概述](guides/system-overview.md) | 项目架构、依赖和安装 |
 | [开发指南](guides/development-guide.md) | e2m2e 依赖管理、IDE 配置 |
-| GUI 使用 | PyQt6 桌面应用，浏览和运行脚本（`scripts/gui/main.py`） |
+| GUI 使用 | PyQt6 桌面应用，浏览和运行脚本（`tod/gui/main.py`） |
 
 ### 参考（`reference/`）
 
@@ -67,35 +67,35 @@ uv sync
 uv pip install -e /path/to/e2m2e
 
 # 生成 DRO 族
-uv run python scripts/dro/generate/generate_dro_family.py
+uv run python -m tod.pipelines.dro.generate.generate_dro_family
 
 # 生成单个 3:1 DRO 轨道
-uv run python scripts/dro/generate/generate_31_dro_orbit.py
+uv run python -m tod.pipelines.dro.generate.generate_31_dro_orbit
 
 # 生成 3:1 RO 族
-uv run python scripts/ro/generate/generate_31_ro_family.py
+uv run python -m tod.pipelines.ro.generate.generate_31_ro_family
 
 # 生成 3:2 RO 族
-uv run python scripts/ro/generate/generate_32_ro_family.py
+uv run python -m tod.pipelines.ro.generate.generate_32_ro_family
 
 # 网格搜索转移轨道
-uv run python scripts/transfer/dro_to_ro/grid_search_dro_to_ro.py
+uv run python -m tod.pipelines.transfer.dro_to_ro.grid_search_dro_to_ro
 
 # NLP 优化阶段
-uv run python scripts/transfer/dro_to_ro/optimize_dro_to_ro.py
+uv run python -m tod.pipelines.transfer.dro_to_ro.optimize_dro_to_ro
 
 # DRO→GEO 转移管线
-uv run python scripts/transfer/dro_to_geo/grid_search_dro_to_geo.py
-uv run python scripts/transfer/dro_to_geo/optimize_dro_to_geo.py
+uv run python -m tod.pipelines.transfer.dro_to_geo.grid_search_dro_to_geo
+uv run python -m tod.pipelines.transfer.dro_to_geo.optimize_dro_to_geo
 
 # 星历修正（需要 SPICE 内核）
-uv run python scripts/ephemeris/correct/correct_dro_to_ephemeris.py
+uv run python -m tod.pipelines.ephemeris.correct.correct_dro_to_ephemeris
 
 # 可视化结果
-uv run python scripts/dro/plot/plot_dro_family.py
-uv run python scripts/ro/plot/plot_31_ro_family.py
-uv run python scripts/ro/plot/plot_32_ro_family.py
-uv run python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py <results.json>
+uv run python -m tod.pipelines.dro.plot.plot_dro_family
+uv run python -m tod.pipelines.ro.plot.plot_31_ro_family
+uv run python -m tod.pipelines.ro.plot.plot_32_ro_family
+uv run python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro <results.json>
 ```
 
 ## 轨道类型

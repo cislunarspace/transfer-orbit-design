@@ -20,7 +20,7 @@ sys.path.insert(0, str(project_root))
 sys.path.insert(0, str(project_root / "scripts"))
 
 from tod.commons.common import DU, MU, TU, VU
-from tod.commons.geo import (
+from e2m2e.orbits.geo import (
     R_GEO,
     V_CIRCULAR_GEO,
     T_GEO,

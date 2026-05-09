@@ -29,7 +29,7 @@ sidebar_position: 12
 | `BaseTransfer` | `e2m2e/transfer/transfer_base.py` | 默认 `DEFAULT_MIN_DISTANCE_THRESHOLD_DU`（100 km） |
 | `TransferSearch` | `e2m2e/transfer/transfer_search.py` | 实例属性 `min_distance_threshold`；若为 `None` 则回退到基类 |
 
-> 需要更严或更松时，为 `min_distance_threshold` 显式赋值（无量纲 DU）。`scripts/transfer/grid_search_dro_to_ro.py` 中 `MIN_DISTANCE_THRESHOLD = 100.0 / DU` 与库默认一致。
+> 需要更严或更松时，为 `min_distance_threshold` 显式赋值（无量纲 DU）。`tod/pipelines/transfer/grid_search_dro_to_ro.py` 中 `MIN_DISTANCE_THRESHOLD = 100.0 / DU` 与库默认一致。
 
 ## 判定逻辑
 

@@ -47,7 +47,7 @@ from e2m2e.core.orbit import Orbit
 from e2m2e.transfer import load_orbit_from_json
 
 from tod.commons.common import DU, MU, TU, VU
-from tod.commons.geo import EARTH_CENTER
+from e2m2e.orbits.geo import EARTH_CENTER
 
 DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
 RO_FILE = project_root / "output/ro/ro_31_3857864753.json"

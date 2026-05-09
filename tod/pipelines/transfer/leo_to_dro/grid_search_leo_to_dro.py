@@ -25,7 +25,7 @@ from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from e2m2e.core.orbit import Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
 from tod.commons.common import DU, MU, TU, VU
-from tod.commons.leo import (
+from e2m2e.orbits.leo import (
     R_LEO,
     V_CIRCULAR_LEO,
     T_LEO,

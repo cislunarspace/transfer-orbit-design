@@ -30,7 +30,7 @@ transfer-orbit-design/
 │   └── ephemeris/           # 星历修正结果
 ├── paper/                   # 参考论文（中文翻译）
 ├── plan/                    # 实施计划
-├── scripts/
+├── tod/
 │   ├── dro/
 │   │   ├── generate/        # DRO 轨道生成脚本
 │   │   └── plot/           # DRO 轨道可视化脚本

@@ -18,7 +18,7 @@ git clone <e2m2e-repository-url> /path/to/e2m2e
 uv pip install -e /path/to/e2m2e
 ```
 
-`pyproject.toml` 中的 `uv sync` 会把本仓库（transfer-orbit-design）作为可编辑包安装，使 `from scripts.utils...` 等导入无需额外配置 `PYTHONPATH`。
+`pyproject.toml` 中的 `uv sync` 会把本仓库（transfer-orbit-design）作为可编辑包安装，使 `from tod.commons...` 等导入无需额外配置 `PYTHONPATH`。
 
 ### IDE 配置（Cursor / VS Code）
 
@@ -36,4 +36,4 @@ pythonVersion = "3.13"
 
 1. **修改 e2m2e**：直接在 e2m2e 源码目录中编辑代码
 2. **git 管理**：在 e2m2e 仓库中进行版本控制
-3. **运行脚本**：`python scripts/dro/generate_dro_family.py`，改动实时生效
+3. **运行脚本**：`python -m tod.pipelines.dro.generate.generate_dro_family`，改动实时生效

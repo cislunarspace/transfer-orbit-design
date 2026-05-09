@@ -194,32 +194,35 @@ from e2m2e.visualization.plotting import FamilyPlotter, TransferPlotter, PlotCon
 
 ## 本地脚本模块
 
-### scripts/utils/constants.py
+### tod/commons/constants.py
 
-物理常数（论文 Table 1）。
-
-### scripts/utils/common.py
-
-共享工具函数和常量 re-export。
+物理常数（论文 Table 1），从 e2m2e.CR3BP_System 导出。
 
 ```python
-from scripts.utils.common import MU, DU, TU, VU, T_MOON
-from scripts.utils.common import ensure_output_dir, get_latest_family_file, save_family_to_file
+from tod.commons.constants import MU, DU, TU, VU, T_MOON
 ```
 
-### scripts/utils/geo.py
+### tod/commons/common.py
+
+共享工具函数（ensure_output_dir、get_latest_family_file、save_family_to_file）。
+
+```python
+from tod.commons.common import ensure_output_dir, get_latest_family_file, save_family_to_file
+```
+
+### e2m2e.orbits.geo
 
 GEO 轨道常量和辅助函数（DRO→GEO 转移用）。
 
 ```python
-from scripts.utils.geo import R_GEO, V_CIRCULAR_GEO, EARTH_CENTER
-from scripts.utils.geo import detect_geo_sphere_crossing, compute_geo_dv2
+from e2m2e.orbits.geo import R_GEO, V_CIRCULAR_GEO, EARTH_CENTER
+from e2m2e.orbits.geo import detect_geo_sphere_crossing, compute_geo_dv2
 ```
 
-### scripts/utils/leo.py
+### e2m2e.orbits.leo
 
 LEO 轨道常量（LEO→DRO 转移用）。
 
 ```python
-from scripts.utils.leo import R_LEO, V_CIRCULAR_LEO
+from e2m2e.orbits.leo import R_LEO, V_CIRCULAR_LEO
 ```
