@@ -357,6 +357,8 @@ class MainWindow(QMainWindow):
         self._env_widgets: dict[str, QComboBox] = {}
         self._cli_widgets: dict[str, QWidget] = {}
         self._param_defaults: dict[QWidget, str] = {}  # 控件 → 默认值（标准单位）
+        self._cli_row_containers: dict[str, QWidget] = {}  # key → row container (for hidden_when)
+        self._cli_row_labels: dict[str, QWidget] = {}  # key → row label (for hidden_when)
         self._widget_factory = CliWidgetFactory(
             files=self._files,
             on_path_mode_changed=self._on_path_mode_changed,
@@ -792,7 +794,12 @@ class MainWindow(QMainWindow):
                 continue
 
             # 必需文件参数验证
-            if cli_param.file_category and not cli_param.default:
+            required = (
+                cli_param.required
+                if cli_param.required is not None
+                else bool(cli_param.file_category and not cli_param.default)
+            )
+            if cli_param.file_category and required:
                 if isinstance(widget, QComboBox):
                     text = widget.currentText().strip()
                     if not text:
@@ -1357,10 +1364,20 @@ class MainWindow(QMainWindow):
         self._param_defaults[widget] = cli_param.default or ""
         self._connect_param_highlight(widget)
 
+        # Wrap in container for hidden_when support
+        row_container = QWidget()
+        row_layout = QHBoxLayout(row_container)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.addWidget(display)
+        self._cli_row_containers[key] = row_container
+
         if cli_param.param_type == "bool":
-            self._params_layout.addRow(display)
+            self._params_layout.addRow(row_container)
         else:
-            self._params_layout.addRow(f"{cli_param.label}:", display)
+            self._params_layout.addRow(f"{cli_param.label}:", row_container)
+            label = self._params_layout.labelForField(row_container)
+            if label is not None:
+                self._cli_row_labels[key] = label
 
     def _connect_param_highlight(self, widget: QWidget) -> None:
         """连接控件值变化信号到默认值高亮更新。"""
@@ -1377,6 +1394,46 @@ class MainWindow(QMainWindow):
                 lambda _, w=widget: self._update_param_highlight(w)
             )
 
+    def _setup_conditional_visibility(self, entry: ScriptEntry) -> None:
+        """设置 hidden_when 条件可见性：当触发控件有值时隐藏目标控件行。"""
+        hidden_map: dict[str, list[str]] = {}
+        for p in entry.cli_params:
+            if p.hidden_when:
+                trigger_key = p.hidden_when.lstrip("-").replace("-", "_")
+                target_key = p.flag.lstrip("-").replace("-", "_")
+                hidden_map.setdefault(trigger_key, []).append(target_key)
+
+        for trigger_key, target_keys in hidden_map.items():
+            trigger_widget = self._cli_widgets.get(trigger_key)
+            if trigger_widget is None:
+                continue
+
+            def update_visibility(
+                _=None,
+                tw=trigger_widget,
+                tks=target_keys,
+            ):
+                has_value = False
+                if isinstance(tw, QComboBox):
+                    has_value = bool(tw.currentText().strip())
+                elif isinstance(tw, QLineEdit):
+                    has_value = bool(tw.text().strip())
+
+                for tk in tks:
+                    container = self._cli_row_containers.get(tk)
+                    if container is not None:
+                        container.setVisible(not has_value)
+                        label = self._cli_row_labels.get(tk)
+                        if label is not None:
+                            label.setVisible(not has_value)
+
+            if isinstance(trigger_widget, QComboBox):
+                trigger_widget.currentTextChanged.connect(update_visibility)
+            elif isinstance(trigger_widget, QLineEdit):
+                trigger_widget.textChanged.connect(update_visibility)
+
+            update_visibility()
+
     def _rebuild_params_panel(self, entry: ScriptEntry) -> None:
         """根据选中的脚本重建运行参数面板。"""
         # 清空旧控件
@@ -1390,6 +1447,8 @@ class MainWindow(QMainWindow):
         self._env_widgets.clear()
         self._cli_widgets.clear()
         self._param_defaults.clear()
+        self._cli_row_containers.clear()
+        self._cli_row_labels.clear()
         self._widget_factory.reset()
         self._widget_factory._files = self._files
 
@@ -1591,10 +1650,19 @@ class MainWindow(QMainWindow):
                     self._param_defaults[widget] = cli_param.default or ""
                     self._connect_param_highlight(widget)
 
+                    row_container = QWidget()
+                    row_layout = QHBoxLayout(row_container)
+                    row_layout.setContentsMargins(0, 0, 0, 0)
+                    row_layout.addWidget(display)
+                    self._cli_row_containers[key] = row_container
+
                     if cli_param.param_type == "bool":
-                        adv_layout.addRow(display)
+                        adv_layout.addRow(row_container)
                     else:
-                        adv_layout.addRow(f"{cli_param.label}:", display)
+                        adv_layout.addRow(f"{cli_param.label}:", row_container)
+                        label = adv_layout.labelForField(row_container)
+                        if label is not None:
+                            self._cli_row_labels[key] = label
 
                 adv_group.setLayout(adv_layout)
                 self._params_layout.addRow(adv_group)
@@ -1611,6 +1679,9 @@ class MainWindow(QMainWindow):
                 val = saved[cli_param.flag]
                 self._set_widget_std_value(widget, val)
                 self._param_defaults[widget] = val
+
+        # 设置条件可见性（hidden_when）
+        self._setup_conditional_visibility(entry)
 
         # 保存/恢复默认值按钮
         if has_any:

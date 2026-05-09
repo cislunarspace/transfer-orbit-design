@@ -43,6 +43,8 @@ class CliParam:
     choice_values: dict[str, str] | None = None  # 显示标签 → CLI 值映射（如 {"北族": "0"}）
     path_mode: str = "absolute"       # "absolute" | "relative" — 文件下拉框的路径显示模式
     name_pattern: str | None = None  # 文件名过滤模式，如 "*_family_*.json"
+    hidden_when: str | None = None   # 格式 "flag==condition"：当指定 flag 的控件有非空值时隐藏此参数
+    required: bool | None = None     # None 保持旧逻辑；False 可声明可选文件参数
 
 
 @dataclass(frozen=True)
@@ -248,11 +250,12 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             group_label="生成",
             cli_params=[
                 CliParam("--libration-point", "平动点", "str", "L1", "平动点：L1, L2, L3", choices=("L1", "L2", "L3")),
-                CliParam("--amplitude-z", "Z 振幅", "float", "0.23", "Z 方向振幅", unit_group="distance", default_unit="DU"),
                 CliParam("--halo-class", "Halo 类型", "str", "北族", help="Halo 轨道族类型", choices=("北族", "南族"), choice_values={"北族": "0", "南族": "1"}),
+                CliParam("--seed-file", "种子轨道文件", "str", help="已有 Halo 轨道 JSON 文件（提供时跳过种子生成）", file_category="halo", name_pattern="halo_L[123]_[NS]_[0-9]*.json", required=False),
+                CliParam("--amplitude-z", "Z 振幅", "float", "0.23", "Z 方向振幅", unit_group="distance", default_unit="DU", hidden_when="--seed-file"),
                 CliParam("--n-orbits", "轨道数量", "int", "20", "延拓轨道数量"),
-                CliParam("--step-size", "正向步长", "float", "0.0045", "正向延拓步长"),
-                CliParam("--step-size-negative", "负向步长", "float", "0.009", "负向延拓步长"),
+                CliParam("--step-size", "正向步长", "float", "0.0045", "正向延拓步长", advanced=True),
+                CliParam("--step-size-negative", "负向步长", "float", "0.009", "负向延拓步长", advanced=True),
             ],
         ),
         ScriptEntry(

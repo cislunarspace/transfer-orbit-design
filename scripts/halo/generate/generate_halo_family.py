@@ -1,7 +1,11 @@
 """
 生成 Halo 轨道族
 
-使用Richardson三阶近似生成种子轨道，结合伪弧长延拓方法生成完整的Halo轨道族。
+支持两种种子轨道来源：
+1. 从文件加载（--seed-file）：直接加载已有的精确 Halo 轨道 JSON 文件
+2. 自动生成：使用 Richardson 三阶近似 + 微分修正生成精确种子
+
+种子轨道通过伪弧长延拓方法生成完整的 Halo 轨道族。
 
 参考文献:
     Richardson, D. L. (1980). Analytic construction of periodic orbits
@@ -15,6 +19,7 @@
 """
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -27,12 +32,43 @@ import time
 from scripts.utils.common import MU
 
 import e2m2e
-from e2m2e.core import Orbit, OrbitFamily
+from e2m2e.core import Orbit
 
 OUTPUT_DIR = project_root / "output" / "halo"
 
+LIBRATION_POINT_MAP = {"L1": 1, "L2": 2, "L3": 3}
 
-def parse_args():
+
+def _load_seed_orbit(seed_file: str, system) -> Orbit:
+    seed_path = Path(seed_file)
+    with seed_path.open(encoding="utf-8") as f:
+        data = json.load(f)
+
+    if "orbits" in data:
+        return Orbit.load_from_file(seed_path, system=system, orbit_index=0)
+    return Orbit.load_from_file(seed_path, system=system)
+
+
+def _tag_halo_seed_orbit(
+    seed_halo: Orbit,
+    *,
+    libration_point: int,
+    halo_class: int,
+    amplitude_z: float,
+) -> float:
+    params = getattr(seed_halo, "parameters", None)
+    if not isinstance(params, dict):
+        params = {}
+        seed_halo.parameters = params
+
+    seed_halo.family_type = "halo"
+    params["libration_point"] = int(params.get("libration_point", libration_point))
+    params["halo_class"] = int(params.get("halo_class", halo_class))
+    params["amplitude_z"] = abs(float(params.get("amplitude_z", amplitude_z)))
+    return float(params["amplitude_z"])
+
+
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="生成 Halo 轨道族（伪弧长延拓）")
     parser.add_argument("--libration-point", type=str, default="L1", choices=["L1", "L2", "L3"], help="平动点：L1, L2, L3")
     parser.add_argument("--amplitude-z", type=float, default=0.23, help="Z 方向振幅（无量纲）")
@@ -40,7 +76,8 @@ def parse_args():
     parser.add_argument("--n-orbits", type=int, default=20, help="延拓轨道数量")
     parser.add_argument("--step-size", type=float, default=0.0045, help="正向延拓步长")
     parser.add_argument("--step-size-negative", type=float, default=0.009, help="负向延拓步长")
-    return parser.parse_args()
+    parser.add_argument("--seed-file", type=str, default=None, help="种子轨道 JSON 文件路径（提供时跳过种子生成）")
+    return parser.parse_args(argv)
 
 
 def main():
@@ -55,33 +92,50 @@ def main():
     # =============================================================================
     # 2. Halo轨道参数
     # =============================================================================
-    LIBRATION_POINT_MAP = {"L1": 1, "L2": 2, "L3": 3}
     libration_point = LIBRATION_POINT_MAP[args.libration_point]  # 1=L1, 2=L2, 3=L3
     amplitude_z = args.amplitude_z  # Z方向振幅
     halo_class = args.halo_class  # 0=北Halo (Class I), 1=南Halo (Class II)
 
     # =============================================================================
-    # 3. 创建延拓器并生成种子轨道
+    # 3. 获取种子轨道
     # =============================================================================
     corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamics)
     continuation = e2m2e.algorithms.Continuation(corrector=corrector)
 
-    print(f"正在生成种子轨道: L{libration_point} {'北' if halo_class == 0 else '南'} Halo")
-    print(f"  Z振幅: {amplitude_z}")
+    if args.seed_file:
+        print(f"从文件加载种子轨道: {args.seed_file}")
+        seed_halo = _load_seed_orbit(args.seed_file, system=system)
+        amplitude_z = _tag_halo_seed_orbit(
+            seed_halo,
+            libration_point=libration_point,
+            halo_class=halo_class,
+            amplitude_z=abs(float(np.asarray(seed_halo.states)[0, 2])),
+        )
+        print(f"[ok] 种子轨道加载成功: 周期={seed_halo.period:.6f} TU")
+        print(f"  x0={np.asarray(seed_halo.states)[0, 0]:.6f}, z0={np.asarray(seed_halo.states)[0, 2]:.6f}")
+    else:
+        print(f"正在生成种子轨道: L{libration_point} {'北' if halo_class == 0 else '南'} Halo")
+        print(f"  Z振幅: {amplitude_z}")
 
-    seed_halo = continuation.generate_halo_seed_orbit(
-        libration_point=libration_point,
-        amplitude_z=amplitude_z,
-        halo_class=halo_class,
-        verbose=False,
-    )
+        seed_halo = continuation.generate_halo_seed_orbit(
+            libration_point=libration_point,
+            amplitude_z=amplitude_z,
+            halo_class=halo_class,
+            verbose=False,
+        )
 
-    if seed_halo is None:
-        print("[error] 种子轨道生成失败")
-        sys.exit(1)
+        if seed_halo is None:
+            print("[error] 种子轨道生成失败")
+            sys.exit(1)
 
-    print(f"[ok] 种子轨道生成成功: 周期={seed_halo.period:.6f} TU")
-    print(f"  x0={np.asarray(seed_halo.states)[0, 0]:.6f}, z0={np.asarray(seed_halo.states)[0, 2]:.6f}")
+        amplitude_z = _tag_halo_seed_orbit(
+            seed_halo,
+            libration_point=libration_point,
+            halo_class=halo_class,
+            amplitude_z=amplitude_z,
+        )
+        print(f"[ok] 种子轨道生成成功: 周期={seed_halo.period:.6f} TU")
+        print(f"  x0={np.asarray(seed_halo.states)[0, 0]:.6f}, z0={np.asarray(seed_halo.states)[0, 2]:.6f}")
 
     # =============================================================================
     # 4. 使用halo_pseudo_arclength_continuation生成轨道族

@@ -11,8 +11,10 @@ import matplotlib
 
 matplotlib.use("Agg")  # Use non-GUI backend to suppress plot display
 
+import json
 import pytest
 import importlib.util
+from fnmatch import fnmatch
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -153,6 +155,245 @@ class TestGenerate32ROParameters:
         assert param_min < param_max
         assert -2 < param_min < 0
         assert -2 < param_max < 0
+
+
+def _load_halo_family_module():
+    """Load generate_halo_family module, skipping if e2m2e is missing."""
+    script_path = (
+        project_root / "scripts" / "halo" / "generate" / "generate_halo_family.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "generate_halo_family", script_path
+    )
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)  # type: ignore[union-attr]
+    except ImportError as e:
+        pytest.skip(f"Missing dependency: {e}")
+    return module
+
+
+class TestGenerateHaloFamilyImports:
+    """Test generate_halo_family.py import and parameter parsing"""
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_generate_halo_family_imports(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+        """Test that generate_halo_family.py can be imported without errors"""
+        try:
+            _load_halo_family_module()
+        except Exception as e:
+            pytest.fail(f"Script import failed with unexpected error: {e}")
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_generate_halo_family_seed_file_param(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+        """Test that --seed-file parameter is recognized and parsed"""
+        module = _load_halo_family_module()
+        args = module.parse_args(["--seed-file", "output/halo/test_seed.json"])
+        assert args.seed_file == "output/halo/test_seed.json"
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_generate_halo_family_richardson_params_defaults(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+        """Test that Richardson seed generation parameters have reasonable defaults."""
+        module = _load_halo_family_module()
+        args = module.parse_args([])
+        assert args.seed_file is None
+        assert args.libration_point == "L1"
+        assert args.amplitude_z == pytest.approx(0.23)
+        assert args.halo_class == 0
+
+
+class TestGenerateHaloFamilySeedFile:
+    """Test generate_halo_family.py seed file loading path"""
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_seed_file_restores_metadata_before_continuation(
+        self,
+        mock_cont_cls,
+        mock_corr_cls,
+        mock_dyn,
+        mock_sys,
+        tmp_path,
+    ):
+        """Seed-file path must tag the loaded orbit before PAL continuation."""
+        module = _load_halo_family_module()
+
+        mock_seed = MagicMock()
+        mock_seed.period = 1.84
+        mock_seed.states = [[0.93, 0, -0.27, 0, 0.1, 0]]
+        mock_seed.parameters = {}
+
+        mock_family = MagicMock()
+        mock_family.__len__ = lambda self: 5
+        mock_orbit = MagicMock()
+        mock_orbit.parameters = {"amplitude_z": 0.27}
+        mock_family.__iter__ = lambda self: iter([mock_orbit] * 5)
+
+        mock_cont_inst = mock_cont_cls.return_value
+        mock_cont_inst.halo_pseudo_arclength_continuation.return_value = mock_family
+
+        seed_path = tmp_path / "halo_L2_S_0.27_123.json"
+        seed_path.write_text(json.dumps({
+            "states": [[0.93, 0, 0.23, 0, 0.1, 0]],
+            "times": [0],
+            "period": 1.84,
+        }), encoding="utf-8")
+
+        with patch("e2m2e.core.Orbit.load_from_file", return_value=mock_seed) as mock_load:
+            with patch.object(module, "parse_args", return_value=module.parse_args(
+                [
+                    "--seed-file",
+                    str(seed_path),
+                    "--libration-point",
+                    "L2",
+                    "--halo-class",
+                    "1",
+                    "--n-orbits",
+                    "5",
+                ]
+            )):
+                module.main()
+
+        mock_load.assert_called_once()
+        mock_cont_inst.generate_halo_seed_orbit.assert_not_called()
+        call_kwargs = mock_cont_inst.halo_pseudo_arclength_continuation.call_args.kwargs
+        assert call_kwargs["seed_orbit"] is mock_seed
+        assert mock_seed.family_type == "halo"
+        assert mock_seed.parameters == {
+            "libration_point": 2,
+            "halo_class": 1,
+            "amplitude_z": pytest.approx(0.27),
+        }
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_seed_family_file_loads_first_orbit(
+        self,
+        mock_cont_cls,
+        mock_corr_cls,
+        mock_dyn,
+        mock_sys,
+        tmp_path,
+    ):
+        """A family JSON selected as a seed file should load orbit_index=0."""
+        module = _load_halo_family_module()
+
+        mock_seed = MagicMock()
+        mock_seed.period = 1.84
+        mock_seed.states = [[0.93, 0, 0.23, 0, 0.1, 0]]
+        mock_seed.parameters = {}
+
+        mock_family = MagicMock()
+        mock_family.__len__ = lambda self: 1
+        mock_orbit = MagicMock()
+        mock_orbit.parameters = {"amplitude_z": 0.23}
+        mock_family.__iter__ = lambda self: iter([mock_orbit])
+
+        mock_cont_inst = mock_cont_cls.return_value
+        mock_cont_inst.halo_pseudo_arclength_continuation.return_value = mock_family
+
+        family_path = tmp_path / "halo_L1_N_family_0.23_123.json"
+        family_path.write_text(json.dumps({
+            "orbits": [
+                {
+                    "states": [[0.93, 0, 0.23, 0, 0.1, 0]],
+                    "times": [0],
+                    "period": 1.84,
+                }
+            ]
+        }), encoding="utf-8")
+
+        with patch("e2m2e.core.Orbit.load_from_file", return_value=mock_seed) as mock_load:
+            with patch.object(module, "parse_args", return_value=module.parse_args(
+                ["--seed-file", str(family_path), "--n-orbits", "1"]
+            )):
+                module.main()
+
+        assert mock_load.call_args.kwargs["orbit_index"] == 0
+        mock_cont_inst.halo_pseudo_arclength_continuation.assert_called_once()
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_no_seed_file_uses_richardson_seed_generation(self, mock_cont_cls, mock_corr_cls, mock_dyn, mock_sys):
+        """Without --seed-file, the family script should use Richardson seed generation."""
+        module = _load_halo_family_module()
+
+        mock_seed = MagicMock()
+        mock_seed.period = 1.84
+        mock_seed.states = [[0.93, 0, -0.31, 0, 0.1, 0]]
+        mock_seed.parameters = {}
+
+        mock_corr_inst = mock_corr_cls.return_value
+
+        mock_family = MagicMock()
+        mock_family.__len__ = lambda self: 3
+        mock_orbit = MagicMock()
+        mock_orbit.parameters = {"amplitude_z": 0.31}
+        mock_family.__iter__ = lambda self: iter([mock_orbit] * 3)
+
+        mock_cont_inst = mock_cont_cls.return_value
+        mock_cont_inst.generate_halo_seed_orbit.return_value = mock_seed
+        mock_cont_inst.halo_pseudo_arclength_continuation.return_value = mock_family
+
+        with patch.object(module, "parse_args", return_value=module.parse_args(
+            [
+                "--libration-point",
+                "L2",
+                "--amplitude-z",
+                "0.31",
+                "--halo-class",
+                "1",
+                "--n-orbits",
+                "3",
+            ]
+        )):
+            module.main()
+
+        mock_cont_inst.generate_halo_seed_orbit.assert_called_once_with(
+            libration_point=2,
+            amplitude_z=0.31,
+            halo_class=1,
+            verbose=False,
+        )
+        mock_corr_inst.setup_halo_orbit_fixed_z0.assert_not_called()
+        mock_corr_inst.iterate_correction.assert_not_called()
+        assert mock_seed.parameters == {
+            "libration_point": 2,
+            "halo_class": 1,
+            "amplitude_z": pytest.approx(0.31),
+        }
+        mock_cont_inst.halo_pseudo_arclength_continuation.assert_called_once()
+
+
+class TestHaloGuiRegistry:
+    """Test GUI registry details for Halo family generation."""
+
+    def test_seed_file_pattern_excludes_halo_family_outputs(self):
+        """Seed file picker should not offer generated family JSON by default."""
+        from scripts.gui.script_registry import SCRIPTS
+
+        entry = next(e for e in SCRIPTS["Halo"] if e.name == "generate_halo_family")
+        seed_param = next(p for p in entry.cli_params if p.flag == "--seed-file")
+
+        assert seed_param.name_pattern is not None
+        assert fnmatch("halo_L2_S_0.23_123456.json", seed_param.name_pattern)
+        assert not fnmatch("halo_L2_S_family_0.23_123456.json", seed_param.name_pattern)
 
 
 class TestGenerateDROParameters:
