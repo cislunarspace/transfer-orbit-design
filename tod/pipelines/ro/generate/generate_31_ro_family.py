@@ -17,6 +17,7 @@
 """
 
 import argparse
+import sys
 from pathlib import Path
 
 import e2m2e
@@ -98,4 +99,17 @@ def main():
 
 
 if __name__ == "__main__":
+    # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
+    # 命令行调用时不影响。
+    # 想调哪个值就改下方对应字面量即可。
+    if len(sys.argv) == 1:
+        sys.argv += [
+            "--x0", "-0.8805",                            # 初始 x 坐标（无量纲）
+            "--vy0", "0.3921",                            # 初始 y 方向速度（无量纲）
+            "--period", "6.283185307179586",              # 轨道周期（无量纲，27.32/TU）
+            "--param-min", "-0.8905",                     # 延拓参数范围下限
+            "--param-max", "-0.8305",                     # 延拓参数范围上限
+            "--step-size", "0.001",                       # 延拓步长
+        ]
+        print("[debug] 使用代码内置调试参数")
     main()

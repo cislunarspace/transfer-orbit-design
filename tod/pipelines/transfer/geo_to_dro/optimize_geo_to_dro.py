@@ -724,4 +724,19 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
+    # 命令行调用时不影响。
+    # 想调哪个值就改下方对应字面量即可。
+    if len(sys.argv) == 1:
+        sys.argv += [
+            "--alpha-min", "1.0",                         # alpha 搜索下界（ALPHA_MIN）
+            "--alpha-max", "1.5",                         # alpha 搜索上界（ALPHA_MAX）
+            "--t-min", "5.0",                             # 转移时间下界（T_MIN）
+            "--t-max", "60.0",                            # 转移时间上界（T_MAX）
+            "--t-ins-min", "0.0",                         # DRO 插入时间下界（T_INS_MIN）
+            "--t-ins-max", "10.0",                        # DRO 插入时间上界（T_INS_MAX）
+            "--nlp-maxiter", "100",                       # NLP 最大迭代次数（NLP_MAXITER）
+            "--nlp-ftol", "1e-8",                         # NLP 函数容差（NLP_FTOL）
+        ]
+        print("[debug] 使用代码内置调试参数")
     main()

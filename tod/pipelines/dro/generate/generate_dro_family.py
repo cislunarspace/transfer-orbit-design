@@ -10,6 +10,7 @@
 """
 
 import argparse
+import sys
 from pathlib import Path
 
 import time
@@ -96,4 +97,17 @@ def main():
 
 
 if __name__ == "__main__":
+    # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
+    # 命令行调用时不影响。
+    # 想调哪个值就改下方对应字面量即可。
+    if len(sys.argv) == 1:
+        sys.argv += [
+            "--x0", "0.79188556619742",                    # 种子轨道初始 x 坐标（无量纲）
+            "--vy0", "0.53682",                            # 种子轨道初始 vy 速度（无量纲）
+            "--period", "3.472526005624708",               # 初始周期猜测（无量纲）
+            "--param-min", "0.141886",                     # 延拓参数范围下限（x0 最小值）
+            "--param-max", "0.9",                          # 延拓参数范围上限（x0 最大值）
+            "--step-size", "0.005",                        # 延拓步长
+        ]
+        print("[debug] 使用代码内置调试参数")
     main()

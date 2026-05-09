@@ -20,6 +20,7 @@
 """
 
 import argparse
+import sys
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
@@ -314,4 +315,13 @@ def main():
 
 
 if __name__ == "__main__":
+    # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
+    # 命令行调用时不影响。
+    # 想调哪个值就改下方对应字面量即可。
+    if len(sys.argv) == 1:
+        sys.argv += [
+            "--plane", "xy",                              # 投影平面
+            "--fig-size", "10", "8",                      # 图形大小 (宽 高)
+        ]
+        print("[debug] 使用代码内置调试参数")
     main()

@@ -503,4 +503,15 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
+    # 命令行调用时不影响。
+    # 想调哪个值就改下方对应字面量即可。
+    if len(sys.argv) == 1:
+        sys.argv += [
+            "--dpi", "150",                               # 图像 DPI
+            "--idx", "best",                              # 选择结果索引
+            "--seed", "0",                                # 随机种子
+            "--max-points", "500",                        # --orbit --idx all 时最多绘制条数
+        ]
+        print("[debug] 使用代码内置调试参数")
     main()

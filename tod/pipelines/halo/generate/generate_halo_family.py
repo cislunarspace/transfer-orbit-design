@@ -294,4 +294,18 @@ def main():
 
 
 if __name__ == "__main__":
+    # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
+    # 命令行调用时不影响。
+    # 想调哪个值就改下方对应字面量即可。
+    if len(sys.argv) == 1:
+        sys.argv += [
+            "--libration-point", "L1",                    # 平动点：L1, L2, L3
+            "--amplitude-z", "0.001",                     # Z 方向振幅（无量纲）
+            "--halo-class", "0",                          # 0=北 Halo, 1=南 Halo
+            "--n-orbits", "20",                           # 延拓轨道数量
+            "--step-size", "0.002",                       # 自然参数延拓 z 方向步长
+            "--direction", "positive",                    # 延拓方向
+            "--method", "natural",                        # 延拓方法
+        ]
+        print("[debug] 使用代码内置调试参数")
     main()

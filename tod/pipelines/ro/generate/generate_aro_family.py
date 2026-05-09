@@ -17,6 +17,7 @@
 """
 
 import argparse
+import sys
 from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
@@ -243,4 +244,18 @@ def main():
 
 
 if __name__ == "__main__":
+    # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
+    # 命令行调用时不影响。
+    # 想调哪个值就改下方对应字面量即可。
+    if len(sys.argv) == 1:
+        sys.argv += [
+            "--target-x0", "-1.1318",                     # 目标 x0 坐标（无量纲）
+            "--z0", "0.1999",                             # 固定 z0 坐标（无量纲）
+            "--vy0", "0.4",                               # 初始 y 方向速度猜测（无量纲）
+            "--period", "13.79908925442076",              # 初始周期猜测（无量纲，60.0/TU）
+            "--x-min", "-1.2",                            # 延拓 x0 范围下限
+            "--x-max", "-0.9",                            # 延拓 x0 范围上限
+            "--step-size", "0.005",                       # 延拓步长
+        ]
+        print("[debug] 使用代码内置调试参数")
     main()

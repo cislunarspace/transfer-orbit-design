@@ -13,6 +13,7 @@
 """
 
 import argparse
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -184,4 +185,13 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
+    # 命令行调用时不影响。
+    # 想调哪个值就改下方对应字面量即可。
+    if len(sys.argv) == 1:
+        sys.argv += [
+            "--start", "-1",                              # 起始轨道索引，-1 表示从第一条
+            "--end", "-1",                                # 结束轨道索引（含），-1 表示到最后一条
+        ]
+        print("[debug] 使用代码内置调试参数")
     main()

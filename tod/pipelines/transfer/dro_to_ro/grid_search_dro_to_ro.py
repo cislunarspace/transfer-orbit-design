@@ -12,6 +12,7 @@ Windows 多进程需要 ``if __name__ == "__main__"``，请勿删除末尾保护
 """
 
 import argparse
+import sys
 import json
 import os
 import numpy as np
@@ -183,4 +184,20 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
+    # 命令行调用时不影响。
+    # 想调哪个值就改下方对应字面量即可。
+    if len(sys.argv) == 1:
+        sys.argv += [
+            "--n-departure", "200",                       # 出发时间网格数
+            "--n-alpha", "100",                           # alpha 网格密度
+            "--max-transfer-time", "22.998482090701266",  # 最大转移时间（无量纲，100.0/TU）
+            "--alpha-min", "0.5",                         # alpha 搜索下界
+            "--alpha-max", "2.5",                         # alpha 搜索上界
+            "--intersection-threshold", "0.001",          # 相交判定距离阈值
+            "--min-distance", "0.0002601422978369168",    # 候选解最小距离阈值（100.0/DU）
+            "--earth-radius", "0.0005202845956738336",    # 地球碰撞检测半径（200.0/DU）
+            "--moon-radius", "0.0002601422978369168",     # 月球碰撞检测半径（100.0/DU）
+        ]
+        print("[debug] 使用代码内置调试参数")
     main()

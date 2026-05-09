@@ -797,4 +797,16 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
+    # 命令行调用时不影响。
+    # 想调哪个值就改下方对应字面量即可。
+    if len(sys.argv) == 1:
+        sys.argv += [
+            "--alpha-min", "0.5",                         # alpha 搜索下界（ALPHA_MIN）
+            "--alpha-max", "2.5",                         # alpha 搜索上界（ALPHA_MAX）
+            "--nlp-maxiter", "100",                       # NLP 最大迭代次数（NLP_MAXITER）
+            "--nlp-ftol", "1e-6",                         # NLP 函数容差（NLP_FTOL）
+            "--velocity-angle-tol", "0.05",              # 速度方向容差（VELOCITY_ANGLE_TOL）
+        ]
+        print("[debug] 使用代码内置调试参数")
     main()
