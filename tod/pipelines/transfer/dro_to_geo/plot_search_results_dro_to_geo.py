@@ -9,17 +9,17 @@
 叠加绘制 DRO 出发轨道与 GEO 球面，直观展示转移路径。
 
 用法:
-    python scripts/transfer/dro_to_geo/plot_search_results_dro_to_geo.py              # 仅 α–Δv 散点图
-    python scripts/transfer/dro_to_geo/plot_search_results_dro_to_geo.py --time-dv   # 转移时间–Δv 散点图
-    python scripts/transfer/dro_to_geo/plot_search_results_dro_to_geo.py --orbit      # 转移轨道 3D 示意图
-    python scripts/transfer/dro_to_geo/plot_search_results_dro_to_geo.py --orbit --save output/transfer/figures/search_geo_orbit.png
-    python scripts/transfer/dro_to_geo/plot_search_results_dro_to_geo.py --orbit --idx 0        # 绘制第 idx 个可行解
-    python scripts/transfer/dro_to_geo/plot_search_results_dro_to_geo.py --orbit --idx best      # 绘制 Δv 最小的可行解
-    python scripts/transfer/dro_to_geo/plot_search_results_dro_to_geo.py --orbit --idx random --seed 42  # 随机一个可行解
-    python scripts/transfer/dro_to_geo/plot_search_results_dro_to_geo.py --orbit --idx all        # 绘制全部可行解（子采样受 --max-points 控制）
-    python scripts/transfer/dro_to_geo/plot_search_results_dro_to_geo.py --orbit --idx all --max-points 100  # 最多绘制 100 条
-    python scripts/transfer/dro_to_geo/plot_search_results_dro_to_geo.py --orbit --idx best:10      # 绘制 Δv 最小的 10 条轨道
-    python scripts/transfer/dro_to_geo/plot_search_results_dro_to_geo.py --interactive           # 交互式逐条浏览（按转移时间排序）
+    python -m tod.pipelines.transfer.dro_to_geo.plot_search_results_dro_to_geo              # 仅 α–Δv 散点图
+    python -m tod.pipelines.transfer.dro_to_geo.plot_search_results_dro_to_geo --time-dv   # 转移时间–Δv 散点图
+    python -m tod.pipelines.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit      # 转移轨道 3D 示意图
+    python -m tod.pipelines.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --save output/transfer/figures/search_geo_orbit.png
+    python -m tod.pipelines.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --idx 0        # 绘制第 idx 个可行解
+    python -m tod.pipelines.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --idx best      # 绘制 Δv 最小的可行解
+    python -m tod.pipelines.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --idx random --seed 42  # 随机一个可行解
+    python -m tod.pipelines.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --idx all        # 绘制全部可行解（子采样受 --max-points 控制）
+    python -m tod.pipelines.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --idx all --max-points 100  # 最多绘制 100 条
+    python -m tod.pipelines.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --idx best:10      # 绘制 Δv 最小的 10 条轨道
+    python -m tod.pipelines.transfer.dro_to_geo.plot_search_results_dro_to_geo --interactive           # 交互式逐条浏览（按转移时间排序）
 """
 
 from __future__ import annotations

@@ -10,16 +10,16 @@ DRO → RO 转移轨道网格搜索结果可视化
 叠加绘制 DRO 出发轨道与 RO 到达轨道，直观展示转移路径。
 
 用法:
-    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py              # 仅 α–Δv 散点图
-    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --time-dv   # 转移时间–Δv 散点图
-    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit      # 转移轨道 3D 示意图
-    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --save output/transfer/figures/search_orbit.png
-    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --idx 0        # 绘制第 idx 个可行解
-    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --idx best        # 绘制 Δv 最小的可行解
-    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --idx random --seed 42  # 随机一个可行解
-    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --idx all          # 绘制全部可行解（子采样受 --max-points 控制）
-    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --idx all --max-points 100  # 最多绘制 100 条
-    python scripts/transfer/dro_to_ro/plot_search_results_dro_to_ro.py --orbit --idx best:10      # 绘制 Δv 最小的 10 条轨道
+    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro              # 仅 α–Δv 散点图
+    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --time-dv   # 转移时间–Δv 散点图
+    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit      # 转移轨道 3D 示意图
+    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --save output/transfer/figures/search_orbit.png
+    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --idx 0        # 绘制第 idx 个可行解
+    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --idx best        # 绘制 Δv 最小的可行解
+    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --idx random --seed 42  # 随机一个可行解
+    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --idx all          # 绘制全部可行解（子采样受 --max-points 控制）
+    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --idx all --max-points 100  # 最多绘制 100 条
+    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --idx best:10      # 绘制 Δv 最小的 10 条轨道
 """
 
 from __future__ import annotations

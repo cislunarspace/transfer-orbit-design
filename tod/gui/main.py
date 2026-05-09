@@ -1,4 +1,4 @@
-"""GUI 入口 — python scripts/gui/main.py"""
+"""GUI 入口 — python -m tod.gui.main"""
 
 import os
 import sys

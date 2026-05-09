@@ -5,17 +5,17 @@ GEO → DRO 优化结果可视化
 支持 Δv 汇总图、散点图、3D 转移轨道图和交互式浏览模式。
 
 运行:
-    python scripts/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py              # Δv 汇总 + 散点图
-    python scripts/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py --time-dv    # 转移时间 vs Δv
-    python scripts/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py --orbit       # 3D 轨道图 (best:5)
-    python scripts/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py --orbit --idx best:1    # 最优解
-    python scripts/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py --orbit --idx 0          # 第 0 条
-    python scripts/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py --orbit --idx all         # 全部
-    python scripts/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py --orbit --idx best:10     # Δv 最小 10 条
-    python scripts/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py --orbit --idx random --seed 42
-    python scripts/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py --interactive             # 交互式浏览
-    python scripts/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py --save output/transfer/fig.png
-    python scripts/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py --max-pos-err 50         # 仅显示 pos<50km
+    python -m tod.pipelines.transfer.geo_to_dro.plot_optimize_result_geo_to_dro              # Δv 汇总 + 散点图
+    python -m tod.pipelines.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --time-dv    # 转移时间 vs Δv
+    python -m tod.pipelines.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --orbit       # 3D 轨道图 (best:5)
+    python -m tod.pipelines.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --orbit --idx best:1    # 最优解
+    python -m tod.pipelines.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --orbit --idx 0          # 第 0 条
+    python -m tod.pipelines.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --orbit --idx all         # 全部
+    python -m tod.pipelines.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --orbit --idx best:10     # Δv 最小 10 条
+    python -m tod.pipelines.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --orbit --idx random --seed 42
+    python -m tod.pipelines.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --interactive             # 交互式浏览
+    python -m tod.pipelines.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --save output/transfer/fig.png
+    python -m tod.pipelines.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --max-pos-err 50         # 仅显示 pos<50km
 """
 
 import argparse

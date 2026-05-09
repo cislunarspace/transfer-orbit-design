@@ -5,10 +5,10 @@ GEO → DRO 搜索结果可视化
 支持散点图、3D 转移轨道图和交互式浏览模式。
 
 运行:
-    python scripts/transfer/geo_to_dro/plot_search_results_geo_to_dro.py              # alpha vs Δv 散点图
-    python scripts/transfer/geo_to_dro/plot_search_results_geo_to_dro.py --time-dv    # 转移时间 vs Δv
-    python scripts/transfer/geo_to_dro/plot_search_results_geo_to_dro.py --orbit       # 3D 轨道图
-    python scripts/transfer/geo_to_dro/plot_search_results_geo_to_dro.py --interactive # 交互式浏览
+    python -m tod.pipelines.transfer.geo_to_dro.plot_search_results_geo_to_dro              # alpha vs Δv 散点图
+    python -m tod.pipelines.transfer.geo_to_dro.plot_search_results_geo_to_dro --time-dv    # 转移时间 vs Δv
+    python -m tod.pipelines.transfer.geo_to_dro.plot_search_results_geo_to_dro --orbit       # 3D 轨道图
+    python -m tod.pipelines.transfer.geo_to_dro.plot_search_results_geo_to_dro --interactive # 交互式浏览
 """
 
 import argparse

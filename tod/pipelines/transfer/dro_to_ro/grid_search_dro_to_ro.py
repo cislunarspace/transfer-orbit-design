@@ -4,7 +4,7 @@ DRO → RO 转移轨道网格搜索
 从 DRO 出发，搜索到达 RO（共振周期轨道）的转移轨道。
 在 α（切向速度比）和出发时间构成的参数空间中搜索可行转移。
 
-运行: python scripts/transfer/dro_to_ro/grid_search_dro_to_ro.py
+运行: python -m tod.pipelines.transfer.dro_to_ro.grid_search_dro_to_ro
 
 输出文件名：``search_results_{nDep}-{nAlpha}-{αmin}-{αmax}-{tmax}_{timestamp}.json``。
 

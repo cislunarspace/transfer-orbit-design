@@ -6,14 +6,14 @@ DRO → RO 转移轨道 NLP 优化结果可视化
 - **转移轨道 3D 示意图** (--orbit): 重新积分 NLP 最优解，叠加绘制 DRO / RO / 转移弧
 
 用法:
-    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py                 # Δv 汇总散点图
-    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --orbit          # 绘制最优解的转移轨道
-    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --orbit --idx best       # 同上
-    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --orbit --idx 0            # 绘制第 0 条结果
-    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --orbit --idx all          # 绘制全部
-    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --orbit --idx best:5      # Δv 最小的 5 条
-    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --orbit --idx random --seed 42
-    python scripts/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py --save output/transfer/figures/opt.png
+    python -m tod.pipelines.transfer.dro_to_ro.plot_optimize_result_dro_to_ro                 # Δv 汇总散点图
+    python -m tod.pipelines.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --orbit          # 绘制最优解的转移轨道
+    python -m tod.pipelines.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --orbit --idx best       # 同上
+    python -m tod.pipelines.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --orbit --idx 0            # 绘制第 0 条结果
+    python -m tod.pipelines.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --orbit --idx all          # 绘制全部
+    python -m tod.pipelines.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --orbit --idx best:5      # Δv 最小的 5 条
+    python -m tod.pipelines.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --orbit --idx random --seed 42
+    python -m tod.pipelines.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --save output/transfer/figures/opt.png
 """
 
 from __future__ import annotations

@@ -66,7 +66,7 @@ def main() -> None:
         print(f"加载了 {n_orbits} 条 Halo 轨道")
     except FileNotFoundError:
         print(f"[error] 文件不存在: {family_path}")
-        print("请先生成Halo轨道数据，运行: python scripts/generate/generate_halo_family.py")
+        print("请先生成Halo轨道数据，运行: python -m tod.pipelines.halo.generate.generate_halo_family")
         sys.exit(1)
 
     # =============================================================================
