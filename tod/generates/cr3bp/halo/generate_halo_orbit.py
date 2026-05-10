@@ -78,7 +78,7 @@ def _halo_residuals(vars, dynamics, z0):
     return np.array([final[1], final[3], final[5]])
 
 
-def _solve_halo(dynamics, z0, x0_guess, vy0_guess, t_half_guess, tol=1e-10):
+def _solve_halo(dynamics, z0, x0_guess, vy0_guess, t_half_guess, tol=1e-10, max_iterations=500):
     """用 scipy.optimize.least_squares 求解 Halo 轨道
 
     自由变量 (x0, vy0, T/2)，约束 y(T/2)=vx(T/2)=vz(T/2)=0。
@@ -97,7 +97,7 @@ def _solve_halo(dynamics, z0, x0_guess, vy0_guess, t_half_guess, tol=1e-10):
         # x0∈[-2,2] 覆盖 L1/L2 附近位置范围；T/2>0.3 排除数值奇异解；其余为宽松上下界
         bounds=([-2.0, -5.0, 0.3], [2.0, 5.0, 5.0]),
         ftol=tol, xtol=tol, gtol=tol,
-        max_nfev=500,
+        max_nfev=max_iterations,
     )
     if result.cost > 1e-10:
         return None
@@ -193,9 +193,6 @@ def _get_initial_guess(mu, amplitude_z, libration_point, halo_class):
         gamma = coeffs["gamma"]
         omega_p = coeffs["omega_p"]
         k = coeffs["k"]
-        delta = coeffs["delta"]
-        if halo_class == 1:
-            delta = -delta
         L_position = 1 - mu - gamma  # L2: gamma < 0, so L_position > 1-mu
         Au = np.sqrt(amplitude_z) * 0.5
         return {
@@ -252,7 +249,7 @@ def main():
     # 对于 L1 北 Halo，先尝试直接求解，若失败则从参考振幅延拓。
     # 其他情况使用 Richardson 猜测直接求解。
     logger.info("开始求解...")
-    sol = _solve_halo(dynamics, z0, x0, vy0, t_half, tol=args.tolerance)
+    sol = _solve_halo(dynamics, z0, x0, vy0, t_half, tol=args.tolerance, max_iterations=args.max_iterations)
 
     ref_z = guess.get("ref_z")
     if sol is None and ref_z is not None and abs(amplitude_z - ref_z) > 0.01:
@@ -268,7 +265,7 @@ def main():
         ref_sol = _solve_halo(
             dynamics, ref_z0,
             _L1_NORTH_REF["x0"], _L1_NORTH_REF["vy0"], _L1_NORTH_REF["T_half"],
-            tol=args.tolerance,
+            tol=args.tolerance, max_iterations=args.max_iterations,
         )
         if ref_sol is not None:
             # 从参考振幅逐步延拓到目标振幅
@@ -282,7 +279,7 @@ def main():
                 next_sol = _solve_halo(
                     dynamics, next_z0,
                     current_sol[0], current_sol[1], current_sol[2],
-                    tol=args.tolerance,
+                    tol=args.tolerance, max_iterations=args.max_iterations,
                 )
                 if next_sol is None:
                     step /= 2
