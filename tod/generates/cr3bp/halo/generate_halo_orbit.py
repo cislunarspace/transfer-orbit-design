@@ -162,14 +162,16 @@ def richardson_initial_guess(mu, z_amplitude, libration_point, halo_class):
 def _get_initial_guess(mu, amplitude_z, libration_point, halo_class):
     """获取最优初始猜测
 
-    对于 L1 北 Halo，使用已知参考解作为猜测（比 Richardson 更可靠）。
+    对于 L1 Halo，使用已知参考解（南 Halo 是北 Halo 关于 x-y 平面的镜像，
+    x0 和 vy0 相同，仅 z0 反号）。
     对于 L2，使用平动点位置 + 线性化速度估计。
     其他情况使用 Richardson 三阶近似。
     """
-    if libration_point == 1 and halo_class == 0:
+    if libration_point == 1:
+        z_sign = 1 if halo_class == 0 else -1
         return {
             "x0": _L1_NORTH_REF["x0"],
-            "z0": amplitude_z,
+            "z0": z_sign * amplitude_z,
             "vy0": _L1_NORTH_REF["vy0"],
             "period": 2 * _L1_NORTH_REF["T_half"],
             "ref_z": 0.23,
