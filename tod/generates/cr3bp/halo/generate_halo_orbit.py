@@ -189,7 +189,6 @@ def main():
     #
     # 但它仍不精确——特别是对较大振幅（Az > 0.3）误差明显。
     # 因此这里仅用它生成初始猜测，后续交由微分修正器迭代精化。
-    # TODO 需要审查
     guess = richardson_initial_guess(
         mu=MU,
         z_amplitude=amplitude_z,

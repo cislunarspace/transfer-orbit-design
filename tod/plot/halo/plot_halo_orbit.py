@@ -39,6 +39,25 @@ def parse_args():
     return parser.parse_args()
 
 
+def compute_view_bounds(all_states: np.ndarray) -> tuple:
+    """根据轨道状态数组计算 2D 与 3D 视图的边界参数。
+
+    Returns:
+        (xlim_2d, ylim_2d, center_3d, radius_3d)
+    """
+    x_min, x_max = all_states[:, 0].min(), all_states[:, 0].max()
+    y_min, y_max = all_states[:, 1].min(), all_states[:, 1].max()
+    z_min, z_max = all_states[:, 2].min(), all_states[:, 2].max()
+    x_pad = max(0.05, (x_max - x_min) * 0.1)
+    z_pad = max(0.05, (z_max - z_min) * 0.1)
+    xlim_2d = (float(x_min - x_pad), float(x_max + x_pad))
+    ylim_2d = (float(z_min - z_pad), float(z_max + z_pad))
+
+    center_3d = (float((x_min + x_max) / 2), float((y_min + y_max) / 2), float((z_min + z_max) / 2))
+    radius_3d = float(max(x_max - x_min, y_max - y_min, z_max - z_min) / 2 + max(x_pad, z_pad))
+    return xlim_2d, ylim_2d, center_3d, radius_3d
+
+
 def main(plot1: int = 1, plot2: int = 1, plot3: int = 1, plot4: int = 1) -> None:
     args = parse_args()
     output_dir = project_root / "output" / "halo"
@@ -128,12 +147,7 @@ def main(plot1: int = 1, plot2: int = 1, plot3: int = 1, plot4: int = 1) -> None
 
     # 计算轨道数据包围盒，用于聚焦视图到轨道附近区域
     all_states = np.vstack([orbit.states for orbit in subset_family])
-    x_min, x_max = all_states[:, 0].min(), all_states[:, 0].max()
-    z_min, z_max = all_states[:, 2].min(), all_states[:, 2].max()
-    x_pad = max(0.05, (x_max - x_min) * 0.1)
-    z_pad = max(0.05, (z_max - z_min) * 0.1)
-    xlim_2d = (float(x_min - x_pad), float(x_max + x_pad))
-    ylim_2d = (float(z_min - z_pad), float(z_max + z_pad))
+    xlim_2d, ylim_2d, center_3d, radius_3d = compute_view_bounds(all_states)
 
     jmin, jmax = min(jacobi_subset), max(jacobi_subset)
     smin, smax = min(stability_subset), max(stability_subset)
@@ -172,7 +186,7 @@ def main(plot1: int = 1, plot2: int = 1, plot3: int = 1, plot4: int = 1) -> None
             subset_family, jacobi_subset,
             title=f"Halo Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
                   f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
-            center=(0.9, 0, 0), radius=0.4, elev=20, azim=-60,
+            center=center_3d, radius=radius_3d, elev=20, azim=-60,
             show=False,
         )
         plotter.plot_3d_orbit(
@@ -202,7 +216,7 @@ def main(plot1: int = 1, plot2: int = 1, plot3: int = 1, plot4: int = 1) -> None
         plotter.plot_family_overview(
             subset_family, jacobi_subset, subset_family.periods, stability_subset,
             suptitle=f"Halo Orbit Family Overview - Earth-Moon CR3BP (n = {n_orbits})",
-            plane="xz", center_3d=(0.9, 0, 0), radius_3d=0.4,
+            plane="xz", center_3d=center_3d, radius_3d=radius_3d,
             zoom_xlim=xlim_2d,
             zoom_ylim=ylim_2d,
             elev=20, azim=-60,
