@@ -22,7 +22,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 import matplotlib
@@ -39,18 +39,19 @@ except ImportError:
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 
-from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from e2m2e.transfer import load_orbit_from_json
-from tod.commons.common import DU, MU, TU, VU
-from e2m2e.orbits.geo import (
-    R_GEO,
-    EARTH_CENTER,
-    compute_departure_velocity,
-)
+from tod.commons.common import DU, TU, VU
+from e2m2e.orbits.geo import compute_departure_velocity
 
 sys.path.insert(0, str(project_root))
 
 from tod.commons.plot_helpers import apply_standard_plot_config, style_colorbar
+from tod.plot.transfer.common import (
+    geo_circle_points,
+    build_transfer_dynamics,
+    plot_celestial_bodies,
+    set_equal_aspect_3d,
+)
 
 PLOT_CONFIG = apply_standard_plot_config()
 
@@ -101,18 +102,8 @@ def _collect_nlp_records(data: Dict) -> List[Dict]:
 
 
 # =====================================================================
-# 动力学
+# 动力学与积分
 # =====================================================================
-
-
-def _build_dynamics():
-    system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    dynamics = CR3BP_Dynamics(system=system)
-    dynamics.integrator = "DOP853"
-    dynamics.rtol = 1e-12
-    dynamics.atol = 1e-12
-    dynamics.max_step = 0.1
-    return system, dynamics
 
 
 def _integrate_transfer(departure_state, alpha, transfer_time, dynamics):
@@ -127,16 +118,6 @@ def _integrate_transfer(departure_state, alpha, transfer_time, dynamics):
         t_eval=t_eval, with_stm=False, with_jacobi=False,
     )
     return result["states"], result["time"]
-
-
-# =====================================================================
-# GEO 辅助
-# =====================================================================
-
-
-def _geo_circle_points():
-    th = np.linspace(0, 2 * np.pi, 200)
-    return EARTH_CENTER[0] + R_GEO * np.cos(th), R_GEO * np.sin(th)
 
 
 # =====================================================================
@@ -289,7 +270,7 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         ax = fig.add_subplot(111, projection="3d")
 
         # GEO 圆
-        gx, gy = _geo_circle_points()
+        gx, gy = geo_circle_points()
         ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--", lw=0.8, label="GEO")
 
         # DRO
@@ -305,19 +286,8 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         ax.scatter(*dep_pos, color="green", s=40, zorder=5, label="出发点")
         ax.scatter(*states[-1, :3], color="orange", s=40, marker="s", zorder=5, label="终点")
 
-        # 地球月球
-        ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
-        ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=PLOT_CONFIG.lp_label, ha="center")
-        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=PLOT_CONFIG.lp_label, ha="center")
-
-        # 平动点
-        system.compute_libration_points()
-        if system.L1 is None or system.L2 is None:
-            raise RuntimeError("L1/L2 平动点未计算")
-        for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
-            ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-            ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
+        # 地球、月球、平动点
+        plot_celestial_bodies(ax, system, PLOT_CONFIG)
 
         ax.set_xlabel("x (DU)")
         ax.set_ylabel("y (DU)")
@@ -334,18 +304,13 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
 
         # 等比例轴
         all_pts = np.concatenate([states[:, :3], dro_orbit.states[:, :3]])
-        mid = all_pts.mean(axis=0)
-        half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
-        ax.set_xlim(mid[0] - half, mid[0] + half)
-        ax.set_ylim(mid[1] - half, mid[1] + half)
-        ax.set_zlim(mid[2] - half, mid[2] + half)
-        ax.set_box_aspect([1, 1, 1])
+        set_equal_aspect_3d(ax, all_pts)
     else:
         fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection="3d")
 
         # 背景轨道
-        gx, gy = _geo_circle_points()
+        gx, gy = geo_circle_points()
         ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--", lw=0.8, label="GEO")
         ax.plot(dro_orbit.states[:, 0], dro_orbit.states[:, 1], dro_orbit.states[:, 2],
                 color="royalblue", lw=0.8, label="DRO")
@@ -365,19 +330,8 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
             ax.plot(states[:, 0], states[:, 1], states[:, 2], color=color, lw=1.2, alpha=0.7)
             all_transfer_pts.append(states[:, :3])
 
-        # 地球月球
-        ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
-        ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=PLOT_CONFIG.lp_label, ha="center")
-        ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=PLOT_CONFIG.lp_label, ha="center")
-
-        # 平动点
-        system.compute_libration_points()
-        if system.L1 is None or system.L2 is None:
-            raise RuntimeError("L1/L2 平动点未计算")
-        for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
-            ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-            ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
+        # 地球、月球、平动点
+        plot_celestial_bodies(ax, system, PLOT_CONFIG)
 
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=Normalize(
             vmin=obj_min * VU / 1000, vmax=obj_max * VU / 1000))
@@ -393,12 +347,7 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         # 等比例轴
         if all_transfer_pts:
             all_pts = np.concatenate(all_transfer_pts + [dro_orbit.states[:, :3]])
-            mid = all_pts.mean(axis=0)
-            half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
-            ax.set_xlim(mid[0] - half, mid[0] + half)
-            ax.set_ylim(mid[1] - half, mid[1] + half)
-            ax.set_zlim(mid[2] - half, mid[2] + half)
-            ax.set_box_aspect([1, 1, 1])
+            set_equal_aspect_3d(ax, all_pts)
 
     if save_path:
         save_path = Path(save_path)
@@ -443,16 +392,10 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
     ax = fig.add_subplot(111, projection="3d")
 
     # GEO 圆和 DRO 轨道是固定的，只算一次
-    gx, gy = _geo_circle_points()
+    gx, gy = geo_circle_points()
     dro_x = dro_orbit.states[:, 0]
     dro_y = dro_orbit.states[:, 1]
     dro_z = dro_orbit.states[:, 2]
-
-    # 预计算平动点
-    system.compute_libration_points()
-    if system.L1 is None or system.L2 is None:
-        raise RuntimeError("L1/L2 平动点未计算")
-    lp_data = [("L1", system.L1[0]), ("L2", system.L2[0])]
 
     logger.info(f"\nInteractive browse: GEO -> DRO optimized transfers")
     logger.info(f"{n} valid results, sorted by dv_total")
@@ -500,13 +443,8 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
         dep_pos = np.asarray(dep_state, dtype=float)[:3]
         ax.scatter(*dep_pos, color="green", s=40, zorder=5, label="出发点")
         ax.scatter(*states[-1, :3], color="orange", s=40, marker="s", zorder=5, label="终点")
-        # 天体
-        ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
-        ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-        # 平动点
-        for lp_name, lp_x in lp_data:
-            ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-            ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
+        # 地球、月球、平动点
+        plot_celestial_bodies(ax, system, PLOT_CONFIG)
 
         ax.set_xlabel("x (DU)")
         ax.set_ylabel("y (DU)")
@@ -615,7 +553,7 @@ def main():
     )
     logger.info(f"Total: {n_total}, success: {n_success}, valid (pos<{args.max_pos_err:.0f}km): {n_valid}")
 
-    system, dynamics = _build_dynamics()
+    system, dynamics = build_transfer_dynamics(dt=0.1)
 
     if args.interactive:
         interactive_browse(records, dro_orbit, system, dynamics, args.max_pos_err)
