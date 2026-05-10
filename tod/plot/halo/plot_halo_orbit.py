@@ -231,10 +231,10 @@ if __name__ == "__main__":
             "--end", "-1",                                # 结束轨道索引（含），-1 表示到最后一条
         ]
         # 调试开关：1 = 绘制，0 = 跳过
-        plot1 = 1  # 全局2D视图（XZ平面）
+        plot1 = 0  # 全局2D视图（XZ平面）
         plot2 = 1  # 全局3D视图
-        plot3 = 1  # Jacobi常数-周期-稳定性图
-        plot4 = 1  # 综合概览图（四子图）
+        plot3 = 0  # Jacobi常数-周期-稳定性图
+        plot4 = 0  # 综合概览图（四子图）
         print("[debug] 使用代码内置调试参数")
         main(plot1=plot1, plot2=plot2, plot3=plot3, plot4=plot4)
     else:
