@@ -6,7 +6,7 @@ DRO → GEO 转移 NLP 优化
 目标函数: J(y) = Δv1 + Δv2
 约束: |r_final - r_earth| = r_GEO（到达 GEO 球面）
 
-运行: python -m tod.pipelines.transfer.dro_to_geo.optimize_dro_to_geo
+运行: python -m tod.transfers.dro_to_geo.optimize_dro_to_geo
 
 进度条: tqdm；关闭: OPTIMIZE_NO_TQDM=1
 Windows 须保留 ``if __name__ == "__main__"``。

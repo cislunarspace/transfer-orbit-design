@@ -4,7 +4,7 @@ DRO → GEO 转移轨道网格搜索
 从 DRO 出发，搜索到达 GEO（地球静止轨道）的转移轨道。
 使用 TransferSearch 类，在 α（切向速度比）和出发时间构成的参数空间中搜索。
 
-运行: python -m tod.pipelines.transfer.dro_to_geo.grid_search_dro_to_geo
+运行: python -m tod.transfers.dro_to_geo.grid_search_dro_to_geo
 
 DEPRECATED: GeoTransferSearch has been removed from e2m2e.
 Windows 多进程需要 ``if __name__ == "__main__"``。

@@ -14,7 +14,7 @@ GEO → DRO NLP 优化
   - 位置连续性: ||pos_final - pos_DRO(t_ins)||² = 0
   - 速度平行性: 后过滤 cos(angle) ≥ cos(tolerance)
 
-运行: python -m tod.pipelines.transfer.geo_to_dro.optimize_geo_to_dro
+运行: python -m tod.transfers.geo_to_dro.optimize_geo_to_dro
 
 Windows 须保留 ``if __name__ == "__main__"``。
 """

@@ -26,7 +26,7 @@ import time
 
 import numpy as np
 
-# 解析项目根目录（仓库顶层）：本文件位于 tod/pipelines/halo/generate/，
+# 解析项目根目录（仓库顶层）：本文件位于 tod/generates/cr3bp/halo/，
 # 向上 5 层即仓库根，用于定位与 e2m2e 共享的 output/ 目录。
 project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 
@@ -266,7 +266,7 @@ def main():
 
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
-    # 命令行调用 `python -m tod.pipelines.halo.generate.generate_halo_orbit ...` 时不受影响。
+    # 命令行调用 `python -m tod.generates.cr3bp.halo.generate_halo_orbit ...` 时不受影响。
     # Richardson 公式会自动计算 x0、vy0、period，调试时只需指定振幅和平动点。
     if len(sys.argv) == 1:
         sys.argv += [

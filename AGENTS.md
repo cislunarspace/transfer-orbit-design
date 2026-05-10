@@ -14,46 +14,46 @@ uv sync                                # installs deps + e2m2e from local siblin
 
 ### Generate Baseline Orbits
 ```bash
-python -m tod.pipelines.dro.generate.generate_31_dro_orbit     # single 3:1 DRO
-python -m tod.pipelines.dro.generate.generate_dro_family        # DRO family
-python -m tod.pipelines.ro.generate.generate_31_ro_orbit         # single 3:1 RO
-python -m tod.pipelines.ro.generate.generate_31_ro_family        # 3:1 RO family
-python -m tod.pipelines.ro.generate.generate_32_ro_family       # 3:2 RO family
-python -m tod.pipelines.ro.generate.generate_rro_family          # 3D RRO family
-python -m tod.pipelines.ro.generate.generate_aro_family           # 3D ARO family
-python -m tod.pipelines.halo.generate.generate_halo_orbit       # single Halo orbit
-python -m tod.pipelines.halo.generate.generate_halo_family      # Halo orbit family
+python -m tod.generates.cr3bp.dro.generate_31_dro_orbit         # single 3:1 DRO
+python -m tod.generates.cr3bp.dro.generate_dro_family            # DRO family
+python -m tod.generates.cr3bp.ro.generate_31_ro_orbit            # single 3:1 RO
+python -m tod.generates.cr3bp.ro.generate_31_ro_family           # 3:1 RO family
+python -m tod.generates.cr3bp.ro.generate_32_ro_family           # 3:2 RO family
+python -m tod.generates.cr3bp.ro.generate_rro_family             # 3D RRO family
+python -m tod.generates.cr3bp.ro.generate_aro_family             # 3D ARO family
+python -m tod.generates.cr3bp.halo.generate_halo_orbit           # single Halo orbit
+python -m tod.generates.cr3bp.halo.generate_halo_family          # Halo orbit family
 ```
 
 ### DRO → RO Transfer Pipeline (order matters)
 ```bash
-python -m tod.pipelines.transfer.dro_to_ro.grid_search   # 1. Grid search
-python -m tod.pipelines.transfer.dro_to_ro.optimize      # 2. NLP optimization
+python -m tod.transfers.dro_to_ro.grid_search_dro_to_ro   # 1. Grid search
+python -m tod.transfers.dro_to_ro.optimize_dro_to_ro      # 2. NLP optimization
 ```
 
 ### DRO → GEO Transfer Pipeline
 ```bash
-python -m tod.pipelines.transfer.dro_to_geo.grid_search   # grid search to GEO sphere
-python -m tod.pipelines.transfer.dro_to_geo.optimize      # NLP optimization
+python -m tod.transfers.dro_to_geo.grid_search_dro_to_geo   # grid search to GEO sphere
+python -m tod.transfers.dro_to_geo.optimize_dro_to_geo      # NLP optimization
 ```
 
 ### GEO → DRO Transfer Pipeline
 ```bash
-python -m tod.pipelines.transfer.geo_to_dro.grid_search
-python -m tod.pipelines.transfer.geo_to_dro.optimize
+python -m tod.transfers.geo_to_dro.grid_search_geo_to_dro
+python -m tod.transfers.geo_to_dro.optimize_geo_to_dro
 ```
 
 ### LEO → DRO Transfer Pipeline
 ```bash
-python -m tod.pipelines.transfer.leo_to_dro.grid_search
-python -m tod.pipelines.transfer.leo_to_dro.optimize
+python -m tod.transfers.leo_to_dro.grid_search_leo_to_dro
+python -m tod.transfers.leo_to_dro.optimize_leo_to_dro
 ```
 
 ### Ephemeris Correction (CR3BP → ephemeris)
 ```bash
-python -m tod.pipelines.ephemeris.correct.correct_dro_to_ephemeris    # Multiple Shooting method
-python -m tod.pipelines.ephemeris.correct.homotopy_dro_to_ephemeris   # homotopy λ-continuation method
-python -m tod.pipelines.ephemeris.compare.compare_ephemeris_methods   # benchmark both methods
+python -m tod.generates.ephemeris.correct_dro_to_ephemeris    # Multiple Shooting method
+python -m tod.generates.ephemeris.homotopy_dro_to_ephemeris   # homotopy λ-continuation method
+python -m tod.generates.ephemeris.compare_ephemeris_methods   # benchmark both methods
 ```
 - Requires SPICE kernels (`de440.bsp`, `naif0012.tls`) in `e2m2e/kernels/`
 - Kernel path: set `SPICE_KERNEL_DIR` env var; default is `../e2m2e/kernels` (works when repos are siblings)
@@ -68,7 +68,7 @@ pyright                                 # configured in pyproject.toml; extraPat
 ## Architecture
 - **This repo**: Scripts only — not a library. `tod/` is importable as a package so `from tod.commons import ...` works after editable install
 - **All algorithms**: In `e2m2e` (separate repo). Key public API: `e2m2e.core`, `e2m2e.algorithms`, `e2m2e.transfer`, `e2m2e.visualization`, `e2m2e.orbits`
-- **Output directories**: `tod/pipelines/output/dro/`, `tod/pipelines/output/ro/`, etc. (created on demand)
+- **Output directories**: `output/dro/`, `output/ro/`, etc. (created on demand, at repo root)
 - **Data format**: JSON with `states`, `times`, `period`, `orbit_type` keys
 - **Transfer naming**: `{action}_{source}_to_{target}.py` convention
 
@@ -83,10 +83,10 @@ pyright                                 # configured in pyproject.toml; extraPat
 - **μ = 1.21506683e-2** — from `e2m2e.CR3BP_System.from_known_system("earth_moon")`. Do not use the rounded `0.01215`
 
 ## Hardcoded Paths — Must Edit Before Running
-- `tod/pipelines/transfer/dro_to_ro/grid_search.py`: DRO/RO file paths hardcoded near `main()` — update to match your generated files
-- `tod/pipelines/transfer/dro_to_ro/optimize.py`: hardcoded file paths at top
-- `tod/pipelines/transfer/dro_to_geo/grid_search.py`: DRO file path hardcoded
-- `tod/pipelines/transfer/dro_to_geo/optimize.py`: search results file path hardcoded
+- `tod/transfers/dro_to_ro/grid_search_dro_to_ro.py`: DRO/RO file paths hardcoded near `main()` — update to match your generated files
+- `tod/transfers/dro_to_ro/optimize_dro_to_ro.py`: hardcoded file paths at top
+- `tod/transfers/dro_to_geo/grid_search_dro_to_geo.py`: DRO file path hardcoded
+- `tod/transfers/dro_to_geo/optimize_dro_to_geo.py`: search results file path hardcoded
 
 ## optimize_* Config Knobs
 - `USE_COPT=False` — enable with `pip install coptpy`; `FALLBACK_TO_SCIPY=True` auto-falls back
@@ -105,7 +105,7 @@ pyright                                 # configured in pyproject.toml; extraPat
 - Optimization: `optimization_results_<timestamp>.json` / `optimization_dro_geo_<timestamp>.json`
 
 ## Test Quirks
-- `tests/tod/test_data_loading.py` requires `tod/pipelines/output/ro/*.json` to exist — skip or generate RO family first
+- `tests/tod/test_data_loading.py` requires `output/ro/*.json` to exist — skip or generate RO family first
 - Missing e2m2e causes import tests to **pass silently** (ImportError is caught), not fail
 - All scripts use `if __name__ == "__main__"` guard — required on Windows for multiprocessing
 

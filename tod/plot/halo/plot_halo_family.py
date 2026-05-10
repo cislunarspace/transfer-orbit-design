@@ -284,7 +284,7 @@ def main() -> None:
         found = find_latest_family_json(search_dir)
         if found is None:
             print(f"[error] 在 {search_dir} 未找到 halo_*_family_*.json")
-            print("请先生成: python -m tod.pipelines.halo.generate.generate_halo_family")
+            print("请先生成: python -m tod.generates.cr3bp.halo.generate_halo_family")
             sys.exit(1)
         family_path = found
         print(f"[info] --latest: 使用 {family_path}")

@@ -4,7 +4,7 @@ GEO → DRO 网格搜索
 从 GEO 出发，搜索到月球 DRO 的转移轨道。
 复用 TransferSearch，departure=GEO（近似圆轨道），arrival=DRO。
 
-运行: python -m tod.pipelines.transfer.geo_to_dro.grid_search_geo_to_dro
+运行: python -m tod.transfers.geo_to_dro.grid_search_geo_to_dro
 
 Windows 多进程需要 ``if __name__ == "__main__"``。
 """

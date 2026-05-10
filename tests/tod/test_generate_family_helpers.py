@@ -1,5 +1,5 @@
 """
-Tests for tod/pipelines generation scripts (generate_31_ro_family.py, generate_32_ro_family.py, generate_dro_family.py)
+Tests for tod/generates/cr3bp generation scripts (generate_31_ro_family.py, generate_32_ro_family.py, generate_dro_family.py)
 
 These tests focus on:
 - Testing the parameter configurations
@@ -35,7 +35,7 @@ class TestGenerateScriptImports:
         mock_cont.return_value.natural_continuation.return_value = MagicMock()
 
         script_path = (
-            project_root / "tod" / "pipelines" / "ro" / "generate" / "generate_31_ro_family.py"
+            project_root / "tod" / "generates" / "cr3bp" / "ro" / "generate_31_ro_family.py"
         )
         spec = importlib.util.spec_from_file_location(
             "generate_31_ro_family", script_path
@@ -61,7 +61,7 @@ class TestGenerateScriptImports:
         mock_cont.return_value.natural_continuation.return_value = MagicMock()
 
         script_path = (
-            project_root / "tod" / "pipelines" / "ro" / "generate" / "generate_32_ro_family.py"
+            project_root / "tod" / "generates" / "cr3bp" / "ro" / "generate_32_ro_family.py"
         )
         spec = importlib.util.spec_from_file_location(
             "generate_32_ro_family", script_path
@@ -87,7 +87,7 @@ class TestGenerateScriptImports:
         mock_cont.return_value.natural_continuation.return_value = MagicMock()
 
         script_path = (
-            project_root / "tod" / "pipelines" / "dro" / "generate" / "generate_dro_family.py"
+            project_root / "tod" / "generates" / "cr3bp" / "dro" / "generate_dro_family.py"
         )
         spec = importlib.util.spec_from_file_location(
             "generate_dro_family", script_path
@@ -160,7 +160,7 @@ class TestGenerate32ROParameters:
 def _load_halo_family_module():
     """Load generate_halo_family module, skipping if e2m2e is missing."""
     script_path = (
-        project_root / "tod" / "pipelines" / "halo" / "generate" / "generate_halo_family.py"
+        project_root / "tod" / "generates" / "cr3bp" / "halo" / "generate_halo_family.py"
     )
     spec = importlib.util.spec_from_file_location(
         "generate_halo_family", script_path

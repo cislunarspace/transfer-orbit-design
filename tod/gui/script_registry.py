@@ -52,7 +52,7 @@ class ScriptEntry:
     module: str           # 类别: "dro", "ro", "halo", "transfer", "ephemeris", "inspection"
     name: str             # 文件名（不含 .py）
     description: str      # 中文描述
-    script_path: str      # 相对路径，如 "tod/pipelines/dro/generate/generate_31_dro_orbit.py"
+    script_path: str      # 相对路径，如 "tod/generates/cr3bp/dro/generate_31_dro_orbit.py"
     output_dir: str | None = None                     # 关联输出目录，用于文件浏览器高亮
     accepts_file_arg: bool = False                    # 是否支持 --file 参数
     needs_spice: bool = False                         # 是否需要 SPICE_KERNEL_DIR
@@ -67,7 +67,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "dro", "generate_31_dro_orbit",
             "生成 3:1 DRO 轨道（固定周期微分校正）",
-            "tod/pipelines/dro/generate/generate_31_dro_orbit.py",
+            "tod/generates/cr3bp/dro/generate_31_dro_orbit.py",
             output_dir="output/dro",
             group_label="生成",
             cli_params=[
@@ -79,7 +79,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "dro", "generate_dro_family",
             "生成 DRO 轨道族（微分修正 + 自然延拓）",
-            "tod/pipelines/dro/generate/generate_dro_family.py",
+            "tod/generates/cr3bp/dro/generate_dro_family.py",
             output_dir="output/dro",
             group_label="生成",
             cli_params=[
@@ -106,7 +106,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "generate_31_ro_orbit",
             "生成 3:1 RO 轨道（固定周期微分校正）",
-            "tod/pipelines/ro/generate/generate_31_ro_orbit.py",
+            "tod/generates/cr3bp/ro/generate_31_ro_orbit.py",
             output_dir="output/ro",
             group_label="生成",
             cli_params=[
@@ -118,7 +118,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "generate_31_ro_family",
             "生成 3:1 共振轨道族（差分修正 + 自然延拓）",
-            "tod/pipelines/ro/generate/generate_31_ro_family.py",
+            "tod/generates/cr3bp/ro/generate_31_ro_family.py",
             output_dir="output/ro",
             group_label="生成",
             cli_params=[
@@ -133,7 +133,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "generate_32_ro_family",
             "生成 3:2 共振轨道族（差分修正 + 自然延拓）",
-            "tod/pipelines/ro/generate/generate_32_ro_family.py",
+            "tod/generates/cr3bp/ro/generate_32_ro_family.py",
             output_dir="output/ro",
             group_label="生成",
             cli_params=[
@@ -148,7 +148,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "generate_aro_family",
             "生成 ARO 轴向共振轨道族（从 3:2 RO 分岔）",
-            "tod/pipelines/ro/generate/generate_aro_family.py",
+            "tod/generates/cr3bp/ro/generate_aro_family.py",
             output_dir="output/ro",
             group_label="生成",
             cli_params=[
@@ -165,7 +165,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "generate_rro_family",
             "生成 RRO 反射共振轨道族（从 3:2 RO 分岔）",
-            "tod/pipelines/ro/generate/generate_rro_family.py",
+            "tod/generates/cr3bp/ro/generate_rro_family.py",
             output_dir="output/ro",
             group_label="生成",
             cli_params=[
@@ -228,7 +228,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "halo", "generate_halo_orbit",
             "生成 Halo 轨道（Richardson 三阶近似 + 微分修正）",
-            "tod/pipelines/halo/generate/generate_halo_orbit.py",
+            "tod/generates/cr3bp/halo/generate_halo_orbit.py",
             output_dir="output/halo",
             group_label="生成",
             cli_params=[
@@ -245,7 +245,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "halo", "generate_halo_family",
             "生成 Halo 轨道族（伪弧长延拓）",
-            "tod/pipelines/halo/generate/generate_halo_family.py",
+            "tod/generates/cr3bp/halo/generate_halo_family.py",
             output_dir="output/halo",
             group_label="生成",
             cli_params=[
@@ -293,7 +293,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "grid_search_dro_to_ro",
             "DRO→RO 转移轨道网格搜索",
-            "tod/pipelines/transfer/dro_to_ro/grid_search_dro_to_ro.py",
+            "tod/transfers/dro_to_ro/grid_search_dro_to_ro.py",
             output_dir="output/transfer",
             group_label="DRO→RO",
             cli_params=[
@@ -313,7 +313,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "optimize_dro_to_ro",
             "DRO→RO 转移 NLP 优化（SLSQP 最小化 Δv）",
-            "tod/pipelines/transfer/dro_to_ro/optimize_dro_to_ro.py",
+            "tod/transfers/dro_to_ro/optimize_dro_to_ro.py",
             output_dir="output/transfer",
             group_label="DRO→RO",
             cli_params=[
@@ -369,7 +369,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "grid_search_dro_to_geo",
             "DRO→GEO 转移轨道网格搜索",
-            "tod/pipelines/transfer/dro_to_geo/grid_search_dro_to_geo.py",
+            "tod/transfers/dro_to_geo/grid_search_dro_to_geo.py",
             output_dir="output/transfer",
             group_label="DRO→GEO",
             cli_params=[
@@ -387,7 +387,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "optimize_dro_to_geo",
             "DRO→GEO 转移 NLP 优化",
-            "tod/pipelines/transfer/dro_to_geo/optimize_dro_to_geo.py",
+            "tod/transfers/dro_to_geo/optimize_dro_to_geo.py",
             output_dir="output/transfer",
             group_label="DRO→GEO",
             cli_params=[
@@ -427,7 +427,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "grid_search_geo_to_dro",
             "GEO→DRO 转移轨道网格搜索",
-            "tod/pipelines/transfer/geo_to_dro/grid_search_geo_to_dro.py",
+            "tod/transfers/geo_to_dro/grid_search_geo_to_dro.py",
             output_dir="output/transfer",
             group_label="GEO→DRO",
             cli_params=[
@@ -447,7 +447,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "optimize_geo_to_dro",
             "GEO→DRO 转移 NLP 优化",
-            "tod/pipelines/transfer/geo_to_dro/optimize_geo_to_dro.py",
+            "tod/transfers/geo_to_dro/optimize_geo_to_dro.py",
             output_dir="output/transfer",
             group_label="GEO→DRO",
             cli_params=[
@@ -507,7 +507,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "validate_geo_to_dro",
             "验证 GEO→DRO 转移轨道搜索可行性",
-            "tod/pipelines/transfer/geo_to_dro/validate_geo_to_dro.py",
+            "tod/transfers/geo_to_dro/validate_geo_to_dro.py",
             output_dir="output/transfer",
             group_label="GEO→DRO",
         ),
@@ -515,7 +515,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "grid_search_leo_to_dro",
             "LEO→DRO 转移轨道网格搜索",
-            "tod/pipelines/transfer/leo_to_dro/grid_search_leo_to_dro.py",
+            "tod/transfers/leo_to_dro/grid_search_leo_to_dro.py",
             output_dir="output/transfer",
             group_label="LEO→DRO",
             cli_params=[
@@ -535,7 +535,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "optimize_leo_to_dro",
             "LEO→DRO 转移 NLP 优化",
-            "tod/pipelines/transfer/leo_to_dro/optimize_leo_to_dro.py",
+            "tod/transfers/leo_to_dro/optimize_leo_to_dro.py",
             output_dir="output/transfer",
             group_label="LEO→DRO",
             cli_params=[
@@ -560,7 +560,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ephemeris", "correct_dro_to_ephemeris",
             "CR3BP DRO 星历修正（多重打靶法）",
-            "tod/pipelines/ephemeris/correct/correct_dro_to_ephemeris.py",
+            "tod/generates/ephemeris/correct_dro_to_ephemeris.py",
             output_dir="output/ephemeris",
             needs_spice=True,
             group_label="星历修正",
@@ -571,7 +571,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ephemeris", "homotopy_dro_to_ephemeris",
             "CR3BP DRO 星历修正（同伦法 λ 延续）",
-            "tod/pipelines/ephemeris/correct/homotopy_dro_to_ephemeris.py",
+            "tod/generates/ephemeris/homotopy_dro_to_ephemeris.py",
             output_dir="output/ephemeris",
             needs_spice=True,
             group_label="星历修正",
@@ -582,7 +582,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ephemeris", "compare_ephemeris_methods",
             "对比直接法与同伦法星历修正效率",
-            "tod/pipelines/ephemeris/compare/compare_ephemeris_methods.py",
+            "tod/generates/ephemeris/compare_ephemeris_methods.py",
             output_dir="output/ephemeris",
             needs_spice=True,
             group_label="对比分析",

@@ -7,7 +7,7 @@ LEO → DRO 网格搜索
 LEO 比 GEO 更接近地球，速度更高，需要更大的 alpha 值才能到达月球。
 转移时间可能更长。
 
-运行: python -m tod.pipelines.transfer.leo_to_dro.grid_search_leo_to_dro
+运行: python -m tod.transfers.leo_to_dro.grid_search_leo_to_dro
 
 Windows 多进程需要 ``if __name__ == "__main__"``。
 """
