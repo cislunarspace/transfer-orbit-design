@@ -19,7 +19,8 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 from e2m2e.core import OrbitFamily, CR3BP_System
-from e2m2e.visualization import FamilyPlotter, compute_stability_for_family
+from e2m2e.visualization import FamilyPlotter
+from e2m2e.algorithms.stability import StabilityAnalysis
 from tod.commons.common import MU, TU
 from tod.commons.plot_helpers import apply_standard_plot_config
 from tod.commons.common import find_project_root
@@ -94,7 +95,12 @@ def main() -> None:
     jacobi_values = family_result.get_jacobi_constants().tolist()
     jacobi_values_subset = [jacobi_values[i] for i in range(plot_start, plot_end + 1)]
     periods_subset = [family_result.periods[i] for i in range(plot_start, plot_end + 1)]
-    stability_values_subset = compute_stability_for_family(subset_family, system)
+    stability_values_subset = []
+    for i in range(plot_start, plot_end + 1):
+        orbit = family_result[i]
+        stability_analysis = StabilityAnalysis(orbit=orbit)
+        stability_indices = stability_analysis.compute_stability_index()
+        stability_values_subset.append(stability_indices.get("broucke", 0.0))
     logger.info(f"Jacobi常数范围: {min(jacobi_values):.6f} ~ {max(jacobi_values):.6f}")
     logger.info(f"稳定性指数范围: {min(stability_values_subset):.6f} ~ {max(stability_values_subset):.6f}")
 

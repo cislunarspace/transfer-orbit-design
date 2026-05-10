@@ -35,7 +35,8 @@ import matplotlib
 import numpy as np
 
 from e2m2e.core import OrbitFamily, CR3BP_System
-from e2m2e.visualization import FamilyPlotter, compute_stability_for_family
+from e2m2e.visualization import FamilyPlotter
+from e2m2e.algorithms.stability import StabilityAnalysis
 
 from tod.commons.common import MU
 from tod.commons.plot_helpers import apply_standard_plot_config
@@ -159,7 +160,12 @@ def plot_halo_family(
     logger.info(f"Jacobi 范围: {min(jacobi_subset):.6f} ~ {max(jacobi_subset):.6f}")
 
     logger.info("正在计算稳定性指数（可能较慢）...")
-    stability_values = compute_stability_for_family(family_result, family_result.system)
+    stability_values = []
+    for i in range(len(family_result)):
+        orbit = family_result[i]
+        stability_analysis = StabilityAnalysis(orbit=orbit)
+        stability_indices = stability_analysis.compute_stability_index()
+        stability_values.append(stability_indices.get("broucke", 0.0))
     stability_subset = [stability_values[i] for i in range(ps, pe + 1)]
     logger.info(f"λmax 范围: {min(stability_subset):.6f} ~ {max(stability_subset):.6f}")
 

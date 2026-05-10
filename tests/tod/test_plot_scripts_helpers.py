@@ -43,7 +43,7 @@ class TestPlotScriptImports:
 
         return MockOrbitFamily(mock_system)
 
-    @patch("e2m2e.visualization.compute_stability_for_family")
+    @patch("e2m2e.algorithms.stability.StabilityAnalysis")
     @patch("e2m2e.core.OrbitFamily.load_from_file")
     @patch("e2m2e.core.CR3BP_System")
     def test_plot_31_ro_imports(self, mock_system, mock_load, mock_stability):
@@ -53,9 +53,9 @@ class TestPlotScriptImports:
             mock_system.return_value
         )
         mock_system.return_value = MagicMock()
-        mock_stability.return_value = np.array([1.0, 1.5])
+        mock_stability.return_value.compute_stability_index.return_value = np.array([1.0, 1.5])
 
-        script_path = project_root / "tod" / "pipelines" / "ro" / "plot" / "plot_31_ro_family.py"
+        script_path = project_root / "tod" / "plot" / "ro" / "plot_31_ro_family.py"
         spec = importlib.util.spec_from_file_location("plot_31_ro_family", script_path)
         assert spec is not None
         module = importlib.util.module_from_spec(spec)
@@ -90,7 +90,7 @@ class TestPlotScriptImports:
         except (Exception, SystemExit) as e:
             pass
 
-    @patch("e2m2e.visualization.compute_stability_for_family")
+    @patch("e2m2e.algorithms.stability.StabilityAnalysis")
     @patch("e2m2e.core.OrbitFamily.load_from_file")
     @patch("e2m2e.core.CR3BP_System")
     def test_plot_dro_imports(self, mock_system, mock_load, mock_stability):
@@ -100,9 +100,9 @@ class TestPlotScriptImports:
             mock_system.return_value
         )
         mock_system.return_value = MagicMock()
-        mock_stability.return_value = np.array([1.0, 1.5])
+        mock_stability.return_value.compute_stability_index.return_value = np.array([1.0, 1.5])
 
-        script_path = project_root / "tod" / "pipelines" / "dro" / "plot" / "plot_dro_family.py"
+        script_path = project_root / "tod" / "plot" / "dro" / "plot_dro_family.py"
         spec = importlib.util.spec_from_file_location("plot_dro_family", script_path)
         assert spec is not None
         module = importlib.util.module_from_spec(spec)
