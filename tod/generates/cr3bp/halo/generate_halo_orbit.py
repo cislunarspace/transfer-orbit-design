@@ -189,6 +189,7 @@ def main():
     #
     # 但它仍不精确——特别是对较大振幅（Az > 0.3）误差明显。
     # 因此这里仅用它生成初始猜测，后续交由微分修正器迭代精化。
+    # TODO 需要审查
     guess = richardson_initial_guess(
         mu=MU,
         z_amplitude=amplitude_z,
@@ -273,7 +274,7 @@ if __name__ == "__main__":
             "--libration-point", "L1",                  # 共线拉格朗日点：L1 / L2
             "--amplitude-z", "0.23",                    # z 方向振幅（无量纲），决定轨道"大小"
             "--halo-class", "0",                        # 0=北 Halo（z0>0）/ 1=南 Halo（z0<0）
-            "--max-iterations", "150",                  # 微分修正最大迭代次数（发散保护）
+            "--max-iterations", "1000",                  # 微分修正最大迭代次数（发散保护）
             "--tolerance", "1e-6",                      # 微分修正收敛容差（约束残差范数阈值）
         ]
         print("[debug] 使用代码内置调试参数")
