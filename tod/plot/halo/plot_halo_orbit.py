@@ -3,15 +3,18 @@
 
 本脚本实现：
 1. 加载Halo轨道数据
-2. 计算Jacobi常数和稳定性指数
+2. 计算Jacobi常数
 3. 创建2D和3D可视化
-4. 创建周期-稳定性参数图
+4. 创建Jacobi常数-周期图
 """
 
 import argparse
 from pathlib import Path
 import sys
 from tod.commons.common import find_project_root
+import logging
+
+logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
 
 sys.path.insert(0, str(project_root))
@@ -26,7 +29,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import e2m2e
 from e2m2e.core import Orbit, OrbitFamily, CR3BP_System
-from e2m2e.visualization import FamilyPlotter, compute_stability_for_family
+from e2m2e.visualization import FamilyPlotter
 
 from tod.commons.common import MU
 
@@ -58,7 +61,7 @@ def compute_view_bounds(all_states: np.ndarray) -> tuple:
     return xlim_2d, ylim_2d, center_3d, radius_3d
 
 
-def main(plot1: int = 1, plot2: int = 1, plot3: int = 1, plot4: int = 1) -> None:
+def main(plot1: int = 1, plot2: int = 1, plot3: int = 1) -> None:
     args = parse_args()
     output_dir = project_root / "output" / "halo"
 
@@ -83,10 +86,10 @@ def main(plot1: int = 1, plot2: int = 1, plot3: int = 1, plot4: int = 1) -> None
             family_result.add_orbit(orbit)
 
         n_orbits = len(family_result)
-        print(f"加载了 {n_orbits} 条 Halo 轨道")
+        logger.info(f"加载了 {n_orbits} 条 Halo 轨道")
     except FileNotFoundError:
-        print(f"[error] 文件不存在: {family_path}")
-        print("请先生成Halo轨道数据，运行: python -m tod.generates.cr3bp.halo.generate_halo_family")
+        logger.error(f"文件不存在: {family_path}")
+        logger.info("请先生成Halo轨道数据，运行: python -m tod.generates.cr3bp.halo.generate_halo_family")
         sys.exit(1)
 
     # =============================================================================
@@ -109,29 +112,23 @@ def main(plot1: int = 1, plot2: int = 1, plot3: int = 1, plot4: int = 1) -> None
         plot_end = min(PLOT_END_IDX, n_orbits - 1)
 
     n_orbits_to_plot = plot_end - plot_start + 1
-    print(f"将绘制第 {plot_start} 至 第 {plot_end} 条轨道，共 {n_orbits_to_plot} 条")
+    logger.info(f"将绘制第 {plot_start} 至 第 {plot_end} 条轨道，共 {n_orbits_to_plot} 条")
 
     subset_family = OrbitFamily(system=system)
     for i in range(plot_start, plot_end + 1):
         subset_family.add_orbit(family_result[i])
 
     # =============================================================================
-    # 计算Jacobi常数和稳定性指数
+    # 计算Jacobi常数
     # =============================================================================
-    print("正在计算Jacobi常数...")
+    logger.info("正在计算Jacobi常数...")
     jacobi_values = family_result.get_jacobi_constants().tolist()
     jacobi_subset = [jacobi_values[i] for i in range(plot_start, plot_end + 1)]
-    print(f"Jacobi常数范围: {min(jacobi_subset):.6f} ~ {max(jacobi_subset):.6f}")
-
-    print("正在计算稳定性指数...")
-    stability_values = compute_stability_for_family(family_result, family_result.system)
-    stability_subset = [stability_values[i] for i in range(plot_start, plot_end + 1)]
-    print(f"稳定性指数范围: {min(stability_subset):.6f} ~ {max(stability_subset):.6f}")
+    logger.info(f"Jacobi常数范围: {min(jacobi_subset):.6f} ~ {max(jacobi_subset):.6f}")
 
     sort_idx = np.argsort(jacobi_subset)
     jacobi_sorted = np.array(jacobi_subset)[sort_idx].tolist()
     periods_sorted = np.array(subset_family.periods)[sort_idx].tolist()
-    stability_sorted = np.array(stability_subset)[sort_idx].tolist()
 
     # =============================================================================
     # 创建绘图器
@@ -150,10 +147,8 @@ def main(plot1: int = 1, plot2: int = 1, plot3: int = 1, plot4: int = 1) -> None
     xlim_2d, ylim_2d, center_3d, radius_3d = compute_view_bounds(all_states)
 
     jmin, jmax = min(jacobi_subset), max(jacobi_subset)
-    smin, smax = min(stability_subset), max(stability_subset)
     seed_orbit = family_result[0]
     seed_jacobi = jacobi_values[0]
-    seed_stability = stability_values[0]
 
     # =============================================================================
     # 1. 全局2D视图（XZ平面 - Halo轨道的特征平面）
@@ -162,7 +157,7 @@ def main(plot1: int = 1, plot2: int = 1, plot3: int = 1, plot4: int = 1) -> None
         fig_2d, ax_2d = plotter.plot_family_2d(
             subset_family, jacobi_subset,
             title=f"Halo Orbit Family in Earth-Moon CR3BP (XZ Plane) - {n_orbits} orbits\n"
-                  f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+                  f"C = [{jmin:.4f}, {jmax:.4f}]",
             plane="xz",
             show_bodies=True, show_libration=True, show_colorbar=True,
             xlim=xlim_2d,
@@ -171,7 +166,7 @@ def main(plot1: int = 1, plot2: int = 1, plot3: int = 1, plot4: int = 1) -> None
         )
         plotter.plot_2d_projection(
             seed_orbit, plane="xz", color="red",
-            label=f"Seed Halo (C={seed_jacobi:.4f}, λmax={seed_stability:.4f})",
+            label=f"Seed Halo (C={seed_jacobi:.4f})",
             ax=ax_2d,
         )
         plt.tight_layout()
@@ -185,7 +180,7 @@ def main(plot1: int = 1, plot2: int = 1, plot3: int = 1, plot4: int = 1) -> None
         fig_3d, ax_3d = plotter.plot_family_3d(
             subset_family, jacobi_subset,
             title=f"Halo Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
-                  f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+                  f"C = [{jmin:.4f}, {jmax:.4f}]",
             center=center_3d, radius=radius_3d, elev=20, azim=-60,
             show=False,
         )
@@ -199,40 +194,23 @@ def main(plot1: int = 1, plot2: int = 1, plot3: int = 1, plot4: int = 1) -> None
         plt.show()
 
     # =============================================================================
-    # 3. Jacobi常数-周期-稳定性图（双纵轴）
+    # 3. Jacobi常数-周期图
     # =============================================================================
     if plot3:
-        plotter.plot_jacobi_period_stability(
-            jacobi_sorted, periods_sorted, stability_sorted,
-            title=f"Halo Orbit Family - Period and Stability\n(n = {n_orbits} orbits)",
-            save_path=str(output_dir / f"{family_name}_period_stability.png"),
+        plotter.plot_jacobi_period(
+            jacobi_sorted, periods_sorted,
+            title=f"Halo Orbit Family - Period\n(n = {n_orbits} orbits)",
+            save_path=str(output_dir / f"{family_name}_jacobi_period.png"),
             show=True,
         )
 
-    # =============================================================================
-    # 4. 综合概览图（四子图）
-    # =============================================================================
-    if plot4:
-        plotter.plot_family_overview(
-            subset_family, jacobi_subset, subset_family.periods, stability_subset,
-            suptitle=f"Halo Orbit Family Overview - Earth-Moon CR3BP (n = {n_orbits})",
-            plane="xz", center_3d=center_3d, radius_3d=radius_3d,
-            zoom_xlim=xlim_2d,
-            zoom_ylim=ylim_2d,
-            elev=20, azim=-60,
-            save_path=str(output_dir / f"{family_name}_overview.png"),
-            show=True,
-        )
-
-    print(f"\n图表已保存到 {output_dir} 目录:")
+    logger.info(f"\n图表已保存到 {output_dir} 目录:")
     if plot1:
-        print(f"  - {family_name}_2d_view.png           : 全局2D视图 (XZ平面)")
+        logger.info(f"  - {family_name}_2d_view.png           : 全局2D视图 (XZ平面)")
     if plot2:
-        print(f"  - {family_name}_3d_view.png           : 全局3D视图")
+        logger.info(f"  - {family_name}_3d_view.png           : 全局3D视图")
     if plot3:
-        print(f"  - {family_name}_period_stability.png  : Jacobi常数-周期-稳定性图")
-    if plot4:
-        print(f"  - {family_name}_overview.png           : 综合概览图")
+        logger.info(f"  - {family_name}_jacobi_period.png     : Jacobi常数-周期图")
 
 
 if __name__ == "__main__":
@@ -251,9 +229,8 @@ if __name__ == "__main__":
         # 调试开关：1 = 绘制，0 = 跳过
         plot1 = 0  # 全局2D视图（XZ平面）
         plot2 = 1  # 全局3D视图
-        plot3 = 0  # Jacobi常数-周期-稳定性图
-        plot4 = 0  # 综合概览图（四子图）
-        print("[debug] 使用代码内置调试参数")
-        main(plot1=plot1, plot2=plot2, plot3=plot3, plot4=plot4)
+        plot3 = 0  # Jacobi常数-周期图
+        logger.debug("使用代码内置调试参数")
+        main(plot1=plot1, plot2=plot2, plot3=plot3)
     else:
         main()
