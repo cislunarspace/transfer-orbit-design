@@ -18,6 +18,7 @@ Halo 轨道是 CR3BP（圆形受限三体问题）下围绕共线拉格朗日点
 """
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -37,6 +38,8 @@ from e2m2e.core import Orbit
 # MU: 地月系质量比（无量纲，μ ≈ 1.21506683e-2）
 # TU: 时间单位（无量纲 → 物理天数的换算系数）
 from tod.commons.common import MU, TU
+
+logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = project_root / "output" / "halo"
 
@@ -59,7 +62,12 @@ def parse_args():
 
 
 def _halo_residuals(vars, dynamics, z0):
-    """Halo 轨道半周期约束残差：[y(T/2), vx(T/2), vz(T/2)] → 0"""
+    """Halo 轨道半周期约束残差：[y(T/2), vx(T/2), vz(T/2)] → 0
+
+    Halo 轨道关于 XZ 平面对称，半周期处轨道穿越 XZ 平面（y=0），
+    此时速度必须垂直于该平面（vx=0, vz=0），仅 vy 可非零。
+    因此只需约束这三个分量即可保证周期性。
+    """
     x0, vy0, t_half = vars
     state = [x0, 0.0, z0, 0.0, vy0, 0.0]
     res = sci_integrate.solve_ivp(
@@ -86,6 +94,7 @@ def _solve_halo(dynamics, z0, x0_guess, vy0_guess, t_half_guess, tol=1e-10):
     result = least_squares(
         lambda v: _halo_residuals(v, dynamics, z0),
         [x0_guess, vy0_guess, t_half_guess],
+        # x0∈[-2,2] 覆盖 L1/L2 附近位置范围；T/2>0.3 排除数值奇异解；其余为宽松上下界
         bounds=([-2.0, -5.0, 0.3], [2.0, 5.0, 5.0]),
         ftol=tol, xtol=tol, gtol=tol,
         max_nfev=500,
@@ -125,7 +134,7 @@ def richardson_initial_guess(mu, z_amplitude, libration_point, halo_class):
         dict: 包含 x0, z0, vy0, period 的初始猜测参数
     """
     Aw = z_amplitude
-    Au = np.sqrt(z_amplitude) * 0.5
+    Au = np.sqrt(z_amplitude) * 0.5  # 平面内振幅的缩放估计，来自 Richardson 三阶近似中 Ax 与 Az 的非线性耦合关系
 
     coeffs = e2m2e.algorithms.compute_halo_coefficients(mu, libration_point)
 
@@ -177,7 +186,8 @@ def _get_initial_guess(mu, amplitude_z, libration_point, halo_class):
             "ref_z": 0.23,
         }
 
-    # L2: Richardson 完全失效，用平动点位置 + 线性化估计
+    # L2: Richardson 三阶近似失效——Au 缩放关系在大 γ 下偏差过大，
+    # 导致生成的猜测远离真实解。改用平动点位置 + 线性化速度估计。
     if libration_point == 2:
         coeffs = e2m2e.algorithms.compute_halo_coefficients(mu, libration_point)
         gamma = coeffs["gamma"]
@@ -191,7 +201,7 @@ def _get_initial_guess(mu, amplitude_z, libration_point, halo_class):
         return {
             "x0": L_position,
             "z0": amplitude_z if halo_class == 0 else -amplitude_z,
-            "vy0": k * Au * omega_p,
+            "vy0": k * Au * omega_p,  # 线性化分析中 vy 与平面内振幅 Ax 的耦合关系，k 为耦合系数
             "period": 2 * np.pi / omega_p,
             "ref_z": None,
         }
@@ -219,8 +229,8 @@ def main():
     halo_class = args.halo_class
     z0 = amplitude_z if halo_class == 0 else -amplitude_z
 
-    print(f"目标轨道: L{libration_point} {'北' if halo_class == 0 else '南'} Halo")
-    print(f"Z振幅: {amplitude_z}")
+    logger.info("目标轨道: L%d %s Halo", libration_point, "北" if halo_class == 0 else "南")
+    logger.info("Z振幅: %s", amplitude_z)
 
     # =============================================================================
     # 3. 获取初始猜测
@@ -230,23 +240,28 @@ def main():
     vy0 = guess["vy0"]
     t_half = guess["period"] / 2
 
-    print(f"\n初始猜测:")
-    print(f"  x0 = {x0:.10f}")
-    print(f"  z0 = {z0}")
-    print(f"  vy0 = {vy0:.10f}")
-    print(f"  半周期 = {t_half:.6f} TU ({t_half * TU:.2f} days)")
+    logger.debug("初始猜测:")
+    logger.debug("  x0 = %.10f", x0)
+    logger.debug("  z0 = %s", z0)
+    logger.debug("  vy0 = %.10f", vy0)
+    logger.debug("  半周期 = %.6f TU (%.2f days)", t_half, t_half * TU)
 
     # =============================================================================
     # 4. 用 scipy.optimize 求解
     # =============================================================================
     # 对于 L1 北 Halo，先尝试直接求解，若失败则从参考振幅延拓。
     # 其他情况使用 Richardson 猜测直接求解。
-    print("\n开始求解...")
+    logger.info("开始求解...")
     sol = _solve_halo(dynamics, z0, x0, vy0, t_half, tol=args.tolerance)
 
     ref_z = guess.get("ref_z")
     if sol is None and ref_z is not None and abs(amplitude_z - ref_z) > 0.01:
-        print(f"直接求解失败，尝试从参考振幅 z={ref_z} 延拓...")
+        # 延拓（continuation）：当目标振幅与参考振幅相差较大时，
+        # 直接用参考解作为猜测会导致 least_squares 不收敛，
+        # 需从已知精确解逐步延拓到目标振幅。
+        # 自适应步长策略：以 0.02 为初始步长逐步推进，
+        # 若某步求解失败则步长减半重试；步长低于 1e-5 时放弃。
+        logger.info("直接求解失败，尝试从参考振幅 z=%.4f 延拓...", ref_z)
         # 先求参考振幅处的精确解
         z_sign = 1 if halo_class == 0 else -1
         ref_z0 = z_sign * ref_z
@@ -276,21 +291,21 @@ def main():
                     continue
                 current_z = next_z
                 current_sol = next_sol
-                print(f"  延拓: z={next_z:.4f}, T/2={current_sol[2]:.6f}")
+                logger.debug("延拓: z=%.4f, T/2=%.6f", next_z, current_sol[2])
             if abs(current_z - amplitude_z) < 1e-10:
                 sol = current_sol
 
     if sol is None:
-        print("\n[error] 求解失败: least_squares 未收敛")
+        logger.error("求解失败: least_squares 未收敛")
         return
 
     x0_sol, vy0_sol, t_half_sol = sol
     residual = np.linalg.norm(_halo_residuals(sol, dynamics, z0))
-    print("\n[ok] 成功找到 Halo 轨道!")
-    print(f"  x0 = {x0_sol:.10f}")
-    print(f"  vy0 = {vy0_sol:.10f}")
-    print(f"  半周期 = {t_half_sol:.10f} TU ({t_half_sol * TU:.4f} days)")
-    print(f"  约束残差 = {residual:.2e}")
+    logger.info("成功找到 Halo 轨道!")
+    logger.info("  x0 = %.10f", x0_sol)
+    logger.info("  vy0 = %.10f", vy0_sol)
+    logger.info("  半周期 = %.10f TU (%.4f days)", t_half_sol, t_half_sol * TU)
+    logger.debug("  约束残差 = %.2e", residual)
 
     # =============================================================================
     # 5. 传播完整轨道并保存
@@ -304,7 +319,7 @@ def main():
     )
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     orbit_result.save_to_file(filename=str(output_file))
-    print(f"  保存至: {output_file}") if output_file else None
+    logger.info("  保存至: %s", output_file)
 
 
 if __name__ == "__main__":
@@ -318,5 +333,5 @@ if __name__ == "__main__":
             "--max-iterations", "150",                  # 最大迭代次数
             "--tolerance", "1e-6",                      # 收敛容差
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()
