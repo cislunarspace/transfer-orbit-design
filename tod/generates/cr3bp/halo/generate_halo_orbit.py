@@ -118,6 +118,93 @@ def _propagate_full_orbit(dynamics, x0, z0, vy0, t_half, n_points=1000):
     return orbit
 
 
+def _compute_richardson_period(mu, Au, Aw, libration_point):
+    """计算 Richardson 三阶近似的周期估计
+
+    根据 Richardson 三阶理论，计算频率修正项并返回估计的周期。
+
+    Args:
+        mu: 质量比 μ = m₂/(m₁+m₂)
+        Au: 平面内振幅（X 方向）
+        Aw: 垂直振幅（Z 方向）
+        libration_point: 拉格朗日点编号 (1=L1, 2=L2)
+
+    Returns:
+        tuple: (T_linear, T_richardson, omega_p, freq_correction)
+            - T_linear: 线性周期（仅一阶）
+            - T_richardson: Richardson 三阶修正周期
+            - omega_p: 基本频率
+            - freq_correction: 频率修正项
+    """
+    coeffs = e2m2e.algorithms.compute_halo_coefficients(mu, libration_point)
+    omega_p = coeffs["omega_p"]
+    kappa1 = coeffs["kappa1"]
+    kappa2 = coeffs["kappa2"]
+
+    freq_correction = kappa1 * Au**2 + kappa2 * Aw**2
+    T_linear = 2 * np.pi / omega_p
+    T_richardson = 2 * np.pi / (omega_p + freq_correction)
+
+    return T_linear, T_richardson, omega_p, freq_correction
+
+
+def _extract_seed_from_approximation(SV_xyz, z_amplitude):
+    """从 Richardson 近似轨道提取种子参数
+
+    在 z 振幅最大偏移处提取初始状态 (x0, vy0)，该点满足
+    轨道关于 XZ 平面对称的极值条件。
+
+    Args:
+        SV_xyz: 近似轨道状态序列，shape (N, 6)，列为 [x, y, z, vx, vy, vz]
+        z_amplitude: 目标 Z 方向振幅
+
+    Returns:
+        tuple: (x0, vy0, z0)
+            - x0: x 方向初始位置
+            - vy0: y 方向初始速度
+            - z0: z 方向初始位置（符号由 halo_class 决定）
+    """
+    z_col = SV_xyz[:, 2]
+    idx_z_max = np.argmax(np.abs(z_col))
+    x0 = float(SV_xyz[idx_z_max, 0])
+    vy0 = float(SV_xyz[idx_z_max, 4])
+    return x0, vy0, z_amplitude
+
+
+def _select_vy0_sign(x0, z0, vy0_raw, T, mu):
+    """通过半周期传播选择正确的 vy0 符号
+
+    Richardson 近似不保证 vy0 符号正确。半周期传播时：
+    - 若 x 坐标增加（dx > 0）：轨道向外侧运动，符号正确
+    - 若 x 坐标减小（dx < 0）：轨道向内侧运动，需反转 vy0 符号
+
+    Args:
+        x0: x 方向初始位置
+        z0: z 方向初始位置
+        vy0_raw: 近似轨道提取的 y 方向速度
+        T: 周期估计
+        mu: 质量比 μ
+
+    Returns:
+        float: 符号纠正后的 vy0
+    """
+    from e2m2e.core.dynamics import CR3BP_Dynamics
+    from e2m2e.core.system import CR3BP_System
+
+    system = CR3BP_System(mu=mu, primary="earth", secondary="moon")
+    dynamics = CR3BP_Dynamics(system=system)
+
+    t_half = T / 2
+    state0 = [x0, 0.0, z0, 0.0, vy0_raw, 0.0]
+    res = sci_integrate.solve_ivp(
+        dynamics.equations_of_motion, (0, t_half), state0,
+        method="DOP853", t_eval=[t_half], rtol=1e-12, atol=1e-12,
+    )
+    x_final = res.y[0, -1]
+    sign = 1.0 if x_final > x0 else -1.0
+    return sign * abs(vy0_raw)
+
+
 def richardson_initial_guess(mu, z_amplitude, libration_point, halo_class):
     """用 Richardson 三阶近似生成 Halo 轨道初始猜测
 
@@ -133,32 +220,29 @@ def richardson_initial_guess(mu, z_amplitude, libration_point, halo_class):
     Returns:
         dict: 包含 x0, z0, vy0, period 的初始猜测参数
     """
+    # Au 缩放关系来自 Richardson 三阶近似中 Ax 与 Az 的非线性耦合
+    Au = np.sqrt(z_amplitude) * 0.5
     Aw = z_amplitude
-    Au = np.sqrt(z_amplitude) * 0.5  # 平面内振幅的缩放估计，来自 Richardson 三阶近似中 Ax 与 Az 的非线性耦合关系
 
-    coeffs = e2m2e.algorithms.compute_halo_coefficients(mu, libration_point)
+    # 阶段 1: 计算周期估计
+    T_linear, T_richardson, omega_p, freq_correction = _compute_richardson_period(
+        mu, Au, Aw, libration_point
+    )
+    use_linear = abs(freq_correction) > 0.5 * omega_p
+    T_est = T_linear if use_linear else T_richardson
 
-    omega_p = coeffs["omega_p"]
-    kappa1 = coeffs["kappa1"]
-    kappa2 = coeffs["kappa2"]
-    freq_correction = kappa1 * Au**2 + kappa2 * Aw**2
-    T_richardson = 2 * np.pi / (omega_p + freq_correction)
-    T_linear = 2 * np.pi / omega_p
-    T_est = T_linear if abs(freq_correction) > 0.5 * omega_p else T_richardson
-
-    SV_xyz, _, T = e2m2e.algorithms.halo_third_order_approximation(
+    # 阶段 2: 生成近似轨道并提取种子
+    SV_xyz, _, T_approx = e2m2e.algorithms.halo_third_order_approximation(
         mu=mu, Au=Au, Aw=Aw, phi=0.0, L=libration_point,
         tf=T_est, N=500, halo_class=halo_class,
     )
+    x0, vy0_raw, z0_base = _extract_seed_from_approximation(SV_xyz, z_amplitude)
 
-    z_col = SV_xyz[:, 2]
-    idx_z_max = np.argmax(np.abs(z_col))
+    # 阶段 3: 纠正 vy0 符号
+    z0 = z0_base if halo_class == 0 else -z0_base
+    vy0 = _select_vy0_sign(x0, z0, vy0_raw, T_approx, mu)
 
-    x0 = float(SV_xyz[idx_z_max, 0])
-    vy0 = float(SV_xyz[idx_z_max, 4])
-
-    z0 = z_amplitude if halo_class == 0 else -z_amplitude
-    period = T_linear if abs(freq_correction) > 0.5 * omega_p else T
+    period = T_linear if use_linear else T_approx
 
     return {
         "x0": x0,
