@@ -362,7 +362,7 @@ class ParamsPanelMixin:
 
         if entry.description:
             desc_label = QLabel(entry.description)
-            if _resolve_theme() == "dark":
+            if _resolve_theme(self._current_theme_mode) == "dark":
                 desc_label.setStyleSheet(
                     "font-size: 12px; padding: 6px 10px; border-radius: 4px; color: #aaaaaa;"
                     "background-color: #252525;"
@@ -431,7 +431,7 @@ class ParamsPanelMixin:
 
         if entry.output_dir:
             out_label = QLabel(entry.output_dir)
-            if _resolve_theme() == "dark":
+            if _resolve_theme(self._current_theme_mode) == "dark":
                 out_bg = "#2d2d2d"
                 out_color = "#bbbbbb"
                 out_accent = "#4caf50"

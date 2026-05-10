@@ -33,6 +33,6 @@ def resolve_theme(mode: str = "system") -> str:
     return mode
 
 
-def get_theme_stylesheet() -> str:
+def get_theme_stylesheet(mode: str = "system") -> str:
     """返回当前主题对应的样式表。"""
-    return load_stylesheet(resolve_theme())
+    return load_stylesheet(resolve_theme(mode))

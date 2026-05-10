@@ -87,7 +87,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         self._status_bar.showMessage("Ready")
 
         # 应用初始主题样式表
-        self.setStyleSheet(_get_theme_stylesheet())
+        self.setStyleSheet(_get_theme_stylesheet(self._current_theme_mode))
 
         # 连接 Job 信号
         self._job_manager.job_started.connect(self._on_job_started)
@@ -122,7 +122,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
     def _on_theme_changed(self) -> None:
         """主题变化后，重建左侧面板和参数面板的颜色，并应用新样式表。"""
         # 应用新样式表
-        self.setStyleSheet(_get_theme_stylesheet())
+        self.setStyleSheet(_get_theme_stylesheet(self._current_theme_mode))
 
         # 重建左侧面板
         old_panel = self._left_splitter.widget(0)
@@ -196,7 +196,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
 
         for category, scripts in SCRIPTS.items():
             header = QLabel(category)
-            hdr_color = "#aaa" if _resolve_theme() == "dark" else "#555"
+            hdr_color = "#aaa" if _resolve_theme(self._current_theme_mode) == "dark" else "#555"
             header.setStyleSheet(
                 f"font-weight: bold; font-size: 13px; "
                 f"padding: 8px 4px 4px 4px; color: {hdr_color};"
@@ -209,7 +209,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
                 if entry.group_label and entry.group_label != current_group:
                     current_group = entry.group_label
                     grp_lbl = QLabel(current_group)
-                    grp_color = "#aaa" if _resolve_theme() == "dark" else "#555"
+                    grp_color = "#aaa" if _resolve_theme(self._current_theme_mode) == "dark" else "#555"
                     grp_lbl.setStyleSheet(
                         f"font-weight: bold; font-size: 11px; "
                         f"padding: 6px 16px 2px 16px; color: {grp_color};"
