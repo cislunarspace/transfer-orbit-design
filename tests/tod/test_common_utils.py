@@ -6,10 +6,9 @@ Tests the constants and helper functions used across multiple scripts.
 
 import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 import os
 import tempfile
-import json
 
 from tod.commons.common import (
     MU,
@@ -19,8 +18,9 @@ from tod.commons.common import (
     T_MOON,
     FAMILY_FILENAME,
     ensure_output_dir,
+    find_project_root,
     get_latest_family_file,
-    load_or_compute,
+    safe_resolve_within,
     save_family_to_file,
 )
 
@@ -166,3 +166,86 @@ class TestSaveFamilyToFile:
 
         latest_path = output_dir / FAMILY_FILENAME
         assert latest_path.exists()
+
+
+class TestFindProjectRoot:
+    """Test find_project_root function"""
+
+    def test_from_project_root_directory(self):
+        """Should find project root when starting from a file at the root level"""
+        project_root = Path(__file__).resolve().parents[2]
+        # find_project_root calls .parent on start, so pass a file at root level
+        result = find_project_root(project_root / "pyproject.toml")
+        assert result == project_root
+        assert (result / "pyproject.toml").exists()
+
+    def test_from_deep_nested_path(self):
+        """Should find project root from a deeply nested path"""
+        project_root = Path(__file__).resolve().parents[2]
+        deep_path = project_root / "tod" / "plot" / "transfer" / "dro_to_ro"
+        result = find_project_root(deep_path)
+        assert result == project_root
+
+    def test_from_source_file(self):
+        """Should find project root from the common.py source file"""
+        project_root = Path(__file__).resolve().parents[2]
+        source_file = project_root / "tod" / "commons" / "common.py"
+        result = find_project_root(source_file)
+        assert result == project_root
+
+    def test_raises_when_no_root_found(self, tmp_path):
+        """Should raise FileNotFoundError when no root marker exists"""
+        nested = tmp_path / "a" / "b" / "c"
+        nested.mkdir(parents=True)
+        with pytest.raises(FileNotFoundError):
+            find_project_root(nested)
+
+
+class TestSafeResolveWithin:
+    """Test safe_resolve_within function"""
+
+    def test_path_within_allowed_root(self, tmp_path):
+        """Should return resolved path when it is within allowed root"""
+        allowed = tmp_path / "project"
+        allowed.mkdir()
+        target = allowed / "src" / "main.py"
+        target.parent.mkdir(parents=True)
+        target.touch()
+
+        result = safe_resolve_within(str(target), allowed)
+        assert result is not None
+        assert result == target.resolve()
+
+    def test_path_outside_allowed_root(self, tmp_path):
+        """Should return None when path is outside allowed root"""
+        allowed = tmp_path / "project"
+        allowed.mkdir()
+        outside = tmp_path / "other" / "secret.txt"
+        outside.parent.mkdir(parents=True)
+        outside.touch()
+
+        result = safe_resolve_within(str(outside), allowed)
+        assert result is None
+
+    def test_traversal_attack_blocked(self, tmp_path):
+        """Should block path traversal attempts using ../"""
+        allowed = tmp_path / "sandbox"
+        allowed.mkdir()
+
+        result = safe_resolve_within("../../../etc/passwd", allowed)
+        assert result is None
+
+    def test_relative_path_within_root(self, tmp_path):
+        """Should resolve a relative path that stays within root"""
+        allowed = tmp_path / "project"
+        sub = allowed / "data"
+        sub.mkdir(parents=True)
+
+        original_cwd = Path.cwd()
+        try:
+            os.chdir(str(allowed))
+            result = safe_resolve_within("data", allowed)
+            assert result is not None
+            assert result == sub.resolve()
+        finally:
+            os.chdir(str(original_cwd))
