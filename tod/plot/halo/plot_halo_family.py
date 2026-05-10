@@ -40,6 +40,9 @@ from e2m2e.visualization import FamilyPlotter, compute_stability_for_family
 from tod.commons.common import MU
 from tod.commons.plot_helpers import apply_standard_plot_config
 from tod.commons.common import find_project_root
+import logging
+
+logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
 
 # =============================================================================
@@ -131,8 +134,8 @@ def plot_halo_family(
     n_orbits = len(family_result)
     family_name = family_path.stem
 
-    print(f"已加载: {family_path}")
-    print(f"轨道条数: {n_orbits}")
+    logger.info(f"已加载: {family_path}")
+    logger.info(f"轨道条数: {n_orbits}")
 
     if plot_start == -1 and plot_end == -1:
         ps, pe = 0, n_orbits - 1
@@ -144,21 +147,21 @@ def plot_halo_family(
         ps = min(plot_start, n_orbits - 1)
         pe = min(plot_end, n_orbits - 1)
 
-    print(f"绘制索引 [{ps}, {pe}]，共 {pe - ps + 1} 条")
+    logger.info(f"绘制索引 [{ps}, {pe}]，共 {pe - ps + 1} 条")
 
     subset_family = OrbitFamily(system=system)
     for i in range(ps, pe + 1):
         subset_family.add_orbit(family_result[i])
 
-    print("正在计算 Jacobi 常数...")
+    logger.info("正在计算 Jacobi 常数...")
     jacobi_values = family_result.get_jacobi_constants().tolist()
     jacobi_subset = [jacobi_values[i] for i in range(ps, pe + 1)]
-    print(f"Jacobi 范围: {min(jacobi_subset):.6f} ~ {max(jacobi_subset):.6f}")
+    logger.info(f"Jacobi 范围: {min(jacobi_subset):.6f} ~ {max(jacobi_subset):.6f}")
 
-    print("正在计算稳定性指数（可能较慢）...")
+    logger.info("正在计算稳定性指数（可能较慢）...")
     stability_values = compute_stability_for_family(family_result, family_result.system)
     stability_subset = [stability_values[i] for i in range(ps, pe + 1)]
-    print(f"λmax 范围: {min(stability_subset):.6f} ~ {max(stability_subset):.6f}")
+    logger.info(f"λmax 范围: {min(stability_subset):.6f} ~ {max(stability_subset):.6f}")
 
     sort_idx = np.argsort(jacobi_subset)
     jacobi_sorted = np.array(jacobi_subset)[sort_idx].tolist()
@@ -253,11 +256,11 @@ def plot_halo_family(
         show=show,
     )
 
-    print(f"\n图表已保存至: {output_dir}")
-    print(f"  - {family_name}_2d_view.png")
-    print(f"  - {family_name}_3d_view.png")
-    print(f"  - {family_name}_period_stability.png")
-    print(f"  - {family_name}_overview.png")
+    logger.info(f"\n图表已保存至: {output_dir}")
+    logger.info(f"  - {family_name}_2d_view.png")
+    logger.info(f"  - {family_name}_3d_view.png")
+    logger.info(f"  - {family_name}_period_stability.png")
+    logger.info(f"  - {family_name}_overview.png")
 
 
 def _resolve_json_path(user_path: str) -> Path:
@@ -267,7 +270,7 @@ def _resolve_json_path(user_path: str) -> Path:
     try:
         resolved.relative_to(project_root.resolve())
     except ValueError:
-        print(f"安全拒绝: {resolved} 不在项目根目录 {project_root} 内")
+        logger.info(f"安全拒绝: {resolved} 不在项目根目录 {project_root} 内")
         sys.exit(1)
     return resolved
 
@@ -283,11 +286,11 @@ def main() -> None:
             search_dir = (project_root / search_dir).resolve()
         found = find_latest_family_json(search_dir)
         if found is None:
-            print(f"[error] 在 {search_dir} 未找到 halo_*_family_*.json")
-            print("请先生成: python -m tod.generates.cr3bp.halo.generate_halo_family")
+            logger.error(f"在 {search_dir} 未找到 halo_*_family_*.json")
+            logger.info("请先生成: python -m tod.generates.cr3bp.halo.generate_halo_family")
             sys.exit(1)
         family_path = found
-        print(f"[info] --latest: 使用 {family_path}")
+        logger.info(f"[info] --latest: 使用 {family_path}")
     elif args.json_file:
         family_path = _resolve_json_path(args.json_file)
     elif args.file:
@@ -298,11 +301,11 @@ def main() -> None:
             family_path = (project_root / family_path).resolve()
         else:
             family_path = family_path.resolve()
-        print(f"[info] 使用脚本内 FAMILY_JSON_PATH: {family_path}")
+        logger.info(f"[info] 使用脚本内 FAMILY_JSON_PATH: {family_path}")
 
     if not family_path.is_file():
-        print(f"[error] 文件不存在: {family_path}")
-        print(
+        logger.error(f"文件不存在: {family_path}")
+        logger.info(
             "请修改本脚本顶部的 FAMILY_JSON_PATH，或传入 JSON 路径，或使用 --latest。"
         )
         sys.exit(1)
@@ -328,5 +331,5 @@ if __name__ == "__main__":
             "--start", "-1",                              # 起始轨道索引，-1 表示从第一条
             "--end", "-1",                                # 结束轨道索引（含），-1 表示到最后一条
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

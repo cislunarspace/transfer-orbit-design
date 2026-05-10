@@ -4,11 +4,13 @@
 包含在多个脚本中重复使用的函数和常量。
 """
 
+import logging
 import os
 from pathlib import Path
 
-# 常量从 constants.py 集中定义，此处 re-export 以保持向后兼容
 from .constants import DU, FAMILY_FILENAME, MU, T_MOON, TU, VU
+
+logger = logging.getLogger(__name__)
 
 
 def find_project_root(start: Path | None = None) -> Path:
@@ -139,16 +141,16 @@ def load_or_compute(
             try:
                 resolved_path.relative_to(resolved_root)
             except ValueError:
-                print(f"安全拒绝: {family_path} 不在 {resolved_root} 内")
+                logger.warning("安全拒绝: %s 不在 %s 内", family_path, resolved_root)
                 return system, None
 
-            print(f"加载轨道族数据: {family_path}")
+            logger.info("加载轨道族数据: %s", family_path)
             family_result = OrbitFamily.load_from_file(family_path, system)
-            print(f"已加载 {len(family_result)} 条轨道")
+            logger.info("已加载 %d 条轨道", len(family_result))
             return system, family_result
         else:
-            print(f"未找到数据文件: {family_path}")
-            print("将重新计算...")
+            logger.warning("未找到数据文件: %s", family_path)
+            logger.info("将重新计算...")
 
     return system, None
 
@@ -177,11 +179,11 @@ def save_family_to_file(family_result, output_dir, family_filename=FAMILY_FILENA
     # 保存轨道族（统一文件）
     family_path = os.path.join(family_dir, family_filename)
     family_result.save_to_file(family_path)
-    print(f"轨道族已保存: {family_path}")
+    logger.info("轨道族已保存: %s", family_path)
 
     # 同时保存到 latest 链接（创建符号链接的替代方案：复制）
     latest_path = os.path.join(output_dir, family_filename)
     shutil.copy(family_path, latest_path)
-    print(f"最新轨道族: {latest_path}")
+    logger.info("最新轨道族: %s", latest_path)
 
     return family_dir

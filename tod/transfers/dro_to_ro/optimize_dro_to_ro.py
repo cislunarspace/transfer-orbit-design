@@ -42,6 +42,9 @@ from e2m2e.transfer import (
 )
 
 from tod.commons.common import DU, MU, TU
+import logging
+
+logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -377,11 +380,10 @@ def monitor_loop_serial_nlp(prog: OptimizationProgress):
                 break
             elapsed = time.perf_counter() - prog.start_time
             snap = prog.get_snapshot()
-            print(
+            logger.info(
                 f"  [monitor] elapsed={elapsed:.1f}s | "
                 f"done={done}/{prog.total_cases} | "
-                f"best_dV={snap['best_obj']:.6f}",
-                flush=True,
+                f"best_dV={snap['best_obj']:.6f}"
             )
 
 
@@ -519,9 +521,9 @@ def main() -> None:
     n_workers = args.n_workers if args.n_workers is not None else N_WORKERS
     velocity_angle_tol = args.velocity_angle_tol
 
-    print("=" * 70, flush=True)
-    print("DRO-RO 转移 NLP 优化（Cui et al. 2025；e2m2e DROTRONLPOptimizer）", flush=True)
-    print("=" * 70, flush=True)
+    logger.info("=" * 70)
+    logger.info("DRO-RO 转移 NLP 优化（Cui et al. 2025；e2m2e DROTRONLPOptimizer）")
+    logger.info("=" * 70)
 
     if not search_file.is_file():
         raise FileNotFoundError(f"未找到网格结果文件: {search_file}")
@@ -530,23 +532,22 @@ def main() -> None:
     if not ro_file.is_file():
         raise FileNotFoundError(f"未找到 RO 文件: {ro_file}")
 
-    print(f"\n优化配置:", flush=True)
+    logger.info(f"\n优化配置:")
     _cpu = multiprocessing.cpu_count() or 1
-    print(
-        f"  并行: n_workers={n_workers}（None=逻辑 CPU 数 {_cpu}）, backend={PARALLEL_BACKEND}",
-        flush=True,
+    logger.info(
+        f"  并行: n_workers={n_workers}（None=逻辑 CPU 数 {_cpu}）, backend={PARALLEL_BACKEND}"
     )
-    print(f"  TOP_K_FEASIBLE: {top_k}")
-    print(f"  MAX_CASES: {max_cases}")
-    print(f"  α 范围: [{alpha_min:.2f}, {alpha_max:.2f}]")
-    print(f"  积分步长（1 小时）: {DT:.8f} TU")
-    print(f"  碰撞半径: 地球={EARTH_RADIUS:.4f}, 月球={MOON_RADIUS:.4f}")
-    print(f"  进度条: {'开启（tqdm）' if USE_TQDM else '关闭（OPTIMIZE_NO_TQDM）'}")
-    print(f"  自动推算 t_ins: {COMPUTE_T_INS_FROM_TRAJECTORY}")
+    logger.info(f"  TOP_K_FEASIBLE: {top_k}")
+    logger.info(f"  MAX_CASES: {max_cases}")
+    logger.info(f"  α 范围: [{alpha_min:.2f}, {alpha_max:.2f}]")
+    logger.info(f"  积分步长（1 小时）: {DT:.8f} TU")
+    logger.info(f"  碰撞半径: 地球={EARTH_RADIUS:.4f}, 月球={MOON_RADIUS:.4f}")
+    logger.info(f"  进度条: {'开启（tqdm）' if USE_TQDM else '关闭（OPTIMIZE_NO_TQDM）'}")
+    logger.info(f"  自动推算 t_ins: {COMPUTE_T_INS_FROM_TRAJECTORY}")
 
-    print(f"\n加载网格结果:", flush=True)
-    print(f"  文件: {search_file}", flush=True)
-    print("  正在读取 JSON（大文件可能较慢）…", flush=True)
+    logger.info(f"\n加载网格结果:")
+    logger.info(f"  文件: {search_file}")
+    logger.info("  正在读取 JSON（大文件可能较慢）…")
     all_results = load_search_results(search_file)
     total_records = len(all_results)
     feasible_indexed: List[Tuple[int, Dict[str, Any]]] = [
@@ -561,33 +562,33 @@ def main() -> None:
 
     del all_results
 
-    print(f"\n网格记录总数: {total_records}", flush=True)
-    print(f"可行解总数: {n_feasible_total}", flush=True)
-    print(f"本次待优化（经 TOP_K / MAX_CASES 截断后）: {len(feasible_indexed)}", flush=True)
+    logger.info(f"\n网格记录总数: {total_records}")
+    logger.info(f"可行解总数: {n_feasible_total}")
+    logger.info(f"本次待优化（经 TOP_K / MAX_CASES 截断后）: {len(feasible_indexed)}")
     if USE_COPT:
         from e2m2e.transfer import _HAVE_COPT
 
-        print(f"NLP: COPT（已安装: {_HAVE_COPT}），失败则 SciPy SLSQP", flush=True)
+        logger.info(f"NLP: COPT（已安装: {_HAVE_COPT}），失败则 SciPy SLSQP")
     else:
-        print("NLP: SciPy SLSQP（scipy.optimize.minimize）", flush=True)
+        logger.info("NLP: SciPy SLSQP（scipy.optimize.minimize）")
 
     if not feasible_indexed:
-        print("\n没有可行解，退出。")
+        logger.info("\n没有可行解，退出。")
         return
 
-    print(f"\n加载轨道数据:", flush=True)
+    logger.info(f"\n加载轨道数据:")
     dro_orbit = load_orbit_from_json(str(dro_file))
     ro_orbit = load_orbit_from_json(str(ro_file))
-    print(f"  DRO: {dro_file}", flush=True)
-    print(f"  RO: {ro_file}", flush=True)
+    logger.info(f"  DRO: {dro_file}")
+    logger.info(f"  RO: {ro_file}")
 
     with open(ro_file, encoding="utf-8") as f:
         ro_json = json.load(f)
     if "properties" in ro_json and "period" in ro_json["properties"]:
         ro_orbit.period = float(ro_json["properties"]["period"])
 
-    print(f"  DRO 周期: {dro_orbit.period:.4f} TU, 状态数: {len(dro_orbit.states)}", flush=True)
-    print(f"  RO 周期: {ro_orbit.period:.4f} TU, 状态数: {len(ro_orbit.states)}", flush=True)
+    logger.info(f"  DRO 周期: {dro_orbit.period:.4f} TU, 状态数: {len(dro_orbit.states)}")
+    logger.info(f"  RO 周期: {ro_orbit.period:.4f} TU, 状态数: {len(ro_orbit.states)}")
 
     system, dynamics = build_dynamics(
         integrator=INTEGRATOR,
@@ -596,11 +597,11 @@ def main() -> None:
         max_step=DT,
         mu=MU,
     )
-    print(f"\ne2m2e 动力学已就绪", flush=True)
-    print(f"  系统: μ = {system.mu:.6e}", flush=True)
-    print(f"  积分器: {dynamics.integrator}", flush=True)
-    print(f"  rtol/atol: {dynamics.rtol:g} / {dynamics.atol:g}", flush=True)
-    print(f"  max_step: {dynamics.max_step:.8f} TU", flush=True)
+    logger.info(f"\ne2m2e 动力学已就绪")
+    logger.info(f"  系统: μ = {system.mu:.6e}")
+    logger.info(f"  积分器: {dynamics.integrator}")
+    logger.info(f"  rtol/atol: {dynamics.rtol:g} / {dynamics.atol:g}")
+    logger.info(f"  max_step: {dynamics.max_step:.8f} TU")
 
     pack_cfg = NlpPackConfig(
         mu=float(MU),
@@ -645,9 +646,9 @@ def main() -> None:
     n_total = len(feasible_indexed)
     disable_tqdm = not USE_TQDM or n_total <= 0
 
-    print("\n" + "=" * 70, flush=True)
-    print("开始 NLP 优化", flush=True)
-    print("=" * 70, flush=True)
+    logger.info("\n" + "=" * 70)
+    logger.info("开始 NLP 优化")
+    logger.info("=" * 70)
 
     records: List[Dict[str, Any]] = []
     if n_workers_req == 1:
@@ -689,35 +690,31 @@ def main() -> None:
                     if global_progress.start_time > 0
                     else 0
                 )
-                print(
+                logger.info(
                     f"  ✓ case {k + 1}/{n_total} done "
                     f"(search_idx={global_idx}) | "
                     f"iter={snap['iter']} | "
                     f"success={res.success} ΔV={res.objective_value:.6f} | "
-                    f"elapsed={elapsed:.1f}s",
-                    flush=True,
+                    f"elapsed={elapsed:.1f}s"
                 )
             except Exception:
                 row["error"] = traceback.format_exc()
                 global_progress.finish_case(False, float("inf"))
-                print(
+                logger.info(
                     f"  ✗ case {k + 1}/{n_total} ERROR (search_idx={global_idx}):\n"
-                    f"  {row['error'][:500]}",
-                    flush=True,
+                    f"  {row['error'][:500]}"
                 )
             records.append(row)
     else:
         n_pool = min(n_workers_req, n_total)
-        print(
-            f"  并行执行: {n_pool} 个 worker（backend={backend}，本机逻辑 CPU={cpu_n}）",
-            flush=True,
+        logger.info(
+            f"  并行执行: {n_pool} 个 worker（backend={backend}，本机逻辑 CPU={cpu_n}）"
         )
         if backend == "processes":
             _bt = blas_threads_per_worker(default_limit=LIMIT_BLAS_THREADS_PER_WORKER)
             apply_blas_env_for_child_processes(_bt)
-            print(
-                f"  多进程 BLAS/OpenMP: 每 worker {_bt} 线程（环境已写入 OMP/MKL/OpenBLAS 等）",
-                flush=True,
+            logger.info(
+                f"  多进程 BLAS/OpenMP: 每 worker {_bt} 线程（环境已写入 OMP/MKL/OpenBLAS 等）"
             )
         payloads = [(rec, idx) for idx, rec in feasible_indexed]
         futures_list: List[Any] = []
@@ -792,8 +789,8 @@ def main() -> None:
             ensure_ascii=False,
         )
 
-    print(f"\n优化完成，共写入 {len(records)} 条记录", flush=True)
-    print(f"结果已保存到: {out_path}", flush=True)
+    logger.info(f"\n优化完成，共写入 {len(records)} 条记录")
+    logger.info(f"结果已保存到: {out_path}")
 
 
 if __name__ == "__main__":
@@ -808,5 +805,5 @@ if __name__ == "__main__":
             "--nlp-ftol", "1e-6",                         # NLP 函数容差（NLP_FTOL）
             "--velocity-angle-tol", "0.05",              # 速度方向容差（VELOCITY_ANGLE_TOL）
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

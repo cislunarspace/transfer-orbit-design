@@ -35,6 +35,9 @@ from e2m2e.orbits.leo import (
     generate_leo_orbit_states,
     leo_circular_velocity_rotating,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -117,10 +120,10 @@ def main() -> None:
         dro_dir = project_root / "output/dro"
         dro_files = sorted(dro_dir.glob("dro_31_*.json"))
         if not dro_files:
-            print("错误：找不到 DRO 轨道文件！")
+            logger.info("错误：找不到 DRO 轨道文件！")
             return
         dro_file = dro_files[-1]
-        print(f"使用 DRO 文件: {dro_file}")
+        logger.info(f"使用 DRO 文件: {dro_file}")
 
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
     dynamics = CR3BP_Dynamics(system=system)
@@ -141,18 +144,18 @@ def main() -> None:
     # =========================================================================
     # 参数报告
     # =========================================================================
-    print("\n" + "=" * 70)
-    print("LEO → DRO 网格搜索")
-    print("=" * 70)
-    print(f"  LEO: 高度 {LEO_ALT_KM:.0f} km, R={R_LEO:.6f} DU = {R_LEO * DU:.0f} km")
-    print(f"       V_circ={V_CIRCULAR_LEO:.4f} VU = {V_CIRCULAR_LEO * VU:.0f} m/s")
-    print(f"       T={T_LEO:.6f} TU = {T_LEO * TU:.4f} 天")
-    print(f"  DRO: {dro_orbit.states.shape[0]} 点, "
+    logger.info("\n" + "=" * 70)
+    logger.info("LEO → DRO 网格搜索")
+    logger.info("=" * 70)
+    logger.info(f"  LEO: 高度 {LEO_ALT_KM:.0f} km, R={R_LEO:.6f} DU = {R_LEO * DU:.0f} km")
+    logger.info(f"       V_circ={V_CIRCULAR_LEO:.4f} VU = {V_CIRCULAR_LEO * VU:.0f} m/s")
+    logger.info(f"       T={T_LEO:.6f} TU = {T_LEO * TU:.4f} 天")
+    logger.info(f"  DRO: {dro_orbit.states.shape[0]} 点, "
           f"周期={dro_orbit.period:.4f} TU = {dro_orbit.period * TU:.2f} 天")
-    print(f"  α: [{alpha_min}, {alpha_max}], n={n_alpha}")
-    print(f"  出发点: {n_departure}")
-    print(f"  最大转移时间: {max_transfer_time:.1f} TU = {max_transfer_time * TU:.1f} 天")
-    print("=" * 70)
+    logger.info(f"  α: [{alpha_min}, {alpha_max}], n={n_alpha}")
+    logger.info(f"  出发点: {n_departure}")
+    logger.info(f"  最大转移时间: {max_transfer_time:.1f} TU = {max_transfer_time * TU:.1f} 天")
+    logger.info("=" * 70)
 
     # =========================================================================
     # 执行搜索
@@ -176,7 +179,7 @@ def main() -> None:
     )
 
     feasible = searcher.get_feasible_results()
-    print(f"\n搜索完成: {len(results)} 个候选解, {len(feasible)} 个可行解")
+    logger.info(f"\n搜索完成: {len(results)} 个候选解, {len(feasible)} 个可行解")
 
     # =========================================================================
     # 保存
@@ -248,30 +251,30 @@ def main() -> None:
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump({"meta": meta, "results": results_data}, f, indent=2, ensure_ascii=False)
 
-    print(f"\n结果已保存: {output_file}")
-    print(f"  总候选解: {len(results_data)}, 可行解: {len(feasible)}")
+    logger.info(f"\n结果已保存: {output_file}")
+    logger.info(f"  总候选解: {len(results_data)}, 可行解: {len(feasible)}")
 
     if feasible:
         sorted_f = sorted(feasible, key=lambda r: r.get("min_distance", float("inf")))
-        print("\n可行解摘要（前 10）:")
+        logger.info("\n可行解摘要（前 10）:")
         for i, r in enumerate(sorted_f[:10]):
             md = r.get("min_distance", float("inf"))
             dv = r.get("dv_departure", 0)
             tt = r.get("transfer_time", 0)
             al = r.get("alpha", 0)
-            print(f"  #{i+1}: dep_idx={r.get('departure_time_index')}, "
+            logger.info(f"  #{i+1}: dep_idx={r.get('departure_time_index')}, "
                   f"α={al:.4f}, T={tt:.2f} TU ({tt * TU:.1f} 天), "
                   f"dv_dep={dv:.4f} VU ({dv * VU:.0f} m/s), "
                   f"min_dist={md:.6f} DU ({md * DU:.0f} km), "
                   f"相交={r.get('intersection_found', False)}")
     else:
-        print("\n无可行解。分析距离分布...")
+        logger.info("\n无可行解。分析距离分布...")
         if results:
             dists = [r.get("min_distance", float("inf")) for r in results
                      if r.get("min_distance", float("inf")) < float("inf")]
             if dists:
-                print(f"  最小距离: {min(dists):.6f} DU = {min(dists) * DU:.0f} km")
-                print(f"  建议: 调整 alpha 范围或增加积分时间")
+                logger.info(f"  最小距离: {min(dists):.6f} DU = {min(dists) * DU:.0f} km")
+                logger.info(f"  建议: 调整 alpha 范围或增加积分时间")
 
 
 if __name__ == "__main__":
@@ -291,5 +294,5 @@ if __name__ == "__main__":
             "--moon-radius", "0.0002601422978369168",     # 月球碰撞半径（100.0/DU）
             "--leo-n-points", "500",                      # LEO 轨道采样点数（LEO_N_POINTS）
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

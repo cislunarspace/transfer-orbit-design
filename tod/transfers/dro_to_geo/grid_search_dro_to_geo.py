@@ -24,6 +24,9 @@ from e2m2e.transfer import load_orbit_from_json
 # GeoTransferSearch has been removed from e2m2e; this script is deprecated
 # from e2m2e.transfer import GeoTransferSearch
 from tod.commons.common import DU, MU, TU
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def parse_args():
@@ -106,9 +109,9 @@ def main() -> None:
     # =========================================================================
     # 执行搜索
     # =========================================================================
-    print("\n" + "=" * 70)
-    print("DRO → GEO 网格搜索")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("DRO → GEO 网格搜索")
+    logger.info("=" * 70)
 
     searcher = GeoTransferSearch(dynamics, geo_threshold=geo_threshold)
     results = searcher.search(
@@ -126,10 +129,10 @@ def main() -> None:
         n_workers=None,
     )
 
-    print(f"\n搜索完成，共找到 {len(results)} 个候选解")
+    logger.info(f"\n搜索完成，共找到 {len(results)} 个候选解")
 
     feasible_results = searcher.get_feasible_results()
-    print(f"其中 {len(feasible_results)} 个为可行解")
+    logger.info(f"其中 {len(feasible_results)} 个为可行解")
 
     # =========================================================================
     # 保存结果
@@ -178,9 +181,9 @@ def main() -> None:
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(results_data, f, indent=2, ensure_ascii=False)
 
-    print(f"\n结果已保存到: {output_file}")
-    print(f"  总候选解: {len(results_data)}")
-    print(f"  可行解: {len(feasible_results)}")
+    logger.info(f"\n结果已保存到: {output_file}")
+    logger.info(f"  总候选解: {len(results_data)}")
+    logger.info(f"  可行解: {len(feasible_results)}")
 
 
 if __name__ == "__main__":
@@ -198,5 +201,5 @@ if __name__ == "__main__":
             "--earth-radius", "0.0005202845956738336",    # 地球碰撞检测半径（200.0/DU）
             "--moon-radius", "0.0002601422978369168",     # 月球碰撞检测半径（100.0/DU）
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

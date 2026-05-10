@@ -26,6 +26,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib
 from tod.commons.common import find_project_root
+import logging
+
+logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
 
 try:
@@ -287,7 +290,7 @@ def plot_orbit_3d(
         T = rec["transfer_time"]
         t_ins = rec["t_ins"]
 
-        print(f"积分转移轨道: α={alpha:.6f}, T={T:.4f} TU, t_ins={t_ins:.4f} TU ...")
+        logger.info(f"积分转移轨道: α={alpha:.6f}, T={T:.4f} TU, t_ins={t_ins:.4f} TU ...")
         times, states = _integrate_transfer(departure_state, alpha, T, dynamics)
 
         fig = plt.figure(figsize=(12, 8))
@@ -380,7 +383,7 @@ def plot_orbit_3d(
             ax.scatter(*departure_state[:3], color=color, s=30, alpha=0.8)
 
             if (cm_idx + 1) % 10 == 0 or cm_idx == n_sel - 1:
-                print(f"  [{cm_idx + 1}/{n_sel}] 已绘制")
+                logger.info(f"  [{cm_idx + 1}/{n_sel}] 已绘制")
 
         # 地球和月球
         ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
@@ -419,7 +422,7 @@ def plot_orbit_3d(
     if save_path:
         save_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(save_path, dpi=dpi, bbox_inches="tight")
-        print(f"Saved: {save_path}")
+        logger.info(f"Saved: {save_path}")
     else:
         plt.show()
     plt.close(fig)
@@ -443,22 +446,22 @@ def main() -> None:
         try:
             opt_path.relative_to(project_root.resolve())
         except ValueError:
-            print(f"安全拒绝: {opt_path} 不在项目根目录 {project_root} 内")
+            logger.info(f"安全拒绝: {opt_path} 不在项目根目录 {project_root} 内")
             sys.exit(1)
     else:
         opt_path = _latest_optimization_json()
     if opt_path is None or not opt_path.is_file():
         raise FileNotFoundError("未找到 optimization_results_*.json")
-    print(f"读取: {opt_path}")
+    logger.info(f"读取: {opt_path}")
 
     data = load_optimization_results(opt_path)
     records = _collect_nlp_records(data)
     n_success = sum(1 for r in records if r["success"])
-    print(f"结果总数: {len(records)}, 成功: {n_success}")
+    logger.info(f"结果总数: {len(records)}, 成功: {n_success}")
 
     meta = data.get("meta", {})
-    print(f"求解器: {meta.get('nlp_solver', 'N/A')}")
-    print(f"松弛速度约束: {meta.get('use_relaxed_velocity', 'N/A')}")
+    logger.info(f"求解器: {meta.get('nlp_solver', 'N/A')}")
+    logger.info(f"松弛速度约束: {meta.get('use_relaxed_velocity', 'N/A')}")
 
     if args.orbit:
         dro_orbit = load_orbit_from_json(str(DRO_FILE))
@@ -470,7 +473,7 @@ def main() -> None:
 
         system, dynamics = _build_dynamics()
         sel_indices = _select_indices(records, args.idx, args.seed, args.max_points)
-        print(f"绘制 {len(sel_indices)} 条轨道 (idx={args.idx})")
+        logger.info(f"绘制 {len(sel_indices)} 条轨道 (idx={args.idx})")
 
         save_path = Path(args.save) if args.save else None
         plot_orbit_3d(records, sel_indices, dro_orbit, ro_orbit, system, dynamics, save_path, args.dpi)
@@ -483,7 +486,7 @@ def main() -> None:
             png = Path(args.save).expanduser().resolve()
             png.parent.mkdir(parents=True, exist_ok=True)
             fig.savefig(png, dpi=args.dpi, bbox_inches="tight")
-            print(f"Saved: {png}")
+            logger.info(f"Saved: {png}")
         else:
             plt.show()
         plt.close(fig)
@@ -497,7 +500,7 @@ def main() -> None:
             png = Path(args.save).expanduser().resolve()
             png.parent.mkdir(parents=True, exist_ok=True)
             fig.savefig(png, dpi=args.dpi, bbox_inches="tight")
-            print(f"Saved: {png}")
+            logger.info(f"Saved: {png}")
         else:
             plt.show()
         plt.close(fig)
@@ -514,5 +517,5 @@ if __name__ == "__main__":
             "--seed", "0",                                # 随机种子
             "--max-points", "500",                        # --orbit --idx all 时最多绘制条数
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

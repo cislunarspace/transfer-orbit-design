@@ -13,6 +13,9 @@
 import numpy as np
 import sys
 from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
 
 # 添加项目根目录到 path
 project_root = Path(__file__).resolve().parent.parent.parent.parent
@@ -66,9 +69,9 @@ def generate_geo_orbit(n_points: int = 500) -> Orbit:
 
 def test_velocity_model():
     """测试 1：出发速度模型在 GEO 上的物理行为"""
-    print("\n" + "=" * 70)
-    print("测试 1：GEO 出发速度模型分析")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("测试 1：GEO 出发速度模型分析")
+    logger.info("=" * 70)
 
     geo_orbit = generate_geo_orbit(n_points=100)
 
@@ -93,28 +96,28 @@ def test_velocity_model():
         v_rad = np.dot(vel, radial)
         v_tan = np.dot(vel, tangential)
 
-        print(f"\n  出发点 idx={idx} (θ={idx * 3.6:.0f}°):")
-        print(f"    位置: [{pos[0]:.6f}, {pos[1]:.6f}, {pos[2]:.6f}] DU")
-        print(f"    速度: [{vel[0]:.6f}, {vel[1]:.6f}, {vel[2]:.6f}] VU")
-        print(f"    |v| = {v_mag:.4f} VU = {v_mag * VU:.1f} m/s")
-        print(f"    到原点距离: {r_from_origin:.6f} DU = {r_from_origin * DU:.0f} km")
-        print(f"    到地心距离: {r_from_earth:.6f} DU = {r_from_earth * DU:.0f} km")
-        print(f"    v_radial = {v_rad:.4f} VU, v_tangential = {v_tan:.4f} VU")
+        logger.info(f"\n  出发点 idx={idx} (θ={idx * 3.6:.0f}°):")
+        logger.info(f"    位置: [{pos[0]:.6f}, {pos[1]:.6f}, {pos[2]:.6f}] DU")
+        logger.info(f"    速度: [{vel[0]:.6f}, {vel[1]:.6f}, {vel[2]:.6f}] VU")
+        logger.info(f"    |v| = {v_mag:.4f} VU = {v_mag * VU:.1f} m/s")
+        logger.info(f"    到原点距离: {r_from_origin:.6f} DU = {r_from_origin * DU:.0f} km")
+        logger.info(f"    到地心距离: {r_from_earth:.6f} DU = {r_from_earth * DU:.0f} km")
+        logger.info(f"    v_radial = {v_rad:.4f} VU, v_tangential = {v_tan:.4f} VU")
 
         # 测试不同 alpha 值
         for alpha in [1.0, 1.2, 1.5, 2.0]:
             new_vel = v_rad * radial + alpha * v_tan * tangential
             new_speed = np.linalg.norm(new_vel)
             dv = np.linalg.norm(new_vel - vel)
-            print(f"    alpha={alpha:.1f}: |v_new|={new_speed:.3f} VU = {new_speed * VU:.0f} m/s, "
+            logger.info(f"    alpha={alpha:.1f}: |v_new|={new_speed:.3f} VU = {new_speed * VU:.0f} m/s, "
                   f"Δv={dv:.3f} VU = {dv * VU:.0f} m/s")
 
 
 def test_forward_integration():
     """测试 2：从 GEO 出发的正向积分"""
-    print("\n" + "=" * 70)
-    print("测试 2：GEO 出发正向积分测试")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("测试 2：GEO 出发正向积分测试")
+    logger.info("=" * 70)
 
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
     dynamics = CR3BP_Dynamics(system=system)
@@ -141,11 +144,11 @@ def test_forward_integration():
     transfer_time = 30.0  # ~130 天
     dt = 0.01
 
-    print(f"\n出发状态: pos=[{pos[0]:.6f}, {pos[1]:.6f}], "
+    logger.info(f"\n出发状态: pos=[{pos[0]:.6f}, {pos[1]:.6f}], "
           f"|vel|={np.linalg.norm(vel):.4f} VU")
-    print(f"积分时间: {transfer_time:.1f} TU = {transfer_time * TU:.1f} 天")
-    print(f"到月球距离: {np.linalg.norm(pos - moon_pos):.4f} DU")
-    print()
+    logger.info(f"积分时间: {transfer_time:.1f} TU = {transfer_time * TU:.1f} 天")
+    logger.info(f"到月球距离: {np.linalg.norm(pos - moon_pos):.4f} DU")
+    logger.info()
 
     for alpha in [1.0, 1.2, 1.4, 1.6, 1.8, 2.0]:
         new_vel = v_rad * radial + alpha * v_tan * tangential
@@ -184,16 +187,16 @@ def test_forward_integration():
         elif collision_moon:
             status = "撞月"
 
-        print(f"  alpha={alpha:.1f}: 月球最近={min_moon_dist:.4f} DU = {min_moon_dist * DU:.0f} km "
+        logger.info(f"  alpha={alpha:.1f}: 月球最近={min_moon_dist:.4f} DU = {min_moon_dist * DU:.0f} km "
               f"(t={result['time'][min_moon_idx]:.2f} TU = {result['time'][min_moon_idx] * TU:.1f} 天), "
               f"x∈[{x_min:.4f}, {x_max:.4f}], 状态: {status}")
 
 
 def test_transfer_search():
     """测试 3：TransferSearch(departure=GEO, arrival=DRO) 网格搜索"""
-    print("\n" + "=" * 70)
-    print("测试 3：TransferSearch(GEO→DRO) 小规模网格搜索")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("测试 3：TransferSearch(GEO→DRO) 小规模网格搜索")
+    logger.info("=" * 70)
 
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
     dynamics = CR3BP_Dynamics(system=system)
@@ -211,7 +214,7 @@ def test_transfer_search():
         if dro_files:
             dro_file = dro_files[0]
         else:
-            print("错误：找不到 DRO 轨道文件！")
+            logger.info("错误：找不到 DRO 轨道文件！")
             return
 
     dro_orbit = load_orbit_from_json(str(dro_file))
@@ -223,9 +226,9 @@ def test_transfer_search():
 
     if dro_orbit.period is None:
         raise ValueError("DRO 轨道周期缺失")
-    print(f"DRO 轨道: {dro_orbit.states.shape[0]} 个状态点, "
+    logger.info(f"DRO 轨道: {dro_orbit.states.shape[0]} 个状态点, "
           f"周期={dro_orbit.period:.6f} TU = {dro_orbit.period * TU:.3f} 天")
-    print(f"DRO x 范围: [{dro_orbit.states[:, 0].min():.6f}, {dro_orbit.states[:, 0].max():.6f}]")
+    logger.info(f"DRO x 范围: [{dro_orbit.states[:, 0].min():.6f}, {dro_orbit.states[:, 0].max():.6f}]")
 
     # 生成 GEO 轨道
     geo_orbit = generate_geo_orbit(n_points=200)
@@ -233,7 +236,7 @@ def test_transfer_search():
 
     if geo_orbit.period is None:
         raise ValueError("GEO 轨道周期缺失")
-    print(f"GEO 轨道: {geo_orbit.states.shape[0]} 个状态点, "
+    logger.info(f"GEO 轨道: {geo_orbit.states.shape[0]} 个状态点, "
           f"周期={geo_orbit.period:.6f} TU = {geo_orbit.period * TU:.3f} 天")
 
     # 创建搜索器
@@ -260,12 +263,12 @@ def test_transfer_search():
 
     feasible = searcher.get_feasible_results()
 
-    print(f"\n搜索结果: {len(results)} 个候选解, {len(feasible)} 个可行解")
+    logger.info(f"\n搜索结果: {len(results)} 个候选解, {len(feasible)} 个可行解")
 
     if feasible:
-        print("\n可行解摘要:")
+        logger.info("\n可行解摘要:")
         for i, r in enumerate(feasible[:10]):
-            print(f"  #{i+1}: dep_idx={r.get('departure_time_index')}, "
+            logger.info(f"  #{i+1}: dep_idx={r.get('departure_time_index')}, "
                   f"alpha={r.get('alpha', 0):.4f}, "
                   f"T={r.get('transfer_time', 0):.2f} TU, "
                   f"dv_dep={r.get('dv_departure', 0):.4f} VU, "
@@ -273,18 +276,18 @@ def test_transfer_search():
                   f"{r.get('min_distance', float('inf')) * DU:.0f} km, "
                   f"相交={r.get('intersection_found', False)}")
     else:
-        print("\n没有找到可行解。分析所有结果的最小距离分布...")
+        logger.info("\n没有找到可行解。分析所有结果的最小距离分布...")
         if results:
             min_dists = [r.get("min_distance", float("inf")) for r in results]
             min_dists = [d for d in min_dists if d != float("inf")]
             if min_dists:
-                print(f"  最小距离范围: [{min(min_dists):.6f}, {max(min_dists):.6f}] DU")
-                print(f"  最小距离范围: [{min(min_dists) * DU:.0f}, {max(min_dists) * DU:.0f}] km")
-                print(f"  最佳 5 个:")
+                logger.info(f"  最小距离范围: [{min(min_dists):.6f}, {max(min_dists):.6f}] DU")
+                logger.info(f"  最小距离范围: [{min(min_dists) * DU:.0f}, {max(min_dists) * DU:.0f}] km")
+                logger.info(f"  最佳 5 个:")
                 sorted_results = sorted(results, key=lambda r: r.get("min_distance", float("inf")))
                 for r in sorted_results[:5]:
                     md = r.get("min_distance", float("inf"))
-                    print(f"    dep_idx={r.get('departure_time_index')}, "
+                    logger.info(f"    dep_idx={r.get('departure_time_index')}, "
                           f"alpha={r.get('alpha', 0):.4f}, "
                           f"T={r.get('transfer_time', 0):.2f} TU, "
                           f"min_dist={md:.6f} DU = {md * DU:.0f} km, "
@@ -292,8 +295,8 @@ def test_transfer_search():
 
 
 def main():
-    print("GEO → DRO 转移轨道搜索可行性验证")
-    print(f"GEO 参数: R={R_GEO:.6f} DU = {R_GEO * DU:.0f} km, "
+    logger.info("GEO → DRO 转移轨道搜索可行性验证")
+    logger.info(f"GEO 参数: R={R_GEO:.6f} DU = {R_GEO * DU:.0f} km, "
           f"V_circ={V_CIRCULAR_GEO:.4f} VU = {V_CIRCULAR_GEO * VU:.1f} m/s, "
           f"T={T_GEO:.4f} TU = {T_GEO * TU:.3f} 天")
 
@@ -301,9 +304,9 @@ def main():
     test_forward_integration()
     test_transfer_search()
 
-    print("\n" + "=" * 70)
-    print("验证完成")
-    print("=" * 70)
+    logger.info("\n" + "=" * 70)
+    logger.info("验证完成")
+    logger.info("=" * 70)
 
 
 if __name__ == "__main__":

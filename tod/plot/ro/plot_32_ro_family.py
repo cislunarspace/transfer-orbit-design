@@ -23,6 +23,9 @@ from e2m2e.visualization import FamilyPlotter, compute_stability_for_family
 from tod.commons.common import MU, TU
 from tod.commons.plot_helpers import apply_standard_plot_config
 from tod.commons.common import find_project_root
+import logging
+
+logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
 
 
@@ -48,14 +51,14 @@ def main() -> None:
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
     if not family_path.exists():
-        print(f"数据文件不存在: {family_path}")
-        print("请先运行生成脚本，或更新文件路径")
+        logger.info(f"数据文件不存在: {family_path}")
+        logger.info("请先运行生成脚本，或更新文件路径")
         raise SystemExit(1)
 
     family_result = OrbitFamily.load_from_file(filename=family_path, system=system)
 
     n_orbits = len(family_result)
-    print(f"加载了 {n_orbits} 条 3:2 RO轨道")
+    logger.info(f"加载了 {n_orbits} 条 3:2 RO轨道")
 
     # =============================================================================
     # 绘制范围控制变量
@@ -77,18 +80,18 @@ def main() -> None:
         plot_end = min(PLOT_END_IDX, n_orbits - 1)
 
     n_orbits_to_plot = plot_end - plot_start + 1
-    print(f"将绘制第 {plot_start} 至 第 {plot_end} 条轨道，共 {n_orbits_to_plot} 条")
+    logger.info(f"将绘制第 {plot_start} 至 第 {plot_end} 条轨道，共 {n_orbits_to_plot} 条")
 
     # =============================================================================
     # 计算Jacobi常数和稳定性指数
     # =============================================================================
-    print("正在计算Jacobi常数...")
+    logger.info("正在计算Jacobi常数...")
     jacobi_values = family_result.get_jacobi_constants().tolist()
-    print(f"Jacobi常数范围: {min(jacobi_values):.6f} ~ {max(jacobi_values):.6f}")
+    logger.info(f"Jacobi常数范围: {min(jacobi_values):.6f} ~ {max(jacobi_values):.6f}")
 
-    print("正在计算稳定性指数...")
+    logger.info("正在计算稳定性指数...")
     stability_values = compute_stability_for_family(family_result, system)
-    print(f"稳定性指数范围: {min(stability_values):.6f} ~ {max(stability_values):.6f}")
+    logger.info(f"稳定性指数范围: {min(stability_values):.6f} ~ {max(stability_values):.6f}")
 
     subset_family = OrbitFamily(system=system)
     for i in range(plot_start, plot_end + 1):
@@ -177,7 +180,7 @@ def main() -> None:
         show=True,
     )
 
-    print(f"\n完成！图像已保存到 output/ro/ 目录")
+    logger.info(f"\n完成！图像已保存到 output/ro/ 目录")
 
 
 if __name__ == "__main__":
@@ -189,5 +192,5 @@ if __name__ == "__main__":
             "--start", "-1",                              # 起始轨道索引，-1 表示从第一条
             "--end", "42",                                # 结束轨道索引（含），-1 表示到最后一条
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

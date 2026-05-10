@@ -27,6 +27,9 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 import matplotlib
 from tod.commons.common import find_project_root
+import logging
+
+logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
 
 try:
@@ -268,7 +271,7 @@ def _select_indices(records, idx_arg, seed=42, max_points=200, max_pos_err_km=10
 
 def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=None, dpi=150):
     if not sel_indices:
-        print("无选中轨道")
+        logger.info("无选中轨道")
         return
 
     sel_records = [records[i] for i in sel_indices]
@@ -279,7 +282,7 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         alpha = rec["alpha"]
         tt = rec["transfer_time"]
 
-        print(f"积分转移轨道: a={alpha:.6f}, T={tt:.4f} TU ({tt * TU:.1f} d) ...")
+        logger.info(f"积分转移轨道: a={alpha:.6f}, T={tt:.4f} TU ({tt * TU:.1f} d) ...")
         states, times = _integrate_transfer(dep_state, alpha, tt, dynamics)
 
         fig = plt.figure(figsize=(12, 8))
@@ -401,7 +404,7 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         save_path = Path(save_path)
         save_path.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(save_path, dpi=dpi, bbox_inches="tight")
-        print(f"Saved: {save_path}")
+        logger.info(f"Saved: {save_path}")
     else:
         plt.show()
     plt.close(fig)
@@ -432,7 +435,7 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
     current = 0
 
     if n == 0:
-        print("No valid results to browse")
+        logger.info("No valid results to browse")
         return
 
     plt.ion()
@@ -451,9 +454,9 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
         raise RuntimeError("L1/L2 平动点未计算")
     lp_data = [("L1", system.L1[0]), ("L2", system.L2[0])]
 
-    print(f"\nInteractive browse: GEO -> DRO optimized transfers")
-    print(f"{n} valid results, sorted by dv_total")
-    print("Commands: Enter=next, q=quit, s N=skip N, j N=jump to #N, r=redraw")
+    logger.info(f"\nInteractive browse: GEO -> DRO optimized transfers")
+    logger.info(f"{n} valid results, sorted by dv_total")
+    logger.info("Commands: Enter=next, q=quit, s N=skip N, j N=jump to #N, r=redraw")
 
     while 0 <= current < n:
         orig_i, rec = good[current]
@@ -466,20 +469,20 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
         pos_km = np.sqrt(max(0, float(pv))) * DU
         angle = rec.get("angle_deg", 0)
 
-        print(f"\n[{current+1}/{n}] (idx={orig_i}) a={alpha:.4f}, T={tt * TU:.1f} 天, "
+        logger.info(f"\n[{current+1}/{n}] (idx={orig_i}) a={alpha:.4f}, T={tt * TU:.1f} 天, "
               f"dv1={dv1 * VU / 1000:.4f}, dv2={dv2 * VU / 1000:.4f}, total={total * VU / 1000:.4f} km/s, "
               f"pos={pos_km:.1f} km, angle={angle:.1f} deg")
 
         dep_state = rec.get("departure_state")
         if dep_state is None:
-            print("  no departure state, skip")
+            logger.info("  no departure state, skip")
             current += 1
             continue
 
         try:
             states, times = _integrate_transfer(dep_state, alpha, tt, dynamics)
         except Exception as e:
-            print(f"  integration failed: {e}")
+            logger.info(f"  integration failed: {e}")
             current += 1
             continue
 
@@ -543,7 +546,7 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
 
     plt.ioff()
     plt.close(fig)
-    print("Exit browse")
+    logger.info("Exit browse")
 
 
 # =====================================================================
@@ -578,15 +581,15 @@ def main():
         try:
             opt_path.relative_to(project_root.resolve())
         except ValueError:
-            print(f"安全拒绝: {opt_path} 不在项目根目录 {project_root} 内")
+            logger.info(f"安全拒绝: {opt_path} 不在项目根目录 {project_root} 内")
             sys.exit(1)
     else:
         opt_path = _latest_optimization_json()
     if opt_path is None or not opt_path.exists():
-        print("optimization result JSON not found")
+        logger.info("optimization result JSON not found")
         return
 
-    print(f"Loading: {opt_path}")
+    logger.info(f"Loading: {opt_path}")
     data = load_optimization_results(opt_path)
     records = _collect_nlp_records(data)
 
@@ -595,7 +598,7 @@ def main():
     if not dro_file.exists():
         dro_files = sorted((project_root / "output/dro").glob("dro_31_*.json"))
         if not dro_files:
-            print("DRO file not found")
+            logger.info("DRO file not found")
             return
         dro_file = dro_files[-1]
     dro_orbit = load_orbit_from_json(str(dro_file))
@@ -610,7 +613,7 @@ def main():
         1 for r in records
         if r["success"] and np.sqrt(max(0, float(r.get("pos_violation", 1e10)))) * DU < args.max_pos_err
     )
-    print(f"Total: {n_total}, success: {n_success}, valid (pos<{args.max_pos_err:.0f}km): {n_valid}")
+    logger.info(f"Total: {n_total}, success: {n_success}, valid (pos<{args.max_pos_err:.0f}km): {n_valid}")
 
     system, dynamics = _build_dynamics()
 
@@ -622,7 +625,7 @@ def main():
             records, args.idx, seed=args.seed,
             max_points=args.max_points, max_pos_err_km=args.max_pos_err,
         )
-        print(f"Plotting {len(indices)} orbits (idx={args.idx})")
+        logger.info(f"Plotting {len(indices)} orbits (idx={args.idx})")
         plot_orbit_3d(records, indices, dro_orbit, system, dynamics,
                       save_path=args.save, dpi=args.dpi)
 
@@ -633,7 +636,7 @@ def main():
             if r["success"] and np.sqrt(max(0, float(r.get("pos_violation", 1e10)))) * DU < args.max_pos_err
         ]
         if not valid_records:
-            print("No valid records to plot")
+            logger.info("No valid records to plot")
             return
 
         if args.time_dv:
@@ -655,7 +658,7 @@ def main():
             png = Path(args.save).expanduser().resolve()
             png.parent.mkdir(parents=True, exist_ok=True)
             fig.savefig(png, dpi=args.dpi, bbox_inches="tight")
-            print(f"Saved: {png}")
+            logger.info(f"Saved: {png}")
         else:
             plt.show()
         plt.close(fig)
@@ -673,5 +676,5 @@ if __name__ == "__main__":
             "--max-pos-err", "100.0",                     # 最大位置误差 (km)
             "--dpi", "150",                               # 图像 DPI
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

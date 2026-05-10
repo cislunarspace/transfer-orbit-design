@@ -25,13 +25,15 @@ DRO → RO 转移轨道网格搜索结果可视化
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import matplotlib
 from tod.commons.common import find_project_root
+import logging
+
+logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
 
 try:
@@ -55,6 +57,18 @@ from e2m2e.transfer import TransferSearch, load_orbit_from_json
 from tod.commons.common import MU, TU, VU, safe_resolve_within
 from e2m2e.orbits.geo import EARTH_CENTER
 
+# 共享组件
+from tod.plot.transfer.common import (
+    departure_delta_v_norm,
+    feasible_alpha_and_departure_dv,
+    load_search_results,
+    plot_alpha_delta_v,
+    plot_transfer_time_delta_v,
+    select_feasible_indices,
+    plot_celestial_bodies,
+    set_equal_aspect_3d,
+)
+
 # =============================================================================
 # 数据文件：grid_search 输出的 JSON
 # =============================================================================
@@ -66,53 +80,6 @@ RESULTS_JSON = (
 # 轨道数据文件（用于转移轨道积分和绘图）
 DRO_FILE = project_root / "output/dro/dro_31_3857693511.json"
 RO_FILE = project_root / "output/ro/ro_31_3857693516.json"
-
-
-def departure_delta_v_norm(state6: np.ndarray, alpha: float) -> float:
-    """与 e2m2e TransferSearch._compute_departure_velocity 一致，返回 ‖v'−v‖（无量纲速度）。"""
-    pos = np.asarray(state6[:3], dtype=np.float64)
-    vel = np.asarray(state6[3:6], dtype=np.float64)
-    r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
-    if r_xy < 1e-10:
-        return float("nan")
-    tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
-    radial = pos / np.linalg.norm(pos)
-    v_radial_comp = float(np.dot(vel, radial))
-    v_tangential_comp = float(np.dot(vel, tangential))
-    new_vel = v_radial_comp * radial + alpha * v_tangential_comp * tangential
-    return float(np.linalg.norm(new_vel - vel))
-
-
-def feasible_alpha_and_departure_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndarray]:
-    """仅可行解；优先使用 JSON 中的 dv_departure（标量），否则由 departure_state 与 alpha 计算。"""
-    alphas: list[float] = []
-    dvs: list[float] = []
-    for r in rows:
-        if not r.get("is_feasible"):
-            continue
-        alpha = r.get("alpha")
-        if alpha is None:
-            continue
-        dv_raw = r.get("dv_departure")
-        if dv_raw is not None:
-            dv_arr = np.asarray(dv_raw, dtype=np.float64).ravel()
-            dv = float(dv_arr[0]) if dv_arr.size == 1 else float(np.linalg.norm(dv_arr))
-        else:
-            ds = r.get("departure_state")
-            if ds is None:
-                continue
-            dv = departure_delta_v_norm(np.asarray(ds, dtype=np.float64), float(alpha))
-        if np.isfinite(dv):
-            alphas.append(float(alpha))
-            dvs.append(dv)
-    return np.asarray(alphas, dtype=np.float64), np.asarray(dvs, dtype=np.float64)
-
-
-def load_search_results(path: Path) -> list[dict]:
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
-
-
 
 
 def compute_actual_transfer_time(r: dict, dt: float = 1.0 / (24.0 * TU)) -> float:
@@ -134,7 +101,11 @@ def compute_actual_transfer_time(r: dict, dt: float = 1.0 / (24.0 * TU)) -> floa
 
 
 def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndarray]:
-    """仅可行解；返回 (transfer_times, dv_departure)。"""
+    """仅可行解；返回 (transfer_times, dv_departure)。
+
+    与 common 版本不同：这里使用 compute_actual_transfer_time 计算实际转移时间，
+    通过 min_distance_idx * dt 而非原始 transfer_time。
+    """
     times: list[float] = []
     dvs: list[float] = []
     DT = 1.0 / (24.0 * TU)
@@ -157,55 +128,6 @@ def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndar
                 times.append(actual_time)
                 dvs.append(dv)
     return np.asarray(times, dtype=np.float64), np.asarray(dvs, dtype=np.float64)
-
-
-def plot_alpha_delta_v(
-    ax: Axes,
-    alpha: np.ndarray,
-    delta_v: np.ndarray,
-) -> None:
-    if len(alpha) == 0:
-        ax.text(
-            0.5,
-            0.5,
-            "无可行解",
-            ha="center",
-            va="center",
-            transform=ax.transAxes,
-        )
-        ax.set_title("DRO→RO: α vs Δv_departure")
-        return
-    ax.scatter(alpha, delta_v * VU / 1000, s=6, alpha=0.6, c="steelblue")
-    ax.set_xlabel("α")
-    ax.set_ylabel("Δv_departure (km/s)")
-    ax.set_title("DRO→RO: α vs Δv_departure")
-    ax.grid(True, alpha=0.3)
-
-
-def plot_transfer_time_delta_v(
-    ax: Axes,
-    transfer_time: np.ndarray,
-    delta_v: np.ndarray,
-) -> None:
-    """绘制转移时间 vs Δv 散点图。"""
-    if len(transfer_time) == 0:
-        ax.text(
-            0.5,
-            0.5,
-            "无可行解",
-            ha="center",
-            va="center",
-            transform=ax.transAxes,
-        )
-        ax.set_title("DRO→RO: 转移时间 vs Δv_departure")
-        return
-    sc = ax.scatter(transfer_time * TU, delta_v * VU / 1000, s=6, alpha=0.6,
-                    c=transfer_time * TU, cmap="viridis")
-    style_colorbar(plt.colorbar(sc, ax=ax, label="转移时间 (天)"), PLOT_CONFIG)
-    ax.set_xlabel("转移时间 (天)")
-    ax.set_ylabel("Δv_departure (km/s)")
-    ax.set_title("DRO→RO: 转移时间 vs Δv_departure")
-    ax.grid(True, alpha=0.3)
 
 
 def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
@@ -349,19 +271,8 @@ def _plot_single_transfer_orbit(
     # 到达点
     ax.scatter(*arrival_point[:3], color="orange", s=40, marker="s", zorder=5, label="终点")
 
-    # 地球和月球
-    ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
-    ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-    ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=PLOT_CONFIG.lp_label, ha="center")
-    ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=PLOT_CONFIG.lp_label, ha="center")
-
-    # 平动点
-    system.compute_libration_points()
-    if system.L1 is None or system.L2 is None:
-        raise RuntimeError("L1/L2 平动点未计算")
-    for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
-        ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-        ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
+    # 地球、月球、平动点（共享组件）
+    plot_celestial_bodies(ax, system, PLOT_CONFIG)
 
     ax.set_xlabel("x (DU)")
     ax.set_ylabel("y (DU)")
@@ -375,78 +286,12 @@ def _plot_single_transfer_orbit(
     )
     ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
-    # 等比例轴
+    # 等比例轴（共享组件）
     all_pts = np.concatenate([transfer_states[:, :3], departure_orbit.states[:, :3],
                               arrival_orbit.states[:, :3]])
-    mid = all_pts.mean(axis=0)
-    half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
-    ax.set_xlim(mid[0] - half, mid[0] + half)
-    ax.set_ylim(mid[1] - half, mid[1] + half)
-    ax.set_zlim(mid[2] - half, mid[2] + half)
-    ax.set_box_aspect([1, 1, 1])
+    set_equal_aspect_3d(ax, all_pts)
 
     return ax
-
-
-def _select_feasible_indices(
-    feasible_rows: list[dict], idx_arg: str, seed: int, max_indices: int | None = None
-) -> list[int]:
-    """根据 --idx 参数选择可行解索引列表。返回索引列表；支持：
-    - 'all': 全部（可子采样）
-    - 'best': Δv 最小的 1 个
-    - 'best:N': Δv 最小的 N 个
-    - 'random': 随机 1 个
-    """
-    n = len(feasible_rows)
-
-    # 预计算所有 dv_departure
-    dv_vals = []
-    for r in feasible_rows:
-        dv_raw = r.get("dv_departure")
-        if dv_raw is not None:
-            dv_arr = np.asarray(dv_raw, dtype=np.float64).ravel()
-            dv = float(dv_arr[0]) if dv_arr.size == 1 else float(np.linalg.norm(dv_arr))
-        else:
-            dv = float("inf")
-        dv_vals.append(dv)
-
-    if idx_arg == "all":
-        if max_indices is not None and n > max_indices:
-            rng = np.random.default_rng(seed)
-            chosen = rng.choice(n, size=max_indices, replace=False)
-            print(f"  [all] 随机采样 {max_indices} / {n} 个可行解（seed={seed}）")
-            return sorted(chosen.tolist())
-        print(f"  [all] 绘制全部 {n} 个可行解")
-        return list(range(n))
-    elif idx_arg.startswith("best"):
-        parts = idx_arg.split(":")
-        if len(parts) == 2:
-            try:
-                top_n = int(parts[1])
-            except ValueError:
-                top_n = 1
-        else:
-            top_n = 1
-        top_n = min(top_n, n)
-        sorted_indices = sorted(range(n), key=lambda i: dv_vals[i])
-        selected = sorted_indices[:top_n]
-        if top_n == 1:
-            print(f"  [best] 选择 Δv={dv_vals[selected[0]]:.6f} 的解（索引 {selected[0]}）")
-        else:
-            print(
-                f"  [best:{top_n}] 选择 Δv 最小的 {top_n} 个可行解（Δv 范围: {dv_vals[selected[0]]:.6f} ~ {dv_vals[selected[-1]]:.6f}）"
-            )
-        return selected
-    elif idx_arg == "random":
-        rng = np.random.default_rng(seed)
-        chosen = rng.integers(0, n)
-        print(f"  [random] 随机选择索引 {chosen}（seed={seed}）")
-        return [int(chosen)]
-    else:
-        i = int(idx_arg)
-        if i < 0 or i >= n:
-            raise ValueError(f"索引 {i} 超出范围（可行解总数={n}）")
-        return [i]
 
 
 def main() -> None:
@@ -504,13 +349,13 @@ def main() -> None:
         raise FileNotFoundError(path)
     # 路径遍历防护：仅在用户通过 --file 指定路径时检查
     if args.file and safe_resolve_within(args.file, project_root) is None:
-        print(f"安全拒绝: {args.file} 不在项目根目录 {project_root} 内")
+        logger.info(f"安全拒绝: {args.file} 不在项目根目录 {project_root} 内")
         sys.exit(1)
-    print(f"读取: {path}")
+    logger.info(f"读取: {path}")
 
     rows = load_search_results(path)
     feasible_rows = [r for r in rows if r.get("is_feasible")]
-    print(f"总行数={len(rows)}，可行解={len(feasible_rows)}")
+    logger.info(f"总行数={len(rows)}，可行解={len(feasible_rows)}")
 
     if args.orbit:
         # ── 转移轨道示意图 ──────────────────────────────────────────────────
@@ -521,8 +366,8 @@ def main() -> None:
         if not ro_path.is_file():
             raise FileNotFoundError(f"RO 轨道文件不存在: {ro_path}")
 
-        print(f"加载 DRO: {dro_path}")
-        print(f"加载 RO: {ro_path}")
+        logger.info(f"加载 DRO: {dro_path}")
+        logger.info(f"加载 RO: {ro_path}")
         dro_orbit = load_orbit_from_json(str(dro_path))
         ro_orbit = load_orbit_from_json(str(ro_path))
 
@@ -530,7 +375,7 @@ def main() -> None:
         ts_dummy = _build_transfer_search()
         system = ts_dummy.system
 
-        sel_indices = _select_feasible_indices(
+        sel_indices = select_feasible_indices(
             feasible_rows, args.idx, args.seed, max_indices=args.max_points
         )
         n_sel = len(sel_indices)
@@ -539,7 +384,7 @@ def main() -> None:
         n_workers = args.n_workers
         use_parallel = n_sel > 1
         if use_parallel:
-            print(f"并行积分：{n_sel} 条轨道，n_workers={n_workers or 'CPU 核数'}...")
+            logger.info(f"并行积分：{n_sel} 条轨道，n_workers={n_workers or 'CPU 核数'}...")
             work_args = [
                 (
                     np.asarray(feasible_rows[i]["departure_state"], dtype=np.float64),
@@ -560,7 +405,7 @@ def main() -> None:
                     cm_idx, alpha = futures[future]
                     res = future.result()
                     results[cm_idx] = res
-                    print(f"  [{len(results)}/{n_sel}] α={alpha:.3f} 完成")
+                    logger.info(f"  [{len(results)}/{n_sel}] α={alpha:.3f} 完成")
         else:
             # 单条轨道：串行（用于 --idx 0 / best / random）
             result = feasible_rows[sel_indices[0]]
@@ -578,7 +423,7 @@ def main() -> None:
                 if dv_arr is not None and dv_arr.size == 1
                 else (float(np.linalg.norm(dv_arr)) if dv_arr is not None else float("nan"))
             )
-            print(f"积分转移轨道（α={alpha}, T={transfer_time:.3f} TU）...")
+            logger.info(f"积分转移轨道（α={alpha}, T={transfer_time:.3f} TU）...")
             transfer_states, _ = _reintegrate_transfer(
                 ts_dummy, departure_state, alpha, float(transfer_time)
             )
@@ -634,19 +479,8 @@ def main() -> None:
                         transfer_states[:, 2], color=color, lw=1.2, alpha=0.7)
                 ax.scatter(*departure_state[:3], color=color, s=30, alpha=0.8)
 
-            # 地球和月球
-            ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
-            ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-            ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=PLOT_CONFIG.lp_label, ha="center")
-            ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=PLOT_CONFIG.lp_label, ha="center")
-
-            # 平动点
-            system.compute_libration_points()
-            if system.L1 is None or system.L2 is None:
-                raise RuntimeError("L1/L2 平动点未计算")
-            for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
-                ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-                ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
+            # 地球、月球、平动点（共享组件）
+            plot_celestial_bodies(ax, system, PLOT_CONFIG)
 
             ax.set_xlabel("x (DU)")
             ax.set_ylabel("y (DU)")
@@ -654,14 +488,9 @@ def main() -> None:
             ax.set_title(f"DRO→RO: {n_sel} 条转移轨道")
             ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
-            # 等比例轴
+            # 等比例轴（共享组件）
             all_pts = np.concatenate([dro_orbit.states[:, :3], ro_orbit.states[:, :3]])
-            mid = all_pts.mean(axis=0)
-            half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
-            ax.set_xlim(mid[0] - half, mid[0] + half)
-            ax.set_ylim(mid[1] - half, mid[1] + half)
-            ax.set_zlim(mid[2] - half, mid[2] + half)
-            ax.set_box_aspect([1, 1, 1])
+            set_equal_aspect_3d(ax, all_pts)
 
         if args.save:
             png = Path(args.save).expanduser().resolve()
@@ -669,7 +498,7 @@ def main() -> None:
                 png = png.with_suffix(".png")
             png.parent.mkdir(parents=True, exist_ok=True)
             fig.savefig(png, dpi=args.dpi, bbox_inches="tight")
-            print(f"Saved: {png}")
+            logger.info(f"Saved: {png}")
         else:
             plt.show()
         plt.close(fig)
@@ -683,7 +512,7 @@ def main() -> None:
             dvs = dvs_all[idx]
 
             fig, ax = plt.subplots(figsize=(10, 6))
-            plot_transfer_time_delta_v(ax, times, dvs)
+            plot_transfer_time_delta_v(ax, times, dvs, "DRO→RO:")
             fig.tight_layout()
 
             if args.save:
@@ -692,7 +521,7 @@ def main() -> None:
                     png = png.with_suffix(".png")
                 png.parent.mkdir(parents=True, exist_ok=True)
                 fig.savefig(png, dpi=args.dpi, bbox_inches="tight")
-                print(f"Saved: {png}")
+                logger.info(f"Saved: {png}")
             else:
                 plt.show()
             plt.close(fig)
@@ -705,7 +534,7 @@ def main() -> None:
             dv = dv_all[idx]
 
             fig, ax = plt.subplots(figsize=(10, 6))
-            plot_alpha_delta_v(ax, alpha, dv)
+            plot_alpha_delta_v(ax, alpha, dv, "DRO→RO:")
             fig.tight_layout()
 
             if args.save:
@@ -714,7 +543,7 @@ def main() -> None:
                     png = png.with_suffix(".png")
                 png.parent.mkdir(parents=True, exist_ok=True)
                 fig.savefig(png, dpi=args.dpi, bbox_inches="tight")
-                print(f"Saved: {png}")
+                logger.info(f"Saved: {png}")
             else:
                 plt.show()
             plt.close(fig)
@@ -731,5 +560,5 @@ if __name__ == "__main__":
             "--dpi", "150",                               # 图像 DPI
             "--idx", "0",                                 # 选择可行解索引
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

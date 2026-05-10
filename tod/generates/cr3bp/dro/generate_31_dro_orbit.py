@@ -14,6 +14,7 @@
 """
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 import time
@@ -21,6 +22,8 @@ import time
 import e2m2e
 from e2m2e.core import Orbit
 from tod.commons.common import MU, TU
+
+logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 
@@ -58,10 +61,10 @@ def main():
     target_period = args.period  # 无量纲时间单位
     t_half = target_period / 2  # 半周期
 
-    print(f"目标轨道: 3:1 DRO")
-    print(f"初始状态: x0={x0}, vy0={vy0}")
-    print(f"目标周期: {target_period:.4f} TU ({target_period * TU:.2f} days)")
-    print(f"半周期: {t_half:.4f} TU")
+    logger.info("目标轨道: 3:1 DRO")
+    logger.info("初始状态: x0=%s, vy0=%s", x0, vy0)
+    logger.info("目标周期: %.4f TU (%.2f days)", target_period, target_period * TU)
+    logger.info("半周期: %.4f TU", t_half)
 
     # =============================================================================
     # 3. 配置固定周期微分校正器
@@ -69,11 +72,11 @@ def main():
     corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamics)
     corrector.setup_2D_symmetric_x_fixed_t(t_half=t_half)
 
-    print(f"\n微分校正器配置:")
-    print(f"  模式: setup_2D_symmetric_x_fixed_t")
-    print(f"  固定参数: T_half = {t_half:.4f}")
-    print(f"  自由变量: {corrector.free_variables}")
-    print(f"  约束条件: {list(corrector.target_conditions.keys())}")
+    logger.info("微分校正器配置:")
+    logger.debug("  模式: setup_2D_symmetric_x_fixed_t")
+    logger.debug("  固定参数: T_half = %.4f", t_half)
+    logger.debug("  自由变量: %s", corrector.free_variables)
+    logger.debug("  约束条件: %s", list(corrector.target_conditions.keys()))
 
     # =============================================================================
     # 4. 初始猜测
@@ -83,31 +86,31 @@ def main():
 
     orbit_init = Orbit(states=[initial_state], times=times)
 
-    print(f"\n初始猜测:")
-    print(f"  状态: {initial_state}")
+    logger.debug("初始猜测:")
+    logger.debug("  状态: %s", initial_state)
 
     # =============================================================================
     # 5. 执行迭代修正
     # =============================================================================
-    print(f"\n开始迭代修正...")
+    logger.info("开始迭代修正...")
     orbit_result = corrector.iterate_correction(initial_guess=orbit_init, verbose=True)
 
     # =============================================================================
     # 6. 保存结果
     # =============================================================================
     if orbit_result is not None:
-        print(f"\n[ok] 成功找到 3:1 DRO 轨道!")
-        print(f"  修正后周期: {orbit_result.period:.6f} TU")
-        print(f"  周期误差: {abs(orbit_result.period - target_period):.6e}")
+        logger.info("成功找到 3:1 DRO 轨道!")
+        logger.info("  修正后周期: %.6f TU", orbit_result.period)
+        logger.debug("  周期误差: %.6e", abs(orbit_result.period - target_period))
 
         # 保存轨道数据
         ts = int(time.time())
         output_file = OUTPUT_DIR / f"dro_31_{ts}.json"
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         orbit_result.save_to_file(filename=str(output_file))
-        print(f"  保存至: {output_file}")
+        logger.info("  保存至: %s", output_file)
     else:
-        print(f"\n[error] 修正失败: {corrector.termination_reason}")
+        logger.error("修正失败: %s", corrector.termination_reason)
 
 
 if __name__ == "__main__":
@@ -120,5 +123,5 @@ if __name__ == "__main__":
             "--vy0", "-0.4618",                             # 初始 y 方向速度（无量纲）
             "--period", "2.095",                            # 目标周期（无量纲）
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

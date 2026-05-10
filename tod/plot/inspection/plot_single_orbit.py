@@ -21,6 +21,9 @@ import e2m2e
 from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.visualization.base import OrbitVisualizer
 from tod.commons.common import find_project_root
+import logging
+
+logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
 
 PLOT_CONFIG = apply_standard_plot_config()
@@ -52,13 +55,13 @@ def main():
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
     orbit = Orbit.load_from_file(filename=orbit_path, system=system)
 
-    print(f"加载轨道: {orbit_filename}")
-    print(f"  状态数: {len(orbit.states)}")
+    logger.info(f"加载轨道: {orbit_filename}")
+    logger.info(f"  状态数: {len(orbit.states)}")
     if orbit.period is None:
         raise ValueError("orbit period is None")
-    print(f"  周期: {orbit.period:.6f} TU ({orbit.period * TU:.2f} days)")
+    logger.info(f"  周期: {orbit.period:.6f} TU ({orbit.period * TU:.2f} days)")
     if orbit.jacobi_constants is not None:
-        print(f"  Jacobi常数: {orbit.jacobi_constants[0]:.6f}")
+        logger.info(f"  Jacobi常数: {orbit.jacobi_constants[0]:.6f}")
 
     _jacobi_title = (
         f"Jacobi = {orbit.jacobi_constants[0]:.4f}"
@@ -184,7 +187,7 @@ def main():
     )
     plt.show()
 
-    print(f"\n轨道图已保存至 {output_dir}")
+    logger.info(f"\n轨道图已保存至 {output_dir}")
 
 
 if __name__ == "__main__":
@@ -192,5 +195,5 @@ if __name__ == "__main__":
     # 命令行调用时不影响。
     # 想调哪个值就改下方对应字面量即可。
     if len(sys.argv) == 1:
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

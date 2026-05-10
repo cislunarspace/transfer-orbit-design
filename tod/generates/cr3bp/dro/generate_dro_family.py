@@ -10,11 +10,14 @@
 """
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
 import time
 from tod.commons.common import MU
+
+logger = logging.getLogger(__name__)
 
 import e2m2e
 from e2m2e.core import Orbit
@@ -93,7 +96,7 @@ def main():
             / f"dro_31_family_{param_min}-{param_max}-{step_size}_{int(time.time())}.json"
         )
     )
-    print(f"已保存至：dro_31_family_{param_min}-{param_max}-{step_size}_{int(time.time())}.json")
+    logger.info("已保存至：dro_31_family_%s-%s-%s_%d.json", param_min, param_max, step_size, int(time.time()))
 
 
 if __name__ == "__main__":
@@ -109,5 +112,5 @@ if __name__ == "__main__":
             "--param-max", "0.9",                          # 延拓参数范围上限（x0 最大值）
             "--step-size", "0.005",                        # 延拓步长
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

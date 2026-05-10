@@ -25,6 +25,9 @@ from e2m2e.core import (
 )
 
 from tod.commons.common import find_project_root
+import logging
+
+logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
 
 from tod.commons.common import DU, MU, TU
@@ -149,10 +152,10 @@ def main():
             et0=reference_et,
         )
 
-        print(f"CR3BP DRO (synodic, 1 period): {len(dro_syn_1p)} 个状态点")
-        print(f"CR3BP DRO (J2000, 3 periods): {len(dro_j2000)} 个状态点")
-        print(f"星历轨迹 (3 periods): {len(eph_j2000)} 个状态点")
-        print(f"修正结果: {ephemeris_json_file.name}")
+        logger.info(f"CR3BP DRO (synodic, 1 period): {len(dro_syn_1p)} 个状态点")
+        logger.info(f"CR3BP DRO (J2000, 3 periods): {len(dro_j2000)} 个状态点")
+        logger.info(f"星历轨迹 (3 periods): {len(eph_j2000)} 个状态点")
+        logger.info(f"修正结果: {ephemeris_json_file.name}")
 
         fig = plt.figure(figsize=(20, 9))
 
@@ -238,7 +241,7 @@ def main():
         out_name = ephemeris_json_file.name.replace(".json", "_compare_3d.png")
         out_path = output_dir / out_name
         fig.savefig(out_path, dpi=300, bbox_inches="tight")
-        print(f"已保存: {out_path}")
+        logger.info(f"已保存: {out_path}")
         plt.show()
 
     finally:
@@ -250,5 +253,5 @@ if __name__ == "__main__":
     # 命令行调用时不影响。
     # 想调哪个值就改下方对应字面量即可。
     if len(sys.argv) == 1:
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

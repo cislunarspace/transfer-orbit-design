@@ -19,6 +19,9 @@ from pathlib import Path
 # 复用 GEO→DRO 优化脚本的全部逻辑
 # 仅覆盖默认参数
 import tod.transfers.geo_to_dro.optimize_geo_to_dro as base_opt
+import logging
+
+logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -35,9 +38,9 @@ base_opt.SEARCH_RESULTS_DEFAULT = SEARCH_RESULTS_DEFAULT_LEO
 
 
 def main() -> None:
-    print("=" * 70, flush=True)
-    print("LEO → DRO 转移 NLP 优化", flush=True)
-    print("=" * 70, flush=True)
+    logger.info("=" * 70)
+    logger.info("LEO → DRO 转移 NLP 优化")
+    logger.info("=" * 70)
     base_opt.main()
 
 

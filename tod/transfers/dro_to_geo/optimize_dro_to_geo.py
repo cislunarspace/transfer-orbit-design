@@ -41,6 +41,9 @@ from e2m2e.orbits.geo import (
     check_collision,
     find_closest_approach_to_geo,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -317,9 +320,9 @@ def main() -> None:
     max_cases = args.max_cases if args.max_cases is not None else MAX_CASES
     n_workers = args.n_workers if args.n_workers is not None else N_WORKERS
 
-    print("=" * 70, flush=True)
-    print("DRO → GEO 转移 NLP 优化", flush=True)
-    print("=" * 70, flush=True)
+    logger.info("=" * 70)
+    logger.info("DRO → GEO 转移 NLP 优化")
+    logger.info("=" * 70)
 
     if not search_file.is_file():
         raise FileNotFoundError(f"未找到搜索结果: {search_file}")
@@ -327,11 +330,11 @@ def main() -> None:
         raise FileNotFoundError(f"未找到 DRO 文件: {dro_file}")
 
     _cpu = multiprocessing.cpu_count() or 1
-    print(f"\n优化配置:", flush=True)
-    print(f"  并行: n_workers={n_workers}（None=逻辑CPU数 {_cpu}）, backend={PARALLEL_BACKEND}")
-    print(f"  α 范围: [{alpha_min}, {alpha_max}]")
-    print(f"  T 范围: [{t_min}, {t_max}]")
-    print(f"  GEO 约束: |r - r_earth| = {R_GEO:.6f} DU")
+    logger.info(f"\n优化配置:")
+    logger.info(f"  并行: n_workers={n_workers}（None=逻辑CPU数 {_cpu}）, backend={PARALLEL_BACKEND}")
+    logger.info(f"  α 范围: [{alpha_min}, {alpha_max}]")
+    logger.info(f"  T 范围: [{t_min}, {t_max}]")
+    logger.info(f"  GEO 约束: |r - r_earth| = {R_GEO:.6f} DU")
 
     with open(search_file, encoding="utf-8") as f:
         all_results = json.load(f)
@@ -348,15 +351,15 @@ def main() -> None:
 
     del all_results
 
-    print(f"\n可行解总数: {n_feasible_total}", flush=True)
-    print(f"本次待优化: {len(feasible_indexed)}", flush=True)
+    logger.info(f"\n可行解总数: {n_feasible_total}")
+    logger.info(f"本次待优化: {len(feasible_indexed)}")
 
     if not feasible_indexed:
-        print("没有可行解，退出。")
+        logger.info("没有可行解，退出。")
         return
 
     _, dynamics = build_dynamics(INTEGRATOR, INTEGRATOR_RTOL, INTEGRATOR_ATOL, DT, MU)
-    print(f"\n动力学就绪: μ={dynamics.system.mu:.6e}, integrator={dynamics.integrator}")
+    logger.info(f"\n动力学就绪: μ={dynamics.system.mu:.6e}, integrator={dynamics.integrator}")
 
     pack_cfg = NlpPackConfig(
         mu=float(MU),
@@ -380,9 +383,9 @@ def main() -> None:
     n_total = len(feasible_indexed)
     disable_tqdm = not USE_TQDM or n_total <= 0
 
-    print("\n" + "=" * 70, flush=True)
-    print("开始 NLP 优化", flush=True)
-    print("=" * 70, flush=True)
+    logger.info("\n" + "=" * 70)
+    logger.info("开始 NLP 优化")
+    logger.info("=" * 70)
 
     records: List[Dict[str, Any]] = []
 
@@ -401,10 +404,9 @@ def main() -> None:
                 records.append(row)
                 nlp = row.get("nlp", {})
                 elapsed = 0.0
-                print(
+                logger.info(
                     f"  case {k + 1}/{n_total} (idx={global_idx}) | "
-                    f"success={nlp.get('success')} ΔV={nlp.get('objective_value', 'N/A')}",
-                    flush=True,
+                    f"success={nlp.get('success')} ΔV={nlp.get('objective_value', 'N/A')}"
                 )
             except Exception:
                 records.append({"search_index": global_idx, "error": traceback.format_exc()})
@@ -464,19 +466,19 @@ def main() -> None:
         )
 
     successes = [r for r in records if r.get("nlp", {}).get("success")]
-    print(f"\n优化完成: {len(records)} 条, 成功 {len(successes)} 条")
-    print(f"结果已保存: {out_path}")
+    logger.info(f"\n优化完成: {len(records)} 条, 成功 {len(successes)} 条")
+    logger.info(f"结果已保存: {out_path}")
 
     if successes:
         best = min(successes, key=lambda r: r["nlp"]["objective_value"])
         b = best["nlp"]
-        print(f"\n最优解:")
-        print(f"  α = {b['alpha']:.6f}")
-        print(f"  T = {b['transfer_time']:.6f} TU ({b['transfer_time'] * TU:.2f} days)")
-        print(f"  Δv1 = {b['delta_v1']:.6f} VU ({b['delta_v1'] * VU:.1f} m/s)")
-        print(f"  Δv2 = {b['delta_v2']:.6f} VU ({b['delta_v2'] * VU:.1f} m/s)")
-        print(f"  Δv_total = {b['objective_value']:.6f} VU ({b['objective_value'] * VU:.1f} m/s)")
-        print(f"  |r - r_earth| = {b.get('dist_from_earth', 'N/A'):.6f} DU (target: {R_GEO:.6f})")
+        logger.info(f"\n最优解:")
+        logger.info(f"  α = {b['alpha']:.6f}")
+        logger.info(f"  T = {b['transfer_time']:.6f} TU ({b['transfer_time'] * TU:.2f} days)")
+        logger.info(f"  Δv1 = {b['delta_v1']:.6f} VU ({b['delta_v1'] * VU:.1f} m/s)")
+        logger.info(f"  Δv2 = {b['delta_v2']:.6f} VU ({b['delta_v2'] * VU:.1f} m/s)")
+        logger.info(f"  Δv_total = {b['objective_value']:.6f} VU ({b['objective_value'] * VU:.1f} m/s)")
+        logger.info(f"  |r - r_earth| = {b.get('dist_from_earth', 'N/A'):.6f} DU (target: {R_GEO:.6f})")
 
 
 if __name__ == "__main__":
@@ -492,5 +494,5 @@ if __name__ == "__main__":
             "--nlp-maxiter", "100",                       # NLP 最大迭代次数（NLP_MAXITER）
             "--nlp-ftol", "1e-8",                         # NLP 函数容差（NLP_FTOL）
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

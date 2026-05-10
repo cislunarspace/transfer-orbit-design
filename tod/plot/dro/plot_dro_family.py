@@ -9,6 +9,9 @@ from e2m2e.visualization import FamilyPlotter, compute_stability_for_family
 from tod.commons.common import MU
 from tod.commons.plot_helpers import apply_standard_plot_config
 from tod.commons.common import find_project_root
+import logging
+
+logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
 
 
@@ -37,22 +40,22 @@ def main() -> None:
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
     if not family_path.exists():
-        print(f"数据文件不存在: {family_path}")
-        print("请先运行生成脚本，或更新文件路径")
+        logger.info(f"数据文件不存在: {family_path}")
+        logger.info("请先运行生成脚本，或更新文件路径")
         raise SystemExit(1)
 
     family_result = OrbitFamily.load_from_file(filename=family_path, system=system)
 
     n_orbits = len(family_result)
-    print(f"加载了 {n_orbits} 条DRO轨道")
+    logger.info(f"加载了 {n_orbits} 条DRO轨道")
 
-    print("正在计算Jacobi常数...")
+    logger.info("正在计算Jacobi常数...")
     jacobi_values = family_result.get_jacobi_constants().tolist()
-    print(f"Jacobi常数范围: {min(jacobi_values):.6f} ~ {max(jacobi_values):.6f}")
+    logger.info(f"Jacobi常数范围: {min(jacobi_values):.6f} ~ {max(jacobi_values):.6f}")
 
-    print("正在计算稳定性指数...")
+    logger.info("正在计算稳定性指数...")
     stability_values = compute_stability_for_family(family_result, family_result.system)
-    print(f"稳定性指数范围: {min(stability_values):.6f} ~ {max(stability_values):.6f}")
+    logger.info(f"稳定性指数范围: {min(stability_values):.6f} ~ {max(stability_values):.6f}")
 
     plotter = FamilyPlotter(system, config)
 
@@ -79,9 +82,9 @@ def main() -> None:
         save_path=str(output_dir / f"{family_name}_jacobi_period_stability.png"),
     )
 
-    print("\n所有图表已保存到 output/dro/ 目录:")
-    print(f"  - {family_name}_global_2d_view.png      : 全局2D视图")
-    print(f"  - {family_name}_jacobi_period_stability.png : Jacobi常数-周期-稳定性图")
+    logger.info("\n所有图表已保存到 output/dro/ 目录:")
+    logger.info(f"  - {family_name}_global_2d_view.png      : 全局2D视图")
+    logger.info(f"  - {family_name}_jacobi_period_stability.png : Jacobi常数-周期-稳定性图")
 
 
 if __name__ == "__main__":
@@ -89,5 +92,5 @@ if __name__ == "__main__":
     # 命令行调用时不影响。
     # 想调哪个值就改下方对应字面量即可。
     if len(sys.argv) == 1:
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

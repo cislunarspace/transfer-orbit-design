@@ -29,6 +29,7 @@ Halo 轨道族是一类围绕地月系统共线平动点（L1/L2/L3）的三维�
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -42,6 +43,8 @@ from tod.commons.common import MU
 
 import e2m2e
 from e2m2e.core import Orbit
+
+logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = project_root / "output" / "halo"
 
@@ -164,7 +167,7 @@ def main():
     continuation = e2m2e.algorithms.Continuation(corrector=corrector)
 
     if args.seed_file:
-        print(f"从文件加载种子轨道: {args.seed_file}")
+        logger.info("从文件加载种子轨道: %s", args.seed_file)
         seed_halo = _load_seed_orbit(args.seed_file, system=system)
         # 加载外部种子时，以文件中的 z0 实际值为准重新标记振幅，
         # 避免命令行 --amplitude-z 与文件内容不一致。
@@ -174,11 +177,11 @@ def main():
             halo_class=halo_class,
             amplitude_z=abs(float(np.asarray(seed_halo.states)[0, 2])),
         )
-        print(f"[ok] 种子轨道加载成功: 周期={seed_halo.period:.6f} TU")
-        print(f"  x0={np.asarray(seed_halo.states)[0, 0]:.6f}, z0={np.asarray(seed_halo.states)[0, 2]:.6f}")
+        logger.info("种子轨道加载成功: 周期=%.6f TU", seed_halo.period)
+        logger.info("  x0=%.6f, z0=%.6f", np.asarray(seed_halo.states)[0, 0], np.asarray(seed_halo.states)[0, 2])
     else:
-        print(f"正在生成种子轨道: L{libration_point} {'北' if halo_class == 0 else '南'} Halo")
-        print(f"  Z振幅: {amplitude_z}")
+        logger.info("正在生成种子轨道: L%d %s Halo", libration_point, "北" if halo_class == 0 else "南")
+        logger.info("  Z振幅: %s", amplitude_z)
 
         seed_halo = continuation.generate_halo_seed_orbit(
             libration_point=libration_point,
@@ -192,16 +195,8 @@ def main():
             # 可能超过微分校正的收敛域，导致 corrector 无法找到周期轨道。
             # 针对这一已知问题，我们提供一组来自文献的硬编码高精度参考值
             # 作为 Richardson 失效时的 fallback。
-            # 当前仅实现 L1 北 Halo 的 fallback，因为：
-            # 1. L1 北 Halo 是最常用的 Halo 轨道族，文献数据最充分；
-            # 2. 硬编码值来自 Richardson (1980) 及后续数值修正结果，对
-            #    L1 北 Halo 的中等振幅范围（~0.01 及以上）有效。
-            # 对于 L2/L3 或南 Halo，建议先用 generate_halo_orbit.py 生成精确
-            # 种子，再通过 --seed-file 传入。
             if libration_point == 1 and halo_class == 0 and amplitude_z >= 0.01:
-                print("  Richardson 近似失效，使用硬编码参考值生成种子...")
-                # 以下参考值来自 Richardson (1980) 三阶近似的高精度数值修正结果，
-                # 对应 L1 北 Halo 中等振幅轨道的典型状态。
+                logger.warning("Richardson 近似失效，使用硬编码参考值生成种子...")
                 x0_ref = 0.9305269194214338
                 vy0_ref = 0.10431508546142665
                 T_ref = 1.839732
@@ -216,12 +211,12 @@ def main():
                 guess.period = T_ref
                 seed_halo = corrector.iterate_correction(guess, verbose=False)
                 if seed_halo is not None and seed_halo.correction_success:
-                    print(f"  [ok] 硬编码种子修正成功: 周期={seed_halo.period:.6f} TU")
+                    logger.info("硬编码种子修正成功: 周期=%.6f TU", seed_halo.period)
                 else:
-                    print("[error] 硬编码种子修正也失败")
+                    logger.error("硬编码种子修正也失败")
                     sys.exit(1)
             else:
-                print("[error] 种子轨道生成失败")
+                logger.error("种子轨道生成失败")
                 sys.exit(1)
 
         amplitude_z = _tag_halo_seed_orbit(
@@ -230,8 +225,8 @@ def main():
             halo_class=halo_class,
             amplitude_z=amplitude_z,
         )
-        print(f"[ok] 种子轨道生成成功: 周期={seed_halo.period:.6f} TU")
-        print(f"  x0={np.asarray(seed_halo.states)[0, 0]:.6f}, z0={np.asarray(seed_halo.states)[0, 2]:.6f}")
+        logger.info("种子轨道生成成功: 周期=%.6f TU", seed_halo.period)
+        logger.info("  x0=%.6f, z0=%.6f", np.asarray(seed_halo.states)[0, 0], np.asarray(seed_halo.states)[0, 2])
 
     # =============================================================================
     # 4. 生成轨道族
@@ -241,11 +236,7 @@ def main():
     method = args.method
 
     if method == "natural":
-        print(f"\n开始 Halo 轨道族自然参数延拓（沿 z 方向）...")
-        # generate_halo_family 返回 list[Orbit] 而非 OrbitFamily。
-        # 原因是 e2m2e 库中该函数的实现早于 OrbitFamily 类，返回格式保持
-        # 为列表以兼容旧代码。此处手动包装为 OrbitFamily，以统一后续
-        # save_to_file 接口（OrbitFamily 支持 .json 序列化并包含元数据）。
+        logger.info("开始 Halo 轨道族自然参数延拓（沿 z 方向）...")
         family_result = continuation.generate_halo_family(
             seed_orbit=seed_halo,
             n_orbits=n_orbits,
@@ -259,15 +250,7 @@ def main():
             family.add_orbit(o)
         family_result = family
     else:
-        print(f"\n开始 Halo 轨道族伪弧长延拓（continuation_PAL_CR3BP 流程）...")
-        # 伪弧长延拓固定为 "both" 方向：伪弧长法通过预测-校正沿轨道族
-        # 切线方向推进，天然支持双向遍历。与自然参数延拓不同，伪弧长法
-        # 的步长沿弧长度量而非单一坐标，因此双向延拓的稳定性对称，
-        # 无需像自然延拓那样区分 positive/negative 策略。
-        # step_size_negative 设为与正向相同：在 Halo 轨道族的典型振幅范围
-        # 内，双向步长采用相同量级是合理的。若需更精细控制（如正向
-        # DeltaS=0.0045、负向 |DeltaS|=0.009 的 MATLAB 参考实现），可手动
-        # 调整该参数。
+        logger.info("开始 Halo 轨道族伪弧长延拓（continuation_PAL_CR3BP 流程）...")
         family_result = continuation.halo_pseudo_arclength_continuation(
             seed_orbit=seed_halo,
             n_orbits=n_orbits,
@@ -277,7 +260,7 @@ def main():
             verbose=True,
         )
 
-    print(f"\n[ok] 轨道族生成完成: 共{len(family_result)}条轨道")
+    logger.info("轨道族生成完成: 共%d条轨道", len(family_result))
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     ts = int(time.time())
@@ -285,12 +268,11 @@ def main():
     family_name = f"halo_L{libration_point}_{'N' if halo_class == 0 else 'S'}_family_{amplitude_z}_{ts}"
     family_result.save_to_file(filename=str(OUTPUT_DIR / f"{family_name}.json"))
 
-    print(f"\n[ok] 轨道族已保存至: {OUTPUT_DIR / f'{family_name}.json'}")
-    print(f"  轨道族名称: {family_name}")
+    logger.info("轨道族已保存至: %s", OUTPUT_DIR / f"{family_name}.json")
+    logger.info("  轨道族名称: %s", family_name)
     if len(family_result) > 0:
-        # 收集所有轨道的 z 振幅，输出范围信息供用户快速确认延拓覆盖度。
         z_values = [getattr(o, "parameters", {}).get("amplitude_z", 0) for o in family_result]
-        print(f"  z_amplitude 范围: [{min(z_values):.4f}, {max(z_values):.4f}]")
+        logger.info("  z_amplitude 范围: [%.4f, %.4f]", min(z_values), max(z_values))
 
 
 if __name__ == "__main__":
@@ -307,5 +289,5 @@ if __name__ == "__main__":
             "--direction", "positive",                    # 延拓方向
             "--method", "natural",                        # 延拓方法
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

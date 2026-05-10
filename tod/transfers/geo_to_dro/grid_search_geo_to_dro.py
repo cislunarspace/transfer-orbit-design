@@ -30,6 +30,9 @@ from e2m2e.orbits.geo import (
     EARTH_CENTER,
     geo_circular_velocity_rotating,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -128,10 +131,10 @@ def main() -> None:
         dro_dir = project_root / "output/dro"
         dro_files = sorted(dro_dir.glob("dro_31_*.json"))
         if not dro_files:
-            print("错误：找不到 DRO 轨道文件！请先生成 DRO 轨道。")
+            logger.info("错误：找不到 DRO 轨道文件！请先生成 DRO 轨道。")
             return
         dro_file = dro_files[-1]
-        print(f"使用 DRO 文件: {dro_file}")
+        logger.info(f"使用 DRO 文件: {dro_file}")
 
     n_departure = args.n_departure
     n_alpha = args.n_alpha
@@ -163,16 +166,16 @@ def main() -> None:
     # =========================================================================
     # 执行搜索
     # =========================================================================
-    print("\n" + "=" * 70)
-    print("GEO → DRO 网格搜索")
-    print("=" * 70)
-    print(f"  GEO 轨道: {geo_n_points} 点, R={R_GEO:.6f} DU = {R_GEO * DU:.0f} km")
-    print(f"  DRO 轨道: {dro_orbit.states.shape[0]} 点, "
+    logger.info("\n" + "=" * 70)
+    logger.info("GEO → DRO 网格搜索")
+    logger.info("=" * 70)
+    logger.info(f"  GEO 轨道: {geo_n_points} 点, R={R_GEO:.6f} DU = {R_GEO * DU:.0f} km")
+    logger.info(f"  DRO 轨道: {dro_orbit.states.shape[0]} 点, "
           f"周期={dro_orbit.period:.4f} TU = {dro_orbit.period * TU:.2f} 天")
-    print(f"  α 范围: [{alpha_min}, {alpha_max}], n={n_alpha}")
-    print(f"  出发点数量: {n_departure}")
-    print(f"  最大转移时间: {max_transfer_time:.1f} TU = {max_transfer_time * TU:.1f} 天")
-    print("=" * 70)
+    logger.info(f"  α 范围: [{alpha_min}, {alpha_max}], n={n_alpha}")
+    logger.info(f"  出发点数量: {n_departure}")
+    logger.info(f"  最大转移时间: {max_transfer_time:.1f} TU = {max_transfer_time * TU:.1f} 天")
+    logger.info("=" * 70)
 
     searcher = TransferSearch(dynamics)
     results = searcher.search(
@@ -193,7 +196,7 @@ def main() -> None:
     )
 
     feasible = searcher.get_feasible_results()
-    print(f"\n搜索完成: {len(results)} 个候选解, {len(feasible)} 个可行解")
+    logger.info(f"\n搜索完成: {len(results)} 个候选解, {len(feasible)} 个可行解")
 
     # =========================================================================
     # 保存结果
@@ -267,19 +270,19 @@ def main() -> None:
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump({"meta": meta, "results": results_data}, f, indent=2, ensure_ascii=False)
 
-    print(f"\n结果已保存到: {output_file}")
-    print(f"  总候选解: {len(results_data)}")
-    print(f"  可行解: {len(feasible)}")
+    logger.info(f"\n结果已保存到: {output_file}")
+    logger.info(f"  总候选解: {len(results_data)}")
+    logger.info(f"  可行解: {len(feasible)}")
 
     if feasible:
-        print("\n可行解摘要（前 10 个）:")
+        logger.info("\n可行解摘要（前 10 个）:")
         sorted_feasible = sorted(feasible, key=lambda r: r.get("min_distance", float("inf")))
         for i, r in enumerate(sorted_feasible[:10]):
             md = r.get("min_distance", float("inf"))
             dv = r.get("dv_departure", 0)
             tt = r.get("transfer_time", 0)
             al = r.get("alpha", 0)
-            print(f"  #{i+1}: dep_idx={r.get('departure_time_index')}, "
+            logger.info(f"  #{i+1}: dep_idx={r.get('departure_time_index')}, "
                   f"α={al:.4f}, T={tt:.2f} TU ({tt * TU:.1f} 天), "
                   f"dv_dep={dv:.4f} VU ({dv * VU:.0f} m/s), "
                   f"min_dist={md:.6f} DU ({md * DU:.0f} km), "
@@ -303,5 +306,5 @@ if __name__ == "__main__":
             "--moon-radius", "0.0002601422978369168",     # 月球碰撞半径（100.0/DU）
             "--geo-n-points", "1000",                     # GEO 轨道采样点数（GEO_N_POINTS）
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

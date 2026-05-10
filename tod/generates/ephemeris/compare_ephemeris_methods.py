@@ -41,6 +41,9 @@ from e2m2e.core import (
     SPICEManager,
     SynodicJ2000Transformation,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 # HomotopyEphemerisDynamics and BodyName have been removed from e2m2e
 # from e2m2e.core import HomotopyEphemerisDynamics, BodyName
@@ -94,19 +97,19 @@ def set_axes_equal(ax):
 
 
 def setup_shared_infrastructure():
-    print("=" * 60)
-    print("Step 1: 公共初始化")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("Step 1: 公共初始化")
+    logger.info("=" * 60)
 
     spice = SPICEManager()
     kernel_path = spice.find_ephemeris_kernel(SPICE_KERNEL_DIR)
-    print(f"  SPICE kernel: {kernel_path}")
+    logger.info(f"  SPICE kernel: {kernel_path}")
 
     spice.load_kernel(kernel_path)
 
     try:
         reference_et = spice.utc_to_et(REFERENCE_EPOCH)
-        print(f"  参考历元: {REFERENCE_EPOCH} (ET={reference_et:.2f} s)")
+        logger.info(f"  参考历元: {REFERENCE_EPOCH} (ET={reference_et:.2f} s)")
 
         cr3bp_system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
         eph_system = EphemerisSystem(
@@ -118,7 +121,7 @@ def setup_shared_infrastructure():
             dro_orbit._estimate_period()
         if dro_orbit.period is None:
             raise ValueError("无法确定 DRO 轨道周期")
-        print(
+        logger.info(
             f"  DRO 周期: {dro_orbit.period:.6f} TU ({dro_orbit.period * TU:.2f} days)"
         )
 
@@ -129,8 +132,8 @@ def setup_shared_infrastructure():
             t_patch_syn, states_syn, syn_j2000, reference_et, TU
         )
 
-        print(f"  Patch points: {N_PATCH_POINTS}")
-        print(f"  坐标转换完成: Synodic → J2000")
+        logger.info(f"  Patch points: {N_PATCH_POINTS}")
+        logger.info(f"  坐标转换完成: Synodic → J2000")
 
         return {
             "spice": spice,
@@ -149,9 +152,9 @@ def setup_shared_infrastructure():
 
 
 def run_direct_method(eph_system, t_patch_j2000, states_j2000):
-    print(f"\n{'=' * 60}")
-    print("Step 2: 直接多重打靶法")
-    print(f"{'=' * 60}")
+    logger.info(f"\n{'=' * 60}")
+    logger.info("Step 2: 直接多重打靶法")
+    logger.info(f"{'=' * 60}")
 
     eph_dynamics = EphemerisDynamics(system=eph_system)
     ms = MultipleShooting(
@@ -183,7 +186,7 @@ def run_direct_method(eph_system, t_patch_j2000, states_j2000):
     }
 
     status = "收敛" if result.converged else "未收敛"
-    print(
+    logger.info(
         f"\n  [{status}] 迭代={result.iterations}, "
         f"残差={result.max_residual:.2e} km, 耗时={elapsed:.1f}s"
     )
@@ -192,10 +195,10 @@ def run_direct_method(eph_system, t_patch_j2000, states_j2000):
 
 
 def run_homotopy_method(eph_system, t_patch_j2000, states_j2000):
-    print(f"\n{'=' * 60}")
-    print("Step 3: 同伦法")
-    print(f"{'=' * 60}")
-    print(f"  同伦路径: λ = {HOMOTOPY_STEPS}")
+    logger.info(f"\n{'=' * 60}")
+    logger.info("Step 3: 同伦法")
+    logger.info(f"{'=' * 60}")
+    logger.info(f"  同伦路径: λ = {HOMOTOPY_STEPS}")
 
     total_t0 = time.time()
     homotopy_log = []
@@ -204,8 +207,8 @@ def run_homotopy_method(eph_system, t_patch_j2000, states_j2000):
     current_states = states_j2000.copy()
 
     for step_idx, lam in enumerate(HOMOTOPY_STEPS):
-        print(f"\n  {'─' * 40}")
-        print(f"  λ = {lam:.4f} ({step_idx + 1}/{len(HOMOTOPY_STEPS)})")
+        logger.info(f"\n  {'─' * 40}")
+        logger.info(f"  λ = {lam:.4f} ({step_idx + 1}/{len(HOMOTOPY_STEPS)})")
 
         hdynamics = HomotopyEphemerisDynamics(  # type: ignore[misc]
             system=eph_system,
@@ -243,14 +246,14 @@ def run_homotopy_method(eph_system, t_patch_j2000, states_j2000):
         if result.converged:
             current_t = result.t_patch.copy()
             current_states = result.state_patch.copy()
-            print(
-                f"    [ok] iter={result.iterations}, "
+            logger.info(
+                f"    iter={result.iterations}, "
                 f"res={result.max_residual:.2e}, t={dt_step:.1f}s"
             )
         else:
-            print(f"    [warn] 未收敛, 尝试减半步长...")
+            logger.warning(f"    未收敛, 尝试减半步长...")
             if step_idx == 0:
-                print(f"    [error] 首步不收敛，终止")
+                logger.error(f"    首步不收敛，终止")
                 break
 
             sub_steps = np.linspace(HOMOTOPY_STEPS[step_idx - 1], lam, 3)[1:]
@@ -295,16 +298,16 @@ def run_homotopy_method(eph_system, t_patch_j2000, states_j2000):
                 if result_sub.converged:
                     current_t = result_sub.t_patch.copy()
                     current_states = result_sub.state_patch.copy()
-                    print(
+                    logger.info(
                         f"      子步 λ={sub_lam:.4f} ok, res={result_sub.max_residual:.2e}"
                     )
                 else:
-                    print(f"      子步 λ={sub_lam:.4f} 失败")
+                    logger.info(f"      子步 λ={sub_lam:.4f} 失败")
                     sub_ok = False
                     break
 
             if not sub_ok:
-                print(f"    [error] 减半步长后仍不收敛")
+                logger.error(f"    减半步长后仍不收敛")
                 break
 
     total_dt = time.time() - total_t0
@@ -312,7 +315,7 @@ def run_homotopy_method(eph_system, t_patch_j2000, states_j2000):
     final_converged = homotopy_log[-1]["converged"] if homotopy_log else False
     final_residual = homotopy_log[-1]["max_residual"] if homotopy_log else float("inf")
 
-    print(f"\n  同伦法完成: 总耗时={total_dt:.1f}s, 总迭代={total_iters}")
+    logger.info(f"\n  同伦法完成: 总耗时={total_dt:.1f}s, 总迭代={total_iters}")
 
     info = {
         "method": "homotopy",
@@ -340,7 +343,7 @@ def validate_result(info, eph_system):
         propagated_final = prop["states"][-1]
         pos_error = np.linalg.norm(propagated_final[:3] - states[i + 1, :3])
         pos_errors.append(float(pos_error))
-        print(f"    段 {i}→{i + 1}: {pos_error:.2e} km")
+        logger.info(f"    段 {i}→{i + 1}: {pos_error:.2e} km")
 
     info["position_errors_km"] = pos_errors
     info["max_position_error_km"] = max(pos_errors) if pos_errors else float("inf")
@@ -348,49 +351,49 @@ def validate_result(info, eph_system):
 
 
 def print_comparison_table(direct_info, homotopy_info):
-    print(f"\n{'=' * 70}")
-    print("对比结果")
-    print(f"{'=' * 70}")
+    logger.info(f"\n{'=' * 70}")
+    logger.info("对比结果")
+    logger.info(f"{'=' * 70}")
 
     header = f"{'指标':<22} {'直接多重打靶':>18} {'同伦法':>18}"
     sep = "─" * 62
-    print(header)
-    print(sep)
+    logger.info(header)
+    logger.info(sep)
 
     d_conv = "是" if direct_info["converged"] else "否"
     h_conv = "是" if homotopy_info["converged"] else "否"
-    print(f"{'收敛':<22} {d_conv:>18} {h_conv:>18}")
+    logger.info(f"{'收敛':<22} {d_conv:>18} {h_conv:>18}")
 
-    print(
+    logger.info(
         f"{'总迭代次数':<22} {direct_info['iterations']:>18} "
         f"{homotopy_info['total_iterations']:>18}"
     )
 
-    print(
+    logger.info(
         f"{'运行时间 (s)':<22} {direct_info['time_s']:>18.2f} {homotopy_info['time_s']:>18.2f}"
     )
 
-    print(
+    logger.info(
         f"{'最终残差 (km)':<22} {direct_info['max_residual']:>18.2e} "
         f"{homotopy_info['max_residual']:>18.2e}"
     )
 
     d_perr = direct_info.get("max_position_error_km", float("inf"))
     h_perr = homotopy_info.get("max_position_error_km", float("inf"))
-    print(f"{'最大位置误差 (km)':<22} {d_perr:>18.2e} {h_perr:>18.2e}")
+    logger.info(f"{'最大位置误差 (km)':<22} {d_perr:>18.2e} {h_perr:>18.2e}")
 
     d_ms_steps = 1
     h_ms_steps = len(homotopy_info["homotopy_log"])
-    print(f"{'MS 修正次数':<22} {d_ms_steps:>18} {h_ms_steps:>18}")
+    logger.info(f"{'MS 修正次数':<22} {d_ms_steps:>18} {h_ms_steps:>18}")
 
-    print(sep)
+    logger.info(sep)
 
     if direct_info["time_s"] > 0 and homotopy_info["time_s"] > 0:
         speedup = direct_info["time_s"] / homotopy_info["time_s"]
-        print(f"  时间比 (直接/同伦): {speedup:.2f}x")
+        logger.info(f"  时间比 (直接/同伦): {speedup:.2f}x")
     if direct_info["iterations"] > 0 and homotopy_info["total_iterations"] > 0:
         iter_ratio = direct_info["iterations"] / homotopy_info["total_iterations"]
-        print(f"  迭代比 (直接/同伦): {iter_ratio:.2f}x")
+        logger.info(f"  迭代比 (直接/同伦): {iter_ratio:.2f}x")
 
 
 def plot_residual_convergence(direct_info, homotopy_info):
@@ -458,7 +461,7 @@ def plot_residual_convergence(direct_info, homotopy_info):
     out_path = OUTPUT_DIR / f"residual_comparison_{ts}.png"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=300, bbox_inches="tight")
-    print(f"  残差对比图: {out_path}")
+    logger.info(f"  残差对比图: {out_path}")
     plt.close(fig)
 
 
@@ -534,7 +537,7 @@ def plot_trajectory_comparison(direct_info, homotopy_info, setup):
     out_path = OUTPUT_DIR / f"trajectory_comparison_{ts}.png"
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=300, bbox_inches="tight")
-    print(f"  轨迹对比图: {out_path}")
+    logger.info(f"  轨迹对比图: {out_path}")
     plt.close(fig)
 
 
@@ -583,7 +586,7 @@ def save_comparison_report(direct_info, homotopy_info, setup):
     out_file = OUTPUT_DIR / f"methods_comparison_{ts}.json"
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, ensure_ascii=False)
-    print(f"  对比报告: {out_file}")
+    logger.info(f"  对比报告: {out_file}")
 
     return out_file
 
@@ -593,10 +596,10 @@ def main():
         "HomotopyEphemerisDynamics has been removed from e2m2e; "
         "this comparison script is deprecated."
     )
-    print("DRO→星历模型修正：直接法 vs 同伦法效率对比")  # type: ignore[unreachable]
-    print(f"参考历元: {REFERENCE_EPOCH}")
-    print(f"Patch points: {N_PATCH_POINTS}")
-    print(f"容差: {MS_TOLERANCE:.1e} km")
+    logger.info("DRO→星历模型修正：直接法 vs 同伦法效率对比")  # type: ignore[unreachable]
+    logger.info(f"参考历元: {REFERENCE_EPOCH}")
+    logger.info(f"Patch points: {N_PATCH_POINTS}")
+    logger.info(f"容差: {MS_TOLERANCE:.1e} km")
 
     setup = setup_shared_infrastructure()
 
@@ -606,11 +609,11 @@ def main():
         states = setup["states_j2000"]
 
         direct_info = run_direct_method(eph_system, t_patch.copy(), states.copy())
-        print("\n  直接法验证:")
+        logger.info("\n  直接法验证:")
         direct_info = validate_result(direct_info, eph_system)
 
         homotopy_info = run_homotopy_method(eph_system, t_patch.copy(), states.copy())
-        print("\n  同伦法验证:")
+        logger.info("\n  同伦法验证:")
         homotopy_info = validate_result(homotopy_info, eph_system)
 
         print_comparison_table(direct_info, homotopy_info)

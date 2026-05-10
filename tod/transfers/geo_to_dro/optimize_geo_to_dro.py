@@ -47,6 +47,9 @@ from e2m2e.orbits.geo import (
     compute_departure_velocity,
     geo_circular_velocity_rotating,
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -329,7 +332,7 @@ def optimize_one_case(
     t_ins_0 = max(t_ins_min, min(t_dro_closest, t_ins_max))
 
     if verbose:
-        print(f"  init: T_closest={t_closest:.2f}, t_ins={t_ins_0:.4f}, "
+        logger.info(f"  init: T_closest={t_closest:.2f}, t_ins={t_ins_0:.4f}, "
               f"dist={reinit_min_dist*DU:.0f} km")
 
     # ====== 方法: root 求解位置匹配 + alpha 扫描 ======
@@ -417,7 +420,7 @@ def optimize_one_case(
                     "c": c,
                 }
         except Exception:
-            print(f"    警告: Nelder-Mead 精修失败 (departure_idx={rec.get('departure_time_index', '?')})", flush=True)
+            logger.info(f"    警告: Nelder-Mead 精修失败 (departure_idx={rec.get('departure_time_index', '?')})")
 
     if best_result is None:
         return {
@@ -542,9 +545,9 @@ def main() -> None:
     max_cases = args.max_cases if args.max_cases is not None else MAX_CASES
     n_workers = args.n_workers if args.n_workers is not None else N_WORKERS
 
-    print("=" * 70, flush=True)
-    print("GEO → DRO 转移 NLP 优化", flush=True)
-    print("=" * 70, flush=True)
+    logger.info("=" * 70)
+    logger.info("GEO → DRO 转移 NLP 优化")
+    logger.info("=" * 70)
 
     if not search_file.is_file():
         raise FileNotFoundError(f"未找到搜索结果: {search_file}")
@@ -564,13 +567,13 @@ def main() -> None:
     dro_orbit.period = dro_data.get("properties", {}).get("period", None)
 
     _cpu = multiprocessing.cpu_count() or 1
-    print(f"\n优化配置:", flush=True)
-    print(f"  并行: n_workers={n_workers}（None=逻辑CPU数 {_cpu}）, backend={PARALLEL_BACKEND}")
-    print(f"  α 范围: [{alpha_min}, {alpha_max}]")
-    print(f"  T 范围: [{t_min}, {t_max}] TU = [{t_min * TU:.1f}, {t_max * TU:.1f}] 天")
-    print(f"  t_ins 范围: [{t_ins_min}, {t_ins_max}]")
-    print(f"  DRO 周期: {dro_orbit.period:.4f} TU = {dro_orbit.period * TU:.2f} 天")
-    print(f"  速度平行性容差: {np.degrees(angle_tol):.2f}°")
+    logger.info(f"\n优化配置:")
+    logger.info(f"  并行: n_workers={n_workers}（None=逻辑CPU数 {_cpu}）, backend={PARALLEL_BACKEND}")
+    logger.info(f"  α 范围: [{alpha_min}, {alpha_max}]")
+    logger.info(f"  T 范围: [{t_min}, {t_max}] TU = [{t_min * TU:.1f}, {t_max * TU:.1f}] 天")
+    logger.info(f"  t_ins 范围: [{t_ins_min}, {t_ins_max}]")
+    logger.info(f"  DRO 周期: {dro_orbit.period:.4f} TU = {dro_orbit.period * TU:.2f} 天")
+    logger.info(f"  速度平行性容差: {np.degrees(angle_tol):.2f}°")
 
     with open(search_file, encoding="utf-8") as f:
         search_data = json.load(f)
@@ -593,11 +596,11 @@ def main() -> None:
     if max_cases is not None:
         feasible_indexed = feasible_indexed[:max_cases]
 
-    print(f"\n可行解总数: {n_feasible_total}", flush=True)
-    print(f"本次待优化: {len(feasible_indexed)}", flush=True)
+    logger.info(f"\n可行解总数: {n_feasible_total}")
+    logger.info(f"本次待优化: {len(feasible_indexed)}")
 
     if not feasible_indexed:
-        print("没有可行解，退出。")
+        logger.info("没有可行解，退出。")
         return
 
     pack_cfg = NlpPackConfig(
@@ -620,9 +623,9 @@ def main() -> None:
     n_workers_req = n_workers if n_workers is not None else max(1, cpu_n)
     n_total = len(feasible_indexed)
 
-    print("\n" + "=" * 70, flush=True)
-    print("开始 NLP 优化", flush=True)
-    print("=" * 70, flush=True)
+    logger.info("\n" + "=" * 70)
+    logger.info("开始 NLP 优化")
+    logger.info("=" * 70)
 
     records: List[Dict[str, Any]] = []
 
@@ -635,11 +638,10 @@ def main() -> None:
                 pv = nlp.get("pos_violation", 1e10)
                 pos_km = np.sqrt(max(0, float(pv))) * DU
                 ov = nlp.get("objective_value", 0)
-                print(
+                logger.info(
                     f"  [{k+1}/{n_total}] ok={nlp.get('success')} "
                     f"dv={ov*VU:.0f} m/s pos={pos_km:.0f} km "
-                    f"a={nlp.get('alpha', 0):.4f} T={nlp.get('transfer_time', 0):.1f}",
-                    flush=True,
+                    f"a={nlp.get('alpha', 0):.4f} T={nlp.get('transfer_time', 0):.1f}"
                 )
             except Exception:
                 records.append({"search_index": global_idx, "error": traceback.format_exc()})
@@ -704,23 +706,23 @@ def main() -> None:
         if pos_km < 100 and cos_a >= np.cos(angle_tol):
             valid.append(r)
 
-    print(f"\n优化完成: {len(records)} 条, 成功 {len(successes)} 条, 有效 {len(valid)} 条 (pos < 100 km)")
-    print(f"结果已保存: {out_path}")
+    logger.info(f"\n优化完成: {len(records)} 条, 成功 {len(successes)} 条, 有效 {len(valid)} 条 (pos < 100 km)")
+    logger.info(f"结果已保存: {out_path}")
 
     if valid:
         best = min(valid, key=lambda r: r["nlp"]["objective_value"])
         b = best["nlp"]
-        print(f"\n最优解:")
-        print(f"  α = {b['alpha']:.6f}")
-        print(f"  T = {b['transfer_time']:.6f} TU ({b['transfer_time'] * TU:.2f} 天)")
-        print(f"  t_ins = {b['t_ins']:.6f} TU")
-        print(f"  Δv1 = {b['delta_v1']:.6f} VU ({b['delta_v1'] * VU:.1f} m/s)")
-        print(f"  Δv2 = {b['delta_v2']:.6f} VU ({b['delta_v2'] * VU:.1f} m/s)")
-        print(f"  Δv_total = {b['objective_value']:.6f} VU ({b['objective_value'] * VU:.1f} m/s)")
+        logger.info(f"\n最优解:")
+        logger.info(f"  α = {b['alpha']:.6f}")
+        logger.info(f"  T = {b['transfer_time']:.6f} TU ({b['transfer_time'] * TU:.2f} 天)")
+        logger.info(f"  t_ins = {b['t_ins']:.6f} TU")
+        logger.info(f"  Δv1 = {b['delta_v1']:.6f} VU ({b['delta_v1'] * VU:.1f} m/s)")
+        logger.info(f"  Δv2 = {b['delta_v2']:.6f} VU ({b['delta_v2'] * VU:.1f} m/s)")
+        logger.info(f"  Δv_total = {b['objective_value']:.6f} VU ({b['objective_value'] * VU:.1f} m/s)")
         pv = b.get('pos_violation', 0)
         pos_km = np.sqrt(max(0, float(pv))) * DU
-        print(f"  pos_err = {pos_km:.1f} km")
-        print(f"  angle = {b.get('angle_deg', 'N/A'):.4f} deg")
+        logger.info(f"  pos_err = {pos_km:.1f} km")
+        logger.info(f"  angle = {b.get('angle_deg', 'N/A'):.4f} deg")
 
 
 if __name__ == "__main__":
@@ -738,5 +740,5 @@ if __name__ == "__main__":
             "--nlp-maxiter", "100",                       # NLP 最大迭代次数（NLP_MAXITER）
             "--nlp-ftol", "1e-8",                         # NLP 函数容差（NLP_FTOL）
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

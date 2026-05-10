@@ -17,6 +17,7 @@
 """
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -24,6 +25,8 @@ import e2m2e
 import time
 
 from tod.commons.common import MU, TU
+
+logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 OUTPUT_DIR = project_root / "output"
@@ -95,7 +98,7 @@ def main():
             / f"ro_32_family_{param_min}-{param_max}-{step_size}_{ts}.json"
         )
     )
-    print(f"已保存至：ro_32_family_{param_min}-{param_max}-{step_size}_{ts}.json")
+    logger.info("已保存至：ro_32_family_%s-%s-%s_%d.json", param_min, param_max, step_size, ts)
 
 
 if __name__ == "__main__":
@@ -111,5 +114,5 @@ if __name__ == "__main__":
             "--param-max", "-0.8",                        # 延拓参数范围上限
             "--step-size", "0.005",                       # 延拓步长
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()

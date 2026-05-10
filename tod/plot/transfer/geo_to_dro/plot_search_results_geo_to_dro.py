@@ -21,6 +21,9 @@ from typing import Any, Optional  # noqa: F401
 import numpy as np
 import matplotlib
 from tod.commons.common import find_project_root
+import logging
+
+logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
 
 try:
@@ -44,6 +47,16 @@ from e2m2e.orbits.geo import (
 sys.path.insert(0, str(project_root))
 
 from tod.commons.plot_helpers import apply_standard_plot_config, style_colorbar, subsample_indices
+from tod.plot.transfer.common import (
+    load_search_results,
+    plot_alpha_delta_v,
+    plot_transfer_time_delta_v,
+    select_feasible_indices,
+    geo_circle_points,
+    build_transfer_dynamics,
+    plot_celestial_bodies,
+    set_equal_aspect_3d,
+)
 
 PLOT_CONFIG = apply_standard_plot_config()
 
@@ -53,18 +66,8 @@ PLOT_CONFIG = apply_standard_plot_config()
 
 
 # =====================================================================
-# 数据加载
+# 数据加载 — departure_delta_v_norm 使用 geo 模块的 compute_departure_velocity
 # =====================================================================
-
-
-def load_search_results(path: Path) -> list[dict]:
-    with open(path, encoding="utf-8") as f:
-        data = json.load(f)
-    if isinstance(data, dict) and "results" in data:
-        return list(data["results"])
-    if not isinstance(data, list):
-        raise TypeError(f"期望 list 或含 'results' key 的 dict, 实际 {type(data)}")
-    return data
 
 
 def departure_delta_v_norm(state6, alpha):
@@ -104,37 +107,6 @@ def feasible_transfer_time_and_dv(rows):
     return np.array(tt_list), np.array(dv_list)
 
 
-
-
-# =====================================================================
-# 散点图
-# =====================================================================
-
-
-def plot_alpha_delta_v(ax, alpha, delta_v):
-    if len(alpha) == 0:
-        ax.text(0.5, 0.5, "无可行解", transform=ax.transAxes, ha="center", va="center")
-        return
-    ax.scatter(alpha, delta_v * VU / 1000, s=6, alpha=0.6, c="steelblue")
-    ax.set_xlabel("α")
-    ax.set_ylabel("Δv_departure (km/s)")
-    ax.set_title("GEO → DRO: α vs Δv_departure")
-    ax.grid(True, alpha=0.3)
-
-
-def plot_transfer_time_delta_v(ax, transfer_time, delta_v):
-    if len(transfer_time) == 0:
-        ax.text(0.5, 0.5, "无可行解", transform=ax.transAxes, ha="center", va="center")
-        return
-    sc = ax.scatter(transfer_time * TU, delta_v * VU / 1000, s=6, alpha=0.6,
-                    c=transfer_time * TU, cmap="viridis")
-    style_colorbar(plt.colorbar(sc, ax=ax, label="转移时间 (天)"), PLOT_CONFIG)
-    ax.set_xlabel("转移时间 (天)")
-    ax.set_ylabel("Δv_departure (km/s)")
-    ax.set_title("GEO → DRO: 转移时间 vs Δv_departure")
-    ax.grid(True, alpha=0.3)
-
-
 # =====================================================================
 # GEO 轨道和辅助
 # =====================================================================
@@ -153,25 +125,9 @@ def generate_geo_orbit(n_points=500):
     return states
 
 
-def _geo_circle_points():
-    """GEO 球面在 x-y 平面上的投影圆。"""
-    th = np.linspace(0, 2 * np.pi, 200)
-    return EARTH_CENTER[0] + R_GEO * np.cos(th), R_GEO * np.sin(th)
-
-
 # =====================================================================
 # 3D 轨道图
 # =====================================================================
-
-
-def _build_dynamics():
-    system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    dynamics = CR3BP_Dynamics(system=system)
-    dynamics.integrator = "DOP853"
-    dynamics.rtol = 1e-12
-    dynamics.atol = 1e-12
-    dynamics.max_step = 1.0 / (24.0 * TU)
-    return system, dynamics
 
 
 def _find_approach_index(transfer_states, dro_orbit):
@@ -221,7 +177,7 @@ def _plot_single_transfer_orbit(
 ):
     """绘制单条 GEO→DRO 转移轨道（截断到最近 DRO 的点）。"""
     # GEO 圆
-    gx, gy = _geo_circle_points()
+    gx, gy = geo_circle_points()
     ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--", lw=0.8, label="GEO")
 
     # DRO 轨道
@@ -240,20 +196,8 @@ def _plot_single_transfer_orbit(
     final_pos = transfer_states[-1, :3]
     ax.scatter(*final_pos, color="orange", s=40, marker="s", zorder=5, label="终点")
 
-    # 地球和月球
-    ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
-    ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-    ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "地球", fontsize=PLOT_CONFIG.lp_label, ha="center")
-    ax.text(1.0 - MU, 0.03, 0, "月球", fontsize=PLOT_CONFIG.lp_label, ha="center")
-
-    # 平动点
-    system.compute_libration_points()
-    if system.L1 is None or system.L2 is None:
-        raise RuntimeError("L1/L2 平动点未计算")
-    for lp_name, lp_x in [("L1", system.L1[0]),
-                           ("L2", system.L2[0])]:
-        ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-        ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
+    # 地球、月球和平动点
+    plot_celestial_bodies(ax, system, PLOT_CONFIG)
 
     ax.set_xlabel("x (DU)")
     ax.set_ylabel("y (DU)")
@@ -265,36 +209,11 @@ def _plot_single_transfer_orbit(
     )
     ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
-    # 等比例轴：三轴范围取数据包围盒的最大跨度，居中对齐
+    # 等比例轴
     all_pts = np.concatenate([transfer_states[:, :3], dro_orbit.states[:, :3]])
-    mid = all_pts.mean(axis=0)
-    half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
-    ax.set_xlim(mid[0] - half, mid[0] + half)
-    ax.set_ylim(mid[1] - half, mid[1] + half)
-    ax.set_zlim(mid[2] - half, mid[2] + half)
-    ax.set_box_aspect([1, 1, 1])
+    set_equal_aspect_3d(ax, all_pts)
 
     return ax
-
-
-def _select_feasible_indices(feasible_rows, idx_arg, seed=42, max_indices=200):
-    n = len(feasible_rows)
-    if idx_arg == "all":
-        idx = list(range(n))
-        if len(idx) > max_indices:
-            sel = subsample_indices(len(idx), max_indices, seed)
-            idx = [idx[i] for i in sel]
-        return idx
-    elif idx_arg.startswith("best"):
-        parts = idx_arg.split(":")
-        top_n = int(parts[1]) if len(parts) > 1 else 10
-        by_dv = sorted(range(n), key=lambda i: feasible_rows[i].get("dv_departure", 1e10))
-        return by_dv[:top_n]
-    elif idx_arg == "random":
-        return [np.random.default_rng(seed).integers(0, n)]
-    else:
-        i = int(idx_arg)
-        return [i] if 0 <= i < n else []
 
 
 # =====================================================================
@@ -309,7 +228,7 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
     current = 0
 
     if n == 0:
-        print("No feasible results to browse")
+        logger.info("No feasible results to browse")
         return
 
     plt.ion()
@@ -317,7 +236,7 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
     ax = fig.add_subplot(111, projection="3d")
 
     # 预计算固定元素
-    gx, gy = _geo_circle_points()
+    gx, gy = geo_circle_points()
     dro_x = dro_orbit.states[:, 0]
     dro_y = dro_orbit.states[:, 1]
     dro_z = dro_orbit.states[:, 2]
@@ -326,9 +245,9 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
         raise RuntimeError("L1/L2 平动点未计算")
     lp_data = [("L1", system.L1[0]), ("L2", system.L2[0])]
 
-    print("\nInteractive browse: GEO -> DRO search results")
-    print(f"{n} feasible results, sorted by transfer time")
-    print("Commands: Enter=next, q=quit, s N=skip N, j N=jump to #N, r=redraw")
+    logger.info("\nInteractive browse: GEO -> DRO search results")
+    logger.info(f"{n} feasible results, sorted by transfer time")
+    logger.info("Commands: Enter=next, q=quit, s N=skip N, j N=jump to #N, r=redraw")
 
     while 0 <= current < n:
         row = sorted_rows[current]
@@ -337,19 +256,19 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
         dep_state = row.get("departure_state")
         dv = row.get("dv_departure", 0)
 
-        print(f"\n[{current+1}/{n}] a={alpha:.4f}, T_search={tt:.2f} TU ({tt * TU:.1f} d), "
+        logger.info(f"\n[{current+1}/{n}] a={alpha:.4f}, T_search={tt:.2f} TU ({tt * TU:.1f} d), "
               f"dv={dv:.4f} VU ({dv * VU:.0f} m/s), "
               f"min_dist={row.get('min_distance', 'N/A')}")
 
         if dep_state is None:
-            print("  no departure state, skip")
+            logger.info("  no departure state, skip")
             current += 1
             continue
 
         try:
             transfer_states, times = _reintegrate_transfer(dynamics, dep_state, alpha, tt, dro_orbit=dro_orbit)
         except Exception as e:
-            print(f"  integration failed: {e}")
+            logger.info(f"  integration failed: {e}")
             current += 1
             continue
 
@@ -367,15 +286,8 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
         dep_pos = np.asarray(dep_state, dtype=float)[:3]
         ax.scatter(*dep_pos, color="green", s=40, zorder=5, label="Departure")
         ax.scatter(*transfer_states[-1, :3], color="orange", s=40, marker="s", zorder=5, label="Arrival")
-        # 天体
-        ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
-        ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
-        ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, 0, "Earth", fontsize=PLOT_CONFIG.lp_label, ha="center")
-        ax.text(1.0 - MU, 0.03, 0, "Moon", fontsize=PLOT_CONFIG.lp_label, ha="center")
-        # 平动点
-        for lp_name, lp_x in lp_data:
-            ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
-            ax.text(lp_x, 0.02, 0, lp_name, fontsize=PLOT_CONFIG.lp_label, ha="center", color="red")
+        # 天体和平动点
+        plot_celestial_bodies(ax, system, PLOT_CONFIG)
 
         ax.set_xlabel("x (DU)")
         ax.set_ylabel("y (DU)")
@@ -390,12 +302,7 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
         # 等比例轴
         dro_pts = np.column_stack([dro_x, dro_y, dro_z])
         all_pts = np.concatenate([transfer_states[:, :3], dro_pts])
-        mid = all_pts.mean(axis=0)
-        half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
-        ax.set_xlim(mid[0] - half, mid[0] + half)
-        ax.set_ylim(mid[1] - half, mid[1] + half)
-        ax.set_zlim(mid[2] - half, mid[2] + half)
-        ax.set_box_aspect([1, 1, 1])
+        set_equal_aspect_3d(ax, all_pts)
 
         fig.canvas.draw()
         fig.canvas.flush_events()
@@ -425,7 +332,7 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
 
     plt.ioff()
     plt.close(fig)
-    print("退出浏览")
+    logger.info("退出浏览")
 
 
 # =====================================================================
@@ -458,14 +365,14 @@ def main():
         else:
             candidates = sorted((project_root / "output/transfer").glob("search_geo_dro_*.json"))
             if not candidates:
-                print("未找到搜索结果文件，请用 --file 指定")
+                logger.info("未找到搜索结果文件，请用 --file 指定")
                 return
             results_file = candidates[-1]
-            print(f"自动发现: {results_file}")
+            logger.info(f"自动发现: {results_file}")
 
     rows = load_search_results(results_file)
     feasible_rows = [r for r in rows if r.get("is_feasible")]
-    print(f"加载 {len(rows)} 条记录, {len(feasible_rows)} 个可行解")
+    logger.info(f"加载 {len(rows)} 条记录, {len(feasible_rows)} 个可行解")
 
     # DRO 文件: CLI > 环境变量 > 自动发现
     dro_file_env = os.environ.get("DRO_FILE")
@@ -474,7 +381,7 @@ def main():
     else:
         dro_files = sorted((project_root / "output/dro").glob("dro_31_*.json"))
         if not dro_files:
-            print("找不到 DRO 文件")
+            logger.info("找不到 DRO 文件")
             return
         dro_file = dro_files[-1]
     dro_orbit = load_orbit_from_json(str(dro_file))
@@ -493,13 +400,9 @@ def main():
         interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics)
 
     elif args.orbit:
-        indices = _select_feasible_indices(feasible_rows, args.idx,
+        indices = select_feasible_indices(feasible_rows, args.idx,
                                            seed=args.seed, max_indices=args.max_points)
-        dynamics = CR3BP_Dynamics(system=system)
-        dynamics.integrator = "DOP853"
-        dynamics.rtol = 1e-12
-        dynamics.atol = 1e-12
-        dynamics.max_step = 1.0 / (24.0 * TU)
+        system_dyn, dynamics = build_transfer_dynamics()
 
         fig = None
         for i in indices:
@@ -519,7 +422,7 @@ def main():
             ax = fig.add_subplot(111, projection="3d")
             _plot_single_transfer_orbit(
                 generate_geo_orbit(), dro_orbit, transfer_states,
-                dep_state, dv, alpha, tt, system, fig, ax,
+                dep_state, dv, alpha, tt, system_dyn, fig, ax,
                 actual_transfer_time=times[-1],
             )
 
@@ -528,7 +431,7 @@ def main():
                 base, ext = os.path.splitext(save_path)
                 save_path = f"{base}_{i}{ext}" if len(indices) > 1 else save_path
                 fig.savefig(save_path, dpi=args.dpi, bbox_inches="tight")
-                print(f"图片保存至: {save_path}")
+                logger.info(f"图片保存至: {save_path}")
 
         if fig is not None:
             if not args.save:
@@ -542,11 +445,11 @@ def main():
         tt = tt_all[idx]
         dv = dv_all[idx]
         fig, ax = plt.subplots(figsize=(10, 6))
-        plot_transfer_time_delta_v(ax, tt, dv)
+        plot_transfer_time_delta_v(ax, tt, dv, "GEO → DRO:")
         fig.tight_layout()
         if args.save:
             fig.savefig(args.save, dpi=args.dpi, bbox_inches="tight")
-            print(f"图片保存至: {args.save}")
+            logger.info(f"图片保存至: {args.save}")
         else:
             plt.show()
 
@@ -557,11 +460,11 @@ def main():
         alpha = alpha_all[idx]
         dv = dv_all[idx]
         fig, ax = plt.subplots(figsize=(10, 6))
-        plot_alpha_delta_v(ax, alpha, dv)
+        plot_alpha_delta_v(ax, alpha, dv, "GEO → DRO:")
         fig.tight_layout()
         if args.save:
             fig.savefig(args.save, dpi=args.dpi, bbox_inches="tight")
-            print(f"图片保存至: {args.save}")
+            logger.info(f"图片保存至: {args.save}")
         else:
             plt.show()
 
@@ -577,5 +480,5 @@ if __name__ == "__main__":
             "--dpi", "150",                               # 图像 DPI
             "--idx", "best:10",                           # 轨道选择
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()
