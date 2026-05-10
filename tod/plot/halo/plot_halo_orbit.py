@@ -40,6 +40,14 @@ def parse_args():
 
 
 def main() -> None:
+    # =============================================================================
+    # 调试开关：1 = 绘制，0 = 跳过
+    # =============================================================================
+    plot1 = 1  # 全局2D视图（XZ平面）
+    plot2 = 1  # 全局3D视图
+    plot3 = 1  # Jacobi常数-周期-稳定性图
+    plot4 = 1  # 综合概览图（四子图）
+
     args = parse_args()
     output_dir = project_root / "output" / "halo"
 
@@ -67,7 +75,7 @@ def main() -> None:
         print(f"加载了 {n_orbits} 条 Halo 轨道")
     except FileNotFoundError:
         print(f"[error] 文件不存在: {family_path}")
-        print("请先生成Halo轨道数据，运行: python -m tod.pipelines.halo.generate.generate_halo_family")
+        print("请先生成Halo轨道数据，运行: python -m tod.generates.cr3bp.halo.generate_halo_family")
         sys.exit(1)
 
     # =============================================================================
@@ -144,73 +152,81 @@ def main() -> None:
     # =============================================================================
     # 1. 全局2D视图（XZ平面 - Halo轨道的特征平面）
     # =============================================================================
-    fig_2d, ax_2d = plotter.plot_family_2d(
-        subset_family, jacobi_subset,
-        title=f"Halo Orbit Family in Earth-Moon CR3BP (XZ Plane) - {n_orbits} orbits\n"
-              f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
-        plane="xz",
-        show_bodies=True, show_libration=True, show_colorbar=True,
-        xlim=xlim_2d,
-        ylim=ylim_2d,
-        show=False,
-    )
-    plotter.plot_2d_projection(
-        seed_orbit, plane="xz", color="red",
-        label=f"Seed Halo (C={seed_jacobi:.4f}, λmax={seed_stability:.4f})",
-        ax=ax_2d,
-    )
-    plt.tight_layout()
-    plt.savefig(output_dir / f"{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
-    plt.show()
+    if plot1:
+        fig_2d, ax_2d = plotter.plot_family_2d(
+            subset_family, jacobi_subset,
+            title=f"Halo Orbit Family in Earth-Moon CR3BP (XZ Plane) - {n_orbits} orbits\n"
+                  f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+            plane="xz",
+            show_bodies=True, show_libration=True, show_colorbar=True,
+            xlim=xlim_2d,
+            ylim=ylim_2d,
+            show=False,
+        )
+        plotter.plot_2d_projection(
+            seed_orbit, plane="xz", color="red",
+            label=f"Seed Halo (C={seed_jacobi:.4f}, λmax={seed_stability:.4f})",
+            ax=ax_2d,
+        )
+        plt.tight_layout()
+        plt.savefig(output_dir / f"{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
+        plt.show()
 
     # =============================================================================
     # 2. 全局3D视图
     # =============================================================================
-    fig_3d, ax_3d = plotter.plot_family_3d(
-        subset_family, jacobi_subset,
-        title=f"Halo Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
-              f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
-        center=(0.9, 0, 0), radius=0.4, elev=20, azim=-60,
-        show=False,
-    )
-    plotter.plot_3d_orbit(
-        seed_orbit, color="red",
-        label=f"Seed Halo (C={seed_jacobi:.4f})",
-        ax=ax_3d, show_start=True,
-    )
-    plt.tight_layout()
-    plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
-    plt.show()
+    if plot2:
+        fig_3d, ax_3d = plotter.plot_family_3d(
+            subset_family, jacobi_subset,
+            title=f"Halo Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
+                  f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+            center=(0.9, 0, 0), radius=0.4, elev=20, azim=-60,
+            show=False,
+        )
+        plotter.plot_3d_orbit(
+            seed_orbit, color="red",
+            label=f"Seed Halo (C={seed_jacobi:.4f})",
+            ax=ax_3d, show_start=True,
+        )
+        plt.tight_layout()
+        plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
+        plt.show()
 
     # =============================================================================
     # 3. Jacobi常数-周期-稳定性图（双纵轴）
     # =============================================================================
-    plotter.plot_jacobi_period_stability(
-        jacobi_sorted, periods_sorted, stability_sorted,
-        title=f"Halo Orbit Family - Period and Stability\n(n = {n_orbits} orbits)",
-        save_path=str(output_dir / f"{family_name}_period_stability.png"),
-        show=True,
-    )
+    if plot3:
+        plotter.plot_jacobi_period_stability(
+            jacobi_sorted, periods_sorted, stability_sorted,
+            title=f"Halo Orbit Family - Period and Stability\n(n = {n_orbits} orbits)",
+            save_path=str(output_dir / f"{family_name}_period_stability.png"),
+            show=True,
+        )
 
     # =============================================================================
     # 4. 综合概览图（四子图）
     # =============================================================================
-    plotter.plot_family_overview(
-        subset_family, jacobi_subset, subset_family.periods, stability_subset,
-        suptitle=f"Halo Orbit Family Overview - Earth-Moon CR3BP (n = {n_orbits})",
-        plane="xz", center_3d=(0.9, 0, 0), radius_3d=0.4,
-        zoom_xlim=xlim_2d,
-        zoom_ylim=ylim_2d,
-        elev=20, azim=-60,
-        save_path=str(output_dir / f"{family_name}_overview.png"),
-        show=True,
-    )
+    if plot4:
+        plotter.plot_family_overview(
+            subset_family, jacobi_subset, subset_family.periods, stability_subset,
+            suptitle=f"Halo Orbit Family Overview - Earth-Moon CR3BP (n = {n_orbits})",
+            plane="xz", center_3d=(0.9, 0, 0), radius_3d=0.4,
+            zoom_xlim=xlim_2d,
+            zoom_ylim=ylim_2d,
+            elev=20, azim=-60,
+            save_path=str(output_dir / f"{family_name}_overview.png"),
+            show=True,
+        )
 
-    print(f"\n所有图表已保存到 {output_dir} 目录:")
-    print(f"  - {family_name}_2d_view.png           : 全局2D视图 (XZ平面)")
-    print(f"  - {family_name}_3d_view.png           : 全局3D视图")
-    print(f"  - {family_name}_period_stability.png  : Jacobi常数-周期-稳定性图")
-    print(f"  - {family_name}_overview.png           : 综合概览图")
+    print(f"\n图表已保存到 {output_dir} 目录:")
+    if plot1:
+        print(f"  - {family_name}_2d_view.png           : 全局2D视图 (XZ平面)")
+    if plot2:
+        print(f"  - {family_name}_3d_view.png           : 全局3D视图")
+    if plot3:
+        print(f"  - {family_name}_period_stability.png  : Jacobi常数-周期-稳定性图")
+    if plot4:
+        print(f"  - {family_name}_overview.png           : 综合概览图")
 
 
 if __name__ == "__main__":
