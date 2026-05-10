@@ -6,11 +6,8 @@ import json
 from pathlib import Path
 
 import numpy as np
-import logging
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-
-logger = logging.getLogger(__name__)
 
 
 def load_search_results(path: Path) -> list[dict]:
@@ -146,12 +143,9 @@ def select_feasible_indices(
         return [i]
 
 
-def plot_alpha_delta_v(ax: Axes, alpha: np.ndarray, delta_v: np.ndarray, title_prefix: str) -> None:
+def plot_alpha_delta_v(ax: Axes, alpha: np.ndarray, delta_v: np.ndarray, title_prefix: str, *, config=None) -> None:
     """绘制 α vs Δv_departure 散点图。"""
     from tod.commons.constants import VU
-    from tod.commons.plot_helpers import apply_standard_plot_config
-
-    config = apply_standard_plot_config()
 
     if len(alpha) == 0:
         ax.text(0.5, 0.5, "无可行解", ha="center", va="center", transform=ax.transAxes)
@@ -165,13 +159,15 @@ def plot_alpha_delta_v(ax: Axes, alpha: np.ndarray, delta_v: np.ndarray, title_p
 
 
 def plot_transfer_time_delta_v(
-    ax: Axes, transfer_time: np.ndarray, delta_v: np.ndarray, title_prefix: str
+    ax: Axes, transfer_time: np.ndarray, delta_v: np.ndarray, title_prefix: str, *, config=None
 ) -> None:
     """绘制转移时间 vs Δv 散点图。"""
     from tod.commons.constants import TU, VU
-    from tod.commons.plot_helpers import apply_standard_plot_config, style_colorbar
+    from tod.commons.plot_helpers import style_colorbar
 
-    config = apply_standard_plot_config()
+    if config is None:
+        from tod.commons.plot_helpers import apply_standard_plot_config
+        config = apply_standard_plot_config()
 
     if len(transfer_time) == 0:
         ax.text(0.5, 0.5, "无可行解", ha="center", va="center", transform=ax.transAxes)
@@ -226,15 +222,13 @@ def set_equal_aspect_3d(ax, points: np.ndarray) -> None:
 def build_transfer_dynamics(mu: float | None = None, dt: float | None = None):
     """构建 CR3BP 动力学实例（积分器参数与 grid_search 一致）。"""
     from tod.commons.constants import MU, TU
+    from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 
-    _mu = mu or MU
-    _dt = dt or (1.0 / (24.0 * TU))
+    _mu = mu if mu is not None else MU
+    _dt = dt if dt is not None else (1.0 / (24.0 * TU))
 
-    import e2m2e.core.system
-    import e2m2e.core.dynamics
-
-    system = e2m2e.core.system.CR3BP_System(mu=_mu, primary="earth", secondary="moon")
-    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+    system = CR3BP_System(mu=_mu, primary="earth", secondary="moon")
+    dynamics = CR3BP_Dynamics(system=system)
     dynamics.integrator = "DOP853"
     dynamics.rtol = 1e-12
     dynamics.atol = 1e-12
