@@ -25,6 +25,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -62,6 +63,8 @@ import e2m2e
 from e2m2e.core import CR3BP_System, Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
 from e2m2e.orbits.geo import R_GEO, EARTH_CENTER
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # 数据文件
@@ -224,16 +227,16 @@ def interactive_browse_by_time(
     )
     n = len(sorted_rows)
 
-    print(f"\n共 {n} 条可行解，已按转移时间排序")
-    print("=" * 60)
-    print("交互式转移轨道浏览器（按转移时间排序）")
-    print("=" * 60)
-    print("按 Enter: 绘制下一条轨道")
-    print("输入 'q': 退出")
-    print("输入 's N': 跳过 N 条")
-    print("输入 'j N': 跳转到第 N 条")
-    print("输入 'r': 重绘当前轨道")
-    print("=" * 60 + "\n")
+    logger.info("共 %d 条可行解，已按转移时间排序", n)
+    logger.info("=" * 60)
+    logger.info("交互式转移轨道浏览器（按转移时间排序）")
+    logger.info("=" * 60)
+    logger.info("按 Enter: 绘制下一条轨道")
+    logger.info("输入 'q': 退出")
+    logger.info("输入 's N': 跳过 N 条")
+    logger.info("输入 'j N': 跳转到第 N 条")
+    logger.info("输入 'r': 重绘当前轨道")
+    logger.info("=" * 60)
 
     current_idx = 0
     fig = None
@@ -260,14 +263,14 @@ def interactive_browse_by_time(
             float(dv_insertion_raw) if dv_insertion_raw is not None else float("nan")
         )
 
-        print(f"\n[{current_idx + 1}/{n}] 转移轨道信息:")
-        print(f"  α = {alpha:.4f}")
-        print(f"  转移时间 = {transfer_time:.4f} TU")
-        print(f"  Δv_dep = {dv_departure:.6f} ({dv_departure * VU * 1000:.1f} m/s)")
-        print(f"  Δv_ins = {dv_insertion:.6f} ({dv_insertion * VU * 1000:.1f} m/s)")
+        logger.info("[%d/%d] 转移轨道信息:", current_idx + 1, n)
+        logger.info("  α = %.4f", alpha)
+        logger.info("  转移时间 = %.4f TU", transfer_time)
+        logger.info("  Δv_dep = %.6f (%.1f m/s)", dv_departure, dv_departure * VU * 1000)
+        logger.info("  Δv_ins = %.6f (%.1f m/s)", dv_insertion, dv_insertion * VU * 1000)
         if np.isfinite(dv_departure) and np.isfinite(dv_insertion):
             dv_total = dv_departure + dv_insertion
-            print(f"  Δv_total = {dv_total:.6f} ({dv_total * VU * 1000:.1f} m/s)")
+            logger.info("  Δv_total = %.6f (%.1f m/s)", dv_total, dv_total * VU * 1000)
 
         transfer_states, _ = _reintegrate_transfer(
             ts, departure_state, alpha, transfer_time
@@ -299,36 +302,36 @@ def interactive_browse_by_time(
             break
 
         if user_input == "q":
-            print("退出")
+            logger.info("退出")
             break
         elif user_input.startswith("s "):
             try:
                 skip_n = int(user_input.split()[1])
                 current_idx = min(current_idx + skip_n, n - 1)
-                print(f"跳转到第 {current_idx + 1} 条")
+                logger.info("跳转到第 %d 条", current_idx + 1)
             except (ValueError, IndexError):
-                print("无效的跳过数量")
+                logger.warning("无效的跳过数量")
         elif user_input.startswith("j "):
             try:
                 target = int(user_input.split()[1])
                 current_idx = max(0, min(target - 1, n - 1))
-                print(f"跳转到第 {current_idx + 1} 条")
+                logger.info("跳转到第 %d 条", current_idx + 1)
             except (ValueError, IndexError):
-                print("无效的编号")
+                logger.warning("无效的编号")
         elif user_input == "r":
-            print(f"重绘第 {current_idx + 1} 条")
+            logger.info("重绘第 %d 条", current_idx + 1)
             continue
         else:
             if current_idx < n - 1:
                 current_idx += 1
             else:
-                print("已到达最后一条")
+                logger.info("已到达最后一条")
                 break
 
     if fig is not None:
         plt.close(fig)
     plt.ioff()
-    print(f"\n浏览完成，共查看了 {current_idx + 1} 条轨道")
+    logger.info("浏览完成，共查看了 %d 条轨道", current_idx + 1)
 
 
 def _save_or_show(fig, args):
@@ -338,7 +341,7 @@ def _save_or_show(fig, args):
             png = png.with_suffix(".png")
         png.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(png, dpi=args.dpi, bbox_inches="tight")
-        print(f"Saved: {png}")
+        logger.info("Saved: %s", png)
     else:
         plt.show()
     plt.close(fig)
@@ -364,19 +367,19 @@ def main() -> None:
     if not path.is_file():
         raise FileNotFoundError(path)
     if args.file and safe_resolve_within(args.file, project_root) is None:
-        print(f"安全拒绝: {args.file} 不在项目根目录 {project_root} 内")
+        logger.warning("安全拒绝: %s 不在项目根目录 %s 内", args.file, project_root)
         sys.exit(1)
-    print(f"读取: {path}")
+    logger.info("读取: %s", path)
 
     rows = load_search_results(path)
     feasible_rows = [r for r in rows if r.get("is_feasible")]
-    print(f"总行数={len(rows)}，可行解={len(feasible_rows)}")
+    logger.info("总行数=%d，可行解=%d", len(rows), len(feasible_rows))
 
     if args.interactive:
         dro_path = Path(DRO_FILE).expanduser().resolve()
         if not dro_path.is_file():
             raise FileNotFoundError(f"DRO 轨道文件不存在: {dro_path}")
-        print(f"加载 DRO: {dro_path}")
+        logger.info("加载 DRO: %s", dro_path)
         dro_orbit = load_orbit_from_json(str(dro_path))
         ts = _build_transfer_search()
         interactive_browse_by_time(feasible_rows, dro_orbit, ts.system, ts)
@@ -384,7 +387,7 @@ def main() -> None:
         dro_path = Path(DRO_FILE).expanduser().resolve()
         if not dro_path.is_file():
             raise FileNotFoundError(f"DRO 轨道文件不存在: {dro_path}")
-        print(f"加载 DRO: {dro_path}")
+        logger.info("加载 DRO: %s", dro_path)
         dro_orbit = load_orbit_from_json(str(dro_path))
         ts_dummy = _build_transfer_search()
         system = ts_dummy.system
@@ -396,7 +399,7 @@ def main() -> None:
 
         use_parallel = n_sel > 1
         if use_parallel:
-            print(f"并行积分：{n_sel} 条轨道，n_workers={args.n_workers or 'CPU 核数'}...")
+            logger.info("并行积分：%d 条轨道，n_workers=%s...", n_sel, args.n_workers or 'CPU 核数')
             work_args = [
                 (
                     np.asarray(feasible_rows[i]["departure_state"], dtype=np.float64),
@@ -416,7 +419,7 @@ def main() -> None:
                 for future in as_completed(futures):
                     cm_idx, alpha = futures[future]
                     results[cm_idx] = future.result()
-                    print(f"  [{len(results)}/{n_sel}] α={alpha:.3f} 完成")
+                    logger.info("  [%d/%d] α=%.3f 完成", len(results), n_sel, alpha)
         else:
             result = feasible_rows[sel_indices[0]]
             departure_state = np.asarray(result["departure_state"], dtype=np.float64)
@@ -433,7 +436,7 @@ def main() -> None:
                 if dv_arr is not None and dv_arr.size == 1
                 else (float(np.linalg.norm(dv_arr)) if dv_arr is not None else float("nan"))
             )
-            print(f"积分转移轨道（α={alpha}, T={transfer_time:.3f} TU）...")
+            logger.info("积分转移轨道（α=%.4f, T=%.3f TU）...", alpha, transfer_time)
             transfer_states, _ = _reintegrate_transfer(
                 ts_dummy, departure_state, alpha, float(transfer_time)
             )
@@ -487,7 +490,7 @@ def main() -> None:
                 ax.scatter(*departure_state[:3], color=color, s=30, alpha=0.8)
 
             if n_skipped:
-                print(f"  警告: {n_skipped}/{n_sel} 条转移轨迹积分失败，已跳过")
+                logger.warning("%d/%d 条转移轨迹积分失败，已跳过", n_skipped, n_sel)
 
             plot_celestial_bodies(ax, system, PLOT_CONFIG)
             ax.set_xlabel("x (DU)")
@@ -525,5 +528,5 @@ if __name__ == "__main__":
             "--dpi", "150",
             "--idx", "0",
         ]
-        print("[debug] 使用代码内置调试参数")
+        logger.debug("使用代码内置调试参数")
     main()
