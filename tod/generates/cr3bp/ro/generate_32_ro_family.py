@@ -84,13 +84,33 @@ def main():
         seed_orbit=seed_RO,
         param_range=(param_min, param_max),  # x0参数延拓范围
         step_size=step_size,  # 延拓步长
-    )  # //TODO 这里的延拓逻辑存在问题，当延拓失败的时候，不会提示，好像会将轨道的值设置为一个特殊值。
+        verbose=True,
+    )
+
+    # 延拓统计与失败检查
+    stats = continuator.continuation_stats
+    logger.info(
+        "延拓统计：总步数 %d，成功 %d，失败 %d",
+        stats["total_steps"],
+        stats["successful_steps"],
+        stats["failed_steps"],
+    )
+    if stats["failed_steps"] > 0:
+        logger.warning(
+            "延拓过程中有 %d 步修正失败（已自动缩减步长或终止）",
+            stats["failed_steps"],
+        )
+    if continuator.termination_reason:
+        logger.warning("延拓提前终止：%s", continuator.termination_reason)
 
     # =============================================================================
     # 5. 保存轨道数据
     # =============================================================================
     # 命名规则：ro_32_family_{param_min}-{param_max}-{step_size}_{ts}.json
     ts = int(time.time())
+    family_result.metadata["continuation_stats"] = stats
+    if continuator.termination_reason:
+        family_result.metadata["termination_reason"] = continuator.termination_reason
     family_result.save_to_file(
         filename=str(
             OUTPUT_DIR
