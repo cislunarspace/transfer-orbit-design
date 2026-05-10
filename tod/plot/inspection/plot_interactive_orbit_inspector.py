@@ -23,7 +23,6 @@ import argparse
 import sys
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 import e2m2e
 from e2m2e.core import OrbitFamily, CR3BP_System
@@ -34,6 +33,8 @@ import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.colors import Normalize
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from tod.commons.common import find_project_root
+project_root = find_project_root(Path(__file__))
 
 PLOT_CONFIG = apply_standard_plot_config()
 

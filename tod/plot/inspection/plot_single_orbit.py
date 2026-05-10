@@ -12,7 +12,6 @@ import argparse
 import sys
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent.parent.parent
 from tod.commons.common import MU, TU
 from tod.commons.plot_helpers import apply_standard_plot_config
 
@@ -21,6 +20,8 @@ import matplotlib.pyplot as plt
 import e2m2e
 from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.visualization.base import OrbitVisualizer
+from tod.commons.common import find_project_root
+project_root = find_project_root(Path(__file__))
 
 PLOT_CONFIG = apply_standard_plot_config()
 

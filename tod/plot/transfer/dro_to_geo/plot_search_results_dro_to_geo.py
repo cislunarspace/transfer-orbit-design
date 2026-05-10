@@ -1,25 +1,25 @@
 """
-DRO → RO 转移轨道网格搜索结果可视化
+可视化 grid_search_dro_to_geo 输出的搜索结果 JSON：可行解的 α–Δv 散点图、转移时间–Δv 散点图与转移轨道示意图。
 
-可视化 dro_to_ro/grid_search_dro_to_ro.py 输出的搜索结果 JSON：
-可行解的 α–Δv 散点图、转移时间–Δv 散点图与转移轨道 3D 示意图。
+在下方 ``RESULTS_JSON`` 中指定要绘制的 grid_search_dro_to_geo 输出 JSON（相对仓库根目录或绝对路径均可）。
 
 Δv 优先使用 JSON 中的 dv_departure，否则由 departure_state 与 α 按搜索阶段速度扰动模型计算。
 
 转移轨道示意图通过重新积分转移轨迹（从 departure_state 出发，以 α 扰动的速度），
-叠加绘制 DRO 出发轨道与 RO 到达轨道，直观展示转移路径。
+叠加绘制 DRO 出发轨道与 GEO 球面，直观展示转移路径。
 
 用法:
-    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro              # 仅 α–Δv 散点图
-    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --time-dv   # 转移时间–Δv 散点图
-    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit      # 转移轨道 3D 示意图
-    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --save output/transfer/figures/search_orbit.png
-    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --idx 0        # 绘制第 idx 个可行解
-    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --idx best        # 绘制 Δv 最小的可行解
-    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --idx random --seed 42  # 随机一个可行解
-    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --idx all          # 绘制全部可行解（子采样受 --max-points 控制）
-    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --idx all --max-points 100  # 最多绘制 100 条
-    python -m tod.pipelines.transfer.dro_to_ro.plot_search_results_dro_to_ro --orbit --idx best:10      # 绘制 Δv 最小的 10 条轨道
+    python -m tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo              # 仅 α–Δv 散点图
+    python -m tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo --time-dv   # 转移时间–Δv 散点图
+    python -m tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit      # 转移轨道 3D 示意图
+    python -m tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --save output/transfer/figures/search_geo_orbit.png
+    python -m tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --idx 0        # 绘制第 idx 个可行解
+    python -m tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --idx best      # 绘制 Δv 最小的可行解
+    python -m tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --idx random --seed 42  # 随机一个可行解
+    python -m tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --idx all        # 绘制全部可行解（子采样受 --max-points 控制）
+    python -m tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --idx all --max-points 100  # 最多绘制 100 条
+    python -m tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo --orbit --idx best:10      # 绘制 Δv 最小的 10 条轨道
+    python -m tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo --interactive           # 交互式逐条浏览（按转移时间排序）
 """
 
 from __future__ import annotations
@@ -31,6 +31,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import matplotlib
+from tod.commons.common import find_project_root
+project_root = find_project_root(Path(__file__))
 
 try:
     matplotlib.use("TkAgg")
@@ -40,7 +42,6 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 import numpy as np
 
-project_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from tod.commons.plot_helpers import apply_standard_plot_config, style_colorbar, subsample_indices
@@ -51,20 +52,19 @@ import e2m2e
 from e2m2e.core import CR3BP_System, Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
 
-from tod.commons.common import MU, TU, VU, safe_resolve_within
-from e2m2e.orbits.geo import EARTH_CENTER
+from tod.commons.common import MU, DU, TU, VU, safe_resolve_within
+from e2m2e.orbits.geo import R_GEO, V_CIRCULAR_GEO, EARTH_CENTER
 
 # =============================================================================
-# 数据文件：grid_search 输出的 JSON
+# 数据文件：grid_search_dro_to_geo 输出的 JSON
 # =============================================================================
 RESULTS_JSON = (
-    project_root / "output/transfer/search_results_200-100-0.5-2.5-22.998482_3857848453.json"
+    project_root
+    / "output/transfer/search_dro_geo_200-100-0.5-2.5-22.9985_3858323266.json"
 )
-# 示例: RESULTS_JSON = project_root / "output/transfer/search_results_10-101-0.5-2.5-2.298634_3857123456.json"
 
 # 轨道数据文件（用于转移轨道积分和绘图）
 DRO_FILE = project_root / "output/dro/dro_31_3857693511.json"
-RO_FILE = project_root / "output/ro/ro_31_3857693516.json"
 
 
 def departure_delta_v_norm(state6: np.ndarray, alpha: float) -> float:
@@ -118,17 +118,12 @@ def compute_actual_transfer_time(r: dict, dt: float = 1.0 / (24.0 * TU)) -> floa
     """
     计算实际转移时间。
 
-    e2m2e grid_search 输出的 transfer_time 是 max_transfer_time（积分总时长），
-    而非实际到达目标轨道的时间。这里用 min_distance_idx * dt 来估算真实转移时间。
+    grid_search_dro_to_geo 输出的 transfer_time 已经是到达 GEO 球面的实际转移时间，
+    不需要额外计算。这里直接使用 transfer_time。
     """
     transfer_time = r.get("transfer_time")
     if transfer_time is None:
         return float("nan")
-    # 使用 min_distance_idx 和 dt 计算真实转移时间
-    min_idx = r.get("min_distance_idx")
-    if min_idx is not None and min_idx >= 0:
-        return float(min_idx) * dt
-    # 如果没有 min_distance_idx，使用原始的 transfer_time（这不应该发生）
     return float(transfer_time)
 
 
@@ -136,7 +131,6 @@ def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndar
     """仅可行解；返回 (transfer_times, dv_departure)。"""
     times: list[float] = []
     dvs: list[float] = []
-    DT = 1.0 / (24.0 * TU)
     for r in rows:
         if not r.get("is_feasible"):
             continue
@@ -151,7 +145,7 @@ def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndar
                 continue
             dv = departure_delta_v_norm(np.asarray(ds, dtype=np.float64), float(alpha))
         if np.isfinite(dv):
-            actual_time = compute_actual_transfer_time(r, DT)
+            actual_time = compute_actual_transfer_time(r)
             if np.isfinite(actual_time):
                 times.append(actual_time)
                 dvs.append(dv)
@@ -164,20 +158,13 @@ def plot_alpha_delta_v(
     delta_v: np.ndarray,
 ) -> None:
     if len(alpha) == 0:
-        ax.text(
-            0.5,
-            0.5,
-            "无可行解",
-            ha="center",
-            va="center",
-            transform=ax.transAxes,
-        )
-        ax.set_title("DRO→RO: α vs Δv_departure")
+        ax.text(0.5, 0.5, "无可行解", ha="center", va="center", transform=ax.transAxes)
+        ax.set_title("DRO→GEO: α vs Δv_departure")
         return
     ax.scatter(alpha, delta_v * VU / 1000, s=6, alpha=0.6, c="steelblue")
     ax.set_xlabel("α")
     ax.set_ylabel("Δv_departure (km/s)")
-    ax.set_title("DRO→RO: α vs Δv_departure")
+    ax.set_title("DRO→GEO: α vs Δv_departure")
     ax.grid(True, alpha=0.3)
 
 
@@ -188,22 +175,15 @@ def plot_transfer_time_delta_v(
 ) -> None:
     """绘制转移时间 vs Δv 散点图。"""
     if len(transfer_time) == 0:
-        ax.text(
-            0.5,
-            0.5,
-            "无可行解",
-            ha="center",
-            va="center",
-            transform=ax.transAxes,
-        )
-        ax.set_title("DRO→RO: 转移时间 vs Δv_departure")
+        ax.text(0.5, 0.5, "无可行解", ha="center", va="center", transform=ax.transAxes)
+        ax.set_title("DRO→GEO: 转移时间 vs Δv_departure")
         return
     sc = ax.scatter(transfer_time * TU, delta_v * VU / 1000, s=6, alpha=0.6,
                     c=transfer_time * TU, cmap="viridis")
     style_colorbar(plt.colorbar(sc, ax=ax, label="转移时间 (天)"), PLOT_CONFIG)
     ax.set_xlabel("转移时间 (天)")
     ax.set_ylabel("Δv_departure (km/s)")
-    ax.set_title("DRO→RO: 转移时间 vs Δv_departure")
+    ax.set_title("DRO→GEO: 转移时间 vs Δv_departure")
     ax.grid(True, alpha=0.3)
 
 
@@ -223,7 +203,7 @@ def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
 
 
 def _build_transfer_search() -> TransferSearch:
-    """构建并配置 TransferSearch 实例（积分器参数与 grid_search_dro_to_ro.py 一致）。"""
+    """构建并配置 TransferSearch 实例（积分器参数与 grid_search_dro_to_geo.py 一致）。"""
     DT = 1.0 / (24.0 * TU)
     system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
     dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
@@ -249,7 +229,9 @@ def _integrate_single_orbit(args: tuple) -> tuple:
     departure_state, alpha, max_transfer_time, mu, tu = args
     DT = 1.0 / (24.0 * tu)
     try:
-        system = e2m2e.core.system.CR3BP_System(mu=mu, primary="earth", secondary="moon")
+        system = e2m2e.core.system.CR3BP_System(
+            mu=mu, primary="earth", secondary="moon"
+        )
         dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
         dynamics.integrator = "DOP853"
         dynamics.rtol = 1e-12
@@ -273,7 +255,9 @@ def _integrate_single_orbit(args: tuple) -> tuple:
 
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            transfer_states, _ = ts._forward_integrate(initial_state, max_transfer_time, DT)
+            transfer_states, _ = ts._forward_integrate(
+                initial_state, max_transfer_time, DT
+            )
 
         dv_departure = float(np.linalg.norm(new_vel - vel))
         return transfer_states, alpha, dv_departure
@@ -295,25 +279,43 @@ def _reintegrate_transfer(
     return states, times
 
 
-def _find_closest_orbit_phase_idx(transfer_states: np.ndarray, orbit: Orbit) -> int:
-    """找到转移轨迹终点与目标轨道最接近的点（轨道相位索引）。"""
-    pos_tr = transfer_states[-1, :2]
-    min_dist = float("inf")
-    best_idx = 0
-    for i in range(len(orbit.states)):
-        d = np.linalg.norm(orbit.states[i, :2] - pos_tr)
-        if d < min_dist:
-            min_dist = d
-            best_idx = i
-    return best_idx
+def _orbit_states_in_plane(
+    orbit: Orbit, plane: str = "xz"
+) -> tuple[np.ndarray, np.ndarray]:
+    """返回轨道在指定平面上的坐标。plane: 'xz' | 'xy' | 'yz'。"""
+    idx_map = {"xy": (0, 1), "xz": (0, 2), "yz": (1, 2)}
+    i, j = idx_map[plane]
+    return orbit.states[:, i], orbit.states[:, j]
+
+
+def _geo_circle_points(n_pts: int = 200) -> tuple[np.ndarray, np.ndarray]:
+    """GEO 圆在 x-y 平面上的投影（返回 x, y 两个 1D 数组）。"""
+    th = np.linspace(0, 2 * np.pi, n_pts)
+    earth_x = -MU
+    return earth_x + R_GEO * np.cos(th), R_GEO * np.sin(th)
+
+
+def _geo_sphere_points(n_pts: int = 200) -> np.ndarray:
+    """
+    生成 GEO 球面上的点（在旋转坐标系中）。
+
+    地心在 (-μ, 0)，GEO 半径为 R_GEO。
+    在旋转系中，GEO 球面近似为以 (-μ, 0, 0) 为圆心、R_GEO 为半径的圆（z=0 平面）。
+    （严格来说在旋转系中由于科氏力会形成更复杂的形状，但 R_GEO 很小，近似为圆足够。）
+    """
+    theta = np.linspace(0.0, 2.0 * np.pi, n_pts)
+    earth_x = -MU
+    pts = np.zeros((n_pts, 3))
+    pts[:, 0] = earth_x + R_GEO * np.cos(theta)
+    pts[:, 1] = R_GEO * np.sin(theta)
+    pts[:, 2] = 0.0
+    return pts
 
 
 def _plot_single_transfer_orbit(
     departure_orbit: Orbit,
-    arrival_orbit: Orbit,
     transfer_states: np.ndarray,
     departure_state: np.ndarray,
-    arrival_orbit_phase_idx: int,
     dv_departure: float,
     dv_insertion: float,
     transfer_time: float,
@@ -322,20 +324,14 @@ def _plot_single_transfer_orbit(
     fig=None,
     ax=None,
 ) -> Axes:
-    """绘制单条 DRO→RO 转移轨道 3D 示意图。"""
+    """绘制单条 DRO→GEO 转移轨道 3D 示意图。"""
     if ax is None:
         fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection="3d")
 
-    arrival_point = arrival_orbit.states[arrival_orbit_phase_idx]
-
     # DRO 出发轨道
     ax.plot(departure_orbit.states[:, 0], departure_orbit.states[:, 1],
             departure_orbit.states[:, 2], color="royalblue", lw=0.8, label="DRO")
-
-    # RO 到达轨道
-    ax.plot(arrival_orbit.states[:, 0], arrival_orbit.states[:, 1],
-            arrival_orbit.states[:, 2], color="seagreen", lw=0.8, label="RO")
 
     # 转移轨迹
     ax.plot(transfer_states[:, 0], transfer_states[:, 1], transfer_states[:, 2],
@@ -345,8 +341,12 @@ def _plot_single_transfer_orbit(
     dep_pos = np.asarray(departure_state, dtype=float)[:3]
     ax.scatter(*dep_pos, color="green", s=40, zorder=5, label="出发点")
 
-    # 到达点
-    ax.scatter(*arrival_point[:3], color="orange", s=40, marker="s", zorder=5, label="终点")
+    # GEO 穿越点（终点）
+    ax.scatter(*transfer_states[-1, :3], color="orange", s=40, marker="s", zorder=5, label="终点")
+
+    # GEO 球面（圆）
+    gx, gy = _geo_circle_points()
+    ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--", lw=0.8, label="GEO")
 
     # 地球和月球
     ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
@@ -369,14 +369,13 @@ def _plot_single_transfer_orbit(
     dv_dep_phys = dv_departure * VU / 1000
     dv_ins_phys = dv_insertion * VU / 1000
     ax.set_title(
-        f"DRO→RO  α={alpha:.4f}  T={transfer_time:.2f} TU ({transfer_time * TU:.1f}天)\n"
+        f"DRO→GEO  α={alpha:.4f}  T={transfer_time:.2f} TU ({transfer_time * TU:.1f}天)\n"
         f"Δv_dep={dv_dep_phys:.4f} km/s  Δv_ins={dv_ins_phys:.4f} km/s"
     )
     ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
     # 等比例轴
-    all_pts = np.concatenate([transfer_states[:, :3], departure_orbit.states[:, :3],
-                              arrival_orbit.states[:, :3]])
+    all_pts = np.concatenate([transfer_states[:, :3], departure_orbit.states[:, :3]])
     mid = all_pts.mean(axis=0)
     half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
     ax.set_xlim(mid[0] - half, mid[0] + half)
@@ -398,13 +397,13 @@ def _select_feasible_indices(
     """
     n = len(feasible_rows)
 
-    # 预计算所有 dv_departure
+    # 预计算所有 dv_total（dv_departure + dv_insertion）
     dv_vals = []
     for r in feasible_rows:
-        dv_raw = r.get("dv_departure")
-        if dv_raw is not None:
-            dv_arr = np.asarray(dv_raw, dtype=np.float64).ravel()
-            dv = float(dv_arr[0]) if dv_arr.size == 1 else float(np.linalg.norm(dv_arr))
+        dv_dep = r.get("dv_departure")
+        dv_ins = r.get("dv_insertion")
+        if dv_dep is not None and dv_ins is not None:
+            dv = float(dv_dep) + float(dv_ins)
         else:
             dv = float("inf")
         dv_vals.append(dv)
@@ -430,7 +429,9 @@ def _select_feasible_indices(
         sorted_indices = sorted(range(n), key=lambda i: dv_vals[i])
         selected = sorted_indices[:top_n]
         if top_n == 1:
-            print(f"  [best] 选择 Δv={dv_vals[selected[0]]:.6f} 的解（索引 {selected[0]}）")
+            print(
+                f"  [best] 选择 Δv_total={dv_vals[selected[0]]:.6f} 的解（索引 {selected[0]}）"
+            )
         else:
             print(
                 f"  [best:{top_n}] 选择 Δv 最小的 {top_n} 个可行解（Δv 范围: {dv_vals[selected[0]]:.6f} ~ {dv_vals[selected[-1]]:.6f}）"
@@ -448,9 +449,138 @@ def _select_feasible_indices(
         return [i]
 
 
+def interactive_browse_by_time(
+    feasible_rows: list[dict],
+    dro_orbit: Orbit,
+    system: CR3BP_System,
+    ts: TransferSearch,
+) -> None:
+    """按转移时间排序，交互式逐条浏览转移轨道（参考 plot_interactive_orbit_inspector.py）。"""
+    plt.ion()
+
+    sorted_rows = sorted(
+        feasible_rows, key=lambda r: float(r.get("transfer_time", float("inf")))
+    )
+    n = len(sorted_rows)
+
+    print(f"\n共 {n} 条可行解，已按转移时间排序")
+    print("=" * 60)
+    print("交互式转移轨道浏览器（按转移时间排序）")
+    print("=" * 60)
+    print("按 Enter: 绘制下一条轨道")
+    print("输入 'q': 退出")
+    print("输入 's N': 跳过 N 条")
+    print("输入 'j N': 跳转到第 N 条")
+    print("输入 'r': 重绘当前轨道")
+    print("=" * 60 + "\n")
+
+    current_idx = 0
+    fig = None
+
+    while True:
+        row = sorted_rows[current_idx]
+        alpha = float(row["alpha"])
+        transfer_time = float(row["transfer_time"])
+        departure_state = np.asarray(row["departure_state"], dtype=np.float64)
+
+        dv_dep_raw = row.get("dv_departure")
+        dv_arr = (
+            np.asarray(dv_dep_raw, dtype=np.float64).ravel()
+            if dv_dep_raw is not None
+            else None
+        )
+        dv_departure = (
+            float(dv_arr[0])
+            if dv_arr is not None and dv_arr.size == 1
+            else (float(np.linalg.norm(dv_arr)) if dv_arr is not None else float("nan"))
+        )
+        dv_insertion_raw = row.get("dv_insertion")
+        dv_insertion = (
+            float(dv_insertion_raw) if dv_insertion_raw is not None else float("nan")
+        )
+
+        print(f"\n[{current_idx + 1}/{n}] 转移轨道信息:")
+        print(f"  α = {alpha:.4f}")
+        print(f"  转移时间 = {transfer_time:.4f} TU")
+        print(
+            f"  Δv_dep = {dv_departure:.6f} ({dv_departure * VU * 1000:.1f} m/s)"
+        )
+        print(
+            f"  Δv_ins = {dv_insertion:.6f} ({dv_insertion * VU * 1000:.1f} m/s)"
+        )
+        if np.isfinite(dv_departure) and np.isfinite(dv_insertion):
+            dv_total = dv_departure + dv_insertion
+            print(
+                f"  Δv_total = {dv_total:.6f} ({dv_total * VU * 1000:.1f} m/s)"
+            )
+
+        transfer_states, _ = _reintegrate_transfer(
+            ts, departure_state, alpha, transfer_time
+        )
+
+        if fig is not None:
+            plt.close(fig)
+        fig = plt.figure(figsize=(12, 8))
+        ax = fig.add_subplot(111, projection="3d")
+        _plot_single_transfer_orbit(
+            departure_orbit=dro_orbit,
+            transfer_states=transfer_states,
+            departure_state=departure_state,
+            dv_departure=dv_departure,
+            dv_insertion=dv_insertion,
+            transfer_time=transfer_time,
+            alpha=alpha,
+            system=system,
+            fig=fig,
+            ax=ax,
+        )
+        fig.tight_layout()
+        fig.canvas.draw()
+        fig.canvas.flush_events()
+
+        try:
+            user_input = input(
+                "\n命令 (Enter继续, q退出, s跳过, j跳转, r重绘): "
+            ).strip()
+        except EOFError:
+            break
+
+        if user_input == "q":
+            print("退出")
+            break
+        elif user_input.startswith("s "):
+            try:
+                skip_n = int(user_input.split()[1])
+                current_idx = min(current_idx + skip_n, n - 1)
+                print(f"跳转到第 {current_idx + 1} 条")
+            except (ValueError, IndexError):
+                print("无效的跳过数量")
+        elif user_input.startswith("j "):
+            try:
+                target = int(user_input.split()[1])
+                current_idx = max(0, min(target - 1, n - 1))
+                print(f"跳转到第 {current_idx + 1} 条")
+            except (ValueError, IndexError):
+                print("无效的编号")
+        elif user_input == "r":
+            print(f"重绘第 {current_idx + 1} 条")
+            continue
+        else:
+            if current_idx < n - 1:
+                current_idx += 1
+            else:
+                print("已到达最后一条")
+                break
+
+    if fig is not None:
+        plt.close(fig)
+    plt.ioff()
+    print(f"\n浏览完成，共查看了 {current_idx + 1} 条轨道")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="绘制 grid_search 结果（α–Δv 散点图 / 转移轨道示意图）"
+        description="绘制 grid_search_dro_to_geo 结果（α–Δv 散点图 / 转移轨道示意图）"
     )
     parser.add_argument(
         "--file",
@@ -496,6 +626,11 @@ def main() -> None:
         action="store_true",
         help="绘制转移时间 vs Δv 散点图（替代 α–Δv 图）",
     )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="交互式逐条浏览转移轨道（按转移时间排序）",
+    )
     args = parser.parse_args()
 
     path = Path(args.file).expanduser().resolve() if args.file else Path(RESULTS_JSON).expanduser().resolve()
@@ -511,19 +646,27 @@ def main() -> None:
     feasible_rows = [r for r in rows if r.get("is_feasible")]
     print(f"总行数={len(rows)}，可行解={len(feasible_rows)}")
 
-    if args.orbit:
-        # ── 转移轨道示意图 ──────────────────────────────────────────────────
+    if args.interactive:
+        # ── 交互式逐条浏览（按转移时间排序）──────────────────────────────────
         dro_path = Path(DRO_FILE).expanduser().resolve()
-        ro_path = Path(RO_FILE).expanduser().resolve()
         if not dro_path.is_file():
             raise FileNotFoundError(f"DRO 轨道文件不存在: {dro_path}")
-        if not ro_path.is_file():
-            raise FileNotFoundError(f"RO 轨道文件不存在: {ro_path}")
 
         print(f"加载 DRO: {dro_path}")
-        print(f"加载 RO: {ro_path}")
         dro_orbit = load_orbit_from_json(str(dro_path))
-        ro_orbit = load_orbit_from_json(str(ro_path))
+
+        ts = _build_transfer_search()
+        system = ts.system
+
+        interactive_browse_by_time(feasible_rows, dro_orbit, system, ts)
+    elif args.orbit:
+        # ── 转移轨道示意图 ──────────────────────────────────────────────────
+        dro_path = Path(DRO_FILE).expanduser().resolve()
+        if not dro_path.is_file():
+            raise FileNotFoundError(f"DRO 轨道文件不存在: {dro_path}")
+
+        print(f"加载 DRO: {dro_path}")
+        dro_orbit = load_orbit_from_json(str(dro_path))
 
         # 构建 system（用于 OrbitVisualizer 和子进程）
         ts_dummy = _build_transfer_search()
@@ -575,13 +718,16 @@ def main() -> None:
             dv_departure = (
                 float(dv_arr[0])
                 if dv_arr is not None and dv_arr.size == 1
-                else (float(np.linalg.norm(dv_arr)) if dv_arr is not None else float("nan"))
+                else (
+                    float(np.linalg.norm(dv_arr))
+                    if dv_arr is not None
+                    else float("nan")
+                )
             )
             print(f"积分转移轨道（α={alpha}, T={transfer_time:.3f} TU）...")
             transfer_states, _ = _reintegrate_transfer(
                 ts_dummy, departure_state, alpha, float(transfer_time)
             )
-            arrival_phase_idx = _find_closest_orbit_phase_idx(transfer_states, ro_orbit)
             results = {0: (transfer_states, alpha, dv_departure)}
 
         if n_sel == 1:
@@ -589,18 +735,19 @@ def main() -> None:
             departure_state = np.asarray(
                 feasible_rows[sel_indices[0]]["departure_state"], dtype=np.float64
             )
-            arrival_phase_idx = _find_closest_orbit_phase_idx(transfer_states, ro_orbit)
             dv_insertion_raw = feasible_rows[sel_indices[0]].get("dv_insertion")
-            dv_insertion = float(dv_insertion_raw) if dv_insertion_raw is not None else float("nan")
+            dv_insertion = (
+                float(dv_insertion_raw)
+                if dv_insertion_raw is not None
+                else float("nan")
+            )
 
             fig = plt.figure(figsize=(12, 8))
             ax = fig.add_subplot(111, projection="3d")
             ax = _plot_single_transfer_orbit(
                 departure_orbit=dro_orbit,
-                arrival_orbit=ro_orbit,
                 transfer_states=transfer_states,
                 departure_state=departure_state,
-                arrival_orbit_phase_idx=arrival_phase_idx,
                 dv_departure=dv_departure,
                 dv_insertion=dv_insertion,
                 transfer_time=float(feasible_rows[sel_indices[0]]["transfer_time"]),
@@ -613,16 +760,22 @@ def main() -> None:
             fig = plt.figure(figsize=(12, 8))
             ax = fig.add_subplot(111, projection="3d")
 
-            # DRO 出发轨道
+            # DRO
             ax.plot(dro_orbit.states[:, 0], dro_orbit.states[:, 1],
                     dro_orbit.states[:, 2], color="royalblue", lw=0.8, label="DRO")
-            # RO 到达轨道
-            ax.plot(ro_orbit.states[:, 0], ro_orbit.states[:, 1],
-                    ro_orbit.states[:, 2], color="seagreen", lw=0.8, label="RO")
 
+            # GEO 球面
+            gx, gy = _geo_circle_points()
+            ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--", lw=0.8, label="GEO")
+
+            # 转移轨迹（过滤积分失败的结果）
             cmap = matplotlib.colormaps["plasma"]
+            n_skipped = 0
             for cm_idx in range(n_sel):
                 transfer_states, alpha, dv_departure = results[cm_idx]
+                if transfer_states is None:
+                    n_skipped += 1
+                    continue
                 sel_idx = sel_indices[cm_idx]
                 departure_state = np.asarray(
                     feasible_rows[sel_idx]["departure_state"], dtype=np.float64
@@ -632,6 +785,9 @@ def main() -> None:
                 ax.plot(transfer_states[:, 0], transfer_states[:, 1],
                         transfer_states[:, 2], color=color, lw=1.2, alpha=0.7)
                 ax.scatter(*departure_state[:3], color=color, s=30, alpha=0.8)
+
+            if n_skipped:
+                print(f"  警告: {n_skipped}/{n_sel} 条转移轨迹积分失败，已跳过")
 
             # 地球和月球
             ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
@@ -650,11 +806,11 @@ def main() -> None:
             ax.set_xlabel("x (DU)")
             ax.set_ylabel("y (DU)")
             ax.set_zlabel("z (DU)")
-            ax.set_title(f"DRO→RO: {n_sel} 条转移轨道")
+            ax.set_title(f"DRO→GEO: {n_sel} 条转移轨道")
             ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
 
             # 等比例轴
-            all_pts = np.concatenate([dro_orbit.states[:, :3], ro_orbit.states[:, :3]])
+            all_pts = dro_orbit.states[:, :3]
             mid = all_pts.mean(axis=0)
             half = np.ptp(all_pts, axis=0).max() / 2.0 + 0.1
             ax.set_xlim(mid[0] - half, mid[0] + half)
@@ -696,7 +852,7 @@ def main() -> None:
                 plt.show()
             plt.close(fig)
         else:
-            # ── α–Δv 散点图（原有功能）─────────────────────────────────────
+            # ── α–Δv 散点图 ─────────────────────────────────────────────
             alpha_all, dv_all = feasible_alpha_and_departure_dv(rows)
             n_feas = len(alpha_all)
             idx = subsample_indices(n_feas, args.max_points, args.seed)

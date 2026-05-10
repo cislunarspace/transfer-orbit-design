@@ -24,10 +24,12 @@ from e2m2e.core import (
     SynodicJ2000Transformation,
 )
 
+from tod.commons.common import find_project_root
+project_root = find_project_root(Path(__file__))
+
 from tod.commons.common import DU, MU, TU
 from tod.commons.plot_helpers import apply_standard_plot_config
 
-project_root = Path(__file__).resolve().parent.parent.parent.parent
 output_dir = project_root / "output" / "ephemeris"
 PLOT_CONFIG = apply_standard_plot_config()
 

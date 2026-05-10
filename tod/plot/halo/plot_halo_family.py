@@ -11,16 +11,16 @@
 用法::
 
     # 1）修改本文件中的 FAMILY_JSON_PATH 后直接运行
-    python -m tod.pipelines.halo.plot.plot_halo_family
+    python -m tod.plot.halo.plot_halo_family
 
     # 2）命令行指定 JSON（相对项目根或绝对路径）
-    python -m tod.pipelines.halo.plot.plot_halo_family output/halo/halo_L1_N_family_3857325361.json
+    python -m tod.plot.halo.plot_halo_family output/halo/halo_L1_N_family_3857325361.json
 
     # 3）使用某目录下最新的 halo_*_family_*.json
-    python -m tod.pipelines.halo.plot.plot_halo_family --latest
+    python -m tod.plot.halo.plot_halo_family --latest
 
     # 仅保存 PNG、不弹窗
-    python -m tod.pipelines.halo.plot.plot_halo_family path/to/family.json --no-show
+    python -m tod.plot.halo.plot_halo_family path/to/family.json --no-show
 """
 
 from __future__ import annotations
@@ -30,7 +30,6 @@ import os
 import sys
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 import matplotlib
 import numpy as np
@@ -40,6 +39,8 @@ from e2m2e.visualization import FamilyPlotter, compute_stability_for_family
 
 from tod.commons.common import MU
 from tod.commons.plot_helpers import apply_standard_plot_config
+from tod.commons.common import find_project_root
+project_root = find_project_root(Path(__file__))
 
 # =============================================================================
 # 用户配置：已生成的轨道族 JSON（与 generate_halo_family.py 输出一致）

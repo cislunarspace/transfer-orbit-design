@@ -94,7 +94,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "dro", "plot_dro_family",
             "绘制 DRO 轨道族",
-            "tod/pipelines/dro/plot/plot_dro_family.py",
+            "tod/plot/dro/plot_dro_family.py",
             output_dir="output/dro",
             group_label="绘图",
             cli_params=[
@@ -178,7 +178,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "plot_31_ro_family",
             "绘制 3:1 共振轨道族",
-            "tod/pipelines/ro/plot/plot_31_ro_family.py",
+            "tod/plot/ro/plot_31_ro_family.py",
             output_dir="output/ro",
             group_label="绘图",
             cli_params=[
@@ -190,7 +190,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "plot_32_ro_family",
             "绘制 3:2 共振轨道族",
-            "tod/pipelines/ro/plot/plot_32_ro_family.py",
+            "tod/plot/ro/plot_32_ro_family.py",
             output_dir="output/ro",
             group_label="绘图",
             cli_params=[
@@ -202,7 +202,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "plot_aro_family",
             "绘制 ARO 轨道族",
-            "tod/pipelines/ro/plot/plot_aro_family.py",
+            "tod/plot/ro/plot_aro_family.py",
             output_dir="output/ro",
             group_label="绘图",
             cli_params=[
@@ -214,7 +214,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ro", "plot_rro_family",
             "绘制 RRO 轨道族",
-            "tod/pipelines/ro/plot/plot_rro_family.py",
+            "tod/plot/ro/plot_rro_family.py",
             output_dir="output/ro",
             group_label="绘图",
             cli_params=[
@@ -261,7 +261,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "halo", "plot_halo_family",
             "绘制 Halo 轨道族",
-            "tod/pipelines/halo/plot/plot_halo_family.py",
+            "tod/plot/halo/plot_halo_family.py",
             output_dir="output/halo",
             group_label="绘图",
             env_params={
@@ -278,7 +278,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "halo", "plot_halo_orbit",
             "绘制 Halo 轨道族（含 Jacobi/稳定性分析）",
-            "tod/pipelines/halo/plot/plot_halo_orbit.py",
+            "tod/plot/halo/plot_halo_orbit.py",
             output_dir="output/halo",
             group_label="绘图",
             cli_params=[
@@ -333,7 +333,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "plot_search_results_dro_to_ro",
             "绘制 DRO→RO 网格搜索结果",
-            "tod/pipelines/transfer/dro_to_ro/plot_search_results_dro_to_ro.py",
+            "tod/plot/transfer/dro_to_ro/plot_search_results_dro_to_ro.py",
             output_dir="output/transfer",
             group_label="DRO→RO",
             cli_params=[
@@ -351,7 +351,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "plot_optimize_result_dro_to_ro",
             "绘制 DRO→RO NLP 优化结果",
-            "tod/pipelines/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py",
+            "tod/plot/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py",
             output_dir="output/transfer",
             group_label="DRO→RO",
             cli_params=[
@@ -407,7 +407,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "plot_search_results_dro_to_geo",
             "绘制 DRO→GEO 网格搜索结果",
-            "tod/pipelines/transfer/dro_to_geo/plot_search_results_dro_to_geo.py",
+            "tod/plot/transfer/dro_to_geo/plot_search_results_dro_to_geo.py",
             output_dir="output/transfer",
             group_label="DRO→GEO",
             cli_params=[
@@ -470,7 +470,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "plot_search_results_geo_to_dro",
             "绘制 GEO→DRO 网格搜索结果",
-            "tod/pipelines/transfer/geo_to_dro/plot_search_results_geo_to_dro.py",
+            "tod/plot/transfer/geo_to_dro/plot_search_results_geo_to_dro.py",
             output_dir="output/transfer",
             group_label="GEO→DRO",
             cli_params=[
@@ -488,7 +488,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "transfer", "plot_optimize_result_geo_to_dro",
             "绘制 GEO→DRO NLP 优化结果",
-            "tod/pipelines/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py",
+            "tod/plot/transfer/geo_to_dro/plot_optimize_result_geo_to_dro.py",
             output_dir="output/transfer",
             group_label="GEO→DRO",
             cli_params=[
@@ -590,7 +590,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "ephemeris", "plot_ephemeris_correction",
             "绘制 DRO 星历修正前后对比图",
-            "tod/pipelines/ephemeris/plot/plot_ephemeris_correction.py",
+            "tod/plot/ephemeris/plot_ephemeris_correction.py",
             output_dir="output/ephemeris",
             needs_spice=True,
             group_label="绘图",
@@ -604,7 +604,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "inspection", "plot_interactive_orbit_inspector",
             "交互式轨道检查器（逐步遍历轨道族）",
-            "tod/pipelines/inspection/plot_interactive_orbit_inspector.py",
+            "tod/plot/inspection/plot_interactive_orbit_inspector.py",
             group_label="交互式检查",
             cli_params=[
                 CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径"),
@@ -616,7 +616,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ScriptEntry(
             "inspection", "plot_single_orbit",
             "绘制单条轨道（2D + 3D 视图）",
-            "tod/pipelines/inspection/plot_single_orbit.py",
+            "tod/plot/inspection/plot_single_orbit.py",
             group_label="单轨道绘图",
             cli_params=[
                 CliParam("--json-file", "轨道文件", "str", help="轨道 JSON 文件路径"),

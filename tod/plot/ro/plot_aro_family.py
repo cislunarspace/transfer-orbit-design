@@ -1,8 +1,8 @@
 """
-可视化 3:1 共振轨道族
+可视化 3:2 ARO（轴向共振轨道）族
 
 本脚本实现：
-1. 加载3:1 RO轨道族数据
+1. 加载3:2 ARO轨道族数据
 2. 计算Jacobi常数和稳定性指数
 3. 创建2D和3D可视化
 4. 创建周期-稳定性参数图
@@ -22,10 +22,12 @@ from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization import FamilyPlotter, compute_stability_for_family
 from tod.commons.common import MU, TU
 from tod.commons.plot_helpers import apply_standard_plot_config
+from tod.commons.common import find_project_root
+project_root = find_project_root(Path(__file__))
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="绘制 3:1 共振轨道族")
+    parser = argparse.ArgumentParser(description="绘制 ARO 轨道族")
     parser.add_argument("--json-file", type=str, default=None, help="轨道族 JSON 文件路径")
     parser.add_argument("--start", type=int, default=-1, help="起始轨道索引，-1 表示从第一条")
     parser.add_argument("--end", type=int, default=-1, help="结束轨道索引（含），-1 表示到最后一条")
@@ -34,14 +36,13 @@ def parse_args():
 
 def main() -> None:
     args = parse_args()
-    project_root = Path(__file__).resolve().parent.parent.parent.parent
     output_dir = project_root / "output" / "ro"
 
     if args.json_file:
         family_path = Path(args.json_file)
         family_name = family_path.stem
     else:
-        family_name = "ro_31_family_-0.8905--0.8304999999999999-0.001_3857720079"
+        family_name = "aro_32_family_placeholder"
         family_path = output_dir / f"{family_name}.json"
 
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
@@ -54,7 +55,7 @@ def main() -> None:
     family_result = OrbitFamily.load_from_file(filename=family_path, system=system)
 
     n_orbits = len(family_result)
-    print(f"加载了 {n_orbits} 条 3:1 RO轨道")
+    print(f"加载了 {n_orbits} 条 3:2 ARO轨道")
 
     # =============================================================================
     # 绘制范围控制变量
@@ -99,7 +100,7 @@ def main() -> None:
     periods_sorted = np.array(periods_subset)[sort_idx].tolist()
     stability_sorted = np.array(stability_values_subset)[sort_idx].tolist()
 
-    target_period = 2 * np.pi
+    target_period = 4 * np.pi
 
     # =============================================================================
     # 创建绘图器
@@ -120,7 +121,7 @@ def main() -> None:
         subset_family,
         jacobi_values_subset,
         title=(
-            f"3:1 Resonant Orbit Family in Earth-Moon CR3BP (XY Plane) - {n_orbits} orbits\n"
+            f"3:2 ARO Orbit Family in Earth-Moon CR3BP (XY Plane) - {n_orbits} orbits\n"
             f"C = [{jacobi_min:.4f}, {jacobi_max:.4f}], "
             f"λmax = [{min(stability_values_subset):.4f}, {max(stability_values_subset):.4f}]"
         ),
@@ -130,11 +131,12 @@ def main() -> None:
     plotter.plot_2d_projection(
         seed_orbit,
         color="red",
-        label=f"Seed 3:1 RO (C={seed_jacobi:.4f}, λmax={seed_stability:.4f})",
+        label=f"Seed 3:2 ARO (C={seed_jacobi:.4f}, λmax={seed_stability:.4f})",
         ax=ax_2d,
     )
     plt.tight_layout()
     plt.savefig(output_dir / f"{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
+    plt.show()
 
     # =============================================================================
     # 2. 3D视图
@@ -143,25 +145,26 @@ def main() -> None:
         subset_family,
         jacobi_values_subset,
         title=(
-            f"3:1 Resonant Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
+            f"3:2 ARO Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
             f"C = [{jacobi_min:.4f}, {jacobi_max:.4f}], "
             f"λmax = [{min(stability_values_subset):.4f}, {max(stability_values_subset):.4f}]"
         ),
-        center=(-0.85, 0, 0),
+        center=(-0.85, 0, 0.2),
         radius=0.5,
-        elev=0,
+        elev=20,
         azim=-90,
         show=False,
     )
     plotter.plot_3d_orbit(
         seed_orbit,
         color="red",
-        label=f"Seed 3:1 RO (C={seed_jacobi:.4f})",
+        label=f"Seed 3:2 ARO (C={seed_jacobi:.4f})",
         ax=ax_3d,
         show_start=True,
     )
     plt.tight_layout()
     plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
+    plt.show()
 
     # =============================================================================
     # 3. Jacobi常数-周期-稳定性图
@@ -171,12 +174,12 @@ def main() -> None:
         periods_sorted,
         stability_sorted,
         title=(
-            f"3:1 Resonant Orbit Family - Period and Stability\n"
+            f"3:2 ARO Orbit Family - Period and Stability\n"
             f"Period Target: {target_period:.4f} TU ({target_period * TU:.2f} days)"
         ),
         target_period=target_period,
         save_path=str(output_dir / f"{family_name}_period_stability.png"),
-        show=False,
+        show=True,
     )
 
     print(f"\n完成！图像已保存到 output/ro/ 目录")

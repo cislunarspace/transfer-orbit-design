@@ -5,10 +5,10 @@ GEO → DRO 搜索结果可视化
 支持散点图、3D 转移轨道图和交互式浏览模式。
 
 运行:
-    python -m tod.pipelines.transfer.geo_to_dro.plot_search_results_geo_to_dro              # alpha vs Δv 散点图
-    python -m tod.pipelines.transfer.geo_to_dro.plot_search_results_geo_to_dro --time-dv    # 转移时间 vs Δv
-    python -m tod.pipelines.transfer.geo_to_dro.plot_search_results_geo_to_dro --orbit       # 3D 轨道图
-    python -m tod.pipelines.transfer.geo_to_dro.plot_search_results_geo_to_dro --interactive # 交互式浏览
+    python -m tod.plot.transfer.geo_to_dro.plot_search_results_geo_to_dro              # alpha vs Δv 散点图
+    python -m tod.plot.transfer.geo_to_dro.plot_search_results_geo_to_dro --time-dv    # 转移时间 vs Δv
+    python -m tod.plot.transfer.geo_to_dro.plot_search_results_geo_to_dro --orbit       # 3D 轨道图
+    python -m tod.plot.transfer.geo_to_dro.plot_search_results_geo_to_dro --interactive # 交互式浏览
 """
 
 import argparse
@@ -20,6 +20,8 @@ from typing import Any, Optional  # noqa: F401
 
 import numpy as np
 import matplotlib
+from tod.commons.common import find_project_root
+project_root = find_project_root(Path(__file__))
 
 try:
     matplotlib.use("TkAgg")
@@ -39,7 +41,6 @@ from e2m2e.orbits.geo import (
     check_collision,
 )
 
-project_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from tod.commons.plot_helpers import apply_standard_plot_config, style_colorbar, subsample_indices

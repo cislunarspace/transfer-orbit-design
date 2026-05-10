@@ -11,8 +11,9 @@
 import argparse
 from pathlib import Path
 import sys
+from tod.commons.common import find_project_root
+project_root = find_project_root(Path(__file__))
 
-project_root = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from tod.commons.plot_helpers import apply_standard_plot_config

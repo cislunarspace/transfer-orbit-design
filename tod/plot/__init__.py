@@ -1,1 +1,4 @@
-"""tod.plot — 可视化工具（共享 plot helpers 已在 tod.commons.plot_helpers）"""
+"""tod.plot — 可视化入口（轨道族绘图、搜索结果绘图、优化结果绘图、交互式检查器）。
+
+本包将原本分散在 tod.pipelines 中的绘图脚本集中管理，实现计算与可视化的职责分离。
+"""

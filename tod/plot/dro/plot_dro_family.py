@@ -8,6 +8,8 @@ from e2m2e.visualization import FamilyPlotter, compute_stability_for_family
 
 from tod.commons.common import MU
 from tod.commons.plot_helpers import apply_standard_plot_config
+from tod.commons.common import find_project_root
+project_root = find_project_root(Path(__file__))
 
 
 def parse_args():
@@ -18,7 +20,6 @@ def parse_args():
 
 def main() -> None:
     args = parse_args()
-    project_root = Path(__file__).resolve().parent.parent.parent.parent
     output_dir = project_root / "output" / "dro"
 
     if args.json_file:

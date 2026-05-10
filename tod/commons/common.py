@@ -11,6 +11,36 @@ from pathlib import Path
 from .constants import DU, FAMILY_FILENAME, MU, T_MOON, TU, VU
 
 
+def find_project_root(start: Path | None = None) -> Path:
+    """从给定起点向上遍历，直到找到项目根目录。
+
+    项目根目录定义为包含 pyproject.toml 或 .git 的目录。
+
+    Args:
+        start: 起始目录，默认使用调用者的 __file__ 所在目录
+
+    Returns:
+        项目根目录的绝对路径
+
+    Raises:
+        FileNotFoundError: 无法找到项目根目录
+    """
+    current = (start or Path(__file__)).resolve().parent
+    markers = ("pyproject.toml", ".git")
+
+    for _ in range(20):  # 限制遍历深度，防止无限循环
+        if any((current / marker).exists() for marker in markers):
+            return current
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+
+    raise FileNotFoundError(
+        f"无法从 {start or __file__} 找到项目根目录（包含 {markers} 的目录）"
+    )
+
+
 def safe_resolve_within(user_path: str, allowed_root: Path) -> Path | None:
     """安全解析用户路径，验证其位于 allowed_root 内。
 
