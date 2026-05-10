@@ -61,6 +61,112 @@ def compute_view_bounds(all_states: np.ndarray) -> tuple:
     return xlim_2d, ylim_2d, center_3d, radius_3d
 
 
+def _load_family(family_path: Path, system: CR3BP_System) -> OrbitFamily:
+    """加载轨道族 JSON 文件并返回 OrbitFamily 对象。"""
+    with open(family_path, "r") as f:
+        data = json.load(f)
+
+    if "orbits" in data:
+        return OrbitFamily.load_from_file(filename=family_path, system=system)
+
+    orbit = Orbit.load_from_file(filename=family_path, system=system)
+    family = OrbitFamily(system=system)
+    family.add_orbit(orbit)
+    return family
+
+
+def _resolve_plot_range(start_idx: int, end_idx: int, n_orbits: int) -> tuple[int, int]:
+    """解析 --start/--end 参数，返回 (plot_start, plot_end) 索引。"""
+    if start_idx == -1 and end_idx == -1:
+        return 0, n_orbits - 1
+    if start_idx == -1:
+        return 0, min(end_idx, n_orbits - 1)
+    if end_idx == -1:
+        return min(start_idx, n_orbits - 1), n_orbits - 1
+    return min(start_idx, n_orbits - 1), min(end_idx, n_orbits - 1)
+
+
+def _plot_2d_view(
+    plotter: FamilyPlotter,
+    subset_family: OrbitFamily,
+    jacobi_subset: list[float],
+    seed_orbit: Orbit,
+    seed_jacobi: float,
+    xlim: tuple[float, float],
+    ylim: tuple[float, float],
+    output_dir: Path,
+    family_name: str,
+    n_orbits: int,
+) -> None:
+    """绘制全局 2D 视图（XZ 平面）。"""
+    jmin, jmax = min(jacobi_subset), max(jacobi_subset)
+    _, ax_2d = plotter.plot_family_2d(
+        subset_family, jacobi_subset,
+        title=f"Halo Orbit Family in Earth-Moon CR3BP (XZ Plane) - {n_orbits} orbits\n"
+              f"C = [{jmin:.4f}, {jmax:.4f}]",
+        plane="xz",
+        show_bodies=True, show_libration=True, show_colorbar=True,
+        xlim=xlim, ylim=ylim,
+        show=False,
+    )
+    plotter.plot_2d_projection(
+        seed_orbit, plane="xz", color="red",
+        label=f"Seed Halo (C={seed_jacobi:.4f})",
+        ax=ax_2d,
+    )
+    plt.tight_layout()
+    plt.savefig(output_dir / f"{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
+    plt.show()
+
+
+def _plot_3d_view(
+    plotter: FamilyPlotter,
+    subset_family: OrbitFamily,
+    jacobi_subset: list[float],
+    seed_orbit: Orbit,
+    seed_jacobi: float,
+    center_3d: tuple[float, float, float],
+    radius_3d: float,
+    output_dir: Path,
+    family_name: str,
+    n_orbits: int,
+) -> None:
+    """绘制全局 3D 视图。"""
+    jmin, jmax = min(jacobi_subset), max(jacobi_subset)
+    _, ax_3d = plotter.plot_family_3d(
+        subset_family, jacobi_subset,
+        title=f"Halo Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
+              f"C = [{jmin:.4f}, {jmax:.4f}]",
+        center=center_3d, radius=radius_3d, elev=20, azim=-60,
+        show=False,
+    )
+    plotter.plot_3d_orbit(
+        seed_orbit, color="red",
+        label=f"Seed Halo (C={seed_jacobi:.4f})",
+        ax=ax_3d, show_start=True,
+    )
+    plt.tight_layout()
+    plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
+    plt.show()
+
+
+def _plot_jacobi_period(
+    plotter: FamilyPlotter,
+    jacobi_sorted: list[float],
+    periods_sorted: list[float],
+    output_dir: Path,
+    family_name: str,
+    n_orbits: int,
+) -> None:
+    """绘制 Jacobi 常数-周期图。"""
+    plotter.plot_jacobi_period(
+        jacobi_sorted, periods_sorted,
+        title=f"Halo Orbit Family - Period\n(n = {n_orbits} orbits)",
+        save_path=str(output_dir / f"{family_name}_jacobi_period.png"),
+        show=True,
+    )
+
+
 def main(plot1: int = 1, plot2: int = 1, plot3: int = 1) -> None:
     args = parse_args()
     output_dir = project_root / "output" / "halo"
@@ -75,42 +181,16 @@ def main(plot1: int = 1, plot2: int = 1, plot3: int = 1) -> None:
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
     try:
-        with open(family_path, "r") as f:
-            data = json.load(f)
-
-        if "orbits" in data:
-            family_result = OrbitFamily.load_from_file(filename=family_path, system=system)
-        else:
-            orbit = Orbit.load_from_file(filename=family_path, system=system)
-            family_result = OrbitFamily(system=system)
-            family_result.add_orbit(orbit)
-
-        n_orbits = len(family_result)
-        logger.info(f"加载了 {n_orbits} 条 Halo 轨道")
+        family_result = _load_family(family_path, system)
     except FileNotFoundError:
         logger.error(f"文件不存在: {family_path}")
         logger.info("请先生成Halo轨道数据，运行: python -m tod.generates.cr3bp.halo.generate_halo_family")
         sys.exit(1)
 
-    # =============================================================================
-    # 绘制范围控制变量
-    # =============================================================================
-    PLOT_START_IDX = args.start
-    PLOT_END_IDX = args.end
+    n_orbits = len(family_result)
+    logger.info(f"加载了 {n_orbits} 条 Halo 轨道")
 
-    if PLOT_START_IDX == -1 and PLOT_END_IDX == -1:
-        plot_start = 0
-        plot_end = n_orbits - 1
-    elif PLOT_START_IDX == -1:
-        plot_start = 0
-        plot_end = min(PLOT_END_IDX, n_orbits - 1)
-    elif PLOT_END_IDX == -1:
-        plot_start = min(PLOT_START_IDX, n_orbits - 1)
-        plot_end = n_orbits - 1
-    else:
-        plot_start = min(PLOT_START_IDX, n_orbits - 1)
-        plot_end = min(PLOT_END_IDX, n_orbits - 1)
-
+    plot_start, plot_end = _resolve_plot_range(args.start, args.end, n_orbits)
     n_orbits_to_plot = plot_end - plot_start + 1
     logger.info(f"将绘制第 {plot_start} 至 第 {plot_end} 条轨道，共 {n_orbits_to_plot} 条")
 
@@ -118,9 +198,6 @@ def main(plot1: int = 1, plot2: int = 1, plot3: int = 1) -> None:
     for i in range(plot_start, plot_end + 1):
         subset_family.add_orbit(family_result[i])
 
-    # =============================================================================
-    # 计算Jacobi常数
-    # =============================================================================
     logger.info("正在计算Jacobi常数...")
     jacobi_values = family_result.get_jacobi_constants().tolist()
     jacobi_subset = [jacobi_values[i] for i in range(plot_start, plot_end + 1)]
@@ -130,79 +207,25 @@ def main(plot1: int = 1, plot2: int = 1, plot3: int = 1) -> None:
     jacobi_sorted = np.array(jacobi_subset)[sort_idx].tolist()
     periods_sorted = np.array(subset_family.periods)[sort_idx].tolist()
 
-    # =============================================================================
-    # 创建绘图器
-    # =============================================================================
-    config = PLOT_CONFIG
-
-    plotter = FamilyPlotter(system, config)
-
-    # Halo 轨道靠近拉格朗日点，尺度较小；减小标记大小避免遮挡轨道
+    plotter = FamilyPlotter(system, PLOT_CONFIG)
     plotter.primary_body_size = 60
     plotter.secondary_body_size = 30
     plotter.libration_point_sizes = [20, 20, 20, 20, 20]
 
-    # 计算轨道数据包围盒，用于聚焦视图到轨道附近区域
     all_states = np.vstack([orbit.states for orbit in subset_family])
     xlim_2d, ylim_2d, center_3d, radius_3d = compute_view_bounds(all_states)
-
-    jmin, jmax = min(jacobi_subset), max(jacobi_subset)
     seed_orbit = family_result[0]
     seed_jacobi = jacobi_values[0]
 
-    # =============================================================================
-    # 1. 全局2D视图（XZ平面 - Halo轨道的特征平面）
-    # =============================================================================
     if plot1:
-        fig_2d, ax_2d = plotter.plot_family_2d(
-            subset_family, jacobi_subset,
-            title=f"Halo Orbit Family in Earth-Moon CR3BP (XZ Plane) - {n_orbits} orbits\n"
-                  f"C = [{jmin:.4f}, {jmax:.4f}]",
-            plane="xz",
-            show_bodies=True, show_libration=True, show_colorbar=True,
-            xlim=xlim_2d,
-            ylim=ylim_2d,
-            show=False,
-        )
-        plotter.plot_2d_projection(
-            seed_orbit, plane="xz", color="red",
-            label=f"Seed Halo (C={seed_jacobi:.4f})",
-            ax=ax_2d,
-        )
-        plt.tight_layout()
-        plt.savefig(output_dir / f"{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
-        plt.show()
-
-    # =============================================================================
-    # 2. 全局3D视图
-    # =============================================================================
+        _plot_2d_view(plotter, subset_family, jacobi_subset, seed_orbit, seed_jacobi,
+                      xlim_2d, ylim_2d, output_dir, family_name, n_orbits)
     if plot2:
-        fig_3d, ax_3d = plotter.plot_family_3d(
-            subset_family, jacobi_subset,
-            title=f"Halo Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
-                  f"C = [{jmin:.4f}, {jmax:.4f}]",
-            center=center_3d, radius=radius_3d, elev=20, azim=-60,
-            show=False,
-        )
-        plotter.plot_3d_orbit(
-            seed_orbit, color="red",
-            label=f"Seed Halo (C={seed_jacobi:.4f})",
-            ax=ax_3d, show_start=True,
-        )
-        plt.tight_layout()
-        plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
-        plt.show()
-
-    # =============================================================================
-    # 3. Jacobi常数-周期图
-    # =============================================================================
+        _plot_3d_view(plotter, subset_family, jacobi_subset, seed_orbit, seed_jacobi,
+                      center_3d, radius_3d, output_dir, family_name, n_orbits)
     if plot3:
-        plotter.plot_jacobi_period(
-            jacobi_sorted, periods_sorted,
-            title=f"Halo Orbit Family - Period\n(n = {n_orbits} orbits)",
-            save_path=str(output_dir / f"{family_name}_jacobi_period.png"),
-            show=True,
-        )
+        _plot_jacobi_period(plotter, jacobi_sorted, periods_sorted,
+                            output_dir, family_name, n_orbits)
 
     logger.info(f"\n图表已保存到 {output_dir} 目录:")
     if plot1:
