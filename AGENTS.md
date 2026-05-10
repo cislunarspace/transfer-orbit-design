@@ -118,3 +118,17 @@ pyright                                 # configured in pyproject.toml; extraPat
 - `plan/` — dated active task plans (e.g. `2026-04-06-dro-to-geo-transfer.md`)
 - `docs/plan/` — feature-level design plans
 - Check `plan/` for in-progress work before starting new tasks
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues. Use `gh` CLI for all operations. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical roles mapped to default label strings. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Multi-context repo — `CONTEXT-MAP.md` at root points to per-context `CONTEXT.md` files. See `docs/agents/domain.md`.
