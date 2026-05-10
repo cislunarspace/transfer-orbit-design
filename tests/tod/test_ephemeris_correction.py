@@ -44,9 +44,8 @@ class TestEphemerisScriptImports:
         script_path = (
             project_root
             / "tod"
-            / "pipelines"
+            / "generates"
             / "ephemeris"
-            / "correct"
             / "correct_dro_to_ephemeris.py"
         )
         spec = importlib.util.spec_from_file_location(

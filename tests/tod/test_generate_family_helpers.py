@@ -208,7 +208,7 @@ class TestGenerateHaloFamilyImports:
         args = module.parse_args([])
         assert args.seed_file is None
         assert args.libration_point == "L1"
-        assert args.amplitude_z == pytest.approx(0.23)
+        assert args.amplitude_z == pytest.approx(0.001)
         assert args.halo_class == 0
 
 
@@ -262,6 +262,8 @@ class TestGenerateHaloFamilySeedFile:
                     "1",
                     "--n-orbits",
                     "5",
+                    "--method",
+                    "pseudo_arclength",
                 ]
             )):
                 module.main()
@@ -319,7 +321,7 @@ class TestGenerateHaloFamilySeedFile:
 
         with patch("e2m2e.core.Orbit.load_from_file", return_value=mock_seed) as mock_load:
             with patch.object(module, "parse_args", return_value=module.parse_args(
-                ["--seed-file", str(family_path), "--n-orbits", "1"]
+                ["--seed-file", str(family_path), "--n-orbits", "1", "--method", "pseudo_arclength"]
             )):
                 module.main()
 
@@ -361,6 +363,8 @@ class TestGenerateHaloFamilySeedFile:
                 "1",
                 "--n-orbits",
                 "3",
+                "--method",
+                "pseudo_arclength",
             ]
         )):
             module.main()

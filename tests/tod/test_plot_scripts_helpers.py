@@ -151,7 +151,7 @@ class TestPlotScriptImports:
         monkeypatch.setenv("PLOT_FONT_LABEL", "41")
         monkeypatch.setenv("PLOT_FONT_TICK", "39")
 
-        script_path = project_root / "tod" / "pipelines" / "halo" / "plot" / "plot_halo_orbit.py"
+        script_path = project_root / "tod" / "plot" / "halo" / "plot_halo_orbit.py"
         spec = importlib.util.spec_from_file_location("plot_halo_orbit_env", script_path)
         assert spec is not None
         module = importlib.util.module_from_spec(spec)
