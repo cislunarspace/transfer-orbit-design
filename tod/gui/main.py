@@ -16,20 +16,24 @@ from pathlib import Path
 if getattr(sys, "frozen", False) and len(sys.argv) > 1:
     _maybe_script = sys.argv[1]
     if _maybe_script.endswith(".py") and Path(_maybe_script).is_file():
+        _script_path = Path(_maybe_script).resolve()
+        # 推导 repo_root：向上查找 pyproject.toml 所在目录
+        _repo_root = _script_path.parent
+        while _repo_root != _repo_root.parent:
+            if (_repo_root / "pyproject.toml").exists():
+                break
+            _repo_root = _repo_root.parent
+        # 安全白名单：仅允许执行项目 tod/ 目录下的脚本
+        _tod_dir = (_repo_root / "tod").resolve()
+        if not _script_path.is_relative_to(_tod_dir):
+            print(f"[error] 拒绝执行非项目脚本: {_script_path}")
+            sys.exit(1)
         # 让脚本看到正确的 sys.argv（去掉 exe 路径）
         sys.argv = sys.argv[1:]
-        # 推导 repo_root（脚本位于 tod/pipelines/.../xxx.py）
-        _script_path = Path(_maybe_script).resolve()
-        _repo_root = _script_path.parent
-        while _repo_root.name != "tod" and _repo_root.parent != _repo_root:
-            _repo_root = _repo_root.parent
-        if _repo_root.name == "tod":
-            _repo_root = _repo_root.parent
         if str(_repo_root) not in sys.path:
             sys.path.insert(0, str(_repo_root))
-        # 运行脚本
-        with open(_maybe_script, "r", encoding="utf-8") as _f:
-            _code = compile(_f.read(), _maybe_script, "exec")
+        with open(_script_path, "r", encoding="utf-8") as _f:
+            _code = compile(_f.read(), str(_script_path), "exec")
         exec(_code, {"__name__": "__main__", "__file__": str(_script_path)})
         sys.exit(0)
 
