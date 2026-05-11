@@ -23,11 +23,14 @@ import e2m2e
 from e2m2e.core import Orbit
 from tod.commons.common import MU, TU
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 
-# 项目根目录
 OUTPUT_DIR = project_root / "output" / "dro"
 
 
@@ -51,20 +54,14 @@ def main():
     # =============================================================================
     # 2. 3:1 DRO 初值（来自文献 Table 2）
     # =============================================================================
-    # DRO特征：平面内运动（y=z=0），关于x轴对称（vx=vz=0）
-    # 状态向量格式：[x, y, z, vx, vy, vz]，均为无量纲量
-    x0 = args.x0  # 初始x坐标（无量纲）
-    vy0 = args.vy0  # 初始y方向速度（无量纲）
-
-    # 目标周期：9.11 days ≈ 2.095 TU (Time Unit)
-    # TU = 4.34811305 days ( lunar sidereal period )
-    target_period = args.period  # 无量纲时间单位
-    t_half = target_period / 2  # 半周期
+    x0 = args.x0
+    vy0 = args.vy0
+    target_period = args.period
+    t_half = target_period / 2
 
     logger.info("目标轨道: 3:1 DRO")
     logger.info("初始状态: x0=%s, vy0=%s", x0, vy0)
     logger.info("目标周期: %.4f TU (%.2f days)", target_period, target_period * TU)
-    logger.info("半周期: %.4f TU", t_half)
 
     # =============================================================================
     # 3. 配置固定周期微分校正器
@@ -72,7 +69,7 @@ def main():
     corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamics)
     corrector.setup_2D_symmetric_x_fixed_t(t_half=t_half)
 
-    logger.info("微分校正器配置:")
+    logger.debug("微分校正器配置:")
     logger.debug("  模式: setup_2D_symmetric_x_fixed_t")
     logger.debug("  固定参数: T_half = %.4f", t_half)
     logger.debug("  自由变量: %s", corrector.free_variables)
@@ -82,7 +79,7 @@ def main():
     # 4. 初始猜测
     # =============================================================================
     initial_state = [x0, 0.0, 0.0, 0.0, vy0, 0.0]
-    times = [0]  # 第一个历元时刻
+    times = [0]
 
     orbit_init = Orbit(states=[initial_state], times=times)
 
@@ -92,18 +89,23 @@ def main():
     # =============================================================================
     # 5. 执行迭代修正
     # =============================================================================
+    def on_iteration(iteration, error, converged):
+        tag = " [收敛]" if converged else ""
+        logger.info("  迭代 %d: 残差 %.2e%s", iteration, error, tag)
+
     logger.info("开始迭代修正...")
-    orbit_result = corrector.iterate_correction(initial_guess=orbit_init, verbose=True)
+    orbit_result = corrector.iterate_correction(
+        initial_guess=orbit_init, verbose=False, callback=on_iteration,
+    )
 
     # =============================================================================
     # 6. 保存结果
     # =============================================================================
     if orbit_result is not None:
         logger.info("成功找到 3:1 DRO 轨道!")
-        logger.info("  修正后周期: %.6f TU", orbit_result.period)
+        logger.info("  修正后周期: %.6f TU (%.4f days)", orbit_result.period, orbit_result.period * TU)
         logger.debug("  周期误差: %.6e", abs(orbit_result.period - target_period))
 
-        # 保存轨道数据
         ts = int(time.time())
         output_file = OUTPUT_DIR / f"dro_31_{ts}.json"
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
