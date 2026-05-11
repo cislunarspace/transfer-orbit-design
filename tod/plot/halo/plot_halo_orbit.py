@@ -39,6 +39,10 @@ def parse_args():
     parser.add_argument("--json-file", type=str, default=None, help="轨道族 JSON 文件路径")
     parser.add_argument("--start", type=int, default=-1, help="起始轨道索引，-1 表示从第一条")
     parser.add_argument("--end", type=int, default=-1, help="结束轨道索引（含），-1 表示到最后一条")
+    # 图表选择
+    parser.add_argument("--view-2d", action="store_true", help="绘制 Halo 轨道族在 XZ 平面的 2D 视图")
+    parser.add_argument("--view-3d", action="store_true", help="绘制 Halo 轨道族的 3D 示意图")
+    parser.add_argument("--jacobi-period", action="store_true", help="绘制 Jacobi 常数与周期关系曲线")
     return parser.parse_args()
 
 
@@ -167,8 +171,22 @@ def _plot_jacobi_period(
     )
 
 
-def main(plot1: int = 1, plot2: int = 1, plot3: int = 1) -> None:
+def main(plot1: int | None = None, plot2: int | None = None, plot3: int | None = None) -> None:
     args = parse_args()
+
+    # 从 CLI 参数或函数参数获取绘图开关
+    if plot1 is None:
+        plot1 = 1 if args.view_2d else 0
+    if plot2 is None:
+        plot2 = 1 if args.view_3d else 0
+    if plot3 is None:
+        plot3 = 1 if args.jacobi_period else 0
+
+    # 如果所有绘图开关都未启用，输出警告并跳过
+    if not plot1 and not plot2 and not plot3:
+        logger.warning("未选择任何图表，跳过绘制")
+        return
+
     output_dir = project_root / "output" / "halo"
 
     if args.json_file:
