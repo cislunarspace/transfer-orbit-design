@@ -147,7 +147,7 @@ def _plot_3d_view(
     plotter.plot_3d_orbit(
         seed_orbit, color="red",
         label=f"Seed Halo (C={seed_jacobi:.4f})",
-        ax=ax_3d, show_start=True,
+        ax=ax_3d, show_start=False,
     )
     plt.tight_layout()
     plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
@@ -264,7 +264,7 @@ if __name__ == "__main__":
             "--end", "-1",                                # 结束轨道索引（含），-1 表示到最后一条
         ]
         # 待绘制轨道文件位置（修改此变量即可切换轨道文件）
-        filepath = ""
+        filepath = r"C:\Users\ouyan\codes\transfer-orbit-design\output\halo\halo_L1_N_0.1_1778419695.json"
         if filepath:
             sys.argv += ["--json-file", filepath]
         # 调试开关：1 = 绘制，0 = 跳过
