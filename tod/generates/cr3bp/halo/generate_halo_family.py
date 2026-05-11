@@ -283,7 +283,7 @@ if __name__ == "__main__":
         sys.argv += [
             "--libration-point", "L1",                    # 平动点：L1, L2, L3
             "--amplitude-z", "0.001",                     # Z 方向振幅（无量纲）
-            "--halo-class", "0",                          # 0=北 Halo, 1=南 Halo
+            "--halo-class", "1",                          # 0=北 Halo, 1=南 Halo
             "--n-orbits", "20",                           # 延拓轨道数量
             "--step-size", "0.002",                       # 自然参数延拓 z 方向步长
             "--direction", "positive",                    # 延拓方向
