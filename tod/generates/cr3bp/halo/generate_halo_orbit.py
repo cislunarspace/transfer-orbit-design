@@ -39,6 +39,10 @@ from e2m2e.core import Orbit
 # TU: 时间单位（无量纲 → 物理天数的换算系数）
 from tod.commons.common import MU, TU
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 OUTPUT_DIR = project_root / "output" / "halo"

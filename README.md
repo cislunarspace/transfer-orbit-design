@@ -14,4 +14,4 @@ uv sync
 uv run python -m tod.gui.main
 ```
 
-详细文档：[`docs/`](docs/)
+详细文档：[`docs/`](docs/)，包括 [`开发规范`](docs/development.md)
