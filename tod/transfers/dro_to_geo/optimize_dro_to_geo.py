@@ -30,7 +30,6 @@ import numpy as np
 from scipy.optimize import Bounds, minimize
 from tqdm.auto import tqdm
 
-import e2m2e
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 from tod.commons.common import DU, MU, TU, VU
 from e2m2e.orbits.geo import (
@@ -38,8 +37,6 @@ from e2m2e.orbits.geo import (
     EARTH_CENTER,
     compute_departure_velocity,
     compute_geo_dv2,
-    check_collision,
-    find_closest_approach_to_geo,
 )
 import logging
 

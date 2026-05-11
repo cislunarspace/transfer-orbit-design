@@ -19,16 +19,15 @@
 import argparse
 import logging
 import sys
+import time
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
-
 import e2m2e
-import time
-from tod.commons.common import MU, TU
+from tod.commons.common import MU
 
 logger = logging.getLogger(__name__)
 
+project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 OUTPUT_DIR = project_root / "output"
 RO_32_FAMILY_FILE = OUTPUT_DIR / "ro" / "ro_32_family_-1.2--0.8-0.005_3856904629.json"
 

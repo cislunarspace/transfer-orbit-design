@@ -10,19 +10,12 @@
 运行: python -m tod.transfers.geo_to_dro.validate_geo_to_dro
 """
 
-import numpy as np
-import sys
-from pathlib import Path
 import logging
+from pathlib import Path
 
-logger = logging.getLogger(__name__)
-
-# 添加项目根目录到 path
-project_root = Path(__file__).resolve().parent.parent.parent.parent
-sys.path.insert(0, str(project_root))
-sys.path.insert(0, str(project_root / "scripts"))
-
-from tod.commons.common import DU, MU, TU, VU
+import numpy as np
+from e2m2e.core import CR3BP_System, CR3BP_Dynamics
+from e2m2e.core.orbit import Orbit
 from e2m2e.orbits.geo import (
     R_GEO,
     V_CIRCULAR_GEO,
@@ -30,11 +23,12 @@ from e2m2e.orbits.geo import (
     EARTH_CENTER,
     geo_circular_velocity_rotating,
 )
-
-import e2m2e
-from e2m2e.core import CR3BP_System, CR3BP_Dynamics
-from e2m2e.core.orbit import Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
+from tod.commons.common import DU, MU, TU, VU
+
+logger = logging.getLogger(__name__)
+
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 
 def generate_geo_orbit(n_points: int = 500) -> Orbit:

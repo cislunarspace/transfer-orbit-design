@@ -12,15 +12,14 @@
 import argparse
 import logging
 import sys
-from pathlib import Path
-
 import time
-from tod.commons.common import MU
-
-logger = logging.getLogger(__name__)
+from pathlib import Path
 
 import e2m2e
 from e2m2e.core import Orbit
+from tod.commons.common import MU
+
+logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "dro"

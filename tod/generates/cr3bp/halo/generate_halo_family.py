@@ -31,21 +31,17 @@ import argparse
 import json
 import logging
 import sys
+import time
 from pathlib import Path
 
-import numpy as np
-
-project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
-
-import time
-
-from tod.commons.common import MU
-
 import e2m2e
+import numpy as np
 from e2m2e.core import Orbit
+from tod.commons.common import MU
 
 logger = logging.getLogger(__name__)
 
+project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "halo"
 
 LIBRATION_POINT_MAP = {"L1": 1, "L2": 2, "L3": 3}

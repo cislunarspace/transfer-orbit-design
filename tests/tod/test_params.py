@@ -4,7 +4,6 @@ Tests for tod/commons/constants.py module
 Tests the physical constants used for Earth-Moon-Sun system.
 """
 
-import pytest
 
 from tod.commons.constants import MU, M_SUN, OMEGA_SUN, RHO, DU, TU, VU, T_MOON
 

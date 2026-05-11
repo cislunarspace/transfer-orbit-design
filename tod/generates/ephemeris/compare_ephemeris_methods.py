@@ -22,6 +22,7 @@ DRO 轨道 CR3BP → 星历模型修正：直接法 vs 同伦法效率对比
 """
 
 import json
+import logging
 import multiprocessing
 import os
 import time
@@ -41,16 +42,14 @@ from e2m2e.core import (
     SPICEManager,
     SynodicJ2000Transformation,
 )
-import logging
+from tod.commons.common import DU, MU, TU
+from tod.commons.plot_helpers import apply_standard_plot_config
 
 logger = logging.getLogger(__name__)
 
 # HomotopyEphemerisDynamics and BodyName have been removed from e2m2e
 # from e2m2e.core import HomotopyEphemerisDynamics, BodyName
 HomotopyEphemerisDynamics = None  # type: ignore[assignment,misc] # placeholder for deprecated script
-
-from tod.commons.common import MU, DU, TU
-from tod.commons.plot_helpers import apply_standard_plot_config
 
 PLOT_CONFIG = apply_standard_plot_config()
 

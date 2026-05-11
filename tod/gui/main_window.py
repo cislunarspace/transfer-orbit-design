@@ -4,36 +4,24 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import time
-from typing import cast
 
 from PyQt6.QtCore import QTimer, Qt
-from PyQt6.QtGui import QDoubleValidator, QKeySequence, QShortcut
+from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
-    QApplication,
-    QCheckBox,
     QComboBox,
     QDialog,
     QFormLayout,
     QFrame,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QMainWindow,
-    QMenu,
     QMessageBox,
     QPushButton,
     QScrollArea,
-    QSizePolicy,
-    QSpinBox,
     QSplitter,
     QStatusBar,
     QTabWidget,
     QToolBar,
-    QToolButton,
-    QTreeWidget,
-    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -47,16 +35,9 @@ from tod.gui.params_panel import CliWidgetFactory
 from tod.gui.params_panel_mixin import ParamsPanelMixin
 from tod.gui.run_mixin import RunMixin
 from tod.gui.script_registry import SCRIPTS, ScriptEntry
-from tod.gui.settings_dialog import SettingItem
 from tod.gui.settings_schema import SETTINGS_SCHEMA
-from tod.gui.theme_utils import is_system_dark as _is_system_dark
 from tod.gui.theme_utils import resolve_theme as _resolve_theme
 from tod.gui.theme_utils import get_theme_stylesheet as _get_theme_stylesheet
-from tod.commons.plot_helpers import (
-    PLOT_FONT_SETTING_KEYS,
-    STANDARD_PLOT_FONT_SIZES,
-    plot_font_env_from_settings,
-)
 
 
 class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMainWindow):

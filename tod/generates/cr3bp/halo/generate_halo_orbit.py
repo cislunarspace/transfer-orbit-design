@@ -20,24 +20,19 @@ Halo 轨道是 CR3BP（圆形受限三体问题）下围绕共线拉格朗日点
 import argparse
 import logging
 import sys
+import time
 from pathlib import Path
 
-import time
-
+import e2m2e
 import numpy as np
+from e2m2e.core import Orbit
 from scipy import integrate as sci_integrate
 from scipy.optimize import least_squares
+from tod.commons.common import MU, TU
 
 # 解析项目根目录（仓库顶层）：本文件位于 tod/generates/cr3bp/halo/，
 # 向上 5 层即仓库根，用于定位与 e2m2e 共享的 output/ 目录。
 project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
-
-import e2m2e
-from e2m2e.core import Orbit
-
-# MU: 地月系质量比（无量纲，μ ≈ 1.21506683e-2）
-# TU: 时间单位（无量纲 → 物理天数的换算系数）
-from tod.commons.common import MU, TU
 
 logging.basicConfig(
     level=logging.INFO,

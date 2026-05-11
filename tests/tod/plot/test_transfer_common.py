@@ -1,7 +1,6 @@
 """Tests for tod.plot.transfer.common — shared transfer plot components."""
 
 import json
-import tempfile
 from pathlib import Path
 
 import matplotlib

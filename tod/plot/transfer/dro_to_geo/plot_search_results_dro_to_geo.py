@@ -30,21 +30,14 @@ import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
+import e2m2e
 import matplotlib
-from tod.commons.common import find_project_root
-project_root = find_project_root(Path(__file__))
-
-try:
-    matplotlib.use("TkAgg")
-except ImportError:
-    pass
-import matplotlib.pyplot as plt
 import numpy as np
-
-sys.path.insert(0, str(project_root))
-
+from e2m2e.core import CR3BP_System, Orbit
+from e2m2e.orbits.geo import R_GEO
+from e2m2e.transfer import TransferSearch, load_orbit_from_json
+from tod.commons.common import MU, TU, VU, find_project_root, safe_resolve_within
 from tod.commons.plot_helpers import apply_standard_plot_config, subsample_indices
-from tod.commons.common import MU, TU, VU, safe_resolve_within
 from tod.plot.transfer.common import (
     load_search_results,
     feasible_alpha_and_departure_dv,
@@ -57,13 +50,15 @@ from tod.plot.transfer.common import (
     set_equal_aspect_3d,
 )
 
+project_root = find_project_root(Path(__file__))
+
+try:
+    matplotlib.use("TkAgg")
+except ImportError:
+    pass
+import matplotlib.pyplot as plt  # noqa: E402
+
 PLOT_CONFIG = apply_standard_plot_config()
-
-import e2m2e
-from e2m2e.core import CR3BP_System, Orbit
-from e2m2e.transfer import TransferSearch, load_orbit_from_json
-from e2m2e.orbits.geo import R_GEO, EARTH_CENTER
-
 logger = logging.getLogger(__name__)
 
 # =============================================================================

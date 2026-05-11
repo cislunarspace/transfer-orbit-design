@@ -7,7 +7,6 @@ from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
     QHBoxLayout,
-    QLabel,
     QMenu,
     QMessageBox,
     QPushButton,
@@ -18,7 +17,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from tod.gui.file_discovery import discover_files, filter_files, format_size
+from tod.gui.file_discovery import discover_files, format_size
 from tod.gui.file_operations import (
     FILE_PATH_ROLE,
     format_delete_confirmation,

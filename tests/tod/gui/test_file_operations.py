@@ -3,7 +3,6 @@
 from pathlib import Path
 from unittest.mock import MagicMock
 
-import pytest
 
 from tod.gui.file_operations import (
     FILE_PATH_ROLE,

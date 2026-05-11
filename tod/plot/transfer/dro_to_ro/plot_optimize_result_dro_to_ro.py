@@ -20,38 +20,32 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib
-from tod.commons.common import find_project_root
-import logging
+import numpy as np
+from e2m2e.core import CR3BP_System, CR3BP_Dynamics
+from e2m2e.core.orbit import Orbit
+from e2m2e.orbits.geo import EARTH_CENTER
+from e2m2e.transfer import load_orbit_from_json
+from matplotlib.axes import Axes
+from matplotlib.colors import Normalize
+from tod.commons.common import MU, TU, VU, find_project_root
+from tod.commons.plot_helpers import apply_standard_plot_config, style_colorbar
 
-logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
 
 try:
     matplotlib.use("TkAgg")
 except ImportError:
     pass
-import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
-from matplotlib.colors import Normalize
-import numpy as np
-
-sys.path.insert(0, str(project_root))
-
-from tod.commons.plot_helpers import apply_standard_plot_config, style_colorbar
+import matplotlib.pyplot as plt  # noqa: E402
 
 PLOT_CONFIG = apply_standard_plot_config()
-
-from e2m2e.core import CR3BP_System, CR3BP_Dynamics
-from e2m2e.core.orbit import Orbit
-from e2m2e.transfer import load_orbit_from_json
-
-from tod.commons.common import DU, MU, TU, VU
-from e2m2e.orbits.geo import EARTH_CENTER
+logger = logging.getLogger(__name__)
 
 DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
 RO_FILE = project_root / "output/ro/ro_31_3857864753.json"

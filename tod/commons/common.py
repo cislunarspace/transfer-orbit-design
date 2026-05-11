@@ -10,6 +10,11 @@ from pathlib import Path
 
 from .constants import DU, FAMILY_FILENAME, MU, T_MOON, TU, VU
 
+__all__ = [
+    "DU", "FAMILY_FILENAME", "MU", "T_MOON", "TU", "VU",
+    "find_project_root", "load_or_compute", "safe_resolve_within",
+]
+
 logger = logging.getLogger(__name__)
 
 
@@ -115,7 +120,6 @@ def load_or_compute(
         system: CR3BP_System对象
         family_result: OrbitFamily对象或None
     """
-    import e2m2e
     from e2m2e.core import OrbitFamily
 
     # 加载模式

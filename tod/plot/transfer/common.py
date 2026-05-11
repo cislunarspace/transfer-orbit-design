@@ -184,7 +184,6 @@ def plot_transfer_time_delta_v(
 
 def geo_circle_points(n_pts: int = 200) -> tuple[np.ndarray, np.ndarray]:
     """GEO 球面在 x-y 平面上的投影圆。"""
-    from tod.commons.constants import MU
     from e2m2e.orbits.geo import R_GEO, EARTH_CENTER
 
     th = np.linspace(0, 2 * np.pi, n_pts)

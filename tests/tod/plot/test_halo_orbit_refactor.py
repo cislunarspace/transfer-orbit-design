@@ -10,7 +10,6 @@ Ensures that:
 
 import importlib
 import inspect
-import textwrap
 
 import pytest
 

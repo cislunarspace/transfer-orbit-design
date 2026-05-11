@@ -39,7 +39,6 @@ from e2m2e.core import SynodicJ2000Transformation
 from e2m2e.algorithms import MultipleShooting, sample_patch_points, convert_to_j2000
 
 from tod.commons.common import MU, DU, TU
-import logging
 
 # =============================================================================
 # 输入输出路径设置

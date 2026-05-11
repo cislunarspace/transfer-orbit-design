@@ -9,29 +9,22 @@
 """
 
 import argparse
-from pathlib import Path
-import sys
-from tod.commons.common import find_project_root
+import json
 import logging
+import sys
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+from e2m2e.core import Orbit, OrbitFamily, CR3BP_System
+from e2m2e.visualization import FamilyPlotter
+from tod.commons.common import MU, find_project_root
+from tod.commons.plot_helpers import apply_standard_plot_config
 
 logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
 
-sys.path.insert(0, str(project_root))
-
-from tod.commons.plot_helpers import apply_standard_plot_config
-
 PLOT_CONFIG = apply_standard_plot_config()
-
-import json
-
-import numpy as np
-import matplotlib.pyplot as plt
-import e2m2e
-from e2m2e.core import Orbit, OrbitFamily, CR3BP_System
-from e2m2e.visualization import FamilyPlotter
-
-from tod.commons.common import MU
 
 
 def parse_args():

@@ -12,8 +12,6 @@ LEO 出发需要更大的 alpha 和更长的转移时间。
 
 from __future__ import annotations
 
-import os
-import sys
 from pathlib import Path
 
 # 复用 GEO→DRO 优化脚本的全部逻辑

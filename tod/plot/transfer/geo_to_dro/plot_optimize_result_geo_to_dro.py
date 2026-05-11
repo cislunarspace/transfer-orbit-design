@@ -20,31 +20,17 @@ GEO → DRO 优化结果可视化
 
 import argparse
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any, Dict, List
 
-import numpy as np
 import matplotlib
-from tod.commons.common import find_project_root
-import logging
-
-logger = logging.getLogger(__name__)
-project_root = find_project_root(Path(__file__))
-
-try:
-    matplotlib.use("TkAgg")
-except ImportError:
-    pass
-import matplotlib.pyplot as plt
-from matplotlib.colors import Normalize
-
-from e2m2e.transfer import load_orbit_from_json
-from tod.commons.common import DU, TU, VU
+import numpy as np
 from e2m2e.orbits.geo import compute_departure_velocity
-
-sys.path.insert(0, str(project_root))
-
+from e2m2e.transfer import load_orbit_from_json
+from matplotlib.colors import Normalize
+from tod.commons.common import DU, TU, VU, find_project_root
 from tod.commons.plot_helpers import apply_standard_plot_config, style_colorbar
 from tod.plot.transfer.common import (
     geo_circle_points,
@@ -53,7 +39,16 @@ from tod.plot.transfer.common import (
     set_equal_aspect_3d,
 )
 
+project_root = find_project_root(Path(__file__))
+
+try:
+    matplotlib.use("TkAgg")
+except ImportError:
+    pass
+import matplotlib.pyplot as plt  # noqa: E402
+
 PLOT_CONFIG = apply_standard_plot_config()
+logger = logging.getLogger(__name__)
 
 # =====================================================================
 # 配置

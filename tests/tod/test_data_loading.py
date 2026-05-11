@@ -10,7 +10,6 @@ These tests:
 import pytest
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 project_root = Path(__file__).resolve().parent.parent.parent
 

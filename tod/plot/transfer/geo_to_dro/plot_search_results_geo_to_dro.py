@@ -13,40 +13,24 @@ GEO → DRO 搜索结果可视化
 
 import argparse
 import json
+import logging
 import os
 import sys
 from pathlib import Path
 from typing import Any, Optional  # noqa: F401
 
-import numpy as np
 import matplotlib
-from tod.commons.common import find_project_root
-import logging
-
-logger = logging.getLogger(__name__)
-project_root = find_project_root(Path(__file__))
-
-try:
-    matplotlib.use("TkAgg")
-except ImportError:
-    pass
-import matplotlib.pyplot as plt
-
-import e2m2e
+import numpy as np
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
-from e2m2e.transfer import load_orbit_from_json
-from tod.commons.common import DU, MU, TU, VU
 from e2m2e.orbits.geo import (
     R_GEO,
     EARTH_CENTER,
     geo_circular_velocity_rotating,
     compute_departure_velocity,
-    check_collision,
 )
-
-sys.path.insert(0, str(project_root))
-
-from tod.commons.plot_helpers import apply_standard_plot_config, style_colorbar, subsample_indices
+from e2m2e.transfer import load_orbit_from_json
+from tod.commons.common import MU, TU, VU, find_project_root
+from tod.commons.plot_helpers import apply_standard_plot_config, subsample_indices
 from tod.plot.transfer.common import (
     load_search_results,
     plot_alpha_delta_v,
@@ -58,7 +42,16 @@ from tod.plot.transfer.common import (
     set_equal_aspect_3d,
 )
 
+project_root = find_project_root(Path(__file__))
+
+try:
+    matplotlib.use("TkAgg")
+except ImportError:
+    pass
+import matplotlib.pyplot as plt  # noqa: E402
+
 PLOT_CONFIG = apply_standard_plot_config()
+logger = logging.getLogger(__name__)
 
 # =====================================================================
 # 配置 — 默认自动发现最新文件，可用环境变量覆盖

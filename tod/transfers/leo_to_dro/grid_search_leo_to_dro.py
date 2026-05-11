@@ -21,7 +21,6 @@ from pathlib import Path
 import numpy as np
 import time
 
-import e2m2e
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from e2m2e.core.orbit import Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
@@ -31,9 +30,7 @@ from e2m2e.orbits.leo import (
     V_CIRCULAR_LEO,
     T_LEO,
     LEO_ALT_KM,
-    EARTH_CENTER,
     generate_leo_orbit_states,
-    leo_circular_velocity_rotating,
 )
 import logging
 

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import multiprocessing
 import os
 import sys
@@ -40,9 +41,12 @@ from e2m2e.transfer import (
     load_orbit_from_json,
     optimize_with_copt,
 )
-
 from tod.commons.common import DU, MU, TU
-import logging
+from tod.commons.optimize_helpers import (
+    OptimizationProgress,
+    apply_blas_env_for_child_processes,
+    blas_threads_per_worker,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -355,13 +359,6 @@ def optimize_one_case(
             success=False,
             message=f"优化失败: {e}",
         )
-
-
-from tod.commons.optimize_helpers import (
-    OptimizationProgress,
-    apply_blas_env_for_child_processes,
-    blas_threads_per_worker,
-)
 
 
 def make_progress_callback(prog: OptimizationProgress, k, n_total, global_idx):

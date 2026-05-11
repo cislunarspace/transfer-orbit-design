@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QSpinBox,
-    QWidget,
 )
 
 from tod.commons.plot_helpers import plot_font_env_from_settings

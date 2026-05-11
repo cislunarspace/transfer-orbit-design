@@ -1,8 +1,6 @@
 import argparse
 import sys
 from pathlib import Path
-import matplotlib
-import e2m2e
 from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization import FamilyPlotter
 from e2m2e.algorithms.stability import StabilityAnalysis

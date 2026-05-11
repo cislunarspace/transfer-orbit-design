@@ -25,39 +25,19 @@ DRO → RO 转移轨道网格搜索结果可视化
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
-import matplotlib
-from tod.commons.common import find_project_root
-import logging
-
-logger = logging.getLogger(__name__)
-project_root = find_project_root(Path(__file__))
-
-try:
-    matplotlib.use("TkAgg")
-except ImportError:
-    pass
-import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
-import numpy as np
-
-sys.path.insert(0, str(project_root))
-
-from tod.commons.plot_helpers import apply_standard_plot_config, style_colorbar, subsample_indices
-
-PLOT_CONFIG = apply_standard_plot_config()
-
 import e2m2e
+import matplotlib
+import numpy as np
 from e2m2e.core import CR3BP_System, Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
-
-from tod.commons.common import MU, TU, VU, safe_resolve_within
-from e2m2e.orbits.geo import EARTH_CENTER
-
-# 共享组件
+from matplotlib.axes import Axes
+from tod.commons.common import MU, TU, VU, find_project_root, safe_resolve_within
+from tod.commons.plot_helpers import apply_standard_plot_config, subsample_indices
 from tod.plot.transfer.common import (
     departure_delta_v_norm,
     feasible_alpha_and_departure_dv,
@@ -68,6 +48,17 @@ from tod.plot.transfer.common import (
     plot_celestial_bodies,
     set_equal_aspect_3d,
 )
+
+project_root = find_project_root(Path(__file__))
+
+try:
+    matplotlib.use("TkAgg")
+except ImportError:
+    pass
+import matplotlib.pyplot as plt  # noqa: E402
+
+PLOT_CONFIG = apply_standard_plot_config()
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # 数据文件：grid_search 输出的 JSON
