@@ -75,6 +75,7 @@ class FileTreeMixin:
         files_layout.addLayout(toolbar_layout)
 
         self._file_tree = QTreeWidget()
+        self._file_tree.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)
         self._file_tree.setHeaderLabels(["Filename", "Size", "Modified", "Type"])
         self._file_tree.setAlternatingRowColors(True)
         self._file_tree.setRootIsDecorated(True)
@@ -146,9 +147,11 @@ class FileTreeMixin:
         self._status_bar.showMessage(f"已删除 {len(paths)} 个文件", 3000)
 
     def _update_file_toolbar_state(self) -> None:
-        has_selection = bool(get_selected_paths(self._file_tree))
+        paths = get_selected_paths(self._file_tree)
+        has_selection = bool(paths)
+        is_single_selection = len(paths) == 1
         self._copy_btn.setEnabled(has_selection)
-        self._reveal_btn.setEnabled(has_selection)
+        self._reveal_btn.setEnabled(is_single_selection)
         self._delete_btn.setEnabled(has_selection)
 
     def _on_file_tree_context_menu(self, position) -> None:
@@ -188,8 +191,11 @@ class FileTreeMixin:
         self._file_tree.clear()
         categories: dict[str, QTreeWidgetItem] = {}
 
+        # 过滤掉图片文件（只显示 json）
+        visible_files = [fi for fi in self._files if fi.file_type != "png"]
+
         # 空状态提示
-        if not self._files:
+        if not visible_files:
             empty = QTreeWidgetItem(
                 self._file_tree,
                 ["尚未生成输出文件。运行脚本以生成轨道数据。"],
@@ -202,10 +208,11 @@ class FileTreeMixin:
             self._file_tree.setSortingEnabled(False)
             return
 
-        for fi in self._files:
+        for fi in visible_files:
             if fi.category not in categories:
                 cat_item = QTreeWidgetItem(self._file_tree, [fi.category])
                 cat_item.setExpanded(True)
+                cat_item.setFlags(cat_item.flags() & ~Qt.ItemFlag.ItemIsSelectable)
                 categories[fi.category] = cat_item
 
             parent = categories[fi.category]
