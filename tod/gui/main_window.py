@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QFrame,
     QHBoxLayout,
-    QLabel,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -36,6 +35,7 @@ from tod.gui.params_panel_mixin import ParamsPanelMixin
 from tod.gui.run_mixin import RunMixin
 from tod.gui.script_registry import SCRIPTS, ScriptEntry
 from tod.gui.settings_schema import SETTINGS_SCHEMA
+from tod.gui.sidebar_widget import SidebarWidget
 from tod.gui.theme_utils import resolve_theme as _resolve_theme
 from tod.gui.theme_utils import get_theme_stylesheet as _get_theme_stylesheet
 
@@ -156,65 +156,14 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
 
         self.setCentralWidget(splitter)
 
-    # ── Left Panel: Script Buttons ─────────────────────────────
+    # ── Left Panel: Sidebar Tree ───────────────────────────────
 
     def _build_left_panel(self) -> QWidget:
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setMinimumWidth(220)
-        scroll.setMaximumWidth(300)
-
-        container = QWidget()
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(2)
-
-        self._script_buttons: dict[str, QPushButton] = {}
-        self._button_indent: dict[str, str] = {}  # button name -> padding-left value
-        self._active_script_btn: QPushButton | None = None
-        self._active_script_btn_name: str | None = None
-
-        for category, scripts in SCRIPTS.items():
-            header = QLabel(category)
-            hdr_color = "#aaa" if _resolve_theme(self._current_theme_mode) == "dark" else "#555"
-            header.setStyleSheet(
-                f"font-weight: bold; font-size: 13px; "
-                f"padding: 8px 4px 4px 4px; color: {hdr_color};"
-            )
-            layout.addWidget(header)
-
-            current_group: str | None = None
-            for entry in scripts:
-                # Secondary group header
-                if entry.group_label and entry.group_label != current_group:
-                    current_group = entry.group_label
-                    grp_lbl = QLabel(current_group)
-                    grp_color = "#aaa" if _resolve_theme(self._current_theme_mode) == "dark" else "#555"
-                    grp_lbl.setStyleSheet(
-                        f"font-weight: bold; font-size: 11px; "
-                        f"padding: 6px 16px 2px 16px; color: {grp_color};"
-                    )
-                    layout.addWidget(grp_lbl)
-
-                btn = QPushButton(entry.name)
-                btn.setToolTip(entry.description)
-                indent = "20px" if entry.group_label else "4px"
-                self._button_indent[entry.name] = indent
-                btn.setStyleSheet(
-                    f"QPushButton {{ text-align: left; padding: 4px 8px; "
-                    f"padding-left: {indent}; }}"
-                    "QPushButton:hover { background-color: #e0e0e0; }"
-                )
-                btn.clicked.connect(
-                    lambda checked, e=entry: self._on_script_selected(e)
-                )
-                layout.addWidget(btn)
-                self._script_buttons[entry.name] = btn
-
-        layout.addStretch()
-        scroll.setWidget(container)
-        return scroll
+        sidebar = SidebarWidget()
+        sidebar.set_script_selected_callback(self._on_script_selected)
+        sidebar.setMinimumWidth(220)
+        sidebar.setMaximumWidth(300)
+        return sidebar
 
     # ── Right Panel: Tabs ──────────────────────────────────────
 
@@ -275,38 +224,12 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         self._current_script = entry
         self._run_btn.setEnabled(True)
 
-        # 高亮选中的脚本按钮
-        self._highlight_script_button(entry.name)
-
         # 高亮关联的输出目录
         if entry.output_dir:
             self._highlight_category(Path(entry.output_dir).name)
 
         # 重建参数面板（含 Script Info 表头）
         self._rebuild_params_panel(entry)
-
-    _BTN_STYLE_NORMAL = (
-        "QPushButton { text-align: left; padding: 4px 8px; "
-        "padding-left: %s; }"
-        "QPushButton:hover { background-color: #e0e0e0; }"
-    )
-    _BTN_STYLE_ACTIVE = (
-        "QPushButton { text-align: left; padding: 4px 8px; "
-        "background-color: #d4e8ff; border-left: 3px solid #0e639c; "
-        "padding-left: %s; }"
-    )
-
-    def _highlight_script_button(self, name: str) -> None:
-        """高亮选中的脚本按钮，取消之前的高亮。"""
-        if self._active_script_btn is not None:
-            prev_indent = self._button_indent.get(self._active_script_btn_name or "", "4px")
-            self._active_script_btn.setStyleSheet(self._BTN_STYLE_NORMAL % prev_indent)
-        btn = self._script_buttons.get(name)
-        if btn:
-            indent = self._button_indent.get(name, "4px")
-            btn.setStyleSheet(self._BTN_STYLE_ACTIVE % indent)
-        self._active_script_btn = btn
-        self._active_script_btn_name = name
 
     # ── GUI 默认值持久化 ────────────────────────────────────────────
 
