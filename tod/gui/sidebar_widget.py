@@ -1,0 +1,63 @@
+"""Sidebar container with search bar and tree widget."""
+
+from __future__ import annotations
+
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QLabel, QLineEdit, QSizePolicy, QStackedLayout, QVBoxLayout, QWidget
+
+from tod.gui.script_registry import SCRIPTS
+from tod.gui.script_tree import build_tree_from_scripts
+from tod.gui.sidebar_tree import SidebarTreeWidget
+
+
+class SidebarWidget(QWidget):
+    """Container widget with search bar and sidebar tree."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._setup_ui()
+        self._connect_signals()
+
+    def _setup_ui(self) -> None:
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
+
+        self._search_input = QLineEdit()
+        self._search_input.setPlaceholderText("搜索脚本...")
+        self._search_input.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        layout.addWidget(self._search_input)
+
+        stacked = QStackedLayout()
+        stacked.setStackingMode(QStackedLayout.StackingMode.StackAll)
+
+        nodes = build_tree_from_scripts(SCRIPTS)
+        self._tree = SidebarTreeWidget(nodes)
+        stacked.addWidget(self._tree)
+
+        self._empty_label = QLabel("无匹配结果")
+        self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_label.setStyleSheet("background-color: rgba(255,255,255,0.95); color: gray; padding: 20px;")
+        self._empty_label.setVisible(False)
+        stacked.addWidget(self._empty_label)
+
+        layout.addLayout(stacked, stretch=1)
+
+    def _connect_signals(self) -> None:
+        self._search_input.textChanged.connect(self._on_search_text_changed)
+
+    def _on_search_text_changed(self, text: str) -> None:
+        if not text:
+            self._tree.clear_search()
+            self._empty_label.hide()
+            return
+
+        results = self._tree.search(text)
+        if len(results) == 0:
+            self._empty_label.show()
+        else:
+            self._empty_label.hide()
+
+    def set_script_selected_callback(self, callback):
+        """设置脚本选中时的回调"""
+        self._tree.set_script_selected_callback(callback)

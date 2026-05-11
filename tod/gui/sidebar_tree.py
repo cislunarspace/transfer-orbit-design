@@ -17,12 +17,14 @@ class SidebarTreeWidget(QTreeWidget):
 
     _NODE_ROLE = Qt.ItemDataRole.UserRole
     _SCRIPT_ROLE = Qt.ItemDataRole.UserRole + 1
+    _HIGHLIGHT_ROLE = Qt.ItemDataRole.UserRole + 2
     _ICON_SIZE = QSize(24, 18)
     _COLOR_RAIL_WIDTH = 4
 
     def __init__(self, nodes: list[TreeNode], parent=None):
         super().__init__(parent)
         self._script_selected_callback: Callable[[ScriptEntry], None] | None = None
+        self._saved_expand_state: dict[int, bool] = {}
 
         self.setHeaderHidden(True)
         self.setIconSize(self._ICON_SIZE)
@@ -47,6 +49,89 @@ class SidebarTreeWidget(QTreeWidget):
         """折叠所有节点"""
 
         super().collapseAll()
+
+    def search(self, query: str) -> list[QTreeWidgetItem]:
+        """Search for nodes matching query (case-insensitive)."""
+        self._save_expand_state()
+        self._clear_highlights()
+        self.collapse_all()
+
+        query_lower = query.lower()
+        results: list[QTreeWidgetItem] = []
+
+        for i in range(self.topLevelItemCount()):
+            item = self.topLevelItem(i)
+            self._collect_matching_items(item, query_lower, results)
+
+        for item in results:
+            item.setData(0, self._HIGHLIGHT_ROLE, True)
+            self._expand_parent_chain(item)
+
+        return results
+
+    def clear_search(self) -> None:
+        """Restore original expand state and clear highlights."""
+        self._clear_highlights()
+        self._restore_expand_state()
+
+    def _collect_matching_items(
+        self,
+        item: QTreeWidgetItem,
+        query_lower: str,
+        results: list[QTreeWidgetItem],
+    ) -> None:
+        node = item.data(0, self._NODE_ROLE)
+        if not isinstance(node, TreeNode):
+            return
+
+        text = item.text(0).lower()
+        name = node.name.lower()
+        if query_lower in text or query_lower in name:
+            results.append(item)
+
+        for i in range(item.childCount()):
+            self._collect_matching_items(item.child(i), query_lower, results)
+
+    def _expand_parent_chain(self, item: QTreeWidgetItem) -> None:
+        parent = item.parent()
+        while parent is not None:
+            parent.setExpanded(True)
+            parent = parent.parent()
+
+    def _save_expand_state(self) -> None:
+        self._saved_expand_state = {}
+        for i in range(self.topLevelItemCount()):
+            item = self.topLevelItem(i)
+            self._collect_expand_state(item)
+
+    def _collect_expand_state(self, item: QTreeWidgetItem) -> None:
+        self._saved_expand_state[id(item)] = item.isExpanded()
+        for i in range(item.childCount()):
+            self._collect_expand_state(item.child(i))
+
+    def _restore_expand_state(self) -> None:
+        for item_id, was_expanded in self._saved_expand_state.items():
+            for i in range(self.topLevelItemCount()):
+                item = self.topLevelItem(i)
+                self._restore_item_state(item, item_id, was_expanded)
+
+    def _restore_item_state(
+        self, item: QTreeWidgetItem, item_id: int, was_expanded: bool
+    ) -> None:
+        if id(item) == item_id:
+            item.setExpanded(was_expanded)
+        for i in range(item.childCount()):
+            self._restore_item_state(item.child(i), item_id, was_expanded)
+
+    def _clear_highlights(self) -> None:
+        for i in range(self.topLevelItemCount()):
+            item = self.topLevelItem(i)
+            self._clear_item_highlight(item)
+
+    def _clear_item_highlight(self, item: QTreeWidgetItem) -> None:
+        item.setData(0, self._HIGHLIGHT_ROLE, False)
+        for i in range(item.childCount()):
+            self._clear_item_highlight(item.child(i))
 
     def _populate(self, nodes: list[TreeNode]) -> None:
         self.clear()
