@@ -384,6 +384,25 @@ class TestSidebarSearch:
         for result in results:
             assert result.data(0, tree._HIGHLIGHT_ROLE) is True
 
+    def test_search_empty_input_restores_full_tree(self) -> None:
+        """空输入（clear_search）恢复完整树的展开状态。"""
+        _qapp()
+        from tod.gui.sidebar_tree import SidebarTreeWidget
+
+        nodes = _nested_nodes()
+        tree = SidebarTreeWidget(nodes)
+
+        root = tree.topLevelItem(0)
+        root.setExpanded(True)
+
+        tree.search("plot")
+        assert root.isExpanded() is False
+
+        tree.clear_search()
+
+        assert root.isExpanded() is True
+        assert tree.topLevelItemCount() == 3
+
 
 class TestSidebarWidget:
     """Tests for the sidebar widget with search bar (issue #62)."""
