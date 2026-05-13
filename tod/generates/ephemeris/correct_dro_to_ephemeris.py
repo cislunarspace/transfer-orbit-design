@@ -36,9 +36,10 @@ from e2m2e.core import SynodicJ2000Transformation
 
 # BodyName has been removed from e2m2e
 # from e2m2e.core import SynodicJ2000Transformation, BodyName
-from e2m2e.algorithms import MultipleShooting, sample_patch_points, convert_to_j2000
+from e2m2e.algorithms import sample_patch_points, convert_to_j2000
 
 from tod.commons.common import MU, DU, TU
+from tod.generates.ephemeris._corrector import correct_ephemeris_patch_points
 
 # =============================================================================
 # 输入输出路径设置
@@ -61,6 +62,12 @@ SPICE_KERNEL_DIR = os.environ.get(
     str(project_root.parent / "e2m2e" / "kernels"),
 )
 BODIES = ["EARTH", "MOON", "SUN"]  # 地球（原点）+ 月球 + 太阳；不引入其他行星摄动
+CORRECTION_METHOD = os.environ.get("EPHEMERIS_CORRECTION_METHOD", "standard")
+if CORRECTION_METHOD not in ("standard", "two_level"):
+    raise ValueError(
+        f"EPHEMERIS_CORRECTION_METHOD={CORRECTION_METHOD!r} not supported, "
+        "choose 'standard' or 'two_level'"
+    )
 
 
 def main():
@@ -74,6 +81,7 @@ def main():
     logger.info(f"参考历元: {REFERENCE_EPOCH}")
     logger.info(f"天体: {BODIES}")
     logger.info(f"Patch points: {N_PATCH_POINTS}")
+    logger.info(f"修正方法: {CORRECTION_METHOD}")
     logger.info(f"并行 workers: {N_WORKERS} 进程")
 
     # 初始化 SPICE 管理器，定位并加载星历内核
@@ -154,29 +162,32 @@ def main():
         logger.info(f"  收敛容差: {POSITION_CONTINUITY_TOL:.1e} km")
         logger.info(f"  时间自由: True")
 
-        ms = MultipleShooting(
-            dynamics=eph_dynamics,
+        result = correct_ephemeris_patch_points(
+            CORRECTION_METHOD,
+            eph_dynamics,
+            t_patch_j2000,
+            states_j2000,
+            tolerance=POSITION_CONTINUITY_TOL,
+            max_iter=50,
+            verbose=True,
             n_workers=N_WORKERS,
             kernel_dir=SPICE_KERNEL_DIR,
-        )
-        result = ms.correct(
-            t_patch=t_patch_j2000,
-            state_patch=states_j2000,
-            var_time=True,
-            max_iter=50,
-            tolerance=POSITION_CONTINUITY_TOL,
-            verbose=True,
+            velocity_tolerance=1e-6,
         )
 
         if result.converged:
             logger.info(f"\n修正收敛!")
             logger.info(f"  迭代次数: {result.iterations}")
-            logger.info(f"  最大残差: {result.max_residual:.2e} km")
+            logger.info(f"  最大位置残差: {result.max_residual:.2e} km")
+            if result.velocity_residual is not None:
+                logger.info(f"  最大速度残差: {result.velocity_residual:.2e} km/s")
             logger.info(f"  残差历史: {[f'{r:.2e}' for r in result.residual_history]}")
         else:
             logger.warning(f"\n修正未收敛")
             logger.info(f"  迭代次数: {result.iterations}")
-            logger.info(f"  最大残差: {result.max_residual:.2e} km")
+            logger.info(f"  最大位置残差: {result.max_residual:.2e} km")
+            if result.velocity_residual is not None:
+                logger.info(f"  最大速度残差: {result.velocity_residual:.2e} km/s")
 
         # Step 5: 验证修正后轨迹连续性，并将结果保存为 JSON
         logger.info(f"\n{'=' * 60}")
@@ -234,10 +245,21 @@ def main():
 
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         output_data = {
+            "method": CORRECTION_METHOD,
             "converged": result.converged,
             "iterations": result.iterations,
             "max_residual": float(result.max_residual),
+            "velocity_residual": (
+                None
+                if result.velocity_residual is None
+                else float(result.velocity_residual)
+            ),
             "residual_history": [float(r) for r in result.residual_history],
+            "velocity_residual_history": (
+                None
+                if result.velocity_residual_history is None
+                else [float(r) for r in result.velocity_residual_history]
+            ),
             "reference_epoch": REFERENCE_EPOCH,
             "n_patch_points": len(corrected_states),
             "bodies": BODIES,
