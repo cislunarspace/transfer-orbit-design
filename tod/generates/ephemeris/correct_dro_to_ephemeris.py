@@ -22,6 +22,7 @@ DRO 轨道 CR3BP → 星历模型 (Ephemeris N-body) 修正
 """
 
 import json
+import logging
 import os
 import multiprocessing
 from pathlib import Path
@@ -33,13 +34,12 @@ import spiceypy
 from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.core import SPICEManager, EphemerisSystem, EphemerisDynamics
 from e2m2e.core import SynodicJ2000Transformation
-
-# BodyName has been removed from e2m2e
-# from e2m2e.core import SynodicJ2000Transformation, BodyName
 from e2m2e.algorithms import sample_patch_points, convert_to_j2000
 
 from tod.commons.common import MU, DU, TU
 from tod.generates.ephemeris._corrector import correct_ephemeris_patch_points
+
+logger = logging.getLogger(__name__)
 
 # =============================================================================
 # 输入输出路径设置
@@ -76,6 +76,12 @@ def main():
     依次执行 SPICE 内核加载、DRO 轨道加载、patch points 采样、
     坐标转换、Multiple Shooting 差分修正和结果验证保存。
     """
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
     # 打印任务基本信息
     logger.info("DRO CR3BP → 星历模型修正")
     logger.info(f"参考历元: {REFERENCE_EPOCH}")
