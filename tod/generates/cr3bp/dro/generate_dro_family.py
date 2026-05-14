@@ -19,6 +19,11 @@ import e2m2e
 from e2m2e.core import Orbit
 from tod.commons.common import MU
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
 logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
@@ -70,7 +75,7 @@ def main():
     # =============================================================================
     corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamic)
     corrector.setup_2D_symmetric_x_fixed_x0(x0=x0)
-    seed_DRO = corrector.iterate_correction(initial_guess=seed_state)
+    seed_DRO = corrector.iterate_correction(initial_guess=seed_state, verbose=True)
 
     # =============================================================================
     # 4. 自然延拓生成轨道族
@@ -83,6 +88,7 @@ def main():
         seed_orbit=seed_DRO,
         param_range=(param_min, param_max),  # x0参数延拓范围
         step_size=step_size,  # 延拓步长
+        verbose=True,
     )
 
     # =============================================================================
