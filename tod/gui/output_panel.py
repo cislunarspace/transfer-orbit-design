@@ -235,9 +235,9 @@ class StructuredOutputWidget(QWidget):
             full = self._browser.toPlainText()
             keep = full[_MAX_BUFFER // 2:]
             self._browser.setPlainText(keep)
-            self._browser.moveCursor(
-                self._browser.textCursor().End  # type: ignore[attr-defined]
-            )
+            cursor = self._browser.textCursor()
+            cursor.movePosition(cursor.MoveOperation.End)
+            self._browser.setTextCursor(cursor)
 
     def _replace_last_line(self, html: str) -> None:
         """用 QTextCursor 替换浏览器中最后一行的内容。"""
