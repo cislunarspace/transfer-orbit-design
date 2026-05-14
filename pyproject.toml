@@ -38,6 +38,12 @@ Repository = "https://github.com/ouyangjiahong/transfer-orbit-design"
 extraPaths = ["../e2m2e"]
 pythonVersion = "3.13"
 
+[tool.pytest.ini_options]
+markers = [
+    "spice: tests requiring SPICE kernels (de440.bsp, naif0012.tls)",
+    "slow: tests that take more than a few seconds to run",
+]
+
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["tod*"]
