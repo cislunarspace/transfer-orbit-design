@@ -19,6 +19,7 @@ PLOT_MODULES = [
     "tod.plot.transfer.geo_to_dro.plot_search_results_geo_to_dro",
     "tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro",
     "tod.plot.ephemeris.plot_ephemeris_correction",
+    "tod.plot.ephemeris.plot_halo_ephemeris_correction",
     "tod.plot.inspection.plot_interactive_orbit_inspector",
     "tod.plot.inspection.plot_single_orbit",
 ]
