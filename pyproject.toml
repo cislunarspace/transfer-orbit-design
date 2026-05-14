@@ -24,8 +24,7 @@ dependencies = [
     "matplotlib>=3.10.0",
     "tqdm>=4.66",
     "PyQt6>=6.6.0",
-    # 本地开发用路径；CI 通过 constraints-ci.txt 覆盖为 git URL
-    "e2m2e @ file:///C:/Users/ouyan/codes/e2m2e",
+    "e2m2e",
 ]
 
 [project.optional-dependencies]
@@ -33,6 +32,9 @@ test = ["pytest>=7.0"]
 
 [project.urls]
 Repository = "https://github.com/ouyangjiahong/transfer-orbit-design"
+
+[tool.uv.sources]
+e2m2e = { path = "../e2m2e", editable = true }
 
 [tool.pyright]
 extraPaths = ["../e2m2e"]
