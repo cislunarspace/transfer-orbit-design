@@ -61,6 +61,71 @@ INTEGRATION_DT = 1.0 / (24.0 * TU)
 GEO_N_POINTS = 1000
 
 
+def _json_safe(x):
+    """递归将 numpy 标量/数组、嵌套 dict/list 转换为可 JSON 序列化的 Python 原生类型。"""
+    if x is None:
+        return None
+    if isinstance(x, np.generic):
+        return x.item()
+    if isinstance(x, np.ndarray):
+        return x.tolist()
+    if isinstance(x, dict):
+        return {k: _json_safe(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [_json_safe(i) for i in x]
+    return x
+
+
+def serialize_result(r: dict, *, is_feasible: bool) -> dict:
+    """将单条 TransferSearch 结果字典序列化为 JSON 安全的字段子集。
+
+    下游兼容：``plot_search_results_dro_to_geo.py`` / ``optimize_dro_to_geo.py`` /
+    ``plot/transfer/common.py`` 仍读取旧字段 ``dv_insertion``，故双写
+    ``dv_arrival`` 与 ``dv_insertion``（同值）。待下游统一迁移到 ``dv_arrival``
+    后可移除 ``dv_insertion``。
+
+    issue #71 引入 4 个 ``first_*`` 字段供下游绘图按"首次可行点"截断；
+    e2m2e 旧版本无这些字段时为 ``None``，绘图端 ``_resolve_truncation`` 自动 fallback。
+
+    Args:
+        r: ``TransferSearch.search()`` 返回的单条 result dict。
+        is_feasible: 由调用方根据 ``searcher.get_feasible_results()`` 派生（避免
+            依赖私有 ``_is_feasible``）。
+
+    Returns:
+        JSON 安全的字段子集（仅 Python 原生类型）。
+    """
+    dv_arrival_val = r.get("dv_arrival")
+    serialized: dict = _json_safe(  # type: ignore[assignment]
+        {
+            "departure_time_index": r.get("departure_time_index"),
+            "departure_time": r.get("departure_time"),
+            "alpha": r.get("alpha"),
+            "transfer_time": r.get("transfer_time"),
+            "dv_departure": r.get("dv_departure"),
+            "dv_arrival": dv_arrival_val,
+            "dv_insertion": dv_arrival_val,  # 向后兼容旧字段名
+            "min_distance": r.get("min_distance"),
+            "intersection_found": r.get("intersection_found"),
+            # 首次可行性字段（issue #71）。e2m2e 旧版本无此字段时为 None。
+            "first_intersection_idx": r.get("first_intersection_idx"),
+            "first_intersection_time": r.get("first_intersection_time"),
+            "first_min_distance_idx": r.get("first_min_distance_idx"),
+            "first_min_distance_time": r.get("first_min_distance_time"),
+            "collision_found": r.get("collision_found"),
+            "collision_body": r.get("collision_body"),
+            "local_minimum_found": r.get("local_minimum_found"),
+            "local_minimum_distance": r.get("local_minimum_distance"),
+            "status": r.get("status"),
+            "is_feasible": bool(is_feasible),
+        }
+    )
+    departure_state = r.get("departure_state")
+    if departure_state is not None:
+        serialized["departure_state"] = _json_safe(departure_state)
+    return serialized
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="DRO→GEO 转移轨道网格搜索")
     parser.add_argument(
@@ -265,49 +330,7 @@ def main() -> None:
         f"{max_transfer_time:.4f}_{int(time.time())}.json"
     )
 
-    def _json_safe(x):
-        if x is None:
-            return None
-        if isinstance(x, np.generic):
-            return x.item()
-        if isinstance(x, np.ndarray):
-            return x.tolist()
-        if isinstance(x, dict):
-            return {k: _json_safe(v) for k, v in x.items()}
-        if isinstance(x, (list, tuple)):
-            return [_json_safe(i) for i in x]
-        return x
-
-    def serialize_result(r):
-        # 下游兼容：plot_search_results_dro_to_geo.py / optimize_dro_to_geo.py /
-        # plot/transfer/common.py 仍读取旧字段 dv_insertion，故双写 dv_arrival 与
-        # dv_insertion（同值）。待下游统一迁移到 dv_arrival 后可移除 dv_insertion。
-        dv_arrival_val = r.get("dv_arrival")
-        serialized: dict = _json_safe(  # type: ignore[assignment]
-            {
-                "departure_time_index": r.get("departure_time_index"),
-                "departure_time": r.get("departure_time"),
-                "alpha": r.get("alpha"),
-                "transfer_time": r.get("transfer_time"),
-                "dv_departure": r.get("dv_departure"),
-                "dv_arrival": dv_arrival_val,
-                "dv_insertion": dv_arrival_val,  # 向后兼容旧字段名
-                "min_distance": r.get("min_distance"),
-                "intersection_found": r.get("intersection_found"),
-                "collision_found": r.get("collision_found"),
-                "collision_body": r.get("collision_body"),
-                "local_minimum_found": r.get("local_minimum_found"),
-                "local_minimum_distance": r.get("local_minimum_distance"),
-                "status": r.get("status"),
-                "is_feasible": id(r) in feasible_ids,
-            }
-        )
-        departure_state = r.get("departure_state")
-        if departure_state is not None:
-            serialized["departure_state"] = _json_safe(departure_state)
-        return serialized
-
-    results_data = [serialize_result(r) for r in results]
+    results_data = [serialize_result(r, is_feasible=id(r) in feasible_ids) for r in results]
 
     output_dir.mkdir(parents=True, exist_ok=True)
 

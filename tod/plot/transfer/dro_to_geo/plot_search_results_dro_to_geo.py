@@ -114,6 +114,37 @@ def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
     return new_vel
 
 
+def _resolve_truncation(row: dict) -> tuple[int | None, float]:
+    """根据 row 的首次可行性字段决定绘图截断位置（F1 切片 + D1 fallback）。
+
+    选择规则（与 issue #71 中 grill 后确认的设计一致）:
+
+    - ``intersection_found == True`` 时，使用 ``first_intersection_idx/time``
+      （首次进入 ``intersection_threshold`` 内）。
+    - 否则使用 ``first_min_distance_idx/time``（首次进入 ``min_distance_threshold`` 内）。
+    - 若解析到的 ``k_star`` 为 ``None`` 或 ``0``（旧 JSON 缺字段 / 出发即在阈值内），
+      回退到不截断：``k_star=None``，``t_star = row["transfer_time"]``（全程时间）。
+
+    Returns:
+        ``(k_star, t_star)``：
+
+        * ``k_star``：切片上界（含），``None`` 表示不截断。
+        * ``t_star``：标题中显示的转移时间（TU）。
+    """
+    total_T = float(row["transfer_time"])
+    if row.get("intersection_found"):
+        k = row.get("first_intersection_idx")
+        t = row.get("first_intersection_time")
+    else:
+        k = row.get("first_min_distance_idx")
+        t = row.get("first_min_distance_time")
+
+    # D1 fallback: 字段缺失或 idx=0（出发即在阈值内 / 旧 JSON）
+    if k is None or int(k) == 0 or t is None:
+        return None, total_T
+    return int(k), float(t)
+
+
 def _build_transfer_search() -> TransferSearch:
     DT = 1.0 / (24.0 * TU)
     system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
@@ -295,9 +326,14 @@ def interactive_browse_by_time(
             dv_total = dv_departure + dv_insertion
             logger.info("  Δv_total = %.6f (%.1f m/s)", dv_total, dv_total * VU * 1000)
 
+        # F1 切片：积分到 max_transfer_time，按 k_star 切到首次可行点
+        k_star, t_star = _resolve_truncation(row)
         transfer_states, _ = _reintegrate_transfer(
             ts, departure_state, alpha, transfer_time
         )
+        if k_star is not None:
+            transfer_states = transfer_states[: k_star + 1]
+            logger.info("  截断到首次可行点: k*=%d, t*=%.4f TU", k_star, t_star)
 
         if fig is not None:
             plt.close(fig)
@@ -309,7 +345,7 @@ def interactive_browse_by_time(
             departure_state=departure_state,
             dv_departure=dv_departure,
             dv_insertion=dv_insertion,
-            transfer_time=transfer_time,
+            transfer_time=t_star,
             alpha=alpha,
             system=system,
             fig=fig,
@@ -460,11 +496,16 @@ def main() -> None:
 
         if n_sel == 1:
             transfer_states, alpha, dv_departure = results[0]
-            departure_state = np.asarray(
-                feasible_rows[sel_indices[0]]["departure_state"], dtype=np.float64
-            )
-            dv_ins_raw = feasible_rows[sel_indices[0]].get("dv_insertion")
+            row0 = feasible_rows[sel_indices[0]]
+            departure_state = np.asarray(row0["departure_state"], dtype=np.float64)
+            dv_ins_raw = row0.get("dv_insertion")
             dv_insertion = float(dv_ins_raw) if dv_ins_raw is not None else float("nan")
+
+            # F1 切片：worker 积分到 max_transfer_time，主进程按 row 切到首次可行点
+            k_star, t_star = _resolve_truncation(row0)
+            if k_star is not None and transfer_states is not None:
+                transfer_states = transfer_states[: k_star + 1]
+                logger.info("截断到首次可行点: k*=%d, t*=%.4f TU", k_star, t_star)
 
             fig = plt.figure(figsize=(12, 8))
             ax = fig.add_subplot(111, projection="3d")
@@ -474,7 +515,7 @@ def main() -> None:
                 departure_state=departure_state,
                 dv_departure=dv_departure,
                 dv_insertion=dv_insertion,
-                transfer_time=float(feasible_rows[sel_indices[0]]["transfer_time"]),
+                transfer_time=t_star,
                 alpha=alpha,
                 system=system,
                 fig=fig,
@@ -497,9 +538,12 @@ def main() -> None:
                     n_skipped += 1
                     continue
                 sel_idx = sel_indices[cm_idx]
-                departure_state = np.asarray(
-                    feasible_rows[sel_idx]["departure_state"], dtype=np.float64
-                )
+                row_i = feasible_rows[sel_idx]
+                departure_state = np.asarray(row_i["departure_state"], dtype=np.float64)
+                # F1 切片：worker 积分到 max_transfer_time，主进程按 row 切到首次可行点
+                k_star, _t_star = _resolve_truncation(row_i)
+                if k_star is not None:
+                    transfer_states = transfer_states[: k_star + 1]
                 color = cmap(cm_idx / max(n_sel - 1, 1))
                 ax.plot(transfer_states[:, 0], transfer_states[:, 1],
                         transfer_states[:, 2], color=color, lw=1.2, alpha=0.7)
