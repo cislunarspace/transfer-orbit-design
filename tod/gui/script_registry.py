@@ -416,6 +416,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             group_label="DRO→GEO",
             cli_params=[
                 CliParam("--file", "搜索结果文件", "str", help="搜索结果 JSON 文件路径", file_category="transfer"),
+                CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径；不传则自动取 output/dro 下最新 dro_31_*.json", file_category="dro"),
                 CliParam("--orbit", "转移轨道图（3D）", "bool", help="重新积分并绘制转移轨道 3D 示意图"),
                 CliParam("--time-dv", "转移时间-Δv 散点图", "bool", help="绘制转移时间 vs Δv 散点图"),
                 CliParam("--interactive", "逐条浏览模式", "bool", help="按转移时间排序逐条浏览"),

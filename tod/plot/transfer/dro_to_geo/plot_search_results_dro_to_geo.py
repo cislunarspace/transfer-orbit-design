@@ -26,6 +26,8 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
+import re
 import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -69,7 +71,33 @@ RESULTS_JSON = (
     / "output/transfer/search_dro_geo_200-100-0.5-2.5-22.9985_3858323266.json"
 )
 
-DRO_FILE = project_root / "output/dro/dro_31_3857693511.json"
+def _resolve_dro_file(cli_path: str | None) -> Path:
+    """DRO 文件解析优先级: CLI --dro-file > env DRO_FILE > output/dro 下最新 dro_31_*.json。
+
+    与 plot_search_results_geo_to_dro 保持一致，避免写死过期文件名。
+    """
+    if cli_path:
+        return Path(cli_path).expanduser().resolve()
+    env_path = os.environ.get("DRO_FILE")
+    if env_path:
+        return Path(env_path).expanduser().resolve()
+    # 仅匹配单条 DRO 文件（dro_31_<digits>.json），排除 family 集合文件（dro_31_family_*.json）
+    dro_dir = project_root / "output/dro"
+    pat = re.compile(r"^dro_31_\d+\.json$")
+    candidates = sorted(p for p in dro_dir.glob("dro_31_*.json") if pat.match(p.name))
+    if not candidates:
+        raise FileNotFoundError(
+            f"未找到单条 DRO 轨道文件: 请通过 --dro-file 指定，或在 {dro_dir} 下放置 dro_31_<timestamp>.json"
+        )
+    return candidates[-1].resolve()
+
+
+def _resolve_and_load_dro(cli_path: str | None) -> Orbit:
+    dro_path = _resolve_dro_file(cli_path)
+    if not dro_path.is_file():
+        raise FileNotFoundError(f"DRO 轨道文件不存在: {dro_path}")
+    logger.info("加载 DRO: %s", dro_path)
+    return load_orbit_from_json(str(dro_path))
 
 
 def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
@@ -347,6 +375,7 @@ def main() -> None:
         description="绘制 grid_search_dro_to_geo 结果（α–Δv 散点图 / 转移轨道示意图）"
     )
     parser.add_argument("--file", type=str, default=None, help="搜索结果 JSON 路径")
+    parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 路径；不传则按 env DRO_FILE / output/dro 最新 dro_31_*.json 自动发现")
     parser.add_argument("--save", type=str, default=None, help="保存 PNG 路径")
     parser.add_argument("--max-points", type=int, default=50000, help="散点最多可行点数")
     parser.add_argument("--seed", type=int, default=0, help="子采样随机种子")
@@ -371,19 +400,11 @@ def main() -> None:
     logger.info("总行数=%d，可行解=%d", len(rows), len(feasible_rows))
 
     if args.interactive:
-        dro_path = Path(DRO_FILE).expanduser().resolve()
-        if not dro_path.is_file():
-            raise FileNotFoundError(f"DRO 轨道文件不存在: {dro_path}")
-        logger.info("加载 DRO: %s", dro_path)
-        dro_orbit = load_orbit_from_json(str(dro_path))
+        dro_orbit = _resolve_and_load_dro(args.dro_file)
         ts = _build_transfer_search()
         interactive_browse_by_time(feasible_rows, dro_orbit, ts.system, ts)
     elif args.orbit:
-        dro_path = Path(DRO_FILE).expanduser().resolve()
-        if not dro_path.is_file():
-            raise FileNotFoundError(f"DRO 轨道文件不存在: {dro_path}")
-        logger.info("加载 DRO: %s", dro_path)
-        dro_orbit = load_orbit_from_json(str(dro_path))
+        dro_orbit = _resolve_and_load_dro(args.dro_file)
         ts_dummy = _build_transfer_search()
         system = ts_dummy.system
 
