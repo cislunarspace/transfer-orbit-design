@@ -116,24 +116,38 @@ def apply_standard_plot_config(
 
     import matplotlib
 
-    cjk_fonts = [
-        "SimSun",
-        "Microsoft YaHei",
-        "SimHei",
+    # 关键：matplotlib 的 font.<family> 是“家族选择链”，不是“逐字符回退链”。
+    # 一旦命中第一个存在的家族（如 Times New Roman），就用它渲染整串文本；
+    # 若该字体不含 CJK 字形，就会出现“豆腐块”乱码。
+    # 因此必须把一个 *包含 CJK 字形的字体* 放在链首。
+    # 这里同时覆盖 Linux（Noto/WenQuanYi/文鼎）、Windows（YaHei/SimHei/SimSun）、
+    # macOS（PingFang/Hiragino/STSong）常见的真实家族名。
+    cjk_serif_fonts = [
         "Noto Serif CJK SC",
+        "Noto Serif CJK JP",  # Linux 上 NotoSerifCJK*.ttc 实际暴露的家族名
+        "Source Han Serif SC",
+        "STSong",
+        "SimSun",
+        "AR PL UMing CN",
+    ]
+    cjk_sans_fonts = [
         "Noto Sans CJK SC",
-        "DejaVu Serif",
-        "DejaVu Sans",
+        "Noto Sans CJK JP",
+        "Noto Sans SC",
+        "Source Han Sans SC",
+        "Microsoft YaHei",
+        "PingFang SC",
+        "Hiragino Sans GB",
+        "SimHei",
+        "WenQuanYi Zen Hei",
     ]
     matplotlib.rcParams["font.serif"] = [
+        *cjk_serif_fonts,
         "Times New Roman",
-        *cjk_fonts,
+        "DejaVu Serif",
     ]
     matplotlib.rcParams["font.sans-serif"] = [
-        "Microsoft YaHei",
-        "SimHei",
-        "SimSun",
-        "Noto Sans CJK SC",
+        *cjk_sans_fonts,
         "DejaVu Sans",
     ]
     matplotlib.rcParams["axes.unicode_minus"] = False
