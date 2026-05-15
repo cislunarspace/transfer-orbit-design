@@ -334,7 +334,13 @@ def main() -> None:
     logger.info(f"  GEO 约束: |r - r_earth| = {R_GEO:.6f} DU")
 
     with open(search_file, encoding="utf-8") as f:
-        all_results = json.load(f)
+        search_data = json.load(f)
+
+    # 兼容有/无 meta 的格式（与 geo_to_dro 一致）
+    if isinstance(search_data, dict) and "results" in search_data:
+        all_results = search_data["results"]
+    else:
+        all_results = search_data
 
     feasible_indexed: List[Tuple[int, Dict[str, Any]]] = [
         (i, r) for i, r in enumerate(all_results) if r.get("is_feasible")
