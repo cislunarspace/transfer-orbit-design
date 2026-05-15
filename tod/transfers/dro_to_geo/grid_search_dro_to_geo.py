@@ -2,11 +2,10 @@
 DRO → GEO 转移轨道网格搜索
 
 从 DRO 出发，搜索到达 GEO（地球静止轨道）的转移轨道。
-使用 TransferSearch 类，在 α（切向速度比）和出发时间构成的参数空间中搜索。
+复用 TransferSearch，departure=DRO，arrival=GEO（近似圆轨道）。
 
 运行: python -m tod.transfers.dro_to_geo.grid_search_dro_to_geo
 
-DEPRECATED: GeoTransferSearch has been removed from e2m2e.
 Windows 多进程需要 ``if __name__ == "__main__"``。
 """
 
@@ -14,78 +13,146 @@ import argparse
 import json
 import os
 import sys
-import numpy as np
-from pathlib import Path
 import time
+from pathlib import Path
 
-import e2m2e
-from e2m2e.transfer import load_orbit_from_json
+import numpy as np
 
-# GeoTransferSearch has been removed from e2m2e; this script is deprecated
-# from e2m2e.transfer import GeoTransferSearch
-from tod.commons.common import DU, MU, TU
+from e2m2e.core import CR3BP_System, CR3BP_Dynamics
+from e2m2e.core.orbit import Orbit
+from e2m2e.transfer import TransferSearch, load_orbit_from_json
+from e2m2e.orbits.geo import (
+    R_GEO,
+    T_GEO,
+    EARTH_CENTER,
+    geo_circular_velocity_rotating,
+)
+from tod.commons.common import DU, MU, TU, VU
 import logging
 
 logger = logging.getLogger(__name__)
 
+project_root = Path(__file__).resolve().parent.parent.parent.parent
 
-def parse_args():
+
+# =====================================================================
+# 配置默认值
+# =====================================================================
+
+DRO_FILE_DEFAULT = str(project_root / "output/dro/dro_31_3857693511.json")
+
+# 搜索参数
+N_DEPARTURE = 200
+N_ALPHA = 100
+ALPHA_MIN = 0.5
+ALPHA_MAX = 2.5
+MAX_TRANSFER_TIME = 100.0 / TU  # 最大转移时间（无量纲）
+
+# 检测阈值
+INTERSECTION_THRESHOLD = 100.0 / DU
+MIN_DISTANCE_THRESHOLD = 100.0 / DU
+EARTH_RADIUS = 200.0 / DU
+MOON_RADIUS = 100.0 / DU
+
+# 积分参数
+INTEGRATION_DT = 1.0 / (24.0 * TU)
+
+# GEO 轨道采样点数
+GEO_N_POINTS = 1000
+
+
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="DRO→GEO 转移轨道网格搜索")
     parser.add_argument(
         "--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径"
     )
-    parser.add_argument("--n-departure", type=int, default=200, help="出发时间网格数")
-    parser.add_argument("--n-alpha", type=int, default=100, help="alpha 网格密度")
-    parser.add_argument("--alpha-min", type=float, default=0.5, help="alpha 搜索下界")
-    parser.add_argument("--alpha-max", type=float, default=2.5, help="alpha 搜索上界")
+    parser.add_argument(
+        "--n-departure", type=int, default=N_DEPARTURE, help="出发时间网格数"
+    )
+    parser.add_argument(
+        "--n-alpha", type=int, default=N_ALPHA, help="alpha 网格密度"
+    )
+    parser.add_argument(
+        "--alpha-min", type=float, default=ALPHA_MIN, help="alpha 搜索下界"
+    )
+    parser.add_argument(
+        "--alpha-max", type=float, default=ALPHA_MAX, help="alpha 搜索上界"
+    )
     parser.add_argument(
         "--max-transfer-time",
         type=float,
-        default=100.0 / TU,
+        default=MAX_TRANSFER_TIME,
         help="最大转移时间（无量纲）",
     )
     parser.add_argument(
-        "--geo-threshold", type=float, default=100.0 / DU, help="GEO 相交距离阈值"
+        "--intersection-threshold",
+        type=float,
+        default=INTERSECTION_THRESHOLD,
+        help="GEO 相交判定距离阈值",
     )
     parser.add_argument(
-        "--earth-radius", type=float, default=200.0 / DU, help="地球碰撞检测半径"
+        "--min-distance",
+        type=float,
+        default=MIN_DISTANCE_THRESHOLD,
+        help="候选解最小距离阈值",
     )
     parser.add_argument(
-        "--moon-radius", type=float, default=100.0 / DU, help="月球碰撞检测半径"
+        "--earth-radius",
+        type=float,
+        default=EARTH_RADIUS,
+        help="地球碰撞检测半径",
+    )
+    parser.add_argument(
+        "--moon-radius",
+        type=float,
+        default=MOON_RADIUS,
+        help="月球碰撞检测半径",
+    )
+    parser.add_argument(
+        "--geo-n-points",
+        type=int,
+        default=GEO_N_POINTS,
+        help="GEO 轨道采样点数",
     )
     return parser.parse_args()
 
 
+# =====================================================================
+# GEO 轨道生成（与 geo_to_dro 保持一致）
+# =====================================================================
+
+
+def generate_geo_orbit(n_points: int = GEO_N_POINTS) -> Orbit:
+    """在 CR3BP 旋转系中生成 GEO 近似圆轨道。
+
+    GEO 被建模为以地心为圆心、半径为 R_GEO 的圆轨道。
+    速度通过 geo_circular_velocity_rotating 计算（包含 Coriolis 修正）。
+    """
+    theta = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
+    states = np.zeros((n_points, 6))
+
+    for i, th in enumerate(theta):
+        x = EARTH_CENTER[0] + R_GEO * np.cos(th)
+        y = R_GEO * np.sin(th)
+        z = 0.0
+
+        pos = np.array([x, y, z])
+        vel = geo_circular_velocity_rotating(pos)
+
+        states[i] = [x, y, z, vel[0], vel[1], vel[2]]
+
+    times = np.linspace(0, T_GEO, n_points, endpoint=False)
+
+    orbit = Orbit(states, times)
+    orbit.period = T_GEO
+    return orbit
+
+
 def main() -> None:
-    raise NotImplementedError(
-        "GeoTransferSearch has been removed from e2m2e; "
-        "use TransferSearch or DROTransferSearch instead."
-    )
-    args = parse_args()  # type: ignore[unreachable]
-    project_root = Path(__file__).resolve().parent.parent.parent.parent
+    args = parse_args()
 
     # =========================================================================
-    # 搜索参数配置
-    # =========================================================================
-    dro_file = Path(
-        args.dro_file
-        or os.environ.get(
-            "DRO_FILE", str(project_root / "output/dro/dro_31_3857693511.json")
-        )
-    )
-
-    n_departure = args.n_departure
-    n_alpha = args.n_alpha
-    alpha_min = args.alpha_min
-    alpha_max = args.alpha_max
-    max_transfer_time = args.max_transfer_time
-
-    geo_threshold = args.geo_threshold
-    earth_radius = args.earth_radius
-    moon_radius = args.moon_radius
-
-    # =========================================================================
-    # 初始化系统
+    # 初始化
     # =========================================================================
     for _k in [
         "OMP_NUM_THREADS",
@@ -97,14 +164,45 @@ def main() -> None:
     ]:
         os.environ[_k] = "1"
 
-    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+    dro_file_path = args.dro_file or os.environ.get("DRO_FILE", DRO_FILE_DEFAULT)
+    dro_file = Path(dro_file_path)
+
+    if not dro_file.exists():
+        # 回退到 output/dro 中最新的 DRO 文件
+        dro_dir = project_root / "output/dro"
+        dro_files = sorted(dro_dir.glob("dro_31_*.json"))
+        if not dro_files:
+            logger.error("找不到 DRO 轨道文件！请先生成 DRO 轨道。")
+            return
+        dro_file = dro_files[-1]
+        logger.info("使用 DRO 文件: %s", dro_file)
+
+    n_departure = args.n_departure
+    n_alpha = args.n_alpha
+    alpha_min = args.alpha_min
+    alpha_max = args.alpha_max
+    max_transfer_time = args.max_transfer_time
+    intersection_threshold = args.intersection_threshold
+    min_distance_threshold = args.min_distance
+    earth_radius = args.earth_radius
+    moon_radius = args.moon_radius
+    geo_n_points = args.geo_n_points
+
+    system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
+    dynamics = CR3BP_Dynamics(system=system)
     dynamics.integrator = "DOP853"
     dynamics.rtol = 1e-12
     dynamics.atol = 1e-12
-    dynamics.max_step = 1.0 / (24.0 * TU)
+    dynamics.max_step = INTEGRATION_DT
 
+    # 加载 DRO 轨道
     dro_orbit = load_orbit_from_json(str(dro_file))
+    with open(dro_file) as f:
+        dro_data = json.load(f)
+    dro_orbit.period = dro_data.get("properties", {}).get("period", None)
+
+    # 生成 GEO 轨道（作为到达轨道）
+    geo_orbit = generate_geo_orbit(n_points=geo_n_points)
 
     # =========================================================================
     # 执行搜索
@@ -112,27 +210,51 @@ def main() -> None:
     logger.info("\n" + "=" * 70)
     logger.info("DRO → GEO 网格搜索")
     logger.info("=" * 70)
+    logger.info(
+        "  DRO 轨道: %d 点, 周期=%s TU",
+        dro_orbit.states.shape[0],
+        dro_orbit.period,
+    )
+    logger.info(
+        "  GEO 轨道: %d 点, R=%.6f DU = %.0f km",
+        geo_n_points,
+        R_GEO,
+        R_GEO * DU,
+    )
+    logger.info("  α 范围: [%s, %s], n=%d", alpha_min, alpha_max, n_alpha)
+    logger.info("  出发点数量: %d", n_departure)
+    logger.info(
+        "  最大转移时间: %.4f TU = %.1f 天",
+        max_transfer_time,
+        max_transfer_time * TU,
+    )
+    logger.info("=" * 70)
 
-    searcher = GeoTransferSearch(dynamics, geo_threshold=geo_threshold)
+    searcher = TransferSearch(dynamics)
     results = searcher.search(
+        departure_orbit=dro_orbit,
+        arrival_orbit=geo_orbit,
         alpha_min=alpha_min,
         alpha_max=alpha_max,
         n_alpha=n_alpha,
         n_departure=n_departure,
         max_transfer_time=max_transfer_time,
-        intersection_threshold=0.001,
-        min_distance_threshold=geo_threshold,
+        intersection_threshold=intersection_threshold,
+        min_distance_threshold=min_distance_threshold,
         collision_earth_radius=earth_radius,
         collision_moon_radius=moon_radius,
-        integration_dt=dynamics.max_step,
-        departure_orbit=dro_orbit,
+        integration_dt=INTEGRATION_DT,
+        verbose=True,
         n_workers=None,
     )
 
-    logger.info(f"\n搜索完成，共找到 {len(results)} 个候选解")
+    feasible = searcher.get_feasible_results()
+    logger.info(
+        "\n搜索完成: %d 个候选解, %d 个可行解", len(results), len(feasible)
+    )
 
-    feasible_results = searcher.get_feasible_results()
-    logger.info(f"其中 {len(feasible_results)} 个为可行解")
+    # 用 id-set 派生 is_feasible，避免依赖 searcher._is_feasible 私有 API
+    feasible_ids = {id(r) for r in feasible}
 
     # =========================================================================
     # 保存结果
@@ -140,7 +262,7 @@ def main() -> None:
     output_dir = project_root / "output/transfer"
     output_file = output_dir / (
         f"search_dro_geo_{n_departure}-{n_alpha}-{alpha_min:g}-{alpha_max:g}-"
-        f"{max_transfer_time:.6f}_{int(time.time())}.json"
+        f"{max_transfer_time:.4f}_{int(time.time())}.json"
     )
 
     def _json_safe(x):
@@ -157,49 +279,111 @@ def main() -> None:
         return x
 
     def serialize_result(r):
-        return _json_safe(
+        # 下游兼容：plot_search_results_dro_to_geo.py / optimize_dro_to_geo.py /
+        # plot/transfer/common.py 仍读取旧字段 dv_insertion，故双写 dv_arrival 与
+        # dv_insertion（同值）。待下游统一迁移到 dv_arrival 后可移除 dv_insertion。
+        dv_arrival_val = r.get("dv_arrival")
+        serialized: dict = _json_safe(  # type: ignore[assignment]
             {
                 "departure_time_index": r.get("departure_time_index"),
                 "departure_time": r.get("departure_time"),
                 "alpha": r.get("alpha"),
                 "transfer_time": r.get("transfer_time"),
                 "dv_departure": r.get("dv_departure"),
-                "dv_insertion": r.get("dv_insertion"),
-                "geo_crossing_found": r.get("geo_crossing_found"),
-                "min_distance_to_geo": r.get("min_distance_to_geo"),
+                "dv_arrival": dv_arrival_val,
+                "dv_insertion": dv_arrival_val,  # 向后兼容旧字段名
+                "min_distance": r.get("min_distance"),
+                "intersection_found": r.get("intersection_found"),
                 "collision_found": r.get("collision_found"),
                 "collision_body": r.get("collision_body"),
+                "local_minimum_found": r.get("local_minimum_found"),
+                "local_minimum_distance": r.get("local_minimum_distance"),
                 "status": r.get("status"),
-                "is_feasible": searcher._is_feasible(r),
+                "is_feasible": id(r) in feasible_ids,
             }
         )
+        departure_state = r.get("departure_state")
+        if departure_state is not None:
+            serialized["departure_state"] = _json_safe(departure_state)
+        return serialized
 
     results_data = [serialize_result(r) for r in results]
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(results_data, f, indent=2, ensure_ascii=False)
+    meta = {
+        "direction": "DRO_to_GEO",
+        "dro_file": str(dro_file),
+        "geo_radius": float(R_GEO),
+        "geo_period": float(T_GEO),
+        "search_params": {
+            "n_departure": n_departure,
+            "n_alpha": n_alpha,
+            "alpha_min": alpha_min,
+            "alpha_max": alpha_max,
+            "max_transfer_time": max_transfer_time,
+            "intersection_threshold": intersection_threshold,
+            "min_distance_threshold": min_distance_threshold,
+            "collision_earth_radius": earth_radius,
+            "collision_moon_radius": moon_radius,
+        },
+        "n_total": len(results_data),
+        "n_feasible": len(feasible),
+    }
 
-    logger.info(f"\n结果已保存到: {output_file}")
-    logger.info(f"  总候选解: {len(results_data)}")
-    logger.info(f"  可行解: {len(feasible_results)}")
+    with open(output_file, "w", encoding="utf-8") as f:
+        json.dump(
+            {"meta": meta, "results": results_data},
+            f,
+            indent=2,
+            ensure_ascii=False,
+        )
+
+    logger.info("\n结果已保存到: %s", output_file)
+    logger.info("  总候选解: %d", len(results_data))
+    logger.info("  可行解: %d", len(feasible))
+
+    if feasible:
+        logger.info("\n可行解摘要（前 10 个）:")
+        sorted_feasible = sorted(
+            feasible, key=lambda r: r.get("min_distance", float("inf"))
+        )
+        for i, r in enumerate(sorted_feasible[:10]):
+            md = r.get("min_distance", float("inf"))
+            dv = r.get("dv_departure", 0)
+            tt = r.get("transfer_time", 0)
+            al = r.get("alpha", 0)
+            logger.info(
+                "  #%d: dep_idx=%s, α=%.4f, T=%.2f TU (%.1f 天), "
+                "dv_dep=%.4f VU (%.0f m/s), min_dist=%.6f DU (%.0f km), 相交=%s",
+                i + 1,
+                r.get("departure_time_index"),
+                al,
+                tt,
+                tt * TU,
+                dv,
+                dv * VU,
+                md,
+                md * DU,
+                r.get("intersection_found", False),
+            )
 
 
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
-    # 想调哪个值就改下方对应字面量即可。
     if len(sys.argv) == 1:
         sys.argv += [
-            "--n-departure", "200",                       # 出发时间网格数
-            "--n-alpha", "100",                           # alpha 网格密度
-            "--alpha-min", "0.5",                         # alpha 搜索下界
-            "--alpha-max", "2.5",                         # alpha 搜索上界
-            "--max-transfer-time", "22.998482090701266",  # 最大转移时间（无量纲，100.0/TU）
-            "--geo-threshold", "0.0002601422978369168",   # GEO 相交距离阈值（100.0/DU）
-            "--earth-radius", "0.0005202845956738336",    # 地球碰撞检测半径（200.0/DU）
-            "--moon-radius", "0.0002601422978369168",     # 月球碰撞检测半径（100.0/DU）
+            "--n-departure", "200",                              # 出发时间网格数
+            "--n-alpha", "100",                                  # alpha 网格密度
+            "--alpha-min", "0.5",                                # alpha 搜索下界
+            "--alpha-max", "2.5",                                # alpha 搜索上界
+            "--max-transfer-time", "22.998482090701266",         # 最大转移时间（无量纲，100.0/TU）
+            "--intersection-threshold", "0.0002601422978369168", # GEO 相交距离阈值（100.0/DU）
+            "--min-distance", "0.0002601422978369168",           # 候选解最小距离（100.0/DU）
+            "--earth-radius", "0.0005202845956738336",           # 地球碰撞检测半径（200.0/DU）
+            "--moon-radius", "0.0002601422978369168",            # 月球碰撞检测半径（100.0/DU）
+            "--geo-n-points", "1000",                            # GEO 轨道采样点数
         ]
         logger.debug("使用代码内置调试参数")
     main()
