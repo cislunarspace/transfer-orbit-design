@@ -18,23 +18,7 @@ if TYPE_CHECKING:
     from tod.gui.script_registry import CliParam
 
 from tod.gui.file_discovery import FileInfo, filter_files
-
-# 单位组：{标签: 相对于标准单位的系数}
-# 标准单位 (factor=1.0): TU, VU, LU
-UNIT_GROUPS: dict[str, dict[str, float]] = {
-    "time": {
-        "TU": 1.0,
-        "day": 1.0 / 4.342057,  # TU = 4.342057 days
-    },
-    "velocity": {
-        "VU": 1.0,
-        "m/s": 1.0 / 1024.0,  # VU = 1024 m/s
-    },
-    "length": {
-        "DU": 1.0,
-        "km": 1.0 / 384400.0,  # DU = 384400 km
-    },
-}
+from tod.gui.script_registry import UNIT_GROUPS
 
 
 class CliWidgetFactory:

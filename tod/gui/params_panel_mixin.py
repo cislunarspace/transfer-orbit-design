@@ -21,8 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 from tod.gui.file_discovery import filter_files
-from tod.gui.params_panel import UNIT_GROUPS
-from tod.gui.script_registry import CliParam, ScriptEntry
+from tod.gui.script_registry import UNIT_GROUPS, CliParam, ScriptEntry
 from tod.gui.theme_utils import resolve_theme as _resolve_theme
 
 
