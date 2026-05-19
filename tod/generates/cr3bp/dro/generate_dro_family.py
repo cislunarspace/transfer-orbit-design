@@ -117,7 +117,9 @@ def _print_summary_table(orbits: list, param_min: float, param_max: float,
     # --- 统计摘要 ---
     periods = [o.period for o in orbits]
     x0s = [o.states[0, 0] for o in orbits]
-    errors = [o.closure_error for o in orbits]
+    errors = [o.periodicity_error for o in orbits if o.periodicity_error is not None]
+    if not errors:
+        errors = [0.0]
     seed_orbit = next(o for o in orbits if o.metadata.get("continuation_step") == 0)
     s_seed = seed_orbit.states[0]
 
@@ -137,28 +139,28 @@ def _print_summary_table(orbits: list, param_min: float, param_max: float,
     print()
     print("  配置与统计")
     print("  " + "-" * 68)
-    print(f"  物理系统     Earth-Moon CR3BP  (μ = {MU})")
+    print(f"  物理系统     Earth-Moon CR3BP  (mu = {MU})")
     print(f"  轨道类型     Distant Retrograde Orbit (DRO)")
     print(f"  轨道数量     {len(orbits)}")
-    print(f"  种子 x₀      {s_seed[0]:.8f}")
-    print(f"  种子 vy₀     {s_seed[4]:.5f}")
+    print(f"  种子 x0      {s_seed[0]:.8f}")
+    print(f"  种子 vy0     {s_seed[4]:.5f}")
     print(f"  种子周期     {seed_orbit.period:.10f}")
-    print(f"  延拓参数     x₀ ∈ [{param_min:.6f}, {param_max:.6f}]")
+    print(f"  延拓参数     x0 in [{param_min:.6f}, {param_max:.6f}]")
     print(f"  延拓步长     {step_size}")
     print(f"  周期范围     {min(periods):.4f} ~ {max(periods):.4f}")
     print(f"  终止条件     参数边界 / 闭轨误差上界 (max = {max(errors):.2e})")
     print()
     print("  代表性轨道（等间距采样）")
     print("  " + "-" * 68)
-    header = (f"  {'x₀':^10} {'Period':^8} {'x-amp':^8} {'y-amp':^8} "
-              f"{'C_Jacobi':^10} {'Closure Error':^14}")
+    header = (f"  {'x0':^10} {'Period':^8} {'x-amp':^8} {'y-amp':^8} "
+              f"{'C_Jacobi':^10} {'Periodicity Err':^14}")
     print(header)
     print("  " + "-" * 68)
     for o in milestone_orbits:
         s = o.states[0]
         print(f"  {float(s[0]):10.6f} {float(o.period):8.4f} "
               f"{float(o.amplitudes['x']):8.5f} {float(o.amplitudes['y']):8.5f} "
-              f"{float(o._c_jacobi):10.6f} {float(o.closure_error):14.2e}")
+              f"{float(o._c_jacobi):10.6f} {float(o.periodicity_error):14.2e}")
     print()
     print("=" * 72)
     print()
@@ -185,7 +187,7 @@ def _export_csv(orbits: list, param_min: float, param_max: float,
             "y_amp": float(o.amplitudes["y"]),
             "z_amp": float(o.amplitudes.get("z", 0.0)),
             "c_jacobi": float(_jacobi_constant(s)),
-            "closure_error": float(o.closure_error),
+            "periodicity_error": float(o.periodicity_error),
             "is_milestone": i in milestone_idx,
         })
 
@@ -260,23 +262,22 @@ def main():
     print(f"[2/3] 延拓完成，共 {len(orbits)} 条轨道")
 
     # =============================================================================
-    # 5. 保存轨道数据（JSON）
+    # 5. 保存轨道数据（JSON）和导出 CSV
     # =============================================================================
     ts = int(time.time())
     json_path = OUTPUT_DIR / f"dro_31_family_{param_min}-{param_max}-{step_size}_{ts}.json"
     family_result.save_to_file(filename=str(json_path))
-    print(f"[3/3] 已保存至 output/dro/")
+
+    csv_path = _export_csv(orbits, param_min, param_max, step_size)
+
+    print(f"[3/3] 已保存：")
+    print(f"  JSON: {json_path}")
+    print(f"  CSV:  {csv_path}")
 
     # =============================================================================
     # 6. 打印论文风格摘要表格
     # =============================================================================
     _print_summary_table(orbits, param_min, param_max, step_size)
-
-    # =============================================================================
-    # 7. 导出全量数据为 CSV
-    # =============================================================================
-    csv_path = _export_csv(orbits, param_min, param_max, step_size)
-    print(f"已导出 CSV：{csv_path}")
 
 
 if __name__ == "__main__":

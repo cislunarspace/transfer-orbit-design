@@ -28,8 +28,10 @@ Halo 轨道族是一类围绕地月系统共线平动点（L1/L2/L3）的三维�
 """
 
 import argparse
+import csv
 import json
 import logging
+import math
 import sys
 import time
 from pathlib import Path
@@ -45,6 +47,119 @@ project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "halo"
 
 LIBRATION_POINT_MAP = {"L1": 1, "L2": 2, "L3": 3}
+
+
+def _jacobi_constant(state: list[float]) -> float:
+    """计算 CR3BP 伪无量纲状态的 Jacobi 常数。"""
+    x, y, z = state[0], state[1], state[2]
+    vx, vy, vz = state[3], state[4], state[5]
+    r1 = math.sqrt((x - MU) ** 2 + y ** 2 + z ** 2)
+    r2 = math.sqrt((x + 1 - MU) ** 2 + y ** 2 + z ** 2)
+    Omega = (1 - MU) / r1 + MU / r2 + (x ** 2 + y ** 2) / 2
+    v2 = vx ** 2 + vy ** 2 + vz ** 2
+    return 2 * Omega - v2
+
+
+def _find_milestone_indices(n_orbits: int, n_milestones: int = 5) -> list[int]:
+    """返回等间距里程碑轨道的索引列表。"""
+    return [round(i * (n_orbits - 1) / (n_milestones - 1)) for i in range(n_milestones)]
+
+
+def _print_summary_table(orbits: list, libration_point: int, halo_class: int,
+                         n_milestones: int = 5) -> None:
+    """打印论文风格的配置/统计/里程碑表格到控制台。"""
+    # --- 统计摘要 ---
+    periods = [o.period for o in orbits]
+    x0s = [o.states[0, 0] for o in orbits]
+    errors = [o.periodicity_error for o in orbits if o.periodicity_error is not None]
+    if not errors:
+        errors = [0.0]
+    # 种子轨道是轨道族的第一条轨道
+    seed_orbit = orbits[0]
+    s_seed = seed_orbit.states[0]
+
+    # --- 里程碑轨道 ---
+    milestone_idx = _find_milestone_indices(len(orbits), n_milestones)
+    milestone_orbits = [orbits[i] for i in milestone_idx]
+
+    # 计算里程碑 Jacobi 常数
+    for o in milestone_orbits:
+        o._c_jacobi = _jacobi_constant(o.states[0])
+
+    lp_name = f"L{libration_point}"
+    class_name = "北" if halo_class == 0 else "南"
+
+    # 打印配置与统计区块
+    print()
+    print("=" * 72)
+    print(f"  Earth-Moon {lp_name} {class_name} Halo 轨道族：配置、统计与代表性轨道")
+    print("=" * 72)
+    print()
+    print("  配置与统计")
+    print("  " + "-" * 68)
+    print(f"  物理系统     Earth-Moon CR3BP  (mu = {MU})")
+    print(f"  平动点       {lp_name}")
+    print(f"  Halo 类别   {class_name} Halo (Class {'I' if halo_class == 0 else 'II'})")
+    print(f"  轨道数量     {len(orbits)}")
+    print(f"  种子 x0      {float(s_seed[0]):.8f}")
+    print(f"  种子 z0      {float(s_seed[2]):.6f}")
+    print(f"  种子周期     {seed_orbit.period:.10f}")
+    print(f"  周期范围     {min(periods):.4f} ~ {max(periods):.4f}")
+    print(f"  x0 范围     {min(x0s):.6f} ~ {max(x0s):.6f}")
+    print(f"  终止条件     闭轨误差上界 (max = {max(errors):.2e})")
+    print()
+    print("  代表性轨道（等间距采样）")
+    print("  " + "-" * 68)
+    header = (f"  {'z_amp':^10} {'x0':^10} {'z0':^10} {'Period':^8} "
+              f"{'C_Jacobi':^10} {'Periodicity Err':^14}")
+    print(header)
+    print("  " + "-" * 68)
+    for o in milestone_orbits:
+        s = o.states[0]
+        params = getattr(o, "parameters", {})
+        amp_z = params.get("amplitude_z", abs(float(s[2])))
+        print(f"  {float(amp_z):10.6f} {float(s[0]):10.6f} {float(s[2]):10.6f} "
+              f"{float(o.period):8.4f} {float(o._c_jacobi):10.6f} "
+              f"{float(o.periodicity_error):14.2e}")
+    print()
+    print("=" * 72)
+    print()
+
+
+def _export_csv(orbits: list, libration_point: int, halo_class: int,
+                n_milestones: int = 5) -> Path:
+    """将全量轨道数据导出为 CSV，返回文件路径。"""
+    milestone_idx = set(_find_milestone_indices(len(orbits), n_milestones))
+
+    rows = []
+    for i, o in enumerate(orbits):
+        s = o.states[0]
+        params = getattr(o, "parameters", {})
+        rows.append({
+            "step": i,
+            "z_amp": float(params.get("amplitude_z", abs(float(s[2])))),
+            "x0": float(s[0]),
+            "y0": float(s[1]),
+            "z0": float(s[2]),
+            "vx0": float(s[3]),
+            "vy0": float(s[4]),
+            "vz0": float(s[5]),
+            "period": float(o.period),
+            "c_jacobi": float(_jacobi_constant(s)),
+            "periodicity_error": float(o.periodicity_error),
+            "is_milestone": i in milestone_idx,
+        })
+
+    ts = int(time.time())
+    lp_name = f"L{libration_point}"
+    class_name = "N" if halo_class == 0 else "S"
+    csv_path = OUTPUT_DIR / f"halo_{lp_name}_{class_name}_family_{ts}.csv"
+    with open(csv_path, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+
+    return csv_path
 
 
 def _load_seed_orbit(seed_file: str, system) -> Orbit:
@@ -258,17 +373,35 @@ def main():
 
     logger.info("轨道族生成完成: 共%d条轨道", len(family_result))
 
+    # =============================================================================
+    # 5. 保存轨道数据（JSON）
+    # =============================================================================
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     ts = int(time.time())
     # 文件名格式：halo_L{平动点}_{N/S}_family_{振幅}_{时间戳}.json
     family_name = f"halo_L{libration_point}_{'N' if halo_class == 0 else 'S'}_family_{amplitude_z}_{ts}"
-    family_result.save_to_file(filename=str(OUTPUT_DIR / f"{family_name}.json"))
+    json_path = OUTPUT_DIR / f"{family_name}.json"
+    family_result.save_to_file(filename=str(json_path))
+
+    # =============================================================================
+    # 6. 导出全量数据为 CSV
+    # =============================================================================
+    csv_path = _export_csv(family_result, libration_point, halo_class)
 
     logger.info("轨道族已保存至: %s", OUTPUT_DIR / f"{family_name}.json")
     logger.info("  轨道族名称: %s", family_name)
     if len(family_result) > 0:
         z_values = [getattr(o, "parameters", {}).get("amplitude_z", 0) for o in family_result]
         logger.info("  z_amplitude 范围: [%.4f, %.4f]", min(z_values), max(z_values))
+
+    print(f"[3/3] 已保存：")
+    print(f"  JSON: {json_path}")
+    print(f"  CSV:  {csv_path}")
+
+    # =============================================================================
+    # 7. 打印论文风格摘要表格
+    # =============================================================================
+    _print_summary_table(family_result, libration_point, halo_class)
 
 
 if __name__ == "__main__":
