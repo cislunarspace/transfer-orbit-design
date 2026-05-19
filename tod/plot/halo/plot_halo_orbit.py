@@ -14,6 +14,14 @@ import logging
 import sys
 from pathlib import Path
 
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stdout,
+    )
+
 import matplotlib.pyplot as plt
 import numpy as np
 from e2m2e.core import Orbit, OrbitFamily, CR3BP_System

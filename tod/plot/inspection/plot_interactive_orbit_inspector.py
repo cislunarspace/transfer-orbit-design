@@ -23,6 +23,13 @@ import argparse
 import sys
 from pathlib import Path
 
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stdout,
+    )
 
 import e2m2e
 from e2m2e.core import OrbitFamily, CR3BP_System

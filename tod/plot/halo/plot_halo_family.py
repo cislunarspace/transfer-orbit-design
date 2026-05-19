@@ -26,10 +26,18 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import sys
 from pathlib import Path
 
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stdout,
+    )
 
 import matplotlib
 import numpy as np
@@ -41,7 +49,6 @@ from e2m2e.algorithms.stability import StabilityAnalysis
 from tod.commons.common import MU
 from tod.commons.plot_helpers import apply_standard_plot_config
 from tod.commons.common import find_project_root
-import logging
 
 logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))

@@ -12,6 +12,14 @@ import argparse
 import sys
 from pathlib import Path
 
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stdout,
+    )
+
 from tod.commons.common import MU, TU
 from tod.commons.plot_helpers import apply_standard_plot_config
 

@@ -13,18 +13,27 @@
 """
 
 import argparse
+import logging
 import sys
 from pathlib import Path
+
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stdout,
+    )
 
 import numpy as np
 import matplotlib.pyplot as plt
 from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization import FamilyPlotter
 from e2m2e.algorithms.stability import StabilityAnalysis
+
 from tod.commons.common import MU, TU
 from tod.commons.plot_helpers import apply_standard_plot_config
 from tod.commons.common import find_project_root
-import logging
 
 logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))

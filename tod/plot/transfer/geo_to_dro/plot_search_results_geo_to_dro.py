@@ -19,6 +19,14 @@ import sys
 from pathlib import Path
 from typing import Any, Optional  # noqa: F401
 
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stdout,
+    )
+
 import matplotlib
 import numpy as np
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
