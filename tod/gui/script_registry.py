@@ -101,6 +101,8 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             group_label="绘图",
             cli_params=[
                 CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="dro", name_pattern="*_family_*.json"),
+                CliParam("--plot-global-2d", "全局 2D 视图（XY 平面）", "bool", help="绘制 DRO 轨道族在 XY 平面的全局 2D 视图"),
+                CliParam("--plot-jacobi-stability", "Jacobi 常数-周期-稳定性关系图", "bool", help="绘制 Jacobi 常数与轨道周期、稳定性的关系曲线"),
             ],
         ),
     ],

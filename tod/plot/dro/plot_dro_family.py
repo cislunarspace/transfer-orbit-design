@@ -26,12 +26,19 @@ project_root = find_project_root(Path(__file__))
 def parse_args():
     parser = argparse.ArgumentParser(description="绘制 DRO 轨道族")
     parser.add_argument("--json-file", type=str, default=None, help="轨道族 JSON 文件路径")
+    parser.add_argument("--plot-global-2d", action="store_true", help="绘制 DRO 轨道族在 XY 平面的全局 2D 视图")
+    parser.add_argument("--plot-jacobi-stability", action="store_true", help="绘制 Jacobi 常数与周期、稳定性的关系曲线")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     output_dir = project_root / "output" / "dro"
+
+    # 如果所有绘图开关都未启用，输出警告并跳过
+    if not args.plot_global_2d and not args.plot_jacobi_stability:
+        logger.warning("未选择任何图表，跳过绘制")
+        return
 
     if args.json_file:
         family_path = Path(args.json_file)
@@ -57,47 +64,53 @@ def main() -> None:
     n_orbits = len(family_result)
     logger.info(f"加载了 {n_orbits} 条DRO轨道")
 
+    # =============================================================================
+    # 计算 Jacobi 常数（全局2D视图和稳定性图都需要）
+    # =============================================================================
     logger.info("正在计算Jacobi常数...")
     jacobi_values = family_result.get_jacobi_constants().tolist()
     logger.info(f"Jacobi常数范围: {min(jacobi_values):.6f} ~ {max(jacobi_values):.6f}")
 
-    logger.info("正在计算稳定性指数...")
-    stability_values = []
-    for i in range(len(family_result)):
-        orbit = family_result[i]
-        stability_analysis = StabilityAnalysis(orbit=orbit)
-        stability_indices = stability_analysis.compute_stability_index()
-        stability_values.append(stability_indices.get("broucke", 0.0))
-    logger.info(f"稳定性指数范围: {min(stability_values):.6f} ~ {max(stability_values):.6f}")
+    # 仅在需要稳定性图时才计算（计算代价较高）
+    if args.plot_jacobi_stability:
+        logger.info("正在计算稳定性指数...")
+        stability_values = []
+        for i in range(len(family_result)):
+            orbit = family_result[i]
+            stability_analysis = StabilityAnalysis(orbit=orbit)
+            stability_indices = stability_analysis.compute_stability_index()
+            stability_values.append(stability_indices.get("broucke", 0.0))
+        logger.info(f"稳定性指数范围: {min(stability_values):.6f} ~ {max(stability_values):.6f}")
 
     plotter = FamilyPlotter(system, config)
-
-    jmin, jmax = min(jacobi_values), max(jacobi_values)
-    smin, smax = min(stability_values), max(stability_values)
 
     # =============================================================================
     # 1. Global 2D view
     # =============================================================================
-    plotter.plot_family_2d(
-        family_result, jacobi_values,
-        # title=f"DRO Family in Earth-Moon CR3BP (XY Plane) - {n_orbits} orbits\n"
-            #   f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
-        save_path=str(output_dir / f"{family_name}_global_2d_view.png"),
-        step=5
-    )
+    if args.plot_global_2d:
+        plotter.plot_family_2d(
+            family_result, jacobi_values,
+            # title=f"DRO Family in Earth-Moon CR3BP (XY Plane) - {n_orbits} orbits\n"
+                #   f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+            save_path=str(output_dir / f"{family_name}_global_2d_view.png"),
+            step=5
+        )
 
     # =============================================================================
-    # 3. Jacobi-Period-Stability
+    # 2. Jacobi-Period-Stability
     # =============================================================================
-    plotter.plot_jacobi_period_stability(
-        jacobi_values, family_result.periods, stability_values,
-        # title=f"DRO Family: Jacobi Constant vs Period and Stability\n(n = {n_orbits} orbits)",
-        save_path=str(output_dir / f"{family_name}_jacobi_period_stability.png"),
-    )
+    if args.plot_jacobi_stability:
+        plotter.plot_jacobi_period_stability(
+            jacobi_values, family_result.periods, stability_values,
+            # title=f"DRO Family: Jacobi Constant vs Period and Stability\n(n = {n_orbits} orbits)",
+            save_path=str(output_dir / f"{family_name}_jacobi_period_stability.png"),
+        )
 
     logger.info("\n所有图表已保存到 output/dro/ 目录:")
-    logger.info(f"  - {family_name}_global_2d_view.png      : 全局2D视图")
-    logger.info(f"  - {family_name}_jacobi_period_stability.png : Jacobi常数-周期-稳定性图")
+    if args.plot_global_2d:
+        logger.info(f"  - {family_name}_global_2d_view.png      : 全局2D视图")
+    if args.plot_jacobi_stability:
+        logger.info(f"  - {family_name}_jacobi_period_stability.png : Jacobi常数-周期-稳定性图")
 
 
 if __name__ == "__main__":
