@@ -52,6 +52,10 @@ def main() -> None:
     # =============================================================================
     config = apply_standard_plot_config()          # 将配置应用到 matplotlib 全局参数
 
+    # 天体图标缩放系数（手动微调显示大小）
+    config.primary_body_icon_scale = 0.25   # 地球
+    config.secondary_body_icon_scale = 0.25  # 月球
+
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
     if not family_path.exists():
