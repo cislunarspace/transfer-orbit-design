@@ -20,12 +20,13 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from tod.gui.doc_link_mixin import DocLinkMixin, make_doc_link_label
 from tod.gui.file_discovery import filter_files
 from tod.gui.script_registry import UNIT_GROUPS, CliParam, ScriptEntry
 from tod.gui.theme_utils import resolve_theme as _resolve_theme
 
 
-class ParamsPanelMixin:
+class ParamsPanelMixin(DocLinkMixin):
     """提供参数面板构建和操作方法，由 MainWindow 通过多重继承混入。"""
 
     _PARAM_BORDER_MODIFIED = "border: 1px solid #4da6ff;"
@@ -332,6 +333,10 @@ class ParamsPanelMixin:
         if sb:
             sb.showMessage("已恢复出厂默认值", 3000)
 
+    def _on_doc_link_clicked(self, entry: ScriptEntry) -> None:
+        """Handle click on the documentation link."""
+        self.doc_link_clicked.emit(entry.script_path)
+
     def _rebuild_params_panel(self, entry: ScriptEntry) -> None:
         """根据选中的脚本重建运行参数面板。"""
         # 清空旧控件
@@ -355,8 +360,11 @@ class ParamsPanelMixin:
             QFormLayout.FieldGrowthPolicy.ExpandingFieldsGrow
         )
 
-        title = QLabel(entry.name)
-        title.setStyleSheet("font-size: 15px; font-weight: bold; padding: 4px 0;")
+        # Get doc URL for clickable title
+        doc_url = self._get_doc_url(entry.script_path)
+        title = make_doc_link_label(entry.name, doc_url)
+        if doc_url:
+            title.mousePressEvent = lambda e, ep=entry: self._on_doc_link_clicked(ep)
         self._params_layout.addRow(title)
 
         if entry.description:

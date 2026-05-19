@@ -74,6 +74,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
                 CliParam("--x0", "初始 x 坐标", "float", "1.1202", "初始 x 坐标（无量纲）", unit_group="distance", default_unit="DU"),
                 CliParam("--vy0", "初始 vy 速度", "float", "-0.4618", "初始 y 方向速度（无量纲）", unit_group="velocity"),
                 CliParam("--period", "目标周期", "float", "2.095", "目标周期（无量纲）", unit_group="time", default_unit="days"),
+                CliParam("--verbose", "详细输出", "bool", help="勾选后显示详细迭代过程（残差、收敛进度等）"),
             ],
         ),
         ScriptEntry(
@@ -89,6 +90,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
                 CliParam("--param-min", "延拓下限", "float", "0.141886", "延拓参数范围下限（x0 最小值）", unit_group="distance", default_unit="DU"),
                 CliParam("--param-max", "延拓上限", "float", "0.9", "延拓参数范围上限（x0 最大值）", unit_group="distance", default_unit="DU"),
                 CliParam("--step-size", "延拓步长", "float", "0.005", "延拓步长", unit_group="distance", default_unit="DU"),
+                CliParam("--verbose", "详细输出", "bool", help="勾选后显示详细延拓过程（每步迭代、收敛进度等）"),
             ],
         ),
         ScriptEntry(
