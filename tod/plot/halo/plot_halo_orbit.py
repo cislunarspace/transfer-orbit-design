@@ -227,9 +227,10 @@ def main(plot1: int | None = None, plot2: int | None = None, plot3: int | None =
     periods_sorted = np.array(subset_family.periods)[sort_idx].tolist()
 
     plotter = FamilyPlotter(system, PLOT_CONFIG)
-    plotter.primary_body_size = 60
-    plotter.secondary_body_size = 30
+    # 60/30 是平动点 marker 大小，用于 L1-L5 标注
     plotter.libration_point_sizes = [20, 20, 20, 20, 20]
+    # 图标缩放使用 PLOT_CONFIG 中的默认值（primary_body_icon_scale=0.25），
+    # 与 plot_dro_family.py 保持一致。
 
     all_states = np.vstack([orbit.states for orbit in subset_family])
     xlim_2d, ylim_2d, center_3d, radius_3d = compute_view_bounds(all_states)

@@ -4,9 +4,14 @@ from __future__ import annotations
 
 from tod.commons.plot_helpers import (
     PLOT_FONT_SETTING_KEYS,
+    PROJECT_DEFAULT_BODY_ICON_SCALE,
     STANDARD_PLOT_FONT_SIZES,
 )
 from tod.gui.settings_dialog import SettingItem
+
+# GUI 设置 key：天体图标缩放系数。值会被 RunMixin 写入到环境变量
+# E2M2E_BODY_ICON_SCALE 中传给绘图子进程。
+BODY_ICON_SCALE_SETTING_KEY = "plot_body_icon_scale"
 
 # Settings schema — each entry defines one setting item.
 # Add new SettingItem entries here to extend settings.
@@ -74,5 +79,15 @@ SETTINGS_SCHEMA: list[SettingItem] = [
         default=str(int(STANDARD_PLOT_FONT_SIZES["lp_label"])),
         min_value=6,
         max_value=80,
+    ),
+    SettingItem(
+        key=BODY_ICON_SCALE_SETTING_KEY,
+        label="天体图标缩放",
+        type="float",
+        default=f"{PROJECT_DEFAULT_BODY_ICON_SCALE:g}",
+        min_value=0.05,
+        max_value=2.0,
+        decimals=2,
+        step=0.05,
     ),
 ]

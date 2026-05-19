@@ -36,6 +36,11 @@ STANDARD_PLOT_LAYOUT: dict[str, float] = {
     "title_y_offset_subplot": -0.15,
 }
 
+# 项目级天体图标缩放默认值。
+# 仅在环境变量 BODY_ICON_SCALE_ENV 未设置时生效；GUI 写入该环境变量后，
+# 用户设置优先。这里不直接通过 kwargs 注入到 PlotConfig，否则会覆盖环境变量。
+PROJECT_DEFAULT_BODY_ICON_SCALE: float = 0.25
+
 PLOT_FONT_ENV_VARS: dict[str, str] = {
     key: f"PLOT_FONT_{key.upper()}" for key in PLOT_FONT_KEYS
 }
@@ -82,13 +87,32 @@ def plot_font_env_from_settings(settings: Mapping[str, str]) -> dict[str, str]:
     return env
 
 
+def body_icon_env_from_settings(settings: Mapping[str, str]) -> dict[str, str]:
+    """将 GUI 的 plot_body_icon_scale 设置转换为子进程环境变量。
+
+    解析失败或值非正时返回空 dict（让 e2m2e 走自己的默认回退）。
+    """
+    from e2m2e.visualization import BODY_ICON_SCALE_ENV
+
+    raw = settings.get("plot_body_icon_scale")
+    if not raw:
+        return {}
+    try:
+        value = float(raw)
+    except ValueError:
+        return {}
+    if value <= 0:
+        return {}
+    return {BODY_ICON_SCALE_ENV: f"{value:g}"}
+
+
 def get_standard_plot_config(
     font_sizes: Mapping[str, float] | None = None,
     *,
     use_env: bool = True,
 ):
     """创建与 plot_dro_family.py 一致的 PlotConfig。"""
-    from e2m2e.visualization import PlotConfig
+    from e2m2e.visualization import BODY_ICON_SCALE_ENV, PlotConfig
 
     kwargs: dict[str, float] = {}
     kwargs.update(STANDARD_PLOT_FONT_SIZES)
@@ -102,7 +126,14 @@ def get_standard_plot_config(
             if size is not None:
                 kwargs[key] = size
     kwargs.update(STANDARD_PLOT_LAYOUT)
-    return PlotConfig(**kwargs)
+
+    # 仅在用户未通过环境变量指定图标缩放时，才注入项目级默认值（0.25）。
+    # 否则项目默认会覆盖用户设置（kwargs 在 from_env 中作为 overrides 优先级最高）。
+    if use_env and BODY_ICON_SCALE_ENV not in os.environ:
+        kwargs["primary_body_icon_scale"] = PROJECT_DEFAULT_BODY_ICON_SCALE
+        kwargs["secondary_body_icon_scale"] = PROJECT_DEFAULT_BODY_ICON_SCALE
+
+    return PlotConfig.from_env(**kwargs)
 
 
 def apply_standard_plot_config(

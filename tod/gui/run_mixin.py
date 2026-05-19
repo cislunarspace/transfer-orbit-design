@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QSpinBox,
 )
 
-from tod.commons.plot_helpers import plot_font_env_from_settings
+from tod.commons.plot_helpers import body_icon_env_from_settings, plot_font_env_from_settings
 from tod.gui.file_operations import FILE_PATH_ROLE
 
 
@@ -91,6 +91,7 @@ class RunMixin:
             return
 
         env_overrides.update(plot_font_env_from_settings(self._gui_defaults.get("settings", {})))
+        env_overrides.update(body_icon_env_from_settings(self._gui_defaults.get("settings", {})))
         self._job_manager.start_job(self._current_script, extra_args, env_overrides)
 
     def _validate_params(self) -> bool:
