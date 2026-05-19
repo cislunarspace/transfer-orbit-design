@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from tod.gui.doc_window import DocWindow
 from tod.gui.file_discovery import FileInfo
 from tod.gui.file_tree_mixin import FileTreeMixin
 from tod.gui.job_manager import JobManager
@@ -54,6 +55,9 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         self._job_outputs: dict[str, StructuredOutputWidget] = {}
         self._has_jobs = False
 
+        # Documentation window
+        self._doc_window: DocWindow | None = None
+
         # 从设置加载 theme
         self._current_theme_mode = self._gui_defaults.get("settings", {}).get("theme", "system")
         MainWindow._current_theme_mode = self._current_theme_mode
@@ -75,6 +79,9 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         self._job_manager.job_output.connect(self._on_job_output)
         self._job_manager.job_finished.connect(self._on_job_finished)
         self._job_manager.job_error.connect(self._on_job_error)
+
+        # 连接文档链接信号
+        self.doc_link_clicked.connect(self._open_doc_window)
 
         # 键盘快捷键
         QShortcut(QKeySequence("Ctrl+R"), self, self._on_run)
@@ -289,4 +296,21 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
                 return
         self._job_manager.stop_all()
         super().closeEvent(event)
+
+    # ── Documentation Window ─────────────────────────────────────
+
+    def _open_doc_window(self, script_path: str) -> None:
+        """Open or raise the documentation window for the given script."""
+        if self._doc_window is None:
+            self._doc_window = DocWindow(self._repo_root, self)
+            self._doc_window.destroyed.connect(self._on_doc_window_closed)
+
+        self._doc_window.load_script_doc(script_path)
+        self._doc_window.show()
+        self._doc_window.raise_()
+        self._doc_window.activateWindow()
+
+    def _on_doc_window_closed(self) -> None:
+        """Called when the documentation window is closed."""
+        self._doc_window = None
 
