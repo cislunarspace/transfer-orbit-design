@@ -16,6 +16,10 @@ exclude_patterns = []
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
+# Logo
+html_logo = '_static/logo.png'
+html_favicon = '_static/logo.png'
+
 # autodoc settings
 autodoc_default_options = {
     'members': True,

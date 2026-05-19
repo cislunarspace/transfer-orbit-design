@@ -1,3 +1,7 @@
+.. image:: _static/logo.png
+   :align: center
+   :width: 200
+
 Transfer Orbit Design Documentation
 ====================================
 

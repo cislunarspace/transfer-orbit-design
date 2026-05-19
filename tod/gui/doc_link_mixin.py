@@ -5,7 +5,23 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import QLabel
+
+
+class ClickableLabel(QLabel):
+    """A QLabel that emits a clicked signal when mouse is pressed."""
+
+    clicked = pyqtSignal()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
 
 
 class DocLinkMixin:
@@ -39,7 +55,7 @@ class DocLinkMixin:
         return None
 
 
-def make_doc_link_label(title: str, url: str | None, parent=None) -> QLabel:
+def make_doc_link_label(title: str, url: str | None, parent=None) -> ClickableLabel:
     """Create a clickable label styled as a hyperlink.
 
     Args:
@@ -48,7 +64,7 @@ def make_doc_link_label(title: str, url: str | None, parent=None) -> QLabel:
         parent: Parent widget
 
     Returns:
-        QLabel configured as a clickable link.
+        ClickableLabel configured as a clickable link.
     """
     if url:
         style = """
@@ -58,9 +74,8 @@ def make_doc_link_label(title: str, url: str | None, parent=None) -> QLabel:
                 font-size: 15px;
                 font-weight: bold;
                 padding: 4px 0;
-                cursor: pointing_hand;
             }
-            QLabel:hover {
+            ClickableLabel:hover {
                 color: #004499;
             }
         """
@@ -74,12 +89,11 @@ def make_doc_link_label(title: str, url: str | None, parent=None) -> QLabel:
             }
         """
 
-    label = QLabel(title, parent)
+    label = ClickableLabel(title, parent)
     label.setStyleSheet(style)
     label.setTextInteractionFlags(label.textInteractionFlags() | label.textInteractionFlags().TextSelectableByMouse)
 
     if url:
         label.setProperty("doc_url", url)
-        label.setCursor(Qt.CursorShape.PointingHandCursor)
 
     return label

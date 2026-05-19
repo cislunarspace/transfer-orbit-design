@@ -363,8 +363,8 @@ class ParamsPanelMixin(DocLinkMixin):
         # Get doc URL for clickable title
         doc_url = self._get_doc_url(entry.script_path)
         title = make_doc_link_label(entry.name, doc_url)
-        if doc_url:
-            title.mousePressEvent = lambda e, ep=entry: self._on_doc_link_clicked(ep)
+        # Always connect clicked signal - doc_url determines if doc exists, not clickability
+        title.clicked.connect(lambda _, ep=entry, du=doc_url: self._on_doc_link_clicked(ep, du))
         self._params_layout.addRow(title)
 
         if entry.description:

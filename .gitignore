@@ -191,7 +191,12 @@ Desktop.ini
 *.pickle
 
 # Plot/output files
+# 但保留 docs/source/_static 中的资源文件
+!docs/source/_static/
 *.png
+# 重新取消 _static 目录中 png/ico 的忽略
+!docs/source/_static/*.png
+!docs/source/_static/*.ico
 *.jpg
 *.jpeg
 *.gif

@@ -54,6 +54,13 @@ def main() -> None:
     app = QApplication(sys.argv)
     app.setApplicationName("Transfer Orbit Design")
     window = MainWindow(repo_root=str(repo_root))
+
+    # 设置窗口图标
+    icon_path = repo_root / "icon.ico"
+    if icon_path.exists():
+        from PyQt6.QtGui import QIcon
+        window.setWindowIcon(QIcon(str(icon_path)))
+
     window.show()
     app.aboutToQuit.connect(window._job_manager.stop_all)
     sys.exit(app.exec())

@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QLabel, QLineEdit, QSizePolicy, QStackedLayout, QVBoxLayout, QWidget
+from PyQt6.QtGui import QPixmap
+from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QSizePolicy, QStackedLayout, QVBoxLayout, QWidget
 
 from tod.gui.script_registry import SCRIPTS
 from tod.gui.script_tree import build_tree_from_scripts
@@ -22,6 +25,9 @@ class SidebarWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(4)
+
+        # Brand header with logo and app name
+        self._setup_brand_header(layout)
 
         self._search_input = QLineEdit()
         self._search_input.setPlaceholderText("搜索脚本...")
@@ -61,3 +67,26 @@ class SidebarWidget(QWidget):
     def set_script_selected_callback(self, callback):
         """设置脚本选中时的回调"""
         self._tree.set_script_selected_callback(callback)
+
+    def _setup_brand_header(self, layout: QVBoxLayout) -> None:
+        """Setup brand header with logo and app name."""
+        # Get repo root from a known path
+        logo_path = Path(__file__).parent.parent.parent / "logo.png"
+
+        header_widget = QWidget()
+        header_layout = QHBoxLayout(header_widget)
+        header_layout.setContentsMargins(4, 8, 4, 8)
+        header_layout.setSpacing(8)
+
+        logo_label = QLabel()
+        if logo_path.exists():
+            pixmap = QPixmap(str(logo_path))
+            scaled = pixmap.scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            logo_label.setPixmap(scaled)
+        header_layout.addWidget(logo_label)
+
+        name_label = QLabel("Transfer Orbit Design")
+        name_label.setStyleSheet("font-weight: bold; font-size: 13px;")
+        header_layout.addWidget(name_label, stretch=1)
+
+        layout.addWidget(header_widget)
