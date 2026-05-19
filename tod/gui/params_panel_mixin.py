@@ -333,8 +333,13 @@ class ParamsPanelMixin(DocLinkMixin):
         if sb:
             sb.showMessage("已恢复出厂默认值", 3000)
 
-    def _on_doc_link_clicked(self, entry: ScriptEntry) -> None:
+    def _on_doc_link_clicked(self, entry: ScriptEntry, doc_url: str | None) -> None:
         """Handle click on the documentation link."""
+        if doc_url is None:
+            sb = self.statusBar()
+            if sb:
+                sb.showMessage(f"⚠ 文档未构建：运行 sphinx-build 生成文档后再试", 5000)
+            return
         self.doc_link_clicked.emit(entry.script_path)
 
     def _rebuild_params_panel(self, entry: ScriptEntry) -> None:
@@ -364,7 +369,7 @@ class ParamsPanelMixin(DocLinkMixin):
         doc_url = self._get_doc_url(entry.script_path)
         title = make_doc_link_label(entry.name, doc_url)
         # Always connect clicked signal - doc_url determines if doc exists, not clickability
-        title.clicked.connect(lambda _, ep=entry, du=doc_url: self._on_doc_link_clicked(ep, du))
+        title.clicked.connect(lambda ep=entry, du=doc_url: self._on_doc_link_clicked(ep, du))
         self._params_layout.addRow(title)
 
         if entry.description:

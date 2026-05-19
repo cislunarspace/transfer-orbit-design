@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QPushButton,
+    QSizePolicy,
     QToolBar,
     QVBoxLayout,
     QWidget,
@@ -30,7 +31,6 @@ class DocWindow(QMainWindow):
         self.resize(900, 700)
 
         self._setup_ui()
-        self._setup_navigation()
 
     def _setup_ui(self) -> None:
         central = QWidget()
@@ -63,7 +63,8 @@ class DocWindow(QMainWindow):
         self._url_bar = QLineEdit()
         self._url_bar.setPlaceholderText("文档 URL...")
         self._url_bar.setReadOnly(True)
-        toolbar.addWidget(self._url_bar, stretch=1)
+        self._url_bar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        toolbar.addWidget(self._url_bar)
 
         self._open_ext_btn = QPushButton("外部打开")
         self._open_ext_btn.setToolTip("在系统浏览器中打开")
@@ -84,11 +85,8 @@ class DocWindow(QMainWindow):
         self._web_view.loadStarted.connect(self._on_load_started)
         self._web_view.loadFinished.connect(self._on_load_finished)
 
-    def _setup_navigation(self) -> None:
-        self._web_view.page().navigation_history().historyChanged.connect(self._update_nav_buttons)
-
     def _update_nav_buttons(self) -> None:
-        history = self._web_view.page().navigation_history()
+        history = self._web_view.history()
         self._back_btn.setEnabled(history.canGoBack())
         self._forward_btn.setEnabled(history.canGoForward())
 
