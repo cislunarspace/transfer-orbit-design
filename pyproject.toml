@@ -24,6 +24,7 @@ dependencies = [
     "matplotlib>=3.10.0",
     "tqdm>=4.66",
     "PyQt6>=6.6.0",
+    "PyQt6-WebEngine>=6.6.0",
     "e2m2e",
 ]
 
