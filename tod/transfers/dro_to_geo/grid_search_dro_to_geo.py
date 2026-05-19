@@ -28,6 +28,10 @@ from e2m2e.orbits.geo import (
     geo_circular_velocity_rotating,
 )
 from tod.commons.common import DU, MU, TU, VU
+from tod.commons.orbit_artifacts import (
+    OrbitArtifactNotFoundError,
+    find_latest_single_dro,
+)
 import logging
 
 logger = logging.getLogger(__name__)
@@ -38,8 +42,6 @@ project_root = Path(__file__).resolve().parent.parent.parent.parent
 # =====================================================================
 # 配置默认值
 # =====================================================================
-
-DRO_FILE_DEFAULT = str(project_root / "output/dro/dro_31_3857693511.json")
 
 # 搜索参数
 N_DEPARTURE = 200
@@ -229,18 +231,19 @@ def main() -> None:
     ]:
         os.environ[_k] = "1"
 
-    dro_file_path = args.dro_file or os.environ.get("DRO_FILE", DRO_FILE_DEFAULT)
-    dro_file = Path(dro_file_path)
-
-    if not dro_file.exists():
-        # 回退到 output/dro 中最新的 DRO 文件
-        dro_dir = project_root / "output/dro"
-        dro_files = sorted(dro_dir.glob("dro_31_*.json"))
-        if not dro_files:
-            logger.error("找不到 DRO 轨道文件！请先生成 DRO 轨道。")
+    dro_file_path = args.dro_file or os.environ.get("DRO_FILE")
+    if dro_file_path:
+        dro_file = Path(dro_file_path)
+        if not dro_file.exists():
+            logger.error("DRO 轨道文件不存在: %s", dro_file)
             return
-        dro_file = dro_files[-1]
-        logger.info("使用 DRO 文件: %s", dro_file)
+    else:
+        try:
+            dro_file = find_latest_single_dro(project_root)
+        except OrbitArtifactNotFoundError as e:
+            logger.error("%s", e)
+            return
+        logger.info("自动选取最新 DRO 文件: %s", dro_file)
 
     n_departure = args.n_departure
     n_alpha = args.n_alpha
