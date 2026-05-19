@@ -1,10 +1,15 @@
 """
-DRO → GEO 转移 NLP 优化
+DRO → GEO 转移精修（root-find）
 
-在网格搜索结果的基础上，对 DRO→GEO 转移轨道进行 NLP 优化（SciPy SLSQP）。
-优化变量: y = [α, T]
-目标函数: J(y) = Δv1 + Δv2
-约束: |r_final - r_earth| = r_GEO（到达 GEO 球面）
+在网格搜索结果的基础上，对 DRO→GEO 转移轨道进行精修。
+GEO 建模为赤道圆（不是球面）：r_xy = R_GEO 且 z = 0。
+
+变量: y = [α, T]
+残差 (2D): F(y) = [r_xy(final) - R_GEO, z(final)]
+求解器: scipy.optimize.root(method="lm")，α 网格扫描 + Nelder-Mead 兜底
+排序键: Δv1 + Δv2（从一族 root 解中挑最优）
+
+后过滤: e2m2e.orbits.geo.check_collision 拒绝穿地球/月球的轨迹。
 
 运行: python -m tod.transfers.dro_to_geo.optimize_dro_to_geo
 
@@ -27,7 +32,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from scipy.optimize import Bounds, minimize
+from scipy.optimize import minimize, root
 from tqdm.auto import tqdm
 
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
@@ -35,6 +40,7 @@ from tod.commons.common import DU, MU, TU, VU
 from e2m2e.orbits.geo import (
     R_GEO,
     EARTH_CENTER,
+    check_collision,
     compute_departure_velocity,
     compute_geo_dv2,
 )
@@ -131,12 +137,16 @@ def forward_integrate_nlp(dynamics, initial_state, transfer_time):
 
 
 # =====================================================================
-# NLP problem
+# Residual evaluation
 # =====================================================================
 
 
-def _nlp_eval(y, departure_state, dynamics):
-    """Evaluate objective, constraint, and cache for y = [alpha, T]."""
+def _nlp_eval(y, departure_state, dynamics, mu, earth_radius, moon_radius):
+    """Evaluate 2D residual + cost for y = [alpha, T].
+
+    Residual F(y) = [r_xy(final) - R_GEO, z_rel(final)] —— 赤道圆约束。
+    碰撞检测：穿地球或月球的轨迹标记 collided=True，由调用方丢弃。
+    """
     alpha, T = y
     v_dep = compute_departure_velocity(departure_state, alpha)
     dv1 = float(np.linalg.norm(v_dep - departure_state[3:]))
@@ -145,28 +155,44 @@ def _nlp_eval(y, departure_state, dynamics):
     try:
         states, times = forward_integrate_nlp(dynamics, state0, T)
     except Exception:
-        return {"empty": True, "objective": 1e10}
+        return {"empty": True, "residual": np.array([1e6, 1e6])}
 
     if len(states) == 0:
-        return {"empty": True, "objective": 1e10}
+        return {"empty": True, "residual": np.array([1e6, 1e6])}
+
+    collided, body, _ = check_collision(states, mu, earth_radius, moon_radius)
 
     final_state = states[-1]
     final_pos = final_state[:3]
-    dist = float(np.linalg.norm(final_pos - EARTH_CENTER))
+    r_rel = final_pos - EARTH_CENTER
+    r_xy = float(np.sqrt(r_rel[0] ** 2 + r_rel[1] ** 2))
+    z_rel = float(r_rel[2])
+    dist = float(np.linalg.norm(r_rel))
+
+    residual = np.array([r_xy - R_GEO, z_rel])
     dv2 = compute_geo_dv2(final_state)
-    pos_violation = (dist - R_GEO) ** 2
 
     return {
         "empty": False,
+        "collided": collided,
+        "collision_body": body,
         "states": states,
         "times": times,
         "final_state": final_state,
         "dv1": dv1,
         "dv2": dv2,
         "objective": dv1 + dv2,
-        "pos_violation": pos_violation,
+        "residual": residual,
+        "pos_violation": float(residual @ residual),
         "dist_from_earth": dist,
+        "r_xy": r_xy,
+        "z_rel": z_rel,
     }
+
+
+# =====================================================================
+# Per-case solve: α-scan root-find + Nelder-Mead fallback
+# =====================================================================
 
 
 def optimize_one_case(
@@ -183,8 +209,8 @@ def optimize_one_case(
     verbose=False,
 ):
     departure_state = np.array(rec["departure_state"], dtype=float)
-    alpha_0 = rec["alpha"]
-    T_0 = rec["transfer_time"]
+    alpha_0 = float(rec["alpha"])
+    T_0 = float(rec["transfer_time"])
 
     nlp_system = CR3BP_System(mu=mu, primary="earth", secondary="moon")
     nlp_dynamics = CR3BP_Dynamics(system=nlp_system)
@@ -193,69 +219,115 @@ def optimize_one_case(
     nlp_dynamics.atol = NLP_ATOL
     nlp_dynamics.max_step = NLP_MAX_STEP
 
-    y0 = np.array([alpha_0, T_0])
+    def _eval(y):
+        return _nlp_eval(y, departure_state, nlp_dynamics, mu, earth_radius, moon_radius)
 
-    cache_holder: list[dict | None] = [None]
-
-    def objective(y):
-        c = _nlp_eval(y, departure_state, nlp_dynamics)
-        cache_holder[0] = c
+    def _residual_2d(y):
+        a, T = float(y[0]), float(y[1])
+        if not (alpha_min <= a <= alpha_max and t_min <= T <= t_max):
+            return np.array([1e6, 1e6])
+        c = _eval([a, T])
         if c["empty"]:
-            return 1e10
-        return c["objective"]
+            return np.array([1e6, 1e6])
+        return c["residual"]
 
-    def constraint_position(y):
-        c = cache_holder[0]
-        if c is None or c["empty"]:
-            c = _nlp_eval(y, departure_state, nlp_dynamics)
-            cache_holder[0] = c
-        if c["empty"]:
-            return 1e6
-        return c["pos_violation"]
+    def _solve_2d(a_init, T_init):
+        try:
+            sol = root(
+                _residual_2d,
+                [a_init, T_init],
+                method="lm",
+                options={"maxiter": NLP_MAXITER, "xtol": 1e-12},
+            )
+            a_sol, T_sol = float(sol.x[0]), float(sol.x[1])
+            res_norm_sq = float(sol.fun @ sol.fun)
+            in_box = alpha_min <= a_sol <= alpha_max and t_min <= T_sol <= t_max
+            ok = sol.success and res_norm_sq < 1e-8 and in_box
+            return a_sol, T_sol, ok
+        except Exception:
+            return a_init, T_init, False
 
-    bounds = Bounds(lb=[alpha_min, t_min], ub=[alpha_max, t_max])  # type: ignore[arg-type]
-    constraints = [{"type": "eq", "fun": constraint_position}]
+    a_lo = max(alpha_min, alpha_0 - 0.05)
+    a_hi = min(alpha_max, alpha_0 + 0.05)
+    alpha_starts = np.linspace(a_lo, a_hi, 5) if a_hi > a_lo else np.array([alpha_0])
 
-    try:
-        result = minimize(
-            objective,
-            y0,
-            method="SLSQP",
-            bounds=bounds,
-            constraints=constraints,
-            options={"ftol": NLP_FTOL, "maxiter": NLP_MAXITER, "disp": verbose},
-        )
+    best = None
+    best_dv = float("inf")
 
-        final_y = result.x
-        c = _nlp_eval(final_y, departure_state, nlp_dynamics)
+    for a_start in alpha_starts:
+        a_sol, T_sol, ok = _solve_2d(float(a_start), T_0)
+        if not ok:
+            continue
+        c = _eval([a_sol, T_sol])
+        if c["empty"] or c["collided"]:
+            continue
+        dv_total = c["dv1"] + c["dv2"]
+        if dv_total < best_dv:
+            best_dv = dv_total
+            best = {"alpha": a_sol, "T": T_sol, "c": c}
 
-        return {
-            "search_index": rec.get("departure_time_index", -1),
-            "alpha": float(rec["alpha"]),
-            "transfer_time": float(rec["transfer_time"]),
-            "departure_state": rec["departure_state"],
-            "is_feasible": rec.get("is_feasible"),
-            "dv_departure": rec.get("dv_departure"),
-            "nlp": {
-                "success": bool(result.success),
-                "alpha": float(final_y[0]),
-                "transfer_time": float(final_y[1]),
-                "objective_value": c["objective"] if not c["empty"] else float(result.fun),
-                "delta_v1": c.get("dv1", 0.0),
-                "delta_v2": c.get("dv2", 0.0),
-                "dist_from_earth": c.get("dist_from_earth", float("nan")),
-                "pos_violation": c.get("pos_violation", float("nan")),
-                "message": str(result.message),
-            },
+    used_fallback = False
+    if best is None:
+        used_fallback = True
+
+        def _nm_obj(y):
+            a, T = y
+            if not (alpha_min <= a <= alpha_max and t_min <= T <= t_max):
+                return 1e10
+            c = _eval([float(a), float(T)])
+            if c["empty"]:
+                return 1e10
+            return c["pos_violation"]
+
+        try:
+            nm_res = minimize(
+                _nm_obj,
+                [alpha_0, T_0],
+                method="Nelder-Mead",
+                options={"maxiter": 200, "adaptive": True, "xatol": 1e-8, "fatol": 1e-10},
+            )
+            c = _eval([float(nm_res.x[0]), float(nm_res.x[1])])
+            if not c["empty"] and not c["collided"] and c["pos_violation"] < 1e-6:
+                best = {"alpha": float(nm_res.x[0]), "T": float(nm_res.x[1]), "c": c}
+        except Exception:
+            if verbose:
+                logger.info(f"    Nelder-Mead 兜底失败 idx={rec.get('departure_time_index', '?')}")
+
+    base_payload = {
+        "search_index": rec.get("departure_time_index", -1),
+        "alpha": alpha_0,
+        "transfer_time": T_0,
+        "departure_state": rec["departure_state"],
+        "is_feasible": rec.get("is_feasible"),
+        "dv_departure": rec.get("dv_departure"),
+        "search_min_distance": rec.get("min_distance"),
+    }
+
+    if best is None:
+        base_payload["nlp"] = {
+            "success": False,
+            "message": "root-find + Nelder-Mead 均未收敛或被碰撞过滤拒绝",
+            "used_fallback": used_fallback,
         }
-    except Exception:
-        return {
-            "search_index": rec.get("departure_time_index", -1),
-            "alpha": float(rec["alpha"]),
-            "transfer_time": float(rec["transfer_time"]),
-            "departure_state": rec["departure_state"],
-            "nlp": {"success": False, "message": traceback.format_exc()},
-        }
+        return base_payload
+
+    c = best["c"]
+    base_payload["nlp"] = {
+        "success": True,
+        "alpha": best["alpha"],
+        "transfer_time": best["T"],
+        "objective_value": c["objective"],
+        "delta_v1": c["dv1"],
+        "delta_v2": c["dv2"],
+        "dist_from_earth": c["dist_from_earth"],
+        "r_xy": c["r_xy"],
+        "z_rel": c["z_rel"],
+        "pos_violation": c["pos_violation"],
+        "collided": False,
+        "used_fallback": used_fallback,
+        "message": "ok",
+    }
+    return base_payload
 
 
 # =====================================================================
@@ -345,6 +417,7 @@ def main() -> None:
     feasible_indexed: List[Tuple[int, Dict[str, Any]]] = [
         (i, r) for i, r in enumerate(all_results) if r.get("is_feasible")
     ]
+    feasible_indexed.sort(key=lambda x: x[1].get("min_distance", float("inf")))
     n_feasible_total = len(feasible_indexed)
 
     if top_k is not None:
@@ -456,7 +529,9 @@ def main() -> None:
                     "alpha_range": [alpha_min, alpha_max],
                     "transfer_time_range": [t_min, t_max],
                     "geo_radius": R_GEO,
-                    "nlp_solver": "scipy_slsqp",
+                    "geo_constraint": "equatorial_circle (r_xy=R_GEO, z=0)",
+                    "solver": "scipy_root_lm + nelder_mead_fallback",
+                    "feasible_sort_key": "min_distance",
                     "n_optimized": len(records),
                     "parallel_backend": PARALLEL_BACKEND,
                     "n_workers_requested": n_workers,
