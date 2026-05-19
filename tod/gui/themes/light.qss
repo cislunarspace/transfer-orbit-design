@@ -14,7 +14,11 @@ QComboBox { background-color: #ffffff; color: #333333; border: 1px solid #ccc; p
 QComboBox QAbstractItemView { background-color: #ffffff; color: #333333; selection-background-color: #d0d0d0; }
 QLineEdit { background-color: #ffffff; color: #333333; border: 1px solid #ccc; padding: 4px; }
 QSpinBox { background-color: #ffffff; color: #333333; border: 1px solid #ccc; padding: 4px; }
-QCheckBox { color: #333333; }
+QCheckBox { color: #333333; spacing: 6px; }
+QCheckBox::indicator { width: 18px; height: 18px; border: 2px solid #888; border-radius: 4px; background-color: #ffffff; }
+QCheckBox::indicator:hover { border-color: #555; }
+QCheckBox::indicator:checked { background-color: #0078d4; border-color: #0078d4; }
+QCheckBox::indicator:checked:hover { background-color: #106ebe; border-color: #106ebe; }
 QGroupBox { color: #333333; border: 1px solid #ccc; margin-top: 8px; padding-top: 8px; }
 QStatusBar { background-color: #e0e0e0; color: #333333; }
 QToolBar { background-color: #e0e0e0; border: none; }
