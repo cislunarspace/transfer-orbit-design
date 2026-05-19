@@ -57,6 +57,12 @@ def parse_args():
                         help="0=北 Halo (Class I), 1=南 Halo (Class II)")
     parser.add_argument("--max-iterations", type=int, default=150, help="最大迭代次数")
     parser.add_argument("--tolerance", type=float, default=1e-6, help="修正容差")
+    parser.add_argument("--x0", type=float, default=None,
+                        help="初始 x 坐标（覆盖自动计算）")
+    parser.add_argument("--vy0", type=float, default=None,
+                        help="初始 y 方向速度（覆盖自动计算）")
+    parser.add_argument("--period", type=float, default=None,
+                        help="目标周期（覆盖自动计算，单位 TU）")
     return parser.parse_args()
 
 
@@ -313,18 +319,19 @@ def main():
     logger.info("Z振幅: %s", amplitude_z)
 
     # =============================================================================
-    # 3. 获取初始猜测
+    # 3. 获取初始猜测（可被命令行参数覆盖）
     # =============================================================================
     guess = _get_initial_guess(MU, amplitude_z, libration_point, halo_class)
-    x0 = guess["x0"]
-    vy0 = guess["vy0"]
-    t_half = guess["period"] / 2
+    x0 = args.x0 if args.x0 is not None else guess["x0"]
+    vy0 = args.vy0 if args.vy0 is not None else guess["vy0"]
+    period = args.period if args.period is not None else guess["period"]
+    t_half = period / 2
 
     logger.debug("初始猜测:")
     logger.debug("  x0 = %.10f", x0)
     logger.debug("  z0 = %s", z0)
     logger.debug("  vy0 = %.10f", vy0)
-    logger.debug("  半周期 = %.6f TU (%.2f days)", t_half, t_half * TU)
+    logger.debug("  周期 = %.6f TU (%.2f days)", period, period * TU)
 
     # =============================================================================
     # 4. 用 scipy.optimize 求解
