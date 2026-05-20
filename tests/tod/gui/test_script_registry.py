@@ -70,3 +70,84 @@ def test_all_cli_param_default_units_are_in_group() -> None:
                     )
 
     assert not invalid, "无效的 default_unit:\n" + "\n".join(invalid)
+
+
+def test_ephemeris_conversion_entries_are_grouped_by_orbit_type() -> None:
+    entries_by_path = {
+        entry.script_path: entry
+        for entries in SCRIPTS.values()
+        for entry in entries
+    }
+
+    expected_paths = {
+        "tod/generates/ephemeris/dro/correct_dro_to_ephemeris.py",
+        "tod/generates/ephemeris/dro/correct_dro_family_to_ephemeris.py",
+        "tod/generates/ephemeris/halo/correct_halo_to_ephemeris.py",
+        "tod/generates/ephemeris/halo/correct_halo_family_to_ephemeris.py",
+    }
+
+    assert expected_paths <= entries_by_path.keys()
+
+
+def _ephemeris_conversion_entry(name: str):
+    for entry in SCRIPTS["Ephemeris"]:
+        if entry.name == name:
+            return entry
+    raise AssertionError(f"Ephemeris entry not registered: {name}")
+
+
+def test_ephemeris_conversion_entries_expose_required_method_controls() -> None:
+    for name in (
+        "correct_dro_to_ephemeris",
+        "correct_dro_family_to_ephemeris",
+        "correct_halo_to_ephemeris",
+        "correct_halo_family_to_ephemeris",
+    ):
+        params = {param.flag: param for param in _ephemeris_conversion_entry(name).cli_params}
+
+        assert params["--input-file"].label == "星历转换输入文件"
+        assert params["--reference-epoch"].label == "参考历元"
+        assert params["--reference-epoch"].required is True
+        assert params["--method"].label == "星历转换方法"
+        assert params["--method"].default == "two_level"
+        assert params["--method"].choices == ("standard", "two_level", "homotopy")
+
+
+def test_ephemeris_single_entries_allow_family_selection_by_index() -> None:
+    for name in ("correct_dro_to_ephemeris", "correct_halo_to_ephemeris"):
+        params = {param.flag: param for param in _ephemeris_conversion_entry(name).cli_params}
+
+        assert "--orbit-index" in params
+        assert params["--input-file"].name_pattern is None
+
+
+def test_ephemeris_family_entries_prefer_family_files_and_expose_family_controls() -> None:
+    for name in ("correct_dro_family_to_ephemeris", "correct_halo_family_to_ephemeris"):
+        params = {param.flag: param for param in _ephemeris_conversion_entry(name).cli_params}
+
+        assert params["--input-file"].name_pattern == "*_family_*.json"
+        assert "--orbit-index" not in params
+        assert {"--family-workers", "--fail-fast", "--include-full-trajectory"} <= params.keys()
+
+
+def test_ephemeris_conversion_entries_expose_advanced_controls() -> None:
+    expected_advanced = {
+        "--patch-points",
+        "--position-tol",
+        "--velocity-tol",
+        "--spice-kernel-dir",
+        "--bodies",
+        "--output-file",
+        "--per-orbit-workers",
+    }
+
+    for name in (
+        "correct_dro_to_ephemeris",
+        "correct_dro_family_to_ephemeris",
+        "correct_halo_to_ephemeris",
+        "correct_halo_family_to_ephemeris",
+    ):
+        params = {param.flag: param for param in _ephemeris_conversion_entry(name).cli_params}
+
+        assert expected_advanced <= params.keys()
+        assert all(params[flag].advanced for flag in expected_advanced)

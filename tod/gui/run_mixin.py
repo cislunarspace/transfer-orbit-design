@@ -108,18 +108,21 @@ class RunMixin:
                 if cli_param.required is not None
                 else bool(cli_param.file_category and not cli_param.default)
             )
-            if cli_param.file_category and required:
+            if required:
                 if isinstance(widget, QComboBox):
                     text = widget.currentText().strip()
-                    if not text:
-                        QMessageBox.warning(
-                            self,
-                            "参数缺失",
-                            f"脚本需要参数 '{cli_param.label}'，但未选择文件。\n"
-                            "请从下拉列表中选择一个文件或手动输入路径。",
-                        )
-                        widget.setFocus()
-                        return False
+                elif isinstance(widget, QLineEdit):
+                    text = widget.text().strip()
+                else:
+                    text = ""
+                if not text:
+                    QMessageBox.warning(
+                        self,
+                        "参数缺失",
+                        f"脚本需要参数 '{cli_param.label}'，但未填写。",
+                    )
+                    widget.setFocus()
+                    return False
 
             # float 参数合法性
             if cli_param.param_type == "float" and isinstance(widget, QLineEdit):

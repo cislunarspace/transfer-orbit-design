@@ -129,85 +129,22 @@ class TestEphemerisHelperFunctions:
 
 
 class TestEphemerisCorrectionMethodSelection:
-    """Test ephemeris correction method dispatch without SPICE kernels."""
+    """Test TOD correction compatibility wrapper delegates to e2m2e."""
 
-    def test_standard_method_uses_multiple_shooting_and_normalizes_result(self):
+    def test_corrector_delegates_to_e2m2e_dispatch(self):
         from tod.generates.ephemeris._corrector import correct_ephemeris_patch_points
 
         dynamics = object()
         t_patch = np.array([0.0, 1.0, 2.0])
         state_patch = np.zeros((3, 6))
-        solver_result = SimpleNamespace(
-            converged=True,
-            iterations=3,
-            max_residual=1e-4,
-            residual_history=[1e-2, 1e-4],
-            t_patch=t_patch + 10.0,
-            state_patch=state_patch + 1.0,
-        )
+        expected = SimpleNamespace(converged=True)
 
         with patch(
-            "tod.generates.ephemeris._corrector.MultipleShooting"
-        ) as mock_multiple_shooting:
-            mock_solver = mock_multiple_shooting.return_value
-            mock_solver.correct.return_value = solver_result
-
+            "tod.generates.ephemeris._corrector._e2m2e_correct_ephemeris_patch_points",
+            return_value=expected,
+        ) as dispatch:
             result = correct_ephemeris_patch_points(
-                "standard",
-                dynamics,
-                t_patch,
-                state_patch,
-                tolerance=1e-3,
-                max_iter=50,
-                verbose=True,
-                n_workers=4,
-                kernel_dir="kernels",
-            )
-
-        mock_multiple_shooting.assert_called_once_with(
-            dynamics=dynamics,
-            n_workers=4,
-            kernel_dir="kernels",
-        )
-        mock_solver.correct.assert_called_once_with(
-            t_patch=t_patch,
-            state_patch=state_patch,
-            var_time=True,
-            max_iter=50,
-            tolerance=1e-3,
-            verbose=True,
-        )
-        assert result.converged is True
-        assert result.iterations == 3
-        np.testing.assert_allclose([result.max_residual], [1e-4])
-        np.testing.assert_allclose(result.residual_history, [1e-2, 1e-4])
-        np.testing.assert_allclose(result.t_patch, t_patch + 10.0)
-        np.testing.assert_allclose(result.state_patch, state_patch + 1.0)
-
-    def test_two_level_method_uses_two_level_solver_and_normalizes_result(self):
-        from tod.generates.ephemeris._corrector import correct_ephemeris_patch_points
-
-        dynamics = object()
-        t_patch = np.array([0.0, 1.0, 2.0])
-        state_patch = np.zeros((3, 6))
-        solver_result = SimpleNamespace(
-            converged=True,
-            outer_iterations=2,
-            final_position_residual=1e-5,
-            final_velocity_residual=2e-5,
-            residual_history=[(1e-2, 1e-1), (1e-5, 2e-5)],
-            t_patch=t_patch + 20.0,
-            state_patch=state_patch + 2.0,
-        )
-
-        with patch(
-            "tod.generates.ephemeris._corrector.TwoLevelMultipleShooting"
-        ) as mock_two_level:
-            mock_solver = mock_two_level.return_value
-            mock_solver.correct.return_value = solver_result
-
-            result = correct_ephemeris_patch_points(
-                "two_level",
+                "homotopy",
                 dynamics,
                 t_patch,
                 state_patch,
@@ -219,37 +156,16 @@ class TestEphemerisCorrectionMethodSelection:
                 velocity_tolerance=1e-6,
             )
 
-        mock_two_level.assert_called_once_with(dynamics)
-        mock_solver.correct.assert_called_once_with(
-            t_patch=t_patch,
-            state_patch=state_patch,
-            max_outer_iterations=50,
-            position_tolerance=1e-3,
-            velocity_tolerance=1e-6,
-            boundary="fixed_endpoints",
+        assert result is expected
+        dispatch.assert_called_once_with(
+            "homotopy",
+            dynamics,
+            t_patch,
+            state_patch,
+            tolerance=1e-3,
+            max_iter=50,
             verbose=True,
+            n_workers=4,
+            kernel_dir="kernels",
+            velocity_tolerance=1e-6,
         )
-        assert result.converged is True
-        assert result.iterations == 2
-        np.testing.assert_allclose([result.max_residual], [1e-5])
-        np.testing.assert_allclose(result.residual_history, [1e-2, 1e-5])
-        np.testing.assert_allclose([result.velocity_residual], [2e-5])
-        np.testing.assert_allclose(result.velocity_residual_history, [1e-1, 2e-5])
-        np.testing.assert_allclose(result.t_patch, t_patch + 20.0)
-        np.testing.assert_allclose(result.state_patch, state_patch + 2.0)
-
-    def test_unknown_method_is_rejected(self):
-        from tod.generates.ephemeris._corrector import correct_ephemeris_patch_points
-
-        with pytest.raises(ValueError, match="unsupported correction method"):
-            correct_ephemeris_patch_points(
-                "unknown",
-                object(),
-                np.array([0.0, 1.0, 2.0]),
-                np.zeros((3, 6)),
-                tolerance=1e-3,
-                max_iter=50,
-                verbose=False,
-                n_workers=1,
-                kernel_dir="kernels",
-            )

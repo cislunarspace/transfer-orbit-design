@@ -5,6 +5,7 @@ import json
 import os
 import tempfile
 from collections.abc import Callable
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -195,23 +196,34 @@ def run_family_conversion(
     config: FamilyConversionConfig, deps: ConversionDependencies | None = None
 ) -> dict[str, Any]:
     payloads = load_family_payloads(config.input_file)
-    dependencies = deps or default_conversion_dependencies()
+    dependencies = deps
+    if dependencies is None and (config.family_workers <= 1 or config.fail_fast):
+        dependencies = default_conversion_dependencies()
 
-    def convert(payload: dict[str, Any], index: int, include_full_trajectory: bool) -> dict[str, Any]:
-        return convert_orbit(payload, config, dependencies, include_full_trajectory)
+    if deps is None and config.family_workers > 1 and not config.fail_fast:
+        entries = run_default_family_payload_conversion_parallel(
+            payloads,
+            config,
+            include_full_trajectory=config.include_full_trajectory,
+            family_workers=config.family_workers,
+        )
+    else:
+        def convert(payload: dict[str, Any], index: int, include_full_trajectory: bool) -> dict[str, Any]:
+            return convert_orbit(payload, config, dependencies, include_full_trajectory)
 
-    entries = run_family_payload_conversion(
-        payloads,
-        convert,
-        fail_fast=config.fail_fast,
-        include_full_trajectory=config.include_full_trajectory,
-    )
+        entries = run_family_payload_conversion(
+            payloads,
+            convert,
+            fail_fast=config.fail_fast,
+            include_full_trajectory=config.include_full_trajectory,
+            family_workers=config.family_workers,
+        )
     payload = {
         "metadata": _family_metadata(config),
         "results": entries,
     }
     _write_output(payload, _resolve_output_file(config.output_file, "family", config.orbit_type))
-    if dependencies.finalize is not None:
+    if dependencies is not None and dependencies.finalize is not None:
         dependencies.finalize()
     return payload
 
@@ -355,7 +367,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--reference-epoch", required=True, help="UTC reference epoch for CR3BP-to-J2000 mapping.")
     parser.add_argument(
         "--method",
-        choices=("standard", "two_level"),
+        choices=("standard", "two_level", "homotopy"),
         default="two_level",
         help="Ephemeris correction method.",
     )
@@ -383,7 +395,84 @@ def load_family_payloads(input_file: Path) -> list[dict[str, Any]]:
     return list(orbits)
 
 
+def run_default_family_payload_conversion_parallel(
+    payloads: list[dict[str, Any]],
+    config: FamilyConversionConfig,
+    *,
+    include_full_trajectory: bool,
+    family_workers: int,
+) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any] | None] = [None] * len(payloads)
+    with ProcessPoolExecutor(max_workers=family_workers) as executor:
+        futures = {
+            executor.submit(
+                _convert_family_payload_with_default_dependencies,
+                payload,
+                index,
+                config,
+                include_full_trajectory,
+            ): (index, payload)
+            for index, payload in enumerate(payloads)
+        }
+        for future in as_completed(futures):
+            index, payload = futures[future]
+            try:
+                conversion_result = future.result()
+            except Exception as exc:
+                entries[index] = _family_failure_entry(index, payload, exc)
+            else:
+                entries[index] = _family_success_entry(index, conversion_result)
+    return [entry for entry in entries if entry is not None]
+
+
+def _convert_family_payload_with_default_dependencies(
+    payload: dict[str, Any],
+    index: int,
+    config: FamilyConversionConfig,
+    include_full_trajectory: bool,
+) -> dict[str, Any]:
+    deps = default_conversion_dependencies()
+    try:
+        return convert_orbit(payload, config, deps, include_full_trajectory)
+    finally:
+        if deps.finalize is not None:
+            deps.finalize()
+
+
 def run_family_payload_conversion(
+    payloads: list[dict[str, Any]],
+    convert: Callable[[dict[str, Any], int, bool], dict[str, Any]],
+    *,
+    fail_fast: bool,
+    include_full_trajectory: bool,
+    family_workers: int = 1,
+) -> list[dict[str, Any]]:
+    if family_workers <= 1 or fail_fast:
+        return _run_family_payload_conversion_serial(
+            payloads,
+            convert,
+            fail_fast=fail_fast,
+            include_full_trajectory=include_full_trajectory,
+        )
+
+    entries: list[dict[str, Any] | None] = [None] * len(payloads)
+    with ThreadPoolExecutor(max_workers=family_workers) as executor:
+        futures = {
+            executor.submit(convert, payload, index, include_full_trajectory): (index, payload)
+            for index, payload in enumerate(payloads)
+        }
+        for future in as_completed(futures):
+            index, payload = futures[future]
+            try:
+                conversion_result = future.result()
+            except Exception as exc:
+                entries[index] = _family_failure_entry(index, payload, exc)
+            else:
+                entries[index] = _family_success_entry(index, conversion_result)
+    return [entry for entry in entries if entry is not None]
+
+
+def _run_family_payload_conversion_serial(
     payloads: list[dict[str, Any]],
     convert: Callable[[dict[str, Any], int, bool], dict[str, Any]],
     *,
@@ -395,25 +484,29 @@ def run_family_payload_conversion(
         try:
             conversion_result = convert(payload, index, include_full_trajectory)
         except Exception as exc:
-            entries.append(
-                {
-                    "orbit_index": index,
-                    "status": "failure",
-                    "error": str(exc),
-                    "source_summary": _orbit_source_summary(payload),
-                }
-            )
+            entries.append(_family_failure_entry(index, payload, exc))
             if fail_fast:
                 break
         else:
-            entries.append(
-                {
-                    "orbit_index": index,
-                    "status": "success",
-                    "result": conversion_result,
-                }
-            )
+            entries.append(_family_success_entry(index, conversion_result))
     return entries
+
+
+def _family_success_entry(index: int, conversion_result: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "orbit_index": index,
+        "status": "success",
+        "result": conversion_result,
+    }
+
+
+def _family_failure_entry(index: int, payload: dict[str, Any], exc: Exception) -> dict[str, Any]:
+    return {
+        "orbit_index": index,
+        "status": "failure",
+        "error": str(exc),
+        "source_summary": _orbit_source_summary(payload),
+    }
 
 
 def _validate_continuity(

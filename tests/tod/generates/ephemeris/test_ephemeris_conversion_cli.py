@@ -9,7 +9,7 @@ import pytest
 from tod.generates.ephemeris import _conversion
 
 
-def _fake_conversion_dependencies():
+def _fake_conversion_dependencies(finalize=None):
     orbit = SimpleNamespace(period=1.0, states=[[1, 2, 3, 4, 5, 6]])
     result = SimpleNamespace(
         converged=True,
@@ -33,6 +33,7 @@ def _fake_conversion_dependencies():
         sample_patch_points=MagicMock(return_value=([0.0, 1.0], [[1], [2]])),
         convert_to_j2000=MagicMock(return_value=([10.0, 20.0], [[10], [20]])),
         correct_patch_points=MagicMock(return_value=result),
+        finalize=finalize,
     )
 
 
@@ -131,6 +132,24 @@ def test_single_parser_rejects_unknown_method():
                 "bogus",
             ]
         )
+
+
+def test_single_parser_accepts_homotopy_method():
+    parser = _conversion.build_single_parser("dro")
+
+    args = parser.parse_args(
+        [
+            "--input-file",
+            "orbit.json",
+            "--reference-epoch",
+            "2025-06-21T11:00:06",
+            "--method",
+            "homotopy",
+        ]
+    )
+    config = _conversion.single_config_from_args(args, "dro")
+
+    assert config.method == "homotopy"
 
 
 def test_family_parser_defaults_to_serial_lightweight_continue_on_failure():
@@ -289,6 +308,45 @@ def test_load_family_payloads_returns_ordered_orbits(tmp_path):
     assert loaded == [{"period": 1.0}, {"period": 2.0}]
 
 
+def test_run_family_payload_conversion_uses_requested_worker_count(monkeypatch):
+    def serial_path(*args, **kwargs):
+        raise AssertionError("family_workers > 1 should not use serial path")
+
+    def convert(payload, index, include_full_trajectory):
+        return {"period": payload["period"], "index": index}
+
+    monkeypatch.setattr(_conversion, "_run_family_payload_conversion_serial", serial_path)
+
+    result = _conversion.run_family_payload_conversion(
+        [{"period": 1.0}, {"period": 2.0}],
+        convert,
+        fail_fast=False,
+        include_full_trajectory=False,
+        family_workers=2,
+    )
+
+    assert [entry["result"]["index"] for entry in result] == [0, 1]
+
+
+def test_run_family_payload_conversion_records_parallel_failures_in_input_order():
+    def convert(payload, index, include_full_trajectory):
+        if index == 1:
+            raise RuntimeError("bad orbit")
+        return {"period": payload["period"], "index": index}
+
+    result = _conversion.run_family_payload_conversion(
+        [{"period": 1.0}, {"period": 2.0}, {"period": 3.0}],
+        convert,
+        fail_fast=False,
+        include_full_trajectory=False,
+        family_workers=2,
+    )
+
+    assert [entry["orbit_index"] for entry in result] == [0, 1, 2]
+    assert [entry["status"] for entry in result] == ["success", "failure", "success"]
+    assert result[1]["error"] == "bad orbit"
+
+
 def test_run_family_payload_conversion_records_failures_and_continues():
     def convert(payload, index, include_full_trajectory):
         if index == 1:
@@ -417,6 +475,65 @@ def test_run_family_conversion_writes_lightweight_output_by_default(tmp_path):
     assert saved["metadata"]["orbit_type"] == "halo"
     assert saved["metadata"]["include_full_trajectory"] is False
     assert [entry["status"] for entry in saved["results"]] == ["success", "success"]
+
+
+def test_run_family_conversion_uses_process_workers_for_parallel_default(tmp_path, monkeypatch):
+    input_file = tmp_path / "family.json"
+    output_file = tmp_path / "family-result.json"
+    input_file.write_text(
+        json.dumps({"orbits": [{"period": 1.0}, {"period": 2.0}]}),
+        encoding="utf-8",
+    )
+    config = _conversion.FamilyConversionConfig(
+        orbit_type="halo",
+        input_file=input_file,
+        reference_epoch="2025-06-21T11:00:06",
+        method="two_level",
+        patch_points=10,
+        position_tol=1e-3,
+        velocity_tol=1e-6,
+        spice_kernel_dir=tmp_path / "kernels",
+        bodies=("EARTH", "MOON", "SUN"),
+        output_file=output_file,
+        per_orbit_workers=1,
+        family_workers=2,
+        fail_fast=False,
+        include_full_trajectory=False,
+    )
+    submitted = []
+
+    class FakeFuture:
+        def __init__(self, result):
+            self._result = result
+
+        def result(self):
+            return self._result
+
+    class FakeProcessPoolExecutor:
+        def __init__(self, max_workers):
+            self.max_workers = max_workers
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def submit(self, func, payload, index, submitted_config, include_full_trajectory):
+            submitted.append((func, payload, index, submitted_config, include_full_trajectory, self.max_workers))
+            return FakeFuture({"index": index})
+
+    monkeypatch.setattr(_conversion, "ProcessPoolExecutor", FakeProcessPoolExecutor)
+    monkeypatch.setattr(_conversion, "as_completed", lambda futures: list(futures))
+
+    result = _conversion.run_family_conversion(config)
+
+    assert [call[0] for call in submitted] == [
+        _conversion._convert_family_payload_with_default_dependencies,
+        _conversion._convert_family_payload_with_default_dependencies,
+    ]
+    assert {call[5] for call in submitted} == {2}
+    assert [entry["result"]["index"] for entry in result["results"]] == [0, 1]
 
 
 def test_convert_orbit_runs_shared_pipeline_with_injected_dependencies(tmp_path):
