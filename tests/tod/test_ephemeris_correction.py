@@ -20,27 +20,10 @@ project_root = Path(__file__).resolve().parent.parent.parent
 class TestEphemerisScriptImports:
     """Test that ephemeris correction script can be imported and parsed"""
 
-    @patch("e2m2e.core.SPICEManager")
-    @patch("e2m2e.core.EphemerisSystem")
-    @patch("e2m2e.core.EphemerisDynamics")
-    @patch("e2m2e.core.SynodicJ2000Transformation")
-    @patch("e2m2e.core.CR3BP_System")
-    @patch("e2m2e.core.CR3BP_Dynamics")
-    @patch("e2m2e.algorithms.DifferentialCorrection")
-    @patch("e2m2e.algorithms.MultipleShooting")
     def test_correct_dro_to_ephemeris_imports(
         self,
-        mock_ms,
-        mock_corr,
-        mock_dyn,
-        mock_sys,
-        mock_syn,
-        mock_eph_dyn,
-        mock_eph_sys,
-        mock_spice,
     ):
         """Test that correct_dro_to_ephemeris.py can be imported without errors"""
-        mock_corr.return_value.iterate_correction.return_value = MagicMock()
 
         script_path = (
             project_root

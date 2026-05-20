@@ -1,0 +1,583 @@
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import tempfile
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+
+project_root = Path(__file__).resolve().parent.parent.parent.parent
+DEFAULT_OUTPUT_DIR = project_root / "output" / "ephemeris"
+DEFAULT_SPICE_KERNEL_DIR = Path(
+    os.environ.get("SPICE_KERNEL_DIR", str(project_root.parent / "e2m2e" / "kernels"))
+)
+DEFAULT_BODIES = ("EARTH", "MOON", "SUN")
+
+
+@dataclass(frozen=True)
+class ConversionDependencies:
+    build_orbit: Callable[[dict[str, Any]], Any]
+    build_dynamics: Callable[[SingleConversionConfig | FamilyConversionConfig], Any]
+    reference_et: Callable[[SingleConversionConfig | FamilyConversionConfig], float]
+    sample_patch_points: Callable[[Any, int], tuple[Any, Any]]
+    convert_to_j2000: Callable[[Any, Any, float], tuple[Any, Any]]
+    correct_patch_points: Callable[
+        [SingleConversionConfig | FamilyConversionConfig, Any, Any, Any], Any
+    ]
+    finalize: Callable[[], None] | None = None
+
+
+@dataclass(frozen=True)
+class LoadedOrbitPayload:
+    payload: dict[str, Any]
+    orbit_index: int | None
+
+
+@dataclass(frozen=True)
+class SingleConversionConfig:
+    orbit_type: str
+    input_file: Path
+    reference_epoch: str
+    method: str
+    patch_points: int
+    position_tol: float
+    velocity_tol: float
+    spice_kernel_dir: Path
+    bodies: tuple[str, ...]
+    output_file: Path | None
+    per_orbit_workers: int
+    orbit_index: int | None
+    include_full_trajectory: bool = True
+
+
+@dataclass(frozen=True)
+class FamilyConversionConfig:
+    orbit_type: str
+    input_file: Path
+    reference_epoch: str
+    method: str
+    patch_points: int
+    position_tol: float
+    velocity_tol: float
+    spice_kernel_dir: Path
+    bodies: tuple[str, ...]
+    output_file: Path | None
+    per_orbit_workers: int
+    family_workers: int
+    fail_fast: bool
+    include_full_trajectory: bool
+
+
+def build_single_parser(orbit_type: str) -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=f"Convert one {orbit_type.upper()} orbit from CR3BP to ephemeris model."
+    )
+    _add_common_arguments(parser)
+    parser.add_argument(
+        "--orbit-index",
+        type=int,
+        default=None,
+        help="Select one orbit from a family JSON input.",
+    )
+    return parser
+
+
+def build_family_parser(orbit_type: str) -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description=f"Convert a {orbit_type.upper()} orbit family from CR3BP to ephemeris model."
+    )
+    _add_common_arguments(parser)
+    parser.add_argument(
+        "--family-workers",
+        type=_positive_int,
+        default=1,
+        help="Number of family-level workers; defaults to serial processing.",
+    )
+    parser.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help="Stop family conversion on the first failed orbit.",
+    )
+    parser.add_argument(
+        "--include-full-trajectory",
+        action="store_true",
+        help="Include propagated full trajectories for each converted family member.",
+    )
+    return parser
+
+
+def single_config_from_args(
+    args: argparse.Namespace, orbit_type: str
+) -> SingleConversionConfig:
+    return SingleConversionConfig(
+        orbit_type=orbit_type,
+        input_file=Path(args.input_file),
+        reference_epoch=args.reference_epoch,
+        method=args.method,
+        patch_points=args.patch_points,
+        position_tol=args.position_tol,
+        velocity_tol=args.velocity_tol,
+        spice_kernel_dir=Path(args.spice_kernel_dir),
+        bodies=_parse_bodies(args.bodies),
+        output_file=_optional_path(args.output_file),
+        per_orbit_workers=args.per_orbit_workers,
+        orbit_index=args.orbit_index,
+    )
+
+
+def family_config_from_args(
+    args: argparse.Namespace, orbit_type: str
+) -> FamilyConversionConfig:
+    return FamilyConversionConfig(
+        orbit_type=orbit_type,
+        input_file=Path(args.input_file),
+        reference_epoch=args.reference_epoch,
+        method=args.method,
+        patch_points=args.patch_points,
+        position_tol=args.position_tol,
+        velocity_tol=args.velocity_tol,
+        spice_kernel_dir=Path(args.spice_kernel_dir),
+        bodies=_parse_bodies(args.bodies),
+        output_file=_optional_path(args.output_file),
+        per_orbit_workers=args.per_orbit_workers,
+        family_workers=args.family_workers,
+        fail_fast=args.fail_fast,
+        include_full_trajectory=args.include_full_trajectory,
+    )
+
+
+def load_single_orbit_payload(input_file: Path, orbit_index: int | None) -> LoadedOrbitPayload:
+    data = _load_json_object(input_file)
+    if "orbits" not in data:
+        return LoadedOrbitPayload(payload=data, orbit_index=None)
+
+    if orbit_index is None:
+        raise ValueError("family input requires --orbit-index for single-orbit conversion")
+
+    orbits = data["orbits"]
+    if not isinstance(orbits, list):
+        raise ValueError("family input field 'orbits' must be a list")
+    if orbit_index < 0 or orbit_index >= len(orbits):
+        raise IndexError(f"orbit index {orbit_index} out of range")
+    orbit_payload = orbits[orbit_index]
+    if not isinstance(orbit_payload, dict):
+        raise ValueError("family orbit entry must be a JSON object")
+    return LoadedOrbitPayload(payload=orbit_payload, orbit_index=orbit_index)
+
+
+def run_single_conversion(
+    config: SingleConversionConfig, deps: ConversionDependencies | None = None
+) -> dict[str, Any]:
+    loaded = load_single_orbit_payload(config.input_file, config.orbit_index)
+    dependencies = deps or default_conversion_dependencies()
+    conversion_result = convert_orbit(
+        loaded.payload,
+        config,
+        dependencies,
+        include_full_trajectory=config.include_full_trajectory,
+    )
+    payload = {
+        "metadata": _single_metadata(config, loaded.orbit_index),
+        "result": conversion_result,
+    }
+    _write_output(payload, _resolve_output_file(config.output_file, "single", config.orbit_type))
+    if dependencies.finalize is not None:
+        dependencies.finalize()
+    return payload
+
+
+def run_family_conversion(
+    config: FamilyConversionConfig, deps: ConversionDependencies | None = None
+) -> dict[str, Any]:
+    payloads = load_family_payloads(config.input_file)
+    dependencies = deps or default_conversion_dependencies()
+
+    def convert(payload: dict[str, Any], index: int, include_full_trajectory: bool) -> dict[str, Any]:
+        return convert_orbit(payload, config, dependencies, include_full_trajectory)
+
+    entries = run_family_payload_conversion(
+        payloads,
+        convert,
+        fail_fast=config.fail_fast,
+        include_full_trajectory=config.include_full_trajectory,
+    )
+    payload = {
+        "metadata": _family_metadata(config),
+        "results": entries,
+    }
+    _write_output(payload, _resolve_output_file(config.output_file, "family", config.orbit_type))
+    if dependencies.finalize is not None:
+        dependencies.finalize()
+    return payload
+
+
+def convert_orbit(
+    payload: dict[str, Any],
+    config: SingleConversionConfig | FamilyConversionConfig,
+    deps: ConversionDependencies,
+    include_full_trajectory: bool,
+) -> dict[str, Any]:
+    orbit = deps.build_orbit(payload)
+    if getattr(orbit, "period", None) is None:
+        raise ValueError(f"unable to determine {config.orbit_type} orbit period")
+    dynamics = deps.build_dynamics(config)
+    reference_et = deps.reference_et(config)
+    t_patch_syn, states_syn = deps.sample_patch_points(orbit, config.patch_points)
+    t_patch_j2000, states_j2000 = deps.convert_to_j2000(
+        t_patch_syn, states_syn, reference_et
+    )
+    correction = deps.correct_patch_points(config, dynamics, t_patch_j2000, states_j2000)
+    continuity = _validate_continuity(
+        dynamics,
+        _to_list(correction.t_patch),
+        _to_nested_list(correction.state_patch),
+        include_full_trajectory,
+    )
+    result = {
+        "status": "success",
+        "converged": bool(correction.converged),
+        "iterations": int(correction.iterations),
+        "max_residual": float(correction.max_residual),
+        "velocity_residual": _optional_float(correction.velocity_residual),
+        "residual_history": [float(value) for value in correction.residual_history],
+        "velocity_residual_history": _optional_float_list(
+            correction.velocity_residual_history
+        ),
+        "corrected_states": _to_nested_list(correction.state_patch),
+        "corrected_times_et": _to_list(correction.t_patch),
+        "position_errors_km": continuity["position_errors_km"],
+        "source_summary": _orbit_source_summary(payload),
+    }
+    if include_full_trajectory:
+        result.update(
+            {
+                "full_trajectory_states": continuity["full_trajectory_states"],
+                "full_trajectory_times_et": continuity["full_trajectory_times_et"],
+            }
+        )
+    return result
+
+
+def default_conversion_dependencies() -> ConversionDependencies:
+    from e2m2e.algorithms import convert_to_j2000, sample_patch_points
+    from e2m2e.core import (
+        CR3BP_System,
+        EphemerisDynamics,
+        EphemerisSystem,
+        Orbit,
+        SPICEManager,
+        SynodicJ2000Transformation,
+    )
+    import spiceypy
+
+    from tod.commons.common import MU, TU
+    from tod.generates.ephemeris._corrector import correct_ephemeris_patch_points
+
+    spice = SPICEManager()
+    cr3bp_system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
+
+    def build_orbit(payload: dict[str, Any]) -> Any:
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".json", delete=False) as file:
+            json.dump(payload, file)
+            temp_path = Path(file.name)
+        try:
+            return Orbit.load_from_file(filename=temp_path, system=cr3bp_system)
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+    def build_dynamics(config: SingleConversionConfig | FamilyConversionConfig) -> Any:
+        kernel_path = spice.find_ephemeris_kernel(str(config.spice_kernel_dir))
+        leapseconds_path = config.spice_kernel_dir / "naif0012.tls"
+        spiceypy.furnsh(str(leapseconds_path))
+        spice.load_kernel(kernel_path)
+        eph_system = EphemerisSystem(
+            bodies=list(config.bodies),
+            spice=spice,
+            origin="EARTH",
+            frame="J2000",
+        )
+        return EphemerisDynamics(system=eph_system)
+
+    def reference_et(config: SingleConversionConfig | FamilyConversionConfig) -> float:
+        return float(spice.utc_to_et(config.reference_epoch))
+
+    def convert_states(t_patch_syn: Any, states_syn: Any, reference_et_value: float) -> tuple[Any, Any]:
+        transform = SynodicJ2000Transformation(cr3bp_system=cr3bp_system, spice=spice)
+        return convert_to_j2000(t_patch_syn, states_syn, transform, reference_et_value, TU)
+
+    def correct(
+        config: SingleConversionConfig | FamilyConversionConfig,
+        dynamics: Any,
+        t_patch_j2000: Any,
+        states_j2000: Any,
+    ) -> Any:
+        return correct_ephemeris_patch_points(
+            config.method,
+            dynamics,
+            t_patch_j2000,
+            states_j2000,
+            tolerance=config.position_tol,
+            max_iter=50,
+            verbose=True,
+            n_workers=config.per_orbit_workers,
+            kernel_dir=str(config.spice_kernel_dir),
+            velocity_tolerance=config.velocity_tol,
+        )
+
+    return ConversionDependencies(
+        build_orbit=build_orbit,
+        build_dynamics=build_dynamics,
+        reference_et=reference_et,
+        sample_patch_points=sample_patch_points,
+        convert_to_j2000=convert_states,
+        correct_patch_points=correct,
+        finalize=spiceypy.kclear,
+    )
+
+
+def main_single(orbit_type: str, argv: list[str] | None = None) -> dict[str, Any]:
+    parser = build_single_parser(orbit_type)
+    return run_single_conversion(single_config_from_args(parser.parse_args(argv), orbit_type))
+
+
+def main_family(orbit_type: str, argv: list[str] | None = None) -> dict[str, Any]:
+    parser = build_family_parser(orbit_type)
+    return run_family_conversion(family_config_from_args(parser.parse_args(argv), orbit_type))
+
+
+def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--input-file", required=True, help="Ephemeris conversion input JSON file.")
+    parser.add_argument("--reference-epoch", required=True, help="UTC reference epoch for CR3BP-to-J2000 mapping.")
+    parser.add_argument(
+        "--method",
+        choices=("standard", "two_level"),
+        default="two_level",
+        help="Ephemeris correction method.",
+    )
+    parser.add_argument("--patch-points", type=int, default=10)
+    parser.add_argument("--position-tol", type=float, default=1e-3)
+    parser.add_argument("--velocity-tol", type=float, default=1e-6)
+    parser.add_argument(
+        "--spice-kernel-dir",
+        default=str(DEFAULT_SPICE_KERNEL_DIR),
+        help="Directory containing SPICE kernels.",
+    )
+    parser.add_argument("--bodies", default=",".join(DEFAULT_BODIES))
+    parser.add_argument("--output-file", default=None)
+    parser.add_argument("--per-orbit-workers", type=_positive_int, default=1)
+
+
+def load_family_payloads(input_file: Path) -> list[dict[str, Any]]:
+    data = _load_json_object(input_file)
+    orbits = data.get("orbits")
+    if not isinstance(orbits, list):
+        raise ValueError("family conversion input must contain top-level 'orbits' list")
+    for orbit in orbits:
+        if not isinstance(orbit, dict):
+            raise ValueError("family orbit entries must be JSON objects")
+    return list(orbits)
+
+
+def run_family_payload_conversion(
+    payloads: list[dict[str, Any]],
+    convert: Callable[[dict[str, Any], int, bool], dict[str, Any]],
+    *,
+    fail_fast: bool,
+    include_full_trajectory: bool,
+) -> list[dict[str, Any]]:
+    entries = []
+    for index, payload in enumerate(payloads):
+        try:
+            conversion_result = convert(payload, index, include_full_trajectory)
+        except Exception as exc:
+            entries.append(
+                {
+                    "orbit_index": index,
+                    "status": "failure",
+                    "error": str(exc),
+                    "source_summary": _orbit_source_summary(payload),
+                }
+            )
+            if fail_fast:
+                break
+        else:
+            entries.append(
+                {
+                    "orbit_index": index,
+                    "status": "success",
+                    "result": conversion_result,
+                }
+            )
+    return entries
+
+
+def _validate_continuity(
+    dynamics: Any,
+    corrected_times: list[float],
+    corrected_states: list[list[float]],
+    include_full_trajectory: bool,
+) -> dict[str, Any]:
+    position_errors = []
+    full_states = []
+    full_times = []
+    for index in range(max(0, len(corrected_states) - 1)):
+        propagation = dynamics.propagate(
+            corrected_states[index],
+            (corrected_times[index], corrected_times[index + 1]),
+        )
+        propagated_states = _to_nested_list(propagation["states"])
+        propagated_times = _to_list(propagation["time"])
+        position_errors.append(
+            _position_error(propagated_states[-1], corrected_states[index + 1])
+        )
+        if include_full_trajectory:
+            if index > 0:
+                propagated_states = propagated_states[1:]
+                propagated_times = propagated_times[1:]
+            full_states.extend(propagated_states)
+            full_times.extend(propagated_times)
+    return {
+        "position_errors_km": position_errors,
+        "full_trajectory_states": full_states,
+        "full_trajectory_times_et": full_times,
+    }
+
+
+def _position_error(left_state: list[float], right_state: list[float]) -> float:
+    return sum(
+        (float(left_state[index]) - float(right_state[index])) ** 2 for index in range(3)
+    ) ** 0.5
+
+
+def _to_list(values: Any) -> list[float]:
+    if hasattr(values, "tolist"):
+        values = values.tolist()
+    return [float(value) for value in values]
+
+
+def _to_nested_list(values: Any) -> list[list[float]]:
+    if hasattr(values, "tolist"):
+        values = values.tolist()
+    return [[float(item) for item in row] for row in values]
+
+
+def _optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    return float(value)
+
+
+def _optional_float_list(values: Any) -> list[float] | None:
+    if values is None:
+        return None
+    return [float(value) for value in values]
+
+
+def _single_metadata(
+    config: SingleConversionConfig, selected_orbit_index: int | None
+) -> dict[str, Any]:
+    metadata = _base_metadata(config)
+    metadata.update(
+        {
+            "mode": "single",
+            "orbit_index": selected_orbit_index,
+            "include_full_trajectory": config.include_full_trajectory,
+        }
+    )
+    return metadata
+
+
+def _family_metadata(config: FamilyConversionConfig) -> dict[str, Any]:
+    metadata = _base_metadata(config)
+    metadata.update(
+        {
+            "mode": "family",
+            "family_workers": config.family_workers,
+            "fail_fast": config.fail_fast,
+            "include_full_trajectory": config.include_full_trajectory,
+        }
+    )
+    return metadata
+
+
+def _base_metadata(config: SingleConversionConfig | FamilyConversionConfig) -> dict[str, Any]:
+    return {
+        "source_path": str(config.input_file),
+        "orbit_type": config.orbit_type,
+        "method": config.method,
+        "reference_epoch": config.reference_epoch,
+        "body_set": list(config.bodies),
+        "patch_point_count": config.patch_points,
+        "position_tolerance_km": config.position_tol,
+        "velocity_tolerance_km_s": config.velocity_tol,
+        "spice_kernel_dir": str(config.spice_kernel_dir),
+        "per_orbit_workers": config.per_orbit_workers,
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
+    }
+
+
+def _resolve_output_file(
+    output_file: Path | None, mode: str, orbit_type: str
+) -> Path:
+    if output_file is not None:
+        return output_file
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    return DEFAULT_OUTPUT_DIR / f"{orbit_type}_{mode}_ephemeris_conversion_{timestamp}.json"
+
+
+def _write_output(payload: dict[str, Any], output_file: Path) -> None:
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    with output_file.open("w", encoding="utf-8") as file:
+        json.dump(payload, file, indent=2, ensure_ascii=False)
+
+
+def _summarize_family_orbit(
+    payload: dict[str, Any], index: int, include_full_trajectory: bool
+) -> dict[str, Any]:
+    summary = _orbit_source_summary(payload)
+    return {
+        "orbit_index": index,
+        "source_summary": summary,
+        "include_full_trajectory": include_full_trajectory,
+    }
+
+
+def _orbit_source_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: payload[key]
+        for key in ("period", "x0", "vy0", "z0")
+        if key in payload
+    }
+
+
+def _load_json_object(input_file: Path) -> dict[str, Any]:
+    with input_file.open("r", encoding="utf-8") as file:
+        data = json.load(file)
+    if not isinstance(data, dict):
+        raise ValueError("ephemeris conversion input must be a JSON object")
+    return data
+
+
+def _parse_bodies(value: str) -> tuple[str, ...]:
+    bodies = tuple(body.strip().upper() for body in value.split(",") if body.strip())
+    if not bodies:
+        raise ValueError("--bodies must contain at least one body")
+    return bodies
+
+
+def _positive_int(value: str) -> int:
+    parsed = int(value)
+    if parsed < 1:
+        raise argparse.ArgumentTypeError("value must be at least 1")
+    return parsed
+
+
+def _optional_path(value: str | None) -> Path | None:
+    if value is None:
+        return None
+    return Path(value)
