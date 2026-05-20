@@ -28,10 +28,34 @@ def parse_args():
     parser = argparse.ArgumentParser(description="绘制 DRO 轨道族")
     parser.add_argument("--json-file", type=str, default=None, help="轨道族 JSON 文件路径")
     parser.add_argument("--plot-global-2d", action="store_true", help="绘制 DRO 轨道族在 XY 平面的全局 2D 视图")
-    parser.add_argument("--plot-global-3d", action="store_true", help="绘制 DRO 轨道族在 3D 空间的全局视图（以月球为中心）")
+    parser.add_argument("--plot-global-3d", action="store_true", help="绘制 DRO 轨道族在 3D 空间的全局视图")
+    parser.add_argument("--plot-center", type=str, default="moon", choices=["moon", "earth", "emb"],
+                        help="3D 视图的绘图中心：moon=月球, earth=地球, emb=地月质心")
+    parser.add_argument("--plot-elev", type=float, default=20.0, help="3D 视图仰角（度）")
+    parser.add_argument("--plot-azim", type=float, default=-60.0, help="3D 视图方位角（度）")
     parser.add_argument("--plot-jacobi-stability", action="store_true", help="绘制 Jacobi 常数与周期、稳定性的关系曲线")
     parser.add_argument("--no-show", action="store_true", help="只保存图片，不弹窗显示")
     return parser.parse_args()
+
+
+def get_center_coordinates(center_type: str, mu: float) -> tuple[float, float, float]:
+    """根据中心类型返回旋转坐标系中的坐标。
+
+    Args:
+        center_type: "moon", "earth", 或 "emb"
+        mu: 地月质量比
+
+    Returns:
+        (x, y, z) 坐标元组
+    """
+    if center_type == "moon":
+        return (1.0 - mu, 0.0, 0.0)
+    elif center_type == "earth":
+        return (0.0, 0.0, 0.0)
+    elif center_type == "emb":
+        return (mu, 0.0, 0.0)
+    else:
+        raise ValueError(f"Unknown center type: {center_type}")
 
 
 def main() -> None:
@@ -98,20 +122,26 @@ def main() -> None:
         )
 
     # =============================================================================
-    # 2. Global 3D view (centered on Moon)
+    # 2. Global 3D view (configurable center)
     # =============================================================================
     if args.plot_global_3d:
         import matplotlib.pyplot as plt
-        moon_x = 1 - MU  # ≈ 0.9879, Moon center in rotating frame
+        import math
+
+        center = get_center_coordinates(args.plot_center, MU)
+        elev_deg = args.plot_elev
+        azim_deg = args.plot_azim
+
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=".*Tight layout.*")
             fig_3d, ax_3d = plotter.plot_family_3d(
                 family_result, jacobi_values,
-                title=f"DRO Family in Earth-Moon CR3BP (3D) — {n_orbits} orbits",
-                center=(moon_x, 0.0, 0.0),
+                title=f"DRO Family in Earth-Moon CR3BP (3D) — {n_orbits} orbits\n"
+                      f"Center: {args.plot_center.title()}, Elev: {elev_deg:.1f}°, Azim: {azim_deg:.1f}°",
+                center=center,
                 radius=1.5,
-                elev=20,
-                azim=-60,
+                elev=elev_deg,
+                azim=azim_deg,
                 show_bodies=True,
                 show_libration=True,
                 show_colorbar=True,

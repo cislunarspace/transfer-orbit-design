@@ -239,7 +239,9 @@ class ParamsPanelMixin(DocLinkMixin):
                 tks=target_keys,
             ):
                 has_value = False
-                if isinstance(tw, QComboBox):
+                if isinstance(tw, QCheckBox):
+                    has_value = tw.isChecked()
+                elif isinstance(tw, QComboBox):
                     has_value = bool(tw.currentText().strip())
                 elif isinstance(tw, QLineEdit):
                     has_value = bool(tw.text().strip())
