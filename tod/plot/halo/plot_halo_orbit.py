@@ -95,8 +95,6 @@ def _plot_2d_view(
     plotter: FamilyPlotter,
     subset_family: OrbitFamily,
     jacobi_subset: list[float],
-    seed_orbit: Orbit,
-    seed_jacobi: float,
     xlim: tuple[float, float],
     ylim: tuple[float, float],
     output_dir: Path,
@@ -105,7 +103,7 @@ def _plot_2d_view(
 ) -> None:
     """绘制全局 2D 视图（XZ 平面）。"""
     jmin, jmax = min(jacobi_subset), max(jacobi_subset)
-    _, ax_2d = plotter.plot_family_2d(
+    plotter.plot_family_2d(
         subset_family, jacobi_subset,
         title=f"Halo Orbit Family in Earth-Moon CR3BP (XZ Plane) - {n_orbits} orbits\n"
               f"C = [{jmin:.4f}, {jmax:.4f}]",
@@ -113,11 +111,6 @@ def _plot_2d_view(
         show_bodies=True, show_libration=True, show_colorbar=True,
         xlim=xlim, ylim=ylim,
         show=False,
-    )
-    plotter.plot_2d_projection(
-        seed_orbit, plane="xz", color="red",
-        label=f"Seed Halo (C={seed_jacobi:.4f})",
-        ax=ax_2d,
     )
     plt.tight_layout()
     plt.savefig(output_dir / f"{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
@@ -238,7 +231,7 @@ def main(plot1: int | None = None, plot2: int | None = None, plot3: int | None =
     seed_jacobi = jacobi_values[0]
 
     if plot1:
-        _plot_2d_view(plotter, subset_family, jacobi_subset, seed_orbit, seed_jacobi,
+        _plot_2d_view(plotter, subset_family, jacobi_subset,
                       xlim_2d, ylim_2d, output_dir, family_name, n_orbits)
     if plot2:
         _plot_3d_view(plotter, subset_family, jacobi_subset, seed_orbit, seed_jacobi,
