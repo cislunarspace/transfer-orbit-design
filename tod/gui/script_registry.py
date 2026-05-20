@@ -274,7 +274,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ),
         ScriptEntry(
             "halo", "plot_halo_family",
-            "绘制 Halo 轨道族（含 Jacobi/稳定性分析）",
+            "绘制 Halo 轨道族",
             "tod/plot/halo/plot_halo_family.py",
             output_dir="output/halo",
             group_label="绘图",
