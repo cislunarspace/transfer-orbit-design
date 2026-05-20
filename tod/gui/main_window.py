@@ -102,7 +102,8 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
             self._gui_defaults["settings"].update(settings)
             self._save_gui_defaults()
 
-            if "theme" in settings:
+            # 只有 theme 实际改变时才 rebuild UI
+            if "theme" in settings and settings["theme"] != self._current_theme_mode:
                 self._current_theme_mode = settings["theme"]
                 MainWindow._current_theme_mode = settings["theme"]
                 self._on_theme_changed()
