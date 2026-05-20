@@ -1,6 +1,7 @@
 import argparse
 import logging
 import sys
+import warnings
 from pathlib import Path
 
 if not logging.getLogger().handlers:
@@ -27,7 +28,9 @@ def parse_args():
     parser = argparse.ArgumentParser(description="绘制 DRO 轨道族")
     parser.add_argument("--json-file", type=str, default=None, help="轨道族 JSON 文件路径")
     parser.add_argument("--plot-global-2d", action="store_true", help="绘制 DRO 轨道族在 XY 平面的全局 2D 视图")
+    parser.add_argument("--plot-global-3d", action="store_true", help="绘制 DRO 轨道族在 3D 空间的全局视图（以月球为中心）")
     parser.add_argument("--plot-jacobi-stability", action="store_true", help="绘制 Jacobi 常数与周期、稳定性的关系曲线")
+    parser.add_argument("--no-show", action="store_true", help="只保存图片，不弹窗显示")
     return parser.parse_args()
 
 
@@ -36,7 +39,7 @@ def main() -> None:
     output_dir = project_root / "output" / "dro"
 
     # 如果所有绘图开关都未启用，输出警告并跳过
-    if not args.plot_global_2d and not args.plot_jacobi_stability:
+    if not args.plot_global_2d and not args.plot_global_3d and not args.plot_jacobi_stability:
         logger.warning("未选择任何图表，跳过绘制")
         return
 
@@ -44,7 +47,7 @@ def main() -> None:
         family_path = Path(args.json_file)
         family_name = family_path.stem
     else:
-        family_name = "dro_family_0.141886-0.9-0.005_3857978855"
+        family_name = "dro_31_family_0.141886-0.9-0.005_1779175978"
         family_path = output_dir / f"{family_name}.json"
 
     # =============================================================================
@@ -90,25 +93,51 @@ def main() -> None:
     if args.plot_global_2d:
         plotter.plot_family_2d(
             family_result, jacobi_values,
-            # title=f"DRO Family in Earth-Moon CR3BP (XY Plane) - {n_orbits} orbits\n"
-                #   f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
             save_path=str(output_dir / f"{family_name}_global_2d_view.png"),
             step=5
         )
 
     # =============================================================================
-    # 2. Jacobi-Period-Stability
+    # 2. Global 3D view (centered on Moon)
+    # =============================================================================
+    if args.plot_global_3d:
+        import matplotlib.pyplot as plt
+        moon_x = 1 - MU  # ≈ 0.9879, Moon center in rotating frame
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*Tight layout.*")
+            fig_3d, ax_3d = plotter.plot_family_3d(
+                family_result, jacobi_values,
+                title=f"DRO Family in Earth-Moon CR3BP (3D) — {n_orbits} orbits",
+                center=(moon_x, 0.0, 0.0),
+                radius=1.5,
+                elev=20,
+                azim=-60,
+                show_bodies=True,
+                show_libration=True,
+                show_colorbar=True,
+                step=5,
+                show=False,
+            )
+        plt.savefig(output_dir / f"{family_name}_global_3d_view.png", dpi=300, bbox_inches="tight")
+        if not args.no_show:
+            plt.show()
+        else:
+            plt.close(fig_3d)
+
+    # =============================================================================
+    # 3. Jacobi-Period-Stability
     # =============================================================================
     if args.plot_jacobi_stability:
         plotter.plot_jacobi_period_stability(
             jacobi_values, family_result.periods, stability_values,
-            # title=f"DRO Family: Jacobi Constant vs Period and Stability\n(n = {n_orbits} orbits)",
             save_path=str(output_dir / f"{family_name}_jacobi_period_stability.png"),
         )
 
     logger.info("\n所有图表已保存到 output/dro/ 目录:")
     if args.plot_global_2d:
         logger.info(f"  - {family_name}_global_2d_view.png      : 全局2D视图")
+    if args.plot_global_3d:
+        logger.info(f"  - {family_name}_global_3d_view.png      : 全局3D视图")
     if args.plot_jacobi_stability:
         logger.info(f"  - {family_name}_jacobi_period_stability.png : Jacobi常数-周期-稳定性图")
 
