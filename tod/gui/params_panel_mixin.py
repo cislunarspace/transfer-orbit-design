@@ -261,6 +261,108 @@ class ParamsPanelMixin(DocLinkMixin):
 
             update_visibility()
 
+    def _collect_current_param_values(self) -> dict[str, dict[str, str | None]]:
+        """收集当前参数面板中的所有参数值（显示值），用于 UI rebuild 时恢复。
+
+        Returns:
+            {"env": {key: path_or_none}, "cli": {key: display_value}}
+            - env: 从 _env_widgets 收集，值为文件路径或 None
+            - cli: 从 _cli_widgets 收集，值为显示值
+        """
+        collected: dict[str, dict[str, str | None]] = {"env": {}, "cli": {}}
+
+        # 收集环境变量参数（文件选择下拉框）
+        for key, combo in self._env_widgets.items():
+            collected["env"][key] = combo.currentData()
+
+        # 收集命令行参数（显示值）
+        for key, widget in self._cli_widgets.items():
+            if isinstance(widget, QCheckBox):
+                collected["cli"][key] = str(widget.isChecked())
+            elif isinstance(widget, QSpinBox):
+                collected["cli"][key] = str(widget.value())
+            elif isinstance(widget, QLineEdit):
+                collected["cli"][key] = widget.text().strip()
+            elif isinstance(widget, QComboBox):
+                # path_mode_toggles: 格式化为 {"mode": ..., "path": ...}
+                if widget in self._widget_factory.path_mode_toggles:
+                    mode_combo = self._widget_factory.path_mode_toggles[widget]
+                    mode = "relative" if mode_combo.currentText() == "相对" else "absolute"
+                    collected["cli"][key] = json.dumps(
+                        {"mode": mode, "path": widget.currentText()}, ensure_ascii=False
+                    )
+                else:
+                    collected["cli"][key] = widget.currentText().strip()
+
+        return collected
+
+    def _restore_param_values(self, saved: dict[str, dict[str, str | None]]) -> None:
+        """将暂存的参数值恢复到控件。
+
+        Args:
+            saved: _collect_current_param_values() 返回的值
+        """
+        # 恢复环境变量参数（文件选择下拉框）
+        for key, path in saved.get("env", {}).items():
+            combo = self._env_widgets.get(key)
+            if combo is None:
+                continue
+            if path is None:
+                combo.setCurrentIndex(0)  # 选中 "（使用脚本默认值）"
+            else:
+                idx = combo.findData(path)
+                if idx >= 0:
+                    combo.setCurrentIndex(idx)
+                else:
+                    combo.setCurrentText(str(path))
+
+        # 恢复命令行参数
+        for key, display_value in saved.get("cli", {}).items():
+            widget = self._cli_widgets.get(key)
+            if widget is None:
+                continue
+
+            if isinstance(widget, QCheckBox):
+                widget.setChecked(display_value.lower() == "true")
+            elif isinstance(widget, QSpinBox):
+                try:
+                    widget.setValue(int(float(display_value)))
+                except ValueError:
+                    pass
+            elif isinstance(widget, QLineEdit):
+                # 带单位的控件：显示值 → 标准单位值 → _set_widget_std_value
+                if widget in self._widget_factory.unit_combos and display_value:
+                    try:
+                        display_val = float(display_value)
+                    except ValueError:
+                        widget.setText(display_value)
+                        continue
+                    combo = self._widget_factory.unit_combos[widget]
+                    group_name = self._widget_factory.unit_groups[widget]
+                    group = UNIT_GROUPS[group_name]
+                    units = list(group.keys())
+                    factor = group[units[combo.currentIndex()]]
+                    std_val = display_val * factor
+                    widget.setText(f"{std_val:.10g}")
+                else:
+                    widget.setText(display_value)
+            elif isinstance(widget, QComboBox):
+                # path_mode_toggles 或普通 combo
+                if display_value.startswith("{"):
+                    try:
+                        data = json.loads(display_value)
+                        mode_combo = self._widget_factory.path_mode_toggles.get(widget)
+                        if mode_combo:
+                            mode_combo.blockSignals(True)
+                            mode_combo.setCurrentText("相对" if data.get("mode") == "relative" else "绝对")
+                            mode_combo.blockSignals(False)
+                            self._on_path_mode_changed(widget, mode_combo)
+                        widget.setCurrentText(data.get("path", ""))
+                    except (json.JSONDecodeError, KeyError):
+                        widget.setCurrentText(display_value)
+                else:
+                    widget.setCurrentText(display_value)
+
     def _on_save_defaults(self) -> None:
         """将当前参数值保存为当前脚本的默认值。"""
         if self._current_script is None:

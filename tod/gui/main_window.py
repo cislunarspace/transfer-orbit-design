@@ -110,6 +110,9 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
 
     def _on_theme_changed(self) -> None:
         """主题变化后，重建左侧面板和参数面板的颜色，并应用新样式表。"""
+        # 暂存当前参数值（用于 rebuild 后恢复）
+        saved_params = self._collect_current_param_values() if self._current_script else None
+
         # 应用新样式表
         self.setStyleSheet(_get_theme_stylesheet(self._current_theme_mode))
 
@@ -124,6 +127,9 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         # 重建参数面板（如果当前有选中脚本）
         if self._current_script is not None:
             self._rebuild_params_panel(self._current_script)
+            # 恢复暂存的参数值
+            if saved_params:
+                self._restore_param_values(saved_params)
 
     # ── Toolbar ────────────────────────────────────────────────
 
