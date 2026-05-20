@@ -22,6 +22,8 @@ if not logging.getLogger().handlers:
         stream=sys.stdout,
     )
 
+import warnings
+
 import matplotlib.pyplot as plt
 import numpy as np
 from e2m2e.core import Orbit, OrbitFamily, CR3BP_System
@@ -103,16 +105,17 @@ def _plot_2d_view(
 ) -> None:
     """绘制全局 2D 视图（XZ 平面）。"""
     jmin, jmax = min(jacobi_subset), max(jacobi_subset)
-    plotter.plot_family_2d(
-        subset_family, jacobi_subset,
-        title=f"Halo Orbit Family in Earth-Moon CR3BP (XZ Plane) - {n_orbits} orbits\n"
-              f"C = [{jmin:.4f}, {jmax:.4f}]",
-        plane="xz",
-        show_bodies=True, show_libration=True, show_colorbar=True,
-        xlim=xlim, ylim=ylim,
-        show=False,
-    )
-    plt.tight_layout()
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=".*Tight layout.*")
+        plotter.plot_family_2d(
+            subset_family, jacobi_subset,
+            title=f"Halo Orbit Family in Earth-Moon CR3BP (XZ Plane) - {n_orbits} orbits\n"
+                  f"C = [{jmin:.4f}, {jmax:.4f}]",
+            plane="xz",
+            show_bodies=True, show_libration=True, show_colorbar=True,
+            xlim=xlim, ylim=ylim,
+            show=False,
+        )
     plt.savefig(output_dir / f"{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
     plt.show()
 
@@ -129,14 +132,15 @@ def _plot_3d_view(
 ) -> None:
     """绘制全局 3D 视图。"""
     jmin, jmax = min(jacobi_subset), max(jacobi_subset)
-    plotter.plot_family_3d(
-        subset_family, jacobi_subset,
-        title=f"Halo Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
-              f"C = [{jmin:.4f}, {jmax:.4f}]",
-        center=center_3d, radius=radius_3d, elev=20, azim=-60,
-        show=False,
-    )
-    plt.tight_layout()
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=".*Tight layout.*")
+        plotter.plot_family_3d(
+            subset_family, jacobi_subset,
+            title=f"Halo Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
+                  f"C = [{jmin:.4f}, {jmax:.4f}]",
+            center=center_3d, radius=radius_3d, elev=20, azim=-60,
+            show=False,
+        )
     plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
     plt.show()
 
