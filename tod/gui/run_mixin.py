@@ -93,10 +93,6 @@ class RunMixin:
         env_overrides.update(plot_font_env_from_settings(self._gui_defaults.get("settings", {})))
         env_overrides.update(body_icon_env_from_settings(self._gui_defaults.get("settings", {})))
 
-        # 绘图脚本默认不弹窗，避免阻塞 GUI
-        if self._current_script.script_path.startswith("tod/plot/"):
-            extra_args.append("--no-show")
-
         self._job_manager.start_job(self._current_script, extra_args, env_overrides)
 
     def _validate_params(self) -> bool:
