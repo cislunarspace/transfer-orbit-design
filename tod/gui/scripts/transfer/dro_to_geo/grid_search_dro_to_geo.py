@@ -1,0 +1,78 @@
+"""Params for grid_search_dro_to_geo.py."""
+
+from tod.gui.script_registry import CliParam, ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    "transfer",
+    "grid_search_dro_to_geo",
+    "DRO→GEO 转移轨道网格搜索",
+    "tod/transfers/dro_to_geo/grid_search_dro_to_geo.py",
+    output_dir="output/transfer",
+    group_label="DRO→GEO",
+    cli_params=[
+        CliParam(
+            "--dro-file",
+            "DRO 文件",
+            "str",
+            help="DRO 轨道 JSON 文件路径",
+            file_category="dro",
+            name_pattern="dro_31_[0-9]*.json",
+        ),
+        CliParam("--n-departure", "出发点数", "int", "200", "出发时间网格数"),
+        CliParam("--n-alpha", "alpha 密度", "int", "100", "alpha 网格密度"),
+        CliParam("--alpha-min", "alpha 下界", "float", "0.5", "alpha 搜索下界"),
+        CliParam("--alpha-max", "alpha 上界", "float", "2.5", "alpha 搜索上界"),
+        CliParam(
+            "--max-transfer-time",
+            "最大转移时间",
+            "float",
+            "22.998482",
+            "最大转移时间（无量纲）",
+            unit_group="time",
+            default_unit="days",
+        ),
+        CliParam(
+            "--intersection-threshold",
+            "GEO 相交阈值",
+            "float",
+            "0.00026",
+            "GEO 相交距离阈值",
+            unit_group="distance",
+            default_unit="km",
+        ),
+        CliParam(
+            "--min-distance",
+            "最小距离阈值",
+            "float",
+            "0.00026",
+            "候选解最小距离阈值",
+            unit_group="distance",
+            default_unit="km",
+        ),
+        CliParam(
+            "--geo-n-points",
+            "GEO 采样点数",
+            "int",
+            "1000",
+            "GEO 轨道采样点数",
+        ),
+        CliParam(
+            "--earth-radius",
+            "地球半径",
+            "float",
+            "0.00052",
+            "地球碰撞检测半径",
+            unit_group="distance",
+            default_unit="km",
+        ),
+        CliParam(
+            "--moon-radius",
+            "月球半径",
+            "float",
+            "0.00026",
+            "月球碰撞检测半径",
+            unit_group="distance",
+            default_unit="km",
+        ),
+    ],
+)

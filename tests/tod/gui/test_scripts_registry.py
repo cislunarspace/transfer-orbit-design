@@ -15,16 +15,23 @@ def test_get_scripts_returns_dict_with_expected_categories(toy_scripts_dir: Path
 
 
 def test_get_scripts_returns_list_of_script_entries(toy_scripts_dir: Path) -> None:
-    """get_scripts() 返回的每个分类值是 ScriptEntry 列表。"""
-    from tod.gui.scripts._registry import get_scripts
-    from tod.gui.scripts._registry import ScriptEntryScan
+    """get_scripts() 返回的每个分类值是 _ScanEntry 列表。"""
+    from tod.gui.scripts._registry import _ScanEntry, get_scripts
 
     SCRIPTS = get_scripts(toy_scripts_dir)
 
+    required_fields = {"module", "name", "description", "script_path"}
     for category, entries in SCRIPTS.items():
-        assert isinstance(entries, list)
+        assert isinstance(entries, list), f"{category} value is not a list"
         for entry in entries:
-            assert isinstance(entry, ScriptEntryScan)
+            assert isinstance(entry, _ScanEntry), (
+                f"Entry {entry.name!r} is not a _ScanEntry"
+            )
+            # Duck typing: 验证 entry 有 ScriptEntry 所需的属性
+            for field_name in required_fields:
+                assert hasattr(entry, field_name), (
+                    f"Entry {entry.name!r} missing {field_name}"
+                )
 
 
 def test_get_scripts_scans_nested_subdirectories(toy_scripts_dir: Path) -> None:
@@ -68,7 +75,12 @@ def test_iter_script_files_skips_init_and_private(toy_scripts_dir: Path) -> None
 
 @pytest.fixture
 def toy_scripts_dir(tmp_path: Path, monkeypatch) -> Path:
-    """在临时目录创建玩具 scripts 结构用于测试扫描器。"""
+    """在临时目录创建玩具 scripts 结构用于测试扫描器。
+
+    使用 local mock ScriptEntry 而非真实导入，
+    因为 tod.gui.script_registry → tod.commons.constants → e2m2e → scipy
+    的依赖链在测试环境中可能不可用。
+    """
     scripts_dir = tmp_path / "scripts"
     scripts_dir.mkdir()
 
@@ -80,55 +92,74 @@ def toy_scripts_dir(tmp_path: Path, monkeypatch) -> Path:
     (scripts_dir / "transfer").mkdir()
 
     # 有效文件：generates/cr3bp/dro/generate_dro.py
-    # 不导入 tod.gui.script_registry，避免触发 scipy 依赖
     (scripts_dir / "generates" / "cr3bp" / "dro" / "generate_dro.py").write_text(
-        "from dataclasses import dataclass\n"
+        "from dataclasses import dataclass, field\n"
         "@dataclass(frozen=True)\n"
-        "class _Entry:\n"
-        '    module: str; name: str; description: str; script_path: str\n'
-        '    output_dir: str | None = None; accepts_file_arg: bool = False\n'
-        '    needs_spice: bool = False; env_params = None; cli_params = []\n'
+        "class ScriptEntry:\n"
+        '    module: str\n'
+        '    name: str\n'
+        '    description: str\n'
+        '    script_path: str\n'
+        '    output_dir: str | None = None\n'
+        '    accepts_file_arg: bool = False\n'
+        '    needs_spice: bool = False\n'
+        '    env_params: dict = field(default_factory=dict)\n'
+        '    cli_params: list = field(default_factory=list)\n'
         '    group_label: str = ""\n'
-        "SCRIPT_ENTRY = _Entry(\n"
+        "SCRIPT_ENTRY = ScriptEntry(\n"
         '    module="dro", name="generate_dro", description="Test",\n'
         '    script_path="tod/generates/cr3bp/dro/generate_dro.py", group_label="生成",\n'
-        ")\n", encoding="utf-8"
+        ")\n",
+        encoding="utf-8",
     )
 
     # 有效文件：plot/plot_dro.py
     (scripts_dir / "plot" / "plot_dro.py").write_text(
-        "from dataclasses import dataclass\n"
+        "from dataclasses import dataclass, field\n"
         "@dataclass(frozen=True)\n"
-        "class _Entry:\n"
-        '    module: str; name: str; description: str; script_path: str\n'
-        '    output_dir: str | None = None; accepts_file_arg: bool = False\n'
-        '    needs_spice: bool = False; env_params = None; cli_params = []\n'
+        "class ScriptEntry:\n"
+        '    module: str\n'
+        '    name: str\n'
+        '    description: str\n'
+        '    script_path: str\n'
+        '    output_dir: str | None = None\n'
+        '    accepts_file_arg: bool = False\n'
+        '    needs_spice: bool = False\n'
+        '    env_params: dict = field(default_factory=dict)\n'
+        '    cli_params: list = field(default_factory=list)\n'
         '    group_label: str = ""\n'
-        "SCRIPT_ENTRY = _Entry(\n"
+        "SCRIPT_ENTRY = ScriptEntry(\n"
         '    module="dro", name="plot_dro", description="Test",\n'
         '    script_path="tod/plot/dro/plot_dro.py", group_label="绘图",\n'
-        ")\n", encoding="utf-8"
+        ")\n",
+        encoding="utf-8",
     )
 
     # 有效文件：transfer/dro_to_geo/search.py
     (scripts_dir / "transfer").mkdir(exist_ok=True)
     (scripts_dir / "transfer" / "dro_to_geo").mkdir()
     (scripts_dir / "transfer" / "dro_to_geo" / "search.py").write_text(
-        "from dataclasses import dataclass\n"
+        "from dataclasses import dataclass, field\n"
         "@dataclass(frozen=True)\n"
-        "class _Entry:\n"
-        '    module: str; name: str; description: str; script_path: str\n'
-        '    output_dir: str | None = None; accepts_file_arg: bool = False\n'
-        '    needs_spice: bool = False; env_params = None; cli_params = []\n'
+        "class ScriptEntry:\n"
+        '    module: str\n'
+        '    name: str\n'
+        '    description: str\n'
+        '    script_path: str\n'
+        '    output_dir: str | None = None\n'
+        '    accepts_file_arg: bool = False\n'
+        '    needs_spice: bool = False\n'
+        '    env_params: dict = field(default_factory=dict)\n'
+        '    cli_params: list = field(default_factory=list)\n'
         '    group_label: str = ""\n'
-        "SCRIPT_ENTRY = _Entry(\n"
+        "SCRIPT_ENTRY = ScriptEntry(\n"
         '    module="transfer", name="search", description="Test",\n'
         '    script_path="tod/transfers/dro_to_geo/search.py", group_label="DRO→GEO",\n'
-        ")\n", encoding="utf-8"
+        ")\n",
+        encoding="utf-8",
     )
 
     # 无效文件隔离在单独子目录，避免污染其他测试
-    # 用 _test_invalid/ 前缀（以 _ 开头），扫描器会跳过
     (scripts_dir / "_test_invalid").mkdir()
     (scripts_dir / "_test_invalid" / "no_entry.py").write_text("x = 1\n", encoding="utf-8")
 
@@ -138,20 +169,21 @@ def toy_scripts_dir(tmp_path: Path, monkeypatch) -> Path:
 
     # 私有文件应该被跳过
     (scripts_dir / "generates" / "_private.py").write_text(
-        "from dataclasses import dataclass\n"
+        "from dataclasses import dataclass, field\n"
         "@dataclass(frozen=True)\n"
-        "class _Entry:\n"
+        "class ScriptEntry:\n"
         '    module: str; name: str; description: str; script_path: str\n'
         '    output_dir: str | None = None; accepts_file_arg: bool = False\n'
         '    needs_spice: bool = False; env_params = None; cli_params = []\n'
         '    group_label: str = ""\n'
-        "SCRIPT_ENTRY = _Entry(\n"
+        "SCRIPT_ENTRY = ScriptEntry(\n"
         '    module="dro", name="private", description="Test",\n'
         '    script_path="dummy.py", group_label="生成",\n'
-        ")\n", encoding="utf-8"
+        ")\n",
+        encoding="utf-8",
     )
 
-    # 将 tmp_path 加入 Python 路径，使 import 生效
+    # 将 tmp_path 加入 Python 路径
     import sys
     monkeypatch.setattr(sys, "path", [str(tmp_path)] + sys.path[:3])
 

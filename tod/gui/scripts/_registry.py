@@ -11,15 +11,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Iterator
 
 if TYPE_CHECKING:
-    from tod.gui.script_registry import CliParam, EnvParam
+    from tod.gui.script_registry import ScriptEntry
 
-# 自包含的最小类型，避免拉入 sciPy 等重型依赖。
-# 实际类型由 params 定义文件从 tod.gui.script_registry 导入，
-# 扫描器只读属性。
+# 自包含的最小类型，避免在导入时触发 sciPy 等重型依赖。
+# params 文件从 tod.gui.script_registry 导入真实的 ScriptEntry，
+# 扫描器只读属性，不参与类型转换。
 
 
 @dataclass(frozen=True)
-class ScriptEntryScan:
+class _ScanEntry:
     """扫描器视角下的 ScriptEntry，只包含分类所需的字段。"""
 
     module: str
@@ -37,7 +37,6 @@ class ScriptEntryScan:
 def iter_script_files(base: Path) -> Iterator[Path]:
     """Yield base 下所有含 SCRIPT_ENTRY 的 .py 文件（跳过私有目录和私有文件）。"""
     for path in base.rglob("*.py"):
-        # 跳过私有文件和私有目录下的所有内容
         if any(p.name.startswith("_") for p in path.relative_to(base).parents):
             continue
         if path.name.startswith("_") or path.name == "__init__.py":
@@ -45,7 +44,7 @@ def iter_script_files(base: Path) -> Iterator[Path]:
         yield path
 
 
-def _load_script_entry(file_path: Path) -> ScriptEntryScan:
+def _load_script_entry(file_path: Path) -> _ScanEntry:
     """从单个 .py 文件加载 SCRIPT_ENTRY，不存在则抛异常。"""
     spec = importlib.util.spec_from_file_location("_script_module", file_path)
     if spec is None or spec.loader is None:
@@ -65,7 +64,7 @@ def _load_script_entry(file_path: Path) -> ScriptEntryScan:
         )
 
     raw = module.SCRIPT_ENTRY
-    return ScriptEntryScan(
+    return _ScanEntry(
         module=raw.module,
         name=raw.name,
         description=raw.description,
@@ -79,15 +78,19 @@ def _load_script_entry(file_path: Path) -> ScriptEntryScan:
     )
 
 
-def _classify(entry: ScriptEntryScan) -> str:
+def _classify(entry: _ScanEntry) -> str:
     """根据 script_path 的目录结构推断分类键。
 
-    例如: "tod/generates/cr3bp/dro/generate_dro.py" → "generates"
+    例如: "tod/generates/ephemeris/dro/x.py" → "ephemeris"
+          "tod/generates/cr3bp/dro/x.py" → "generates"
           "tod/plot/dro/plot_dro.py" → "plot"
           "tod/transfers/dro_to_geo/search.py" → "transfer"
     """
-    parts = set(Path(entry.script_path).parts)
+    parts = Path(entry.script_path).parts
     if "generates" in parts:
+        # 细分：ephemeris 独立
+        if "ephemeris" in parts:
+            return "ephemeris"
         return "generates"
     if "plot" in parts:
         return "plot"
@@ -98,19 +101,19 @@ def _classify(entry: ScriptEntryScan) -> str:
     return "misc"
 
 
-def get_scripts(scripts_dir: Path | None = None) -> dict[str, list[ScriptEntryScan]]:
+def get_scripts(scripts_dir: Path | None = None) -> dict[str, list[_ScanEntry]]:
     """扫描 scripts_dir，返回分类后的脚本注册表。
 
     Args:
         scripts_dir: scripts/ 目录路径，默认为 tod/gui/scripts/
 
     Returns:
-        dict[str, list[ScriptEntryScan]]: 按分类键分组的 ScriptEntryScan 列表
+        dict[str, list[_ScanEntry]]: 按分类键分组的 _ScanEntry 列表
     """
     if scripts_dir is None:
         scripts_dir = Path(__file__).parent
 
-    SCRIPTS: dict[str, list[ScriptEntryScan]] = {}
+    SCRIPTS: dict[str, list[_ScanEntry]] = {}
 
     for file_path in iter_script_files(scripts_dir):
         entry = _load_script_entry(file_path)

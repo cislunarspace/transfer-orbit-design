@@ -1,0 +1,81 @@
+"""Params definition for generate_halo_orbit.py."""
+
+from tod.gui.script_registry import CliParam, EnvParam, ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    module="halo",
+    name="generate_halo_orbit",
+    description="生成 Halo 轨道（Richardson 三阶近似 + 微分修正）",
+    script_path="tod/generates/cr3bp/halo/generate_halo_orbit.py",
+    output_dir="output/halo",
+    group_label="生成",
+    cli_params=[
+        CliParam(
+            "--libration-point",
+            "平动点",
+            "str",
+            "L1",
+            "平动点：L1, L2, L3",
+            choices=("L1", "L2", "L3"),
+        ),
+        CliParam(
+            "--amplitude-z",
+            "Z 振幅",
+            "float",
+            "0.23",
+            "Z 方向振幅",
+            unit_group="distance",
+            default_unit="DU",
+        ),
+        CliParam(
+            "--halo-class",
+            "Halo 类型",
+            "str",
+            "北族",
+            help="Halo 轨道族类型",
+            choices=("北族", "南族"),
+            choice_values={"北族": "0", "南族": "1"},
+        ),
+        CliParam(
+            "--period",
+            "目标周期",
+            "float",
+            "1.839732",
+            "目标周期（无量纲）",
+            unit_group="time",
+            default_unit="days",
+        ),
+        CliParam(
+            "--x0",
+            "初始 x 坐标",
+            "float",
+            "0.9305269194214338",
+            "初始 x 坐标",
+            unit_group="distance",
+            default_unit="DU",
+        ),
+        CliParam(
+            "--vy0",
+            "初始 vy 速度",
+            "float",
+            "0.10431508546142665",
+            "初始 y 方向速度",
+            unit_group="velocity",
+            default_unit="VU",
+        ),
+        CliParam(
+            "--max-iterations",
+            "最大迭代次数",
+            "int",
+            "150",
+            "最大迭代次数",
+        ),
+        CliParam(
+            "--tolerance",
+            "修正容差",
+            "float",
+            "1e-6",
+            "修正容差",
+        ),
+    ],
+)

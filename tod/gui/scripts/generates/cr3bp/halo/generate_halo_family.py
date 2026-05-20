@@ -1,0 +1,73 @@
+"""Params definition for generate_halo_family.py."""
+
+from tod.gui.script_registry import CliParam, EnvParam, ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    module="halo",
+    name="generate_halo_family",
+    description="生成 Halo 轨道族（伪弧长延拓）",
+    script_path="tod/generates/cr3bp/halo/generate_halo_family.py",
+    output_dir="output/halo",
+    group_label="生成",
+    cli_params=[
+        CliParam(
+            "--libration-point",
+            "平动点",
+            "str",
+            "L1",
+            "平动点：L1, L2, L3",
+            choices=("L1", "L2", "L3"),
+        ),
+        CliParam(
+            "--halo-class",
+            "Halo 类型",
+            "str",
+            "北族",
+            help="Halo 轨道族类型",
+            choices=("北族", "南族"),
+            choice_values={"北族": "0", "南族": "1"},
+        ),
+        CliParam(
+            "--seed-file",
+            "种子轨道文件",
+            "str",
+            help="已有 Halo 轨道 JSON 文件（提供时跳过种子生成）",
+            file_category="halo",
+            name_pattern="halo_L[123]_[NS]_[0-9]*.json",
+            required=False,
+        ),
+        CliParam(
+            "--amplitude-z",
+            "Z 振幅",
+            "float",
+            "0.23",
+            "Z 方向振幅",
+            unit_group="distance",
+            default_unit="DU",
+            hidden_when="--seed-file",
+        ),
+        CliParam(
+            "--n-orbits",
+            "轨道数量",
+            "int",
+            "20",
+            "延拓轨道数量",
+        ),
+        CliParam(
+            "--step-size",
+            "正向步长",
+            "float",
+            "0.0045",
+            "正向延拓步长",
+            advanced=True,
+        ),
+        CliParam(
+            "--step-size-negative",
+            "负向步长",
+            "float",
+            "0.009",
+            "负向延拓步长",
+            advanced=True,
+        ),
+    ],
+)

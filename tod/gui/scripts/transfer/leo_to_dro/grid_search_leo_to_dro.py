@@ -1,0 +1,65 @@
+"""Params for grid_search_leo_to_dro.py."""
+
+from tod.gui.script_registry import CliParam, ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    "transfer",
+    "grid_search_leo_to_dro",
+    "LEO→DRO 转移轨道网格搜索",
+    "tod/transfers/leo_to_dro/grid_search_leo_to_dro.py",
+    output_dir="output/transfer",
+    group_label="LEO→DRO",
+    cli_params=[
+        CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
+        CliParam("--n-departure", "出发点数", "int", "200", "出发时间网格数"),
+        CliParam("--n-alpha", "alpha 密度", "int", "100", "alpha 网格密度"),
+        CliParam("--alpha-min", "alpha 下界", "float", "1.2", "alpha 搜索下界"),
+        CliParam("--alpha-max", "alpha 上界", "float", "2.0", "alpha 搜索上界"),
+        CliParam(
+            "--max-transfer-time",
+            "最大转移时间",
+            "float",
+            "80.0",
+            "最大转移时间（无量纲）",
+            unit_group="time",
+            default_unit="days",
+        ),
+        CliParam(
+            "--intersection-threshold",
+            "相交阈值",
+            "float",
+            "0.001",
+            "相交判定距离阈值",
+            unit_group="distance",
+            default_unit="km",
+        ),
+        CliParam(
+            "--min-distance",
+            "最小距离阈值",
+            "float",
+            "0.001301",
+            "候选解最小距离阈值",
+            unit_group="distance",
+            default_unit="km",
+        ),
+        CliParam(
+            "--earth-radius",
+            "地球半径",
+            "float",
+            "0.00052",
+            "地球碰撞检测半径",
+            unit_group="distance",
+            default_unit="km",
+        ),
+        CliParam(
+            "--moon-radius",
+            "月球半径",
+            "float",
+            "0.00026",
+            "月球碰撞检测半径",
+            unit_group="distance",
+            default_unit="km",
+        ),
+        CliParam("--leo-n-points", "LEO 采样点数", "int", "500", "LEO 轨道采样点数"),
+    ],
+)

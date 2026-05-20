@@ -90,7 +90,7 @@ def test_ephemeris_conversion_entries_are_grouped_by_orbit_type() -> None:
 
 
 def _ephemeris_conversion_entry(name: str):
-    for entry in SCRIPTS["Ephemeris"]:
+    for entry in SCRIPTS["ephemeris"]:
         if entry.name == name:
             return entry
     raise AssertionError(f"Ephemeris entry not registered: {name}")

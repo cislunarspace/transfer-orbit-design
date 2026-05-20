@@ -1,0 +1,66 @@
+"""Params for optimize_leo_to_dro.py."""
+
+from tod.gui.script_registry import CliParam, ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    "transfer",
+    "optimize_leo_to_dro",
+    "LEO→DRO 转移 NLP 优化",
+    "tod/transfers/leo_to_dro/optimize_leo_to_dro.py",
+    output_dir="output/transfer",
+    group_label="LEO→DRO",
+    cli_params=[
+        CliParam("--search-file", "搜索结果文件", "str", help="网格搜索结果 JSON 文件路径", file_category="transfer"),
+        CliParam("--dro-file", "DRO 文件", "str", help="DRO 轨道 JSON 文件路径", file_category="dro"),
+        CliParam("--alpha-min", "alpha 下界", "float", "1.2", "alpha 搜索下界"),
+        CliParam("--alpha-max", "alpha 上界", "float", "2.0", "alpha 搜索上界"),
+        CliParam(
+            "--t-min",
+            "转移时间下界",
+            "float",
+            "5.0",
+            "转移时间下界（无量纲）",
+            unit_group="time",
+            default_unit="days",
+        ),
+        CliParam(
+            "--t-max",
+            "转移时间上界",
+            "float",
+            "80.0",
+            "转移时间上界（无量纲）",
+            unit_group="time",
+            default_unit="days",
+        ),
+        CliParam(
+            "--t-ins-min",
+            "插入时间下界",
+            "float",
+            "0.0",
+            "DRO 插入时间下界",
+            unit_group="time",
+            default_unit="days",
+        ),
+        CliParam(
+            "--t-ins-max",
+            "插入时间上界",
+            "float",
+            "10.0",
+            "DRO 插入时间上界",
+            unit_group="time",
+            default_unit="days",
+        ),
+        CliParam(
+            "--velocity-angle-tol",
+            "速度平行性容差",
+            "float",
+            help="速度平行性容差（度）",
+            unit_group="angle",
+        ),
+        CliParam("--nlp-maxiter", "NLP 最大迭代", "int", "100", "NLP 最大迭代次数"),
+        CliParam("--nlp-ftol", "NLP 函数容差", "float", "1e-8", "NLP 函数容差"),
+        CliParam("--top-k", "前 K 个可行解", "int", help="取前 K 个可行解优化"),
+        CliParam("--max-cases", "最大案例数", "int", help="最大优化案例数"),
+        CliParam("--n-workers", "并行 worker 数", "int", help="并行 worker 数"),
+    ],
+)

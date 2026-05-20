@@ -1,0 +1,81 @@
+"""Params definition for generate_aro_family.py."""
+
+from tod.gui.script_registry import CliParam, EnvParam, ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    module="ro",
+    name="generate_aro_family",
+    description="生成 ARO 轴向共振轨道族（从 3:2 RO 分岔）",
+    script_path="tod/generates/cr3bp/ro/generate_aro_family.py",
+    output_dir="output/ro",
+    group_label="生成",
+    cli_params=[
+        CliParam(
+            "--ro-file",
+            "RO 文件",
+            "str",
+            help="3:2 RO 轨道 JSON 文件路径",
+            file_category="ro",
+        ),
+        CliParam(
+            "--target-x0",
+            "目标 x0",
+            "float",
+            "-1.0878",
+            "目标 x0 分岔点",
+            unit_group="distance",
+            default_unit="DU",
+        ),
+        CliParam(
+            "--z0",
+            "固定 z0",
+            "float",
+            "0.1999",
+            "固定 z0 坐标（无量纲）",
+            unit_group="distance",
+            default_unit="DU",
+        ),
+        CliParam(
+            "--vy0",
+            "初始 vy 速度",
+            "float",
+            "0.4",
+            "初始 y 方向速度猜测（无量纲）",
+            unit_group="velocity",
+        ),
+        CliParam(
+            "--period",
+            "初始周期",
+            "float",
+            str(round(60.0 / 0.3482, 6)),
+            "初始周期猜测（无量纲）",
+            unit_group="time",
+            default_unit="days",
+        ),
+        CliParam(
+            "--x-min",
+            "x 下限",
+            "float",
+            "-1.2",
+            "延拓 x0 范围下限",
+            unit_group="distance",
+            default_unit="DU",
+        ),
+        CliParam(
+            "--x-max",
+            "x 上限",
+            "float",
+            "-0.9",
+            "延拓 x0 范围上限",
+            unit_group="distance",
+            default_unit="DU",
+        ),
+        CliParam(
+            "--step-size",
+            "延拓步长",
+            "float",
+            "0.005",
+            "延拓步长",
+        ),
+    ],
+)

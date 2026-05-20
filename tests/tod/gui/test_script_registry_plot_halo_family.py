@@ -13,10 +13,10 @@ class TestPlotHaloFamilyParams:
     @pytest.fixture
     def plot_halo_family(self) -> ScriptEntry:
         """Find plot_halo_family ScriptEntry from SCRIPTS."""
-        for entry in SCRIPTS.get("Halo", []):
+        for entry in SCRIPTS.get("plot", []):
             if entry.name == "plot_halo_family":
                 return entry
-        pytest.fail("plot_halo_family ScriptEntry not found in Halo category")
+        pytest.fail("plot_halo_family ScriptEntry not found in plot category")
 
     def test_has_json_file_param(self, plot_halo_family: ScriptEntry) -> None:
         """plot_halo_family should have --json-file parameter with file_category=halo."""
