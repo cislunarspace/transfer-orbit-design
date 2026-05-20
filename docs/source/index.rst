@@ -14,6 +14,7 @@ Welcome to the Transfer Orbit Design documentation.
    tod/generates/cr3bp/dro/index
    tod/generates/cr3bp/ro/index
    tod/generates/cr3bp/halo/index
+   tod/generates/ephemeris/index
 
 Indices and tables
 ==================
