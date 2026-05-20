@@ -1,4 +1,4 @@
-"""Regression tests for plot_halo_orbit 3D view bounds calculation.
+"""Regression tests for plot_halo_family 3D view bounds calculation.
 
 Ensures that auto-computed center/radius contain the orbit data,
 regardless of whether it is an L1, L2, or L3 family.
@@ -7,7 +7,7 @@ regardless of whether it is an L1, L2, or L3 family.
 import numpy as np
 import pytest
 
-from tod.plot.halo.plot_halo_orbit import compute_view_bounds
+from tod.plot.halo.plot_halo_family import compute_view_bounds
 
 
 def _make_fake_orbit_states(x_center: float, y_center: float, z_center: float) -> np.ndarray:

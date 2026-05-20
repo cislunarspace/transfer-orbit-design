@@ -102,6 +102,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
             cli_params=[
                 CliParam("--json-file", "轨道族文件", "str", help="轨道族 JSON 文件路径", file_category="dro", name_pattern="*_family_*.json"),
                 CliParam("--plot-global-2d", "全局 2D 视图（XY 平面）", "bool", help="绘制 DRO 轨道族在 XY 平面的全局 2D 视图"),
+                CliParam("--plot-global-3d", "全局 3D 视图", "bool", help="绘制 DRO 轨道族在 3D 空间的全局视图（以月球为中心）"),
                 CliParam("--plot-jacobi-stability", "Jacobi 常数-周期-稳定性关系图", "bool", help="绘制 Jacobi 常数与轨道周期、稳定性的关系曲线"),
             ],
         ),
@@ -264,25 +265,8 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
         ),
         ScriptEntry(
             "halo", "plot_halo_family",
-            "绘制 Halo 轨道族",
-            "tod/plot/halo/plot_halo_family.py",
-            output_dir="output/halo",
-            group_label="绘图",
-            env_params={
-                "json_file": EnvParam("HALO_FAMILY_FILE", "Halo 轨道族文件", "halo", name_pattern="*_family_*.json"),
-            },
-            cli_params=[
-                CliParam("--latest", "使用最新文件", "bool", help="使用 output/halo 下最新的 halo_*_family_*.json"),
-                CliParam("--output-dir", "PNG 输出目录", "str", help="默认与 JSON 同目录"),
-                CliParam("--start", "起始索引", "int", "-1", "起始轨道索引，-1 表示从第一条"),
-                CliParam("--end", "结束索引", "int", "-1", "结束轨道索引（含），-1 表示到最后一条"),
-                CliParam("--no-show", "只保存不显示", "bool", help="只保存图片，不调用 plt.show()"),
-            ],
-        ),
-        ScriptEntry(
-            "halo", "plot_halo_orbit",
             "绘制 Halo 轨道族（含 Jacobi/稳定性分析）",
-            "tod/plot/halo/plot_halo_orbit.py",
+            "tod/plot/halo/plot_halo_family.py",
             output_dir="output/halo",
             group_label="绘图",
             cli_params=[
@@ -292,7 +276,7 @@ SCRIPTS: dict[str, list[ScriptEntry]] = {
                 # 图表选择
                 CliParam("--view-2d", "2D 视图（XZ 平面）", "bool", help="绘制 Halo 轨道族在 XZ 平面的 2D 视图"),
                 CliParam("--view-3d", "3D 视图", "bool", help="绘制 Halo 轨道族的 3D 示意图"),
-                CliParam("--jacobi-period", "Jacobi-周期图", "bool", help="绘制 Jacobi 常数与周期关系曲线"),
+                CliParam("--jacobi-period-stability", "Jacobi-周期-稳定性图", "bool", help="绘制 Jacobi 常数-周期-稳定性联合图"),
             ],
         ),
     ],

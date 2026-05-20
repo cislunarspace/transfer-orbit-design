@@ -1,33 +1,36 @@
 """
-绘制 Halo 轨道族（仅读取已有 JSON，不生成轨道）
+绘制 Halo 轨道族
 
-与 transfer-orbit-design 中 ``plot_dro_family.py`` 的用法一致：在脚本顶部配置
-``FAMILY_JSON_PATH`` 指向 ``generate_halo_family.py`` 已保存的文件，或通过命令行传入路径。
-
-数据流::
-
-    generate_halo_family.py  ->  *.json  ->  本脚本  ->  *.png
+本脚本实现：
+1. 加载 Halo 轨道数据
+2. 计算 Jacobi 常数
+3. 计算稳定性指数
+4. 创建 2D 和 3D 可视化
+5. 创建 Jacobi 常数-周期-稳定性联合图
 
 用法::
 
-    # 1）修改本文件中的 FAMILY_JSON_PATH 后直接运行
-    python -m tod.plot.halo.plot_halo_family
+    # 2D 视图
+    python -m tod.plot.halo.plot_halo_family --json-file output/halo/halo_L1_N_family_*.json --view-2d
 
-    # 2）命令行指定 JSON（相对项目根或绝对路径）
-    python -m tod.plot.halo.plot_halo_family output/halo/halo_L1_N_family_3857325361.json
+    # 3D 视图
+    python -m tod.plot.halo.plot_halo_family --json-file output/halo/halo_L1_N_family_*.json --view-3d
 
-    # 3）使用某目录下最新的 halo_*_family_*.json
-    python -m tod.plot.halo.plot_halo_family --latest
+    # Jacobi-周期-稳定性联合图
+    python -m tod.plot.halo.plot_halo_family --json-file output/halo/halo_L1_N_family_*.json --jacobi-period-stability
 
-    # 仅保存 PNG、不弹窗
-    python -m tod.plot.halo.plot_halo_family path/to/family.json --no-show
+    # 组合多个视图
+    python -m tod.plot.halo.plot_halo_family --json-file output/halo/halo_L1_N_family_*.json --view-2d --view-3d --jacobi-period-stability
+
+    # 指定轨道范围
+    python -m tod.plot.halo.plot_halo_family --json-file output/halo/halo_L1_N_family_*.json --view-2d --start 0 --end 50
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -39,73 +42,29 @@ if not logging.getLogger().handlers:
         stream=sys.stdout,
     )
 
-import matplotlib
+import warnings
+
+import matplotlib.pyplot as plt
 import numpy as np
-
-from e2m2e.core import OrbitFamily, CR3BP_System
-from e2m2e.visualization import FamilyPlotter
 from e2m2e.algorithms.stability import StabilityAnalysis
-
-from tod.commons.common import MU
+from e2m2e.core import Orbit, OrbitFamily, CR3BP_System
+from e2m2e.visualization import FamilyPlotter
+from tod.commons.common import MU, find_project_root
 from tod.commons.plot_helpers import apply_standard_plot_config
-from tod.commons.common import find_project_root
 
 logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
 
-# =============================================================================
-# 用户配置：已生成的轨道族 JSON（与 generate_halo_family.py 输出一致）
-# 命令行未传入路径且未使用 --latest 时，使用此处路径。
-# =============================================================================
-FAMILY_JSON_PATH = project_root / "output" / "halo" / "halo_L1_N_family_3857325998.json"
-
-DEFAULT_HALO_DIR = project_root / "output" / "halo"
-
-
-def find_latest_family_json(directory: Path) -> Path | None:
-    """在目录中按修改时间选取最新的 halo_*_family_*.json。"""
-    candidates = sorted(
-        directory.glob("halo_*_family_*.json"),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
-    return candidates[0] if candidates else None
+PLOT_CONFIG = apply_standard_plot_config()
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="从 JSON 读取 Halo 轨道族并绘图（不生成轨道，仅 OrbitFamily.load_from_file）",
-    )
+    parser = argparse.ArgumentParser(description="绘制 Halo 轨道族")
     parser.add_argument(
-        "json_file",
-        nargs="?",
-        default=None,
-        help="轨道族 JSON 路径；省略则使用脚本中的 FAMILY_JSON_PATH",
-    )
-    parser.add_argument(
-        "--file",
-        "-f",
+        "--json-file",
         type=str,
         default=None,
-        help="与位置参数等价，便于兼容旧用法",
-    )
-    parser.add_argument(
-        "--latest",
-        action="store_true",
-        help=f"使用 {DEFAULT_HALO_DIR} 下最新的 halo_*_family_*.json（显式选用，非默认行为）",
-    )
-    parser.add_argument(
-        "--dir",
-        type=str,
-        default=str(DEFAULT_HALO_DIR),
-        help="与 --latest 配合：在此目录下搜索（默认 output/halo）",
-    )
-    parser.add_argument(
-        "--output-dir",
-        "-o",
-        type=str,
-        default=None,
-        help="PNG 输出目录，默认与 JSON 同目录",
+        help="轨道族 JSON 文件路径",
     )
     parser.add_argument(
         "--start",
@@ -119,61 +78,223 @@ def parse_args() -> argparse.Namespace:
         default=-1,
         help="结束轨道索引（含），-1 表示到最后一条",
     )
+    # 图表选择
     parser.add_argument(
-        "--no-show",
+        "--view-2d",
         action="store_true",
-        help="只保存图片，不调用 plt.show()",
+        help="绘制 Halo 轨道族在 XZ 平面的 2D 视图",
+    )
+    parser.add_argument(
+        "--view-3d",
+        action="store_true",
+        help="绘制 Halo 轨道族的 3D 示意图",
+    )
+    parser.add_argument(
+        "--jacobi-period-stability",
+        action="store_true",
+        help="绘制 Jacobi 常数-周期-稳定性联合图",
     )
     return parser.parse_args()
 
 
-def plot_halo_family(
-    family_path: Path,
+def compute_view_bounds(all_states: np.ndarray) -> tuple:
+    """根据轨道状态数组计算 2D 与 3D 视图的边界参数。
+
+    Returns:
+        (xlim_2d, ylim_2d, center_3d, radius_3d)
+    """
+    if all_states.size == 0:
+        return (0.8, 1.2), (-0.3, 0.3), (1.0, 0.0, 0.0), 0.4
+    x_min, x_max = all_states[:, 0].min(), all_states[:, 0].max()
+    y_min, y_max = all_states[:, 1].min(), all_states[:, 1].max()
+    z_min, z_max = all_states[:, 2].min(), all_states[:, 2].max()
+    x_pad = max(0.05, (x_max - x_min) * 0.1)
+    z_pad = max(0.05, (z_max - z_min) * 0.1)
+    xlim_2d = (float(x_min - x_pad), float(x_max + x_pad))
+    ylim_2d = (float(z_min - z_pad), float(z_max + z_pad))
+
+    center_3d = (float((x_min + x_max) / 2), float((y_min + y_max) / 2), float((z_min + z_max) / 2))
+    radius_3d = float(max(x_max - x_min, y_max - y_min, z_max - z_min) / 2 + max(x_pad, z_pad))
+    return xlim_2d, ylim_2d, center_3d, radius_3d
+
+
+def _load_family(family_path: Path, system: CR3BP_System) -> OrbitFamily:
+    """加载轨道族 JSON 文件并返回 OrbitFamily 对象。"""
+    with open(family_path, "r") as f:
+        data = json.load(f)
+
+    if "orbits" in data:
+        return OrbitFamily.load_from_file(filename=family_path, system=system)
+
+    orbit = Orbit.load_from_file(filename=family_path, system=system)
+    family = OrbitFamily(system=system)
+    family.add_orbit(orbit)
+    return family
+
+
+def _resolve_plot_range(start_idx: int, end_idx: int, n_orbits: int) -> tuple[int, int]:
+    """解析 --start/--end 参数，返回 (plot_start, plot_end) 索引。"""
+    if start_idx == -1 and end_idx == -1:
+        return 0, n_orbits - 1
+    if start_idx == -1:
+        return 0, min(end_idx, n_orbits - 1)
+    if end_idx == -1:
+        return min(start_idx, n_orbits - 1), n_orbits - 1
+    return min(start_idx, n_orbits - 1), min(end_idx, n_orbits - 1)
+
+
+def _compute_stability_indices(family: OrbitFamily) -> list[float]:
+    """计算轨道族的稳定性指数。"""
+    stability_values = []
+    for i in range(len(family)):
+        orbit = family[i]
+        stability_analysis = StabilityAnalysis(orbit=orbit)
+        stability_indices = stability_analysis.compute_stability_index()
+        stability_values.append(stability_indices.get("broucke", 0.0))
+    return stability_values
+
+
+def _plot_2d_view(
+    plotter: FamilyPlotter,
+    subset_family: OrbitFamily,
+    jacobi_subset: list[float],
+    stability_subset: list[float],
+    xlim: tuple[float, float],
+    ylim: tuple[float, float],
     output_dir: Path,
-    plot_start: int = -1,
-    plot_end: int = -1,
-    show: bool = True,
+    family_name: str,
+    n_orbits: int,
 ) -> None:
-    import matplotlib.pyplot as plt
+    """绘制全局 2D 视图（XZ 平面）。"""
+    jmin, jmax = min(jacobi_subset), max(jacobi_subset)
+    smin, smax = min(stability_subset), max(stability_subset)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=".*Tight layout.*")
+        plotter.plot_family_2d(
+            subset_family,
+            jacobi_subset,
+            title=f"Halo Orbit Family in Earth-Moon CR3BP (XZ Plane) - {n_orbits} orbits\n"
+            f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+            plane="xz",
+            show_bodies=True,
+            show_libration=True,
+            show_colorbar=True,
+            xlim=xlim,
+            ylim=ylim,
+            show=False,
+        )
+    plt.savefig(output_dir / f"{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
+    plt.show()
+
+
+def _plot_3d_view(
+    plotter: FamilyPlotter,
+    subset_family: OrbitFamily,
+    jacobi_subset: list[float],
+    stability_subset: list[float],
+    center_3d: tuple[float, float, float],
+    radius_3d: float,
+    output_dir: Path,
+    family_name: str,
+    n_orbits: int,
+) -> None:
+    """绘制全局 3D 视图。"""
+    jmin, jmax = min(jacobi_subset), max(jacobi_subset)
+    smin, smax = min(stability_subset), max(stability_subset)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=".*Tight layout.*")
+        plotter.plot_family_3d(
+            subset_family,
+            jacobi_subset,
+            title=f"Halo Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
+            f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+            center=center_3d,
+            radius=radius_3d,
+            elev=20,
+            azim=-60,
+            show=False,
+        )
+    plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
+    plt.show()
+
+
+def _plot_jacobi_period_stability(
+    plotter: FamilyPlotter,
+    jacobi_sorted: list[float],
+    periods_sorted: list[float],
+    stability_sorted: list[float],
+    output_dir: Path,
+    family_name: str,
+    n_orbits: int,
+) -> None:
+    """绘制 Jacobi 常数-周期-稳定性联合图。"""
+    plotter.plot_jacobi_period_stability(
+        jacobi_sorted,
+        periods_sorted,
+        stability_sorted,
+        title=f"Halo Orbit Family - Period and Stability (n = {n_orbits})",
+        save_path=str(output_dir / f"{family_name}_period_stability.png"),
+        show=True,
+    )
+
+
+def main(
+    plot1: bool | None = None,
+    plot2: bool | None = None,
+    plot3: bool | None = None,
+) -> None:
+    args = parse_args()
+
+    # 从 CLI 参数或函数参数获取绘图开关
+    if plot1 is None:
+        plot1 = bool(args.view_2d)
+    if plot2 is None:
+        plot2 = bool(args.view_3d)
+    if plot3 is None:
+        plot3 = bool(args.jacobi_period_stability)
+
+    # 如果所有绘图开关都未启用，输出警告并跳过
+    if not plot1 and not plot2 and not plot3:
+        logger.warning("未选择任何图表，跳过绘制")
+        return
+
+    output_dir = project_root / "output" / "halo"
+
+    if args.json_file:
+        family_path = Path(args.json_file)
+        family_name = family_path.stem
+    else:
+        family_name = "halo_L1_N_family_3857278981"
+        family_path = output_dir / f"{family_name}.json"
 
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
-    family_result = OrbitFamily.load_from_file(filename=str(family_path), system=system)
+    try:
+        family_result = _load_family(family_path, system)
+    except FileNotFoundError:
+        logger.error(f"文件不存在: {family_path}")
+        logger.info("请先生成 Halo 轨道数据，运行: python -m tod.generates.cr3bp.halo.generate_halo_family")
+        sys.exit(1)
+
     n_orbits = len(family_result)
-    family_name = family_path.stem
+    logger.info(f"加载了 {n_orbits} 条 Halo 轨道")
 
-    logger.info(f"已加载: {family_path}")
-    logger.info(f"轨道条数: {n_orbits}")
-
-    if plot_start == -1 and plot_end == -1:
-        ps, pe = 0, n_orbits - 1
-    elif plot_start == -1:
-        ps, pe = 0, min(plot_end, n_orbits - 1)
-    elif plot_end == -1:
-        ps, pe = min(plot_start, n_orbits - 1), n_orbits - 1
-    else:
-        ps = min(plot_start, n_orbits - 1)
-        pe = min(plot_end, n_orbits - 1)
-
-    logger.info(f"绘制索引 [{ps}, {pe}]，共 {pe - ps + 1} 条")
+    plot_start, plot_end = _resolve_plot_range(args.start, args.end, n_orbits)
+    n_orbits_to_plot = plot_end - plot_start + 1
+    logger.info(f"将绘制第 {plot_start} 至 第 {plot_end} 条轨道，共 {n_orbits_to_plot} 条")
 
     subset_family = OrbitFamily(system=system)
-    for i in range(ps, pe + 1):
+    for i in range(plot_start, plot_end + 1):
         subset_family.add_orbit(family_result[i])
 
     logger.info("正在计算 Jacobi 常数...")
     jacobi_values = family_result.get_jacobi_constants().tolist()
-    jacobi_subset = [jacobi_values[i] for i in range(ps, pe + 1)]
-    logger.info(f"Jacobi 范围: {min(jacobi_subset):.6f} ~ {max(jacobi_subset):.6f}")
+    jacobi_subset = [jacobi_values[i] for i in range(plot_start, plot_end + 1)]
+    logger.info(f"Jacobi 常数范围: {min(jacobi_subset):.6f} ~ {max(jacobi_subset):.6f}")
 
     logger.info("正在计算稳定性指数（可能较慢）...")
-    stability_values = []
-    for i in range(len(family_result)):
-        orbit = family_result[i]
-        stability_analysis = StabilityAnalysis(orbit=orbit)
-        stability_indices = stability_analysis.compute_stability_index()
-        stability_values.append(stability_indices.get("broucke", 0.0))
-    stability_subset = [stability_values[i] for i in range(ps, pe + 1)]
+    stability_values = _compute_stability_indices(family_result)
+    stability_subset = [stability_values[i] for i in range(plot_start, plot_end + 1)]
     logger.info(f"λmax 范围: {min(stability_subset):.6f} ~ {max(stability_subset):.6f}")
 
     sort_idx = np.argsort(jacobi_subset)
@@ -181,168 +302,50 @@ def plot_halo_family(
     periods_sorted = np.array(subset_family.periods)[sort_idx].tolist()
     stability_sorted = np.array(stability_subset)[sort_idx].tolist()
 
-    config = apply_standard_plot_config()
+    plotter = FamilyPlotter(system, PLOT_CONFIG)
+    # 60/30 是平动点 marker 大小，用于 L1-L5 标注
+    plotter.libration_point_sizes = [20, 20, 20, 20, 20]
+    # 图标缩放使用 PLOT_CONFIG 中的默认值（primary_body_icon_scale=0.25）
 
-    plotter = FamilyPlotter(system, config)
+    all_states = np.vstack([orbit.states for orbit in subset_family])
+    xlim_2d, ylim_2d, center_3d, radius_3d = compute_view_bounds(all_states)
 
-    jmin, jmax = min(jacobi_subset), max(jacobi_subset)
-    smin, smax = min(stability_subset), max(stability_subset)
-    seed_orbit = family_result[0]
-    seed_jacobi = jacobi_values[0]
-    seed_stability = stability_values[0]
+    if plot1:
+        _plot_2d_view(plotter, subset_family, jacobi_subset, stability_subset,
+                      xlim_2d, ylim_2d, output_dir, family_name, n_orbits)
+    if plot2:
+        _plot_3d_view(plotter, subset_family, jacobi_subset, stability_subset,
+                      center_3d, radius_3d, output_dir, family_name, n_orbits)
+    if plot3:
+        _plot_jacobi_period_stability(plotter, jacobi_sorted, periods_sorted, stability_sorted,
+                                      output_dir, family_name, n_orbits)
 
-    # ---------- 1. XZ ----------
-    fig_2d, ax_2d = plotter.plot_family_2d(
-        subset_family,
-        jacobi_subset,
-        title=f"Halo Orbit Family (XZ) — {n_orbits} orbits\n"
-        f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
-        plane="xz",
-        show_bodies=True,
-        show_libration=True,
-        show_colorbar=True,
-        show=False,
-    )
-    plotter.plot_2d_projection(
-        seed_orbit,
-        plane="xz",
-        color="red",
-        label=f"Seed Halo (C={seed_jacobi:.4f}, λmax={seed_stability:.4f})",
-        ax=ax_2d,
-    )
-    plt.tight_layout()
-    plt.savefig(output_dir / f"{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
-    if show:
-        plt.show()
-    else:
-        plt.close(fig_2d)
-
-    # ---------- 2. 3D ----------
-    fig_3d, ax_3d = plotter.plot_family_3d(
-        subset_family,
-        jacobi_subset,
-        title=f"Halo Orbit Family (3D) — {n_orbits} orbits\n"
-        f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
-        center=(0.9, 0, 0),
-        radius=0.4,
-        elev=20,
-        azim=-60,
-        show=False,
-    )
-    plotter.plot_3d_orbit(
-        seed_orbit,
-        color="red",
-        label=f"Seed Halo (C={seed_jacobi:.4f})",
-        ax=ax_3d,
-        show_start=True,
-    )
-    plt.tight_layout()
-    plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
-    if show:
-        plt.show()
-    else:
-        plt.close(fig_3d)
-
-    # ---------- 3. Period & stability ----------
-    plotter.plot_jacobi_period_stability(
-        jacobi_sorted,
-        periods_sorted,
-        stability_sorted,
-        title=f"Halo Orbit Family — Period and Stability (n = {n_orbits})",
-        save_path=str(output_dir / f"{family_name}_period_stability.png"),
-        show=show,
-    )
-
-    # ---------- 4. Overview ----------
-    plotter.plot_family_overview(
-        subset_family,
-        jacobi_subset,
-        subset_family.periods,
-        stability_subset,
-        suptitle=f"Halo Orbit Family Overview — Earth–Moon CR3BP (n = {n_orbits})",
-        plane="xz",
-        center_3d=(0.9, 0, 0),
-        radius_3d=0.4,
-        elev=20,
-        azim=-60,
-        save_path=str(output_dir / f"{family_name}_overview.png"),
-        show=show,
-    )
-
-    logger.info(f"\n图表已保存至: {output_dir}")
-    logger.info(f"  - {family_name}_2d_view.png")
-    logger.info(f"  - {family_name}_3d_view.png")
-    logger.info(f"  - {family_name}_period_stability.png")
-    logger.info(f"  - {family_name}_overview.png")
-
-
-def _resolve_json_path(user_path: str) -> Path:
-    p = Path(user_path)
-    resolved = p.resolve() if p.is_absolute() else (project_root / p).resolve()
-    # 路径遍历防护：检查解析后的路径是否在项目根目录内
-    try:
-        resolved.relative_to(project_root.resolve())
-    except ValueError:
-        logger.info(f"安全拒绝: {resolved} 不在项目根目录 {project_root} 内")
-        sys.exit(1)
-    return resolved
-
-
-def main() -> None:
-    args = parse_args()
-    if args.no_show or not os.environ.get("DISPLAY"):
-        matplotlib.use("Agg")
-
-    if args.latest:
-        search_dir = Path(args.dir)
-        if not search_dir.is_absolute():
-            search_dir = (project_root / search_dir).resolve()
-        found = find_latest_family_json(search_dir)
-        if found is None:
-            logger.error(f"在 {search_dir} 未找到 halo_*_family_*.json")
-            logger.info("请先生成: python -m tod.generates.cr3bp.halo.generate_halo_family")
-            sys.exit(1)
-        family_path = found
-        logger.info(f"[info] --latest: 使用 {family_path}")
-    elif args.json_file:
-        family_path = _resolve_json_path(args.json_file)
-    elif args.file:
-        family_path = _resolve_json_path(args.file)
-    else:
-        family_path = Path(FAMILY_JSON_PATH)
-        if not family_path.is_absolute():
-            family_path = (project_root / family_path).resolve()
-        else:
-            family_path = family_path.resolve()
-        logger.info(f"[info] 使用脚本内 FAMILY_JSON_PATH: {family_path}")
-
-    if not family_path.is_file():
-        logger.error(f"文件不存在: {family_path}")
-        logger.info(
-            "请修改本脚本顶部的 FAMILY_JSON_PATH，或传入 JSON 路径，或使用 --latest。"
-        )
-        sys.exit(1)
-
-    output_dir = Path(args.output_dir) if args.output_dir else family_path.parent
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    plot_halo_family(
-        family_path=family_path,
-        output_dir=output_dir,
-        plot_start=args.start,
-        plot_end=args.end,
-        show=not args.no_show,
-    )
+    logger.info(f"\n图表已保存到 {output_dir} 目录:")
+    if plot1:
+        logger.info(f"  - {family_name}_2d_view.png           : 全局 2D 视图 (XZ 平面)")
+    if plot2:
+        logger.info(f"  - {family_name}_3d_view.png           : 全局 3D 视图")
+    if plot3:
+        logger.info(f"  - {family_name}_period_stability.png  : Jacobi 常数-周期-稳定性图")
 
 
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
-    # 想调哪个值就改下方对应字面量即可。
     if len(sys.argv) == 1:
         sys.argv += [
-            "--start", "-1",                              # 起始轨道索引，-1 表示从第一条
-            "--end", "-1",                                # 结束轨道索引（含），-1 表示到最后一条
+            "--start", "-1",
+            "--end", "-1",
         ]
+        # 待绘制轨道文件位置（修改此变量即可切换轨道文件）
+        filepath = r"C:\Users\ouyan\codes\transfer-orbit-design\output\halo\halo_L1_N_0.1_1778419695.json"
+        if filepath:
+            sys.argv += ["--json-file", filepath]
+        # 调试开关：1 = 绘制，0 = 跳过
+        plot1 = 0  # 全局 2D 视图（XZ 平面）
+        plot2 = 1  # 全局 3D 视图
+        plot3 = 0  # Jacobi 常数-周期-稳定性图
         logger.debug("使用代码内置调试参数")
-    main()
+        main(plot1=plot1, plot2=plot2, plot3=plot3)
+    else:
+        main()
