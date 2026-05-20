@@ -121,8 +121,6 @@ def _plot_3d_view(
     plotter: FamilyPlotter,
     subset_family: OrbitFamily,
     jacobi_subset: list[float],
-    seed_orbit: Orbit,
-    seed_jacobi: float,
     center_3d: tuple[float, float, float],
     radius_3d: float,
     output_dir: Path,
@@ -131,17 +129,12 @@ def _plot_3d_view(
 ) -> None:
     """绘制全局 3D 视图。"""
     jmin, jmax = min(jacobi_subset), max(jacobi_subset)
-    _, ax_3d = plotter.plot_family_3d(
+    plotter.plot_family_3d(
         subset_family, jacobi_subset,
         title=f"Halo Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
               f"C = [{jmin:.4f}, {jmax:.4f}]",
         center=center_3d, radius=radius_3d, elev=20, azim=-60,
         show=False,
-    )
-    plotter.plot_3d_orbit(
-        seed_orbit, color="red",
-        label=f"Seed Halo (C={seed_jacobi:.4f})",
-        ax=ax_3d, show_start=False,
     )
     plt.tight_layout()
     plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
@@ -227,14 +220,12 @@ def main(plot1: int | None = None, plot2: int | None = None, plot3: int | None =
 
     all_states = np.vstack([orbit.states for orbit in subset_family])
     xlim_2d, ylim_2d, center_3d, radius_3d = compute_view_bounds(all_states)
-    seed_orbit = family_result[0]
-    seed_jacobi = jacobi_values[0]
 
     if plot1:
         _plot_2d_view(plotter, subset_family, jacobi_subset,
                       xlim_2d, ylim_2d, output_dir, family_name, n_orbits)
     if plot2:
-        _plot_3d_view(plotter, subset_family, jacobi_subset, seed_orbit, seed_jacobi,
+        _plot_3d_view(plotter, subset_family, jacobi_subset,
                       center_3d, radius_3d, output_dir, family_name, n_orbits)
     if plot3:
         _plot_jacobi_period(plotter, jacobi_sorted, periods_sorted,
