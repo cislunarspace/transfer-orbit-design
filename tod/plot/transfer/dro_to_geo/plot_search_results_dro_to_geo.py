@@ -409,7 +409,7 @@ def _save_or_show(fig, args):
         png.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(png, dpi=args.dpi, bbox_inches="tight")
         logger.info("Saved: %s", png)
-    else:
+    elif not getattr(args, "no_show", False):
         plt.show()
     plt.close(fig)
 
@@ -429,6 +429,7 @@ def main() -> None:
     parser.add_argument("--n-workers", type=int, default=None, help="并行积分 worker 数")
     parser.add_argument("--time-dv", action="store_true", help="绘制转移时间 vs Δv 散点图")
     parser.add_argument("--interactive", action="store_true", help="交互式逐条浏览")
+    parser.add_argument("--no-show", action="store_true", help="生成图像后不弹窗显示（GUI 后台运行）")
     args = parser.parse_args()
 
     path = Path(args.file).expanduser().resolve() if args.file else Path(RESULTS_JSON).expanduser().resolve()

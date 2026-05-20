@@ -1,0 +1,183 @@
+"""
+可视化 LEO → DRO 网格搜索结果
+
+可视化 grid_search_leo_to_dro.py 输出的搜索结果 JSON。
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import sys
+from pathlib import Path
+
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        stream=sys.stdout,
+    )
+
+import matplotlib  # noqa: E402
+import numpy as np
+from tod.commons.common import TU, VU, find_project_root
+from tod.plot.transfer.common import (
+    feasible_alpha_and_departure_dv,
+    feasible_transfer_time_and_dv,
+    select_feasible_indices,
+)
+
+project_root = find_project_root(Path(__file__))
+
+try:
+    matplotlib.use("TkAgg")
+except ImportError:
+    pass
+import matplotlib.pyplot as plt  # noqa: E402
+
+logger = logging.getLogger(__name__)
+
+
+def load_search_results(path: Path) -> dict:
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _latest_search_json() -> Path | None:
+    transfer_dir = project_root / "output/transfer"
+    candidates = sorted(transfer_dir.glob("search_leo_dro_*.json"))
+    return candidates[-1] if candidates else None
+
+
+def _selected_feasible(feasible: list[dict], idx_arg: str, seed: int, max_points: int) -> list[dict]:
+    indices = select_feasible_indices(feasible, idx_arg, seed=seed, max_indices=max_points)
+    return [feasible[i] for i in indices]
+
+
+def _plot_alpha_dv(feasible: list[dict], ax, max_points: int, seed: int) -> None:
+    alphas, dvs = feasible_alpha_and_departure_dv(feasible)
+    if len(alphas) == 0:
+        ax.text(0.5, 0.5, "无可行解", ha="center", va="center", transform=ax.transAxes)
+        return
+    idx = (
+        np.random.default_rng(seed).choice(len(alphas), size=max_points, replace=False)
+        if max_points < len(alphas)
+        else np.arange(len(alphas))
+    )
+    ax.scatter(alphas[idx], dvs[idx] * VU / 1000, s=6, alpha=0.6)
+    ax.set_xlabel("α")
+    ax.set_ylabel("Δv (km/s)")
+    ax.set_title("LEO→DRO: α vs Δv (可行解)")
+    ax.grid(True, alpha=0.3)
+
+
+def _plot_time_dv(feasible: list[dict], ax, max_points: int, seed: int) -> None:
+    times, dvs = feasible_transfer_time_and_dv(feasible)
+    if len(times) == 0:
+        ax.text(0.5, 0.5, "无可行解", ha="center", va="center", transform=ax.transAxes)
+        return
+    idx = (
+        np.random.default_rng(seed).choice(len(times), size=max_points, replace=False)
+        if max_points < len(times)
+        else np.arange(len(times))
+    )
+    ax.scatter(times[idx] * TU, dvs[idx] * VU / 1000, s=6, alpha=0.6)
+    ax.set_xlabel("转移时间 (天)")
+    ax.set_ylabel("Δv (km/s)")
+    ax.set_title("LEO→DRO: 转移时间 vs Δv (可行解)")
+    ax.grid(True, alpha=0.3)
+
+
+def _plot_orbit_selection(records: list[dict], ax) -> None:
+    if not records:
+        ax.text2D(0.5, 0.5, "无选中结果", ha="center", va="center", transform=ax.transAxes)
+        return
+    positions = [np.asarray(r.get("departure_state", [0, 0, 0]), dtype=float)[:3] for r in records]
+    dvs = [float(r.get("dv_departure", 0)) * VU / 1000 for r in records]
+    pts = np.asarray(positions)
+    scatter = ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2], c=dvs, cmap="viridis", s=35)
+    plt.colorbar(scatter, ax=ax, label="出发 Δv (km/s)")
+    ax.set_xlabel("x (DU)")
+    ax.set_ylabel("y (DU)")
+    ax.set_zlabel("z (DU)")
+    ax.set_title(f"LEO→DRO: {len(records)} 条选中可行解出发点")
+    ax.grid(True, alpha=0.3)
+
+
+def _interactive_browse(records: list[dict]) -> None:
+    selected = sorted(records, key=lambda r: float(r.get("dv_departure", float("inf"))))
+    if not selected:
+        logger.info("无可行解可浏览")
+        return
+    logger.info("交互浏览：Enter=下一条, q=退出")
+    for i, row in enumerate(selected, start=1):
+        logger.info(
+            f"[{i}/{len(selected)}] alpha={row.get('alpha')}, "
+            f"T={float(row.get('transfer_time', 0)) * TU:.2f} 天, "
+            f"dv={float(row.get('dv_departure', 0)) * VU / 1000:.6f} km/s"
+        )
+        try:
+            if input("> ").strip().lower() == "q":
+                break
+        except (EOFError, KeyboardInterrupt):
+            break
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="可视化 LEO→DRO 网格搜索结果")
+    parser.add_argument("--file", type=str, default=None, help="搜索结果 JSON 路径")
+    parser.add_argument("--orbit", action="store_true", help="绘制转移轨道 3D 示意图")
+    parser.add_argument("--time-dv", action="store_true", help="转移时间 vs Δv 散点图")
+    parser.add_argument("--interactive", action="store_true", help="交互式逐条浏览")
+    parser.add_argument("--idx", type=str, default="best:10", help="选择索引")
+    parser.add_argument("--save", type=str, default=None, help="保存图片路径")
+    parser.add_argument("--max-points", type=int, default=50000, help="最大散点数")
+    parser.add_argument("--seed", type=int, default=0, help="随机种子")
+    parser.add_argument("--dpi", type=int, default=150, help="图片 DPI")
+    parser.add_argument("--no-show", action="store_true", help="生成图像后不弹窗显示（GUI 后台运行）")
+    args = parser.parse_args()
+
+    search_path = Path(args.file).expanduser().resolve() if args.file else _latest_search_json()
+    if search_path is None or not search_path.is_file():
+        raise FileNotFoundError("未找到 LEO→DRO 搜索结果 JSON")
+
+    logger.info(f"读取: {search_path}")
+    data = load_search_results(search_path)
+    results = data.get("results", [])
+    feasible = [r for r in results if r.get("is_feasible")]
+    logger.info(f"总候选解: {len(results)}, 可行解: {len(feasible)}")
+
+    if not feasible:
+        logger.warning("无可行解")
+        return
+
+    if args.interactive:
+        _interactive_browse(feasible)
+        return
+
+    if args.orbit:
+        selected = _selected_feasible(feasible, args.idx, args.seed, args.max_points)
+        fig = plt.figure(figsize=(10, 7))
+        ax = fig.add_subplot(111, projection="3d")
+        _plot_orbit_selection(selected, ax)
+    else:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        if args.time_dv:
+            _plot_time_dv(feasible, ax, args.max_points, args.seed)
+        else:
+            _plot_alpha_dv(feasible, ax, args.max_points, args.seed)
+    fig.tight_layout()
+
+    if args.save:
+        Path(args.save).parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(args.save, dpi=args.dpi, bbox_inches="tight")
+        logger.info(f"Saved: {args.save}")
+    elif not args.no_show:
+        plt.show()
+    plt.close(fig)
+
+
+if __name__ == "__main__":
+    main()
