@@ -47,6 +47,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         self._repo_root = Path(repo_root)
         self._gui_defaults = self._load_gui_defaults()
         self._current_script: ScriptEntry | None = None
+        self._right_tabs: QTabWidget | None = None
         self._files: list[FileInfo] = []
 
         # Job 管理
@@ -226,6 +227,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         merged_layout.addWidget(btn_container)
 
         tabs.addTab(merged_widget, "Script Info")
+        self._right_tabs: QTabWidget = tabs
 
         # ── File Browser Tab ────────────────────────────────────
         self._build_file_browser_tab(tabs)
@@ -244,6 +246,14 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
 
         # 重建参数面板（含 Script Info 表头）
         self._rebuild_params_panel(entry)
+
+        # 自动切换回 Script Info 标签页
+        if self._right_tabs is not None:
+            script_info_titles = {"Script Info", "脚本信息"}
+            for i in range(self._right_tabs.count()):
+                if self._right_tabs.tabText(i) in script_info_titles:
+                    self._right_tabs.setCurrentIndex(i)
+                    break
 
     # ── GUI 默认值持久化 ────────────────────────────────────────────
 
