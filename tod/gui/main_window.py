@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QKeySequence, QShortcut
@@ -25,7 +26,6 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from tod.gui.doc_window import DocWindow
 from tod.gui.file_discovery import FileInfo
 from tod.gui.file_tree_mixin import FileTreeMixin
 from tod.gui.job_manager import JobManager
@@ -39,6 +39,9 @@ from tod.gui.settings_schema import SETTINGS_SCHEMA
 from tod.gui.sidebar_widget import SidebarWidget
 from tod.gui.theme_utils import resolve_theme as _resolve_theme
 from tod.gui.theme_utils import get_theme_stylesheet as _get_theme_stylesheet
+
+if TYPE_CHECKING:
+    from tod.gui.doc_window import DocWindow
 
 
 class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMainWindow):
@@ -319,6 +322,8 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
     def _open_doc_window(self, script_path: str) -> None:
         """Open or raise the documentation window for the given script."""
         if self._doc_window is None:
+            from tod.gui.doc_window import DocWindow
+
             self._doc_window = DocWindow(self._repo_root, self)
             self._doc_window.destroyed.connect(self._on_doc_window_closed)
 
@@ -330,4 +335,3 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
     def _on_doc_window_closed(self) -> None:
         """Called when the documentation window is closed."""
         self._doc_window = None
-

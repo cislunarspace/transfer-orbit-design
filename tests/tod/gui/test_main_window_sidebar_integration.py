@@ -70,6 +70,37 @@ class TestMainWindowSidebarIntegration:
         )
         assert selected[0] is mock_entry
 
+    def test_script_selection_switches_right_tabs_to_script_info(self, tmp_path):
+        """Selecting a script should leave the Files tab and show Script Info."""
+        from PyQt6.QtWidgets import QApplication
+
+        app = QApplication.instance() or QApplication([])
+        from tod.gui.main_window import MainWindow
+        from tod.gui.script_registry import ScriptEntry
+
+        window = MainWindow(repo_root=str(tmp_path))
+        tabs = window._right_tabs
+        assert tabs is not None
+
+        files_idx = next(
+            i for i in range(tabs.count()) if tabs.tabText(i) == "Files"
+        )
+        script_info_idx = next(
+            i for i in range(tabs.count()) if tabs.tabText(i) == "Script Info"
+        )
+        tabs.setCurrentIndex(files_idx)
+
+        entry = ScriptEntry(
+            "dro",
+            "Test Script",
+            "Test description",
+            "tod/test/script.py",
+        )
+        window._on_script_selected(entry)
+
+        assert tabs.currentIndex() == script_info_idx
+        assert tabs.tabText(tabs.currentIndex()) == "Script Info"
+
 
 class TestMainWindowThemeSwitching:
     """Tests for theme switching with sidebar rebuild."""
