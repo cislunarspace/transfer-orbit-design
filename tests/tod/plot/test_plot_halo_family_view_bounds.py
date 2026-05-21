@@ -1,4 +1,4 @@
-"""Regression tests for plot_halo_family 3D view bounds calculation.
+"""Regression tests for 3D view bounds calculation.
 
 Ensures that auto-computed center/radius contain the orbit data,
 regardless of whether it is an L1, L2, or L3 family.
@@ -7,11 +7,10 @@ regardless of whether it is an L1, L2, or L3 family.
 import numpy as np
 import pytest
 
-from tod.plot.halo.plot_halo_family import compute_view_bounds
+from tod.plot.family_plot_orchestrator import compute_view_bounds
 
 
 def _make_fake_orbit_states(x_center: float, y_center: float, z_center: float) -> np.ndarray:
-    """Generate a simple closed orbit around the given center."""
     t = np.linspace(0, 2 * np.pi, 100)
     x = x_center + 0.1 * np.cos(t)
     y = y_center + 0.05 * np.sin(t)
@@ -23,13 +22,12 @@ class TestComputeViewBounds:
     @pytest.mark.parametrize(
         "x_center,y_center,z_center",
         [
-            (0.85, 0.0, 0.0),   # L1-like
-            (1.15, 0.0, 0.0),   # L2-like
-            (-1.0, 0.0, 0.0),   # L3-like
+            (0.85, 0.0, 0.0),
+            (1.15, 0.0, 0.0),
+            (-1.0, 0.0, 0.0),
         ],
     )
     def test_bounds_contain_orbit(self, x_center: float, y_center: float, z_center: float) -> None:
-        """Auto-computed 3D bounds must fully contain the orbit."""
         states = _make_fake_orbit_states(x_center, y_center, z_center)
         xlim_2d, ylim_2d, center_3d, radius_3d = compute_view_bounds(states)
 
@@ -45,7 +43,6 @@ class TestComputeViewBounds:
         assert z_max <= center_3d[2] + radius_3d
 
     def test_hardcoded_l1_center_misses_l3(self) -> None:
-        """The old hard-coded center=(0.9, 0, 0), radius=0.4 fails for L3 orbits."""
         states = _make_fake_orbit_states(-1.0, 0.0, 0.0)
         x_min, x_max = states[:, 0].min(), states[:, 0].max()
 
@@ -58,7 +55,6 @@ class TestComputeViewBounds:
         )
 
     def test_2d_bounds_are_reasonable(self) -> None:
-        """2D bounds should use X and Z axes with positive padding."""
         states = _make_fake_orbit_states(0.85, 0.0, 0.1)
         xlim_2d, ylim_2d, _, _ = compute_view_bounds(states)
 

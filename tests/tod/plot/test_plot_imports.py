@@ -6,6 +6,7 @@ import pytest
 
 PLOT_MODULES = [
     "tod.plot",
+    "tod.plot.family_plot_orchestrator",
     "tod.plot.dro.plot_dro_family",
     "tod.plot.halo.plot_halo_family",
     "tod.plot.ro.plot_31_ro_family",
