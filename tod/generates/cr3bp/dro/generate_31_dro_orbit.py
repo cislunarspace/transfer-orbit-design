@@ -21,7 +21,7 @@ import time
 
 import e2m2e
 from e2m2e.core import Orbit
-from tod.commons.common import MU, TU
+from tod.commons.constants import MU, TU
 
 _LOG_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 _DEFAULT_LOG_LEVEL = "WARNING"

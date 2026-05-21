@@ -24,8 +24,9 @@ from e2m2e.core import (
     EphemerisDynamics,
     SynodicJ2000Transformation,
 )
-from tod.commons.common import DU, MU, TU, find_project_root
-from tod.commons.plot_helpers import apply_standard_plot_config
+from tod.commons.constants import DU, MU, TU
+from tod.commons.common import find_project_root
+from tod.plot.config import apply_standard_plot_config
 
 logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))

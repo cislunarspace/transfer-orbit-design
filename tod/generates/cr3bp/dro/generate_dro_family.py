@@ -20,7 +20,7 @@ from pathlib import Path
 
 import e2m2e
 from e2m2e.core import Orbit
-from tod.commons.common import MU
+from tod.commons.constants import MU
 
 _LOG_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 _DEFAULT_LOG_LEVEL = "WARNING"

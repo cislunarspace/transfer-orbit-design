@@ -24,7 +24,7 @@ from e2m2e.orbits.geo import (
     geo_circular_velocity_rotating,
 )
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
-from tod.commons.common import DU, MU, TU, VU
+from tod.commons.constants import DU, MU, TU, VU
 
 logger = logging.getLogger(__name__)
 

@@ -23,7 +23,7 @@ import time
 import e2m2e
 from e2m2e.core import Orbit
 
-from tod.commons.common import MU, TU
+from tod.commons.constants import MU, TU
 
 logger = logging.getLogger(__name__)
 

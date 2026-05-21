@@ -28,7 +28,7 @@ import numpy as np
 from e2m2e.core import Orbit
 from scipy import integrate as sci_integrate
 from scipy.optimize import least_squares
-from tod.commons.common import MU, TU
+from tod.commons.constants import MU, TU
 
 # 解析项目根目录（仓库顶层）：本文件位于 tod/generates/cr3bp/halo/，
 # 向上 5 层即仓库根，用于定位与 e2m2e 共享的 output/ 目录。

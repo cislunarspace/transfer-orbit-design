@@ -22,7 +22,8 @@ if not logging.getLogger().handlers:
 
 import matplotlib  # noqa: E402
 import numpy as np
-from tod.commons.common import TU, VU, find_project_root
+from tod.commons.constants import TU, VU
+from tod.commons.common import find_project_root
 
 project_root = find_project_root(Path(__file__))
 

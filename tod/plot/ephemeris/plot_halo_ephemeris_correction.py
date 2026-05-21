@@ -263,7 +263,7 @@ def generate_plots(
     Returns:
         保存的 PNG 文件路径列表。
     """
-    from tod.commons.common import MU
+    from tod.commons.constants import MU
 
     if output_dir is None:
         output_dir = json_path.parent

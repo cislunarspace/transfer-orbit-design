@@ -39,7 +39,7 @@ from pathlib import Path
 import e2m2e
 import numpy as np
 from e2m2e.core import Orbit
-from tod.commons.common import MU
+from tod.commons.constants import MU
 
 logger = logging.getLogger(__name__)
 

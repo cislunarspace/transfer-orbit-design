@@ -24,7 +24,8 @@ import time
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from e2m2e.core.orbit import Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
-from tod.commons.common import DU, MU, TU, VU
+from tod.commons.constants import DU, MU, TU, VU
+from tod.transfers.optimize_config import apply_blas_env_for_child_processes, blas_threads_per_worker
 from e2m2e.orbits.leo import (
     R_LEO,
     V_CIRCULAR_LEO,
@@ -94,11 +95,7 @@ def main() -> None:
     # =========================================================================
     # 初始化
     # =========================================================================
-    for _k in [
-        "OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
-        "GOTO_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS",
-    ]:
-        os.environ[_k] = "1"
+    apply_blas_env_for_child_processes(blas_threads_per_worker())
 
     # 查找 DRO 文件（CLI > 环境变量 > 默认值）
     dro_file = Path(args.dro_file or os.environ.get("DRO_FILE", DRO_FILE_DEFAULT))

@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QSpinBox,
 )
 
-from tod.commons.plot_helpers import body_icon_env_from_settings, plot_font_env_from_settings
+from tod.plot.config import body_icon_env_from_settings, plot_font_env_from_settings
 from tod.gui.file_operations import FILE_PATH_ROLE
 
 

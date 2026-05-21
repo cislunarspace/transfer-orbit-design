@@ -18,8 +18,9 @@ from e2m2e.algorithms.stability import StabilityAnalysis
 from e2m2e.core import CR3BP_System, Orbit, OrbitFamily
 from e2m2e.visualization import FamilyPlotter
 
-from tod.commons.common import MU, find_project_root
-from tod.commons.plot_helpers import apply_standard_plot_config
+from tod.commons.constants import MU
+from tod.commons.common import find_project_root
+from tod.plot.config import apply_standard_plot_config
 
 logger = logging.getLogger(__name__)
 

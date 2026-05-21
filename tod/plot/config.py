@@ -147,9 +147,9 @@ def apply_standard_plot_config(
 
     import matplotlib
 
-    # 关键：matplotlib 的 font.<family> 是“家族选择链”，不是“逐字符回退链”。
+    # 关键：matplotlib 的 font.<family> 是"家族选择链"，不是"逐字符回退链"。
     # 一旦命中第一个存在的家族（如 Times New Roman），就用它渲染整串文本；
-    # 若该字体不含 CJK 字形，就会出现“豆腐块”乱码。
+    # 若该字体不含 CJK 字形，就会出现"豆腐块"乱码。
     # 因此必须把一个 *包含 CJK 字形的字体* 放在链首。
     # 这里同时覆盖 Linux（Noto/WenQuanYi/文鼎）、Windows（YaHei/SimHei/SimSun）、
     # macOS（PingFang/Hiragino/STSong）常见的真实家族名。

@@ -41,8 +41,9 @@ from e2m2e.orbits.geo import EARTH_CENTER
 from e2m2e.transfer import load_orbit_from_json
 from matplotlib.axes import Axes
 from matplotlib.colors import Normalize
-from tod.commons.common import MU, TU, VU, find_project_root
-from tod.commons.plot_helpers import apply_standard_plot_config, style_colorbar
+from tod.commons.constants import MU, TU, VU
+from tod.commons.common import find_project_root
+from tod.plot.config import apply_standard_plot_config, style_colorbar
 
 project_root = find_project_root(Path(__file__))
 

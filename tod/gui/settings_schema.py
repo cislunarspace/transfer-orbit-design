@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tod.commons.plot_helpers import (
+from tod.plot.config import (
     PLOT_FONT_SETTING_KEYS,
     PROJECT_DEFAULT_BODY_ICON_SCALE,
     STANDARD_PLOT_FONT_SIZES,

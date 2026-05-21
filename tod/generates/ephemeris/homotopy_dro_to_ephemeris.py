@@ -42,7 +42,7 @@ from e2m2e.core import SPICEManager, EphemerisSystem
 # from e2m2e.core import HomotopyEphemerisDynamics
 # from e2m2e.core import SynodicJ2000Transformation, BodyName
 from e2m2e.core import SynodicJ2000Transformation
-from tod.commons.common import DU, MU, TU
+from tod.commons.constants import DU, MU, TU
 
 logger = logging.getLogger(__name__)
 

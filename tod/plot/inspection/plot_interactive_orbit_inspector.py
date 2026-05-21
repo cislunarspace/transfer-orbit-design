@@ -34,8 +34,8 @@ if not logging.getLogger().handlers:
 import e2m2e
 from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization.base import OrbitVisualizer
-from tod.commons.common import MU, TU
-from tod.commons.plot_helpers import apply_standard_plot_config, style_colorbar
+from tod.commons.constants import MU, TU
+from tod.plot.config import apply_standard_plot_config, style_colorbar
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.colors import Normalize

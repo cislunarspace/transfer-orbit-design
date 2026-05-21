@@ -37,8 +37,9 @@ from e2m2e.orbits.geo import (
     compute_departure_velocity,
 )
 from e2m2e.transfer import load_orbit_from_json
-from tod.commons.common import MU, TU, VU, find_project_root
-from tod.commons.plot_helpers import apply_standard_plot_config, subsample_indices
+from tod.commons.constants import MU, TU, VU
+from tod.commons.common import find_project_root
+from tod.plot.config import apply_standard_plot_config, subsample_indices
 from tod.plot.transfer.common import (
     load_search_results,
     plot_alpha_delta_v,

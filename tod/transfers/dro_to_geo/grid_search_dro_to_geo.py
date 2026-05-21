@@ -27,11 +27,12 @@ from e2m2e.orbits.geo import (
     EARTH_CENTER,
     geo_circular_velocity_rotating,
 )
-from tod.commons.common import DU, MU, TU, VU
-from tod.commons.orbit_artifacts import (
+from tod.commons.constants import DU, MU, TU, VU
+from tod.generates.artifacts import (
     OrbitArtifactNotFoundError,
     find_latest_single_dro,
 )
+from tod.transfers.optimize_config import apply_blas_env_for_child_processes, blas_threads_per_worker
 import logging
 
 logger = logging.getLogger(__name__)
@@ -221,15 +222,7 @@ def main() -> None:
     # =========================================================================
     # 初始化
     # =========================================================================
-    for _k in [
-        "OMP_NUM_THREADS",
-        "MKL_NUM_THREADS",
-        "OPENBLAS_NUM_THREADS",
-        "GOTO_NUM_THREADS",
-        "VECLIB_MAXIMUM_THREADS",
-        "NUMEXPR_NUM_THREADS",
-    ]:
-        os.environ[_k] = "1"
+    apply_blas_env_for_child_processes(blas_threads_per_worker())
 
     dro_file_path = args.dro_file or os.environ.get("DRO_FILE")
     if dro_file_path:

@@ -20,7 +20,8 @@ import e2m2e
 from pathlib import Path
 import time
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
-from tod.commons.common import DU, MU, TU
+from tod.commons.constants import DU, MU, TU
+from tod.transfers.optimize_config import apply_blas_env_for_child_processes, blas_threads_per_worker
 import logging
 
 logger = logging.getLogger(__name__)
@@ -64,16 +65,7 @@ def main() -> None:
     dynamics.atol = 1e-12
     dynamics.max_step = 1.0 / (24.0 * TU)
 
-    _blas_keys = [
-        "OMP_NUM_THREADS",
-        "MKL_NUM_THREADS",
-        "OPENBLAS_NUM_THREADS",
-        "GOTO_NUM_THREADS",
-        "VECLIB_MAXIMUM_THREADS",
-        "NUMEXPR_NUM_THREADS",
-    ]
-    for _k in _blas_keys:
-        os.environ[_k] = "1"
+    apply_blas_env_for_child_processes(blas_threads_per_worker())
 
     # 加载轨道数据
     dro_orbit = load_orbit_from_json(str(dro_file))

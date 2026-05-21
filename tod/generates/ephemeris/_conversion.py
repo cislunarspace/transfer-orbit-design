@@ -287,7 +287,7 @@ def default_conversion_dependencies() -> ConversionDependencies:
     )
     import spiceypy
 
-    from tod.commons.common import MU, TU
+    from tod.commons.constants import MU, TU
     from tod.generates.ephemeris._corrector import correct_ephemeris_patch_points
 
     spice = SPICEManager()

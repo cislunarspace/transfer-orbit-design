@@ -42,8 +42,8 @@ from e2m2e.core import (
     SPICEManager,
     SynodicJ2000Transformation,
 )
-from tod.commons.common import DU, MU, TU
-from tod.commons.plot_helpers import apply_standard_plot_config
+from tod.commons.constants import DU, MU, TU
+from tod.plot.config import apply_standard_plot_config
 
 logger = logging.getLogger(__name__)
 

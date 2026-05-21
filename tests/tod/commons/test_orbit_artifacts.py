@@ -1,4 +1,4 @@
-"""``tod.commons.orbit_artifacts`` 单元测试（issue #92）。
+"""``tod.generates.artifacts`` 单元测试（issue #92）。
 
 覆盖最小端到端路径：DRO 单轨道文件的自动发现 + 友好错误信息。
 """
@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from tod.commons.orbit_artifacts import (
+from tod.generates.artifacts import (
     OrbitArtifactNotFoundError,
     find_latest_single_dro,
 )

@@ -36,7 +36,8 @@ from scipy.optimize import minimize, root
 from tqdm.auto import tqdm
 
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
-from tod.commons.common import DU, MU, TU, VU
+from tod.commons.constants import DU, MU, TU, VU
+from tod.transfers.optimize_config import apply_blas_env_for_child_processes, blas_threads_per_worker
 from e2m2e.orbits.geo import (
     R_GEO,
     EARTH_CENTER,
@@ -84,7 +85,6 @@ MAX_CASES: Optional[int] = None
 N_WORKERS: Optional[int] = None
 PARALLEL_BACKEND: str = "processes"
 
-LIMIT_BLAS_THREADS_PER_WORKER: int = 1
 
 USE_TQDM = os.environ.get("OPTIMIZE_NO_TQDM", "").lower() not in ("1", "true", "yes")
 
@@ -491,11 +491,7 @@ def main() -> None:
         backend = PARALLEL_BACKEND.strip().lower()
 
         if backend == "processes":
-            for _k in [
-                "OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
-                "GOTO_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS",
-            ]:
-                os.environ[_k] = str(LIMIT_BLAS_THREADS_PER_WORKER)
+            apply_blas_env_for_child_processes(blas_threads_per_worker())
 
         payloads = []
         for global_idx, rec in feasible_indexed:

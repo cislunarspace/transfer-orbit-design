@@ -20,8 +20,8 @@ if not logging.getLogger().handlers:
         stream=sys.stdout,
     )
 
-from tod.commons.common import MU, TU
-from tod.commons.plot_helpers import apply_standard_plot_config
+from tod.commons.constants import MU, TU
+from tod.plot.config import apply_standard_plot_config
 
 import matplotlib.pyplot as plt
 from e2m2e.core import Orbit, CR3BP_System

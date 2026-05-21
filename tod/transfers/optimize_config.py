@@ -11,7 +11,7 @@ def blas_threads_per_worker(default_limit: int = 1) -> int:
     return default_limit
 
 
-def apply_blas_env_for_child_processes(n_threads: int) -> None:
+def apply_blas_env_for_child_processes(n_threads: int, *, overwrite: bool = True) -> None:
     for key in [
         "OMP_NUM_THREADS",
         "MKL_NUM_THREADS",
@@ -20,7 +20,10 @@ def apply_blas_env_for_child_processes(n_threads: int) -> None:
         "VECLIB_MAXIMUM_THREADS",
         "NUMEXPR_NUM_THREADS",
     ]:
-        os.environ[key] = str(n_threads)
+        if overwrite:
+            os.environ[key] = str(n_threads)
+        else:
+            os.environ.setdefault(key, str(n_threads))
 
 
 class OptimizationProgress:

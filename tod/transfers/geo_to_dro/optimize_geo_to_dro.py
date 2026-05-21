@@ -39,7 +39,8 @@ from scipy.optimize import minimize
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 from e2m2e.core.orbit import Orbit
 from e2m2e.transfer import load_orbit_from_json
-from tod.commons.common import DU, MU, TU, VU
+from tod.commons.constants import DU, MU, TU, VU
+from tod.transfers.optimize_config import apply_blas_env_for_child_processes, blas_threads_per_worker
 from e2m2e.orbits.geo import (
     compute_departure_velocity,
 )
@@ -88,7 +89,6 @@ MAX_CASES: Optional[int] = None
 N_WORKERS: Optional[int] = None
 PARALLEL_BACKEND: str = "threads"
 
-LIMIT_BLAS_THREADS_PER_WORKER: int = 1
 
 
 def parse_args():
@@ -520,12 +520,8 @@ def nlp_worker_packed(payload):
 def main() -> None:
     args = parse_args()
 
-    # 限制 BLAS 线程，避免过量订阅
-    for _k in [
-        "OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS",
-        "GOTO_NUM_THREADS", "VECLIB_MAXIMUM_THREADS", "NUMEXPR_NUM_THREADS",
-    ]:
-        os.environ.setdefault(_k, str(LIMIT_BLAS_THREADS_PER_WORKER))
+    # 限制 BLAS 线程，避免过量订阅（保留已有环境变量，不覆盖）——原用 setdefault
+    apply_blas_env_for_child_processes(blas_threads_per_worker(), overwrite=False)
 
     # CLI 参数覆盖
     search_file = Path(args.search_file or os.environ.get("SEARCH_RESULTS_FILE", SEARCH_RESULTS_DEFAULT))

@@ -163,10 +163,10 @@ def plot_transfer_time_delta_v(
 ) -> None:
     """绘制转移时间 vs Δv 散点图。"""
     from tod.commons.constants import TU, VU
-    from tod.commons.plot_helpers import style_colorbar
+    from tod.plot.config import style_colorbar
 
     if config is None:
-        from tod.commons.plot_helpers import apply_standard_plot_config
+        from tod.plot.config import apply_standard_plot_config
         config = apply_standard_plot_config()
 
     if len(transfer_time) == 0:

@@ -38,8 +38,9 @@ import numpy as np
 from e2m2e.orbits.geo import compute_departure_velocity
 from e2m2e.transfer import load_orbit_from_json
 from matplotlib.colors import Normalize
-from tod.commons.common import DU, TU, VU, find_project_root
-from tod.commons.plot_helpers import apply_standard_plot_config, style_colorbar
+from tod.commons.constants import DU, TU, VU
+from tod.commons.common import find_project_root
+from tod.plot.config import apply_standard_plot_config, style_colorbar
 from tod.plot.transfer.common import (
     geo_circle_points,
     build_transfer_dynamics,

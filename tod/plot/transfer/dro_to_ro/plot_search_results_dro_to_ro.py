@@ -44,8 +44,9 @@ import numpy as np
 from e2m2e.core import CR3BP_System, Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
 from matplotlib.axes import Axes
-from tod.commons.common import MU, TU, VU, find_project_root, safe_resolve_within
-from tod.commons.plot_helpers import apply_standard_plot_config, subsample_indices
+from tod.commons.constants import MU, TU, VU
+from tod.commons.common import find_project_root, safe_resolve_within
+from tod.plot.config import apply_standard_plot_config, subsample_indices
 from tod.plot.transfer.common import (
     departure_delta_v_norm,
     feasible_alpha_and_departure_dv,

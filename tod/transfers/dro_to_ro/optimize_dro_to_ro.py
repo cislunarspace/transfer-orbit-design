@@ -41,8 +41,8 @@ from e2m2e.transfer import (
     load_orbit_from_json,
     optimize_with_copt,
 )
-from tod.commons.common import DU, MU, TU
-from tod.commons.optimize_helpers import (
+from tod.commons.constants import DU, MU, TU
+from tod.transfers.optimize_config import (
     OptimizationProgress,
     apply_blas_env_for_child_processes,
     blas_threads_per_worker,
