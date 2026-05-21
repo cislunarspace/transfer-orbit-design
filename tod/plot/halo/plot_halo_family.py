@@ -158,7 +158,6 @@ def _plot_2d_view(
     plotter: FamilyPlotter,
     subset_family: OrbitFamily,
     jacobi_subset: list[float],
-    stability_subset: list[float],
     xlim: tuple[float, float],
     ylim: tuple[float, float],
     output_dir: Path,
@@ -167,14 +166,13 @@ def _plot_2d_view(
 ) -> None:
     """绘制全局 2D 视图（XZ 平面）。"""
     jmin, jmax = min(jacobi_subset), max(jacobi_subset)
-    smin, smax = min(stability_subset), max(stability_subset)
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message=".*Tight layout.*")
         plotter.plot_family_2d(
             subset_family,
             jacobi_subset,
             title=f"Halo Orbit Family in Earth-Moon CR3BP (XZ Plane) - {n_orbits} orbits\n"
-            f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+            f"C = [{jmin:.4f}, {jmax:.4f}]",
             plane="xz",
             show_bodies=True,
             show_libration=True,
@@ -191,7 +189,6 @@ def _plot_3d_view(
     plotter: FamilyPlotter,
     subset_family: OrbitFamily,
     jacobi_subset: list[float],
-    stability_subset: list[float],
     center_3d: tuple[float, float, float],
     radius_3d: float,
     output_dir: Path,
@@ -200,14 +197,13 @@ def _plot_3d_view(
 ) -> None:
     """绘制全局 3D 视图。"""
     jmin, jmax = min(jacobi_subset), max(jacobi_subset)
-    smin, smax = min(stability_subset), max(stability_subset)
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message=".*Tight layout.*")
         plotter.plot_family_3d(
             subset_family,
             jacobi_subset,
             title=f"Halo Orbit Family in Earth-Moon CR3BP (3D View) - {n_orbits} orbits\n"
-            f"C = [{jmin:.4f}, {jmax:.4f}], λmax = [{smin:.4f}, {smax:.4f}]",
+            f"C = [{jmin:.4f}, {jmax:.4f}]",
             center=center_3d,
             radius=radius_3d,
             elev=20,
@@ -292,15 +288,18 @@ def main(
     jacobi_subset = [jacobi_values[i] for i in range(plot_start, plot_end + 1)]
     logger.info(f"Jacobi 常数范围: {min(jacobi_subset):.6f} ~ {max(jacobi_subset):.6f}")
 
-    logger.info("正在计算稳定性指数（可能较慢）...")
-    stability_values = _compute_stability_indices(family_result)
-    stability_subset = [stability_values[i] for i in range(plot_start, plot_end + 1)]
-    logger.info(f"λmax 范围: {min(stability_subset):.6f} ~ {max(stability_subset):.6f}")
+    stability_subset: list[float] = []
+    if plot3:
+        logger.info("正在计算稳定性指数（可能较慢）...")
+        stability_values = _compute_stability_indices(family_result)
+        stability_subset = [stability_values[i] for i in range(plot_start, plot_end + 1)]
+        logger.info(f"λmax 范围: {min(stability_subset):.6f} ~ {max(stability_subset):.6f}")
 
     sort_idx = np.argsort(jacobi_subset)
     jacobi_sorted = np.array(jacobi_subset)[sort_idx].tolist()
     periods_sorted = np.array(subset_family.periods)[sort_idx].tolist()
-    stability_sorted = np.array(stability_subset)[sort_idx].tolist()
+    # stability_subset 仅在 plot3=True 时非空，因此 stability_sorted 可能与 jacobi_sorted 长度不一致
+    stability_sorted = np.array(stability_subset)[sort_idx].tolist() if stability_subset else []
 
     plotter = FamilyPlotter(system, PLOT_CONFIG)
     # 60/30 是平动点 marker 大小，用于 L1-L5 标注
@@ -311,10 +310,10 @@ def main(
     xlim_2d, ylim_2d, center_3d, radius_3d = compute_view_bounds(all_states)
 
     if plot1:
-        _plot_2d_view(plotter, subset_family, jacobi_subset, stability_subset,
+        _plot_2d_view(plotter, subset_family, jacobi_subset,
                       xlim_2d, ylim_2d, output_dir, family_name, n_orbits)
     if plot2:
-        _plot_3d_view(plotter, subset_family, jacobi_subset, stability_subset,
+        _plot_3d_view(plotter, subset_family, jacobi_subset,
                       center_3d, radius_3d, output_dir, family_name, n_orbits)
     if plot3:
         _plot_jacobi_period_stability(plotter, jacobi_sorted, periods_sorted, stability_sorted,
