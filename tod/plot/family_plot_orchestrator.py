@@ -43,6 +43,7 @@ def build_argparser(description: str) -> argparse.ArgumentParser:
     )
     parser.add_argument("--plot-elev", type=float, default=20.0, help="3D 视图仰角（度）")
     parser.add_argument("--plot-azim", type=float, default=-60.0, help="3D 视图方位角（度）")
+    parser.add_argument("--step", type=int, default=None, help="绘制轨道的间隔步长（默认使用各轨道族的预设值）")
     parser.add_argument("--no-show", action="store_true", help="只保存图片，不弹窗显示")
     return parser
 
@@ -157,6 +158,8 @@ class FamilyPlotOrchestrator:
             logger.info("正在计算稳定性指数...")
             stability_subset = compute_stability_indices(subset)
 
+        step = self.args.step if self.args.step is not None else self.config.step
+
         plot_config = apply_standard_plot_config()
         plotter = FamilyPlotter(system, plot_config)
         if self.config.libration_point_sizes is not None:
@@ -168,9 +171,9 @@ class FamilyPlotOrchestrator:
             bounds = compute_view_bounds(all_states)
 
         if want_2d:
-            self._render_2d(plotter, subset, jacobi_subset, bounds, output_dir, family_name, n_orbits)
+            self._render_2d(plotter, subset, jacobi_subset, bounds, output_dir, family_name, n_orbits, step)
         if want_3d:
-            self._render_3d(plotter, subset, jacobi_subset, bounds, output_dir, family_name, n_orbits)
+            self._render_3d(plotter, subset, jacobi_subset, bounds, output_dir, family_name, n_orbits, step)
         if want_stab:
             self._render_jacobi_stability(
                 plotter, subset, jacobi_subset, stability_subset, output_dir, family_name, n_orbits
@@ -215,7 +218,7 @@ class FamilyPlotOrchestrator:
             subset.add_orbit(family[i])
         return subset
 
-    def _render_2d(self, plotter, subset, jacobi, bounds, output_dir, family_name, n_orbits):
+    def _render_2d(self, plotter, subset, jacobi, bounds, output_dir, family_name, n_orbits, step):
         import matplotlib.pyplot as plt
 
         cfg = self.config
@@ -227,6 +230,7 @@ class FamilyPlotOrchestrator:
             show_bodies=True,
             show_libration=True,
             show_colorbar=True,
+            step=step,
             show=False,
         )
         if cfg.dynamic_bounds and bounds is not None:
@@ -262,7 +266,7 @@ class FamilyPlotOrchestrator:
         else:
             plt.close(fig)
 
-    def _render_3d(self, plotter, subset, jacobi, bounds, output_dir, family_name, n_orbits):
+    def _render_3d(self, plotter, subset, jacobi, bounds, output_dir, family_name, n_orbits, step):
         import matplotlib.pyplot as plt
 
         cfg = self.config
@@ -293,7 +297,7 @@ class FamilyPlotOrchestrator:
                 center=center, radius=radius,
                 elev=elev, azim=azim,
                 show_bodies=True, show_libration=True, show_colorbar=True,
-                step=cfg.step, show=False,
+                step=step, show=False,
             )
 
         if cfg.show_seed_overlay and len(subset) > 0:

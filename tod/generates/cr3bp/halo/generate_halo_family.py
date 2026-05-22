@@ -246,9 +246,11 @@ def parse_args(argv=None):
     parser.add_argument("--halo-class", type=int, default=0, help="0=北 Halo, 1=南 Halo")
     parser.add_argument("--n-orbits", type=int, default=20, help="延拓轨道数量")
     parser.add_argument("--step-size", type=float, default=0.002, help="自然参数延拓 z 方向步长")
-    parser.add_argument("--direction", type=str, default="positive", choices=["positive", "negative", "both"], help="延拓方向")
+    parser.add_argument("--direction", type=str, default="positive", choices=["positive", "negative", "both"], help="延拓方向（仅在未提供 z_range 时生效）")
     parser.add_argument("--seed-file", type=str, default=None, help="种子轨道 JSON 文件路径（提供时跳过种子生成）")
     parser.add_argument("--method", type=str, default="natural", choices=["natural", "pseudo_arclength"], help="延拓方法")
+    parser.add_argument("--z-min", type=float, default=None, help="延拓 z 振幅下限（正数，无量纲，与 --z-max 同时提供时启用 z_range 模式）")
+    parser.add_argument("--z-max", type=float, default=None, help="延拓 z 振幅上限（正数，无量纲，与 --z-min 同时提供时启用 z_range 模式）")
     return parser.parse_args(argv)
 
 
@@ -346,6 +348,48 @@ def main():
     step_size = args.step_size
     method = args.method
 
+    # 只有当 --z-min 和 --z-max 同时显式提供时才启用 z_range 模式
+    z_range = None
+    if args.z_min is not None and args.z_max is not None:
+        if args.z_min >= args.z_max:
+            logger.error("z_min (%.4f) 必须小于 z_max (%.4f)", args.z_min, args.z_max)
+            sys.exit(1)
+        # 构造 z_range：振幅（正数）→ 根据 halo_class 转为带符号的 z 值
+        if args.halo_class == 0:
+            z_range = (args.z_min, args.z_max)
+        else:
+            z_range = (-args.z_max, -args.z_min)
+
+        # 验证种子 z 是否在请求的范围内；若不在，调整到边界
+        seed_z = float(np.asarray(seed_halo.states)[0, 2])
+        if not (z_range[0] <= seed_z <= z_range[1]):
+            logger.warning(
+                "种子 z0 (%.4f) 不在请求的 z_range [%.4f, %.4f] 内，重新生成边界种子...",
+                seed_z, z_range[0], z_range[1],
+            )
+            # 北 Halo 用 z_min，南 Halo 用 z_max（负值）作为新的种子振幅
+            new_amp_z = args.z_min if args.halo_class == 0 else args.z_max
+            seed_halo = continuation.generate_halo_seed_orbit(
+                libration_point=libration_point,
+                amplitude_z=new_amp_z,
+                halo_class=halo_class,
+                verbose=False,
+            )
+            if seed_halo is None:
+                logger.error("边界种子轨道生成失败")
+                sys.exit(1)
+            amplitude_z = _tag_halo_seed_orbit(
+                seed_halo,
+                libration_point=libration_point,
+                halo_class=halo_class,
+                amplitude_z=new_amp_z,
+            )
+            logger.info("边界种子生成成功: 周期=%.6f TU, z0=%.6f", seed_halo.period, np.asarray(seed_halo.states)[0, 2])
+
+        logger.info("使用参数区间模式: z_range=[%.4f, %.4f], 最大轨道数=%d", z_range[0], z_range[1], n_orbits)
+    else:
+        logger.info("使用轨道数量模式: n_orbits=%d, direction=%s", n_orbits, args.direction)
+
     if method == "natural":
         logger.info("开始 Halo 轨道族自然参数延拓（沿 z 方向）...")
         family_result = continuation.generate_halo_family(
@@ -353,6 +397,7 @@ def main():
             n_orbits=n_orbits,
             direction=args.direction,
             step_size=step_size,
+            z_range=z_range,
             verbose=True,
         )
         from e2m2e.core.orbit import OrbitFamily
