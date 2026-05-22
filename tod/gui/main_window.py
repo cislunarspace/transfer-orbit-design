@@ -150,11 +150,28 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         settings_btn.clicked.connect(self._on_settings)
         toolbar.addWidget(settings_btn)
 
+        reset_layout_btn = QPushButton("恢复默认布局")
+        reset_layout_btn.clicked.connect(self._on_reset_layout)
+        toolbar.addWidget(reset_layout_btn)
+
+    def _on_reset_layout(self) -> None:
+        """按初始 stretchFactor 比例重置 splitter 分割大小。"""
+        main_width = self._main_splitter.width()
+        if main_width > 0:
+            left_total = main_width * 2 // 5
+            self._main_splitter.setSizes([left_total, main_width - left_total])
+
+        left_width = self._left_splitter.width()
+        if left_width > 0:
+            sidebar_w = left_width // 3
+            self._left_splitter.setSizes([sidebar_w, left_width - sidebar_w])
+
     # ── Central Widget ─────────────────────────────────────────
 
     def _build_central(self) -> None:
         # 水平分割：左=脚本选择+参数，右=Job 面板
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        self._main_splitter = splitter
 
         # 左侧：脚本按钮 + 右侧 tabs
         left_splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -180,7 +197,6 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         sidebar = SidebarWidget()
         sidebar.set_script_selected_callback(self._on_script_selected)
         sidebar.setMinimumWidth(220)
-        sidebar.setMaximumWidth(300)
         return sidebar
 
     # ── Right Panel: Tabs ──────────────────────────────────────
