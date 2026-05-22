@@ -37,6 +37,7 @@ def _make_args(**overrides) -> argparse.Namespace:
         json_file=None,
         start=-1,
         end=-1,
+        step=1,
         plot_global_2d=False,
         plot_global_3d=False,
         plot_jacobi_stability=False,

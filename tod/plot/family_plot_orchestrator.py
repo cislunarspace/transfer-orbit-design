@@ -43,7 +43,7 @@ def build_argparser(description: str) -> argparse.ArgumentParser:
     )
     parser.add_argument("--plot-elev", type=float, default=20.0, help="3D 视图仰角（度）")
     parser.add_argument("--plot-azim", type=float, default=-60.0, help="3D 视图方位角（度）")
-    parser.add_argument("--step", type=int, default=None, help="绘制轨道的间隔步长（默认使用各轨道族的预设值）")
+    parser.add_argument("--step", type=int, default=1, help="绘制轨道的间隔步长，1 表示绘制全部")
     parser.add_argument("--no-show", action="store_true", help="只保存图片，不弹窗显示")
     return parser
 
