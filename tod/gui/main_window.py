@@ -223,6 +223,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         self._env_widgets: dict[str, QComboBox] = {}
         self._cli_widgets: dict[str, QWidget] = {}
         self._param_defaults: dict[QWidget, str] = {}  # 控件 → 默认值（标准单位）
+        self._factory_defaults: dict[QWidget, str] = {}  # 控件 → 出厂默认值（用于 CLI 参数比较）
         self._cli_row_containers: dict[str, QWidget] = {}  # key → row container (for hidden_when)
         self._cli_row_labels: dict[str, QWidget] = {}  # key → row label (for hidden_when)
         self._widget_factory = CliWidgetFactory(

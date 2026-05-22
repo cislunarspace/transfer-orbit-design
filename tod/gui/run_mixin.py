@@ -44,9 +44,10 @@ class RunMixin:
                     extra_args.append(cli_param.flag)
             elif isinstance(widget, QSpinBox):
                 val = widget.value()
-                default = self._param_defaults.get(widget, "")
-                if default:
-                    if abs(val - float(default)) > 1e-9:
+                # Use factory default (not saved UI default) for CLI emission decision
+                factory_default = self._factory_defaults.get(widget, "")
+                if factory_default:
+                    if abs(val - float(factory_default)) > 1e-9:
                         extra_args.extend([cli_param.flag, str(val)])
                 elif abs(val) > 1e-9:
                     extra_args.extend([cli_param.flag, str(val)])

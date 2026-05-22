@@ -68,6 +68,9 @@ class CliWidgetFactory:
             widget.setRange(-99999, 99999)
             if cli_param.default:
                 widget.setValue(int(cli_param.default))
+            # For step parameter, enforce minimum=1 to match range() semantics
+            if cli_param.flag == "--step":
+                widget.setMinimum(1)
             widget.setToolTip(cli_param.help)
             widget.setSizePolicy(
                 QWidget().sizePolicy().Policy.Expanding,

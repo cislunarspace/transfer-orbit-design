@@ -114,6 +114,7 @@ class ParamsPanelMixin(DocLinkMixin):
         display = self._display_widget(widget)
         self._cli_widgets[key] = widget
         self._param_defaults[widget] = cli_param.default or ""
+        self._factory_defaults[widget] = cli_param.default or ""
         self._connect_param_highlight(widget)
 
         # Wrap in container for hidden_when support
@@ -459,6 +460,7 @@ class ParamsPanelMixin(DocLinkMixin):
         self._env_widgets.clear()
         self._cli_widgets.clear()
         self._param_defaults.clear()
+        self._factory_defaults.clear()
         self._cli_row_containers.clear()
         self._cli_row_labels.clear()
         self._widget_factory.reset()
@@ -659,6 +661,7 @@ class ParamsPanelMixin(DocLinkMixin):
                     display = self._display_widget(widget)
                     self._cli_widgets[key] = widget
                     self._param_defaults[widget] = cli_param.default or ""
+                    self._factory_defaults[widget] = cli_param.default or ""
                     self._connect_param_highlight(widget)
 
                     row_container = QWidget()

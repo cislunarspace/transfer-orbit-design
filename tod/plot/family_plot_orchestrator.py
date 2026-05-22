@@ -159,6 +159,8 @@ class FamilyPlotOrchestrator:
             stability_subset = compute_stability_indices(subset)
 
         step = self.args.step if self.args.step is not None else self.config.step
+        if step < 1:
+            raise ValueError("--step must be >= 1")
 
         plot_config = apply_standard_plot_config()
         plotter = FamilyPlotter(system, plot_config)
