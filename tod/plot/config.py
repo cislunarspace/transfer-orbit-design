@@ -41,6 +41,9 @@ STANDARD_PLOT_LAYOUT: dict[str, float] = {
 # 用户设置优先。这里不直接通过 kwargs 注入到 PlotConfig，否则会覆盖环境变量。
 PROJECT_DEFAULT_BODY_ICON_SCALE: float = 0.25
 
+# e2m2e.visualization 未导出此常量，在本地定义以保持功能独立。
+BODY_ICON_SCALE_ENV: str = "PLOT_BODY_ICON_SCALE"
+
 PLOT_FONT_ENV_VARS: dict[str, str] = {
     key: f"PLOT_FONT_{key.upper()}" for key in PLOT_FONT_KEYS
 }
@@ -92,8 +95,6 @@ def body_icon_env_from_settings(settings: Mapping[str, str]) -> dict[str, str]:
 
     解析失败或值非正时返回空 dict（让 e2m2e 走自己的默认回退）。
     """
-    from e2m2e.visualization import BODY_ICON_SCALE_ENV
-
     raw = settings.get("plot_body_icon_scale")
     if not raw:
         return {}
@@ -112,7 +113,7 @@ def get_standard_plot_config(
     use_env: bool = True,
 ):
     """创建与 plot_dro_family.py 一致的 PlotConfig。"""
-    from e2m2e.visualization import BODY_ICON_SCALE_ENV, PlotConfig
+    from e2m2e.visualization import PlotConfig
 
     kwargs: dict[str, float] = {}
     kwargs.update(STANDARD_PLOT_FONT_SIZES)
