@@ -33,10 +33,15 @@ class RunMixin:
                 env_param = self._current_script.env_params[key]
                 env_overrides[env_param.env_var] = abs_path
 
-        # 收集命令行参数
+        # 收集命令行参数（跳过被 hidden_when 隐藏的控件）
         for key, widget in self._cli_widgets.items():
             cli_param = self._find_cli_param(key)
             if cli_param is None:
+                continue
+
+            # 隐藏控件不发送到 CLI
+            container = self._cli_row_containers.get(key)
+            if container is not None and not container.isVisible():
                 continue
 
             if isinstance(widget, QCheckBox):

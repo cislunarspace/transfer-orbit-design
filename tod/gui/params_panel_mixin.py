@@ -221,15 +221,32 @@ class ParamsPanelMixin(DocLinkMixin):
         return None
 
     def _setup_conditional_visibility(self, entry: ScriptEntry) -> None:
-        """设置 hidden_when 条件可见性：当触发控件有值时隐藏目标控件行。"""
-        hidden_map: dict[str, list[str]] = {}
-        for p in entry.cli_params:
-            if p.hidden_when:
-                trigger_key = p.hidden_when.lstrip("-").replace("-", "_")
-                target_key = p.flag.lstrip("-").replace("-", "_")
-                hidden_map.setdefault(trigger_key, []).append(target_key)
+        """设置 hidden_when 条件可见性。
 
-        for trigger_key, target_keys in hidden_map.items():
+        支持两种 hidden_when 格式：
+        - "flag"：当触发控件有非空值时隐藏目标（向后兼容）
+        - "flag==value"：当触发控件等于指定值时隐藏目标
+        """
+        # Build param lookup for choice_values resolution
+        param_by_key: dict[str, CliParam] = {}
+        for p in entry.cli_params:
+            param_by_key[p.flag.lstrip("-").replace("-", "_")] = p
+
+        # trigger_key -> list of (target_key, expected_value | None)
+        hidden_map: dict[str, list[tuple[str, str | None]]] = {}
+        for p in entry.cli_params:
+            if not p.hidden_when:
+                continue
+            target_key = p.flag.lstrip("-").replace("-", "_")
+            if "==" in p.hidden_when:
+                trigger_raw, expected = p.hidden_when.split("==", 1)
+                trigger_key = trigger_raw.lstrip("-").replace("-", "_")
+                hidden_map.setdefault(trigger_key, []).append((target_key, expected))
+            else:
+                trigger_key = p.hidden_when.lstrip("-").replace("-", "_")
+                hidden_map.setdefault(trigger_key, []).append((target_key, None))
+
+        for trigger_key, targets in hidden_map.items():
             trigger_widget = self._cli_widgets.get(trigger_key)
             if trigger_widget is None:
                 continue
@@ -237,23 +254,42 @@ class ParamsPanelMixin(DocLinkMixin):
             def update_visibility(
                 _=None,
                 tw=trigger_widget,
-                tks=target_keys,
+                tgts=targets,
+                tk=trigger_key,
             ):
-                has_value = False
-                if isinstance(tw, QCheckBox):
-                    has_value = tw.isChecked()
-                elif isinstance(tw, QComboBox):
-                    has_value = bool(tw.currentText().strip())
-                elif isinstance(tw, QLineEdit):
-                    has_value = bool(tw.text().strip())
+                for target_key, expected in tgts:
+                    should_hide = False
+                    if expected is not None:
+                        # Value-match mode: hide when trigger == expected
+                        raw_val = ""
+                        if isinstance(tw, QComboBox):
+                            raw_val = tw.currentText().strip()
+                        elif isinstance(tw, QLineEdit):
+                            raw_val = tw.text().strip()
 
-                for tk in tks:
-                    container = self._cli_row_containers.get(tk)
+                        # Resolve display label → CLI value via choice_values
+                        trigger_param = param_by_key.get(tk)
+                        if trigger_param and trigger_param.choice_values:
+                            reverse = {v: k for k, v in trigger_param.choice_values.items()}
+                            display_val = reverse.get(expected, expected)
+                        else:
+                            display_val = expected
+                        should_hide = raw_val == display_val
+                    else:
+                        # Legacy mode: hide when trigger has any value
+                        if isinstance(tw, QCheckBox):
+                            should_hide = tw.isChecked()
+                        elif isinstance(tw, QComboBox):
+                            should_hide = bool(tw.currentText().strip())
+                        elif isinstance(tw, QLineEdit):
+                            should_hide = bool(tw.text().strip())
+
+                    container = self._cli_row_containers.get(target_key)
                     if container is not None:
-                        container.setVisible(not has_value)
-                        label = self._cli_row_labels.get(tk)
+                        container.setVisible(not should_hide)
+                        label = self._cli_row_labels.get(target_key)
                         if label is not None:
-                            label.setVisible(not has_value)
+                            label.setVisible(not should_hide)
 
             if isinstance(trigger_widget, QComboBox):
                 trigger_widget.currentTextChanged.connect(update_visibility)

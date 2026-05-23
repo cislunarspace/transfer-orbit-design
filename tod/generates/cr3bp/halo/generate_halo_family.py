@@ -66,6 +66,10 @@ def _find_milestone_indices(n_orbits: int, n_milestones: int = 5) -> list[int]:
 
 
 def _print_summary_table(orbits: list, libration_point: int, halo_class: int,
+                         *, method: str = "natural", step_size: float = 0.0,
+                         step_size_negative: float | None = None,
+                         direction: str = "positive",
+                         z_range: tuple[float, float] | None = None,
                          n_milestones: int = 5) -> None:
     """打印论文风格的配置/统计/里程碑表格到控制台。"""
     # --- 统计摘要 ---
@@ -105,6 +109,21 @@ def _print_summary_table(orbits: list, libration_point: int, halo_class: int,
     print(f"  种子 z0      {float(s_seed[2]):.6f}")
     print(f"  种子周期     {seed_orbit.period:.10f}")
     print(f"  周期范围     {min(periods):.4f} ~ {max(periods):.4f}")
+
+    # 延拓信息块
+    if method == "natural":
+        print(f"  延拓方法     自然参数延拓")
+        if z_range is not None:
+            print(f"  延拓参数     z0 in [{z_range[0]:.6f}, {z_range[1]:.6f}]")
+        print(f"  延拓步长     {step_size}")
+        print(f"  延拓方向     {direction}")
+    else:
+        pal_neg = step_size_negative if step_size_negative is not None else step_size
+        print(f"  延拓方法     伪弧长延拓")
+        print(f"  正向步长     {step_size}")
+        print(f"  负向步长     {pal_neg}")
+        print(f"  延拓方向     {direction}")
+
     print(f"  x0 范围     {min(x0s):.6f} ~ {max(x0s):.6f}")
     print(f"  终止条件     闭轨误差上界 (max = {max(errors):.2e})")
     print()
@@ -246,7 +265,9 @@ def parse_args(argv=None):
     parser.add_argument("--halo-class", type=int, default=0, help="0=北 Halo, 1=南 Halo")
     parser.add_argument("--n-orbits", type=int, default=20, help="延拓轨道数量")
     parser.add_argument("--step-size", type=float, default=0.002, help="自然参数延拓 z 方向步长")
-    parser.add_argument("--direction", type=str, default="positive", choices=["positive", "negative", "both"], help="延拓方向（仅在未提供 z_range 时生效）")
+    parser.add_argument("--step-size-pal", type=float, default=None, help="伪弧长延拓步长（提供时覆盖 --step-size）")
+    parser.add_argument("--step-size-negative", type=float, default=None, help="伪弧长延拓负向步长（默认等于正向步长）")
+    parser.add_argument("--direction", type=str, default="positive", choices=["positive", "negative", "both"], help="延拓方向")
     parser.add_argument("--seed-file", type=str, default=None, help="种子轨道 JSON 文件路径（提供时跳过种子生成）")
     parser.add_argument("--method", type=str, default="natural", choices=["natural", "pseudo_arclength"], help="延拓方法")
     parser.add_argument("--z-min", type=float, default=None, help="延拓 z 振幅下限（正数，无量纲，与 --z-max 同时提供时启用 z_range 模式）")
@@ -345,8 +366,13 @@ def main():
     # 4. 生成轨道族
     # =============================================================================
     n_orbits = args.n_orbits
-    step_size = args.step_size
     method = args.method
+
+    # 伪弧长延拓步长：--step-size-pal 优先，否则回退到 --step-size
+    step_size = args.step_size_pal if args.step_size_pal is not None else args.step_size
+    # 负向步长：未指定时默认等于正向步长
+    step_size_negative = args.step_size_negative if args.step_size_negative is not None else step_size
+    direction = args.direction
 
     # 只有当 --z-min 和 --z-max 同时显式提供时才启用 z_range 模式
     z_range = None
@@ -395,8 +421,8 @@ def main():
         family_result = continuation.generate_halo_family(
             seed_orbit=seed_halo,
             n_orbits=n_orbits,
-            direction=args.direction,
-            step_size=step_size,
+            direction=direction,
+            step_size=args.step_size,
             z_range=z_range,
             verbose=True,
         )
@@ -410,9 +436,9 @@ def main():
         family_result = continuation.halo_pseudo_arclength_continuation(
             seed_orbit=seed_halo,
             n_orbits=n_orbits,
-            direction="both",
+            direction=direction,
             step_size=step_size,
-            step_size_negative=step_size,
+            step_size_negative=step_size_negative,
             verbose=True,
         )
 
@@ -446,7 +472,12 @@ def main():
     # =============================================================================
     # 7. 打印论文风格摘要表格
     # =============================================================================
-    _print_summary_table(family_result, libration_point, halo_class)
+    _print_summary_table(
+        family_result, libration_point, halo_class,
+        method=method, step_size=step_size,
+        step_size_negative=step_size_negative if method == "pseudo_arclength" else None,
+        direction=direction, z_range=z_range,
+    )
 
 
 if __name__ == "__main__":

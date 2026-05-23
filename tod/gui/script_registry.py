@@ -43,7 +43,7 @@ class CliParam:
     choice_values: dict[str, str] | None = None  # 显示标签 → CLI 值映射（如 {"北族": "0"}）
     path_mode: str = "absolute"       # "absolute" | "relative" — 文件下拉框的路径显示模式
     name_pattern: str | None = None  # 文件名过滤模式，如 "*_family_*.json"
-    hidden_when: str | None = None   # 格式 "flag==condition"：当指定 flag 的控件有非空值时隐藏此参数
+    hidden_when: str | None = None   # "flag" (有值时隐藏) 或 "flag==value" (等于指定值时隐藏)
     required: bool | None = None     # None 保持旧逻辑；False 可声明可选文件参数
 
 
