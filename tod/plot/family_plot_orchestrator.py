@@ -147,6 +147,67 @@ def _get_center_coordinates(center_type: str, mu: float) -> tuple[float, float, 
     raise ValueError(f"Unknown center type: {center_type}")
 
 
+def _project_2d(xyz: tuple[float, ...], plane: str) -> tuple[float, float]:
+    """将 3D 坐标投影到指定平面。"""
+    if plane == "yz":
+        return (xyz[1], xyz[2])
+    elif plane == "xy":
+        return (xyz[0], xyz[1])
+    else:  # xz
+        return (xyz[0], xyz[2])
+
+
+def _plot_bodies_and_libration(
+    ax,
+    plotter: FamilyPlotter,
+    plane: str,
+) -> None:
+    """在 2D 坐标轴上绘制天体和 libration 点（支持任意投影平面）。"""
+    plane_lower = plane.lower()
+
+    # xy 平面：e2m2e helper 原生支持
+    if plane_lower == "xy":
+        plotter.plot_primary_bodies(ax=ax)
+        plotter.plot_libration_points(ax=ax)
+        return
+
+    # xz / yz 平面：手动投影坐标
+    mu = plotter.mu
+    if mu is None:
+        return
+
+    # 天体位置（旋转坐标系）
+    bodies = [
+        ((-mu, 0.0, 0.0), "#2E86AB", "Earth", plotter.primary_body_size),
+        ((1.0 - mu, 0.0, 0.0), "#95A5A6", "Moon", plotter.secondary_body_size),
+    ]
+    for pos_3d, color, name, size in bodies:
+        h, v = _project_2d(pos_3d, plane_lower)
+        ax.scatter(h, v, color=color, s=size, edgecolors="black", linewidth=1, zorder=10, label=name)
+
+    # Libration 点
+    system = plotter.system
+    if system is not None and hasattr(system, "has_L_points"):
+        if not system.has_L_points:
+            system.compute_libration_points()
+        if system.L_points is not None:
+            from e2m2e.core import LibrationPoint
+            for i, lp in enumerate(LibrationPoint):
+                coord = system.L_points[lp]
+                h, v = _project_2d(coord, plane_lower)
+                color = plotter.libration_point_colors[i]
+                marker = plotter.libration_point_markers[i]
+                size = plotter.libration_point_sizes[i]
+                label_text = plotter.libration_point_labels[i]
+                ax.scatter(h, v, color=color, marker=marker, s=size, zorder=5)
+                ax.annotate(
+                    label_text, (h, v),
+                    textcoords="offset points",
+                    xytext=(5, 5),
+                    fontsize=8,
+                )
+
+
 @dataclass(frozen=True)
 class MultiFileConfig:
     """多文件绘制配置项。"""
@@ -297,7 +358,7 @@ class FamilyPlotOrchestrator:
         bounds = None
         if cfg.dynamic_bounds:
             all_states = np.vstack([orbit.states for orbit in subset])
-            bounds = compute_view_bounds(all_states)
+            bounds = compute_view_bounds(all_states, plane=cfg.plane)
 
         if want_2d:
             self._render_2d(plotter, subset, jacobi_subset, bounds, output_dir, family_name, n_orbits, step)
@@ -347,7 +408,7 @@ class FamilyPlotOrchestrator:
             jacobi_values = family.get_jacobi_constants().tolist()
             jacobi_subset = jacobi_values[start : end + 1]
 
-            step = config.step if config.step > 0 else cfg.multi_file_global_step
+            step = config.step if config.step >= 1 else 1
             all_steps.append(step)
 
             all_subsets.append(subset)
@@ -574,9 +635,8 @@ class FamilyPlotOrchestrator:
                         show_start=False,
                     )
 
-            # 绘制中心和 libration 点
-            plotter.plot_primary_bodies(ax=ax)
-            plotter.plot_libration_points(ax=ax)
+            # 绘制天体和 libration 点（按 plane 投影）
+            _plot_bodies_and_libration(ax, plotter, plane)
 
             # 添加强制相等的坐标轴比例
             ax.set_aspect('equal', adjustable='box')
