@@ -36,7 +36,7 @@ class TestGenerateScriptImports:
         mock_cont.return_value.natural_continuation.return_value = MagicMock()
 
         script_path = (
-            project_root / "tod" / "generates" / "cr3bp" / "ro" / "generate_31_ro_family.py"
+            project_root / "tod" / "generates" / "cr3bp" / "ro" / "deprecated" / "generate_31_ro_family.py"
         )
         spec = importlib.util.spec_from_file_location(
             "generate_31_ro_family", script_path
@@ -62,7 +62,7 @@ class TestGenerateScriptImports:
         mock_cont.return_value.natural_continuation.return_value = MagicMock()
 
         script_path = (
-            project_root / "tod" / "generates" / "cr3bp" / "ro" / "generate_32_ro_family.py"
+            project_root / "tod" / "generates" / "cr3bp" / "ro" / "deprecated" / "generate_32_ro_family.py"
         )
         spec = importlib.util.spec_from_file_location(
             "generate_32_ro_family", script_path
