@@ -38,7 +38,7 @@ def parse_args():
     Returns:
         解析后的命令行参数命名空间。
     """
-    parser = argparse.ArgumentParser(description="在地月 CR3BP 中生成 Horseshoe 轨道。轨道呈马蹄形跨越两个三角平动点（L4 和 L5），在地月空间中形成大范围顺行环绕结构。"跨越两个三角平动点的马蹄形轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="在地月 CR3BP 中生成 Horseshoe 轨道。轨道呈马蹄形跨越两个三角平动点（L4 和 L5），在地月空间中形成大范围顺行环绕结构。（跨越两个三角平动点的马蹄形轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--amplitude", type=float, default=0.1, help="种子轨道振幅（无量纲），默认 0.1。")
     parser.add_argument("--libration-point", type=str, default="L4", choices=["L4", "L5"], help="平动点选择（L4/L5），默认 L4。")
     return parser.parse_args()

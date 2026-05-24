@@ -6,6 +6,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, cast
+
 from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
@@ -14,6 +17,7 @@ from PyQt6.QtWidgets import (
     QMenu,
     QMessageBox,
     QPushButton,
+    QStatusBar,
     QToolButton,
     QTreeWidget,
     QTreeWidgetItem,
@@ -21,7 +25,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from tod.gui.file_discovery import discover_files, format_size
+from tod.gui.file_discovery import FileInfo, discover_files, format_size
 from tod.gui.file_operations import (
     FILE_PATH_ROLE,
     format_delete_confirmation,
@@ -30,10 +34,19 @@ from tod.gui.file_operations import (
     reveal_in_file_manager,
 )
 
+if TYPE_CHECKING:
+    from tod.gui.script_registry import ScriptEntry
 
 
 class FileTreeMixin:
     """提供文件浏览器 Tab 的构建和操作方法，由 MainWindow 通过多重继承混入。"""
+
+    _repo_root: Path
+    _files: list[FileInfo]
+    _status_bar: QStatusBar
+    _current_script: ScriptEntry | None
+    _rebuild_params_panel: Callable[..., Any]
+    _file_tree: QTreeWidget
 
     def _build_file_browser_tab(self, tabs) -> None:
         """构建文件浏览器 Tab 并添加到 tabs 中。"""
@@ -50,7 +63,7 @@ class FileTreeMixin:
         self._copy_btn = QToolButton()
         self._copy_btn.setText(QCoreApplication.translate("FileTreeMixin", "复制"))
         self._copy_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
-        copy_menu = QMenu(self)
+        copy_menu = QMenu(cast(QWidget, self))
         copy_abs_action = copy_menu.addAction(QCoreApplication.translate("FileTreeMixin", "复制绝对路径"))
         copy_rel_action = copy_menu.addAction(QCoreApplication.translate("FileTreeMixin", "复制相对路径"))
         if copy_abs_action is not None:
@@ -132,7 +145,7 @@ class FileTreeMixin:
             return
         title, message = format_delete_confirmation(paths)
         reply = QMessageBox.question(
-            self,
+            cast(QWidget, self),
             title,
             message,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -159,7 +172,7 @@ class FileTreeMixin:
         self._delete_btn.setEnabled(has_selection)
 
     def _on_file_tree_context_menu(self, position) -> None:
-        menu = QMenu(self)
+        menu = QMenu(cast(QWidget, self))
         menu.addAction(QCoreApplication.translate("FileTreeMixin", "复制绝对路径"), self._on_copy_abs)
         menu.addAction(QCoreApplication.translate("FileTreeMixin", "复制相对路径"), self._on_copy_rel)
         menu.addSeparator()

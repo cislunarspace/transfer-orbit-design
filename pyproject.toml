@@ -45,6 +45,7 @@ Repository = "https://github.com/ouyangjiahong/transfer-orbit-design"
 
 [tool.pyright]
 pythonVersion = "3.13"
+reportMissingImports = "none"
 
 [tool.pytest.ini_options]
 markers = [

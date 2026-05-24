@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from itertools import product
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -15,14 +16,36 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QSpinBox,
+    QTreeWidget,
+    QWidget,
 )
 
 from tod.plot.config import body_icon_env_from_settings, plot_font_env_from_settings
 from tod.gui.file_operations import FILE_PATH_ROLE
 
+if TYPE_CHECKING:
+    from tod.gui.job_manager import JobManager
+    from tod.gui.params_panel import CliWidgetFactory
+    from tod.gui.script_registry import ScriptEntry
+
 
 class RunMixin:
     """提供参数收集、运行和验证方法，由 MainWindow 通过多重继承混入。"""
+
+    _chip_widgets: dict[str, QWidget]
+    _current_script: ScriptEntry | None
+    _multi_file_widgets: dict[str, QWidget]
+    _env_widgets: dict[str, QComboBox]
+    _cli_widgets: dict[str, QWidget]
+    _find_cli_param: Callable[..., Any]
+    _cli_row_containers: dict[str, QWidget]
+    _factory_defaults: dict[QWidget, str]
+    _param_defaults: dict[QWidget, str]
+    _widget_factory: CliWidgetFactory
+    _to_standard_unit: Callable[[QWidget], str]
+    _file_tree: QTreeWidget
+    _gui_defaults: dict[str, Any]
+    _job_manager: JobManager
 
     def _collect_chip_selections(self) -> dict[str, list[str]]:
         """收集所有多选芯片参数的当前选择值。
@@ -32,10 +55,10 @@ class RunMixin:
         """
         selections: dict[str, list[str]] = {}
         for key, container in self._chip_widgets.items():
-            # 从容器中获取芯片按钮的状态
             if hasattr(container, "_chip_buttons"):
                 selected = []
-                for label, btn in container._chip_buttons.items():
+                chip_buttons: dict[str, QWidget] = container._chip_buttons  # type: ignore[assignment]
+                for label, btn in chip_buttons.items():
                     if btn.property("_selected"):
                         selected.append(label)
                 if selected:
@@ -68,7 +91,8 @@ class RunMixin:
             if list_widget is None:
                 continue
             file_configs = []
-            for path, config in list_widget._file_items.items():
+            file_items: dict[str, dict] = list_widget._file_items  # type: ignore[assignment]
+            for path, config in file_items.items():
                 file_configs.append(config.copy())
             if file_configs:
                 configs[key] = file_configs
@@ -251,7 +275,7 @@ class RunMixin:
                     text = ""
                 if not text:
                     QMessageBox.warning(
-                        self,
+                        cast(QWidget, self),
                         "参数缺失",
                         f"脚本需要参数 '{cli_param.label}'，但未填写。",
                     )
@@ -266,7 +290,7 @@ class RunMixin:
                         float(text)
                     except ValueError:
                         QMessageBox.warning(
-                            self,
+                            cast(QWidget, self),
                             "参数无效",
                             f"参数 '{cli_param.label}' 需要数值，当前输入 '{text}' 无效。",
                         )
@@ -283,7 +307,7 @@ class RunMixin:
                     continue
                 if text and not Path(text).is_file():
                     reply = QMessageBox.question(
-                        self,
+                        cast(QWidget, self),
                         "文件不存在",
                         f"参数 '{cli_param.label}' 引用的文件不存在：\n{text}\n\n仍然继续？",
                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable, cast
 
 from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtWidgets import (
@@ -23,12 +24,13 @@ from PyQt6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QSpinBox,
+    QStatusBar,
     QVBoxLayout,
     QWidget,
 )
 
 from tod.gui.doc_link_mixin import DocLinkMixin, make_doc_link_label
-from tod.gui.file_discovery import filter_files
+from tod.gui.file_discovery import FileInfo, filter_files
 from tod.gui.script_registry import (
     UNIT_GROUPS,
     CliParam,
@@ -38,11 +40,38 @@ from tod.gui.script_registry import (
 )
 from tod.gui.theme_utils import resolve_theme as _resolve_theme
 
+if TYPE_CHECKING:
+    from tod.gui.params_panel import CliWidgetFactory
+
 
 class ParamsPanelMixin(DocLinkMixin):
     """提供参数面板构建和操作方法，由 MainWindow 通过多重继承混入。"""
 
     _PARAM_BORDER_MODIFIED = "border: 1px solid #4da6ff;"
+
+    _files: list[FileInfo]
+    _widget_factory: CliWidgetFactory
+    _cli_widgets: dict[str, QWidget]
+    _param_defaults: dict[QWidget, str]
+    _factory_defaults: dict[QWidget, str]
+    _cli_row_containers: dict[str, QWidget]
+    _params_layout: QFormLayout
+    _cli_row_labels: dict[str, QWidget]
+    _current_script: ScriptEntry | None
+    _gui_defaults: dict[str, Any]
+    _save_gui_defaults: Callable[..., None]
+    _repo_root: Path
+    _multi_file_widgets: dict[str, QWidget]
+    _multi_file_config_panels: dict[str, QWidget]
+    _current_theme_mode: str
+    _env_widgets: dict[str, QComboBox]
+    _chip_widgets: dict[str, QWidget]
+    _copy_path_to_clipboard: Callable[..., None]
+    _status_bar: QStatusBar
+    _file_label: QLabel
+    _start_spin: QSpinBox
+    _end_spin: QSpinBox
+    _step_spin: QSpinBox
 
     def _on_path_mode_changed(self, file_combo: QComboBox, mode_combo: QComboBox) -> None:
         """Path mode toggle 切换时：重新填充下拉框（相对路径 vs 绝对路径）。"""
@@ -330,8 +359,9 @@ class ParamsPanelMixin(DocLinkMixin):
         collected: dict[str, dict[str, str | None]] = {"env": {}, "cli": {}}
 
         # 收集环境变量参数（文件选择下拉框）
-        for key, combo in self._env_widgets.items():
-            collected["env"][key] = combo.currentData()
+        for key, widget in self._env_widgets.items():
+            combo = widget if isinstance(widget, QComboBox) else None
+            collected["env"][key] = combo.currentData() if combo else None
 
         # 收集命令行参数（显示值）
         for key, widget in self._cli_widgets.items():
@@ -362,9 +392,10 @@ class ParamsPanelMixin(DocLinkMixin):
         """
         # 恢复环境变量参数（文件选择下拉框）
         for key, path in saved.get("env", {}).items():
-            combo = self._env_widgets.get(key)
-            if combo is None:
+            widget = self._env_widgets.get(key)
+            if widget is None or not isinstance(widget, QComboBox):
                 continue
+            combo = widget
             if path is None:
                 combo.setCurrentIndex(0)  # 选中 "（使用脚本默认值）"
             else:
@@ -381,10 +412,10 @@ class ParamsPanelMixin(DocLinkMixin):
                 continue
 
             if isinstance(widget, QCheckBox):
-                widget.setChecked(display_value.lower() == "true")
+                widget.setChecked(display_value is not None and display_value.lower() == "true")
             elif isinstance(widget, QSpinBox):
                 try:
-                    widget.setValue(int(float(display_value)))
+                    widget.setValue(int(float(display_value or "0")))
                 except ValueError:
                     pass
             elif isinstance(widget, QLineEdit):
@@ -406,7 +437,7 @@ class ParamsPanelMixin(DocLinkMixin):
                     widget.setText(display_value)
             elif isinstance(widget, QComboBox):
                 # path_mode_toggles 或普通 combo
-                if display_value.startswith("{"):
+                if display_value and display_value.startswith("{"):
                     try:
                         data = json.loads(display_value)
                         mode_combo = self._widget_factory.path_mode_toggles.get(widget)
@@ -462,7 +493,7 @@ class ParamsPanelMixin(DocLinkMixin):
                 self._param_defaults[widget] = saved[flag]
                 self._update_param_highlight(widget)
 
-        sb = self.statusBar()
+        sb = self._status_bar
         if sb:
             sb.showMessage(QCoreApplication.translate("ParamsPanelMixin", "默认值已保存"), 3000)
 
@@ -491,7 +522,7 @@ class ParamsPanelMixin(DocLinkMixin):
             self._param_defaults[widget] = factory_default
             self._update_param_highlight(widget)
 
-        sb = self.statusBar()
+        sb = self._status_bar
         if sb:
             sb.showMessage(QCoreApplication.translate("ParamsPanelMixin", "已恢复出厂默认值"), 3000)
 
@@ -512,7 +543,7 @@ class ParamsPanelMixin(DocLinkMixin):
         self._multi_file_config_panels[key] = config_panel
 
         # 连接选择变化信号
-        widget.multi_file_selection_changed.connect(
+        widget.multi_file_selection_changed.connect(  # type: ignore[attr-defined]
             lambda k, cfg: self._on_multi_file_selection_changed(k, cfg)
         )
 
@@ -600,10 +631,10 @@ class ParamsPanelMixin(DocLinkMixin):
         )
 
         # 存储引用到 panel
-        panel._file_label = file_label
-        panel._start_spin = start_spin
-        panel._end_spin = end_spin
-        panel._step_spin = step_spin
+        panel._file_label = file_label  # type: ignore[attr-defined]
+        panel._start_spin = start_spin  # type: ignore[attr-defined]
+        panel._end_spin = end_spin  # type: ignore[attr-defined]
+        panel._step_spin = step_spin  # type: ignore[attr-defined]
 
         return panel
 
@@ -629,23 +660,23 @@ class ParamsPanelMixin(DocLinkMixin):
 
         # 断开旧连接
         try:
-            panel._start_spin.valueChanged.disconnect()
-            panel._end_spin.valueChanged.disconnect()
-            panel._step_spin.valueChanged.disconnect()
+            panel._start_spin.valueChanged.disconnect()  # type: ignore[attr-defined]
+            panel._end_spin.valueChanged.disconnect()  # type: ignore[attr-defined]
+            panel._step_spin.valueChanged.disconnect()  # type: ignore[attr-defined]
         except Exception:
             pass
 
         # 更新面板内容
         panel.setVisible(True)
-        file_label = panel._file_label
+        file_label = panel._file_label  # type: ignore[attr-defined]
         path = config.get("path", "")
 
         # 尝试获取文件中的轨道数量
         orbit_count = ""
         try:
-            from e2m2e.core import OrbitFamily
+            from e2m2e.core import OrbitFamily  # type: ignore[import-untyped]
             from tod.commons.constants import MU
-            from e2m2e.core import CR3BP_System
+            from e2m2e.core import CR3BP_System  # type: ignore[import-untyped]
 
             system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
             family = OrbitFamily.load_from_file(Path(path), system)
@@ -658,9 +689,9 @@ class ParamsPanelMixin(DocLinkMixin):
         file_label.setText(f"{Path(path).name}{orbit_count}")
 
         # 更新控件值
-        panel._start_spin.setValue(config.get("start", -1))
-        panel._end_spin.setValue(config.get("end", -1))
-        panel._step_spin.setValue(config.get("step", 1))
+        panel._start_spin.setValue(config.get("start", -1))  # type: ignore[attr-defined]
+        panel._end_spin.setValue(config.get("end", -1))  # type: ignore[attr-defined]
+        panel._step_spin.setValue(config.get("step", 1))  # type: ignore[attr-defined]
 
         # 连接 spin box 变化，更新 list widget 数据
         def _update_config() -> None:
@@ -671,23 +702,23 @@ class ParamsPanelMixin(DocLinkMixin):
             if current_item is None:
                 return
             path = current_item.data(Qt.ItemDataRole.UserRole)
-            if path in list_widget._file_items:
-                list_widget._file_items[path]["start"] = panel._start_spin.value()
-                list_widget._file_items[path]["end"] = panel._end_spin.value()
-                list_widget._file_items[path]["step"] = panel._step_spin.value()
+            if path in list_widget._file_items:  # type: ignore[attr-defined]
+                list_widget._file_items[path]["start"] = panel._start_spin.value()  # type: ignore[attr-defined]
+                list_widget._file_items[path]["end"] = panel._end_spin.value()  # type: ignore[attr-defined]
+                list_widget._file_items[path]["step"] = panel._step_spin.value()  # type: ignore[attr-defined]
 
-        panel._start_spin.valueChanged.connect(_update_config)
-        panel._end_spin.valueChanged.connect(_update_config)
-        panel._step_spin.valueChanged.connect(_update_config)
+        panel._start_spin.valueChanged.connect(_update_config)  # type: ignore[attr-defined]
+        panel._end_spin.valueChanged.connect(_update_config)  # type: ignore[attr-defined]
+        panel._step_spin.valueChanged.connect(_update_config)  # type: ignore[attr-defined]
 
     def _on_doc_link_clicked(self, entry: ScriptEntry, doc_url: str | None) -> None:
         """Handle click on the documentation link."""
         if doc_url is None:
-            sb = self.statusBar()
+            sb = self._status_bar
             if sb:
                 sb.showMessage(QCoreApplication.translate("ParamsPanelMixin", "⚠ 文档未构建：运行 sphinx-build 生成文档后再试"), 5000)
             return
-        self.doc_link_clicked.emit(entry.script_path)
+        self.doc_link_clicked.emit(entry.script_path)  # type: ignore[attr-defined]
 
     def _rebuild_params_panel(self, entry: ScriptEntry) -> None:
         """根据选中的脚本重建运行参数面板。"""

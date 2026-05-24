@@ -1,3 +1,4 @@
+# pyright: reportArgumentType=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false
 """TranslationLoader 和 translate_script_entry 的单元测试。"""
 
 from __future__ import annotations

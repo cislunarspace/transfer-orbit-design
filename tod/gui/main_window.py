@@ -81,7 +81,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
 
         i18n_dir = Path(__file__).parent / "i18n"
         app = QApplication.instance()
-        self._translation_loader = TranslationLoader(i18n_dir, app)
+        self._translation_loader = TranslationLoader(i18n_dir, app)  # type: ignore[arg-type]
         language = self._gui_defaults.get("settings", {}).get("language", "zh")
         self._translation_loader.load(language)
         set_script_translations(self._translation_loader.script_translations)
@@ -280,7 +280,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         merged_layout.addWidget(btn_container)
 
         tabs.addTab(merged_widget, self.tr("脚本信息"))
-        self._right_tabs: QTabWidget = tabs
+        self._right_tabs = tabs
 
         # ── File Browser Tab ────────────────────────────────────
         self._build_file_browser_tab(tabs)

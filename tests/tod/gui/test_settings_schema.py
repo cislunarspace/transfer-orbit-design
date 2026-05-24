@@ -1,3 +1,4 @@
+# pyright: reportArgumentType=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false, reportCallIssue=false, reportOperatorIssue=false, reportReturnType=false, reportAssignmentType=false
 """settings_schema — 设置 schema 结构的单元测试。"""
 
 

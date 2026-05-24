@@ -22,18 +22,18 @@ class ClickableLabel(QLabel):
         super().__init__(*args, **kwargs)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
-    def mousePressEvent(self, event: QMouseEvent) -> None:
+    def mousePressEvent(self, ev: QMouseEvent | None) -> None:
         """执行 mousePressEvent 对应的处理逻辑。
-        
+
         Args:
-            event: 调用方传入的参数值。
-        
+            ev: 调用方传入的参数值。
+
         Returns:
             None。
         """
-        if event.button() == Qt.MouseButton.LeftButton:
+        if ev and ev.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
-        super().mousePressEvent(event)
+        super().mousePressEvent(ev)
 
 
 class DocLinkMixin:
@@ -45,6 +45,7 @@ class DocLinkMixin:
     """
 
     doc_link_clicked = pyqtSignal(str)  # Emits script_path when doc link is clicked
+    _repo_root: Path
 
     def _get_doc_url(self, script_path: str) -> str | None:
         """Convert script path to file:// URL for documentation.

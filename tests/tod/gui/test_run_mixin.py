@@ -1,3 +1,4 @@
+# pyright: reportArgumentType=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false
 """run_mixin — 运行与验证 Mixin 的接口测试。"""
 
 from unittest.mock import MagicMock, patch

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import time
+from typing import TYPE_CHECKING, Any, cast
 
 from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtWidgets import (
@@ -15,6 +16,7 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QStatusBar,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -23,9 +25,20 @@ from PyQt6.QtWidgets import (
 from tod.gui.job_manager import JobManager
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
 
+if TYPE_CHECKING:
+    from tod.gui.script_registry import ScriptEntry
+
 
 class JobPanelMixin:
     """提供 Job 面板构建和生命周期管理方法，由 MainWindow 通过多重继承混入。"""
+
+    _status_bar: QStatusBar
+    _job_outputs: dict[str, StructuredOutputWidget]
+    _job_cards: dict[str, JobCard]
+    _job_manager: JobManager
+    _has_jobs: bool
+    _current_script: ScriptEntry | None
+    _run_btn: QPushButton
 
     def _build_job_panel(self) -> QWidget:
         panel = QWidget()
@@ -192,7 +205,7 @@ class JobPanelMixin:
         elapsed = time.time() - job.started_at
         if elapsed > 60:
             reply = QMessageBox.question(
-                self,
+                cast(QWidget, self),
                 QCoreApplication.translate("JobPanelMixin", "确认停止"),
                 QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 已运行 {} 秒。\n确定停止？").format(job.script_entry.name, int(elapsed)),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -217,7 +230,7 @@ class JobPanelMixin:
             job = self._job_manager.get_job(job_id_to_remove)
             if job and job.status == "running":
                 reply = QMessageBox.question(
-                    self,
+                    cast(QWidget, self),
                     QCoreApplication.translate("JobPanelMixin", "确认关闭"),
                     QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 正在运行。\n停止并关闭？").format(job.script_entry.name),
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,

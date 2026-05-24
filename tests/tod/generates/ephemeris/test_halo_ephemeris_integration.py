@@ -1,3 +1,4 @@
+# pyright: reportArgumentType=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false
 """Integration tests for Halo orbit CR3BP → ephemeris correction pipeline.
 
 Requires real e2m2e library and SPICE kernels (de440.bsp, naif0012.tls).

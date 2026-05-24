@@ -38,7 +38,7 @@ def parse_args():
     Returns:
         解析后的命令行参数命名空间。
     """
-    parser = argparse.ArgumentParser(description="在地月 CR3BP 中生成 Lyapunov 轨道。运动局限在 xy 平面内的平面周期轨道，围绕共线平动点（L1/L2/L3）振荡，是 CR3BP 中最基本的周期轨道类型之一。"平面周期轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="在地月 CR3BP 中生成 Lyapunov 轨道。运动局限在 xy 平面内的平面周期轨道，围绕共线平动点（L1/L2/L3）振荡，是 CR3BP 中最基本的周期轨道类型之一。（平面周期轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--libration-point", type=str, default="L1", choices=["L1", "L2", "L3", "L4", "L5"], help="平动点选择（L1/L2/L3），默认 L1。")
     parser.add_argument("--amplitude-x", type=float, default=0.1, help="种子轨道 x 方向振幅（无量纲），默认 0.1。")
     parser.add_argument("--period-guess", type=float, default=3.0, help="初始周期猜测（无量纲 TU），默认 3.0。")

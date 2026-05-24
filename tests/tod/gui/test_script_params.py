@@ -1,3 +1,4 @@
+# pyright: reportArgumentType=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false
 """Tests for script params definition files under tod/gui/scripts/.
 
 These tests verify that each params file:

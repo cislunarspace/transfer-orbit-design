@@ -38,7 +38,7 @@ def parse_args():
     Returns:
         解析后的命令行参数命名空间。
     """
-    parser = argparse.ArgumentParser(description="在地月 CR3BP 中生成 Vertical 轨道。运动主要在垂直方向（yz 平面）振荡的三维周期轨道，与 Halo 轨道类似但对称性不同。"垂直方向振荡的周期轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(description="在地月 CR3BP 中生成 Vertical 轨道。运动主要在垂直方向（yz 平面）振荡的三维周期轨道，与 Halo 轨道类似但对称性不同。（垂直方向振荡的周期轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--libration-point", type=str, default="L1", choices=["L1", "L2", "L3", "L4", "L5"], help="平动点选择（L1/L2/L3），默认 L1。")
     parser.add_argument("--amplitude-y", type=float, default=0.1, help="种子轨道 y 方向振幅（无量纲），默认 0.1。")
     parser.add_argument("--period-guess", type=float, default=3.0, help="初始周期猜测（无量纲 TU），默认 3.0。")

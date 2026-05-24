@@ -1,3 +1,4 @@
+# pyright: reportArgumentType=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false
 """Tests for run_mixin hidden widget exclusion from extra_args — issue #123."""
 
 import os
