@@ -25,6 +25,7 @@ MANIFEST
 # PyInstaller
 *.manifest
 *.spec
+!TransferOrbitDesign.spec
 
 # Installer logs
 pip-log.txt

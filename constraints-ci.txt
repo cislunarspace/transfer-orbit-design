@@ -1,4 +1,0 @@
-# CI-only constraint: override the local file:// path for e2m2e
-# declared in pyproject.toml with the git URL available on CI runners.
-# Usage: pip install -e . -c constraints-ci.txt
-e2m2e @ git+https://github.com/cislunarspace/e2m2e.git

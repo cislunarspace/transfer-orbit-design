@@ -36,14 +36,13 @@ docs = [
     "myst-parser>=2.0",
 ]
 
+[project.scripts]
+transfer-orbit-design = "tod.gui.main:main"
+
 [project.urls]
 Repository = "https://github.com/ouyangjiahong/transfer-orbit-design"
 
-[tool.uv.sources]
-e2m2e = { path = "../e2m2e", editable = true }
-
 [tool.pyright]
-extraPaths = ["../e2m2e"]
 pythonVersion = "3.13"
 
 [tool.pytest.ini_options]
