@@ -9,7 +9,7 @@ from tod.gui.script_registry import CliParam, ScriptEntry
 SCRIPT_ENTRY = ScriptEntry(
     module='transfer',
     name='plot_optimize_result_dro_to_ro',
-    description='可视化 plot optimize result dro to ro 相关结果，帮助检查轨道几何、稳定性、搜索候选或优化质量。脚本读取 GUI 选择的 JSON 文件，并根据勾选项绘制 2D/3D、散点、统计或交互浏览视图。未填写保存路径时弹出 Matplotlib 窗口；填写保存路径时生成图片文件。',
+    description='绘制优化结果',
     script_path='tod/plot/transfer/dro_to_ro/plot_optimize_result_dro_to_ro.py',
     output_dir='output/transfer',
     group_label='DRO→RO',

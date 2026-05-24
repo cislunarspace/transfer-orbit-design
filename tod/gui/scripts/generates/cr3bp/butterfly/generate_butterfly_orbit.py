@@ -10,7 +10,7 @@ from tod.gui.script_registry import CliParam, ScriptEntry
 SCRIPT_ENTRY = ScriptEntry(
     module='butterfly',
     name='generate_butterfly_orbit',
-    description='在地月 CR3BP 中生成 Butterfly 单条轨道，用于后续转移搜索、轨道分析或任务设计。脚本读取 GUI 中填写的初始状态、周期猜测等参数。结果保存到 output/butterfly，通常包含带时间戳的轨道 JSON 和 latest 副本。',
+    description='生成轨道',
     script_path='tod/generates/cr3bp/butterfly/generate_butterfly_orbit.py',
     output_dir='output/butterfly',
     group_label='生成',

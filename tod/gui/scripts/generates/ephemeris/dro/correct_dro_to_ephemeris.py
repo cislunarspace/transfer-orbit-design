@@ -9,7 +9,7 @@ from tod.gui.script_registry import CliParam, ScriptEntry
 SCRIPT_ENTRY = ScriptEntry(
     module='ephemeris',
     name='correct_dro_to_ephemeris',
-    description='将 DRO 单轨道星历转换 从 CR3BP 结果修正到真实星历模型，适合验证名义轨道在高保真动力学中的连续性。脚本读取输入轨道 JSON、UTC 参考历元和多重打靶配置；运行前需准备 de440.bsp 与 naif0012.tls，并设置 SPICE_KERNEL_DIR 或填写内核目录。结果保存到 output/ephemeris，包含修正状态、残差和转换元数据。',
+    description='修正单条轨道',
     script_path='tod/generates/ephemeris/dro/correct_dro_to_ephemeris.py',
     output_dir='output/ephemeris',
     needs_spice=True,

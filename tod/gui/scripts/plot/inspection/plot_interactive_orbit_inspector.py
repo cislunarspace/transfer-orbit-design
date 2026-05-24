@@ -9,7 +9,7 @@ from tod.gui.script_registry import CliParam, ScriptEntry
 SCRIPT_ENTRY = ScriptEntry(
     module='inspection',
     name='plot_interactive_orbit_inspector',
-    description='可视化 plot interactive orbit inspector 相关结果，帮助检查轨道几何、稳定性、搜索候选或优化质量。脚本读取 GUI 选择的 JSON 文件，并根据勾选项绘制 2D/3D、散点、统计或交互浏览视图。未填写保存路径时弹出 Matplotlib 窗口；填写保存路径时生成图片文件。',
+    description='交互检查',
     script_path='tod/plot/inspection/plot_interactive_orbit_inspector.py',
     group_label='交互式检查',
     cli_params=[

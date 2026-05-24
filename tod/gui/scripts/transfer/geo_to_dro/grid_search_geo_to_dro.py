@@ -9,7 +9,7 @@ from tod.gui.script_registry import CliParam, ScriptEntry
 SCRIPT_ENTRY = ScriptEntry(
     module='transfer',
     name='grid_search_geo_to_dro',
-    description='执行 grid search geo to dro 转移设计步骤，用于从基准轨道文件生成候选或优化后的转移方案。脚本读取 GUI 选择的轨道或搜索结果 JSON，并使用网格密度、时间范围、alpha 范围等参数控制计算规模。结果保存到 output/transfer，供后续优化或绘图脚本继续使用。',
+    description='网格搜索',
     script_path='tod/transfers/geo_to_dro/grid_search_geo_to_dro.py',
     output_dir='output/transfer',
     group_label='GEO→DRO',

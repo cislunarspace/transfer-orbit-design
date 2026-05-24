@@ -10,7 +10,7 @@ from tod.gui.script_registry import CliParam, ScriptEntry
 SCRIPT_ENTRY = ScriptEntry(
     module='horseshoe',
     name='generate_horseshoe_family',
-    description='在地月 CR3BP 中生成 Horseshoe 轨道族，用于后续转移搜索、轨道分析或任务设计。脚本读取 GUI 中填写的延拓范围、步长和延拓方法等参数。结果保存到 output/horseshoe，通常包含带时间戳的轨道 JSON 和 latest 副本。',
+    description='生成轨道族',
     script_path='tod/generates/cr3bp/horseshoe/generate_horseshoe_family.py',
     output_dir='output/horseshoe',
     group_label='生成',

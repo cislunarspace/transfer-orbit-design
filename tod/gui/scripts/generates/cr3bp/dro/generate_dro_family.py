@@ -9,7 +9,7 @@ from tod.gui.script_registry import CliParam, ScriptEntry
 SCRIPT_ENTRY = ScriptEntry(
     module='dro',
     name='generate_dro_family',
-    description='在地月 CR3BP 中生成 DRO 轨道族，用于后续转移搜索、星历转换或绘图分析。脚本读取 GUI 中填写的初始状态、周期猜测、延拓范围等参数；所有物理量按参数单位自动传给 CLI。结果保存到 output/dro，通常包含带时间戳的 JSON/CSV 和 latest 副本。',
+    description='生成轨道族',
     script_path='tod/generates/cr3bp/dro/generate_dro_family.py',
     output_dir='output/dro',
     group_label='生成',

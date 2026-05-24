@@ -10,7 +10,7 @@ from tod.gui.script_registry import CliParam, ScriptEntry
 SCRIPT_ENTRY = ScriptEntry(
     module='tadpole',
     name='generate_tadpole_family',
-    description='在地月 CR3BP 中生成 Tadpole 轨道族，用于后续转移搜索、轨道分析或任务设计。脚本读取 GUI 中填写的延拓范围、步长和延拓方法等参数。结果保存到 output/tadpole，通常包含带时间戳的轨道 JSON 和 latest 副本。',
+    description='生成轨道族',
     script_path='tod/generates/cr3bp/tadpole/generate_tadpole_family.py',
     output_dir='output/tadpole',
     group_label='生成',

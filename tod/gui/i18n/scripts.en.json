@@ -1,18 +1,78 @@
 {
   "_comment": "英文翻译表 — 按脚本名结构化。翻译缺失时回退到中文原始文本。",
-  "_example": {
-    "description": "Nested description for this sample script entry in English.",
-    "group_label": "Generation",
-    "cli_params": {
-      "--ratio": {
-        "label": "Resonance Ratio",
-        "help": "Mass ratio of primary to secondary body (e.g., 3:1)"
-      }
-    },
-    "env_params": {
-      "DRO_FILE": {
-        "label": "DRO Orbit File"
-      }
-    }
-  }
+
+  "generate_31_dro_orbit": { "description": "Generate 3:1 Orbit" },
+  "generate_dro_family": { "description": "Generate Orbit Family" },
+
+  "generate_halo_orbit": { "description": "Generate Orbit" },
+  "generate_halo_family": { "description": "Generate Orbit Family" },
+
+  "generate_axial_orbit": { "description": "Generate Orbit" },
+  "generate_axial_family": { "description": "Generate Orbit Family" },
+
+  "generate_butterfly_orbit": { "description": "Generate Orbit" },
+  "generate_butterfly_family": { "description": "Generate Orbit Family" },
+
+  "generate_dpo_orbit": { "description": "Generate Orbit" },
+  "generate_dpo_family": { "description": "Generate Orbit Family" },
+
+  "generate_spo_orbit": { "description": "Generate Orbit" },
+  "generate_spo_family": { "description": "Generate Orbit Family" },
+
+  "generate_lpo_orbit": { "description": "Generate Orbit" },
+  "generate_lpo_family": { "description": "Generate Orbit Family" },
+
+  "generate_lyapunov_orbit": { "description": "Generate Orbit" },
+  "generate_lyapunov_family": { "description": "Generate Orbit Family" },
+
+  "generate_resonant_orbit": { "description": "Generate Orbit" },
+  "generate_resonant_family": { "description": "Generate Orbit Family" },
+
+  "generate_tadpole_orbit": { "description": "Generate Orbit" },
+  "generate_tadpole_family": { "description": "Generate Orbit Family" },
+
+  "generate_horseshoe_orbit": { "description": "Generate Orbit" },
+  "generate_horseshoe_family": { "description": "Generate Orbit Family" },
+
+  "generate_vertical_orbit": { "description": "Generate Orbit" },
+  "generate_vertical_family": { "description": "Generate Orbit Family" },
+
+  "generate_31_ro_orbit": { "description": "Generate 3:1 Orbit" },
+  "generate_31_ro_family": { "description": "Generate 3:1 Orbit Family" },
+  "generate_32_ro_family": { "description": "Generate 3:2 Orbit Family" },
+  "generate_aro_family": { "description": "Generate ARO Family" },
+  "generate_rro_family": { "description": "Generate RRO Family" },
+
+  "correct_dro_to_ephemeris": { "description": "Correct Single Orbit" },
+  "correct_dro_family_to_ephemeris": { "description": "Correct Orbit Family" },
+  "correct_halo_to_ephemeris": { "description": "Correct Single Orbit" },
+  "correct_halo_family_to_ephemeris": { "description": "Correct Orbit Family" },
+
+  "grid_search_dro_to_geo": { "description": "Grid Search" },
+  "optimize_dro_to_geo": { "description": "Optimize" },
+  "grid_search_dro_to_ro": { "description": "Grid Search" },
+  "optimize_dro_to_ro": { "description": "Optimize" },
+  "grid_search_geo_to_dro": { "description": "Grid Search" },
+  "optimize_geo_to_dro": { "description": "Optimize" },
+  "validate_geo_to_dro": { "description": "Validate" },
+  "grid_search_leo_to_dro": { "description": "Grid Search" },
+  "optimize_leo_to_dro": { "description": "Optimize" },
+
+  "plot_dro_family": { "description": "Plot Orbit Family" },
+  "plot_halo_family": { "description": "Plot Orbit Family" },
+  "plot_ephemeris_correction": { "description": "Plot Correction Results" },
+  "plot_interactive_orbit_inspector": { "description": "Interactive Inspector" },
+  "plot_single_orbit": { "description": "Plot Single Orbit" },
+  "plot_31_ro_family": { "description": "Plot 3:1 Orbit Family" },
+  "plot_32_ro_family": { "description": "Plot 3:2 Orbit Family" },
+  "plot_aro_family": { "description": "Plot ARO Family" },
+  "plot_rro_family": { "description": "Plot RRO Family" },
+  "plot_search_results_dro_to_geo": { "description": "Plot Search Results" },
+  "plot_optimize_result_dro_to_geo": { "description": "Plot Optimization Results" },
+  "plot_search_results_dro_to_ro": { "description": "Plot Search Results" },
+  "plot_optimize_result_dro_to_ro": { "description": "Plot Optimization Results" },
+  "plot_search_results_geo_to_dro": { "description": "Plot Search Results" },
+  "plot_optimize_result_geo_to_dro": { "description": "Plot Optimization Results" },
+  "plot_search_results_leo_to_dro": { "description": "Plot Search Results" },
+  "plot_optimize_result_leo_to_dro": { "description": "Plot Optimization Results" }
 }

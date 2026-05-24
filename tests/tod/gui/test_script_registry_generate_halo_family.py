@@ -57,4 +57,4 @@ class TestGenerateHaloFamilyParams:
 
     def test_description_updated(self, entry: ScriptEntry) -> None:
         assert "伪弧长延拓" not in entry.description
-        assert "Halo" in entry.description
+        assert entry.description == "生成轨道族"
