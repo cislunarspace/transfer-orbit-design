@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from PyQt6.QtCore import QCoreApplication
 from PyQt6.QtGui import QDoubleValidator
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -153,7 +154,10 @@ class CliWidgetFactory:
 
         # 路径模式切换
         mode_combo = QComboBox()
-        mode_combo.addItems([self.tr("绝对"), self.tr("相对")])
+        mode_combo.addItems([
+            QCoreApplication.translate("CliWidgetFactory", "绝对"),
+            QCoreApplication.translate("CliWidgetFactory", "相对"),
+        ])
         mode_combo.setCurrentIndex(1 if is_relative else 0)
         mode_combo.setMinimumContentsLength(2)
         mode_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
