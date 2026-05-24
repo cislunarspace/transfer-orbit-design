@@ -22,7 +22,7 @@ def _qapp():
 
 @pytest.fixture(autouse=True)
 def _ensure_qapp():
-    _qapp()
+    return _qapp()
 
 
 class _Harness:
@@ -34,6 +34,7 @@ class _Harness:
         self._env_widgets: dict[str, QWidget] = {}
         self._current_script: ScriptEntry | None = None
         self._param_defaults: dict[QWidget, str] = {}
+        self._factory_defaults: dict[QWidget, str] = {}
         self._current_theme_mode = "system"
         self._gui_defaults: dict = {}
         self._job_manager = MagicMock()

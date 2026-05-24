@@ -42,7 +42,7 @@ STANDARD_PLOT_LAYOUT: dict[str, float] = {
 PROJECT_DEFAULT_BODY_ICON_SCALE: float = 0.25
 
 # e2m2e.visualization 未导出此常量，在本地定义以保持功能独立。
-BODY_ICON_SCALE_ENV: str = "PLOT_BODY_ICON_SCALE"
+BODY_ICON_SCALE_ENV: str = "E2M2E_BODY_ICON_SCALE"
 
 PLOT_FONT_ENV_VARS: dict[str, str] = {
     key: f"PLOT_FONT_{key.upper()}" for key in PLOT_FONT_KEYS

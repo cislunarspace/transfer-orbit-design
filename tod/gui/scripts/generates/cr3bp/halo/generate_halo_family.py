@@ -117,22 +117,5 @@ SCRIPT_ENTRY = ScriptEntry(
             "延拓轨道数量（z_range 模式下的最大轨道数安全阀）",
             advanced=True,
         ),
-        CliParam(
-            "--step-size",
-            "正向步长",
-            "float",
-            "0.0045",
-            "正向延拓步长",
-            advanced=True,
-        ),
-        CliParam(
-            "--step-size-negative",
-            "负向步长",
-            "float",
-            "0.009",
-            "负向延拓步长",
-            advanced=True,
-            hidden_when="--method==natural",
-        ),
     ],
 )

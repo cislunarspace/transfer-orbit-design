@@ -258,6 +258,8 @@ class ParamsPanelMixin(DocLinkMixin):
                     return text
                 if isinstance(tw, QLineEdit):
                     return tw.text().strip()
+                if isinstance(tw, QSpinBox):
+                    return str(tw.value())
                 return ""
 
             def update_visibility(
@@ -270,7 +272,13 @@ class ParamsPanelMixin(DocLinkMixin):
                     if expected is not None:
                         should_hide = current_val == expected
                     else:
-                        should_hide = bool(current_val)
+                        # Legacy mode: hide when trigger has a "truthy" value.
+                        # For QCheckBox, str(False) == "False" is truthy as a
+                        # string, so we inspect the widget directly.
+                        if isinstance(tw, QCheckBox):
+                            should_hide = tw.isChecked()
+                        else:
+                            should_hide = bool(current_val)
 
                     container = self._cli_row_containers.get(tk)
                     if container is not None:

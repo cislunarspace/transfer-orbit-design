@@ -51,9 +51,9 @@ class TestGenerateHaloFamilyParams:
         param = next(p for p in entry.cli_params if p.flag == "--n-orbits")
         assert param.hidden_when is None
 
-    def test_step_size_has_no_hidden_when(self, entry: ScriptEntry) -> None:
+    def test_step_size_has_hidden_when(self, entry: ScriptEntry) -> None:
         param = next(p for p in entry.cli_params if p.flag == "--step-size")
-        assert param.hidden_when is None
+        assert param.hidden_when == "--method==pseudo_arclength"
 
     def test_description_updated(self, entry: ScriptEntry) -> None:
         assert "伪弧长延拓" not in entry.description
