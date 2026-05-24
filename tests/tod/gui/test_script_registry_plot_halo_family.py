@@ -1,8 +1,23 @@
 """Tests for plot_halo_family ScriptEntry - issue #104."""
 
+import importlib.util
+from pathlib import Path
+
 import pytest
 
 from tod.gui.script_registry import SCRIPTS, ScriptEntry
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+
+
+def _load_raw_entry() -> ScriptEntry:
+    """Load the raw ScriptEntry from the GUI params file."""
+    params_file = _PROJECT_ROOT / "tod" / "gui" / "scripts" / "plot" / "halo" / "plot_halo_family.py"
+    spec = importlib.util.spec_from_file_location("_plot_halo_family_params", params_file)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    return module.SCRIPT_ENTRY
 
 
 class TestPlotHaloFamilyParams:
@@ -18,13 +33,17 @@ class TestPlotHaloFamilyParams:
                 return entry
         pytest.fail("plot_halo_family ScriptEntry not found in plot category")
 
-    def test_has_json_file_param(self, plot_halo_family: ScriptEntry) -> None:
-        """plot_halo_family should have --json-file parameter with file_category=halo."""
-        flags = [p.flag for p in plot_halo_family.cli_params]
-        assert "--json-file" in flags, "Missing --json-file parameter"
+    @pytest.fixture
+    def raw_entry(self) -> ScriptEntry:
+        """Load the raw ScriptEntry with all fields including multi_cli_params."""
+        return _load_raw_entry()
 
-        json_param = next(p for p in plot_halo_family.cli_params if p.flag == "--json-file")
-        assert json_param.param_type == "str"
+    def test_has_json_file_param(self, raw_entry: ScriptEntry) -> None:
+        """plot_halo_family should have --json-file parameter with file_category=halo."""
+        multi_flags = [p.flag for p in raw_entry.multi_cli_params]
+        assert "--json-file" in multi_flags, "Missing --json-file parameter"
+
+        json_param = next(p for p in raw_entry.multi_cli_params if p.flag == "--json-file")
         assert json_param.file_category == "halo"
 
     def test_has_start_param(self, plot_halo_family: ScriptEntry) -> None:

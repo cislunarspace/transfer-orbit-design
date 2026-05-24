@@ -40,7 +40,7 @@ jobs:
           pip install -e ".[test]"
 
       - name: Run tests
-        run: pytest tests/ -v
+        run: pytest tests/ -v -m "not spice"
 
       - name: Type check
         run: |

@@ -23,6 +23,9 @@ SCRIPT_ENTRY = ScriptEntry(
         ),
     ],
     cli_params=[
+        CliParam('--start', '起始轨道索引', 'int', '-1', help='起始轨道索引，-1 表示从第一条（仅单文件模式有效）', advanced=True),
+        CliParam('--end', '结束轨道索引', 'int', '-1', help='结束轨道索引（含），-1 表示到最后一条（仅单文件模式有效）', advanced=True),
+        CliParam('--step', '绘制步长', 'int', '1', help='绘制轨道的间隔步长，1 表示绘制全部（仅单文件模式有效）', advanced=True),
         CliParam('--view-2d', '2D 视图（XZ 平面）', 'bool', '', help='绘制 Halo 轨道族在 XZ 平面的 2D 视图，勾选后启用。'),
         CliParam('--view-3d', '3D 视图', 'bool', '', help='绘制 Halo 轨道族的 3D 示意图，勾选后启用。'),
         CliParam('--jacobi-period-stability', 'Jacobi-周期-稳定性图', 'bool', '', help='绘制 Jacobi 常数-周期-稳定性联合图，勾选后启用。'),

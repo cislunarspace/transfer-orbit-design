@@ -174,10 +174,9 @@ class TestOrchestratorRunNoPlots:
         args = _make_args()
         orchestrator = FamilyPlotOrchestrator(config, args)
 
-        with patch.object(FamilyPlotOrchestrator, "_load_family"):
-            with patch("tod.plot.family_plot_orchestrator.logger") as mock_logger:
-                orchestrator.run()
-                mock_logger.warning.assert_called_once_with("未选择任何图表，跳过绘制")
+        with patch("tod.plot.family_plot_orchestrator.logger") as mock_logger:
+            orchestrator.run()
+            mock_logger.warning.assert_called_once_with("未选择任何图表，跳过绘制")
 
 
 class TestOrchestratorStabilityOnDemand:
@@ -186,10 +185,9 @@ class TestOrchestratorStabilityOnDemand:
         config = _make_config()
         args = _make_args(plot_global_2d=True)
         family = _make_mock_family()
-        output_dir = Path("/tmp/test")
         orchestrator = FamilyPlotOrchestrator(config, args)
 
-        with patch.object(orchestrator, "_load_family", return_value=(family, "test", output_dir)):
+        with patch.object(orchestrator, "_load_single_family", return_value=(family, "test")):
             with patch.object(orchestrator, "_render_2d"):
                 with patch("tod.plot.family_plot_orchestrator.compute_stability_indices") as mock_stab:
                     with patch("tod.plot.family_plot_orchestrator.FamilyPlotter"):
@@ -204,10 +202,9 @@ class TestOrchestratorStabilityOnDemand:
         config = _make_config()
         args = _make_args(plot_jacobi_stability=True)
         family = _make_mock_family()
-        output_dir = Path("/tmp/test")
         orchestrator = FamilyPlotOrchestrator(config, args)
 
-        with patch.object(orchestrator, "_load_family", return_value=(family, "test", output_dir)):
+        with patch.object(orchestrator, "_load_single_family", return_value=(family, "test")):
             with patch.object(orchestrator, "_render_jacobi_stability"):
                 with patch("tod.plot.family_plot_orchestrator.compute_stability_indices", return_value=[1.0] * 3) as mock_stab:
                     with patch("tod.plot.family_plot_orchestrator.FamilyPlotter"):
@@ -225,10 +222,9 @@ class TestOrchestratorRouting:
         config = _make_config()
         args = _make_args(**flags)
         family = _make_mock_family()
-        output_dir = Path("/tmp/test")
         orchestrator = FamilyPlotOrchestrator(config, args)
 
-        with patch.object(orchestrator, "_load_family", return_value=(family, "test", output_dir)):
+        with patch.object(orchestrator, "_load_single_family", return_value=(family, "test")):
             with patch.object(orchestrator, "_render_2d") as mock_2d:
                 with patch.object(orchestrator, "_render_3d") as mock_3d:
                     with patch.object(orchestrator, "_render_jacobi_stability") as mock_stab:
@@ -286,7 +282,7 @@ class TestLoadFamily:
         orchestrator = FamilyPlotOrchestrator(config, args)
 
         with pytest.raises(SystemExit):
-            orchestrator._load_family(MagicMock())
+            orchestrator._load_single_family(MagicMock(), None, Path("/tmp/test"))
 
     def test_uses_custom_json_file(self, tmp_path) -> None:
         json_file = tmp_path / "custom_family.json"
@@ -297,7 +293,7 @@ class TestLoadFamily:
 
         with patch("tod.plot.family_plot_orchestrator.OrbitFamily.load_from_file") as mock_load:
             mock_load.return_value = _make_mock_family()
-            family, name, out_dir = orchestrator._load_family(MagicMock())
+            family, name = orchestrator._load_single_family(MagicMock(), Path(str(json_file)), tmp_path)
 
         assert name == "custom_family"
         mock_load.assert_called_once()
@@ -319,10 +315,9 @@ class TestElevAzimFromArgs:
         )
         args = _make_args(plot_global_3d=True, plot_elev=30.0, plot_azim=-45.0)
         family = _make_mock_family()
-        output_dir = Path("/tmp/test")
         orchestrator = FamilyPlotOrchestrator(config, args)
 
-        with patch.object(orchestrator, "_load_family", return_value=(family, "test", output_dir)):
+        with patch.object(orchestrator, "_load_single_family", return_value=(family, "test")):
             with patch("tod.plot.family_plot_orchestrator.FamilyPlotter") as MockFP:
                 mock_plotter = MockFP.return_value
                 mock_fig = MagicMock()
@@ -352,7 +347,7 @@ class TestSingleOrbitLoad:
 
         with patch("tod.plot.family_plot_orchestrator.OrbitFamily.load_from_file") as mock_load:
             mock_load.return_value = _make_mock_family()
-            orchestrator._load_family(MagicMock())
+            orchestrator._load_single_family(MagicMock(), Path(str(json_file)), tmp_path)
 
         mock_load.assert_called_once()
 
@@ -370,7 +365,7 @@ class TestSingleOrbitLoad:
             with patch("tod.plot.family_plot_orchestrator.OrbitFamily") as MockOF:
                 mock_family = MagicMock()
                 MockOF.return_value = mock_family
-                family, name, out_dir = orchestrator._load_family(MagicMock())
+                orchestrator._load_single_family(MagicMock(), Path(str(json_file)), tmp_path)
 
         mock_family.add_orbit.assert_called_once_with(mock_orbit)
 

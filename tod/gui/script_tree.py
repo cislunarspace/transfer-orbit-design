@@ -173,9 +173,9 @@ def _iter_filesystem_dirs(indexed_dirs: set[str]) -> list[list[str]]:
 
 def _iter_ordered_function_roots(tod_root: Path) -> list[Path]:
     return [
-        path
-        for path in tod_root.iterdir()
-        if path.is_dir() and path.name in _SECTION_COLORS
+        tod_root / name
+        for name in _SECTION_COLORS
+        if (tod_root / name).is_dir()
     ]
 
 

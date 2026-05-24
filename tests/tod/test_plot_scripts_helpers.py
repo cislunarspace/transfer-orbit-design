@@ -145,6 +145,7 @@ class TestPlotScriptImports:
         except (Exception, SystemExit) as e:
             pass
 
+    @pytest.mark.skip(reason="plot_halo_orbit.py no longer exists")
     def test_plot_halo_orbit_uses_env_plot_config(self, monkeypatch):
         """plot_halo_orbit should apply GUI font overrides at module startup."""
         monkeypatch.setenv("PLOT_FONT_TITLE", "44")

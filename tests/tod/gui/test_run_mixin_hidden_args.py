@@ -31,6 +31,8 @@ class _Harness:
     def __init__(self):
         self._cli_widgets: dict[str, QWidget] = {}
         self._cli_row_containers: dict[str, QWidget] = {}
+        self._chip_widgets: dict[str, QWidget] = {}
+        self._multi_file_widgets: dict[str, QWidget] = {}
         self._env_widgets: dict[str, QWidget] = {}
         self._current_script: ScriptEntry | None = None
         self._param_defaults: dict[QWidget, str] = {}
@@ -43,6 +45,15 @@ class _Harness:
         self._file_tree = MagicMock()
         self._find_cli_param = MagicMock(return_value=None)
         self._validate_params = MagicMock(return_value=True)
+
+    def _collect_chip_selections(self) -> dict[str, list[str]]:
+        return {}
+
+    def _collect_multi_file_configs(self) -> dict[str, list[dict]]:
+        return {}
+
+    def _expand_combinations(self, base_args, chip_selections):
+        return [base_args]
 
 
 class TestRunMixinSkipsHiddenWidgets:
