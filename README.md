@@ -15,6 +15,23 @@ Transfer Orbit Design 是一组面向地月空间轨道设计的脚本和 GUI �
 
 ## 安装
 
+### 1. 克隆 e2m2e 依赖库
+
+本项目依赖 `e2m2e` 核心算法库，需要先克隆到本地：
+
+```bash
+# 克隆到与本仓库同级的目录
+cd ..
+git clone https://github.com/cislunarspace/e2m2e.git
+
+# 安装为 editable 模式
+cd e2m2e
+uv pip install -e .
+cd ../transfer-orbit-design
+```
+
+### 2. 安装本项目
+
 推荐使用 Python 3.13；项目要求 Python `>=3.11`。
 
 ```bash
@@ -136,8 +153,7 @@ uv run python -m tod.generates.ephemeris.halo.correct_halo_to_ephemeris \
 |------|------|------|
 | DRO | `tod.plot.dro.plot_dro_family` | DRO 轨道族全局视图 |
 | Halo | `tod.plot.halo.plot_halo_family` | Halo 轨道族 2D/3D 视图，支持按步长采样 |
-| 星历 | `tod.plot.ephemeris.plot_ephemeris_correction` | DRO 星历修正结果对比图 |
-| 星历 | `tod.plot.ephemeris.plot_halo_ephemeris_correction` | Halo 星历修正结果对比图 |
+| 星历 | `tod.plot.ephemeris.plot_ephemeris_correction` | 星历修正结果对比图 |
 | 检查 | `tod.plot.inspection.plot_single_orbit` | 单轨道检查器 |
 | 检查 | `tod.plot.inspection.plot_interactive_orbit_inspector` | 交互式轨道检查器 |
 | 转移 | `tod.plot.transfer.dro_to_ro.plot_search_results_dro_to_ro` | DRO→RO 搜索结果可视化 |
@@ -168,7 +184,7 @@ tod/
   generates/      CR3BP 轨道生成与 CR3BP→星历转换脚本
     cr3bp/          各轨道族生成（dro, dpo, halo, lyapunov, vertical,
                     axial, butterfly, spo, lpo, tadpole, horseshoe,
-                    resonant）
+                    resonant, ...）
     ephemeris/      DRO/Halo 星历转换（单轨道与轨道族）
   transfers/      DRO/Resonant/GEO/LEO 转移搜索和优化脚本
   plot/           轨道、轨道族、搜索结果和优化结果绘图脚本
