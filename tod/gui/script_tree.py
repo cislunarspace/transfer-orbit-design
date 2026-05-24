@@ -222,9 +222,9 @@ def _ordered_root_paths(roots_by_path: dict[str, TreeNode]) -> list[str]:
         return list(roots_by_path)
 
     ordered = [
-        _join_tod_path([path.name])
-        for path in tod_root.iterdir()
-        if path.is_dir() and _join_tod_path([path.name]) in roots_by_path
+        _join_tod_path([name])
+        for name in _SECTION_COLORS
+        if _join_tod_path([name]) in roots_by_path
     ]
     remaining = [path for path in roots_by_path if path not in ordered]
     return [*ordered, *remaining]
