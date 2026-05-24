@@ -63,7 +63,7 @@ class DocLinkMixin:
         doc_path = self._repo_root / "docs" / "build" / "html" / f"{doc_rel}.html"
 
         if doc_path.exists():
-            return f"file://{doc_path.absolute()}"
+            return doc_path.absolute().as_uri()
 
         return None
 
