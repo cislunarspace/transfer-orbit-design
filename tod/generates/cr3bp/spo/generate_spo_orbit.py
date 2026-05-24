@@ -1,14 +1,13 @@
-"""generate_spo_orbit 轨道生成脚本。
+"""generate_spo_orbit SPO轨道生成脚本。
 
-本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。
+本模块在地月 CR3BP 中通过微分修正生成单条轨道。围绕三角平动点（L4 或 L5）的短周期振荡轨道，周期较短，振幅较小。
+输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/spo/ 下对应轨道类别的 JSON/CSV 文件。
 
 运行示例:
     .. code-block:: bash
 
        uv run python -m tod.generates.cr3bp.spo.generate_spo_orbit --help
 """
-
-
 import argparse
 import logging
 import sys
@@ -40,9 +39,9 @@ def parse_args():
         解析后的命令行参数命名空间。
     """
     parser = argparse.ArgumentParser(description="生成 SPO（Short Period Orbit，三角平动点附近短周期轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--libration-point", type=str, default="L4", choices=["L4", "L5"], help="平动点选择")
-    parser.add_argument("--amplitude", type=float, default=0.1, help="振幅")
-    parser.add_argument("--period-guess", type=float, default=3.0, help="周期猜测值")
+    parser.add_argument("--libration-point", type=str, default="L4", choices=["L4", "L5"], help="平动点选择（L4/L5），默认 L4。")
+    parser.add_argument("--amplitude", type=float, default=0.1, help="种子轨道振幅（无量纲），默认 0.1。")
+    parser.add_argument("--period-guess", type=float, default=3.0, help="初始周期猜测（无量纲 TU），默认 3.0。")
     return parser.parse_args()
 
 

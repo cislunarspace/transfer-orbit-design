@@ -1,14 +1,13 @@
-"""generate_horseshoe_orbit 轨道生成脚本。
+"""generate_horseshoe_orbit Horseshoe轨道生成脚本。
 
-本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。
+本模块在地月 CR3BP 中通过微分修正生成单条轨道。轨道呈马蹄形跨越两个三角平动点（L4 和 L5），在地月空间中形成大范围顺行环绕结构。
+输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/horseshoe/ 下对应轨道类别的 JSON/CSV 文件。
 
 运行示例:
     .. code-block:: bash
 
        uv run python -m tod.generates.cr3bp.horseshoe.generate_horseshoe_orbit --help
 """
-
-
 import argparse
 import logging
 import sys
@@ -39,9 +38,9 @@ def parse_args():
     Returns:
         解析后的命令行参数命名空间。
     """
-    parser = argparse.ArgumentParser(description="生成 Horseshoe 轨道（跨越两个三角平动点的马蹄形轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--amplitude", type=float, default=0.1, help="振幅")
-    parser.add_argument("--libration-point", type=str, default="L4", choices=["L4", "L5"], help="平动点选择")
+    parser = argparse.ArgumentParser(description="在地月 CR3BP 中生成 Horseshoe 轨道。轨道呈马蹄形跨越两个三角平动点（L4 和 L5），在地月空间中形成大范围顺行环绕结构。"跨越两个三角平动点的马蹄形轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--amplitude", type=float, default=0.1, help="种子轨道振幅（无量纲），默认 0.1。")
+    parser.add_argument("--libration-point", type=str, default="L4", choices=["L4", "L5"], help="平动点选择（L4/L5），默认 L4。")
     return parser.parse_args()
 
 

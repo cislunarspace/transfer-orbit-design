@@ -1,14 +1,13 @@
-"""generate_tadpole_orbit 轨道生成脚本。
+"""generate_tadpole_orbit Tadpole轨道生成脚本。
 
-本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。
+本模块在地月 CR3BP 中通过微分修正生成单条轨道。轨道呈蝌蚪状环绕单个三角平动点（L4 或 L5），分为领先（leading）和滞后（trailing）两种构型。
+输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/tadpole/ 下对应轨道类别的 JSON/CSV 文件。
 
 运行示例:
     .. code-block:: bash
 
        uv run python -m tod.generates.cr3bp.tadpole.generate_tadpole_orbit --help
 """
-
-
 import argparse
 import logging
 import sys
@@ -39,10 +38,10 @@ def parse_args():
     Returns:
         解析后的命令行参数命名空间。
     """
-    parser = argparse.ArgumentParser(description="生成 Tadpole 轨道（围绕单个三角平动点的蝌蚪形轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--libration-point", type=str, default="L4", choices=["L4", "L5"], help="平动点选择")
-    parser.add_argument("--amplitude", type=float, default=0.1, help="振幅")
-    parser.add_argument("--leading-trailing", type=str, default="leading", choices=["leading", "trailing"], help="领先/滞后")
+    parser = argparse.ArgumentParser(description="在地月 CR3BP 中生成 Tadpole 轨道。轨道呈蝌蚪状环绕单个三角平动点（L4 或 L5），分为领先（leading）和滞后（trailing）两种构型。"围绕单个三角平动点的蝌蚪形轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--libration-point", type=str, default="L4", choices=["L4", "L5"], help="平动点选择（L4/L5），默认 L4。")
+    parser.add_argument("--amplitude", type=float, default=0.1, help="种子轨道振幅（无量纲），默认 0.1。")
+    parser.add_argument("--leading-trailing", type=str, default="leading", choices=["leading", "trailing"], help="构型选择（leading/trailing），默认 leading。")
     return parser.parse_args()
 
 

@@ -1,14 +1,13 @@
-"""generate_dpo_family 轨道生成脚本。
+"""generate_dpo_family DPO轨道生成脚本。
 
-本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。
+本模块在地月 CR3BP 中延拓生成轨道族。通过改变初始位置或速度参数，系统生成一系列顺行直接轨道族。
+输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/dpo/ 下对应轨道类别的 JSON/CSV 文件。
 
 运行示例:
     .. code-block:: bash
 
        uv run python -m tod.generates.cr3bp.dpo.generate_dpo_family --help
 """
-
-
 import argparse
 import logging
 import sys
@@ -33,12 +32,12 @@ def parse_args(argv=None):
     Returns:
         解析后的 argparse.Namespace 对象。
     """
-    parser = argparse.ArgumentParser(description="生成 DPO 轨道族", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--method", type=str, default="natural", choices=["natural", "pseudo_arclength"], help="延拓方法")
-    parser.add_argument("--param-min", type=float, default=0.01, help="参数最小值")
-    parser.add_argument("--param-max", type=float, default=0.5, help="参数最大值")
-    parser.add_argument("--step-size", type=float, default=0.01, help="步长")
-    parser.add_argument("--n-orbits", type=int, default=50, help="生成轨道数量")
+    parser = argparse.ArgumentParser(description="在地月 CR3BP 中生成 DPO 轨道族。通过改变初始位置或速度参数，系统生成一系列顺行直接轨道族。", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--method", type=str, default="natural", choices=["natural", "pseudo_arclength"], help="延拓方法（natural/pseudo_arclength），默认 natural。")
+    parser.add_argument("--param-min", type=float, default=0.01, help="延拓参数下限（无量纲），默认 0.01。")
+    parser.add_argument("--param-max", type=float, default=0.5, help="延拓参数上限（无量纲），默认 0.5。")
+    parser.add_argument("--step-size", type=float, default=0.01, help="延拓步长（无量纲），默认 0.01。")
+    parser.add_argument("--n-orbits", type=int, default=50, help="目标生成轨道数，默认 50。")
     return parser.parse_args(argv)
 
 

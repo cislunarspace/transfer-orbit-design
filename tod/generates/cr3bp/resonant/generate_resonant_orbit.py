@@ -1,14 +1,13 @@
-"""generate_resonant_orbit 轨道生成脚本。
+"""generate_resonant_orbit Resonant轨道生成脚本。
 
-本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。
+本模块在地月 CR3BP 中通过微分修正生成单条轨道。轨道周期与月球轨道周期呈特定整数比（如 3:1、3:2、2:1），在地月空间中形成共振锁相结构。
+输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/resonant/ 下对应轨道类别的 JSON/CSV 文件。
 
 运行示例:
     .. code-block:: bash
 
        uv run python -m tod.generates.cr3bp.resonant.generate_resonant_orbit --help
 """
-
-
 import argparse
 import logging
 import sys
@@ -40,11 +39,11 @@ def parse_args():
         解析后的命令行参数命名空间。
     """
     parser = argparse.ArgumentParser(description="在地月 CR3BP 中生成指定 m:n 共振比例的周期轨道。", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--ratio", type=str, default="3:1", help="共振比例（如 3:1, 3:2, 2:1）")
-    parser.add_argument("--z0", type=float, default=0.0, help="初始 z 位置")
-    parser.add_argument("--vy0", type=float, default=0.0, help="初始 y 方向速度")
-    parser.add_argument("--period-guess", type=float, default=3.0, help="周期猜测值")
-    parser.add_argument("--libration-point", type=str, default="secondary", choices=["secondary", "L1", "L2"], help="平动点选择（默认secondary表示在次要天体附近）")
+    parser.add_argument("--ratio", type=str, default="3:1", help="共振比例（3:1/3:2/2:1），默认 3:1。")
+    parser.add_argument("--z0", type=float, default=0.0, help="种子轨道初始 z 坐标（无量纲），默认 0.0。")
+    parser.add_argument("--vy0", type=float, default=0.0, help="种子轨道初始 vy 速度（无量纲），默认 0.0。")
+    parser.add_argument("--period-guess", type=float, default=3.0, help="初始周期猜测（无量纲 TU），默认 3.0。")
+    parser.add_argument("--libration-point", type=str, default="secondary", choices=["secondary", "L1", "L2"], help="平动点选择（secondary/L1/L2），默认 secondary 表示次要天体附近。")
     return parser.parse_args()
 
 

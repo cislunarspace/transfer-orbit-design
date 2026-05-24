@@ -1,14 +1,13 @@
-"""generate_resonant_family 轨道生成脚本。
+"""generate_resonant_family Resonant轨道生成脚本。
 
-本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。
+本模块在地月 CR3BP 中延拓生成轨道族。通过改变 z 方向参数，系统生成一系列指定共振比例的周期轨道族。
+输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/resonant/ 下对应轨道类别的 JSON/CSV 文件。
 
 运行示例:
     .. code-block:: bash
 
        uv run python -m tod.generates.cr3bp.resonant.generate_resonant_family --help
 """
-
-
 import argparse
 import logging
 import sys
@@ -34,12 +33,12 @@ def parse_args(argv=None):
         解析后的 argparse.Namespace 对象。
     """
     parser = argparse.ArgumentParser(description="在地月 CR3BP 中生成指定 m:n 共振比例的轨道族延拓。", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--ratio", type=str, default="3:1", choices=["3:1", "3:2", "2:1"], help="共振比例")
-    parser.add_argument("--method", type=str, default="natural", choices=["natural", "pseudo_arclength"], help="延拓方法")
-    parser.add_argument("--z-min", type=float, default=0.01, help="z 参数最小值")
-    parser.add_argument("--z-max", type=float, default=0.5, help="z 参数最大值")
-    parser.add_argument("--step-size", type=float, default=0.01, help="步长")
-    parser.add_argument("--n-orbits", type=int, default=50, help="生成轨道数量")
+    parser.add_argument("--ratio", type=str, default="3:1", choices=["3:1", "3:2", "2:1"], help="共振比例（3:1/3:2/2:1），默认 3:1。")
+    parser.add_argument("--method", type=str, default="natural", choices=["natural", "pseudo_arclength"], help="延拓方法（natural/pseudo_arclength），默认 natural。")
+    parser.add_argument("--z-min", type=float, default=0.01, help="延拓 z 参数下限（无量纲），默认 0.01。")
+    parser.add_argument("--z-max", type=float, default=0.5, help="延拓 z 参数上限（无量纲），默认 0.5。")
+    parser.add_argument("--step-size", type=float, default=0.01, help="延拓步长（无量纲），默认 0.01。")
+    parser.add_argument("--n-orbits", type=int, default=50, help="目标生成轨道数，默认 50。")
     return parser.parse_args(argv)
 
 
