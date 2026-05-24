@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import html
+import platform
 from pathlib import Path
 
 from PyQt6.QtCore import QUrl, Qt
-from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import (
     QHBoxLayout,
@@ -22,15 +24,36 @@ from PyQt6.QtWidgets import (
 class DocWindow(QMainWindow):
     """Floating window for viewing documentation with navigation controls."""
 
-    def __init__(self, repo_root: Path, parent=None):
+    def __init__(self, repo_root: Path | str, parent=None):
         super().__init__(parent)
-        self._repo_root = repo_root
-        self._doc_root = repo_root / "docs" / "build" / "html"
+        self._repo_root = Path(repo_root)  # 确保是 Path 类型
+        self._doc_root = self._repo_root / "docs" / "build" / "html"
 
         self.setWindowTitle("Documentation")
         self.resize(900, 700)
 
+        # 设置窗口图标
+        self._set_window_icon()
+
         self._setup_ui()
+
+    def _set_window_icon(self) -> None:
+        """Load and set the application window icon."""
+        if platform.system() == "Linux":
+            icon_path = self._repo_root / "icon.png"
+            if not icon_path.exists():
+                icon_path = self._repo_root / "icon.ico"  # 回退到 ICO
+        elif platform.system() == "Darwin":
+            icon_path = self._repo_root / "icon.icns"
+            if not icon_path.exists():
+                icon_path = self._repo_root / "icon.png"  # 回退到 PNG
+        else:
+            icon_path = self._repo_root / "icon.ico"
+
+        if icon_path.exists():
+            icon = QIcon(str(icon_path))
+            if not icon.isNull():
+                self.setWindowIcon(icon)
 
     def _setup_ui(self) -> None:
         central = QWidget()
@@ -141,7 +164,8 @@ class DocWindow(QMainWindow):
 
     def _show_error_page(self, message: str) -> None:
         """Display an error page with the given message."""
-        html = f"""
+        escaped_message = html.escape(message)
+        html_content = f"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -176,7 +200,7 @@ class DocWindow(QMainWindow):
         <body>
             <div class="error-container">
                 <h1>⚠ Documentation Not Found</h1>
-                <p>{message}</p>
+                <p>{escaped_message}</p>
                 <p style="margin-top: 20px; font-size: 14px; color: #999;">
                     Build documentation with: sphinx-build -b html docs/source docs/build/html
                 </p>
@@ -184,4 +208,4 @@ class DocWindow(QMainWindow):
         </body>
         </html>
         """
-        self._web_view.setHtml(html)
+        self._web_view.setHtml(html_content)

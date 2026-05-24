@@ -4,8 +4,25 @@ PyInstaller 打包后，exe 同时充当 Python 解释器运行子进程脚本�
 """
 
 import os
+import platform
 import sys
 from pathlib import Path
+
+
+# ---------------------------------------------------------------------------
+# Qt 环境变量设置（在 frozen 模式检查之前，确保子进程也能获取）
+# ---------------------------------------------------------------------------
+# 屏蔽 Qt 字体后端的警告日志（Windows DirectWrite 兼容旧字体时的日志噪音）
+os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.fonts=false;qt.text.font.db=false")
+
+# Linux: 确保使用系统 GTK 主题以获得原生窗口装饰
+# 仅在未设置时设置，允许用户覆盖
+if platform.system() == "Linux":
+    if "QT_QPA_PLATFORMTHEME" not in os.environ:
+        os.environ["QT_QPA_PLATFORMTHEME"] = "gtk3"
+    # Wayland + GNOME 默认使用 CSD (客户端装饰)，Qt 需要 X11 获得原生装饰
+    if os.environ.get("XDG_SESSION_TYPE") == "wayland" and "QT_QPA_PLATFORM" not in os.environ:
+        os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 
 # ---------------------------------------------------------------------------
@@ -37,15 +54,13 @@ if getattr(sys, "frozen", False) and len(sys.argv) > 1:
         exec(_code, {"__name__": "__main__", "__file__": str(_script_path)})
         sys.exit(0)
 
-# 屏蔽 Qt 字体后端的警告日志（Windows DirectWrite 兼容旧字体时的日志噪音）
-os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.fonts=false;qt.text.font.db=false")
-
 # 确保 repo root 在 sys.path 中
 repo_root = Path(__file__).resolve().parent.parent.parent
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
 from PyQt6 import QtWebEngineWidgets  # noqa: E402  # must import before QApplication
+from PyQt6.QtGui import QIcon  # noqa: E402
 from PyQt6.QtWidgets import QApplication  # noqa: E402
 
 from tod.gui.main_window import MainWindow  # noqa: E402
@@ -56,11 +71,30 @@ def main() -> None:
     app.setApplicationName("Transfer Orbit Design")
     window = MainWindow(repo_root=str(repo_root))
 
-    # 设置窗口图标
-    icon_path = repo_root / "icon.ico"
-    if icon_path.exists():
-        from PyQt6.QtGui import QIcon
-        window.setWindowIcon(QIcon(str(icon_path)))
+    # 设置窗口图标 (Linux: PNG → ICO 回退, macOS: ICNS → PNG 回退, Windows: ICO)
+    icon = None
+    if platform.system() == "Linux":
+        icon_path = repo_root / "icon.png"
+        if not icon_path.exists():
+            icon_path = repo_root / "icon.ico"  # 回退到 ICO
+        if icon_path.exists():
+            icon = QIcon(str(icon_path))
+    elif platform.system() == "Darwin":
+        icon_path = repo_root / "icon.icns"
+        if icon_path.exists():
+            icon = QIcon(str(icon_path))
+        else:
+            # Fallback to PNG on macOS if ICNS not found
+            icon_path = repo_root / "icon.png"
+            if icon_path.exists():
+                icon = QIcon(str(icon_path))
+    else:
+        icon_path = repo_root / "icon.ico"
+        if icon_path.exists():
+            icon = QIcon(str(icon_path))
+
+    if icon and not icon.isNull():
+        window.setWindowIcon(icon)
 
     window.show()
     app.aboutToQuit.connect(window._job_manager.stop_all)
