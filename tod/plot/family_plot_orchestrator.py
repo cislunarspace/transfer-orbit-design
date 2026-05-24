@@ -148,7 +148,7 @@ def _get_center_coordinates(center_type: str, mu: float) -> tuple[float, float, 
     raise ValueError(f"Unknown center type: {center_type}")
 
 
-def _project_2d(xyz: Sequence[float], plane: str) -> tuple[float, float]:
+def _project_2d(xyz: Sequence[float] | np.ndarray, plane: str) -> tuple[float, float]:
     """将 3D 坐标投影到指定平面。"""
     if plane == "yz":
         return (xyz[1], xyz[2])

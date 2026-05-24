@@ -69,8 +69,9 @@ def _print_summary_table(orbits: OrbitFamily, libration_point: int, halo_class: 
     milestone_orbits = [orbits[i] for i in milestone_idx]
 
     # 计算里程碑 Jacobi 常数
+    jacobi_map: dict[int, float] = {}
     for o in milestone_orbits:
-        o._c_jacobi = _jacobi_constant(o.states[0])
+        jacobi_map[id(o)] = _jacobi_constant(o.states[0])
 
     lp_name = f"L{libration_point}"
     class_name = "北" if halo_class == 0 else "南"
@@ -90,7 +91,8 @@ def _print_summary_table(orbits: OrbitFamily, libration_point: int, halo_class: 
     print(f"  种子 x0      {float(s_seed[0]):.8f}")
     print(f"  种子 z0      {float(s_seed[2]):.6f}")
     print(f"  种子周期     {seed_orbit.period:.10f}")
-    print(f"  周期范围     {min(periods):.4f} ~ {max(periods):.4f}")
+    valid_periods = [p for p in periods if p is not None]
+    print(f"  周期范围     {min(valid_periods):.4f} ~ {max(valid_periods):.4f}")
 
     # 延拓信息块
     if method == "natural":
@@ -119,9 +121,10 @@ def _print_summary_table(orbits: OrbitFamily, libration_point: int, halo_class: 
         s = o.states[0]
         params = getattr(o, "parameters", {})
         amp_z = params.get("amplitude_z", abs(float(s[2])))
+        c_j = jacobi_map.get(id(o), 0.0)
         print(f"  {float(amp_z):10.6f} {float(s[0]):10.6f} {float(s[2]):10.6f} "
-              f"{float(o.period):8.4f} {float(o._c_jacobi):10.6f} "
-              f"{float(o.periodicity_error):14.2e}")
+              f"{float(o.period or 0.0):8.4f} {float(c_j):10.6f} "
+              f"{float(o.periodicity_error or 0.0):14.2e}")
     print()
     print("=" * 72)
     print()
@@ -145,9 +148,9 @@ def _export_csv(orbits: OrbitFamily, libration_point: int, halo_class: int,
             "vx0": float(s[3]),
             "vy0": float(s[4]),
             "vz0": float(s[5]),
-            "period": float(o.period),
+            "period": float(o.period or 0.0),
             "c_jacobi": float(_jacobi_constant(s)),
-            "periodicity_error": float(o.periodicity_error),
+            "periodicity_error": float(o.periodicity_error or 0.0),
             "is_milestone": i in milestone_idx,
         })
 
