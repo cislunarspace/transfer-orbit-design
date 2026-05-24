@@ -1,4 +1,8 @@
-"""Mixin for handling documentation links in the GUI."""
+"""PyQt6 图形界面组件。
+
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+"""
+
 
 from __future__ import annotations
 
@@ -19,6 +23,14 @@ class ClickableLabel(QLabel):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
+        """执行 mousePressEvent 对应的处理逻辑。
+        
+        Args:
+            event: 调用方传入的参数值。
+        
+        Returns:
+            None。
+        """
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
         super().mousePressEvent(event)

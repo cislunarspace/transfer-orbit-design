@@ -1,8 +1,13 @@
-"""轨道产物目录 — 发现 ``output/`` 目录下生成的轨道 JSON 文件。
+"""artifacts 轨道生成脚本。
 
-issue #92: 替换转移搜索脚本中硬编码的 DRO timestamp 路径。
-当前仅支持单条 DRO 轨道（``dro_31_<timestamp>.json``）。
+本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.generates.artifacts --help
 """
+
 
 from __future__ import annotations
 

@@ -1,21 +1,13 @@
+"""generate_halo_orbit 轨道生成脚本。
+
+本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.generates.cr3bp.halo.generate_halo_orbit --help
 """
-生成 Halo 轨道
 
-Halo 轨道是 CR3BP（圆形受限三体问题）下围绕共线拉格朗日点（L1/L2）的
-三维周期轨道，关于 XZ 平面对称。轨道按 Z 方向偏置方向分为：
-    - Class I (北 Halo): z 振幅为正
-    - Class II (南 Halo): z 振幅为负
-
-求解流程：
-    1) 用 Richardson 三阶解析近似生成初始猜测，或使用已知的参考值；
-    2) 利用 Halo 轨道关于 XZ 平面的对称性，仅积分半周期；
-    3) 通过 scipy.optimize.least_squares 求解自由变量 (x0, vy0, T/2)，
-       使半周期末端状态满足垂直穿越 XZ 平面的约束 (y=0, vx=0, vz=0)。
-
-参考文献:
-    Richardson, D. L. (1980). Analytic construction of periodic orbits
-    about the collinear points. Celestial Mechanics, 22(3), 303-320.
-"""
 
 import argparse
 import logging
@@ -48,7 +40,12 @@ _L1_NORTH_REF = {"x0": 0.930528, "vy0": 0.104313, "T_half": 1.839729}
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="生成 Halo 轨道（Richardson 三阶近似 + 微分修正）")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="生成 Halo 轨道（Richardson 三阶近似 + 微分修正）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--libration-point", type=str, default="L1", choices=["L1", "L2"],
                         help="平动点：L1, L2")
     parser.add_argument("--amplitude-z", type=float, default=0.23,
@@ -298,6 +295,11 @@ def _get_initial_guess(mu, amplitude_z, libration_point, halo_class):
 
 
 def main():
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     args = parse_args()
 
     # =============================================================================

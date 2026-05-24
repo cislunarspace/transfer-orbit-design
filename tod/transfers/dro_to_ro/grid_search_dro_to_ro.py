@@ -1,15 +1,13 @@
+"""grid_search_dro_to_ro 转移设计脚本。
+
+本模块读取已生成的轨道或搜索结果 JSON，在地月 CR3BP 单位体系中执行搜索、验证或 NLP 优化。网格类脚本输出候选转移，优化类脚本读取候选并最小化速度增量或插入误差，结果写入 output/transfer 相关目录。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.transfers.dro_to_ro.grid_search_dro_to_ro --help
 """
-DRO → RO 转移轨道网格搜索
 
-从 DRO 出发，搜索到达 RO（共振周期轨道）的转移轨道。
-在 α（切向速度比）和出发时间构成的参数空间中搜索可行转移。
-
-运行: python -m tod.transfers.dro_to_ro.grid_search_dro_to_ro
-
-输出文件名：``search_results_{nDep}-{nAlpha}-{αmin}-{αmax}-{tmax}_{timestamp}.json``。
-
-Windows 多进程需要 ``if __name__ == "__main__"``，请勿删除末尾保护。
-"""
 
 import argparse
 import sys
@@ -28,7 +26,12 @@ logger = logging.getLogger(__name__)
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="DRO→RO 转移轨道网格搜索")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="DRO→RO 转移轨道网格搜索", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
     parser.add_argument("--ro-file", type=str, default=None, help="RO 轨道 JSON 文件路径")
     parser.add_argument("--n-departure", type=int, default=200, help="出发时间网格数")
@@ -44,6 +47,11 @@ def parse_args():
 
 
 def main() -> None:
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     args = parse_args()
 
     # =========================================================================
@@ -141,6 +149,14 @@ def main() -> None:
         return x
 
     def serialize_result(r):
+        """将结果对象转换为可写入 JSON 的结构。
+        
+        Args:
+            r: 调用方传入的参数值。
+        
+        Returns:
+            函数执行结果。
+        """
         return _json_safe(
             {
                 "departure_orbit_name": r.get("departure_orbit_name"),

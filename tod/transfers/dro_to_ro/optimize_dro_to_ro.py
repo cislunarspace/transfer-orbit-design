@@ -1,15 +1,13 @@
+"""optimize_dro_to_ro 转移设计脚本。
+
+本模块读取已生成的轨道或搜索结果 JSON，在地月 CR3BP 单位体系中执行搜索、验证或 NLP 优化。网格类脚本输出候选转移，优化类脚本读取候选并最小化速度增量或插入误差，结果写入 output/transfer 相关目录。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.transfers.dro_to_ro.optimize_dro_to_ro --help
 """
-DRO-RO 转移 NLP（Cui et al. 2025）：在网格搜索结果上对 y=(α,T,t_ins) 最小化 Δv，默认 SciPy SLSQP（``DROTRONLPOptimizer``）。
 
-须与 ``grid_search.py`` 生成 ``search_results`` 时一致：轨道 JSON、网格时间上限与步长、α 范围、碰撞半径等。
-
-运行: ``python optimize.py``。进度条: ``tqdm``；关闭: ``OPTIMIZE_NO_TQDM=1``。
-
-并行: 默认 ``PARALLEL_BACKEND="processes"``、``N_WORKERS=None``；子进程经 ``nlp_worker_packed`` 重建轨道，绕过 GIL。
-多进程创建前会限制每 worker 的 BLAS 线程（``LIMIT_BLAS_THREADS_PER_WORKER`` / ``OPTIMIZE_BLAS_THREADS_PER_WORKER``）。
-
-Windows 须保留末尾 ``if __name__ == "__main__"``。
-"""
 
 from __future__ import annotations
 
@@ -99,7 +97,12 @@ COMPUTE_T_INS_FROM_TRAJECTORY = True
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="DRO→RO 转移 NLP 优化（SLSQP 最小化 Δv）")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="DRO→RO 转移 NLP 优化（SLSQP 最小化 Δv）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--search-file", type=str, default=None, help="网格搜索结果 JSON 文件路径")
     parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
     parser.add_argument("--ro-file", type=str, default=None, help="RO 轨道 JSON 文件路径")
@@ -120,11 +123,28 @@ def parse_args():
 
 
 def load_search_results(filepath: Path) -> List[Dict[str, Any]]:
+    """读取转移搜索结果 JSON 文件。
+    
+    Args:
+        filepath: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     with open(filepath, encoding="utf-8") as f:
         return json.load(f)
 
 
 def row_template(rec: Dict[str, Any], global_idx: int) -> Dict[str, Any]:
+    """执行 row_template 对应的处理逻辑。
+    
+    Args:
+        rec: 调用方传入的参数值。
+        global_idx: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     return {
         "search_index": global_idx,
         "alpha": rec.get("alpha"),
@@ -136,6 +156,14 @@ def row_template(rec: Dict[str, Any], global_idx: int) -> Dict[str, Any]:
 
 
 def serialize_nlp_result(res) -> Dict[str, Any]:
+    """将结果对象转换为可写入 JSON 的结构。
+    
+    Args:
+        res: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     return {
         "success": res.success,
         "alpha": float(res.alpha),
@@ -153,6 +181,18 @@ def serialize_nlp_result(res) -> Dict[str, Any]:
 
 
 def build_dynamics(integrator: str, rtol: float, atol: float, max_step: float, mu: float):
+    """构建脚本所需的动力学模型。
+    
+    Args:
+        integrator: 调用方传入的参数值。
+        rtol: 调用方传入的参数值。
+        atol: 调用方传入的参数值。
+        max_step: 调用方传入的参数值。
+        mu: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     system = CR3BP_System(mu=mu, primary="earth", secondary="moon")
     dynamics = CR3BP_Dynamics(system=system)
     dynamics.integrator = integrator
@@ -221,6 +261,30 @@ def optimize_one_case(
     nlp_maxiter=NLP_MAXITER,
     nlp_ftol=NLP_FTOL,
 ):
+    """执行转移优化计算。
+    
+    Args:
+        rec: 调用方传入的参数值。
+        dro_orbit: 调用方传入的参数值。
+        ro_orbit: 调用方传入的参数值。
+        system: 调用方传入的参数值。
+        dynamics: 调用方传入的参数值。
+        verbose: 调用方传入的参数值。
+        alpha_min: 调用方传入的参数值。
+        alpha_max: 调用方传入的参数值。
+        earth_radius: 调用方传入的参数值。
+        moon_radius: 调用方传入的参数值。
+        use_relaxed_velocity: 调用方传入的参数值。
+        velocity_angle_tol: 调用方传入的参数值。
+        use_copt: 调用方传入的参数值。
+        fallback_to_scipy: 调用方传入的参数值。
+        progress_callback: 调用方传入的参数值。
+        nlp_maxiter: 调用方传入的参数值。
+        nlp_ftol: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     departure_state = np.array(rec["departure_state"], dtype=float)
 
     alpha_0 = rec["alpha"]
@@ -362,6 +426,17 @@ def optimize_one_case(
 
 
 def make_progress_callback(prog: OptimizationProgress, k, n_total, global_idx):
+    """执行 make_progress_callback 对应的处理逻辑。
+    
+    Args:
+        prog: 调用方传入的参数值。
+        k: 调用方传入的参数值。
+        n_total: 调用方传入的参数值。
+        global_idx: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     def _cb(iteration, obj_value, alpha, T, t_ins):
         prog._iter = iteration
 
@@ -369,6 +444,14 @@ def make_progress_callback(prog: OptimizationProgress, k, n_total, global_idx):
 
 
 def monitor_loop_serial_nlp(prog: OptimizationProgress):
+    """执行 monitor_loop_serial_nlp 对应的处理逻辑。
+    
+    Args:
+        prog: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    """
     while True:
         time.sleep(10)
         if prog.start_time > 0 and prog.total_cases > 0:
@@ -386,6 +469,10 @@ def monitor_loop_serial_nlp(prog: OptimizationProgress):
 
 @dataclass
 class NlpPackConfig:
+    """保存 NlpPackConfig 的配置字段。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     mu: float
     alpha_min: float
     alpha_max: float
@@ -403,6 +490,10 @@ class NlpPackConfig:
 
 @dataclass
 class ThreadNlpParams:
+    """表示 ThreadNlpParams 相关的数据结构或行为。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     alpha_min: float
     alpha_max: float
     earth_radius: float
@@ -414,6 +505,18 @@ class ThreadNlpParams:
 
 
 def pack_nlp_task(idx, rec, dro_orbit, ro_orbit, cfg: NlpPackConfig):
+    """执行 pack_nlp_task 对应的处理逻辑。
+    
+    Args:
+        idx: 调用方传入的参数值。
+        rec: 调用方传入的参数值。
+        dro_orbit: 调用方传入的参数值。
+        ro_orbit: 调用方传入的参数值。
+        cfg: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     return {
         "idx": idx,
         "rec": rec,
@@ -428,6 +531,14 @@ def pack_nlp_task(idx, rec, dro_orbit, ro_orbit, cfg: NlpPackConfig):
 
 
 def nlp_worker_packed(payload):
+    """执行 nlp_worker_packed 对应的处理逻辑。
+    
+    Args:
+        payload: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     idx = payload["idx"]
     rec = payload["rec"]
     cfg = payload["cfg"]
@@ -471,6 +582,14 @@ def nlp_worker_packed(payload):
 
 
 def worker_run_thread(args):
+    """执行 worker_run_thread 对应的处理逻辑。
+    
+    Args:
+        args: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     rec, idx, dro_orbit, ro_orbit, system, dynamics, params = args
     row = row_template(rec, idx)
     try:

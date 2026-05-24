@@ -1,13 +1,13 @@
-"""
-生成远距离逆行轨道族
+"""generate_dro_family 轨道生成脚本。
 
-本脚本实现：
-1. 创建CR3BP系统和动力学模型
-2. 设置DRO种子轨道的初始状态向量
-3. 利用差分修正器修正种子轨道
-4. 采用自然延拓方法生成完整轨道族
+本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。
 
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.generates.cr3bp.dro.generate_dro_family --help
 """
+
 
 import argparse
 import csv
@@ -34,7 +34,12 @@ def _parse_log_level(level_str: str) -> int:
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="生成 DRO 轨道族（差分修正 + 自然延拓）")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="生成 DRO 轨道族（差分修正 + 自然延拓）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--x0", type=float, default=0.79188556619742,
                         help="种子轨道初始 x 坐标（无量纲）")
     parser.add_argument("--vy0", type=float, default=0.53682,
@@ -75,13 +80,31 @@ class _ProgressTracker:
         self._thread = threading.Thread(target=self._run, args=(interval,), daemon=True)
 
     def start(self) -> None:
+        """执行 start 对应的处理逻辑。
+        
+        Returns:
+            None。
+        """
         self._thread.start()
 
     def update(self, count: int) -> None:
+        """执行 update 对应的处理逻辑。
+        
+        Args:
+            count: 调用方传入的参数值。
+        
+        Returns:
+            None。
+        """
         with self._lock:
             self.current = count
 
     def stop(self) -> None:
+        """执行 stop 对应的处理逻辑。
+        
+        Returns:
+            None。
+        """
         self._stop = True
         self._thread.join(timeout=5.0)
 
@@ -202,6 +225,11 @@ def _export_csv(orbits: list, param_min: float, param_max: float,
 
 
 def main():
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     args = parse_args()
     _setup_logging(args.log_level)
 

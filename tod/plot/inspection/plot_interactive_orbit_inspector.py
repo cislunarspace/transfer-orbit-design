@@ -1,25 +1,16 @@
+"""plot_interactive_orbit_inspector 可视化脚本。
+
+本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.plot.inspection.plot_interactive_orbit_inspector --help
 """
-交互式轨道检查器 (Interactive Orbit Inspector)
 
-本脚本实现：
-1. 加载轨道族数据
-2. 以debug模式逐步遍历每条轨道
-3. 每次按Enter后在新窗口绘制一条轨道，方便检查轨道质量
-
-使用方法：
-- 在VS Code中以debug模式运行此脚本
-- 每次按Enter键会绘制下一条轨道
-- 关闭窗口后按Enter继续下一条
-- 输入 'q' 退出程序
-- 输入 's' 跳过若干条轨道
-- 输入 'j' 跳转到指定轨道
-
-参考论文：
-  Cui et al. (2025) "Two-Impulse Transfers from Lunar Distant Retrograde Orbits
-  to Resonant Orbits", JGCD, Vol.48, No.6
-"""
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -41,7 +32,6 @@ import matplotlib
 from matplotlib.colors import Normalize
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from tod.commons.common import find_project_root
-import logging
 
 logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
@@ -50,7 +40,12 @@ PLOT_CONFIG = apply_standard_plot_config()
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="交互式轨道检查器")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="交互式轨道检查器", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--json-file", type=str, default=None, help="轨道族 JSON 文件路径"
     )
@@ -129,6 +124,14 @@ def compute_global_axis_limits(family, plane="xy", margin=1.15):
 
 
 def main():
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
     global fig
 
     args = parse_args()

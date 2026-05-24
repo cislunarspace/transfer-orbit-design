@@ -1,7 +1,8 @@
-"""GUI 入口 — python -m tod.gui.main
+"""PyQt6 图形界面组件。
 
-PyInstaller 打包后，exe 同时充当 Python 解释器运行子进程脚本。
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
+
 
 import os
 import platform
@@ -67,6 +68,11 @@ from tod.gui.main_window import MainWindow  # noqa: E402
 
 
 def main() -> None:
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     app = QApplication(sys.argv)
     app.setApplicationName("Transfer Orbit Design")
     window = MainWindow(repo_root=str(repo_root))

@@ -1,8 +1,8 @@
-"""
-通用辅助函数
+"""脚本共享的常量、路径与工具。
 
-包含在多个脚本中重复使用的函数和常量。
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
+
 
 import logging
 import os

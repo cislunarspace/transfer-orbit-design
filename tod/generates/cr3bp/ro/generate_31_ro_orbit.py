@@ -1,17 +1,13 @@
+"""generate_31_ro_orbit 轨道生成脚本。
+
+本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.generates.cr3bp.ro.generate_31_ro_orbit --help
 """
-生成 3:1 RO 轨道（共振轨道）
 
-使用固定周期微分校正法，基于文献中的初值生成指定周期的 RO 轨道。
-
-参考文献:
-    Cui et al. (2025). Two-Impulse Transfers from Lunar Distant Retrograde Orbits to Resonant Orbits.
-    Journal of Guidance, Control, and Dynamics.
-
-初值来源 (Table 2):
-    - x = -0.8805 nd (初始x坐标，无量纲)
-    - y_dot = 0.3921 nd (初始y方向速度，无量纲)
-    - T = 27.32 days ≈ 6.283 TU (轨道周期)
-"""
 
 import argparse
 import logging
@@ -32,7 +28,12 @@ OUTPUT_DIR = project_root / "output" / "ro"
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="生成 3:1 RO 轨道（固定周期微分校正）")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="生成 3:1 RO 轨道（固定周期微分校正）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--x0", type=float, default=-0.8805, help="初始 x 坐标（无量纲）")
     parser.add_argument("--vy0", type=float, default=0.3921, help="初始 y 方向速度（无量纲）")
     parser.add_argument("--period", type=float, default=27.32 / TU, help="目标周期（无量纲）")
@@ -40,6 +41,11 @@ def parse_args():
 
 
 def main():
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     args = parse_args()
 
     # =============================================================================

@@ -1,31 +1,13 @@
+"""generate_halo_family 轨道生成脚本。
+
+本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.generates.cr3bp.halo.generate_halo_family --help
 """
-生成 Halo 轨道族
 
-Halo 轨道族是一类围绕地月系统共线平动点（L1/L2/L3）的三维周期轨道族，
-具有关于 XZ 平面对称的特征。本脚本通过延拓方法（自然参数延拓或伪弧长延拓）
-从单条种子轨道出发，逐步生成覆盖不同振幅范围的完整轨道族。
-
-支持两种种子轨道来源：
-1. 从文件加载（--seed-file）：直接加载已有的精确 Halo 轨道 JSON 文件。
-   适用于已生成精确种子后，仅需执行延拓的场景。
-2. 自动生成：使用 Richardson 三阶解析近似提供初值猜测，结合微分修正
-   迭代生成精确种子。适用于从零开始的完整流程。
-
-种子轨道生成后，通过延拓方法生成完整的 Halo 轨道族：
-- natural（自然参数延拓）：沿 z 方向固定步长推进，简单高效，但在
-  切空间接近奇异时（如轨道族转向点附近）可能失效。
-- pseudo_arclength（伪弧长延拓）：沿轨道族切向推进，步长自适应，
-  能稳定通过转向点，但计算量稍大。
-
-参考文献:
-    Richardson, D. L. (1980). Analytic construction of periodic orbits
-    about the collinear points. Celestial Mechanics.
-
-注意:
-    Richardson 三阶近似仅对小幅度的 Halo 轨道准确。当振幅较大时，
-    解析近似可能偏离真解过远，导致微分修正无法收敛。此时可改用
-    --seed-file 加载预先生成的高精度种子轨道。
-"""
 
 import argparse
 import csv
@@ -259,7 +241,7 @@ def parse_args(argv=None):
     Returns:
         解析后的 argparse.Namespace 对象，包含所有脚本参数。
     """
-    parser = argparse.ArgumentParser(description="生成 Halo 轨道族")
+    parser = argparse.ArgumentParser(description="生成 Halo 轨道族", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--libration-point", type=str, default="L1", choices=["L1", "L2", "L3"], help="平动点：L1, L2, L3")
     parser.add_argument("--amplitude-z", type=float, default=0.001, help="Z 方向振幅（无量纲）")
     parser.add_argument("--halo-class", type=int, default=0, help="0=北 Halo, 1=南 Halo")
@@ -276,6 +258,11 @@ def parse_args(argv=None):
 
 
 def main():
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     args = parse_args()
 
     # =============================================================================

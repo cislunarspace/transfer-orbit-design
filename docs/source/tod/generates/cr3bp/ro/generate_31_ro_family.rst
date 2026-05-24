@@ -1,5 +1,5 @@
-generate_31_ro_family
-=====================
+tod.generates.cr3bp.ro.generate_31_ro_family
+============================================
 
 .. automodule:: tod.generates.cr3bp.ro.generate_31_ro_family
    :members:

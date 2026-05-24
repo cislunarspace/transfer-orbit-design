@@ -1,13 +1,17 @@
-Ephemeris Correction Scripts
-==============================
-
-This section contains documentation for ephemeris correction scripts that convert CR3BP orbits to high-fidelity ephemeris models.
+API: tod.generates.ephemeris
+============================
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
    :titlesonly:
 
-   correct_dro_to_ephemeris
-   homotopy_dro_to_ephemeris
-   correct_halo_to_ephemeris
+   _conversion
+   _corrector
    compare_ephemeris_methods
+   correct_dro_family_to_ephemeris
+   correct_dro_to_ephemeris
+   correct_halo_family_to_ephemeris
+   correct_halo_to_ephemeris
+   dro/index
+   halo/index
+   homotopy_dro_to_ephemeris

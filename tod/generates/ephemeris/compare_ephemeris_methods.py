@@ -1,25 +1,13 @@
+"""compare_ephemeris_methods 星历转换脚本。
+
+本模块将 CR3BP 轨道状态映射到真实星历模型，依赖 SPICE kernels（de440.bsp、naif0012.tls）和 UTC 参考历元。输入为 DRO/Halo 单轨道或轨道族 JSON，输出为含修正状态、残差和元数据的星历转换结果。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.generates.ephemeris.compare_ephemeris_methods --help
 """
-DRO 轨道 CR3BP → 星历模型修正：直接法 vs 同伦法效率对比
 
-重新运行两种修正方法并对比关键性能指标：
-  - 收敛性
-  - 迭代次数
-  - 运行时间
-  - 残差收敛过程
-  - 修正轨迹质量
-
-输出：
-  1. 控制台对比表格
-  2. 残差收敛曲线图 (PNG)
-  3. 轨迹对比图 (PNG)
-  4. 对比报告 JSON
-
-依赖:
-    e2m2e: SPICEManager, EphemerisSystem, EphemerisDynamics,
-           HomotopyEphemerisDynamics, SynodicJ2000Transformation,
-           MultipleShooting
-    SPICE kernels: de440.bsp (or de435.bsp), naif0012.tls
-"""
 
 import json
 import logging
@@ -83,6 +71,14 @@ N_PERIODS = 3
 
 
 def set_axes_equal(ax):
+    """将三维坐标轴设置为等比例显示。
+    
+    Args:
+        ax: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    """
     x_range = ax.get_xlim()[1] - ax.get_xlim()[0]
     y_range = ax.get_ylim()[1] - ax.get_ylim()[0]
     z_range = ax.get_zlim()[1] - ax.get_zlim()[0]
@@ -96,6 +92,14 @@ def set_axes_equal(ax):
 
 
 def setup_shared_infrastructure():
+    """执行 setup_shared_infrastructure 对应的处理逻辑。
+    
+    Returns:
+        函数执行结果。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
     logger.info("=" * 60)
     logger.info("Step 1: 公共初始化")
     logger.info("=" * 60)
@@ -151,6 +155,16 @@ def setup_shared_infrastructure():
 
 
 def run_direct_method(eph_system, t_patch_j2000, states_j2000):
+    """运行对应计算流程。
+    
+    Args:
+        eph_system: 调用方传入的参数值。
+        t_patch_j2000: 调用方传入的参数值。
+        states_j2000: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     logger.info(f"\n{'=' * 60}")
     logger.info("Step 2: 直接多重打靶法")
     logger.info(f"{'=' * 60}")
@@ -194,6 +208,16 @@ def run_direct_method(eph_system, t_patch_j2000, states_j2000):
 
 
 def run_homotopy_method(eph_system, t_patch_j2000, states_j2000):
+    """运行对应计算流程。
+    
+    Args:
+        eph_system: 调用方传入的参数值。
+        t_patch_j2000: 调用方传入的参数值。
+        states_j2000: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     logger.info(f"\n{'=' * 60}")
     logger.info("Step 3: 同伦法")
     logger.info(f"{'=' * 60}")
@@ -331,6 +355,15 @@ def run_homotopy_method(eph_system, t_patch_j2000, states_j2000):
 
 
 def validate_result(info, eph_system):
+    """验证修正或优化结果是否满足容差要求。
+    
+    Args:
+        info: 调用方传入的参数值。
+        eph_system: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     dynamics = EphemerisDynamics(system=eph_system)
     states = info["state_patch"]
     times = info["t_patch"]
@@ -350,6 +383,15 @@ def validate_result(info, eph_system):
 
 
 def print_comparison_table(direct_info, homotopy_info):
+    """执行 print_comparison_table 对应的处理逻辑。
+    
+    Args:
+        direct_info: 调用方传入的参数值。
+        homotopy_info: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    """
     logger.info(f"\n{'=' * 70}")
     logger.info("对比结果")
     logger.info(f"{'=' * 70}")
@@ -396,6 +438,15 @@ def print_comparison_table(direct_info, homotopy_info):
 
 
 def plot_residual_convergence(direct_info, homotopy_info):
+    """绘制指定结果图形。
+    
+    Args:
+        direct_info: 调用方传入的参数值。
+        homotopy_info: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
     d_res = direct_info["residual_history"]
@@ -465,6 +516,16 @@ def plot_residual_convergence(direct_info, homotopy_info):
 
 
 def plot_trajectory_comparison(direct_info, homotopy_info, setup):
+    """绘制指定结果图形。
+    
+    Args:
+        direct_info: 调用方传入的参数值。
+        homotopy_info: 调用方传入的参数值。
+        setup: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    """
     eph_system = setup["eph_system"]
     dynamics = EphemerisDynamics(system=eph_system)
     period_tu = setup["dro_orbit"].period
@@ -541,6 +602,16 @@ def plot_trajectory_comparison(direct_info, homotopy_info, setup):
 
 
 def save_comparison_report(direct_info, homotopy_info, setup):
+    """保存计算或绘图结果。
+    
+    Args:
+        direct_info: 调用方传入的参数值。
+        homotopy_info: 调用方传入的参数值。
+        setup: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     report = {
@@ -591,6 +662,14 @@ def save_comparison_report(direct_info, homotopy_info, setup):
 
 
 def main():
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
     raise NotImplementedError(
         "HomotopyEphemerisDynamics has been removed from e2m2e; "
         "this comparison script is deprecated."

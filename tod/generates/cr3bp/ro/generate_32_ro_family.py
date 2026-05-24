@@ -1,20 +1,13 @@
+"""generate_32_ro_family 轨道生成脚本。
+
+本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.generates.cr3bp.ro.generate_32_ro_family --help
 """
-生成 3:2 共振轨道族
 
-本脚本实现：
-1. 创建CR3BP系统和动力学模型
-2. 设置3:2 RO种子轨道的初始状态向量
-3. 利用差分修正器修正种子轨道
-4. 采用自然延拓方法生成完整轨道族
-
-3:2共振轨道特征：
-  - T = 4π ≈ 12.566 TU (航天器3圈/月球2圈)
-  - y幅值点: x=-1.1453, y=0.4633
-
-参考论文：
-  Cui et al. (2025) "Two-Impulse Transfers from Lunar Distant Retrograde Orbits
-  to Resonant Orbits", JGCD, Vol.48, No.6
-"""
 
 import argparse
 import logging
@@ -33,7 +26,12 @@ OUTPUT_DIR = project_root / "output"
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="生成 3:2 共振轨道族（差分修正 + 自然延拓）")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="生成 3:2 共振轨道族（差分修正 + 自然延拓）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--x0", type=float, default=-1.1453, help="初始 x 坐标（无量纲）")
     parser.add_argument("--vy0", type=float, default=0.4633, help="初始 y 方向速度（无量纲）")
     parser.add_argument("--period", type=float, default=54.64 / TU, help="轨道周期（无量纲）")
@@ -44,6 +42,11 @@ def parse_args():
 
 
 def main():
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     args = parse_args()
 
     # =============================================================================

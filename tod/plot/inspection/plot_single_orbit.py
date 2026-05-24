@@ -1,14 +1,16 @@
-"""
-绘制单条轨道
+"""plot_single_orbit 可视化脚本。
 
-从 JSON 文件加载单条 Orbit 对象并绘制 2D 和 3D 视图。
+本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
 
-与 OrbitFamily 的区别：
-- Orbit 对象直接包含 states, times, period 等属性
-- 加载使用 Orbit.load_from_file() 而非 OrbitFamily.load_from_file()
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.plot.inspection.plot_single_orbit --help
 """
+
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -27,7 +29,6 @@ import matplotlib.pyplot as plt
 from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.visualization.base import OrbitVisualizer
 from tod.commons.common import find_project_root
-import logging
 
 logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))
@@ -36,7 +37,12 @@ PLOT_CONFIG = apply_standard_plot_config()
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="绘制单条轨道")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="绘制单条轨道", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--json-file", type=str, default=None, help="轨道 JSON 文件路径"
     )
@@ -47,6 +53,14 @@ DEFAULT_ORBIT_FILENAME = "ro_31_3857030320.json"
 
 
 def main():
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
     args = parse_args()
 
     output_dir = project_root / "output" / "ro"

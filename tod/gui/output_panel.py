@@ -1,4 +1,8 @@
-"""结构化输出面板 — 每个 Job 独立的输出显示，支持 ANSI 清理、时间戳、着色。"""
+"""PyQt6 图形界面组件。
+
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+"""
+
 
 from __future__ import annotations
 
@@ -150,7 +154,7 @@ class StructuredOutputWidget(QWidget):
     def append_output(self, text: str, stream: str) -> None:
         """追加输出文本。stream 为 'stdout' 或 'stderr'。
 
-        使用 \n 分段、\r 检测行覆盖，正确处理进度条输出。
+        使用 ``\\n`` 分段、``\\r`` 检测行覆盖，正确处理进度条输出。
         """
         cleaned = _strip_ansi(text)
         if not cleaned:
@@ -253,6 +257,11 @@ class StructuredOutputWidget(QWidget):
         self._browser.setTextCursor(cursor)
 
     def clear(self) -> None:
+        """执行 clear 对应的处理逻辑。
+        
+        Returns:
+            None。
+        """
         self._browser.clear()
         self._raw_lines.clear()
 
@@ -397,6 +406,11 @@ class JobCard(QWidget):
 
     @property
     def is_running(self) -> bool:
+        """执行 is_running 对应的处理逻辑。
+        
+        Returns:
+            函数执行结果。
+        """
         return self._is_running
 
     def set_status(self, status: str) -> None:

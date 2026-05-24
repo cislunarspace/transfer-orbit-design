@@ -2,22 +2,36 @@
    :align: center
    :width: 200
 
-Transfer Orbit Design Documentation
-====================================
+Transfer Orbit Design 文档
+==========================
 
-Welcome to the Transfer Orbit Design documentation.
+Transfer Orbit Design 提供地月 CR3BP 轨道生成、DRO/RO/GEO/LEO 转移设计、CR3BP 到星历模型修正，以及配套 GUI 和绘图脚本。
 
 .. toctree::
-   :maxdepth: 4
-   :caption: Contents:
+   :maxdepth: 2
+   :caption: 入门与规范
 
-   tod/generates/cr3bp/dro/index
-   tod/generates/cr3bp/ro/index
-   tod/generates/cr3bp/halo/index
-   tod/generates/ephemeris/index
+   narrative/readme
+   narrative/development
+   narrative/context
+   narrative/domain
 
-Indices and tables
-==================
+.. toctree::
+   :maxdepth: 2
+   :caption: API 参考
+
+   tod/index
+
+.. toctree::
+   :maxdepth: 1
+   :caption: PRD 文档
+
+   narrative/prd-002-dro-3d-view-center-selection
+   narrative/prd-003-ephemeris-conversion-scripts-redesign
+   narrative/prd-004-gui-script-tab-auto-switch
+
+索引
+====
 
 * :ref:`genindex`
 * :ref:`modindex`

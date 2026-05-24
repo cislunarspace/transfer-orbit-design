@@ -1,4 +1,8 @@
-"""文件发现 — 扫描 output/ 目录，发现可用的数据文件。"""
+"""PyQt6 图形界面组件。
+
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+"""
+
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -8,6 +12,10 @@ from pathlib import Path
 
 @dataclass
 class FileInfo:
+    """表示 FileInfo 相关的数据结构或行为。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     name: str
     path: str           # 相对于 repo root
     abs_path: str       # 绝对路径

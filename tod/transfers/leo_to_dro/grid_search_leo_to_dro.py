@@ -1,16 +1,13 @@
+"""grid_search_leo_to_dro 转移设计脚本。
+
+本模块读取已生成的轨道或搜索结果 JSON，在地月 CR3BP 单位体系中执行搜索、验证或 NLP 优化。网格类脚本输出候选转移，优化类脚本读取候选并最小化速度增量或插入误差，结果写入 output/transfer 相关目录。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.transfers.leo_to_dro.grid_search_leo_to_dro --help
 """
-LEO → DRO 网格搜索
 
-从 LEO 出发，搜索到月球 DRO 的转移轨道。
-复用 TransferSearch，departure=LEO（近似圆轨道），arrival=DRO。
-
-LEO 比 GEO 更接近地球，速度更高，需要更大的 alpha 值才能到达月球。
-转移时间可能更长。
-
-运行: python -m tod.transfers.leo_to_dro.grid_search_leo_to_dro
-
-Windows 多进程需要 ``if __name__ == "__main__"``。
-"""
 
 import argparse
 import json
@@ -74,7 +71,12 @@ LEO_N_POINTS = 500
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="LEO→DRO 转移轨道网格搜索")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="LEO→DRO 转移轨道网格搜索", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
     parser.add_argument("--n-departure", type=int, default=N_DEPARTURE, help="出发时间网格数")
     parser.add_argument("--n-alpha", type=int, default=N_ALPHA, help="alpha 网格密度")
@@ -90,6 +92,11 @@ def parse_args():
 
 
 def main() -> None:
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     args = parse_args()
 
     # =========================================================================
@@ -198,6 +205,14 @@ def main() -> None:
         return x
 
     def serialize_result(r):
+        """将结果对象转换为可写入 JSON 的结构。
+        
+        Args:
+            r: 调用方传入的参数值。
+        
+        Returns:
+            函数执行结果。
+        """
         serialized: dict = _json_safe({  # type: ignore[assignment]
             "departure_time_index": r.get("departure_time_index"),
             "departure_time": r.get("departure_time"),

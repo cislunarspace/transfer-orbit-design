@@ -1,4 +1,13 @@
-"""绘图脚本共享工具：字号配置、采样、数据处理等。"""
+"""config 可视化脚本。
+
+本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.plot.config --help
+"""
+
 
 from __future__ import annotations
 
@@ -197,6 +206,16 @@ def style_colorbar(colorbar, config, label: str | None = None):
 
 
 def subsample_indices(n: int, max_points: int | None, seed: int) -> np.ndarray:
+    """执行 subsample_indices 对应的处理逻辑。
+    
+    Args:
+        n: 调用方传入的参数值。
+        max_points: 调用方传入的参数值。
+        seed: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     if max_points is None or n <= max_points:
         return np.arange(n)
     rng = np.random.default_rng(seed)

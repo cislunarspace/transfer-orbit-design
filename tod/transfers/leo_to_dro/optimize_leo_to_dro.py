@@ -1,14 +1,13 @@
+"""optimize_leo_to_dro 转移设计脚本。
+
+本模块读取已生成的轨道或搜索结果 JSON，在地月 CR3BP 单位体系中执行搜索、验证或 NLP 优化。网格类脚本输出候选转移，优化类脚本读取候选并最小化速度增量或插入误差，结果写入 output/transfer 相关目录。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.transfers.leo_to_dro.optimize_leo_to_dro --help
 """
-LEO → DRO NLP 优化
 
-与 optimize_geo_to_dro.py 结构完全一致，仅调整默认参数范围。
-LEO 出发需要更大的 alpha 和更长的转移时间。
-
-运行: python -m tod.transfers.leo_to_dro.optimize_leo_to_dro
-
-注: 此脚本通过修改 optimize_geo_to_dro.py 的默认参数实现，
-    如需更深定制可直接修改该脚本。
-"""
 
 from __future__ import annotations
 
@@ -36,6 +35,11 @@ base_opt.SEARCH_RESULTS_DEFAULT = SEARCH_RESULTS_DEFAULT_LEO
 
 
 def main() -> None:
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     logger.info("=" * 70)
     logger.info("LEO → DRO 转移 NLP 优化")
     logger.info("=" * 70)

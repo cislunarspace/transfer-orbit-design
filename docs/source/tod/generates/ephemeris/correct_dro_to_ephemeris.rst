@@ -1,5 +1,5 @@
-correct_dro_to_ephemeris
-========================
+tod.generates.ephemeris.correct_dro_to_ephemeris
+================================================
 
 .. automodule:: tod.generates.ephemeris.correct_dro_to_ephemeris
    :members:

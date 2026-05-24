@@ -1,7 +1,8 @@
-"""Script registry scanner — 自动扫描并收集所有 script params 定义。
+"""_registry 的 GUI 参数注册。
 
-启动时调用一次，由 GUI 层的 script_registry.py 封装后使用。
+本模块声明 ScriptEntry、CliParam 和文件选择规则，供 GUI 生成参数控件并调用对应底层脚本。description 按“目的、输入、输出”描述脚本，help 文本说明默认值与单位。
 """
+
 
 from __future__ import annotations
 

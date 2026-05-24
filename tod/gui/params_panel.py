@@ -1,4 +1,8 @@
-"""参数面板控件工厂：根据 CliParam 定义创建 Qt 控件。"""
+"""PyQt6 图形界面组件。
+
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+"""
+
 
 from __future__ import annotations
 
@@ -40,6 +44,11 @@ class CliWidgetFactory:
         self.unit_groups: dict[QLineEdit, str] = {}
 
     def reset(self) -> None:
+        """执行 reset 对应的处理逻辑。
+        
+        Returns:
+            None。
+        """
         self.wrapped_widgets.clear()
         self.path_mode_toggles.clear()
         self.unit_combos.clear()

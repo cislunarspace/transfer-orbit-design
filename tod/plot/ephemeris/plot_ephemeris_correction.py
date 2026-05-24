@@ -1,11 +1,13 @@
-"""
-绘制 DRO 星历修正前后对比图
+"""plot_ephemeris_correction 可视化脚本。
 
-左图: 会合坐标系 (Synodic, 无量纲) — CR3BP DRO vs 星历修正轨迹反转换回 synodic
-右图: J2000 惯性系 (km) — CR3BP DRO 转换后 vs 星历修正轨迹
+本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
 
-DRO 为 3:1 共振轨道，需 3 个周期才在 J2000 中闭合。
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.plot.ephemeris.plot_ephemeris_correction --help
 """
+
 
 import argparse
 import json
@@ -16,14 +18,18 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from e2m2e.core import (
-    Orbit,
-    CR3BP_System,
-    SPICEManager,
-    EphemerisSystem,
-    EphemerisDynamics,
-    SynodicJ2000Transformation,
-)
+from e2m2e.core import Orbit, CR3BP_System, SynodicJ2000Transformation
+
+try:
+    from e2m2e.core import SPICEManager, EphemerisSystem, EphemerisDynamics
+except ImportError:
+    class _MissingEphemerisApi:
+        """延迟报告当前 e2m2e 版本缺少星历绘图所需 API。"""
+
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("当前 e2m2e 安装缺少星历绘图所需的 SPICE/Ephemeris API。")
+
+    SPICEManager = EphemerisSystem = EphemerisDynamics = _MissingEphemerisApi
 from tod.commons.constants import DU, MU, TU
 from tod.commons.common import find_project_root
 from tod.plot.config import apply_standard_plot_config
@@ -39,7 +45,12 @@ EPHEMERIS_JSON_DEFAULT = output_dir / "dro_ephemeris_correction_20260406_120419.
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="绘制 DRO 星历修正前后对比图")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="绘制 DRO 星历修正前后对比图", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
     parser.add_argument("--ephemeris-file", type=str, default=None, help="星历修正 JSON 文件路径")
     return parser.parse_args()
@@ -55,6 +66,14 @@ N_PERIODS = 3
 
 
 def set_axes_equal(ax):
+    """将三维坐标轴设置为等比例显示。
+    
+    Args:
+        ax: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    """
     x_range = ax.get_xlim()[1] - ax.get_xlim()[0]
     y_range = ax.get_ylim()[1] - ax.get_ylim()[0]
     z_range = ax.get_zlim()[1] - ax.get_zlim()[0]
@@ -68,6 +87,15 @@ def set_axes_equal(ax):
 
 
 def tile_orbit_n_periods(orbit, n):
+    """执行 tile_orbit_n_periods 对应的处理逻辑。
+    
+    Args:
+        orbit: 调用方传入的参数值。
+        n: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     period = orbit.period
     states_1 = np.array(orbit.states)
     times_1 = np.array(orbit.times)
@@ -87,6 +115,14 @@ def tile_orbit_n_periods(orbit, n):
 
 
 def main():
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
     args = parse_args()
 
     dro_json_file = Path(args.dro_file) if args.dro_file else DRO_JSON_DEFAULT

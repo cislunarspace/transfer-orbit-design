@@ -1,21 +1,13 @@
+"""optimize_dro_to_geo 转移设计脚本。
+
+本模块读取已生成的轨道或搜索结果 JSON，在地月 CR3BP 单位体系中执行搜索、验证或 NLP 优化。网格类脚本输出候选转移，优化类脚本读取候选并最小化速度增量或插入误差，结果写入 output/transfer 相关目录。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.transfers.dro_to_geo.optimize_dro_to_geo --help
 """
-DRO → GEO 转移精修（root-find）
 
-在网格搜索结果的基础上，对 DRO→GEO 转移轨道进行精修。
-GEO 建模为赤道圆（不是球面）：r_xy = R_GEO 且 z = 0。
-
-变量: y = [α, T]
-残差 (2D): F(y) = [r_xy(final) - R_GEO, z(final)]
-求解器: scipy.optimize.root(method="lm")，α 网格扫描 + Nelder-Mead 兜底
-排序键: Δv1 + Δv2（从一族 root 解中挑最优）
-
-后过滤: e2m2e.orbits.geo.check_collision 拒绝穿地球/月球的轨迹。
-
-运行: python -m tod.transfers.dro_to_geo.optimize_dro_to_geo
-
-进度条: tqdm；关闭: OPTIMIZE_NO_TQDM=1
-Windows 须保留 ``if __name__ == "__main__"``。
-"""
 
 from __future__ import annotations
 
@@ -90,7 +82,12 @@ USE_TQDM = os.environ.get("OPTIMIZE_NO_TQDM", "").lower() not in ("1", "true", "
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="DRO→GEO 转移 NLP 优化")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="DRO→GEO 转移 NLP 优化", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--search-file", type=str, default=None, help="网格搜索结果 JSON 文件路径")
     parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
     parser.add_argument("--alpha-min", type=float, default=ALPHA_MIN, help="alpha 搜索下界")
@@ -113,6 +110,18 @@ def parse_args():
 def build_dynamics(
     integrator: str, rtol: float, atol: float, max_step: float, mu: float
 ):
+    """构建脚本所需的动力学模型。
+    
+    Args:
+        integrator: 调用方传入的参数值。
+        rtol: 调用方传入的参数值。
+        atol: 调用方传入的参数值。
+        max_step: 调用方传入的参数值。
+        mu: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     system = CR3BP_System(mu=mu, primary="earth", secondary="moon")
     dynamics = CR3BP_Dynamics(system=system)
     dynamics.integrator = integrator
@@ -123,6 +132,16 @@ def build_dynamics(
 
 
 def forward_integrate_nlp(dynamics, initial_state, transfer_time):
+    """执行 forward_integrate_nlp 对应的处理逻辑。
+    
+    Args:
+        dynamics: 调用方传入的参数值。
+        initial_state: 调用方传入的参数值。
+        transfer_time: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     step = max(0.01, dynamics.max_step)
     n_steps = int(transfer_time / step) + 1
     t_eval = np.linspace(0.0, transfer_time, n_steps)
@@ -208,6 +227,23 @@ def optimize_one_case(
     moon_radius=100.0 / DU,
     verbose=False,
 ):
+    """执行转移优化计算。
+    
+    Args:
+        rec: 调用方传入的参数值。
+        dynamics: 调用方传入的参数值。
+        mu: 调用方传入的参数值。
+        alpha_min: 调用方传入的参数值。
+        alpha_max: 调用方传入的参数值。
+        t_min: 调用方传入的参数值。
+        t_max: 调用方传入的参数值。
+        earth_radius: 调用方传入的参数值。
+        moon_radius: 调用方传入的参数值。
+        verbose: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     departure_state = np.array(rec["departure_state"], dtype=float)
     alpha_0 = float(rec["alpha"])
     T_0 = float(rec["transfer_time"])
@@ -337,6 +373,10 @@ def optimize_one_case(
 
 @dataclass
 class NlpPackConfig:
+    """保存 NlpPackConfig 的配置字段。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     mu: float
     alpha_min: float
     alpha_max: float
@@ -350,6 +390,14 @@ class NlpPackConfig:
 
 
 def nlp_worker_packed(payload):
+    """执行 nlp_worker_packed 对应的处理逻辑。
+    
+    Args:
+        payload: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     idx = payload["idx"]
     rec = payload["rec"]
     cfg = payload["cfg"]
@@ -376,6 +424,14 @@ def nlp_worker_packed(payload):
 
 
 def main() -> None:
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
     args = parse_args()
 
     # CLI 参数覆盖

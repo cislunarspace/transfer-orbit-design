@@ -1,20 +1,13 @@
-"""
-DRO → RO 转移轨道 NLP 优化结果可视化
+"""plot_optimize_result_dro_to_ro 可视化脚本。
 
-可视化 dro_to_ro/optimize_dro_to_ro.py 输出的 NLP 优化结果 JSON：
-- **散点图**（默认）: 每条 NLP 结果的 Δv1、Δv2、总 Δv 汇总
-- **转移轨道 3D 示意图** (--orbit): 重新积分 NLP 最优解，叠加绘制 DRO / RO / 转移弧
+本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
 
-用法:
-    python -m tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro                 # Δv 汇总散点图
-    python -m tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --orbit          # 绘制最优解的转移轨道
-    python -m tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --orbit --idx best       # 同上
-    python -m tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --orbit --idx 0            # 绘制第 0 条结果
-    python -m tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --orbit --idx all          # 绘制全部
-    python -m tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --orbit --idx best:5      # Δv 最小的 5 条
-    python -m tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --orbit --idx random --seed 42
-    python -m tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --save output/transfer/figures/opt.png
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --help
 """
+
 
 from __future__ import annotations
 
@@ -69,6 +62,14 @@ def _latest_optimization_json() -> Optional[Path]:
 
 
 def load_optimization_results(path: Path) -> Dict[str, Any]:
+    """读取转移优化结果 JSON 文件。
+    
+    Args:
+        path: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
@@ -171,6 +172,15 @@ def _select_indices(
 
 
 def plot_dv_summary(records: List[Dict[str, Any]], ax: Axes) -> None:
+    """绘制指定结果图形。
+    
+    Args:
+        records: 调用方传入的参数值。
+        ax: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    """
     if not records:
         ax.text(0.5, 0.5, "无数据", ha="center", va="center", transform=ax.transAxes)
         return
@@ -212,6 +222,15 @@ def plot_dv_summary(records: List[Dict[str, Any]], ax: Axes) -> None:
 
 
 def plot_dv_scatter(records: List[Dict[str, Any]], ax: Axes) -> None:
+    """绘制指定结果图形。
+    
+    Args:
+        records: 调用方传入的参数值。
+        ax: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    """
     success = [r for r in records if r["success"]]
     if not success:
         ax.text(0.5, 0.5, "无成功结果", ha="center", va="center", transform=ax.transAxes)
@@ -242,6 +261,15 @@ def plot_dv_scatter(records: List[Dict[str, Any]], ax: Axes) -> None:
 
 
 def plot_transfer_time_vs_dv(records: List[Dict[str, Any]], ax: Axes) -> None:
+    """绘制指定结果图形。
+    
+    Args:
+        records: 调用方传入的参数值。
+        ax: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    """
     success = [r for r in records if r["success"]]
     if not success:
         ax.text(0.5, 0.5, "无成功结果", ha="center", va="center", transform=ax.transAxes)
@@ -284,6 +312,24 @@ def plot_orbit_3d(
     save_path: Optional[Path] = None,
     dpi: int = 150,
 ) -> None:
+    """绘制指定结果图形。
+    
+    Args:
+        records: 调用方传入的参数值。
+        sel_indices: 调用方传入的参数值。
+        dro_orbit: 调用方传入的参数值。
+        ro_orbit: 调用方传入的参数值。
+        system: 调用方传入的参数值。
+        dynamics: 调用方传入的参数值。
+        save_path: 调用方传入的参数值。
+        dpi: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
     n_sel = len(sel_indices)
 
     if n_sel == 1:
@@ -432,7 +478,15 @@ def plot_orbit_3d(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="可视化 NLP 优化结果")
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
+    parser = argparse.ArgumentParser(description="可视化 NLP 优化结果", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--file", type=str, default=None, help="optimization_results_*.json 路径（默认自动选最新）")
     parser.add_argument("--save", type=str, default=None, help="保存图片路径")
     parser.add_argument("--dpi", type=int, default=150)

@@ -1,14 +1,13 @@
-"""
-技术预研：验证 GEO → DRO 转移轨道搜索的可行性
+"""validate_geo_to_dro 转移设计脚本。
 
-测试内容：
-1. 在 CR3BP 旋转系中生成 GEO 近似圆轨道
-2. 验证 TransferSearch 的出发速度模型在 GEO 上的行为
-3. 用少量网格点测试正向积分轨迹是否能到达月球附近
-4. 测试 TransferSearch(departure=GEO, arrival=DRO) 的网格搜索
+本模块读取已生成的轨道或搜索结果 JSON，在地月 CR3BP 单位体系中执行搜索、验证或 NLP 优化。网格类脚本输出候选转移，优化类脚本读取候选并最小化速度增量或插入误差，结果写入 output/transfer 相关目录。
 
-运行: python -m tod.transfers.geo_to_dro.validate_geo_to_dro
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.transfers.geo_to_dro.validate_geo_to_dro --help
 """
+
 
 import logging
 from pathlib import Path
@@ -289,6 +288,11 @@ def test_transfer_search():
 
 
 def main():
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     logger.info("GEO → DRO 转移轨道搜索可行性验证")
     logger.info(f"GEO 参数: R={R_GEO:.6f} DU = {R_GEO * DU:.0f} km, "
           f"V_circ={V_CIRCULAR_GEO:.4f} VU = {V_CIRCULAR_GEO * VU:.1f} m/s, "

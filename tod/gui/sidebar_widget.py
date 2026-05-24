@@ -1,4 +1,8 @@
-"""Sidebar container with search bar and tree widget."""
+"""PyQt6 图形界面组件。
+
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+"""
+
 
 from __future__ import annotations
 

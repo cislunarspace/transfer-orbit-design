@@ -1,4 +1,8 @@
-"""参数面板 Mixin — 参数面板构建和操作逻辑。"""
+"""PyQt6 图形界面组件。
+
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+"""
+
 
 from __future__ import annotations
 
@@ -267,6 +271,16 @@ class ParamsPanelMixin(DocLinkMixin):
                 tw=trigger_widget,
                 tgts=targets,
             ):
+                """执行 update_visibility 对应的处理逻辑。
+                
+                Args:
+                    _: 调用方传入的参数值。
+                    tw: 调用方传入的参数值。
+                    tgts: 调用方传入的参数值。
+                
+                Returns:
+                    None。
+                """
                 current_val = _get_trigger_value()
                 for tk, expected in tgts:
                     if expected is not None:

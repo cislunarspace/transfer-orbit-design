@@ -1,4 +1,8 @@
-"""主窗口 — GUI 布局和交互逻辑（多进程 Job 版本）。"""
+"""PyQt6 图形界面组件。
+
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+"""
+
 
 from __future__ import annotations
 
@@ -45,6 +49,10 @@ if TYPE_CHECKING:
 
 
 class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMainWindow):
+    """提供 MainWindow 对应的 GUI 组件。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     def __init__(self, repo_root: str, parent=None):
         super().__init__(parent)
         self._repo_root = Path(repo_root)
@@ -319,6 +327,14 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
     # ── Window Events ─────────────────────────────────────────
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
+        """执行 closeEvent 对应的处理逻辑。
+        
+        Args:
+            event: 调用方传入的参数值。
+        
+        Returns:
+            None。
+        """
         running = self._job_manager.running_jobs()
         if running:
             reply = QMessageBox.question(

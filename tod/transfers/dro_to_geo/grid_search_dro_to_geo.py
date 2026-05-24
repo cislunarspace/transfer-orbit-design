@@ -1,13 +1,13 @@
+"""grid_search_dro_to_geo 转移设计脚本。
+
+本模块读取已生成的轨道或搜索结果 JSON，在地月 CR3BP 单位体系中执行搜索、验证或 NLP 优化。网格类脚本输出候选转移，优化类脚本读取候选并最小化速度增量或插入误差，结果写入 output/transfer 相关目录。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.transfers.dro_to_geo.grid_search_dro_to_geo --help
 """
-DRO → GEO 转移轨道网格搜索
 
-从 DRO 出发，搜索到达 GEO（地球静止轨道）的转移轨道。
-复用 TransferSearch，departure=DRO，arrival=GEO（近似圆轨道）。
-
-运行: python -m tod.transfers.dro_to_geo.grid_search_dro_to_geo
-
-Windows 多进程需要 ``if __name__ == "__main__"``。
-"""
 
 import argparse
 import json
@@ -130,7 +130,12 @@ def serialize_result(r: dict, *, is_feasible: bool) -> dict:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="DRO→GEO 转移轨道网格搜索")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="DRO→GEO 转移轨道网格搜索", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径"
     )
@@ -217,6 +222,11 @@ def generate_geo_orbit(n_points: int = GEO_N_POINTS) -> Orbit:
 
 
 def main() -> None:
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     args = parse_args()
 
     # =========================================================================

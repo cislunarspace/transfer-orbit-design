@@ -1,4 +1,8 @@
-"""脚本注册表 — 所有可用脚本的元数据定义。"""
+"""PyQt6 图形界面组件。
+
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+"""
+
 
 import math
 from dataclasses import dataclass, field
@@ -49,6 +53,10 @@ class CliParam:
 
 @dataclass(frozen=True)
 class ScriptEntry:
+    """表示 ScriptEntry 相关的数据结构或行为。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     module: str           # 类别: "dro", "ro", "halo", "transfer", "ephemeris", "inspection"
     name: str             # 文件名（不含 .py）
     description: str      # 中文描述
@@ -143,16 +151,40 @@ class _SCRIPTSProxy:
         return _get_scripts()[_key]
 
     def get(self, key: str, default=None):
+        """执行 get 对应的处理逻辑。
+        
+        Args:
+            key: 调用方传入的参数值。
+            default: 调用方传入的参数值。
+        
+        Returns:
+            函数执行结果。
+        """
         _key = _LEGACY_ALIASES.get(key, key)
         return _get_scripts().get(_key, default)
 
     def keys(self):
+        """执行 keys 对应的处理逻辑。
+        
+        Returns:
+            函数执行结果。
+        """
         return _get_scripts().keys()
 
     def values(self):
+        """执行 values 对应的处理逻辑。
+        
+        Returns:
+            函数执行结果。
+        """
         return _get_scripts().values()
 
     def items(self):
+        """执行 items 对应的处理逻辑。
+        
+        Returns:
+            函数执行结果。
+        """
         return _get_scripts().items()
 
     def __iter__(self):

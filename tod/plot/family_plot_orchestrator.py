@@ -1,8 +1,13 @@
-"""Unified orbit family plotting orchestrator.
+"""family_plot_orchestrator 可视化脚本。
 
-Provides :class:`FamilyPlotConfig` for declarative per-family configuration
-and :class:`FamilyPlotOrchestrator` for the shared plotting pipeline.
+本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.plot.family_plot_orchestrator --help
 """
+
 
 from __future__ import annotations
 
@@ -27,14 +32,14 @@ logger = logging.getLogger(__name__)
 
 def build_argparser(description: str) -> argparse.ArgumentParser:
     """Create a unified argument parser for orbit family plotting."""
-    parser = argparse.ArgumentParser(description=description)
+    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--json-file", type=str, default=None, help="轨道族 JSON 文件路径")
     parser.add_argument("--start", type=int, default=-1, help="起始轨道索引，-1 表示从第一条")
     parser.add_argument("--end", type=int, default=-1, help="结束轨道索引（含），-1 表示到最后一条")
-    parser.add_argument("--plot-global-2d", action="store_true", help="绘制全局 2D 视图")
-    parser.add_argument("--plot-global-3d", action="store_true", help="绘制全局 3D 视图")
+    parser.add_argument("--plot-global-2d", "--view-2d", dest="plot_global_2d", action="store_true", help="绘制全局 2D 视图")
+    parser.add_argument("--plot-global-3d", "--view-3d", dest="plot_global_3d", action="store_true", help="绘制全局 3D 视图")
     parser.add_argument(
-        "--plot-jacobi-stability", action="store_true",
+        "--plot-jacobi-stability", "--jacobi-period-stability", dest="plot_jacobi_stability", action="store_true",
         help="绘制 Jacobi 常数与周期、稳定性的关系曲线",
     )
     parser.add_argument(
@@ -109,6 +114,10 @@ def _get_center_coordinates(center_type: str, mu: float) -> tuple[float, float, 
 
 @dataclass(frozen=True)
 class FamilyPlotConfig:
+    """保存 FamilyPlotConfig 的配置字段。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     family_type: str
     default_filename: str
     output_subdir: str
@@ -127,11 +136,23 @@ class FamilyPlotConfig:
 
 
 class FamilyPlotOrchestrator:
+    """表示 FamilyPlotOrchestrator 相关的数据结构或行为。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     def __init__(self, config: FamilyPlotConfig, args: argparse.Namespace) -> None:
         self.config = config
         self.args = args
 
     def run(self) -> None:
+        """执行 run 对应的处理逻辑。
+        
+        Returns:
+            None。
+        
+        Raises:
+            Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+        """
         a = self.args
         want_2d = a.plot_global_2d
         want_3d = a.plot_global_3d

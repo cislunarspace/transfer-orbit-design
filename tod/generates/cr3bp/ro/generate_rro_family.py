@@ -1,20 +1,13 @@
+"""generate_rro_family 轨道生成脚本。
+
+本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.generates.cr3bp.ro.generate_rro_family --help
 """
-生成 3:2 RRO（反射共振轨道）族
 
-本脚本实现：
-1. 加载已有的 3:2 RO 族数据
-2. 检测单值矩阵特征值分岔点（λ ≈ 1）
-3. 从分岔点出发，生成 RRO（反射共振轨道）族（固定 x0，改变 z0）
-
-技术背景：
-- 论文 Section II.D: "当单值矩阵的一对特征值在实轴 +1 处碰撞时，发生切分岔，
-  伴随 3D 轨道的生成"
-- RRO 特征：关于 x-z 平面对称（Mirror Theorem），类似于 LPO 中的 Halo 轨道
-
-参考论文：
-  Cui et al. (2025) "Two-Impulse Transfers from Lunar Distant Retrograde Orbits
-  to Resonant Orbits", JGCD, Vol.48, No.6
-"""
 
 import argparse
 import logging
@@ -33,7 +26,12 @@ RO_32_FAMILY_FILE = OUTPUT_DIR / "ro" / "ro_32_family_-1.2--0.8-0.005_3856904629
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="生成 RRO 反射共振轨道族（从 3:2 RO 分岔）")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="生成 RRO 反射共振轨道族（从 3:2 RO 分岔）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--ro-file", type=str, default=None,
                         help="3:2 RO 轨道族 JSON 文件路径")
     parser.add_argument("--target-x0", type=float, default=-1.0878,
@@ -44,6 +42,11 @@ def parse_args():
 
 
 def main():
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     args = parse_args()
     family_rro = None
 

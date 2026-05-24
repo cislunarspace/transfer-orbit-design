@@ -1,3 +1,14 @@
+"""_conversion 星历转换脚本。
+
+本模块将 CR3BP 轨道状态映射到真实星历模型，依赖 SPICE kernels（de440.bsp、naif0012.tls）和 UTC 参考历元。输入为 DRO/Halo 单轨道或轨道族 JSON，输出为含修正状态、残差和元数据的星历转换结果。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.generates.ephemeris._conversion --help
+"""
+
+
 from __future__ import annotations
 
 import argparse
@@ -22,6 +33,10 @@ DEFAULT_BODIES = ("EARTH", "MOON", "SUN")
 
 @dataclass(frozen=True)
 class ConversionDependencies:
+    """表示 ConversionDependencies 相关的数据结构或行为。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     build_orbit: Callable[[dict[str, Any]], Any]
     build_dynamics: Callable[[SingleConversionConfig | FamilyConversionConfig], Any]
     reference_et: Callable[[SingleConversionConfig | FamilyConversionConfig], float]
@@ -35,12 +50,20 @@ class ConversionDependencies:
 
 @dataclass(frozen=True)
 class LoadedOrbitPayload:
+    """表示 LoadedOrbitPayload 相关的数据结构或行为。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     payload: dict[str, Any]
     orbit_index: int | None
 
 
 @dataclass(frozen=True)
 class SingleConversionConfig:
+    """保存 SingleConversionConfig 的配置字段。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     orbit_type: str
     input_file: Path
     reference_epoch: str
@@ -58,6 +81,10 @@ class SingleConversionConfig:
 
 @dataclass(frozen=True)
 class FamilyConversionConfig:
+    """保存 FamilyConversionConfig 的配置字段。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     orbit_type: str
     input_file: Path
     reference_epoch: str
@@ -75,6 +102,14 @@ class FamilyConversionConfig:
 
 
 def build_single_parser(orbit_type: str) -> argparse.ArgumentParser:
+    """构建运行所需对象。
+    
+    Args:
+        orbit_type: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     parser = argparse.ArgumentParser(
         description=f"Convert one {orbit_type.upper()} orbit from CR3BP to ephemeris model."
     )
@@ -89,6 +124,14 @@ def build_single_parser(orbit_type: str) -> argparse.ArgumentParser:
 
 
 def build_family_parser(orbit_type: str) -> argparse.ArgumentParser:
+    """构建运行所需对象。
+    
+    Args:
+        orbit_type: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     parser = argparse.ArgumentParser(
         description=f"Convert a {orbit_type.upper()} orbit family from CR3BP to ephemeris model."
     )
@@ -115,6 +158,15 @@ def build_family_parser(orbit_type: str) -> argparse.ArgumentParser:
 def single_config_from_args(
     args: argparse.Namespace, orbit_type: str
 ) -> SingleConversionConfig:
+    """执行 single_config_from_args 对应的处理逻辑。
+    
+    Args:
+        args: 调用方传入的参数值。
+        orbit_type: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     return SingleConversionConfig(
         orbit_type=orbit_type,
         input_file=Path(args.input_file),
@@ -134,6 +186,15 @@ def single_config_from_args(
 def family_config_from_args(
     args: argparse.Namespace, orbit_type: str
 ) -> FamilyConversionConfig:
+    """执行 family_config_from_args 对应的处理逻辑。
+    
+    Args:
+        args: 调用方传入的参数值。
+        orbit_type: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     return FamilyConversionConfig(
         orbit_type=orbit_type,
         input_file=Path(args.input_file),
@@ -153,6 +214,18 @@ def family_config_from_args(
 
 
 def load_single_orbit_payload(input_file: Path, orbit_index: int | None) -> LoadedOrbitPayload:
+    """读取单条轨道或轨道族中的轨道载荷。
+    
+    Args:
+        input_file: 调用方传入的参数值。
+        orbit_index: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
     data = _load_json_object(input_file)
     if "orbits" not in data:
         return LoadedOrbitPayload(payload=data, orbit_index=None)
@@ -174,6 +247,15 @@ def load_single_orbit_payload(input_file: Path, orbit_index: int | None) -> Load
 def run_single_conversion(
     config: SingleConversionConfig, deps: ConversionDependencies | None = None
 ) -> dict[str, Any]:
+    """运行对应计算流程。
+    
+    Args:
+        config: 调用方传入的参数值。
+        deps: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     loaded = load_single_orbit_payload(config.input_file, config.orbit_index)
     dependencies = deps or default_conversion_dependencies()
     conversion_result = convert_orbit(
@@ -195,6 +277,15 @@ def run_single_conversion(
 def run_family_conversion(
     config: FamilyConversionConfig, deps: ConversionDependencies | None = None
 ) -> dict[str, Any]:
+    """运行对应计算流程。
+    
+    Args:
+        config: 调用方传入的参数值。
+        deps: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     payloads = load_family_payloads(config.input_file)
     dependencies = deps
     if dependencies is None and (config.family_workers <= 1 or config.fail_fast):
@@ -209,6 +300,16 @@ def run_family_conversion(
         )
     else:
         def convert(payload: dict[str, Any], index: int, include_full_trajectory: bool) -> dict[str, Any]:
+            """执行 convert 对应的处理逻辑。
+            
+            Args:
+                payload: 调用方传入的参数值。
+                index: 调用方传入的参数值。
+                include_full_trajectory: 调用方传入的参数值。
+            
+            Returns:
+                函数执行结果。
+            """
             return convert_orbit(payload, config, dependencies, include_full_trajectory)
 
         entries = run_family_payload_conversion(
@@ -234,6 +335,20 @@ def convert_orbit(
     deps: ConversionDependencies,
     include_full_trajectory: bool,
 ) -> dict[str, Any]:
+    """执行单条轨道的星历转换。
+    
+    Args:
+        payload: 调用方传入的参数值。
+        config: 调用方传入的参数值。
+        deps: 调用方传入的参数值。
+        include_full_trajectory: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
     orbit = deps.build_orbit(payload)
     if getattr(orbit, "period", None) is None:
         raise ValueError(f"unable to determine {config.orbit_type} orbit period")
@@ -276,6 +391,11 @@ def convert_orbit(
 
 
 def default_conversion_dependencies() -> ConversionDependencies:
+    """执行 default_conversion_dependencies 对应的处理逻辑。
+    
+    Returns:
+        函数执行结果。
+    """
     from e2m2e.algorithms import convert_to_j2000, sample_patch_points
     from e2m2e.core import (
         CR3BP_System,
@@ -294,6 +414,14 @@ def default_conversion_dependencies() -> ConversionDependencies:
     cr3bp_system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
 
     def build_orbit(payload: dict[str, Any]) -> Any:
+        """构建运行所需对象。
+        
+        Args:
+            payload: 调用方传入的参数值。
+        
+        Returns:
+            函数执行结果。
+        """
         with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".json", delete=False) as file:
             json.dump(payload, file)
             temp_path = Path(file.name)
@@ -303,6 +431,14 @@ def default_conversion_dependencies() -> ConversionDependencies:
             temp_path.unlink(missing_ok=True)
 
     def build_dynamics(config: SingleConversionConfig | FamilyConversionConfig) -> Any:
+        """构建脚本所需的动力学模型。
+        
+        Args:
+            config: 调用方传入的参数值。
+        
+        Returns:
+            函数执行结果。
+        """
         kernel_path = spice.find_ephemeris_kernel(str(config.spice_kernel_dir))
         leapseconds_path = config.spice_kernel_dir / "naif0012.tls"
         spiceypy.furnsh(str(leapseconds_path))
@@ -316,9 +452,27 @@ def default_conversion_dependencies() -> ConversionDependencies:
         return EphemerisDynamics(system=eph_system)
 
     def reference_et(config: SingleConversionConfig | FamilyConversionConfig) -> float:
+        """执行 reference_et 对应的处理逻辑。
+        
+        Args:
+            config: 调用方传入的参数值。
+        
+        Returns:
+            函数执行结果。
+        """
         return float(spice.utc_to_et(config.reference_epoch))
 
     def convert_states(t_patch_syn: Any, states_syn: Any, reference_et_value: float) -> tuple[Any, Any]:
+        """执行 convert_states 对应的处理逻辑。
+        
+        Args:
+            t_patch_syn: 调用方传入的参数值。
+            states_syn: 调用方传入的参数值。
+            reference_et_value: 调用方传入的参数值。
+        
+        Returns:
+            函数执行结果。
+        """
         transform = SynodicJ2000Transformation(cr3bp_system=cr3bp_system, spice=spice)
         return convert_to_j2000(t_patch_syn, states_syn, transform, reference_et_value, TU)
 
@@ -328,6 +482,17 @@ def default_conversion_dependencies() -> ConversionDependencies:
         t_patch_j2000: Any,
         states_j2000: Any,
     ) -> Any:
+        """执行 correct 对应的处理逻辑。
+        
+        Args:
+            config: 调用方传入的参数值。
+            dynamics: 调用方传入的参数值。
+            t_patch_j2000: 调用方传入的参数值。
+            states_j2000: 调用方传入的参数值。
+        
+        Returns:
+            函数执行结果。
+        """
         return correct_ephemeris_patch_points(
             config.method,
             dynamics,
@@ -353,11 +518,29 @@ def default_conversion_dependencies() -> ConversionDependencies:
 
 
 def main_single(orbit_type: str, argv: list[str] | None = None) -> dict[str, Any]:
+    """执行 main_single 对应的处理逻辑。
+    
+    Args:
+        orbit_type: 调用方传入的参数值。
+        argv: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     parser = build_single_parser(orbit_type)
     return run_single_conversion(single_config_from_args(parser.parse_args(argv), orbit_type))
 
 
 def main_family(orbit_type: str, argv: list[str] | None = None) -> dict[str, Any]:
+    """执行 main_family 对应的处理逻辑。
+    
+    Args:
+        orbit_type: 调用方传入的参数值。
+        argv: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     parser = build_family_parser(orbit_type)
     return run_family_conversion(family_config_from_args(parser.parse_args(argv), orbit_type))
 
@@ -385,6 +568,17 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def load_family_payloads(input_file: Path) -> list[dict[str, Any]]:
+    """读取轨道族文件中的全部轨道载荷。
+    
+    Args:
+        input_file: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
     data = _load_json_object(input_file)
     orbits = data.get("orbits")
     if not isinstance(orbits, list):
@@ -402,6 +596,17 @@ def run_default_family_payload_conversion_parallel(
     include_full_trajectory: bool,
     family_workers: int,
 ) -> list[dict[str, Any]]:
+    """运行对应计算流程。
+    
+    Args:
+        payloads: 调用方传入的参数值。
+        config: 调用方传入的参数值。
+        include_full_trajectory: 调用方传入的参数值。
+        family_workers: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     entries: list[dict[str, Any] | None] = [None] * len(payloads)
     with ProcessPoolExecutor(max_workers=family_workers) as executor:
         futures = {
@@ -447,6 +652,18 @@ def run_family_payload_conversion(
     include_full_trajectory: bool,
     family_workers: int = 1,
 ) -> list[dict[str, Any]]:
+    """运行对应计算流程。
+    
+    Args:
+        payloads: 调用方传入的参数值。
+        convert: 调用方传入的参数值。
+        fail_fast: 调用方传入的参数值。
+        include_full_trajectory: 调用方传入的参数值。
+        family_workers: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     if family_workers <= 1 or fail_fast:
         return _run_family_payload_conversion_serial(
             payloads,

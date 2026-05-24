@@ -1,4 +1,8 @@
-"""GUI 文件操作 — 复制路径、在文件夹中显示、删除等可测试逻辑。"""
+"""PyQt6 图形界面组件。
+
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+"""
+
 
 import platform
 import subprocess

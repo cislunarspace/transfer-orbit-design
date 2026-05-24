@@ -1,15 +1,13 @@
-"""
-GEO → DRO 搜索结果可视化
+"""plot_search_results_geo_to_dro 可视化脚本。
 
-可视化 grid_search_geo_to_dro.py 的输出结果。
-支持散点图、3D 转移轨道图和交互式浏览模式。
+本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
 
-运行:
-    python -m tod.plot.transfer.geo_to_dro.plot_search_results_geo_to_dro              # alpha vs Δv 散点图
-    python -m tod.plot.transfer.geo_to_dro.plot_search_results_geo_to_dro --time-dv    # 转移时间 vs Δv
-    python -m tod.plot.transfer.geo_to_dro.plot_search_results_geo_to_dro --orbit       # 3D 轨道图
-    python -m tod.plot.transfer.geo_to_dro.plot_search_results_geo_to_dro --interactive # 交互式浏览
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.plot.transfer.geo_to_dro.plot_search_results_geo_to_dro --help
 """
+
 
 import argparse
 import json
@@ -80,6 +78,14 @@ def departure_delta_v_norm(state6, alpha):
 
 
 def feasible_alpha_and_departure_dv(rows):
+    """执行 feasible_alpha_and_departure_dv 对应的处理逻辑。
+    
+    Args:
+        rows: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     alpha_list, dv_list = [], []
     for r in rows:
         if not r.get("is_feasible"):
@@ -95,6 +101,14 @@ def feasible_alpha_and_departure_dv(rows):
 
 
 def feasible_transfer_time_and_dv(rows):
+    """执行 feasible_transfer_time_and_dv 对应的处理逻辑。
+    
+    Args:
+        rows: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     tt_list, dv_list = [], []
     for r in rows:
         if not r.get("is_feasible"):
@@ -343,7 +357,12 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="GEO → DRO 搜索结果可视化")
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
+    parser = argparse.ArgumentParser(description="GEO → DRO 搜索结果可视化", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--file", type=str, default=None, help="搜索结果 JSON 路径")
     parser.add_argument("--save", type=str, default=None, help="保存 PNG 路径；不传则弹窗显示")
     parser.add_argument("--max-points", type=int, default=50000,

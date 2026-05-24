@@ -1,4 +1,8 @@
-"""Tree model for the GUI script sidebar."""
+"""PyQt6 图形界面组件。
+
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+"""
+
 
 from __future__ import annotations
 
@@ -26,6 +30,10 @@ NodeType = Literal["folder", "script", "empty_folder"]
 
 @dataclass
 class TreeNode:
+    """表示 TreeNode 相关的数据结构或行为。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     name: str
     path: str
     node_type: NodeType

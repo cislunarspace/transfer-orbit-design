@@ -1,8 +1,13 @@
-"""
-可视化 LEO → DRO 网格搜索结果
+"""plot_search_results_leo_to_dro 可视化脚本。
 
-可视化 grid_search_leo_to_dro.py 输出的搜索结果 JSON。
+本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.plot.transfer.leo_to_dro.plot_search_results_leo_to_dro --help
 """
+
 
 from __future__ import annotations
 
@@ -42,6 +47,14 @@ logger = logging.getLogger(__name__)
 
 
 def load_search_results(path: Path) -> dict:
+    """读取转移搜索结果 JSON 文件。
+    
+    Args:
+        path: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
@@ -127,7 +140,15 @@ def _interactive_browse(records: list[dict]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="可视化 LEO→DRO 网格搜索结果")
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
+    parser = argparse.ArgumentParser(description="可视化 LEO→DRO 网格搜索结果", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--file", type=str, default=None, help="搜索结果 JSON 路径")
     parser.add_argument("--orbit", action="store_true", help="绘制转移轨道 3D 示意图")
     parser.add_argument("--time-dv", action="store_true", help="转移时间 vs Δv 散点图")

@@ -1,22 +1,13 @@
-"""
-GEO → DRO 优化结果可视化
+"""plot_optimize_result_geo_to_dro 可视化脚本。
 
-可视化 optimize_geo_to_dro.py 的输出结果。
-支持 Δv 汇总图、散点图、3D 转移轨道图和交互式浏览模式。
+本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
 
-运行:
-    python -m tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro              # Δv 汇总 + 散点图
-    python -m tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --time-dv    # 转移时间 vs Δv
-    python -m tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --orbit       # 3D 轨道图 (best:5)
-    python -m tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --orbit --idx best:1    # 最优解
-    python -m tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --orbit --idx 0          # 第 0 条
-    python -m tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --orbit --idx all         # 全部
-    python -m tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --orbit --idx best:10     # Δv 最小 10 条
-    python -m tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --orbit --idx random --seed 42
-    python -m tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --interactive             # 交互式浏览
-    python -m tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --save output/transfer/fig.png
-    python -m tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --max-pos-err 50         # 仅显示 pos<50km
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --help
 """
+
 
 import argparse
 import json
@@ -76,6 +67,14 @@ def _latest_optimization_json():
 
 
 def load_optimization_results(path: Path) -> Dict[str, Any]:
+    """读取转移优化结果 JSON 文件。
+    
+    Args:
+        path: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
@@ -130,6 +129,15 @@ def _integrate_transfer(departure_state, alpha, transfer_time, dynamics):
 
 
 def plot_dv_summary(records, ax):
+    """绘制指定结果图形。
+    
+    Args:
+        records: 调用方传入的参数值。
+        ax: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    """
     n = len(records)
     if n == 0:
         ax.text(0.5, 0.5, "无数据", transform=ax.transAxes, ha="center")
@@ -158,6 +166,15 @@ def plot_dv_summary(records, ax):
 
 
 def plot_dv_scatter(records, ax):
+    """绘制指定结果图形。
+    
+    Args:
+        records: 调用方传入的参数值。
+        ax: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    """
     success = [r for r in records if r["success"]]
     if not success:
         ax.text(0.5, 0.5, "无成功结果", transform=ax.transAxes, ha="center")
@@ -186,6 +203,15 @@ def plot_dv_scatter(records, ax):
 
 
 def plot_transfer_time_vs_dv(records, ax):
+    """绘制指定结果图形。
+    
+    Args:
+        records: 调用方传入的参数值。
+        ax: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    """
     success = [r for r in records if r["success"]]
     if not success:
         ax.text(0.5, 0.5, "无成功结果", transform=ax.transAxes, ha="center")
@@ -255,6 +281,20 @@ def _select_indices(records, idx_arg, seed=42, max_points=200, max_pos_err_km=10
 
 
 def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=None, dpi=150):
+    """绘制指定结果图形。
+    
+    Args:
+        records: 调用方传入的参数值。
+        sel_indices: 调用方传入的参数值。
+        dro_orbit: 调用方传入的参数值。
+        system: 调用方传入的参数值。
+        dynamics: 调用方传入的参数值。
+        save_path: 调用方传入的参数值。
+        dpi: 调用方传入的参数值。
+    
+    Returns:
+        None。
+    """
     if not sel_indices:
         logger.info("无选中轨道")
         return
@@ -497,6 +537,11 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
 
 
 def main():
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     parser = argparse.ArgumentParser(
         description="GEO -> DRO optimization result visualization",
         formatter_class=argparse.RawDescriptionHelpFormatter,

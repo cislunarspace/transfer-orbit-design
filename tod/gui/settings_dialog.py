@@ -1,4 +1,8 @@
-"""设置对话框 — 动态渲染 SETTINGS_SCHEMA 中的所有设置项。"""
+"""PyQt6 图形界面组件。
+
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+"""
+
 
 from __future__ import annotations
 
@@ -34,6 +38,10 @@ class SettingItem:
 
 
 class SettingsDialog(QDialog):
+    """提供 SettingsDialog 对应的 GUI 组件。
+    
+    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    """
     def __init__(self, settings: dict[str, str], schema: list[SettingItem], parent=None):
         super().__init__(parent)
         self._settings = settings
@@ -106,4 +114,9 @@ class SettingsDialog(QDialog):
         self.accept()
 
     def get_settings(self) -> dict[str, str]:
+        """执行 get_settings 对应的处理逻辑。
+        
+        Returns:
+            函数执行结果。
+        """
         return self._settings

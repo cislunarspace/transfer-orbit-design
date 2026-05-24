@@ -1,13 +1,9 @@
-Halo Orbit Scripts
-==================
-
-This section contains documentation for Halo orbit generation and analysis scripts.
+API: tod.generates.cr3bp.halo
+=============================
 
 .. toctree::
-   :maxdepth: 4
+   :maxdepth: 2
    :titlesonly:
 
-   generate_halo_orbit
    generate_halo_family
-   plot_halo_family
-   plot_halo_orbit
+   generate_halo_orbit

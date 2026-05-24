@@ -1,29 +1,13 @@
+"""homotopy_dro_to_ephemeris 星历转换脚本。
+
+本模块将 CR3BP 轨道状态映射到真实星历模型，依赖 SPICE kernels（de440.bsp、naif0012.tls）和 UTC 参考历元。输入为 DRO/Halo 单轨道或轨道族 JSON，输出为含修正状态、残差和元数据的星历转换结果。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.generates.ephemeris.homotopy_dro_to_ephemeris --help
 """
-DRO 轨道 CR3BP → 星历模型 修正（同伦法）
 
-使用摄动天体逐步引入的同伦策略，将 CR3BP 中的 3:1 DRO 轨道
-转换到高精度星历模型下。相比直接多重打靶法，同伦法通过分阶段
-增加摄动天体引力，提高收敛成功率和计算效率。
-
-同伦建模（方案 A）:
-    在 J2000 惯性系下，逐步引入 Sun 的引力:
-    - λ=0: 仅 Earth + Moon（接近 CRTBP 的星历等效模型）
-    - λ=1: Earth + Moon + Sun（完整星历模型）
-
-    加速度: a(r,t,λ) = Σ_{base} a_b + λ · Σ_{perturbation} a_p
-
-工作流:
-    Step 1: 从 JSON 文件加载 DRO 轨道
-    Step 2: 采样 patch points，synodic → J2000 转换
-    Step 3: Phase 1 — λ=0, E+M only, MultipleShooting 修正
-    Step 4: Phase 2 — λ: 0→1, 自然延拓逐步引入 Sun
-    Step 5: 验证修正后位置连续性
-
-依赖:
-    e2m2e: SPICEManager, EphemerisSystem, HomotopyEphemerisDynamics,
-           SynodicJ2000Transformation, MultipleShooting
-    SPICE kernels: de435.bsp (or de440.bsp), naif0012.tls
-"""
 
 import json
 import logging
@@ -75,6 +59,17 @@ MS_TOLERANCE = POSITION_CONTINUITY_TOL
 
 
 def load_dro_orbit(system):
+    """读取输入数据文件。
+    
+    Args:
+        system: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
     logger.info("=" * 60)
     logger.info("Step 1: 加载 DRO 轨道 (JSON)")
     logger.info("=" * 60)
@@ -96,6 +91,17 @@ def load_dro_orbit(system):
 
 
 def prepare_patch_points(dro_orbit, cr3bp_system, spice, reference_et):
+    """执行 prepare_patch_points 对应的处理逻辑。
+    
+    Args:
+        dro_orbit: 调用方传入的参数值。
+        cr3bp_system: 调用方传入的参数值。
+        spice: 调用方传入的参数值。
+        reference_et: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     logger.info(f"\n{'=' * 60}")
     logger.info("Step 2: 采样 patch points + Synodic → J2000")
     logger.info(f"{'=' * 60}")
@@ -121,6 +127,16 @@ def prepare_patch_points(dro_orbit, cr3bp_system, spice, reference_et):
 
 
 def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
+    """运行对应计算流程。
+    
+    Args:
+        t_patch_j2000: 调用方传入的参数值。
+        states_j2000: 调用方传入的参数值。
+        eph_system: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     logger.info(f"\n{'=' * 60}")
     logger.info("Step 3-4: 同伦法修正 (Homotopy Correction)")
     logger.info(f"{'=' * 60}")
@@ -261,6 +277,18 @@ def run_homotopy_correction(t_patch_j2000, states_j2000, eph_system):
 
 
 def validate_and_save(result, homotopy_log, total_time, eph_system, dro_orbit):
+    """执行 validate_and_save 对应的处理逻辑。
+    
+    Args:
+        result: 调用方传入的参数值。
+        homotopy_log: 调用方传入的参数值。
+        total_time: 调用方传入的参数值。
+        eph_system: 调用方传入的参数值。
+        dro_orbit: 调用方传入的参数值。
+    
+    Returns:
+        函数执行结果。
+    """
     logger.info(f"\n{'=' * 60}")
     logger.info("Step 5: 验证与保存")
     logger.info(f"{'=' * 60}")
@@ -342,6 +370,14 @@ def validate_and_save(result, homotopy_log, total_time, eph_system, dro_orbit):
 
 
 def main():
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    
+    Raises:
+        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
+    """
     raise NotImplementedError(
         "HomotopyEphemerisDynamics has been removed from e2m2e; "
         "this homotopy script is deprecated."

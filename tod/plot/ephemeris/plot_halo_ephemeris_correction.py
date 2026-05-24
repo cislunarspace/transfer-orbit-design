@@ -1,10 +1,13 @@
-"""Halo 轨道 CR3BP → 星历修正结果可视化。
+"""plot_halo_ephemeris_correction 可视化脚本。
 
-图表：
-  1. 3D 轨迹对比图（CR3BP Halo vs 修正后星历）
-  2. 残差收敛曲线（位置 + 速度，半对数）
-  3. 修正前后 XY 投影对比
+本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.plot.ephemeris.plot_halo_ephemeris_correction --help
 """
+
 
 from __future__ import annotations
 
@@ -328,7 +331,12 @@ def generate_plots(
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="绘制 Halo 轨道星历修正结果")
+    """解析命令行参数。
+    
+    Returns:
+        解析后的命令行参数命名空间。
+    """
+    parser = argparse.ArgumentParser(description="绘制 Halo 轨道星历修正结果", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--ephemeris-file",
         type=str,
@@ -345,6 +353,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """执行脚本主流程。
+    
+    Returns:
+        None。
+    """
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",

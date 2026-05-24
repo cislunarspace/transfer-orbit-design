@@ -1,4 +1,8 @@
-"""多进程 Job 管理器 — 支持同时运行多个脚本，每个 job 拥有独立 QProcess。"""
+"""PyQt6 图形界面组件。
+
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+"""
+
 
 from __future__ import annotations
 
@@ -145,12 +149,30 @@ class JobManager(QObject):
                 pass
 
     def get_job(self, job_id: str) -> Job | None:
+        """执行 get_job 对应的处理逻辑。
+        
+        Args:
+            job_id: 调用方传入的参数值。
+        
+        Returns:
+            函数执行结果。
+        """
         return self._jobs.get(job_id)
 
     def running_jobs(self) -> list[Job]:
+        """执行 running_jobs 对应的处理逻辑。
+        
+        Returns:
+            函数执行结果。
+        """
         return [j for j in self._jobs.values() if j.status == "running"]
 
     def all_jobs(self) -> list[Job]:
+        """执行 all_jobs 对应的处理逻辑。
+        
+        Returns:
+            函数执行结果。
+        """
         return list(self._jobs.values())
 
     # -- private handlers --

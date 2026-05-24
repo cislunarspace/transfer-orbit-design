@@ -1,4 +1,13 @@
-"""转移轨道绘图的共享组件：数据加载、速度扰动、散点图、3D 辅助、索引选择、交互浏览。"""
+"""common 可视化脚本。
+
+本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
+
+运行示例:
+    .. code-block:: bash
+
+       uv run python -m tod.plot.transfer.common --help
+"""
+
 
 from __future__ import annotations
 

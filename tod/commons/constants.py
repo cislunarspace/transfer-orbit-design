@@ -1,10 +1,8 @@
-"""
-物理常量（CR3BP + BR4BP）
+"""脚本共享的常量、路径与工具。
 
-地月系统常量从 e2m2e.CR3BP_System 导出（单一真实来源）；
-太阳摄动常量和文件命名为本地定义。
-参考 Cui et al. (2025) Table 1。
+本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
+
 
 import math
 
