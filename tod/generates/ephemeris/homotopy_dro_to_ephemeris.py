@@ -8,6 +8,8 @@
        uv run python -m tod.generates.ephemeris.homotopy_dro_to_ephemeris --help
 """
 
+# pyright: reportAttributeAccessIssue=false
+
 
 import json
 import logging

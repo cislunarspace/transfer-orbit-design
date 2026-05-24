@@ -143,7 +143,7 @@ def get_standard_plot_config(
         kwargs["primary_body_icon_scale"] = PROJECT_DEFAULT_BODY_ICON_SCALE
         kwargs["secondary_body_icon_scale"] = PROJECT_DEFAULT_BODY_ICON_SCALE
 
-    return PlotConfig.from_env(**kwargs)
+    return PlotConfig.from_env(**kwargs)  # pyright: ignore[reportArgumentType]
 
 
 def apply_standard_plot_config(

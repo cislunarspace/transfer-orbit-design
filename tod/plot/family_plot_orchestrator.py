@@ -22,6 +22,7 @@ import argparse
 import json as _json
 import logging
 import warnings
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -84,7 +85,7 @@ def compute_stability_indices(family: OrbitFamily) -> list[float]:
         orbit = family[i]
         analysis = StabilityAnalysis(orbit=orbit)
         indices = analysis.compute_stability_index()
-        values.append(indices.get("broucke", 0.0))
+        values.append(indices.get("broucke") or 0.0)
     return values
 
 
@@ -147,7 +148,7 @@ def _get_center_coordinates(center_type: str, mu: float) -> tuple[float, float, 
     raise ValueError(f"Unknown center type: {center_type}")
 
 
-def _project_2d(xyz: tuple[float, ...], plane: str) -> tuple[float, float]:
+def _project_2d(xyz: Sequence[float], plane: str) -> tuple[float, float]:
     """将 3D 坐标投影到指定平面。"""
     if plane == "yz":
         return (xyz[1], xyz[2])
@@ -626,7 +627,7 @@ class FamilyPlotOrchestrator:
                 for i, orbit in enumerate(subset.orbits):
                     if i % step != 0:
                         continue
-                    color = cmap(norm(jacobi[i]))
+                    color = mcolors.to_hex(cmap(norm(jacobi[i])))
                     plotter.plot_2d_projection(
                         orbit,
                         plane=plane,
@@ -762,7 +763,7 @@ class FamilyPlotOrchestrator:
                 for i, orbit in enumerate(subset.orbits):
                     if i % step != 0:
                         continue
-                    color = cmap(norm(jacobi[i]))
+                    color = mcolors.to_hex(cmap(norm(jacobi[i])))
                     plotter.plot_3d_orbit(
                         orbit,
                         color=color,

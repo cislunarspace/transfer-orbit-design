@@ -8,6 +8,8 @@
        uv run python -m tod.generates.ephemeris.compare_ephemeris_methods --help
 """
 
+# pyright: reportAttributeAccessIssue=false
+
 
 import json
 import logging

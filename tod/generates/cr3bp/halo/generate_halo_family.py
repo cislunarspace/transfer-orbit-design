@@ -20,7 +20,7 @@ from pathlib import Path
 
 import e2m2e
 import numpy as np
-from e2m2e.core import Orbit
+from e2m2e.core import Orbit, OrbitFamily
 from tod.commons.constants import MU
 
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ def _find_milestone_indices(n_orbits: int, n_milestones: int = 5) -> list[int]:
     return [round(i * (n_orbits - 1) / (n_milestones - 1)) for i in range(n_milestones)]
 
 
-def _print_summary_table(orbits: list, libration_point: int, halo_class: int,
+def _print_summary_table(orbits: OrbitFamily, libration_point: int, halo_class: int,
                          *, method: str = "natural", step_size: float = 0.0,
                          step_size_negative: float | None = None,
                          direction: str = "positive",
@@ -127,7 +127,7 @@ def _print_summary_table(orbits: list, libration_point: int, halo_class: int,
     print()
 
 
-def _export_csv(orbits: list, libration_point: int, halo_class: int,
+def _export_csv(orbits: OrbitFamily, libration_point: int, halo_class: int,
                 n_milestones: int = 5) -> Path:
     """将全量轨道数据导出为 CSV，返回文件路径。"""
     milestone_idx = set(_find_milestone_indices(len(orbits), n_milestones))
