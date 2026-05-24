@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from PyQt6.QtCore import QCoreApplication, pyqtSignal, Qt
+from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtGui import QDoubleValidator
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -287,13 +287,11 @@ class CliWidgetFactory:
             _update_button_style(btn, new_state)
             btn.style().unpolish(btn)
             btn.style().polish(btn)
-            # 发射信号让外部可以响应
-            container.chip_selection_changed.emit(key, _get_selected())
 
         for option_label, option_value in chip_param.options.items():
             btn = QPushButton(option_label)
             btn.setCheckable(False)
-            btn.setCursor(0x0d)  # Qt::PointingHandCursor
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
             # 检查是否默认选中
             is_selected = option_label == chip_param.default or option_value == chip_param.default
@@ -306,8 +304,6 @@ class CliWidgetFactory:
 
         layout.addStretch()
 
-        # 添加信号，用于通知选择变化
-        container.chip_selection_changed = pyqtSignal(str, set)  # (key, selected_options)
         container._chip_buttons = chip_buttons  # 用于外部访问按钮状态
 
         return key, container

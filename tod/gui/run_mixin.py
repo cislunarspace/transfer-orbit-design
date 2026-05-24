@@ -203,6 +203,9 @@ class RunMixin:
         env_overrides.update(plot_font_env_from_settings(self._gui_defaults.get("settings", {})))
         env_overrides.update(body_icon_env_from_settings(self._gui_defaults.get("settings", {})))
 
+        # 展开芯片参数组合
+        all_args_combinations = self._expand_combinations(extra_args, chip_selections)
+
         # 添加多文件参数到每个参数组合
         for args in all_args_combinations:
             for key, configs in multi_file_configs.items():

@@ -39,5 +39,6 @@ SCRIPT_ENTRY = ScriptEntry(
         CliParam('--step-size', 'z 方向步长', 'float', '0.002', help='自然延拓 z 方向步长，默认 0.002，单位 DU。', unit_group='distance', default_unit='DU', hidden_when='--method==pseudo_arclength'),
         CliParam('--step-size-pal', '弧长步长', 'float', '0.0045', help='伪弧长延拓步长（无量纲），默认 0.0045。', hidden_when='--method==natural'),
         CliParam('--step-size-negative', '负向步长', 'float', '0.009', help='伪弧长延拓负向步长（默认等于正向步长）', hidden_when='--method==natural'),
+        CliParam('--n-orbits', '轨道数量', 'int', '20', help='延拓轨道数量（z_range 模式下的最大轨道数安全阀），默认 20。', advanced=True),
     ],
 )

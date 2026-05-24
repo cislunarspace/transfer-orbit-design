@@ -680,7 +680,7 @@ class ParamsPanelMixin(DocLinkMixin):
         panel._end_spin.valueChanged.connect(_update_config)
         panel._step_spin.valueChanged.connect(_update_config)
 
-    def _rebuild_params_panel(self, entry: ScriptEntry) -> None:
+    def _on_doc_link_clicked(self, entry: ScriptEntry, doc_url: str | None) -> None:
         """Handle click on the documentation link."""
         if doc_url is None:
             sb = self.statusBar()

@@ -23,8 +23,11 @@ dependencies = [
     "tqdm>=4.66",
     "PyQt6>=6.6.0",
     "PyQt6-WebEngine>=6.6.0",
-    "e2m2e>=4.1.0",
+    "e2m2e",
 ]
+
+[tool.uv.sources]
+e2m2e = { path = "../e2m2e" }
 
 [project.optional-dependencies]
 test = ["pytest>=7.0"]
