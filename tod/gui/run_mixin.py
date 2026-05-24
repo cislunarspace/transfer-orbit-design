@@ -39,7 +39,7 @@ class RunMixin:
             if cli_param is None:
                 continue
 
-            # 隐藏控件不发送到 CLI
+            # Skip widgets whose row container is hidden
             container = self._cli_row_containers.get(key)
             if container is not None and not container.isVisible():
                 continue

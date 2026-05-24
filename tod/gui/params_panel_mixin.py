@@ -223,71 +223,59 @@ class ParamsPanelMixin(DocLinkMixin):
     def _setup_conditional_visibility(self, entry: ScriptEntry) -> None:
         """设置 hidden_when 条件可见性。
 
-        支持两种 hidden_when 格式：
-        - "flag"：当触发控件有非空值时隐藏目标（向后兼容）
-        - "flag==value"：当触发控件等于指定值时隐藏目标
+        支持两种格式：
+        - "--flag"：当触发控件有非空值时隐藏（旧版，向后兼容）
+        - "--flag==value"：当触发控件的当前值等于 value 时隐藏
         """
-        # Build param lookup for choice_values resolution
-        param_by_key: dict[str, CliParam] = {}
-        for p in entry.cli_params:
-            param_by_key[p.flag.lstrip("-").replace("-", "_")] = p
-
-        # trigger_key -> list of (target_key, expected_value | None)
         hidden_map: dict[str, list[tuple[str, str | None]]] = {}
         for p in entry.cli_params:
-            if not p.hidden_when:
-                continue
-            target_key = p.flag.lstrip("-").replace("-", "_")
-            if "==" in p.hidden_when:
-                trigger_raw, expected = p.hidden_when.split("==", 1)
-                trigger_key = trigger_raw.lstrip("-").replace("-", "_")
-                hidden_map.setdefault(trigger_key, []).append((target_key, expected))
-            else:
-                trigger_key = p.hidden_when.lstrip("-").replace("-", "_")
-                hidden_map.setdefault(trigger_key, []).append((target_key, None))
-
+            if p.hidden_when:
+                raw = p.hidden_when
+                expected_value: str | None = None
+                if "==" in raw:
+                    raw, expected_value = raw.split("==", 1)
+                trigger_key = raw.lstrip("-").replace("-", "_")
+                target_key = p.flag.lstrip("-").replace("-", "_")
+                hidden_map.setdefault(trigger_key, []).append((target_key, expected_value))
         for trigger_key, targets in hidden_map.items():
             trigger_widget = self._cli_widgets.get(trigger_key)
             if trigger_widget is None:
                 continue
 
+            # Resolve trigger's CliParam for choice_values reverse mapping
+            trigger_param = self._find_cli_param(trigger_key)
+
+            def _get_trigger_value(
+                tw=trigger_widget,
+                tp=trigger_param,
+            ) -> str:
+                if isinstance(tw, QCheckBox):
+                    return str(tw.isChecked())
+                if isinstance(tw, QComboBox):
+                    text = tw.currentText().strip()
+                    if tp and tp.choice_values and text in tp.choice_values:
+                        return tp.choice_values[text]
+                    return text
+                if isinstance(tw, QLineEdit):
+                    return tw.text().strip()
+                return ""
+
             def update_visibility(
                 _=None,
                 tw=trigger_widget,
                 tgts=targets,
-                tk=trigger_key,
             ):
-                for target_key, expected in tgts:
-                    should_hide = False
+                current_val = _get_trigger_value()
+                for tk, expected in tgts:
                     if expected is not None:
-                        # Value-match mode: hide when trigger == expected
-                        raw_val = ""
-                        if isinstance(tw, QComboBox):
-                            raw_val = tw.currentText().strip()
-                        elif isinstance(tw, QLineEdit):
-                            raw_val = tw.text().strip()
-
-                        # Resolve display label → CLI value via choice_values
-                        trigger_param = param_by_key.get(tk)
-                        if trigger_param and trigger_param.choice_values:
-                            reverse = {v: k for k, v in trigger_param.choice_values.items()}
-                            display_val = reverse.get(expected, expected)
-                        else:
-                            display_val = expected
-                        should_hide = raw_val == display_val
+                        should_hide = current_val == expected
                     else:
-                        # Legacy mode: hide when trigger has any value
-                        if isinstance(tw, QCheckBox):
-                            should_hide = tw.isChecked()
-                        elif isinstance(tw, QComboBox):
-                            should_hide = bool(tw.currentText().strip())
-                        elif isinstance(tw, QLineEdit):
-                            should_hide = bool(tw.text().strip())
+                        should_hide = bool(current_val)
 
-                    container = self._cli_row_containers.get(target_key)
+                    container = self._cli_row_containers.get(tk)
                     if container is not None:
                         container.setVisible(not should_hide)
-                        label = self._cli_row_labels.get(target_key)
+                        label = self._cli_row_labels.get(tk)
                         if label is not None:
                             label.setVisible(not should_hide)
 
@@ -295,6 +283,8 @@ class ParamsPanelMixin(DocLinkMixin):
                 trigger_widget.currentTextChanged.connect(update_visibility)
             elif isinstance(trigger_widget, QLineEdit):
                 trigger_widget.textChanged.connect(update_visibility)
+            elif isinstance(trigger_widget, QCheckBox):
+                trigger_widget.stateChanged.connect(update_visibility)
 
             update_visibility()
 
