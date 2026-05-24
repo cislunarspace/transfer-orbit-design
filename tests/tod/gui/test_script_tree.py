@@ -48,6 +48,7 @@ def test_build_tree_from_scripts_parses_registry_order_and_empty_dirs(tmp_path, 
     _touch(root / "tod/generates/cr3bp/dro/generate_dro.py")
     _touch(root / "tod/transfers/dro_to_ro/grid_search.py")
     (root / "tod/generates/cr3bp/unused").mkdir(parents=True)
+    _touch(root / "tod/generates/cr3bp/unused/some_script.py")
 
     from tod.gui import script_tree
 
@@ -269,10 +270,11 @@ def test_children_sorting_scripts(tmp_path, monkeypatch) -> None:
 
 
 def test_empty_folder_detection(tmp_path, monkeypatch) -> None:
-    """空目录（无注册脚本）正确检测为 empty_folder"""
+    """有脚本但无注册脚本的目录正确检测为 empty_folder"""
     root = tmp_path
     _touch(root / "tod/generates/cr3bp/dro/generate.py")
     (root / "tod/generates/cr3bp/unused").mkdir(parents=True)
+    _touch(root / "tod/generates/cr3bp/unused/unregistered.py")
 
     from tod.gui import script_tree
 

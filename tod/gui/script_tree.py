@@ -203,9 +203,17 @@ def _collect_filesystem_dirs(
             )
 
     has_registered_script = path in indexed_dirs or child_has_registered_script
-    if not has_registered_script:
+    if not has_registered_script and _dir_has_meaningful_scripts(directory):
         dirs.append(parts)
     return has_registered_script
+
+
+def _dir_has_meaningful_scripts(directory: Path) -> bool:
+    """目录下是否包含至少一个实际 Python 脚本（排除 __init__.py 和私有文件）。"""
+    for entry in directory.iterdir():
+        if entry.is_file() and entry.suffix == ".py" and not entry.name.startswith("_"):
+            return True
+    return False
 
 
 def _ordered_root_paths(roots_by_path: dict[str, TreeNode]) -> list[str]:
