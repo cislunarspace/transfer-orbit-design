@@ -6,21 +6,31 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtCore import QCoreApplication, pyqtSignal, Qt
 from PyQt6.QtGui import QDoubleValidator
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
+    QFileDialog,
+    QFormLayout,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QSizePolicy,
     QSpinBox,
+    QVBoxLayout,
     QWidget,
 )
 
 if TYPE_CHECKING:
-    from tod.gui.script_registry import CliParam
+    from tod.gui.script_registry import CliChipParam, CliParam
 
 from tod.gui.file_discovery import FileInfo, filter_files
 from tod.gui.script_registry import UNIT_GROUPS
@@ -225,3 +235,193 @@ class CliWidgetFactory:
         wrapper = QWidget()
         wrapper.setLayout(field_layout)
         self.wrapped_widgets[widget] = wrapper
+
+    def make_chip_widget(self, chip_param: CliChipParam) -> tuple[str, QWidget]:
+        """创建多选芯片控件，返回 (key, container_widget)。
+
+        Args:
+            chip_param: 芯片参数定义
+
+        Returns:
+            (key, widget): key 是去掉前缀的 flag 名，widget 是包含芯片按钮的容器
+        """
+        key = chip_param.flag.lstrip("-").replace("-", "_")
+
+        # 容器 widget
+        container = QWidget()
+        container.setObjectName(f"chip_container_{key}")
+        layout = QHBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        # 存储芯片按钮的引用，用于状态切换
+        chip_buttons: dict[str, QPushButton] = {}
+        selected_options: set[str] = set()
+
+        def _get_selected() -> set[str]:
+            return {opt for opt, btn in chip_buttons.items() if btn.property("_selected")}
+
+        def _update_button_style(btn: QPushButton, is_selected: bool) -> None:
+            if is_selected:
+                btn.setStyleSheet(
+                    "QPushButton { "
+                    "background-color: #4da6ff; color: white; border: 1px solid #4da6ff; "
+                    "border-radius: 4px; padding: 4px 12px; font-weight: bold; "
+                    "} "
+                    "QPushButton:hover { background-color: #3d8fd9; }"
+                )
+            else:
+                btn.setStyleSheet(
+                    "QPushButton { "
+                    "background-color: transparent; color: #666666; border: 1px solid #cccccc; "
+                    "border-radius: 4px; padding: 4px 12px; "
+                    "} "
+                    "QPushButton:hover { background-color: #f0f0f0; border-color: #999999; }"
+                )
+
+        def _on_chip_clicked(option_label: str) -> None:
+            btn = chip_buttons[option_label]
+            current = btn.property("_selected")
+            new_state = not current
+            btn.setProperty("_selected", new_state)
+            _update_button_style(btn, new_state)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+            # 发射信号让外部可以响应
+            container.chip_selection_changed.emit(key, _get_selected())
+
+        for option_label, option_value in chip_param.options.items():
+            btn = QPushButton(option_label)
+            btn.setCheckable(False)
+            btn.setCursor(0x0d)  # Qt::PointingHandCursor
+
+            # 检查是否默认选中
+            is_selected = option_label == chip_param.default or option_value == chip_param.default
+            btn.setProperty("_selected", is_selected)
+            _update_button_style(btn, is_selected)
+
+            btn.clicked.connect(lambda _, ol=option_label: _on_chip_clicked(ol))
+            chip_buttons[option_label] = btn
+            layout.addWidget(btn)
+
+        layout.addStretch()
+
+        # 添加信号，用于通知选择变化
+        container.chip_selection_changed = pyqtSignal(str, set)  # (key, selected_options)
+        container._chip_buttons = chip_buttons  # 用于外部访问按钮状态
+
+        return key, container
+
+    def make_multi_file_widget(
+        self,
+        multi_param,
+        repo_root: str,
+    ) -> tuple[str, QWidget]:
+        """创建多文件控件（ListWidget + 添加/删除按钮）。
+
+        Args:
+            multi_param: MultiCliParam 实例
+            repo_root: 项目根目录路径
+
+        Returns:
+            (key, container_widget)
+        """
+        from tod.gui.script_registry import MultiCliParam
+
+        key = multi_param.flag.lstrip("-").replace("-", "_")
+
+        # 主容器：左右布局
+        container = QWidget()
+        container.setObjectName(f"multi_file_container_{key}")
+        main_layout = QHBoxLayout(container)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(8)
+
+        # 左侧：ListWidget + 按钮
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        left_layout.setSpacing(4)
+
+        # ListWidget 显示已选文件
+        list_widget = QListWidget()
+        list_widget.setAlternatingRowColors(True)
+        list_widget.setMinimumHeight(120)
+        list_widget.setMaximumHeight(200)
+        list_widget.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
+        left_layout.addWidget(list_widget)
+
+        # 按钮行
+        btn_layout = QHBoxLayout()
+        btn_layout.setSpacing(4)
+
+        add_btn = QPushButton(QCoreApplication.translate("CliWidgetFactory", "添加文件"))
+        add_btn.setToolTip(QCoreApplication.translate("CliWidgetFactory", "添加 JSON 文件到列表"))
+        remove_btn = QPushButton(QCoreApplication.translate("CliWidgetFactory", "移除"))
+        remove_btn.setToolTip(QCoreApplication.translate("CliWidgetFactory", "移除选中的文件"))
+        remove_btn.setEnabled(False)
+
+        btn_layout.addWidget(add_btn)
+        btn_layout.addWidget(remove_btn)
+        btn_layout.addStretch()
+        left_layout.addLayout(btn_layout)
+
+        # 存储引用
+        list_widget._file_items = {}  # path -> (item, config_data)
+        list_widget._multi_param = multi_param
+        list_widget._repo_root = repo_root
+
+        # 添加文件按钮点击
+        def _on_add_clicked() -> None:
+            filters = "JSON Files (*.json)"
+            paths, _ = QFileDialog.getOpenFileNames(
+                container,
+                QCoreApplication.translate("CliWidgetFactory", "选择 JSON 文件"),
+                repo_root,
+                filters,
+            )
+            for path in paths:
+                if path not in list_widget._file_items:
+                    item = QListWidgetItem(Path(path).name)
+                    item.setData(Qt.ItemDataRole.UserRole, path)
+                    list_widget.addItem(item)
+                    list_widget._file_items[path] = {
+                        "path": path,
+                        "start": -1,
+                        "end": -1,
+                        "step": 1,
+                    }
+
+        # 移除按钮点击
+        def _on_remove_clicked() -> None:
+            current_item = list_widget.currentItem()
+            if current_item:
+                path = current_item.data(Qt.ItemDataRole.UserRole)
+                if path in list_widget._file_items:
+                    del list_widget._file_items[path]
+                list_widget.takeItem(list_widget.row(current_item))
+                remove_btn.setEnabled(False)
+                # 通知外部配置面板清空
+                container.multi_file_selection_changed.emit(key, None)
+
+        # ListWidget 选择变化
+        def _on_selection_changed() -> None:
+            current_item = list_widget.currentItem()
+            remove_btn.setEnabled(current_item is not None)
+            if current_item:
+                path = current_item.data(Qt.ItemDataRole.UserRole)
+                config = list_widget._file_items.get(path)
+                container.multi_file_selection_changed.emit(key, config)
+            else:
+                container.multi_file_selection_changed.emit(key, None)
+
+        add_btn.clicked.connect(_on_add_clicked)
+        remove_btn.clicked.connect(_on_remove_clicked)
+        list_widget.itemSelectionChanged.connect(_on_selection_changed)
+
+        main_layout.addWidget(left_widget, stretch=1)
+
+        # 添加信号
+        container.multi_file_selection_changed = pyqtSignal(str, dict)  # (key, config_or_none)
+
+        return key, container

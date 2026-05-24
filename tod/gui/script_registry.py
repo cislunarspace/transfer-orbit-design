@@ -52,21 +52,81 @@ class CliParam:
 
 
 @dataclass(frozen=True)
+class CliChipParam:
+    """多选芯片参数：GUI 渲染为一组可多选的标签按钮。
+
+    用户可以选择多个选项，每个选项对应一个 CLI 参数值。
+    选中的选项会被展开为多个独立的参数组合，传给后端脚本。
+    """
+
+    flag: str  # 命令行标志，如 "--libration-point"
+    label: str  # UI 显示名，如 "平动点"
+    # 选项定义：{显示标签: [CLI值列表]}，支持多选时展开为多个组合
+    options: dict[str, str]
+    default: str = ""  # 默认选中的选项（单选时有效），为空表示全不选
+    help: str = ""  # 参数说明
+
+
+@dataclass(frozen=True)
+class MultiFileConfig:
+    """多文件绘制配置项：表示单个文件的绘制参数。"""
+
+    path: str  # 文件路径
+    start: int = -1  # 起始索引，-1 表示从第一条
+    end: int = -1  # 结束索引，-1 表示到最后一条
+    step: int = 1  # 绘制间隔
+
+    def to_json(self) -> dict:
+        """序列化为字典，用于 JSON 编码。"""
+        return {"path": self.path, "start": self.start, "end": self.end, "step": self.step}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "MultiFileConfig":
+        """从字典反序列化。"""
+        return cls(
+            path=data["path"],
+            start=data.get("start", -1),
+            end=data.get("end", -1),
+            step=data.get("step", 1),
+        )
+
+
+@dataclass(frozen=True)
+class MultiCliParam:
+    """多文件参数：GUI 渲染为文件列表控件，每项包含路径和索引配置。
+
+    用户可添加多个 JSON 文件，每个文件可独立配置绘制范围（start/end/step）。
+    所有文件的数据将叠加绘制在同一张图上。
+    """
+
+    flag: str  # 命令行标志，如 "--json-file"
+    label: str  # UI 显示名
+    file_category: str | None = None  # 文件类别过滤，如 "halo"
+    file_type: str = "json"  # 文件类型过滤
+    name_pattern: str | None = None  # 文件名过滤模式，如 "*_family_*.json"
+    help: str = ""  # 帮助文本
+    default: str = ""  # 默认值，JSON 字符串格式的 MultiFileConfig 列表
+
+
+@dataclass(frozen=True)
 class ScriptEntry:
     """表示 ScriptEntry 相关的数据结构或行为。
-    
+
     该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
     """
-    module: str           # 类别: "dro", "ro", "halo", "transfer", "ephemeris", "inspection"
-    name: str             # 文件名（不含 .py）
-    description: str      # 中文描述
-    script_path: str      # 相对路径，如 "tod/generates/cr3bp/dro/generate_31_dro_orbit.py"
-    output_dir: str | None = None                     # 关联输出目录，用于文件浏览器高亮
-    accepts_file_arg: bool = False                    # 是否支持 --file 参数
-    needs_spice: bool = False                         # 是否需要 SPICE_KERNEL_DIR
+
+    module: str  # 类别: "dro", "ro", "halo", "transfer", "ephemeris", "inspection"
+    name: str  # 文件名（不含 .py）
+    description: str  # 中文描述
+    script_path: str  # 相对路径，如 "tod/generates/cr3bp/dro/generate_31_dro_orbit.py"
+    output_dir: str | None = None  # 关联输出目录，用于文件浏览器高亮
+    accepts_file_arg: bool = False  # 是否支持 --file 参数
+    needs_spice: bool = False  # 是否需要 SPICE_KERNEL_DIR
+    cli_chip_params: list[CliChipParam] = field(default_factory=list)  # 多选芯片参数
+    multi_cli_params: list[MultiCliParam] = field(default_factory=list)  # 多文件参数
     env_params: dict[str, EnvParam] = field(default_factory=dict)
     cli_params: list[CliParam] = field(default_factory=list)
-    group_label: str = ""                             # GUI 分组标签，如 "生成"、"绘图"；空表示不分组
+    group_label: str = ""  # GUI 分组标签，如 "生成"、"绘图"；空表示不分组
 
 
 def _ephemeris_conversion_cli_params(orbit_type: str, mode: str) -> list[CliParam]:

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtWidgets import (
@@ -18,15 +19,23 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListWidget,
     QPushButton,
     QSizePolicy,
     QSpinBox,
+    QVBoxLayout,
     QWidget,
 )
 
 from tod.gui.doc_link_mixin import DocLinkMixin, make_doc_link_label
 from tod.gui.file_discovery import filter_files
-from tod.gui.script_registry import UNIT_GROUPS, CliParam, ScriptEntry
+from tod.gui.script_registry import (
+    UNIT_GROUPS,
+    CliParam,
+    MultiCliParam,
+    MultiFileConfig,
+    ScriptEntry,
+)
 from tod.gui.theme_utils import resolve_theme as _resolve_theme
 
 
@@ -486,7 +495,192 @@ class ParamsPanelMixin(DocLinkMixin):
         if sb:
             sb.showMessage(QCoreApplication.translate("ParamsPanelMixin", "已恢复出厂默认值"), 3000)
 
-    def _on_doc_link_clicked(self, entry: ScriptEntry, doc_url: str | None) -> None:
+    def _add_multi_file_param(self, multi_param: MultiCliParam) -> None:
+        """创建多文件参数控件（ListWidget + 索引配置面板）。
+
+        Args:
+            multi_param: 多文件参数定义
+        """
+        key, widget = self._widget_factory.make_multi_file_widget(
+            multi_param,
+            str(self._repo_root),
+        )
+        self._multi_file_widgets[key] = widget
+
+        # 索引配置面板（初始为空）
+        config_panel = self._create_config_panel(key, multi_param)
+        self._multi_file_config_panels[key] = config_panel
+
+        # 连接选择变化信号
+        widget.multi_file_selection_changed.connect(
+            lambda k, cfg: self._on_multi_file_selection_changed(k, cfg)
+        )
+
+        # 垂直布局：ListWidget 在上，配置面板在下
+        container = QWidget()
+        container.setObjectName(f"multi_file_param_{key}")
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        layout.addWidget(widget)
+        layout.addWidget(config_panel)
+
+        row_container = QWidget()
+        row_layout = QHBoxLayout(row_container)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.addWidget(container)
+        self._cli_row_containers[key] = row_container
+
+        self._params_layout.addRow(f"{multi_param.label}:", row_container)
+        label = self._params_layout.labelForField(row_container)
+        if label is not None:
+            self._cli_row_labels[key] = label
+
+    def _create_config_panel(
+        self,
+        key: str,
+        multi_param: MultiCliParam,
+    ) -> QWidget:
+        """创建索引配置面板。
+
+        Args:
+            key: 参数 key
+            multi_param: 多文件参数定义
+
+        Returns:
+            配置面板 widget
+        """
+        panel = QWidget()
+        panel.setObjectName(f"config_panel_{key}")
+        panel.setVisible(False)
+
+        layout = QFormLayout(panel)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(6)
+
+        # 文件信息标签
+        file_label = QLabel(QCoreApplication.translate("ParamsPanelMixin", "未选择文件"))
+        file_label.setObjectName("file_info_label")
+        layout.addRow("", file_label)
+
+        # 起始索引
+        start_spin = QSpinBox()
+        start_spin.setRange(-99999, 99999)
+        start_spin.setValue(-1)
+        start_spin.setToolTip(
+            QCoreApplication.translate("ParamsPanelMixin", "起始轨道索引，-1 表示从第一条")
+        )
+        start_spin.setObjectName("start_spin")
+        layout.addRow(
+            QCoreApplication.translate("ParamsPanelMixin", "起始索引:"), start_spin
+        )
+
+        # 结束索引
+        end_spin = QSpinBox()
+        end_spin.setRange(-99999, 99999)
+        end_spin.setValue(-1)
+        end_spin.setToolTip(
+            QCoreApplication.translate("ParamsPanelMixin", "结束轨道索引（含），-1 表示到最后一条")
+        )
+        end_spin.setObjectName("end_spin")
+        layout.addRow(
+            QCoreApplication.translate("ParamsPanelMixin", "结束索引:"), end_spin
+        )
+
+        # 绘制间隔
+        step_spin = QSpinBox()
+        step_spin.setRange(1, 99999)
+        step_spin.setValue(1)
+        step_spin.setToolTip(
+            QCoreApplication.translate("ParamsPanelMixin", "每隔 N 条轨道绘制 1 条，1 表示绘制全部")
+        )
+        step_spin.setObjectName("step_spin")
+        layout.addRow(
+            QCoreApplication.translate("ParamsPanelMixin", "绘制间隔:"), step_spin
+        )
+
+        # 存储引用到 panel
+        panel._file_label = file_label
+        panel._start_spin = start_spin
+        panel._end_spin = end_spin
+        panel._step_spin = step_spin
+
+        return panel
+
+    def _on_multi_file_selection_changed(
+        self,
+        key: str,
+        config: dict | None,
+    ) -> None:
+        """多文件列表选中项变化时，更新配置面板。
+
+        Args:
+            key: 参数 key
+            config: 当前选中文件的配置，None 表示未选中
+        """
+        panel = self._multi_file_config_panels.get(key)
+        widget = self._multi_file_widgets.get(key)
+        if panel is None or widget is None:
+            return
+
+        if config is None:
+            panel.setVisible(False)
+            return
+
+        # 断开旧连接
+        try:
+            panel._start_spin.valueChanged.disconnect()
+            panel._end_spin.valueChanged.disconnect()
+            panel._step_spin.valueChanged.disconnect()
+        except Exception:
+            pass
+
+        # 更新面板内容
+        panel.setVisible(True)
+        file_label = panel._file_label
+        path = config.get("path", "")
+
+        # 尝试获取文件中的轨道数量
+        orbit_count = ""
+        try:
+            from e2m2e.core import OrbitFamily
+            from tod.commons.constants import MU
+            from e2m2e.core import CR3BP_System
+
+            system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
+            family = OrbitFamily.load_from_file(Path(path), system)
+            orbit_count = QCoreApplication.translate(
+                "ParamsPanelMixin", " ({n} 条轨道)"
+            ).format(n=len(family))
+        except Exception:
+            pass
+
+        file_label.setText(f"{Path(path).name}{orbit_count}")
+
+        # 更新控件值
+        panel._start_spin.setValue(config.get("start", -1))
+        panel._end_spin.setValue(config.get("end", -1))
+        panel._step_spin.setValue(config.get("step", 1))
+
+        # 连接 spin box 变化，更新 list widget 数据
+        def _update_config() -> None:
+            list_widget = widget.findChild(QListWidget)  # type: ignore
+            if list_widget is None:
+                return
+            current_item = list_widget.currentItem()
+            if current_item is None:
+                return
+            path = current_item.data(Qt.ItemDataRole.UserRole)
+            if path in list_widget._file_items:
+                list_widget._file_items[path]["start"] = panel._start_spin.value()
+                list_widget._file_items[path]["end"] = panel._end_spin.value()
+                list_widget._file_items[path]["step"] = panel._step_spin.value()
+
+        panel._start_spin.valueChanged.connect(_update_config)
+        panel._end_spin.valueChanged.connect(_update_config)
+        panel._step_spin.valueChanged.connect(_update_config)
+
+    def _rebuild_params_panel(self, entry: ScriptEntry) -> None:
         """Handle click on the documentation link."""
         if doc_url is None:
             sb = self.statusBar()
@@ -507,6 +701,9 @@ class ParamsPanelMixin(DocLinkMixin):
 
         self._env_widgets.clear()
         self._cli_widgets.clear()
+        self._chip_widgets.clear()
+        self._multi_file_widgets.clear()
+        self._multi_file_config_panels.clear()
         self._param_defaults.clear()
         self._factory_defaults.clear()
         self._cli_row_containers.clear()
@@ -653,6 +850,20 @@ class ParamsPanelMixin(DocLinkMixin):
         self._params_layout.addRow(divider)
 
         has_any = False
+
+        # 多选芯片参数（位于参数面板顶部，如平动点、Halo类别）
+        if entry.cli_chip_params:
+            for chip_param in entry.cli_chip_params:
+                key, widget = self._widget_factory.make_chip_widget(chip_param)
+                self._chip_widgets[key] = widget
+                self._params_layout.addRow(f"{chip_param.label}:", widget)
+            has_any = True
+
+        # 多文件参数（ListWidget + 索引配置面板）
+        if entry.multi_cli_params:
+            for multi_param in entry.multi_cli_params:
+                self._add_multi_file_param(multi_param)
+            has_any = True
 
         # 环境变量参数（文件选择下拉框）
         if entry.env_params:
