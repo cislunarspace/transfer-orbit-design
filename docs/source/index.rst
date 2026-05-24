@@ -29,6 +29,8 @@ Transfer Orbit Design 提供地月 CR3BP 轨道生成、DRO/RO/GEO/LEO 转移设
    narrative/prd-002-dro-3d-view-center-selection
    narrative/prd-003-ephemeris-conversion-scripts-redesign
    narrative/prd-004-gui-script-tab-auto-switch
+   narrative/prd-005-fix-ci-and-release
+   narrative/prd-006-update-sphinx-docs
 
 索引
 ====
