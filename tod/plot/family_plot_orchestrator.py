@@ -6,16 +6,25 @@
     .. code-block:: bash
 
        uv run python -m tod.plot.family_plot_orchestrator --help
+
+多文件模式示例:
+    .. code-block:: bash
+
+       uv run python -m tod.plot.halo.plot_halo_family \
+         --json-file '[{"path": "a.json", "start": 0, "end": 10, "step": 1}, {"path": "b.json", "start": 5, "end": -1, "step": 2}]' \
+         --view-2d
 """
 
 
 from __future__ import annotations
 
 import argparse
+import json as _json
 import logging
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -33,9 +42,16 @@ logger = logging.getLogger(__name__)
 def build_argparser(description: str) -> argparse.ArgumentParser:
     """Create a unified argument parser for orbit family plotting."""
     parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--json-file", type=str, default=None, help="轨道族 JSON 文件路径")
-    parser.add_argument("--start", type=int, default=-1, help="起始轨道索引，-1 表示从第一条")
-    parser.add_argument("--end", type=int, default=-1, help="结束轨道索引（含），-1 表示到最后一条")
+    parser.add_argument(
+        "--json-file",
+        type=str,
+        default=None,
+        help="轨道族 JSON 文件路径。支持两种格式：\n"
+        "1. 单文件：直接传入文件路径，如 'output/halo/family.json'\n"
+        "2. 多文件：传入 JSON 字符串数组，如 '[{\"path\": \"a.json\", \"start\": 0, \"end\": 10, \"step\": 1}]'",
+    )
+    parser.add_argument("--start", type=int, default=-1, help="起始轨道索引，-1 表示从第一条（仅单文件模式有效）")
+    parser.add_argument("--end", type=int, default=-1, help="结束轨道索引（含），-1 表示到最后一条（仅单文件模式有效）")
     parser.add_argument("--plot-global-2d", "--view-2d", dest="plot_global_2d", action="store_true", help="绘制全局 2D 视图")
     parser.add_argument("--plot-global-3d", "--view-3d", dest="plot_global_3d", action="store_true", help="绘制全局 3D 视图")
     parser.add_argument(
@@ -48,7 +64,7 @@ def build_argparser(description: str) -> argparse.ArgumentParser:
     )
     parser.add_argument("--plot-elev", type=float, default=20.0, help="3D 视图仰角（度）")
     parser.add_argument("--plot-azim", type=float, default=-60.0, help="3D 视图方位角（度）")
-    parser.add_argument("--step", type=int, default=1, help="绘制轨道的间隔步长，1 表示绘制全部")
+    parser.add_argument("--step", type=int, default=1, help="绘制轨道的间隔步长，1 表示绘制全部（仅单文件模式有效）")
     parser.add_argument("--no-show", action="store_true", help="只保存图片，不弹窗显示")
     return parser
 
@@ -58,7 +74,7 @@ def resolve_plot_range(start: int, end: int, n_orbits: int) -> tuple[int, int]:
     last = n_orbits - 1
     s = min(start, last) if start >= 0 else 0
     e = min(end, last) if end >= 0 else last
-    return (s, e)
+    return (s, max(s, e))
 
 
 def compute_stability_indices(family: OrbitFamily) -> list[float]:
@@ -113,9 +129,18 @@ def _get_center_coordinates(center_type: str, mu: float) -> tuple[float, float, 
 
 
 @dataclass(frozen=True)
+class MultiFileConfig:
+    """多文件绘制配置项。"""
+    path: str
+    start: int = -1
+    end: int = -1
+    step: int = 1
+
+
+@dataclass(frozen=True)
 class FamilyPlotConfig:
     """保存 FamilyPlotConfig 的配置字段。
-    
+
     该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
     """
     family_type: str
@@ -133,11 +158,50 @@ class FamilyPlotConfig:
     supports_center_choice: bool = False
     allow_single_orbit: bool = False
     step: int = 5
+    # 多文件模式的全局 step（当 MultiFileConfig.step 为默认值时使用此值）
+    multi_file_global_step: int = 1
+
+
+def _parse_json_file_arg(arg_value: str | None) -> tuple[Path | None, list[MultiFileConfig]]:
+    """解析 --json-file 参数。
+
+    Args:
+        arg_value: 参数值，可能是文件路径或 JSON 字符串
+
+    Returns:
+        (single_path, multi_configs)：
+        - 如果是文件路径，single_path 不为 None，multi_configs 为空
+        - 如果是 JSON 字符串，single_path 为 None，multi_configs 包含配置列表
+    """
+    if not arg_value:
+        return None, []
+
+    # 尝试解析为 JSON 数组
+    try:
+        data = _json.loads(arg_value)
+        if isinstance(data, list):
+            configs = []
+            for item in data:
+                path = item.get("path")
+                if not path:
+                    continue
+                configs.append(MultiFileConfig(
+                    path=path,
+                    start=item.get("start", -1),
+                    end=item.get("end", -1),
+                    step=item.get("step", 1),
+                ))
+            return None, configs
+    except (_json.JSONDecodeError, TypeError):
+        pass
+
+    # 作为文件路径处理
+    return Path(arg_value), []
 
 
 class FamilyPlotOrchestrator:
     """表示 FamilyPlotOrchestrator 相关的数据结构或行为。
-    
+
     该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
     """
     def __init__(self, config: FamilyPlotConfig, args: argparse.Namespace) -> None:
@@ -146,10 +210,10 @@ class FamilyPlotOrchestrator:
 
     def run(self) -> None:
         """执行 run 对应的处理逻辑。
-        
+
         Returns:
             None。
-        
+
         Raises:
             Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
         """
@@ -163,9 +227,34 @@ class FamilyPlotOrchestrator:
             return
 
         system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
-        family, family_name, output_dir = self._load_family(system)
+        output_dir = find_project_root(Path(__file__)) / "output" / self.config.output_subdir
+
+        # 解析多文件参数
+        single_path, multi_configs = _parse_json_file_arg(a.json_file)
+
+        if multi_configs:
+            # 多文件模式
+            self._run_multi(system, multi_configs, output_dir, want_2d, want_3d, want_stab)
+        else:
+            # 单文件模式
+            self._run_single(system, single_path, output_dir, want_2d, want_3d, want_stab)
+
+    def _run_single(
+        self,
+        system: CR3BP_System,
+        single_path: Path | None,
+        output_dir: Path,
+        want_2d: bool,
+        want_3d: bool,
+        want_stab: bool,
+    ) -> None:
+        """单文件绘制模式。"""
+        a = self.args
+        cfg = self.config
+
+        family, family_name = self._load_single_family(system, single_path, output_dir)
         n_orbits = len(family)
-        logger.info(f"加载了 {n_orbits} 条 {self.config.family_type} 轨道")
+        logger.info(f"加载了 {n_orbits} 条 {cfg.family_type} 轨道")
 
         start, end = resolve_plot_range(a.start, a.end, n_orbits)
         subset = self._build_subset(family, start, end)
@@ -179,17 +268,17 @@ class FamilyPlotOrchestrator:
             logger.info("正在计算稳定性指数...")
             stability_subset = compute_stability_indices(subset)
 
-        step = self.args.step if self.args.step is not None else self.config.step
+        step = a.step if a.step is not None else cfg.step
         if step < 1:
             raise ValueError("--step must be >= 1")
 
         plot_config = apply_standard_plot_config()
         plotter = FamilyPlotter(system, plot_config)
-        if self.config.libration_point_sizes is not None:
-            plotter.libration_point_sizes = self.config.libration_point_sizes
+        if cfg.libration_point_sizes is not None:
+            plotter.libration_point_sizes = cfg.libration_point_sizes
 
         bounds = None
-        if self.config.dynamic_bounds:
+        if cfg.dynamic_bounds:
             all_states = np.vstack([orbit.states for orbit in subset])
             bounds = compute_view_bounds(all_states)
 
@@ -202,15 +291,115 @@ class FamilyPlotOrchestrator:
                 plotter, subset, jacobi_subset, stability_subset, output_dir, family_name, n_orbits
             )
 
-    def _load_family(self, system: CR3BP_System) -> tuple[OrbitFamily, str, Path]:
-        import json as _json
-
-        a = self.args
+    def _run_multi(
+        self,
+        system: CR3BP_System,
+        multi_configs: list[MultiFileConfig],
+        output_dir: Path,
+        want_2d: bool,
+        want_3d: bool,
+        want_stab: bool,
+    ) -> None:
+        """多文件绘制模式。"""
         cfg = self.config
-        output_dir = find_project_root(Path(__file__)) / "output" / cfg.output_subdir
+        a = self.args
 
-        if a.json_file:
-            family_path = Path(a.json_file)
+        # 加载所有文件并聚合
+        all_subsets: list[OrbitFamily] = []
+        all_jacobi: list[list[float]] = []
+        family_names: list[str] = []
+        total_orbits = 0
+
+        for i, config in enumerate(multi_configs):
+            family_path = Path(config.path)
+            if not family_path.exists():
+                logger.warning(f"文件不存在，跳过: {family_path}")
+                continue
+
+            try:
+                family = OrbitFamily.load_from_file(filename=family_path, system=system)
+            except Exception as e:
+                logger.warning(f"加载文件失败 {family_path}: {e}")
+                continue
+
+            n_orbits = len(family)
+            start, end = resolve_plot_range(config.start, config.end, n_orbits)
+            subset = self._build_subset(family, start, end)
+
+            jacobi_values = family.get_jacobi_constants().tolist()
+            jacobi_subset = jacobi_values[start : end + 1]
+
+            # 计算实际的 step
+            step = config.step if config.step > 0 else cfg.multi_file_global_step
+
+            all_subsets.append(subset)
+            all_jacobi.append(jacobi_subset)
+            family_names.append(family_path.stem)
+            total_orbits += len(subset)
+
+            logger.info(f"[{i+1}/{len(multi_configs)}] 加载 {family_path.stem}: {len(subset)} 条轨道")
+
+        if not all_subsets:
+            logger.error("没有成功加载任何文件")
+            return
+
+        # 合并所有 family
+        merged_family = OrbitFamily(system=system)
+        merged_jacobi: list[float] = []
+        for subset, jacobi in zip(all_subsets, all_jacobi):
+            for orbit in subset.orbits:
+                merged_family.add_orbit(orbit)
+            merged_jacobi.extend(jacobi)
+
+        # 合并 family 名称
+        combined_name = "_vs_".join(family_names[:3])
+        if len(family_names) > 3:
+            combined_name += f"_and_{len(family_names) - 3}_more"
+
+        logger.info(f"合并后共 {total_orbits} 条轨道，Jacobi 范围: {min(merged_jacobi):.6f} ~ {max(merged_jacobi):.6f}")
+
+        stability_subset: list[float] = []
+        if want_stab:
+            logger.info("正在计算稳定性指数...")
+            stability_subset = compute_stability_indices(merged_family)
+
+        plot_config = apply_standard_plot_config()
+        plotter = FamilyPlotter(system, plot_config)
+        if cfg.libration_point_sizes is not None:
+            plotter.libration_point_sizes = cfg.libration_point_sizes
+
+        # 多文件模式始终使用动态边界
+        all_states = np.vstack([orbit.states for orbit in merged_family])
+        bounds = compute_view_bounds(all_states)
+
+        # 多文件模式下 step=1（绘制所有轨道）
+        step = cfg.multi_file_global_step
+
+        if want_2d:
+            self._render_2d_multi(
+                plotter, all_subsets, all_jacobi, bounds, output_dir, combined_name, total_orbits, step
+            )
+        if want_3d:
+            self._render_3d_multi(
+                plotter, all_subsets, all_jacobi, bounds, output_dir, combined_name, total_orbits, step
+            )
+        if want_stab:
+            self._render_jacobi_stability(
+                plotter, merged_family, merged_jacobi, stability_subset, output_dir, combined_name, total_orbits
+            )
+
+    def _load_single_family(
+        self,
+        system: CR3BP_System,
+        single_path: Path | None,
+        output_dir: Path,
+    ) -> tuple[OrbitFamily, str]:
+        """加载单个轨道族文件。"""
+        cfg = self.config
+        a = self.args
+
+        if single_path:
+            family_path = single_path
             family_name = family_path.stem
         else:
             family_name = cfg.default_filename
@@ -232,7 +421,7 @@ class FamilyPlotOrchestrator:
         else:
             family = OrbitFamily.load_from_file(filename=family_path, system=system)
 
-        return family, family_name, output_dir
+        return family, family_name
 
     def _build_subset(self, family: OrbitFamily, start: int, end: int) -> OrbitFamily:
         system = family.system
@@ -241,7 +430,17 @@ class FamilyPlotOrchestrator:
             subset.add_orbit(family[i])
         return subset
 
-    def _render_2d(self, plotter, subset, jacobi, bounds, output_dir, family_name, n_orbits, step):
+    def _render_2d(
+        self,
+        plotter: FamilyPlotter,
+        subset: OrbitFamily,
+        jacobi: list[float],
+        bounds: tuple | None,
+        output_dir: Path,
+        family_name: str,
+        n_orbits: int,
+        step: int,
+    ) -> None:
         import matplotlib.pyplot as plt
 
         cfg = self.config
@@ -289,7 +488,106 @@ class FamilyPlotOrchestrator:
         else:
             plt.close(fig)
 
-    def _render_3d(self, plotter, subset, jacobi, bounds, output_dir, family_name, n_orbits, step):
+    def _render_2d_multi(
+        self,
+        plotter: FamilyPlotter,
+        subsets: list[OrbitFamily],
+        jacobis: list[list[float]],
+        bounds: tuple,
+        output_dir: Path,
+        family_name: str,
+        total_orbits: int,
+        step: int,
+    ) -> None:
+        import matplotlib.pyplot as plt
+        import matplotlib.cm as cm
+        import matplotlib.colors as mcolors
+
+        cfg = self.config
+        a = self.args
+
+        # 合并所有 jacobi 值用于计算范围
+        all_jacobi = [j for jacobi in jacobis for j in jacobi]
+        jmin, jmax = min(all_jacobi), max(all_jacobi)
+
+        # 确定 plane (使用字符串，plot_2d_projection 支持字符串)
+        plane = cfg.plane.lower()
+
+        # 确定坐标轴标签
+        if plane == "xz":
+            xlabel = "X (nondimensional)"
+            ylabel = "Z (nondimensional)"
+        elif plane == "yz":
+            xlabel = "Y (nondimensional)"
+            ylabel = "Z (nondimensional)"
+        else:
+            xlabel = "X (nondimensional)"
+            ylabel = "Y (nondimensional)"
+
+        # 创建图形和坐标轴
+        fig, ax = plt.subplots(figsize=(12, 8))
+
+        # 设置边界
+        if bounds:
+            ax.set_xlim(bounds[0])
+            ax.set_ylim(bounds[1])
+
+        # 设置标题
+        ax.set_title(
+            f"{cfg.family_type.upper()} Orbit Families ({plane.upper()} Plane) - {total_orbits} orbits\n"
+            f"C = [{jmin:.4f}, {jmax:.4f}]"
+        )
+
+        # 计算 jacobi 颜色映射
+        norm = mcolors.Normalize(vmin=min(all_jacobi), vmax=max(all_jacobi))
+        cmap = cm.get_cmap('viridis')
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*Tight layout.*")
+
+            # 为每个 family 分别绘制到同一个坐标轴
+            for subset, jacobi in zip(subsets, jacobis):
+                for i, orbit in enumerate(subset.orbits):
+                    if i % step != 0:
+                        continue
+                    color = cmap(norm(jacobi[i]))
+                    plotter.plot_2d_projection(
+                        orbit,
+                        plane=plane,  # 使用字符串
+                        color=color,
+                        ax=ax,
+                        show_start=False,
+                    )
+
+            # 绘制中心和 libration 点
+            plotter.plot_primary_bodies(ax=ax)
+            plotter.plot_libration_points(ax=ax)
+
+            # 添加强制相等的坐标轴比例
+            ax.set_aspect('equal', adjustable='box')
+            ax.grid(True, alpha=0.3)
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabel)
+
+            plt.tight_layout()
+
+        plt.savefig(output_dir / f"{family_name}_2d_view.png", dpi=300, bbox_inches="tight")
+        if not a.no_show:
+            plt.show()
+        else:
+            plt.close(fig)
+
+    def _render_3d(
+        self,
+        plotter: FamilyPlotter,
+        subset: OrbitFamily,
+        jacobi: list[float],
+        bounds: tuple | None,
+        output_dir: Path,
+        family_name: str,
+        n_orbits: int,
+        step: int,
+    ) -> None:
         import matplotlib.pyplot as plt
 
         cfg = self.config
@@ -338,7 +636,95 @@ class FamilyPlotOrchestrator:
         else:
             plt.close(fig)
 
-    def _render_jacobi_stability(self, plotter, subset, jacobi, stability, output_dir, family_name, n_orbits):
+    def _render_3d_multi(
+        self,
+        plotter: FamilyPlotter,
+        subsets: list[OrbitFamily],
+        jacobis: list[list[float]],
+        bounds: tuple,
+        output_dir: Path,
+        family_name: str,
+        total_orbits: int,
+        step: int,
+    ) -> None:
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+        import matplotlib.cm as cm
+        import matplotlib.colors as mcolors
+
+        cfg = self.config
+        a = self.args
+
+        # 合并所有 jacobi 值用于计算范围
+        all_jacobi = [j for jacobi in jacobis for j in jacobi]
+        jmin, jmax = min(all_jacobi), max(all_jacobi)
+
+        center = bounds[2] if bounds else (0.0, 0.0, 0.0)
+        radius = bounds[3] if bounds else 1.0
+        elev = a.plot_elev
+        azim = a.plot_azim
+
+        # 创建 3D 图形和坐标轴
+        fig = plt.figure(figsize=(12, 10))
+        ax = fig.add_subplot(111, projection='3d')
+
+        # 设置视角
+        ax.view_init(elev=elev, azim=azim)
+
+        # 计算 jacobi 颜色映射
+        norm = mcolors.Normalize(vmin=min(all_jacobi), vmax=max(all_jacobi))
+        cmap = cm.get_cmap('viridis')
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message=".*Tight layout.*")
+
+            # 为每个 family 分别绘制到同一个坐标轴
+            for subset, jacobi in zip(subsets, jacobis):
+                for i, orbit in enumerate(subset.orbits):
+                    if i % step != 0:
+                        continue
+                    color = cmap(norm(jacobi[i]))
+                    plotter.plot_3d_orbit(
+                        orbit,
+                        color=color,
+                        ax=ax,
+                        show_start=False,
+                    )
+
+            # 绘制中心和 libration 点
+            plotter.plot_primary_bodies(ax=ax)
+            plotter.plot_libration_points(ax=ax)
+
+            # 设置标题
+            ax.set_title(
+                f"{cfg.family_type.upper()} Orbit Families (3D) - {total_orbits} orbits\n"
+                f"C = [{jmin:.4f}, {jmax:.4f}]",
+                fontsize=12,
+            )
+
+            # 设置轴标签
+            ax.set_xlabel('X (nondimensional)')
+            ax.set_ylabel('Y (nondimensional)')
+            ax.set_zlabel('Z (nondimensional)')
+
+            plt.tight_layout()
+
+        plt.savefig(output_dir / f"{family_name}_3d_view.png", dpi=300, bbox_inches="tight")
+        if not a.no_show:
+            plt.show()
+        else:
+            plt.close(fig)
+
+    def _render_jacobi_stability(
+        self,
+        plotter: FamilyPlotter,
+        subset: OrbitFamily,
+        jacobi: list[float],
+        stability: list[float],
+        output_dir: Path,
+        family_name: str,
+        n_orbits: int,
+    ) -> None:
         cfg = self.config
 
         sort_idx = np.argsort(jacobi)
