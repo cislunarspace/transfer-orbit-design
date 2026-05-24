@@ -2,6 +2,8 @@
 
 本上下文描述 CR3BP 轨道转换到星历模型时使用的领域语言，确保单条轨道与轨道族批处理的语义一致。
 
+此外，自 ADR-0001 起，本文档同时定义软件界面国际化相关的领域语言。
+
 ## Language
 
 **单条轨道**:
@@ -70,3 +72,31 @@ _Avoid_: 隐式默认历元、脚本内固定历元
 - DRO（表内原始含义 Direct Prograde & Retrograde Orbits）与项目中已有的 Distant Retrograde Orbit 重名；已拆分为 DRO（Distant Retrograde Orbit）和 DPO（Direct Prograde Orbit）两个独立族。
 - RO（Retrograde Orbits）原含 3:1 / 3:2 / ARO / RRO 四套脚本；已统一为 **Resonant** 族，通过 `--ratio` 参数区分具体共振比。
 - SPO（Short Period Orbit）和 LPO（Long Period Orbit）原合并为 Short & Long Period Orbits；已拆分为两个独立族。
+
+## UI Language（界面语言）
+
+> 自 ADR-0001 起，软件支持中英文界面切换。以下术语定义国际化方案中的核心概念。
+
+**界面语言 (UI Language)**:
+软件 GUI 中所有用户可见文本的显示语言。当前支持 `zh`（中文，默认）和 `en`（英文），通过 `gui_defaults.json` 中的 `”language”` 配置项持久化。切换后需重启生效。
+_Avoid_: locale（包含区域格式，本项目仅区分语言）、实时热切换
+
+**源语言 (Source Language)**:
+翻译系统中的原始文本语言。本项目源语言为**中文**，代码中所有需翻译的字符串均以中文编写（通过 `self.tr(“...”)` 包裹），英文版通过翻译文件映射获得。
+_Avoid_: 英文作为源语言（与常见惯例相反，但符合本项目历史）
+
+**翻译回退 (Translation Fallback)**:
+当目标语言的翻译条目缺失时，显示源语言（中文）文本的行为。适用于 `.qm` 翻译文件和 JSON 翻译表两者。
+_Avoid_: 显示占位符、显示空白、抛出错误
+
+**GUI 翻译文件 (GUI Translation File)**:
+PyQt6 `QTranslator` 使用的二进制翻译文件，由 `.ts` XML 源文件经 `lrelease6` 编译为 `.qm`。路径为 `tod/gui/i18n/gui.<lang>.qm`。启动时由 `MainWindow` 按当前界面语言加载。
+_Avoid_: 运行时手动替换每个控件的文本
+
+**脚本翻译表 (Script Translation Table)**:
+存储脚本描述、long_description、cli_params help 文本翻译的 JSON 文件。路径为 `tod/gui/i18n/scripts.<lang>.json`，按脚本名结构化：`{“script_name”: {“description”: “...”, “long_description”: “...”, “cli_params”: {“param_name”: “...”}}}`。
+_Avoid_: 以原始中文为 key 的扁平字典（易因原文修改而失效）
+
+**占位符文本 (Placeholder Text)**:
+动态文本中用于运行时填充的标记，Qt 格式为 `%1`、`%2` 等。替代 `f-string` 和 `.format()`，以确保 `pylupdate6` 能正确提取整句模板。
+_Avoid_: f-string 拼接翻译片段、运行时字符串拼接后传入 `tr()`
