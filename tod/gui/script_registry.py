@@ -119,13 +119,23 @@ def _ephemeris_conversion_cli_params(orbit_type: str, mode: str) -> list[CliPara
 # 由扫描器在首次访问时填充
 _SCRIPTS: dict[str, list] | None = None
 
+# 脚本翻译表 — 由 MainWindow 在启动时通过 set_script_translations() 设置。
+# 在首次 SCRIPTS 访问前设置，语言切换（重启生效）无需缓存失效。
+_TRANSLATIONS: dict | None = None
+
+
+def set_script_translations(translations: dict) -> None:
+    """设置脚本翻译表（应在首次访问 SCRIPTS 之前调用）。"""
+    global _TRANSLATIONS
+    _TRANSLATIONS = translations
+
 
 def _get_scripts() -> dict[str, list]:
     """Lazily load and cache SCRIPTS from the scanner."""
     global _SCRIPTS
     if _SCRIPTS is None:
         from tod.gui.scripts._registry import get_scripts
-        _SCRIPTS = get_scripts()
+        _SCRIPTS = get_scripts(translations=_TRANSLATIONS)
     return _SCRIPTS
 
 

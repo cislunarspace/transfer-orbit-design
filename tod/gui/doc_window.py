@@ -72,29 +72,29 @@ class DocWindow(QMainWindow):
         self.addToolBar(toolbar)
 
         self._back_btn = QPushButton("◀")
-        self._back_btn.setToolTip("后退")
+        self._back_btn.setToolTip(self.tr("后退"))
         self._back_btn.setEnabled(False)
         toolbar.addWidget(self._back_btn)
 
         self._forward_btn = QPushButton("▶")
-        self._forward_btn.setToolTip("前进")
+        self._forward_btn.setToolTip(self.tr("前进"))
         self._forward_btn.setEnabled(False)
         toolbar.addWidget(self._forward_btn)
 
         self._refresh_btn = QPushButton("⟳")
-        self._refresh_btn.setToolTip("刷新")
+        self._refresh_btn.setToolTip(self.tr("刷新"))
         toolbar.addWidget(self._refresh_btn)
 
         toolbar.addSeparator()
 
         self._url_bar = QLineEdit()
-        self._url_bar.setPlaceholderText("文档 URL...")
+        self._url_bar.setPlaceholderText(self.tr("文档 URL..."))
         self._url_bar.setReadOnly(True)
         self._url_bar.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         toolbar.addWidget(self._url_bar)
 
-        self._open_ext_btn = QPushButton("外部打开")
-        self._open_ext_btn.setToolTip("在系统浏览器中打开")
+        self._open_ext_btn = QPushButton(self.tr("外部打开"))
+        self._open_ext_btn.setToolTip(self.tr("在系统浏览器中打开"))
         toolbar.addWidget(self._open_ext_btn)
 
         # Web view

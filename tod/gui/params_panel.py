@@ -153,8 +153,8 @@ class CliWidgetFactory:
 
         # 路径模式切换
         mode_combo = QComboBox()
-        mode_combo.addItems(["绝对", "相对"])
-        mode_combo.setCurrentText("相对" if is_relative else "绝对")
+        mode_combo.addItems([self.tr("绝对"), self.tr("相对")])
+        mode_combo.setCurrentIndex(1 if is_relative else 0)
         mode_combo.setMinimumContentsLength(2)
         mode_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)
         mode_combo.setProperty("file_category", cli_param.file_category)

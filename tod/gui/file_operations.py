@@ -8,9 +8,11 @@ import platform
 import subprocess
 from pathlib import Path
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QCoreApplication, Qt
 
 FILE_PATH_ROLE = Qt.ItemDataRole.UserRole + 1
+
+_T = QCoreApplication.translate
 
 
 def get_selected_paths(tree) -> list[str]:
@@ -50,13 +52,13 @@ def format_delete_confirmation(paths: list[str]) -> tuple[str, str]:
     单文件：直接显示文件名。
     多文件：列出前 5 个文件名，超出显示"及其他 N 个文件"。
     """
-    title = "确认删除"
+    title = _T("FileOperations", "确认删除")
     if len(paths) == 1:
         name = Path(paths[0]).name
-        message = f"确定要删除文件 {name} 吗？"
+        message = _T("FileOperations", "确定要删除文件 {} 吗？").format(name)
     else:
         names = [Path(p).name for p in paths[:5]]
-        message = "确定要删除以下文件吗？\n\n" + "\n".join(names)
+        message = _T("FileOperations", "确定要删除以下文件吗？\n\n") + "\n".join(names)
         if len(paths) > 5:
-            message += f"\n\n及其他 {len(paths) - 5} 个文件"
+            message += _T("FileOperations", "\n\n及其他 {} 个文件").format(len(paths) - 5)
     return title, message

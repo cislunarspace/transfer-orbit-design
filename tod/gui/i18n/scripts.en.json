@@ -1,0 +1,18 @@
+{
+  "_comment": "英文翻译表 — 按脚本名结构化。翻译缺失时回退到中文原始文本。",
+  "_example": {
+    "description": "Nested description for this sample script entry in English.",
+    "group_label": "Generation",
+    "cli_params": {
+      "--ratio": {
+        "label": "Resonance Ratio",
+        "help": "Mass ratio of primary to secondary body (e.g., 3:1)"
+      }
+    },
+    "env_params": {
+      "DRO_FILE": {
+        "label": "DRO Orbit File"
+      }
+    }
+  }
+}

@@ -34,7 +34,7 @@ class SidebarWidget(QWidget):
         self._setup_brand_header(layout)
 
         self._search_input = QLineEdit()
-        self._search_input.setPlaceholderText("搜索脚本...")
+        self._search_input.setPlaceholderText(self.tr("搜索脚本..."))
         self._search_input.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         layout.addWidget(self._search_input)
 
@@ -45,7 +45,7 @@ class SidebarWidget(QWidget):
         self._tree = SidebarTreeWidget(nodes)
         stacked.addWidget(self._tree)
 
-        self._empty_label = QLabel("无匹配结果")
+        self._empty_label = QLabel(self.tr("无匹配结果"))
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._empty_label.setStyleSheet("background-color: rgba(255,255,255,0.95); color: gray; padding: 20px;")
         self._empty_label.setVisible(False)

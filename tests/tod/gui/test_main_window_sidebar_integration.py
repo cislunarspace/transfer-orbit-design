@@ -86,7 +86,7 @@ class TestMainWindowSidebarIntegration:
             i for i in range(tabs.count()) if tabs.tabText(i) == "Files"
         )
         script_info_idx = next(
-            i for i in range(tabs.count()) if tabs.tabText(i) == "Script Info"
+            i for i in range(tabs.count()) if tabs.tabText(i) in {"Script Info", "脚本信息"}
         )
         tabs.setCurrentIndex(files_idx)
 
@@ -99,7 +99,7 @@ class TestMainWindowSidebarIntegration:
         window._on_script_selected(entry)
 
         assert tabs.currentIndex() == script_info_idx
-        assert tabs.tabText(tabs.currentIndex()) == "Script Info"
+        assert tabs.tabText(tabs.currentIndex()) in {"Script Info", "脚本信息"}
 
 
 class TestMainWindowThemeSwitching:
@@ -171,5 +171,5 @@ class TestMainWindowPreservedFeatures:
         )
         button_texts = {b.text() for b in buttons}
 
-        assert "刷新文件" in button_texts, "Toolbar should have '刷新文件' button"
-        assert "设置" in button_texts, "Toolbar should have '设置' button"
+        assert button_texts & {"刷新文件", "Refresh Files"}, "Toolbar should have refresh button"
+        assert button_texts & {"设置", "Settings"}, "Toolbar should have settings button"

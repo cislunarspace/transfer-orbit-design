@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -39,7 +39,7 @@ class ParamsPanelMixin(DocLinkMixin):
         """Path mode toggle 切换时：重新填充下拉框（相对路径 vs 绝对路径）。"""
         file_category = mode_combo.property("file_category") or ""
         name_pattern = mode_combo.property("name_pattern") or None
-        is_relative = mode_combo.currentText() == "相对"
+        is_relative = mode_combo.currentIndex() == 1
         current_text = file_combo.currentText()
         file_combo.blockSignals(True)
         file_combo.clear()
@@ -98,7 +98,7 @@ class ParamsPanelMixin(DocLinkMixin):
                     data = json.loads(std_val_str)
                     mode_combo = self._widget_factory.path_mode_toggles[widget]
                     mode_combo.blockSignals(True)
-                    mode_combo.setCurrentText("相对" if data.get("mode") == "relative" else "绝对")
+                    mode_combo.setCurrentIndex(1 if data.get("mode") == "relative" else 0)
                     mode_combo.blockSignals(False)
                     self._on_path_mode_changed(widget, mode_combo)
                     widget.setCurrentText(data.get("path", ""))
@@ -336,7 +336,7 @@ class ParamsPanelMixin(DocLinkMixin):
                 # path_mode_toggles: 格式化为 {"mode": ..., "path": ...}
                 if widget in self._widget_factory.path_mode_toggles:
                     mode_combo = self._widget_factory.path_mode_toggles[widget]
-                    mode = "relative" if mode_combo.currentText() == "相对" else "absolute"
+                    mode = "relative" if mode_combo.currentIndex() == 1 else "absolute"
                     collected["cli"][key] = json.dumps(
                         {"mode": mode, "path": widget.currentText()}, ensure_ascii=False
                     )
@@ -403,7 +403,7 @@ class ParamsPanelMixin(DocLinkMixin):
                         mode_combo = self._widget_factory.path_mode_toggles.get(widget)
                         if mode_combo:
                             mode_combo.blockSignals(True)
-                            mode_combo.setCurrentText("相对" if data.get("mode") == "relative" else "绝对")
+                            mode_combo.setCurrentIndex(1 if data.get("mode") == "relative" else 0)
                             mode_combo.blockSignals(False)
                             self._on_path_mode_changed(widget, mode_combo)
                         widget.setCurrentText(data.get("path", ""))
@@ -436,7 +436,7 @@ class ParamsPanelMixin(DocLinkMixin):
                 text = widget.currentText().strip()
                 if widget in self._widget_factory.path_mode_toggles:
                     mode_combo = self._widget_factory.path_mode_toggles[widget]
-                    mode = "relative" if mode_combo.currentText() == "相对" else "absolute"
+                    mode = "relative" if mode_combo.currentIndex() == 1 else "absolute"
                     saved[cli_param.flag] = json.dumps({"mode": mode, "path": text}, ensure_ascii=False)
                 else:
                     saved[cli_param.flag] = text
@@ -455,7 +455,7 @@ class ParamsPanelMixin(DocLinkMixin):
 
         sb = self.statusBar()
         if sb:
-            sb.showMessage("默认值已保存", 3000)
+            sb.showMessage(QCoreApplication.translate("ParamsPanelMixin", "默认值已保存"), 3000)
 
     def _on_reset_defaults(self) -> None:
         """恢复为 script_registry 中定义的出厂默认值。"""
@@ -484,14 +484,14 @@ class ParamsPanelMixin(DocLinkMixin):
 
         sb = self.statusBar()
         if sb:
-            sb.showMessage("已恢复出厂默认值", 3000)
+            sb.showMessage(QCoreApplication.translate("ParamsPanelMixin", "已恢复出厂默认值"), 3000)
 
     def _on_doc_link_clicked(self, entry: ScriptEntry, doc_url: str | None) -> None:
         """Handle click on the documentation link."""
         if doc_url is None:
             sb = self.statusBar()
             if sb:
-                sb.showMessage(f"⚠ 文档未构建：运行 sphinx-build 生成文档后再试", 5000)
+                sb.showMessage(QCoreApplication.translate("ParamsPanelMixin", "⚠ 文档未构建：运行 sphinx-build 生成文档后再试"), 5000)
             return
         self.doc_link_clicked.emit(entry.script_path)
 
@@ -561,24 +561,24 @@ class ParamsPanelMixin(DocLinkMixin):
         cmd_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
         # 绝对路径复制按钮
-        cmd_abs_btn = QPushButton("复制路径")
+        cmd_abs_btn = QPushButton(QCoreApplication.translate("ParamsPanelMixin", "复制路径"))
         cmd_abs_btn.setStyleSheet(
             "QPushButton { padding: 2px 8px; font-size: 9pt; }"
             "QPushButton:flat { border: none; }"
         )
-        cmd_abs_btn.setToolTip("复制绝对路径")
+        cmd_abs_btn.setToolTip(QCoreApplication.translate("ParamsPanelMixin", "复制绝对路径"))
         abs_cmd_path = str(self._repo_root / entry.script_path)
         cmd_abs_btn.clicked.connect(
             lambda _, p=abs_cmd_path, b=cmd_abs_btn: self._copy_path_to_clipboard(p, b)
         )
 
         # 相对路径复制按钮
-        cmd_rel_btn = QPushButton("复制相对路径")
+        cmd_rel_btn = QPushButton(QCoreApplication.translate("ParamsPanelMixin", "复制相对路径"))
         cmd_rel_btn.setStyleSheet(
             "QPushButton { padding: 2px 8px; font-size: 9pt; }"
             "QPushButton:flat { border: none; }"
         )
-        cmd_rel_btn.setToolTip("复制相对路径（相对于项目根目录）")
+        cmd_rel_btn.setToolTip(QCoreApplication.translate("ParamsPanelMixin", "复制相对路径（相对于项目根目录）"))
         cmd_rel_btn.clicked.connect(
             lambda _, p=entry.script_path, b=cmd_rel_btn: self._copy_path_to_clipboard(p, b)
         )
@@ -593,7 +593,7 @@ class ParamsPanelMixin(DocLinkMixin):
         cmd_row_layout.addWidget(cmd_rel_btn)
         cmd_row_layout.addStretch()
 
-        self._params_layout.addRow("命令:", cmd_row_widget)
+        self._params_layout.addRow(QCoreApplication.translate("ParamsPanelMixin", "命令:"), cmd_row_widget)
 
         if entry.output_dir:
             out_label = QLabel(entry.output_dir)
@@ -614,23 +614,23 @@ class ParamsPanelMixin(DocLinkMixin):
             out_label.setWordWrap(False)
             out_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
-            out_abs_btn = QPushButton("复制路径")
+            out_abs_btn = QPushButton(QCoreApplication.translate("ParamsPanelMixin", "复制路径"))
             out_abs_btn.setStyleSheet(
                 "QPushButton { padding: 2px 8px; font-size: 9pt; }"
                 "QPushButton:flat { border: none; }"
             )
-            out_abs_btn.setToolTip("复制绝对路径")
+            out_abs_btn.setToolTip(QCoreApplication.translate("ParamsPanelMixin", "复制绝对路径"))
             abs_out_path = str(self._repo_root / entry.output_dir)
             out_abs_btn.clicked.connect(
                 lambda _, p=abs_out_path, b=out_abs_btn: self._copy_path_to_clipboard(p, b)
             )
 
-            out_rel_btn = QPushButton("复制相对路径")
+            out_rel_btn = QPushButton(QCoreApplication.translate("ParamsPanelMixin", "复制相对路径"))
             out_rel_btn.setStyleSheet(
                 "QPushButton { padding: 2px 8px; font-size: 9pt; }"
                 "QPushButton:flat { border: none; }"
             )
-            out_rel_btn.setToolTip("复制相对路径（相对于项目根目录）")
+            out_rel_btn.setToolTip(QCoreApplication.translate("ParamsPanelMixin", "复制相对路径（相对于项目根目录）"))
             out_rel_btn.clicked.connect(
                 lambda _, p=entry.output_dir, b=out_rel_btn: self._copy_path_to_clipboard(p, b)
             )
@@ -644,7 +644,7 @@ class ParamsPanelMixin(DocLinkMixin):
             out_row_layout.addWidget(out_rel_btn)
             out_row_layout.addStretch()
 
-            self._params_layout.addRow("输出目录:", out_row_widget)
+            self._params_layout.addRow(QCoreApplication.translate("ParamsPanelMixin", "输出目录:"), out_row_widget)
 
         # 分隔线
         divider = QFrame()
@@ -656,13 +656,13 @@ class ParamsPanelMixin(DocLinkMixin):
 
         # 环境变量参数（文件选择下拉框）
         if entry.env_params:
-            section_label = QLabel("数据文件")
+            section_label = QLabel(QCoreApplication.translate("ParamsPanelMixin", "数据文件"))
             section_label.setStyleSheet("font-weight: bold; font-size: 12px; padding: 4px 0;")
             self._params_layout.addRow(section_label)
 
             for key, env_param in entry.env_params.items():
                 combo = QComboBox()
-                combo.addItem("（使用脚本默认值）", None)
+                combo.addItem(QCoreApplication.translate("ParamsPanelMixin", "（使用脚本默认值）"), None)
 
                 matching = filter_files(
                     self._files,
@@ -687,7 +687,7 @@ class ParamsPanelMixin(DocLinkMixin):
             advanced_params = [p for p in entry.cli_params if p.advanced]
 
             if regular_params:
-                section_label = QLabel("运行参数")
+                section_label = QLabel(QCoreApplication.translate("ParamsPanelMixin", "运行参数"))
                 section_label.setStyleSheet("font-weight: bold; font-size: 12px; padding: 4px 0;")
                 self._params_layout.addRow(section_label)
 
@@ -695,7 +695,7 @@ class ParamsPanelMixin(DocLinkMixin):
                     self._add_cli_param_row(cli_param)
 
             if advanced_params:
-                adv_group = QGroupBox("高级选项")
+                adv_group = QGroupBox(QCoreApplication.translate("ParamsPanelMixin", "高级选项"))
                 adv_group.setCheckable(True)
                 adv_group.setChecked(False)
                 adv_layout = QFormLayout()
@@ -749,11 +749,11 @@ class ParamsPanelMixin(DocLinkMixin):
         if has_any:
             btn_layout = QHBoxLayout()
             btn_layout.setContentsMargins(0, 8, 0, 0)
-            save_btn = QPushButton("保存为默认值")
-            save_btn.setToolTip("将当前参数值保存为此脚本的默认值")
+            save_btn = QPushButton(QCoreApplication.translate("ParamsPanelMixin", "保存为默认值"))
+            save_btn.setToolTip(QCoreApplication.translate("ParamsPanelMixin", "将当前参数值保存为此脚本的默认值"))
             save_btn.clicked.connect(self._on_save_defaults)
-            reset_btn = QPushButton("恢复出厂默认")
-            reset_btn.setToolTip("恢复为系统预设的默认参数值")
+            reset_btn = QPushButton(QCoreApplication.translate("ParamsPanelMixin", "恢复出厂默认"))
+            reset_btn.setToolTip(QCoreApplication.translate("ParamsPanelMixin", "恢复为系统预设的默认参数值"))
             reset_btn.clicked.connect(self._on_reset_defaults)
             btn_layout.addWidget(save_btn)
             btn_layout.addWidget(reset_btn)
@@ -763,6 +763,6 @@ class ParamsPanelMixin(DocLinkMixin):
             self._params_layout.addRow(btn_wrapper)
 
         if not has_any:
-            label = QLabel("此脚本无可配置参数")
+            label = QLabel(QCoreApplication.translate("ParamsPanelMixin", "此脚本无可配置参数"))
             label.setStyleSheet("color: #999; font-style: italic;")
             self._params_layout.addRow(label)

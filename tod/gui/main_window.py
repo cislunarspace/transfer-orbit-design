@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from PyQt6.QtCore import QTimer, Qt
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
+    QApplication,
     QComboBox,
     QDialog,
     QFormLayout,
@@ -74,6 +75,17 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         self._current_theme_mode = self._gui_defaults.get("settings", {}).get("theme", "system")
         MainWindow._current_theme_mode = self._current_theme_mode
 
+        # i18n — 必须在 UI 构建前加载，使 self.tr() 生效
+        from tod.gui.i18n import TranslationLoader
+        from tod.gui.script_registry import set_script_translations
+
+        i18n_dir = Path(__file__).parent / "i18n"
+        app = QApplication.instance()
+        self._translation_loader = TranslationLoader(i18n_dir, app)
+        language = self._gui_defaults.get("settings", {}).get("language", "zh")
+        self._translation_loader.load(language)
+        set_script_translations(self._translation_loader.script_translations)
+
         self.setWindowTitle("Transfer Orbit Design")
         self.resize(1200, 800)
 
@@ -106,6 +118,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
     def _on_settings(self) -> None:
         from tod.gui.settings_dialog import SettingsDialog
         current = dict(self._gui_defaults.get("settings", {}))
+        old_language = current.get("language", "zh")
         dialog = SettingsDialog(current, SETTINGS_SCHEMA, self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             settings = dialog.get_settings()
@@ -119,6 +132,15 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
                 self._current_theme_mode = settings["theme"]
                 MainWindow._current_theme_mode = settings["theme"]
                 self._on_theme_changed()
+
+            # 语言变更提示重启
+            new_language = settings.get("language", "zh")
+            if new_language != old_language:
+                QMessageBox.information(
+                    self,
+                    self.tr("语言 (Language)"),
+                    self.tr("语言设置已保存，下次启动生效。"),
+                )
 
     def _on_theme_changed(self) -> None:
         """主题变化后，重建左侧面板和参数面板的颜色，并应用新样式表。"""
@@ -150,15 +172,15 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
 
-        refresh_btn = QPushButton("刷新文件")
+        refresh_btn = QPushButton(self.tr("刷新文件"))
         refresh_btn.clicked.connect(self._refresh_files)
         toolbar.addWidget(refresh_btn)
 
-        settings_btn = QPushButton("设置")
+        settings_btn = QPushButton(self.tr("设置"))
         settings_btn.clicked.connect(self._on_settings)
         toolbar.addWidget(settings_btn)
 
-        reset_layout_btn = QPushButton("恢复默认布局")
+        reset_layout_btn = QPushButton(self.tr("恢复默认布局"))
         reset_layout_btn.clicked.connect(self._on_reset_layout)
         toolbar.addWidget(reset_layout_btn)
 
@@ -243,7 +265,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         merged_layout.addWidget(self._params_scroll, stretch=1)
 
         # Run 按钮固定在底部（始终可见）
-        self._run_btn = QPushButton("运行")
+        self._run_btn = QPushButton(self.tr("运行"))
         self._run_btn.setEnabled(False)
         self._run_btn.clicked.connect(self._on_run)
         self._run_btn.setStyleSheet(self._RUN_STYLE_READY)
@@ -254,7 +276,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         btn_layout.addWidget(self._run_btn)
         merged_layout.addWidget(btn_container)
 
-        tabs.addTab(merged_widget, "Script Info")
+        tabs.addTab(merged_widget, self.tr("脚本信息"))
         self._right_tabs: QTabWidget = tabs
 
         # ── File Browser Tab ────────────────────────────────────
@@ -277,7 +299,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
 
         # 自动切换回 Script Info 标签页
         if self._right_tabs is not None:
-            script_info_titles = {"Script Info", "脚本信息"}
+            script_info_titles = {self.tr("脚本信息")}
             for i in range(self._right_tabs.count()):
                 if self._right_tabs.tabText(i) in script_info_titles:
                     self._right_tabs.setCurrentIndex(i)
@@ -308,7 +330,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         except OSError as e:
             sb = self.statusBar()
             if sb:
-                sb.showMessage(f"保存默认值失败: {e}", 5000)
+                sb.showMessage(self.tr("保存默认值失败: {}").format(e), 5000)
 
     def _copy_path_to_clipboard(self, path: str, target_btn: QWidget) -> None:
         """将路径复制到剪贴板，显示复制确认 tooltip。"""
@@ -319,7 +341,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
             cb.setText(path)
         QToolTip.showText(
             target_btn.mapToGlobal(target_btn.rect().center()),
-            "已复制！",
+            self.tr("已复制！"),
             target_btn,
         )
         QTimer.singleShot(1500, QToolTip.hideText)
@@ -339,8 +361,8 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         if running:
             reply = QMessageBox.question(
                 self,
-                "确认关闭",
-                f"仍有 {len(running)} 个作业正在运行。\n关闭窗口将停止所有作业。确定关闭？",
+                self.tr("确认关闭"),
+                self.tr("仍有 {} 个作业正在运行。\n关闭窗口将停止所有作业。确定关闭？").format(len(running)),
                 QMessageBox.StandardButton.Close | QMessageBox.StandardButton.Cancel,
                 QMessageBox.StandardButton.Cancel,
             )

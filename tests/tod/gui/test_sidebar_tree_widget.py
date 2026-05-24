@@ -419,7 +419,7 @@ class TestSidebarWidget:
         widget._on_search_text_changed("nonexistent")
 
         assert widget._empty_label.isHidden() is False
-        assert widget._empty_label.text() == "无匹配结果"
+        assert widget._empty_label.text() in {"无匹配结果", "No matching results"}
 
     def test_sidebar_widget_hides_empty_state_with_matches(self) -> None:
         """Sidebar should hide empty state when search has matches."""

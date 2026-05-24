@@ -64,7 +64,7 @@ class JobManager(QObject):
         )
         if running_count >= self.MAX_CONCURRENT:
             self.job_error.emit(
-                "", f"同时运行的任务数已达上限 ({self.MAX_CONCURRENT})"
+                "", self.tr("同时运行的任务数已达上限 ({})").format(self.MAX_CONCURRENT)
             )
             return ""
 
@@ -228,12 +228,11 @@ class JobManager(QObject):
             job.status = "error"
             self.job_error.emit(
                 job_id,
-                f"脚本启动失败: {name}\n"
-                "Python 解释器未找到，请确认 Python 已正确安装",
+                self.tr("脚本启动失败: {}\nPython 解释器未找到，请确认 Python 已正确安装").format(name),
             )
         elif error != QProcess.ProcessError.UnknownError:
             err_name = error.name if hasattr(error, "name") else str(error)
-            self.job_error.emit(job_id, f"进程错误 ({name}): {err_name}")
+            self.job_error.emit(job_id, self.tr("进程错误 ({}): {}").format(name, err_name))
 
     def _prune_completed(self) -> None:
         """仅保留最近 _MAX_COMPLETED 个已完成的 job。"""

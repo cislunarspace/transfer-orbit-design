@@ -25,7 +25,17 @@ SETTINGS_SCHEMA: list[SettingItem] = [
         label="主题 (Theme)",
         type="choice",
         choices=["light", "dark", "system"],
+        choice_labels=["浅色", "深色", "跟随系统"],
         default="system",
+        on_changed=lambda _: None,
+    ),
+    SettingItem(
+        key="language",
+        label="语言 (Language)",
+        type="choice",
+        choices=["zh", "en"],
+        choice_labels=["中文", "English"],
+        default="zh",
         on_changed=lambda _: None,
     ),
     SettingItem(

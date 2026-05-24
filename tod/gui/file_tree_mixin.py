@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
@@ -31,6 +31,7 @@ from tod.gui.file_operations import (
 )
 
 
+
 class FileTreeMixin:
     """提供文件浏览器 Tab 的构建和操作方法，由 MainWindow 通过多重继承混入。"""
 
@@ -47,11 +48,11 @@ class FileTreeMixin:
         toolbar_layout.setSpacing(4)
 
         self._copy_btn = QToolButton()
-        self._copy_btn.setText("复制")
+        self._copy_btn.setText(QCoreApplication.translate("FileTreeMixin", "复制"))
         self._copy_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
         copy_menu = QMenu(self)
-        copy_abs_action = copy_menu.addAction("复制绝对路径")
-        copy_rel_action = copy_menu.addAction("复制相对路径")
+        copy_abs_action = copy_menu.addAction(QCoreApplication.translate("FileTreeMixin", "复制绝对路径"))
+        copy_rel_action = copy_menu.addAction(QCoreApplication.translate("FileTreeMixin", "复制相对路径"))
         if copy_abs_action is not None:
             copy_abs_action.triggered.connect(self._on_copy_abs)
         if copy_rel_action is not None:
@@ -60,17 +61,17 @@ class FileTreeMixin:
         self._copy_btn.setEnabled(False)
         toolbar_layout.addWidget(self._copy_btn)
 
-        self._reveal_btn = QPushButton("打开")
+        self._reveal_btn = QPushButton(QCoreApplication.translate("FileTreeMixin", "打开"))
         self._reveal_btn.clicked.connect(self._on_reveal_in_file_manager)
         self._reveal_btn.setEnabled(False)
         toolbar_layout.addWidget(self._reveal_btn)
 
-        self._delete_btn = QPushButton("删除")
+        self._delete_btn = QPushButton(QCoreApplication.translate("FileTreeMixin", "删除"))
         self._delete_btn.clicked.connect(self._on_delete_files)
         self._delete_btn.setEnabled(False)
         toolbar_layout.addWidget(self._delete_btn)
 
-        self._refresh_btn = QPushButton("刷新")
+        self._refresh_btn = QPushButton(QCoreApplication.translate("FileTreeMixin", "刷新"))
         self._refresh_btn.clicked.connect(self._refresh_files)
         toolbar_layout.addWidget(self._refresh_btn)
 
@@ -106,7 +107,7 @@ class FileTreeMixin:
         cb = QApplication.clipboard()
         if cb is not None:
             cb.setText(text)
-        self._status_bar.showMessage(f"已复制绝对路径（{len(paths)} 个文件）", 3000)
+        self._status_bar.showMessage(QCoreApplication.translate("FileTreeMixin", "已复制绝对路径（{} 个文件）").format(len(paths)), 3000)
 
     def _on_copy_rel(self) -> None:
         paths = get_selected_paths(self._file_tree)
@@ -117,7 +118,7 @@ class FileTreeMixin:
         cb = QApplication.clipboard()
         if cb is not None:
             cb.setText(text)
-        self._status_bar.showMessage(f"已复制相对路径（{len(paths)} 个文件）", 3000)
+        self._status_bar.showMessage(QCoreApplication.translate("FileTreeMixin", "已复制相对路径（{} 个文件）").format(len(paths)), 3000)
 
     def _on_reveal_in_file_manager(self) -> None:
         paths = get_selected_paths(self._file_tree)
@@ -144,10 +145,10 @@ class FileTreeMixin:
             try:
                 os.remove(p)
             except OSError as e:
-                self._status_bar.showMessage(f"删除失败: {e}", 5000)
+                self._status_bar.showMessage(QCoreApplication.translate("FileTreeMixin", "删除失败: {}").format(e), 5000)
                 return
         self._refresh_files()
-        self._status_bar.showMessage(f"已删除 {len(paths)} 个文件", 3000)
+        self._status_bar.showMessage(QCoreApplication.translate("FileTreeMixin", "已删除 {} 个文件").format(len(paths)), 3000)
 
     def _update_file_toolbar_state(self) -> None:
         paths = get_selected_paths(self._file_tree)
@@ -159,12 +160,12 @@ class FileTreeMixin:
 
     def _on_file_tree_context_menu(self, position) -> None:
         menu = QMenu(self)
-        menu.addAction("复制绝对路径", self._on_copy_abs)
-        menu.addAction("复制相对路径", self._on_copy_rel)
+        menu.addAction(QCoreApplication.translate("FileTreeMixin", "复制绝对路径"), self._on_copy_abs)
+        menu.addAction(QCoreApplication.translate("FileTreeMixin", "复制相对路径"), self._on_copy_rel)
         menu.addSeparator()
-        menu.addAction("在文件夹中显示", self._on_reveal_in_file_manager)
+        menu.addAction(QCoreApplication.translate("FileTreeMixin", "在文件夹中显示"), self._on_reveal_in_file_manager)
         menu.addSeparator()
-        menu.addAction("删除", self._on_delete_files)
+        menu.addAction(QCoreApplication.translate("FileTreeMixin", "删除"), self._on_delete_files)
         viewport = self._file_tree.viewport()
         if viewport is not None:
             menu.exec(viewport.mapToGlobal(position))
@@ -179,9 +180,9 @@ class FileTreeMixin:
         n = len(self._files)
         categories = len({f.category for f in self._files})
         if n > 0:
-            self._status_bar.showMessage(f"已刷新：{n} 个文件，{categories} 个类别", 5000)
+            self._status_bar.showMessage(QCoreApplication.translate("FileTreeMixin", "已刷新：{} 个文件，{} 个类别").format(n, categories), 5000)
         else:
-            self._status_bar.showMessage("未找到输出文件。运行脚本以生成数据。", 5000)
+            self._status_bar.showMessage(QCoreApplication.translate("FileTreeMixin", "未找到输出文件。运行脚本以生成数据。"), 5000)
 
     def _rebuild_file_tree(self) -> None:
         # 保存当前排序状态
@@ -201,7 +202,7 @@ class FileTreeMixin:
         if not visible_files:
             empty = QTreeWidgetItem(
                 self._file_tree,
-                ["尚未生成输出文件。运行脚本以生成轨道数据。"],
+                [QCoreApplication.translate("FileTreeMixin", "尚未生成输出文件。运行脚本以生成轨道数据。")],
             )
             empty.setFlags(empty.flags() & ~Qt.ItemFlag.ItemIsSelectable)
             font = empty.font(0)

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -39,8 +39,8 @@ class JobPanelMixin:
         self._job_count_label.setStyleSheet("font-weight: bold; font-size: 13px;")
         header.addWidget(self._job_count_label)
         header.addStretch()
-        self._clear_completed_btn = QPushButton("清除已完成")
-        self._clear_completed_btn.setToolTip("清除所有已完成的任务")
+        self._clear_completed_btn = QPushButton(QCoreApplication.translate("JobPanelMixin", "清除已完成"))
+        self._clear_completed_btn.setToolTip(QCoreApplication.translate("JobPanelMixin", "清除所有已完成的任务"))
         self._clear_completed_btn.setStyleSheet(
             "QPushButton { padding: 2px 8px; font-size: 11px; }"
         )
@@ -133,16 +133,16 @@ class JobPanelMixin:
 
         # 状态栏详细消息
         if exit_code == 0:
-            self._status_bar.showMessage(f"脚本 '{name}' 完成 (exit code: 0)", 5000)
+            self._status_bar.showMessage(QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 完成 (exit code: 0)").format(name), 5000)
         else:
             self._status_bar.showMessage(
-                f"脚本 '{name}' 失败 (exit code: {exit_code})", 8000
+                QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 失败 (exit code: {})").format(name, exit_code), 8000
             )
 
         # 在输出面板追加结束信息
         output = self._job_outputs.get(job_id)
         if output:
-            banner = f"\n{'='*60}\n[进程结束] exit code: {exit_code}\n{'='*60}\n"
+            banner = f"\n{'='*60}\n[{QCoreApplication.translate("JobPanelMixin", '进程结束')}] exit code: {exit_code}\n{'='*60}\n"
             output.append_output(banner, "stdout")
             output.set_finished()
 
@@ -193,8 +193,8 @@ class JobPanelMixin:
         if elapsed > 60:
             reply = QMessageBox.question(
                 self,
-                "确认停止",
-                f"脚本 '{job.script_entry.name}' 已运行 {int(elapsed)} 秒。\n确定停止？",
+                QCoreApplication.translate("JobPanelMixin", "确认停止"),
+                QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 已运行 {} 秒。\n确定停止？").format(job.script_entry.name, int(elapsed)),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
             )
@@ -218,8 +218,8 @@ class JobPanelMixin:
             if job and job.status == "running":
                 reply = QMessageBox.question(
                     self,
-                    "确认关闭",
-                    f"脚本 '{job.script_entry.name}' 正在运行。\n停止并关闭？",
+                    QCoreApplication.translate("JobPanelMixin", "确认关闭"),
+                    QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 正在运行。\n停止并关闭？").format(job.script_entry.name),
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.No,
                 )
@@ -304,10 +304,10 @@ class JobPanelMixin:
         # 更新运行按钮状态
         if self._current_script is not None:
             if running >= JobManager.MAX_CONCURRENT:
-                self._run_btn.setText(f"已达上限 ({JobManager.MAX_CONCURRENT})")
+                self._run_btn.setText(QCoreApplication.translate("JobPanelMixin", "已达上限 ({})").format(JobManager.MAX_CONCURRENT))
                 self._run_btn.setStyleSheet(self._RUN_STYLE_FULL)
                 self._run_btn.setEnabled(True)  # 仍可点击以显示错误
             else:
-                self._run_btn.setText("运行")
+                self._run_btn.setText(QCoreApplication.translate("JobPanelMixin", "运行"))
                 self._run_btn.setStyleSheet(self._RUN_STYLE_READY)
                 self._run_btn.setEnabled(True)

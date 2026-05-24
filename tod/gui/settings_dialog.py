@@ -29,6 +29,7 @@ class SettingItem:
     label: str
     type: str  # "choice" | "int" | "float" | "bool"
     choices: list[str] | None = None  # 仅 choice 类型
+    choice_labels: list[str] | None = None  # choice 的显示标签；省略则直接用 choices 值
     default: str = ""
     min_value: float = 0  # int 与 float 共用；类型由 type 字段决定
     max_value: float = 999
@@ -62,10 +63,13 @@ class SettingsDialog(QDialog):
             label = QLabel(item.label)
             if item.type == "choice":
                 combo = QComboBox()
-                combo.addItems(item.choices or [])
+                display_labels = item.choice_labels or item.choices or []
+                combo.addItems(display_labels)
                 current = self._settings.get(item.key, item.default)
-                if current in (item.choices or []):
-                    combo.setCurrentText(current)
+                choices = item.choices or []
+                if current in choices:
+                    idx = choices.index(current)
+                    combo.setCurrentIndex(idx)
                 form.addRow(label, combo)
                 self._controls[item.key] = combo
             elif item.type == "int":
@@ -104,7 +108,11 @@ class SettingsDialog(QDialog):
     def _on_accept(self) -> None:
         for key, control in self._controls.items():
             if isinstance(control, QComboBox):
-                self._settings[key] = control.currentText()
+                item = next((s for s in self._schema if s.key == key), None)
+                idx = control.currentIndex()
+                choices = (item.choices or []) if item else []
+                if 0 <= idx < len(choices):
+                    self._settings[key] = choices[idx]
             elif isinstance(control, QDoubleSpinBox):
                 # 必须先于 QSpinBox 判断：QDoubleSpinBox 不是 QSpinBox 子类，
                 # 但顺序明确表达了 float 优先于 int 的语义

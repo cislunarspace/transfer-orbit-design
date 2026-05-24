@@ -72,16 +72,16 @@ class StructuredOutputWidget(QWidget):
         toolbar = QHBoxLayout()
         toolbar.setContentsMargins(0, 0, 0, 0)
 
-        self._copy_btn = QPushButton("Copy All")
-        self._copy_btn.setToolTip("复制全部输出到剪贴板")
+        self._copy_btn = QPushButton(self.tr("复制全部"))
+        self._copy_btn.setToolTip(self.tr("复制全部输出到剪贴板"))
         self._copy_btn.clicked.connect(self._copy_all)
 
-        self._save_btn = QPushButton("Save to File")
-        self._save_btn.setToolTip("保存输出到文件")
+        self._save_btn = QPushButton(self.tr("保存到文件"))
+        self._save_btn.setToolTip(self.tr("保存输出到文件"))
         self._save_btn.clicked.connect(self._save_to_file)
 
-        self._clear_btn = QPushButton("Clear")
-        self._clear_btn.setToolTip("清除输出")
+        self._clear_btn = QPushButton(self.tr("清除"))
+        self._clear_btn.setToolTip(self.tr("清除输出"))
         self._clear_btn.clicked.connect(self.clear)
 
         toolbar.addWidget(self._copy_btn)
@@ -274,7 +274,7 @@ class StructuredOutputWidget(QWidget):
         # 复制确认提示
         QToolTip.showText(
             self._copy_btn.mapToGlobal(self._copy_btn.rect().center()),
-            "已复制！",
+            self.tr("已复制！"),
             self._copy_btn,
         )
         QTimer.singleShot(1500, QToolTip.hideText)
@@ -284,13 +284,13 @@ class StructuredOutputWidget(QWidget):
 
         path, _ = QFileDialog.getSaveFileName(
             self,
-            "保存输出",
+            self.tr("保存输出"),
             f"output_{self._start_time:%Y%m%d_%H%M%S}.log",
             "Log Files (*.log);;All Files (*)",
         )
         if path:
             Path(path).write_text(self._browser.toPlainText(), encoding="utf-8")
-            self.status_message.emit(f"输出已保存到 {Path(path).name}")
+            self.status_message.emit(self.tr("输出已保存到 {}").format(Path(path).name))
 
     def _on_scroll_changed(self, value: int) -> None:
         sb = self._browser.verticalScrollBar()
@@ -311,7 +311,7 @@ class StructuredOutputWidget(QWidget):
         total_secs = int(elapsed.total_seconds())
         h, rem = divmod(total_secs, 3600)
         m, s = divmod(rem, 60)
-        self._elapsed_label.setText(f"完成 {h:02d}:{m:02d}:{s:02d}")
+        self._elapsed_label.setText(self.tr("完成 {}").format(f"{h:02d}:{m:02d}:{s:02d}"))
         self._progress_bar.hide()
 
 
@@ -354,7 +354,7 @@ class JobCard(QWidget):
         # 停止按钮
         self._stop_btn = QToolButton()
         self._stop_btn.setText("✕")
-        self._stop_btn.setToolTip("停止此任务")
+        self._stop_btn.setToolTip(self.tr("停止此任务"))
         self._stop_btn.setStyleSheet(
             "QToolButton {"
             "  color: #f44747;"

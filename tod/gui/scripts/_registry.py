@@ -102,11 +102,12 @@ def _classify(entry: _ScanEntry) -> str:
     return "misc"
 
 
-def get_scripts(scripts_dir: Path | None = None) -> dict[str, list[_ScanEntry]]:
+def get_scripts(scripts_dir: Path | None = None, translations: dict | None = None) -> dict[str, list[_ScanEntry]]:
     """扫描 scripts_dir，返回分类后的脚本注册表。
 
     Args:
         scripts_dir: scripts/ 目录路径，默认为 tod/gui/scripts/
+        translations: 脚本翻译表（按脚本名结构化），非空时应用于每个 ScriptEntry
 
     Returns:
         dict[str, list[_ScanEntry]]: 按分类键分组的 _ScanEntry 列表
@@ -118,6 +119,10 @@ def get_scripts(scripts_dir: Path | None = None) -> dict[str, list[_ScanEntry]]:
 
     for file_path in iter_script_files(scripts_dir):
         entry = _load_script_entry(file_path)
+        if translations:
+            from tod.gui.i18n import translate_script_entry
+
+            entry = translate_script_entry(entry, translations)
         category = _classify(entry)
         SCRIPTS.setdefault(category, []).append(entry)
 

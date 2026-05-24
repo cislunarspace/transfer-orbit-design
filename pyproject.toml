@@ -56,3 +56,6 @@ markers = [
 where = ["."]
 include = ["tod*"]
 exclude = ["tests*", "scripts*"]
+
+[tool.setuptools.package-data]
+"tod.gui.i18n" = ["*.qm", "*.json"]
