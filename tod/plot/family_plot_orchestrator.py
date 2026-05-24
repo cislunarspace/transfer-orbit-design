@@ -88,8 +88,15 @@ def compute_stability_indices(family: OrbitFamily) -> list[float]:
     return values
 
 
-def compute_view_bounds(all_states: np.ndarray) -> tuple:
+def compute_view_bounds(
+    all_states: np.ndarray,
+    plane: str = "xz",
+) -> tuple:
     """根据轨道状态数组计算 2D 与 3D 视图的边界参数。
+
+    Args:
+        all_states: Nx6 状态数组
+        plane: 2D 投影平面 ("xy", "xz", "yz")
 
     Returns:
         (xlim_2d, ylim_2d, center_3d, radius_3d)
@@ -101,11 +108,23 @@ def compute_view_bounds(all_states: np.ndarray) -> tuple:
     y_min, y_max = all_states[:, 1].min(), all_states[:, 1].max()
     z_min, z_max = all_states[:, 2].min(), all_states[:, 2].max()
 
-    x_pad = max(0.05, (x_max - x_min) * 0.1)
-    z_pad = max(0.05, (z_max - z_min) * 0.1)
+    # 根据 plane 选择 2D 轴
+    plane_lower = plane.lower()
+    if plane_lower == "yz":
+        h_min, h_max = y_min, y_max
+        v_min, v_max = z_min, z_max
+    elif plane_lower == "xy":
+        h_min, h_max = x_min, x_max
+        v_min, v_max = y_min, y_max
+    else:  # default: xz
+        h_min, h_max = x_min, x_max
+        v_min, v_max = z_min, z_max
 
-    xlim_2d = (float(x_min - x_pad), float(x_max + x_pad))
-    ylim_2d = (float(z_min - z_pad), float(z_max + z_pad))
+    h_pad = max(0.05, (h_max - h_min) * 0.1)
+    v_pad = max(0.05, (v_max - v_min) * 0.1)
+
+    xlim_2d = (float(h_min - h_pad), float(h_max + h_pad))
+    ylim_2d = (float(v_min - v_pad), float(v_max + v_pad))
 
     center_3d = (
         float((x_min + x_max) / 2),
@@ -113,7 +132,7 @@ def compute_view_bounds(all_states: np.ndarray) -> tuple:
         float((z_min + z_max) / 2),
     )
     radius_3d = float(
-        max(x_max - x_min, y_max - y_min, z_max - z_min) / 2 + max(x_pad, z_pad)
+        max(x_max - x_min, y_max - y_min, z_max - z_min) / 2 + max(h_pad, v_pad)
     )
     return xlim_2d, ylim_2d, center_3d, radius_3d
 
@@ -158,8 +177,6 @@ class FamilyPlotConfig:
     supports_center_choice: bool = False
     allow_single_orbit: bool = False
     step: int = 5
-    # 多文件模式的全局 step（当 MultiFileConfig.step 为默认值时使用此值）
-    multi_file_global_step: int = 1
 
 
 def _parse_json_file_arg(arg_value: str | None) -> tuple[Path | None, list[MultiFileConfig]]:
@@ -307,6 +324,7 @@ class FamilyPlotOrchestrator:
         # 加载所有文件并聚合
         all_subsets: list[OrbitFamily] = []
         all_jacobi: list[list[float]] = []
+        all_steps: list[int] = []
         family_names: list[str] = []
         total_orbits = 0
 
@@ -329,8 +347,8 @@ class FamilyPlotOrchestrator:
             jacobi_values = family.get_jacobi_constants().tolist()
             jacobi_subset = jacobi_values[start : end + 1]
 
-            # 计算实际的 step
             step = config.step if config.step > 0 else cfg.multi_file_global_step
+            all_steps.append(step)
 
             all_subsets.append(subset)
             all_jacobi.append(jacobi_subset)
@@ -370,18 +388,15 @@ class FamilyPlotOrchestrator:
 
         # 多文件模式始终使用动态边界
         all_states = np.vstack([orbit.states for orbit in merged_family])
-        bounds = compute_view_bounds(all_states)
-
-        # 多文件模式下 step=1（绘制所有轨道）
-        step = cfg.multi_file_global_step
+        bounds = compute_view_bounds(all_states, plane=cfg.plane)
 
         if want_2d:
             self._render_2d_multi(
-                plotter, all_subsets, all_jacobi, bounds, output_dir, combined_name, total_orbits, step
+                plotter, all_subsets, all_jacobi, all_steps, bounds, output_dir, combined_name, total_orbits
             )
         if want_3d:
             self._render_3d_multi(
-                plotter, all_subsets, all_jacobi, bounds, output_dir, combined_name, total_orbits, step
+                plotter, all_subsets, all_jacobi, all_steps, bounds, output_dir, combined_name, total_orbits
             )
         if want_stab:
             self._render_jacobi_stability(
@@ -493,11 +508,11 @@ class FamilyPlotOrchestrator:
         plotter: FamilyPlotter,
         subsets: list[OrbitFamily],
         jacobis: list[list[float]],
+        steps: list[int],
         bounds: tuple,
         output_dir: Path,
         family_name: str,
         total_orbits: int,
-        step: int,
     ) -> None:
         import matplotlib.pyplot as plt
         import matplotlib.cm as cm
@@ -545,15 +560,15 @@ class FamilyPlotOrchestrator:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=".*Tight layout.*")
 
-            # 为每个 family 分别绘制到同一个坐标轴
-            for subset, jacobi in zip(subsets, jacobis):
+            # 为每个 family 分别绘制到同一个坐标轴（使用各自 step）
+            for subset, jacobi, step in zip(subsets, jacobis, steps):
                 for i, orbit in enumerate(subset.orbits):
                     if i % step != 0:
                         continue
                     color = cmap(norm(jacobi[i]))
                     plotter.plot_2d_projection(
                         orbit,
-                        plane=plane,  # 使用字符串
+                        plane=plane,
                         color=color,
                         ax=ax,
                         show_start=False,
@@ -641,14 +656,13 @@ class FamilyPlotOrchestrator:
         plotter: FamilyPlotter,
         subsets: list[OrbitFamily],
         jacobis: list[list[float]],
+        steps: list[int],
         bounds: tuple,
         output_dir: Path,
         family_name: str,
         total_orbits: int,
-        step: int,
     ) -> None:
         import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
         import matplotlib.cm as cm
         import matplotlib.colors as mcolors
 
@@ -671,6 +685,11 @@ class FamilyPlotOrchestrator:
         # 设置视角
         ax.view_init(elev=elev, azim=azim)
 
+        # 设置轴范围
+        ax.set_xlim(center[0] - radius, center[0] + radius)
+        ax.set_ylim(center[1] - radius, center[1] + radius)
+        ax.set_zlim(center[2] - radius, center[2] + radius)
+
         # 计算 jacobi 颜色映射
         norm = mcolors.Normalize(vmin=min(all_jacobi), vmax=max(all_jacobi))
         cmap = cm.get_cmap('viridis')
@@ -678,8 +697,8 @@ class FamilyPlotOrchestrator:
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=".*Tight layout.*")
 
-            # 为每个 family 分别绘制到同一个坐标轴
-            for subset, jacobi in zip(subsets, jacobis):
+            # 为每个 family 分别绘制到同一个坐标轴（使用各自 step）
+            for subset, jacobi, step in zip(subsets, jacobis, steps):
                 for i, orbit in enumerate(subset.orbits):
                     if i % step != 0:
                         continue
@@ -691,9 +710,9 @@ class FamilyPlotOrchestrator:
                         show_start=False,
                     )
 
-            # 绘制中心和 libration 点
-            plotter.plot_primary_bodies(ax=ax)
-            plotter.plot_libration_points(ax=ax)
+            # 绘制中心和 libration 点（3D 模式）
+            plotter.plot_primary_bodies(ax=ax, is_3d=True)
+            plotter.plot_libration_points(ax=ax, is_3d=True)
 
             # 设置标题
             ax.set_title(
