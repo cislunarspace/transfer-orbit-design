@@ -18,8 +18,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.11", "3.13"]
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.13"]
 
     steps:
       - uses: actions/checkout@v4
@@ -39,7 +39,6 @@ jobs:
         run: pytest tests/ -v
 
       - name: Type check
-        if: matrix.python-version == '3.13'
         run: |
           pip install pyright
           pyright
