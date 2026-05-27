@@ -31,6 +31,8 @@ class _ScanEntry:
     output_dir: str | None = None
     accepts_file_arg: bool = False
     needs_spice: bool = False
+    cli_chip_params: list = field(default_factory=list)
+    multi_cli_params: list = field(default_factory=list)
     env_params: dict = field(default_factory=dict)
     cli_params: list = field(default_factory=list)
     group_label: str = ""
@@ -74,6 +76,8 @@ def _load_script_entry(file_path: Path) -> _ScanEntry:
         output_dir=raw.output_dir,
         accepts_file_arg=raw.accepts_file_arg,
         needs_spice=raw.needs_spice,
+        cli_chip_params=raw.cli_chip_params,
+        multi_cli_params=raw.multi_cli_params,
         env_params=raw.env_params,
         cli_params=raw.cli_params,
         group_label=raw.group_label,

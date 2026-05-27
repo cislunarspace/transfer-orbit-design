@@ -542,8 +542,8 @@ class ParamsPanelMixin(DocLinkMixin):
         config_panel = self._create_config_panel(key, multi_param)
         self._multi_file_config_panels[key] = config_panel
 
-        # 连接选择变化信号
-        widget.multi_file_selection_changed.connect(  # type: ignore[attr-defined]
+        # 连接选择变化回调
+        widget._multi_file_cb = (  # type: ignore[attr-defined]
             lambda k, cfg: self._on_multi_file_selection_changed(k, cfg)
         )
 

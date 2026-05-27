@@ -29,6 +29,12 @@ from typing import Any
 
 import numpy as np
 
+import matplotlib
+try:
+    matplotlib.use("TkAgg")
+except ImportError:
+    pass
+
 from e2m2e.algorithms.stability import StabilityAnalysis
 from e2m2e.core import CR3BP_System, Orbit, OrbitFamily
 from e2m2e.visualization import FamilyPlotter

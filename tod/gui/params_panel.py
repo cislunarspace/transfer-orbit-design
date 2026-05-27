@@ -399,7 +399,8 @@ class CliWidgetFactory:
                 list_widget.takeItem(list_widget.row(current_item))
                 remove_btn.setEnabled(False)
                 # 通知外部配置面板清空
-                container.multi_file_selection_changed.emit(key, None)
+                if container._multi_file_cb:
+                    container._multi_file_cb(key, None)
 
         # ListWidget 选择变化
         def _on_selection_changed() -> None:
@@ -408,9 +409,11 @@ class CliWidgetFactory:
             if current_item:
                 path = current_item.data(Qt.ItemDataRole.UserRole)
                 config = list_widget._file_items.get(path)
-                container.multi_file_selection_changed.emit(key, config)
+                if container._multi_file_cb:
+                    container._multi_file_cb(key, config)
             else:
-                container.multi_file_selection_changed.emit(key, None)
+                if container._multi_file_cb:
+                    container._multi_file_cb(key, None)
 
         add_btn.clicked.connect(_on_add_clicked)
         remove_btn.clicked.connect(_on_remove_clicked)
@@ -418,7 +421,7 @@ class CliWidgetFactory:
 
         main_layout.addWidget(left_widget, stretch=1)
 
-        # 添加信号
-        container.multi_file_selection_changed = pyqtSignal(str, dict)  # (key, config_or_none)
+        # 回调接口：外部通过 widget._multi_file_cb = lambda k, cfg: ... 订阅
+        container._multi_file_cb = None
 
         return key, container
