@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import QLabel
 
 
 class ClickableLabel(QLabel):
-    """A QLabel that emits a clicked signal when mouse is pressed."""
+    """一个在鼠标按下时发出 clicked 信号的 QLabel。"""
 
     clicked = pyqtSignal()
 
@@ -37,24 +37,24 @@ class ClickableLabel(QLabel):
 
 
 class DocLinkMixin:
-    """Mixin for handling clickable documentation links.
+    """用于处理可点击文档链接的 Mixin。
 
-    Provides:
-    - Signal for doc link clicks
-    - Helper to resolve script paths to doc URLs
+    提供：
+    - 文档链接点击信号
+    - 将脚本路径解析为文档 URL 的辅助方法
     """
 
-    doc_link_clicked = pyqtSignal(str)  # Emits script_path when doc link is clicked
+    doc_link_clicked = pyqtSignal(str)  # 文档链接被点击时发出 script_path
     _repo_root: Path
 
     def _get_doc_url(self, script_path: str) -> str | None:
-        """Convert script path to file:// URL for documentation.
+        """将脚本路径转换为文档的 file:// URL。
 
         Args:
-            script_path: The script path, e.g., 'tod/generates/cr3bp/dro/generate_dro_family.py'
+            script_path: 脚本路径，例如 'tod/generates/cr3bp/dro/generate_dro_family.py'
 
         Returns:
-            file:// URL to the documentation, or None if doc doesn't exist.
+            文档的 file:// URL，若文档不存在则返回 None。
         """
         doc_rel = script_path
         if doc_rel.endswith(".py"):
@@ -69,15 +69,15 @@ class DocLinkMixin:
 
 
 def make_doc_link_label(title: str, url: str | None, parent=None) -> ClickableLabel:
-    """Create a clickable label styled as a hyperlink.
+    """创建一个样式化为超链接的可点击标签。
 
     Args:
-        title: The label text
-        url: The URL to open when clicked (None to disable link)
-        parent: Parent widget
+        title: 标签文本
+        url: 点击时要打开的 URL（None 表示禁用链接）
+        parent: 父级控件
 
     Returns:
-        ClickableLabel configured as a clickable link.
+        配置为可点击链接的 ClickableLabel。
     """
     if url:
         style = """
