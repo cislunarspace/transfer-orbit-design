@@ -55,6 +55,11 @@ class TestGenerateHaloFamilyParams:
         param = next(p for p in entry.cli_params if p.flag == "--step-size")
         assert param.hidden_when == "--method==pseudo_arclength"
 
+    def test_halo_class_help_mentions_shared_crossing_orbit(self, entry: ScriptEntry) -> None:
+        param = next(p for p in entry.cli_chip_params if p.flag == "--halo-class")
+        assert "交叉轨道" in param.help
+        assert "北族+南族" in param.help
+
     def test_description_updated(self, entry: ScriptEntry) -> None:
         assert "伪弧长延拓" not in entry.description
         assert entry.description == "生成 Halo 轨道族"

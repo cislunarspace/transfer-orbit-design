@@ -26,7 +26,7 @@ SCRIPT_ENTRY = ScriptEntry(
             label='Halo 类别',
             options={'北族 (Class I)': '0', '南族 (Class II)': '1'},
             default='北族 (Class I)',
-            help='Halo 轨道族类型，支持多选以批量生成北族和南族',
+            help='Halo 轨道族类型；单选北族或南族时生成单分支，北族+南族同时选择时从共享 Lyapunov 交叉轨道生成两支。',
         ),
     ],
     cli_params=[

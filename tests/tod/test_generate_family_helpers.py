@@ -1,5 +1,5 @@
 """
-Tests for tod/generates/cr3bp generation scripts (generate_31_ro_family.py, generate_32_ro_family.py, generate_dro_family.py)
+tod/generates/cr3bp 生成脚本的测试 (generate_31_ro_family.py, generate_32_ro_family.py, generate_dro_family.py)
 
 These tests focus on:
 - Testing the parameter configurations
@@ -9,7 +9,7 @@ These tests focus on:
 
 import matplotlib
 
-matplotlib.use("Agg")  # Use non-GUI backend to suppress plot display
+matplotlib.use("Agg")  # 使用非 GUI 后端以抑制绘图显示
 
 import json
 import pytest
@@ -23,7 +23,7 @@ project_root = Path(__file__).resolve().parent.parent.parent
 
 
 class TestGenerateScriptImports:
-    """Test that generation scripts can be imported and parsed"""
+    """测试生成脚本可被导入和解析"""
 
     @patch("e2m2e.core.system.CR3BP_System")
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
@@ -115,11 +115,11 @@ class TestGenerate31ROParameters:
         vy0 = 0.3921
         vz0 = 0.0
 
-        # x0 should be in valid range for 3:1 RO
-        assert -2 < x0 < 0  # RO orbits are on Moon's far side
-        assert z0 == 0  # Planar orbit
-        assert vy0 > 0  # Retrograde orbit has positive vy
-        assert vz0 == 0  # Planar orbit
+        # x0 应在 3:1 RO 的有效范围内
+        assert -2 < x0 < 0  # RO 轨道在月球远端
+        assert z0 == 0  # 平面轨道
+        assert vy0 > 0  # 逆行轨道 vy 为正
+        assert vz0 == 0  # 平面轨道
 
     def test_continuation_range_31ro(self):
         """Test that 3:1 RO continuation range is reasonable"""
@@ -421,7 +421,7 @@ class TestGenerateDROParameters:
         x0 = 0.79188556619742
         vy0 = 0.53682
 
-        # DRO orbits are between Earth and Moon, x0 should be positive
+        # DRO 轨道在地月之间，x0 应为正
         assert 0 < x0 < 1
         assert vy0 > 0
 
@@ -439,6 +439,207 @@ class TestGenerateDROParameters:
 
 class TestHaloFamilyNewParams:
     """Test new CLI parameters for generate_halo_family.py"""
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_branches_combined_param_accepted(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+        module = _load_halo_family_module()
+        args = module.parse_args(["--branches", "both"])
+        assert args.branches == "both"
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_branch_selection_falls_back_to_legacy_halo_class(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+        module = _load_halo_family_module()
+        assert module._resolve_halo_branches(module.parse_args(["--halo-class", "0"])) == "north"
+        assert module._resolve_halo_branches(module.parse_args(["--halo-class", "1"])) == "south"
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_combined_branches_reject_natural_z_range(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+        module = _load_halo_family_module()
+        with pytest.raises(ValueError, match="combined north/south Halo generation requires pseudo_arclength"):
+            module._validate_halo_branch_request(module.parse_args([
+                "--branches", "both",
+                "--method", "natural",
+                "--z-min", "0.001",
+                "--z-max", "0.5",
+            ]))
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_branches_south_drives_existing_single_branch_flow(
+        self, mock_cont_cls, mock_corr_cls, mock_dyn, mock_sys,
+    ):
+        module = _load_halo_family_module()
+
+        mock_seed = MagicMock()
+        mock_seed.period = 1.84
+        mock_seed.states = np.array([[0.93, 0, -0.31, 0, 0.1, 0]])
+        mock_seed.parameters = {}
+
+        mock_family = MagicMock()
+        mock_family.__len__ = lambda self: 3
+        mock_orbit = MagicMock()
+        mock_orbit.states = np.array([[0.93, 0, -0.31, 0, 0.1, 0]])
+        mock_orbit.period = 1.84
+        mock_orbit.periodicity_error = 1e-12
+        mock_orbit.parameters = {"amplitude_z": 0.31}
+        mock_family.__iter__ = lambda self: iter([mock_orbit] * 3)
+
+        mock_cont_inst = mock_cont_cls.return_value
+        mock_cont_inst.generate_halo_seed_orbit.return_value = mock_seed
+        mock_cont_inst.halo_pseudo_arclength_continuation.return_value = mock_family
+
+        with patch.object(module, "_print_summary_table"):
+            with patch.object(module, "parse_args", return_value=module.parse_args([
+                "--libration-point", "L2",
+                "--amplitude-z", "0.31",
+                "--branches", "south",
+                "--n-orbits", "3",
+                "--method", "pseudo_arclength",
+            ])):
+                module.main()
+
+        mock_cont_inst.generate_halo_seed_orbit.assert_called_once_with(
+            libration_point=2,
+            amplitude_z=0.31,
+            halo_class=1,
+            verbose=False,
+        )
+        assert mock_seed.parameters["halo_class"] == 1
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_combined_generation_uses_one_crossing_orbit_for_both_branches(
+        self, mock_cont_cls, mock_corr_cls, mock_dyn, mock_sys,
+    ):
+        module = _load_halo_family_module()
+        continuation = mock_cont_cls.return_value
+        crossing_orbit = MagicMock(name="crossing_orbit")
+        crossing_orbit.period = 1.23
+        crossing_orbit.states = np.array([[0.8, 0.0, 0.0, 0.0, 0.2, 0.0]])
+        north_seed = MagicMock(name="north_seed")
+        south_seed = MagicMock(name="south_seed")
+        north_orbit = MagicMock(name="north_orbit")
+        south_orbit = MagicMock(name="south_orbit")
+        north_orbit.parameters = {}
+        south_orbit.parameters = {}
+        north_family = [north_seed, north_orbit]
+        south_family = [south_seed, south_orbit]
+
+        with patch.object(module, "_locate_halo_crossing_orbit", return_value=crossing_orbit) as locate:
+            with patch.object(module, "_branch_switch_halo_from_crossing", side_effect=[north_seed, south_seed]) as branch_switch:
+                continuation.halo_pseudo_arclength_continuation.side_effect = [north_family, south_family]
+                family = module._generate_combined_halo_family(
+                    continuation=continuation,
+                    system=mock_sys.return_value,
+                    libration_point=2,
+                    n_orbits=4,
+                    step_size=0.05,
+                    step_size_negative=0.03,
+                )
+
+        locate.assert_called_once_with(system=mock_sys.return_value, libration_point=2)
+        assert branch_switch.call_args_list[0].kwargs == {
+            "crossing_orbit": crossing_orbit,
+            "branch": "north",
+        }
+        assert branch_switch.call_args_list[1].kwargs == {
+            "crossing_orbit": crossing_orbit,
+            "branch": "south",
+        }
+        continuation.generate_halo_seed_orbit.assert_not_called()
+        assert [orbit.parameters["branch"] for orbit in family] == ["north", "north", "south", "south"]
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_main_combined_branches_uses_combined_workflow(
+        self, mock_cont_cls, mock_corr_cls, mock_dyn, mock_sys,
+    ):
+        module = _load_halo_family_module()
+        combined_family = MagicMock()
+        combined_family.__len__ = lambda self: 2
+        combined_family.__iter__ = lambda self: iter([])
+
+        with patch.object(module, "parse_args", return_value=module.parse_args([
+            "--libration-point", "L2",
+            "--branches", "both",
+            "--method", "pseudo_arclength",
+            "--n-orbits", "4",
+            "--step-size-pal", "0.05",
+            "--step-size-negative", "0.03",
+        ])):
+            with patch.object(module, "_generate_combined_halo_family", return_value=combined_family) as generate_combined:
+                with patch.object(module, "_export_csv", return_value=Path("combined.csv")):
+                    with patch.object(module, "_print_summary_table"):
+                        module.main()
+
+        mock_cont_cls.return_value.generate_halo_seed_orbit.assert_not_called()
+        generate_combined.assert_called_once_with(
+            continuation=mock_cont_cls.return_value,
+            system=mock_sys.return_value,
+            libration_point=2,
+            n_orbits=4,
+            step_size=0.05,
+            step_size_negative=0.03,
+        )
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_combined_generation_records_shared_crossing_metadata(
+        self, mock_cont_cls, mock_corr_cls, mock_dyn, mock_sys,
+    ):
+        module = _load_halo_family_module()
+        continuation = mock_cont_cls.return_value
+        crossing_orbit = MagicMock()
+        crossing_orbit.period = 1.23
+        crossing_orbit.states = np.array([[0.8, 0.0, 0.0, 0.0, 0.2, 0.0]])
+        north_seed = MagicMock()
+        south_seed = MagicMock()
+        north_seed.parameters = {}
+        south_seed.parameters = {}
+        continuation.halo_pseudo_arclength_continuation.side_effect = [[north_seed], [south_seed]]
+
+        with patch.object(module, "_locate_halo_crossing_orbit", return_value=crossing_orbit):
+            with patch.object(module, "_branch_switch_halo_from_crossing", side_effect=[north_seed, south_seed]):
+                family = module._generate_combined_halo_family(
+                    continuation=continuation,
+                    system=mock_sys.return_value,
+                    libration_point=1,
+                    n_orbits=2,
+                    step_size=0.05,
+                    step_size_negative=0.03,
+                )
+
+        assert family.metadata["generation_mode"] == "shared_crossing_orbit"
+        assert family.metadata["halo_branches"] == ["north", "south"]
+        assert family.metadata["crossing_orbit"]["family"] == "Lyapunov"
+        assert family.metadata["crossing_orbit"]["z0"] == pytest.approx(0.0)
+        assert family.metadata["crossing_orbit"]["period"] == pytest.approx(1.23)
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_crossing_orbit_locator_error_mentions_shared_crossing_orbit(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+        module = _load_halo_family_module()
+        with pytest.raises(NotImplementedError, match="shared Halo crossing orbit"):
+            module._locate_halo_crossing_orbit(system=mock_sys.return_value, libration_point=1)
 
     @patch("e2m2e.core.system.CR3BP_System")
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
@@ -466,7 +667,7 @@ class TestHaloFamilyNewParams:
         module = _load_halo_family_module()
         args = module.parse_args(["--step-size", "0.002", "--step-size-pal", "0.05"])
         assert args.step_size_pal == pytest.approx(0.05)
-        # The override happens in main(), not in parse_args
+        # 覆盖发生在 main() 中，而非 parse_args
         assert args.step_size == pytest.approx(0.002)
 
     @patch("e2m2e.core.system.CR3BP_System")
@@ -551,6 +752,43 @@ class TestHaloSummaryTableOutput:
         orbit.parameters = {"amplitude_z": amplitude_z or abs(z0)}
         orbit.amplitudes = {"x": abs(x0) * 0.1, "y": abs(z0) * 0.2, "z": abs(z0)}
         return orbit
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_csv_export_preserves_combined_branch_labels(self, mock_cont, mock_corr, mock_dyn, mock_sys, tmp_path):
+        module = _load_halo_family_module()
+        north_orbit = self._make_orbit(0.93, 0.1, 1.84)
+        south_orbit = self._make_orbit(0.93, -0.1, 1.84)
+        north_orbit.parameters["branch"] = "north"
+        south_orbit.parameters["branch"] = "south"
+        family = [north_orbit, south_orbit]
+
+        with patch.object(module, "OUTPUT_DIR", tmp_path):
+            csv_path = module._export_csv(family, libration_point=1, halo_class=0)
+
+        rows = csv_path.read_text(encoding="utf-8").splitlines()
+        assert rows[0].split(",")[1] == "branch"
+        assert ",north," in rows[1]
+        assert ",south," in rows[2]
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_csv_export_names_combined_output_as_shared_ns(self, mock_cont, mock_corr, mock_dyn, mock_sys, tmp_path):
+        module = _load_halo_family_module()
+        north_orbit = self._make_orbit(0.93, 0.1, 1.84)
+        south_orbit = self._make_orbit(0.93, -0.1, 1.84)
+        north_orbit.parameters["branch"] = "north"
+        south_orbit.parameters["branch"] = "south"
+        family = [north_orbit, south_orbit]
+
+        with patch.object(module, "OUTPUT_DIR", tmp_path):
+            csv_path = module._export_csv(family, libration_point=1, halo_class=0, branches="both")
+
+        assert csv_path.name.startswith("halo_L1_NS_family_shared_")
 
     @patch("e2m2e.core.system.CR3BP_System")
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")

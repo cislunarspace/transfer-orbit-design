@@ -116,7 +116,7 @@ class RunMixin:
             return [base_args]
 
         # 构建芯片参数列表
-        chip_params_list: list[tuple[str, list[str]]] = []
+        chip_params_list: list[tuple[str, str, list[str]]] = []
         for key, values in chip_selections.items():
             # 查找对应的 flag
             flag = None
@@ -127,16 +127,37 @@ class RunMixin:
                         flag = chip_param.flag
                         break
             if flag and values:
-                chip_params_list.append((flag, values))
+                chip_params_list.append((key, flag, values))
 
         if not chip_params_list:
             return [base_args]
 
+        if (
+            self._current_script
+            and self._current_script.name == "generate_halo_family"
+            and set(chip_selections.get("halo_class", [])) == {"0", "1"}
+        ):
+            combinations: list[list[str]] = []
+            branch_inputs = [
+                (key, flag, values)
+                for key, flag, values in chip_params_list
+                if key != "halo_class"
+            ]
+            if not branch_inputs:
+                return [base_args + ["--branches", "both"]]
+            for combo in product(*[vals for _, _, vals in branch_inputs]):
+                args = base_args.copy()
+                for (_, flag, _), value in zip(branch_inputs, combo):
+                    args.extend([flag, value])
+                args.extend(["--branches", "both"])
+                combinations.append(args)
+            return combinations
+
         # 生成所有组合
         combinations: list[list[str]] = []
-        for combo in product(*[vals for _, vals in chip_params_list]):
+        for combo in product(*[vals for _, _, vals in chip_params_list]):
             args = base_args.copy()
-            for (flag, _), value in zip(chip_params_list, combo):
+            for (_, flag, _), value in zip(chip_params_list, combo):
                 args.extend([flag, value])
             combinations.append(args)
 
@@ -167,7 +188,7 @@ class RunMixin:
             if cli_param is None:
                 continue
 
-            # Skip widgets whose row container is hidden
+            # 跳过容器被隐藏的控件
             container = self._cli_row_containers.get(key)
             if container is not None and not container.isVisible():
                 continue
@@ -177,7 +198,7 @@ class RunMixin:
                     extra_args.append(cli_param.flag)
             elif isinstance(widget, QSpinBox):
                 val = widget.value()
-                # Use factory default (not saved UI default) for CLI emission decision
+                # CLI 发射时使用出厂默认值（而非用户保存的默认值）做比较决策
                 factory_default = self._factory_defaults.get(widget, "")
                 if factory_default:
                     if abs(val - float(factory_default)) > 1e-9:

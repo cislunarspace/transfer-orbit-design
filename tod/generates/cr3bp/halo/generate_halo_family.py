@@ -131,7 +131,7 @@ def _print_summary_table(orbits: OrbitFamily, libration_point: int, halo_class: 
 
 
 def _export_csv(orbits: OrbitFamily, libration_point: int, halo_class: int,
-                n_milestones: int = 5) -> Path:
+                n_milestones: int = 5, branches: str | None = None) -> Path:
     """将全量轨道数据导出为 CSV，返回文件路径。"""
     milestone_idx = set(_find_milestone_indices(len(orbits), n_milestones))
 
@@ -141,6 +141,7 @@ def _export_csv(orbits: OrbitFamily, libration_point: int, halo_class: int,
         params = getattr(o, "parameters", {})
         rows.append({
             "step": i,
+            "branch": params.get("branch", "north" if halo_class == 0 else "south"),
             "z_amp": float(params.get("amplitude_z", abs(float(s[2])))),
             "x0": float(s[0]),
             "y0": float(s[1]),
@@ -156,8 +157,9 @@ def _export_csv(orbits: OrbitFamily, libration_point: int, halo_class: int,
 
     ts = int(time.time())
     lp_name = f"L{libration_point}"
-    class_name = "N" if halo_class == 0 else "S"
-    csv_path = OUTPUT_DIR / f"halo_{lp_name}_{class_name}_family_{ts}.csv"
+    class_name = "NS" if branches == "both" else ("N" if halo_class == 0 else "S")
+    shared_suffix = "_shared" if branches == "both" else ""
+    csv_path = OUTPUT_DIR / f"halo_{lp_name}_{class_name}_family{shared_suffix}_{ts}.csv"
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         writer.writeheader()
@@ -234,6 +236,78 @@ def _tag_halo_seed_orbit(
     return float(params["amplitude_z"])
 
 
+def _set_halo_branch(orbit: Orbit, branch: str) -> Orbit:
+    params = getattr(orbit, "parameters", None)
+    if not isinstance(params, dict):
+        params = {}
+        orbit.parameters = params
+    params["branch"] = branch
+    params["halo_class"] = 0 if branch == "north" else 1
+    return orbit
+
+
+def _locate_halo_crossing_orbit(*, system, libration_point: int) -> Orbit:
+    raise NotImplementedError("shared Halo crossing orbit locator is not implemented yet")
+
+
+def _branch_switch_halo_from_crossing(*, crossing_orbit: Orbit, branch: str) -> Orbit:
+    raise NotImplementedError("Halo branch switching is not implemented yet")
+
+
+def _crossing_orbit_metadata(crossing_orbit: Orbit) -> dict[str, float | str]:
+    state = np.asarray(crossing_orbit.states)[0]
+    return {
+        "family": "Lyapunov",
+        "role": "vertical_critical_crossing_orbit",
+        "x0": float(state[0]),
+        "z0": float(state[2]),
+        "period": float(crossing_orbit.period or 0.0),
+    }
+
+
+def _generate_combined_halo_family(
+    *,
+    continuation,
+    system,
+    libration_point: int,
+    n_orbits: int,
+    step_size: float,
+    step_size_negative: float,
+) -> OrbitFamily:
+    crossing_orbit = _locate_halo_crossing_orbit(system=system, libration_point=libration_point)
+    combined_family = OrbitFamily([])
+    for branch in ("north", "south"):
+        seed_orbit = _branch_switch_halo_from_crossing(crossing_orbit=crossing_orbit, branch=branch)
+        branch_family = continuation.halo_pseudo_arclength_continuation(
+            seed_orbit=seed_orbit,
+            n_orbits=n_orbits,
+            direction="positive",
+            step_size=step_size,
+            step_size_negative=step_size_negative,
+            verbose=True,
+        )
+        for orbit in branch_family:
+            combined_family.add_orbit(_set_halo_branch(orbit, branch))
+    combined_family.metadata["generation_mode"] = "shared_crossing_orbit"
+    combined_family.metadata["halo_branches"] = ["north", "south"]
+    combined_family.metadata["libration_point"] = libration_point
+    combined_family.metadata["crossing_orbit"] = _crossing_orbit_metadata(crossing_orbit)
+    combined_family.metadata["continuation_method"] = "pseudo_arclength"
+    return combined_family
+
+
+def _resolve_halo_branches(args: argparse.Namespace) -> str:
+    if args.branches is not None:
+        return args.branches
+    return "north" if args.halo_class == 0 else "south"
+
+
+def _validate_halo_branch_request(args: argparse.Namespace) -> None:
+    branches = _resolve_halo_branches(args)
+    if branches == "both" and args.method != "pseudo_arclength":
+        raise ValueError("combined north/south Halo generation requires pseudo_arclength")
+
+
 def parse_args(argv=None):
     """解析命令行参数。
 
@@ -248,6 +322,7 @@ def parse_args(argv=None):
     parser.add_argument("--libration-point", type=str, default="L1", choices=["L1", "L2", "L3"], help="平动点：L1, L2, L3")
     parser.add_argument("--amplitude-z", type=float, default=0.001, help="Z 方向振幅（无量纲）")
     parser.add_argument("--halo-class", type=int, default=0, help="0=北 Halo, 1=南 Halo")
+    parser.add_argument("--branches", type=str, default=None, choices=["north", "south", "both"], help="Halo 分支选择：north=北族, south=南族, both=共享交叉轨道生成北族和南族")
     parser.add_argument("--n-orbits", type=int, default=20, help="延拓轨道数量")
     parser.add_argument("--step-size", type=float, default=0.002, help="自然参数延拓 z 方向步长")
     parser.add_argument("--step-size-pal", type=float, default=None, help="伪弧长延拓步长（提供时覆盖 --step-size）")
@@ -267,6 +342,11 @@ def main():
         None。
     """
     args = parse_args()
+    try:
+        _validate_halo_branch_request(args)
+    except ValueError as exc:
+        logger.error(str(exc))
+        sys.exit(2)
 
     # =============================================================================
     # 1. 系统与动力学模型初始化
@@ -279,7 +359,8 @@ def main():
     # =============================================================================
     libration_point = LIBRATION_POINT_MAP[args.libration_point]  # 1=L1, 2=L2, 3=L3
     amplitude_z = args.amplitude_z  # Z方向振幅
-    halo_class = args.halo_class  # 0=北Halo (Class I), 1=南Halo (Class II)
+    branches = _resolve_halo_branches(args)
+    halo_class = 0 if branches == "north" else 1  # 0=北Halo (Class I), 1=南Halo (Class II)
 
     # =============================================================================
     # 3. 获取种子轨道
@@ -289,6 +370,41 @@ def main():
     corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamics)
     # 延拓器：基于校正后的种子轨道，通过步进方式生成轨道族。
     continuation = e2m2e.algorithms.Continuation(corrector=corrector)
+
+    n_orbits = args.n_orbits
+    method = args.method
+    step_size = args.step_size_pal if args.step_size_pal is not None else args.step_size
+    step_size_negative = args.step_size_negative if args.step_size_negative is not None else step_size
+    direction = args.direction
+
+    if branches == "both":
+        logger.info("开始 Halo 北族+南族共享交叉轨道生成...")
+        family_result = _generate_combined_halo_family(
+            continuation=continuation,
+            system=system,
+            libration_point=libration_point,
+            n_orbits=n_orbits,
+            step_size=step_size,
+            step_size_negative=step_size_negative,
+        )
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+        ts = int(time.time())
+        family_name = f"halo_L{libration_point}_NS_family_shared_{ts}"
+        json_path = OUTPUT_DIR / f"{family_name}.json"
+        family_result.save_to_file(filename=str(json_path))
+        csv_path = _export_csv(family_result, libration_point, halo_class, branches="both")
+        logger.info("轨道族已保存至: %s", json_path)
+        logger.info("  轨道族名称: %s", family_name)
+        print(f"[3/3] 已保存：")
+        print(f"  JSON: {json_path}")
+        print(f"  CSV:  {csv_path}")
+        _print_summary_table(
+            family_result, libration_point, halo_class,
+            method=method, step_size=step_size,
+            step_size_negative=step_size_negative,
+            direction=direction,
+        )
+        return
 
     if args.seed_file:
         logger.info("从文件加载种子轨道: %s", args.seed_file)
@@ -355,15 +471,6 @@ def main():
     # =============================================================================
     # 4. 生成轨道族
     # =============================================================================
-    n_orbits = args.n_orbits
-    method = args.method
-
-    # 伪弧长延拓步长：--step-size-pal 优先，否则回退到 --step-size
-    step_size = args.step_size_pal if args.step_size_pal is not None else args.step_size
-    # 负向步长：未指定时默认等于正向步长
-    step_size_negative = args.step_size_negative if args.step_size_negative is not None else step_size
-    direction = args.direction
-
     # 只有当 --z-min 和 --z-max 同时显式提供时才启用 z_range 模式
     z_range = None
     if args.z_min is not None and args.z_max is not None:
