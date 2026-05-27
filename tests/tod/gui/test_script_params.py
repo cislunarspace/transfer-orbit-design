@@ -1,5 +1,5 @@
 # pyright: reportArgumentType=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false
-"""Tests for script params definition files under tod/gui/scripts/.
+"""tod/gui/scripts/ 下脚本参数定义文件的测试。
 
 These tests verify that each params file:
 1. Exists and can be imported

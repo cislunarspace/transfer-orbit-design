@@ -61,7 +61,7 @@ class JobPanelMixin:
         header.addWidget(self._clear_completed_btn)
         layout.addLayout(header)
 
-        # Job 卡片列表
+        # 任务卡片列表
         self._job_scroll = QScrollArea()
         self._job_scroll.setWidgetResizable(True)
         self._job_scroll.setHorizontalScrollBarPolicy(
@@ -92,7 +92,7 @@ class JobPanelMixin:
         layout.addWidget(self._output_tabs, stretch=1)
         return panel
 
-    # ── Slots: Job Lifecycle ───────────────────────────────────
+    # ── 槽：任务生命周期 ───────────────────────────────────
 
     def _on_job_started(self, job_id: str, name: str) -> None:
         if not job_id:

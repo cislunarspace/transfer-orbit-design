@@ -60,7 +60,7 @@ repo_root = Path(__file__).resolve().parent.parent.parent
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
-from PyQt6 import QtWebEngineWidgets  # noqa: E402  # must import before QApplication
+from PyQt6 import QtWebEngineWidgets  # noqa: E402  # 必须在 QApplication 之前导入
 from PyQt6.QtGui import QIcon  # noqa: E402
 from PyQt6.QtWidgets import QApplication  # noqa: E402
 
@@ -90,7 +90,7 @@ def main() -> None:
         if icon_path.exists():
             icon = QIcon(str(icon_path))
         else:
-            # Fallback to PNG on macOS if ICNS not found
+            # macOS 上若 ICNS 不存在则回退到 PNG
             icon_path = repo_root / "icon.png"
             if icon_path.exists():
                 icon = QIcon(str(icon_path))

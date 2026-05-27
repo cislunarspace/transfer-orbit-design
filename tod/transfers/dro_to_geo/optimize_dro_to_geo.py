@@ -103,7 +103,7 @@ def parse_args():
 
 
 # =====================================================================
-# Helpers
+# 辅助函数
 # =====================================================================
 
 
@@ -113,14 +113,14 @@ def build_dynamics(
     """构建脚本所需的动力学模型。
     
     Args:
-        integrator: 调用方传入的参数值。
-        rtol: 调用方传入的参数值。
-        atol: 调用方传入的参数值。
-        max_step: 调用方传入的参数值。
-        mu: 调用方传入的参数值。
+        integrator: 积分器类型。
+        rtol: 相对容差。
+        atol: 绝对容差。
+        max_step: 最大步长。
+        mu: 质量比。
     
     Returns:
-        函数执行结果。
+        (system, dynamics) 元组。
     """
     system = CR3BP_System(mu=mu, primary="earth", secondary="moon")
     dynamics = CR3BP_Dynamics(system=system)
@@ -132,15 +132,15 @@ def build_dynamics(
 
 
 def forward_integrate_nlp(dynamics, initial_state, transfer_time):
-    """执行 forward_integrate_nlp 对应的处理逻辑。
+    """对 NLP 优化过程进行前向积分。
     
     Args:
-        dynamics: 调用方传入的参数值。
-        initial_state: 调用方传入的参数值。
-        transfer_time: 调用方传入的参数值。
+        dynamics: 动力学对象。
+        initial_state: 初始状态。
+        transfer_time: 转移时间。
     
     Returns:
-        函数执行结果。
+        (states, times) 元组。
     """
     step = max(0.01, dynamics.max_step)
     n_steps = int(transfer_time / step) + 1
@@ -156,14 +156,14 @@ def forward_integrate_nlp(dynamics, initial_state, transfer_time):
 
 
 # =====================================================================
-# Residual evaluation
+# 残差评估
 # =====================================================================
 
 
 def _nlp_eval(y, departure_state, dynamics, mu, earth_radius, moon_radius):
-    """Evaluate 2D residual + cost for y = [alpha, T].
+    """计算 y = [alpha, T] 的 2D 残差与代价。
 
-    Residual F(y) = [r_xy(final) - R_GEO, z_rel(final)] —— 赤道圆约束。
+    残差 F(y) = [r_xy(终点) - R_GEO, z_rel(终点)] —— 赤道圆约束。
     碰撞检测：穿地球或月球的轨迹标记 collided=True，由调用方丢弃。
     """
     alpha, T = y
@@ -210,7 +210,7 @@ def _nlp_eval(y, departure_state, dynamics, mu, earth_radius, moon_radius):
 
 
 # =====================================================================
-# Per-case solve: α-scan root-find + Nelder-Mead fallback
+# 单案例求解：α 扫描求根 + Nelder-Mead 回退
 # =====================================================================
 
 
@@ -367,7 +367,7 @@ def optimize_one_case(
 
 
 # =====================================================================
-# Parallel workers
+# 并行工作器
 # =====================================================================
 
 
@@ -390,13 +390,13 @@ class NlpPackConfig:
 
 
 def nlp_worker_packed(payload):
-    """执行 nlp_worker_packed 对应的处理逻辑。
+    """打包后的 NLP worker 函数。
     
     Args:
-        payload: 调用方传入的参数值。
+        payload: 包含索引、记录和配置的打包数据。
     
     Returns:
-        函数执行结果。
+        优化结果字典。
     """
     idx = payload["idx"]
     rec = payload["rec"]
@@ -419,7 +419,7 @@ def nlp_worker_packed(payload):
 
 
 # =====================================================================
-# main
+# 主流程
 # =====================================================================
 
 

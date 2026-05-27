@@ -277,7 +277,7 @@ def generate_plots(
     stem = json_path.stem
     saved: list[Path] = []
 
-    # Chart 1: Residual convergence
+    # 图 1：残差收敛
     fig_res = plt.figure(figsize=(16, 6))
     plot_residual_convergence(
         fig_res,
@@ -290,7 +290,7 @@ def generate_plots(
     plt.close(fig_res)
     saved.append(path_res)
 
-    # Chart 2: XY projection comparison
+    # 图 2：XY 投影对比
     full_states = data["full_trajectory_states"]
     corrected = data["corrected_states"]
     pre_xy = full_states[:, :2]
@@ -305,7 +305,7 @@ def generate_plots(
     plt.close(fig_xy)
     saved.append(path_xy)
 
-    # Chart 3: 3D trajectory comparison
+    # 图 3：3D 轨迹对比
     cr3bp_xy = full_states[:, :3]
     eph_xy = full_states[:, :3]
     patch_3d = corrected[:, :3]

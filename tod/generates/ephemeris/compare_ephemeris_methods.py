@@ -37,7 +37,7 @@ from tod.plot.config import apply_standard_plot_config
 
 logger = logging.getLogger(__name__)
 
-# HomotopyEphemerisDynamics and BodyName have been removed from e2m2e
+# HomotopyEphemerisDynamics 和 BodyName 已从 e2m2e 中移除
 # from e2m2e.core import HomotopyEphemerisDynamics, BodyName
 HomotopyEphemerisDynamics = None  # type: ignore[assignment,misc] # placeholder for deprecated script
 

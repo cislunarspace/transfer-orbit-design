@@ -29,7 +29,7 @@ class SettingItem:
     label: str
     type: str  # "choice" | "int" | "float" | "bool"
     choices: list[str] | None = None  # 仅 choice 类型
-    choice_labels: list[str] | None = None  # choice 的显示标签；省略则直接用 choices 值
+    choice_labels: list[str] | None = None  # 选项的显示标签；省略则直接用 choices 值
     default: str = ""
     min_value: float = 0  # int 与 float 共用；类型由 type 字段决定
     max_value: float = 999
@@ -39,9 +39,9 @@ class SettingItem:
 
 
 class SettingsDialog(QDialog):
-    """提供 SettingsDialog 对应的 GUI 组件。
+    """设置对话框。
     
-    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    用于编辑应用设置项，支持选择/整数/浮点数等类型。
     """
     def __init__(self, settings: dict[str, str], schema: list[SettingItem], parent=None):
         super().__init__(parent)
@@ -95,7 +95,7 @@ class SettingsDialog(QDialog):
                 form.addRow(label, dspin)
                 self._controls[item.key] = dspin
             elif item.type == "bool":
-                # 暂不使用 checkbox，统一用 choice
+                # 暂不使用复选框，统一用选择框
                 pass
 
         layout.addLayout(form)
@@ -115,16 +115,16 @@ class SettingsDialog(QDialog):
                     self._settings[key] = choices[idx]
             elif isinstance(control, QDoubleSpinBox):
                 # 必须先于 QSpinBox 判断：QDoubleSpinBox 不是 QSpinBox 子类，
-                # 但顺序明确表达了 float 优先于 int 的语义
+                # 此顺序明确表达 float 优先于 int 的语义
                 self._settings[key] = f"{control.value():g}"
             elif isinstance(control, QSpinBox):
                 self._settings[key] = str(control.value())
         self.accept()
 
     def get_settings(self) -> dict[str, str]:
-        """执行 get_settings 对应的处理逻辑。
+        """获取当前设置值。
         
         Returns:
-            函数执行结果。
+            设置键值对字典。
         """
         return self._settings

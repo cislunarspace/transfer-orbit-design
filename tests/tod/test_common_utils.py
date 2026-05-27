@@ -1,7 +1,7 @@
 """
-Tests for tod/commons/io.py module
+tod/commons/io.py 模块的测试
 
-Tests the constants and helper functions used across multiple scripts.
+测试多个脚本共用的常量和辅助函数。
 """
 
 import pytest
@@ -15,19 +15,19 @@ from tod.commons.common import ensure_output_dir, find_project_root, get_latest_
 
 
 class TestConstants:
-    """Test physical and astronomical constants"""
+    """测试物理和天文常数"""
 
     def test_mu_is_positive(self):
-        """MU should be positive (Earth-Moon mass ratio)"""
+        """MU 应为正（地月质量比）"""
         assert MU > 0
-        assert MU < 1  # Moon is much smaller than Earth
+        assert MU < 1  # 月球远小于地球
 
     def test_tu_is_positive(self):
-        """TU (time unit in days) should be positive"""
+        """TU（时间单位，天）应为正"""
         assert TU > 0
 
     def test_du_is_positive(self):
-        """DU (distance unit in km) should be positive"""
+        """DU（距离单位，km）应为正"""
         assert DU > 0
 
     def test_vu_is_positive(self):

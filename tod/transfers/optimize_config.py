@@ -14,13 +14,13 @@ import time
 
 
 def blas_threads_per_worker(default_limit: int = 1) -> int:
-    """执行 blas_threads_per_worker 对应的处理逻辑。
+    """获取每个 worker 的 BLAS 线程数。
     
     Args:
-        default_limit: 调用方传入的参数值。
+        default_limit: 默认线程限制。
     
     Returns:
-        函数执行结果。
+        线程数（至少为 1）。
     """
     env_val = os.environ.get("OPTIMIZE_BLAS_THREADS_PER_WORKER", "").strip()
     if env_val:
@@ -29,11 +29,11 @@ def blas_threads_per_worker(default_limit: int = 1) -> int:
 
 
 def apply_blas_env_for_child_processes(n_threads: int, *, overwrite: bool = True) -> None:
-    """执行 apply_blas_env_for_child_processes 对应的处理逻辑。
+    """为子进程设置 BLAS 环境变量。
     
     Args:
-        n_threads: 调用方传入的参数值。
-        overwrite: 调用方传入的参数值。
+        n_threads: 线程数。
+        overwrite: 是否覆盖已有的环境变量。
     
     Returns:
         None。
@@ -53,9 +53,9 @@ def apply_blas_env_for_child_processes(n_threads: int, *, overwrite: bool = True
 
 
 class OptimizationProgress:
-    """表示 OptimizationProgress 相关的数据结构或行为。
+    """优化进度跟踪器。
     
-    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    记录优化过程中成功/失败案例数和最佳目标值。
     """
     def __init__(self):
         self.total_cases = 0
@@ -66,12 +66,12 @@ class OptimizationProgress:
         self._best_obj = float("inf")
 
     def start_case(self, k, n_total, global_idx):
-        """执行 start_case 对应的处理逻辑。
+        """开始处理一个优化案例。
         
         Args:
-            k: 调用方传入的参数值。
-            n_total: 调用方传入的参数值。
-            global_idx: 调用方传入的参数值。
+            k: 当前案例索引。
+            n_total: 总案例数。
+            global_idx: 全局索引。
         
         Returns:
             None。
@@ -81,11 +81,11 @@ class OptimizationProgress:
         self._iter = 0
 
     def finish_case(self, success, obj_value):
-        """执行 finish_case 对应的处理逻辑。
+        """完成一个优化案例。
         
         Args:
-            success: 调用方传入的参数值。
-            obj_value: 调用方传入的参数值。
+            success: 是否成功。
+            obj_value: 目标函数值。
         
         Returns:
             None。
@@ -97,10 +97,10 @@ class OptimizationProgress:
             self._failures += 1
 
     def get_snapshot(self):
-        """执行 get_snapshot 对应的处理逻辑。
+        """获取当前进度快照。
         
         Returns:
-            函数执行结果。
+            包含迭代次数、成功/失败数和最佳目标值的字典。
         """
         return {
             "iter": self._iter,

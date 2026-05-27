@@ -318,8 +318,8 @@ class StructuredOutputWidget(QWidget):
 class JobCard(QWidget):
     """Job 列表中的单个卡片：显示脚本名、状态、运行时间、停止按钮。"""
 
-    clicked = pyqtSignal(str)          # job_id
-    stop_requested = pyqtSignal(str)   # job_id
+    clicked = pyqtSignal(str)          # 任务 ID
+    stop_requested = pyqtSignal(str)   # 任务 ID
 
     def __init__(self, job_id: str, script_name: str, parent=None):
         super().__init__(parent)

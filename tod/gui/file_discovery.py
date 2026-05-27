@@ -17,11 +17,11 @@ class FileInfo:
     该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
     """
     name: str
-    path: str           # 相对于 repo root
+    path: str           # 相对于仓库根目录
     abs_path: str       # 绝对路径
-    size: int           # 字节
+    size: int           # 字节数
     modified: datetime  # 修改时间
-    file_type: str      # "json", "png", 等
+    file_type: str      # "json", "png" 等
     category: str       # "dro", "ro", "transfer", "ephemeris", "halo"
 
 

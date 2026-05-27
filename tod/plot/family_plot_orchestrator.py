@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 
 
 def build_argparser(description: str) -> argparse.ArgumentParser:
-    """Create a unified argument parser for orbit family plotting."""
+    """创建统一的轨道族绘图参数解析器。"""
     parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--json-file",

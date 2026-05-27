@@ -88,7 +88,7 @@ class ParamsPanelMixin(DocLinkMixin):
                 file_combo.addItem(fi.path)
             else:
                 file_combo.addItem(fi.abs_path)
-        # Try to restore previous selection
+        # 尝试恢复之前选中的项
         if current_text:
             idx = file_combo.findText(current_text)
             if idx >= 0:
@@ -159,7 +159,7 @@ class ParamsPanelMixin(DocLinkMixin):
         self._factory_defaults[widget] = cli_param.default or ""
         self._connect_param_highlight(widget)
 
-        # Wrap in container for hidden_when support
+        # 包裹到容器中以支持 hidden_when
         row_container = QWidget()
         row_layout = QHBoxLayout(row_container)
         row_layout.setContentsMargins(0, 0, 0, 0)
@@ -284,7 +284,7 @@ class ParamsPanelMixin(DocLinkMixin):
             if trigger_widget is None:
                 continue
 
-            # Resolve trigger's CliParam for choice_values reverse mapping
+            # 解析触发控件的 CliParam，用于 choice_values 反向映射
             trigger_param = self._find_cli_param(trigger_key)
 
             def _get_trigger_value(
@@ -324,9 +324,9 @@ class ParamsPanelMixin(DocLinkMixin):
                     if expected is not None:
                         should_hide = current_val == expected
                     else:
-                        # Legacy mode: hide when trigger has a "truthy" value.
-                        # For QCheckBox, str(False) == "False" is truthy as a
-                        # string, so we inspect the widget directly.
+                        # 旧版模式：当触发控件有非空值（truthy）时隐藏
+                        # 对于 QCheckBox，str(False) == "False" 作为字符串是 truthy 的，
+                        # 因此我们直接检查控件本身
                         if isinstance(tw, QCheckBox):
                             should_hide = tw.isChecked()
                         else:
@@ -436,7 +436,7 @@ class ParamsPanelMixin(DocLinkMixin):
                 else:
                     widget.setText(display_value)
             elif isinstance(widget, QComboBox):
-                # path_mode_toggles 或普通 combo
+                # path_mode_toggles 或普通下拉框
                 if display_value and display_value.startswith("{"):
                     try:
                         data = json.loads(display_value)

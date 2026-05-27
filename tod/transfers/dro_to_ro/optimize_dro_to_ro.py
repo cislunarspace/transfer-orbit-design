@@ -118,7 +118,7 @@ def parse_args():
 
 
 # ---------------------------------------------------------------------------
-# Inline helpers (replacing missing optimize_io / optimize_progress / etc.)
+# 内联辅助函数（替代缺失的 optimize_io / optimize_progress 等）
 # ---------------------------------------------------------------------------
 
 
@@ -126,10 +126,10 @@ def load_search_results(filepath: Path) -> List[Dict[str, Any]]:
     """读取转移搜索结果 JSON 文件。
     
     Args:
-        filepath: 调用方传入的参数值。
+        filepath: 搜索结果文件路径。
     
     Returns:
-        函数执行结果。
+        解析后的 JSON 数据列表。
     """
     with open(filepath, encoding="utf-8") as f:
         return json.load(f)
@@ -616,7 +616,7 @@ def worker_run_thread(args):
 
 
 # ---------------------------------------------------------------------------
-# main
+# 主流程
 # ---------------------------------------------------------------------------
 
 

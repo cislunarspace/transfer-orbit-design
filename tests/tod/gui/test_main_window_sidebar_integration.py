@@ -1,5 +1,5 @@
 # pyright: reportArgumentType=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false
-"""Integration tests for MainWindow + SidebarWidget (issue #63)."""
+"""MainWindow + SidebarWidget 集成测试（issue #63）。"""
 
 import pytest
 

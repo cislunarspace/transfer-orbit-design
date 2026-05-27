@@ -17,8 +17,8 @@ from tod.gui.settings_dialog import SettingItem
 # E2M2E_BODY_ICON_SCALE 中传给绘图子进程。
 BODY_ICON_SCALE_SETTING_KEY = "plot_body_icon_scale"
 
-# Settings schema — each entry defines one setting item.
-# Add new SettingItem entries here to extend settings.
+# 设置模式 — 每个条目定义一个设置项。
+# 在此处添加新的 SettingItem 条目以扩展设置。
 SETTINGS_SCHEMA: list[SettingItem] = [
     SettingItem(
         key="theme",

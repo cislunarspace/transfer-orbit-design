@@ -24,7 +24,7 @@ import numpy as np
 from e2m2e.algorithms import MultipleShooting, sample_patch_points, convert_to_j2000
 from e2m2e.core import Orbit, CR3BP_System
 from e2m2e.core import SPICEManager, EphemerisSystem
-# HomotopyEphemerisDynamics and BodyName have been removed from e2m2e
+# HomotopyEphemerisDynamics 和 BodyName 已从 e2m2e 中移除
 # from e2m2e.core import HomotopyEphemerisDynamics
 # from e2m2e.core import SynodicJ2000Transformation, BodyName
 from e2m2e.core import SynodicJ2000Transformation

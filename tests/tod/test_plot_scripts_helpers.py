@@ -1,5 +1,5 @@
 """
-Tests for tod/plot scripts (plot_31_ro_family.py, plot_32_ro_family.py, plot_dro_family.py, plot_interactive_orbit_inspector.py)
+tod/plot 脚本的测试 (plot_31_ro_family.py, plot_32_ro_family.py, plot_dro_family.py, plot_interactive_orbit_inspector.py)
 
 These tests focus on:
 - Testing helper functions without displaying plots
@@ -22,10 +22,10 @@ project_root = Path(__file__).resolve().parent.parent.parent
 
 
 class TestPlotScriptImports:
-    """Test that plotting scripts can be imported and parsed"""
+    """测试绘图脚本可被导入和解析"""
 
     def _create_mock_family_result(self, mock_system):
-        """Create a properly configured mock OrbitFamily for testing"""
+        """创建正确配置的模拟 OrbitFamily 用于测试"""
 
         # Use a real class instead of MagicMock to avoid len() returning MagicMock
         class MockOrbitFamily:

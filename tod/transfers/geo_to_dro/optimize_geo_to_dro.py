@@ -106,7 +106,7 @@ def parse_args():
 
 
 # =====================================================================
-# Helpers
+# 辅助函数
 # =====================================================================
 
 
@@ -114,12 +114,12 @@ def build_dynamics(rtol, atol, max_step):
     """构建脚本所需的动力学模型。
     
     Args:
-        rtol: 调用方传入的参数值。
-        atol: 调用方传入的参数值。
-        max_step: 调用方传入的参数值。
+        rtol: 相对容差。
+        atol: 绝对容差。
+        max_step: 最大步长。
     
     Returns:
-        函数执行结果。
+        (system, dynamics) 元组。
     """
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
     dynamics = CR3BP_Dynamics(system=system)
@@ -131,15 +131,15 @@ def build_dynamics(rtol, atol, max_step):
 
 
 def forward_integrate(dynamics, initial_state, transfer_time):
-    """执行 forward_integrate 对应的处理逻辑。
+    """前向积分。
     
     Args:
-        dynamics: 调用方传入的参数值。
-        initial_state: 调用方传入的参数值。
-        transfer_time: 调用方传入的参数值。
+        dynamics: 动力学对象。
+        initial_state: 初始状态。
+        transfer_time: 转移时间。
     
     Returns:
-        函数执行结果。
+        (states, times) 元组。
     """
     step = max(0.01, dynamics.max_step)
     n_steps = int(transfer_time / step) + 1
@@ -254,7 +254,7 @@ def _find_closest_approach(departure_state, alpha, max_time, dro_orbit, dynamics
 
 
 # =====================================================================
-# NLP problem
+# 非线性规划问题
 # =====================================================================
 
 
@@ -509,15 +509,15 @@ def optimize_one_case(
 
 
 # =====================================================================
-# Parallel workers
+# 并行工作器
 # =====================================================================
 
 
 @dataclass
 class NlpPackConfig:
-    """保存 NlpPackConfig 的配置字段。
+    """NLP 打包配置。
     
-    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
+    包含优化所需的全部配置参数。
     """
     alpha_min: float
     alpha_max: float
@@ -531,13 +531,13 @@ class NlpPackConfig:
 
 
 def nlp_worker_packed(payload):
-    """执行 nlp_worker_packed 对应的处理逻辑。
+    """打包后的 NLP worker 函数。
     
     Args:
-        payload: 调用方传入的参数值。
+        payload: 包含记录、轨道和配置的打包数据。
     
     Returns:
-        函数执行结果。
+        优化结果字典。
     """
     rec = payload["rec"]
     dro_orbit = payload["dro_orbit"]
@@ -559,7 +559,7 @@ def nlp_worker_packed(payload):
 
 
 # =====================================================================
-# main
+# 主流程
 # =====================================================================
 
 

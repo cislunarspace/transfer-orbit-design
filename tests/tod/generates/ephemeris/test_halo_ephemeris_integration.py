@@ -1,9 +1,9 @@
 # pyright: reportArgumentType=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false
-"""Integration tests for Halo orbit CR3BP → ephemeris correction pipeline.
+"""Halo 轨道 CR3BP → 星历修正管道的集成测试。
 
-Requires real e2m2e library and SPICE kernels (de440.bsp, naif0012.tls).
-Run fast tests:  pytest -m spice -m "not slow"
-Run all tests:   pytest -m spice
+需要真实的 e2m2e 库和 SPICE 内核（de440.bsp, naif0012.tls）。
+运行快速测试：  pytest -m spice -m "not slow"
+运行全部测试：  pytest -m spice
 """
 
 import json
@@ -20,7 +20,7 @@ KERNEL_DIR = str(PROJECT_ROOT.parent / "e2m2e" / "kernels")
 
 
 def _find_latest_halo(prefix: str) -> Path:
-    """Find the most recent Halo orbit JSON matching the given prefix."""
+    """查找与给定前缀匹配的最新 Halo 轨道 JSON。"""
     candidates = sorted(
         HALO_DIR.glob(f"{prefix}_*.json"),
         key=lambda f: f.stat().st_mtime,

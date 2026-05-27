@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from tod.commons.constants import DU, TU, VU
 
 # 单位组定义：每组中的 key 为单位名，value 为到标准单位的换算因子。
-# value_standard = value_displayed * factor
+# value_standard = value_displayed * factor  # 标准值 = 显示值 × 因子
 UNIT_GROUPS: dict[str, dict[str, float]] = {
     "distance": {"DU": 1.0, "km": 1.0 / DU},
     "velocity": {"VU": 1.0, "m/s": 1.0 / VU},
@@ -48,7 +48,7 @@ class CliParam:
     path_mode: str = "absolute"       # "absolute" | "relative" — 文件下拉框的路径显示模式
     name_pattern: str | None = None  # 文件名过滤模式，如 "*_family_*.json"
     hidden_when: str | None = None   # "flag" (有值时隐藏) 或 "flag==value" (等于指定值时隐藏)
-    required: bool | None = None     # None 保持旧逻辑；False 可声明可选文件参数
+    required: bool | None = None     # None 保持旧逻辑；False 声明为可选文件参数
 
 
 @dataclass(frozen=True)
@@ -212,9 +212,9 @@ _LEGACY_ALIASES: dict[str, str] = {
 }
 
 
-# Proxy object that lazily resolves SCRIPTS on first attribute access.
+# 代理对象：首次访问时延迟解析 SCRIPTS。
 class _SCRIPTSProxy:
-    """Lazy proxy for SCRIPTS — resolves from scanner on first access."""
+    """SCRIPTS 的延迟代理 — 首次访问时从扫描器解析。"""
 
     def __getitem__(self, key: str) -> list:
         _key = _LEGACY_ALIASES.get(key, key)

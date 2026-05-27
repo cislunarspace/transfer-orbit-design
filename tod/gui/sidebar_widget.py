@@ -30,7 +30,7 @@ class SidebarWidget(QWidget):
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(4)
 
-        # Brand header with logo and app name
+        # 品牌头部：LOGO 和应用名称
         self._setup_brand_header(layout)
 
         self._search_input = QLineEdit()
@@ -73,8 +73,8 @@ class SidebarWidget(QWidget):
         self._tree.set_script_selected_callback(callback)
 
     def _setup_brand_header(self, layout: QVBoxLayout) -> None:
-        """Setup brand header with logo and app name."""
-        # Get repo root from a known path
+        """设置品牌头部：LOGO 和应用名称。"""
+        # 从已知路径获取仓库根目录
         logo_path = Path(__file__).parent.parent.parent / "logo.png"
 
         header_widget = QWidget()

@@ -62,20 +62,20 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         self._right_tabs: QTabWidget | None = None
         self._files: list[FileInfo] = []
 
-        # Job 管理
+        # 任务管理
         self._job_manager = JobManager(repo_root, self)
         self._job_cards: dict[str, JobCard] = {}
         self._job_outputs: dict[str, StructuredOutputWidget] = {}
         self._has_jobs = False
 
-        # Documentation window
+        # 文档窗口
         self._doc_window: DocWindow | None = None
 
-        # 从设置加载 theme
+        # 从设置加载主题
         self._current_theme_mode = self._gui_defaults.get("settings", {}).get("theme", "system")
         MainWindow._current_theme_mode = self._current_theme_mode
 
-        # i18n — 必须在 UI 构建前加载，使 self.tr() 生效
+        # 国际化 — 必须在 UI 构建前加载，使 self.tr() 生效
         from tod.gui.i18n import TranslationLoader
         from tod.gui.script_registry import set_script_translations
 
@@ -95,10 +95,10 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         self.setStatusBar(self._status_bar)
         self._status_bar.showMessage("Ready")
 
-        # 应用初始主题样式表
+        # 应用初始主题样式
         self.setStyleSheet(_get_theme_stylesheet(self._current_theme_mode))
 
-        # 连接 Job 信号
+        # 连接任务信号
         self._job_manager.job_started.connect(self._on_job_started)
         self._job_manager.job_output.connect(self._on_job_output)
         self._job_manager.job_finished.connect(self._on_job_finished)
@@ -113,7 +113,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
 
         self._refresh_files()
 
-    # ── Settings ───────────────────────────────────────────────
+    # ── 设置 ───────────────────────────────────────────────
 
     def _on_settings(self) -> None:
         from tod.gui.settings_dialog import SettingsDialog
@@ -165,7 +165,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
             if saved_params:
                 self._restore_param_values(saved_params)
 
-    # ── Toolbar ────────────────────────────────────────────────
+    # ── 工具栏 ────────────────────────────────────────────────
 
     def _build_toolbar(self) -> None:
         toolbar = QToolBar("Main")
@@ -196,7 +196,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
             sidebar_w = left_width // 3
             self._left_splitter.setSizes([sidebar_w, left_width - sidebar_w])
 
-    # ── Central Widget ─────────────────────────────────────────
+    # ── 中央控件 ─────────────────────────────────────────
 
     def _build_central(self) -> None:
         # 水平分割：左=脚本选择+参数，右=Job 面板
@@ -221,7 +221,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
 
         self.setCentralWidget(splitter)
 
-    # ── Left Panel: Sidebar Tree ───────────────────────────────
+    # ── 左侧面板：侧边栏树 ───────────────────────────────
 
     def _build_left_panel(self) -> QWidget:
         sidebar = SidebarWidget()
@@ -229,7 +229,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         sidebar.setMinimumWidth(220)
         return sidebar
 
-    # ── Right Panel: Tabs ──────────────────────────────────────
+    # ── 右侧面板：标签页 ──────────────────────────────────────
 
     def _build_right_panel(self) -> QTabWidget:
         tabs = QTabWidget()
@@ -240,7 +240,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         merged_layout.setContentsMargins(0, 0, 0, 0)
         merged_layout.setSpacing(0)
 
-        # Scrollable params area (script info prepended at top by _rebuild_params_panel)
+        # 可滚动的参数区域（脚本信息由 _rebuild_params_panel 附加到顶部）
         self._params_scroll = QScrollArea()
         self._params_scroll.setWidgetResizable(True)
         self._params_scroll.setFrameShape(QFrame.Shape.NoFrame)
@@ -267,7 +267,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
 
         merged_layout.addWidget(self._params_scroll, stretch=1)
 
-        # Run 按钮固定在底部（始终可见）
+        # 运行按钮固定在底部（始终可见）
         self._run_btn = QPushButton(self.tr("运行"))
         self._run_btn.setEnabled(False)
         self._run_btn.clicked.connect(self._on_run)
@@ -287,7 +287,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
 
         return tabs
 
-    # ── Slots: Script Selection ────────────────────────────────
+    # ── 槽：脚本选择 ────────────────────────────────
 
     def _on_script_selected(self, entry: ScriptEntry) -> None:
         self._current_script = entry
@@ -308,7 +308,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
                     self._right_tabs.setCurrentIndex(i)
                     break
 
-    # ── GUI 默认值持久化 ────────────────────────────────────────────
+    # ── GUI 默认值持久化 ──────────────────────────────────────────
 
     _GUI_DEFAULTS_FILE = "gui_defaults.json"
 
@@ -349,7 +349,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         )
         QTimer.singleShot(1500, QToolTip.hideText)
 
-    # ── Window Events ─────────────────────────────────────────
+    # ── 窗口事件 ─────────────────────────────────────────
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
         """执行 closeEvent 对应的处理逻辑。
@@ -375,10 +375,10 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMain
         self._job_manager.stop_all()
         super().closeEvent(event)
 
-    # ── Documentation Window ─────────────────────────────────────
+    # ── 文档窗口 ─────────────────────────────────────
 
     def _open_doc_window(self, script_path: str) -> None:
-        """Open or raise the documentation window for the given script."""
+        """打开或弹出给定脚本的文档窗口。"""
         if self._doc_window is None:
             from tod.gui.doc_window import DocWindow
 

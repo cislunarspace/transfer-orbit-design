@@ -105,7 +105,7 @@ class FileTreeMixin:
 
         tabs.addTab(files_widget, "Files")
 
-    # ── File Tree Operations ───────────────────────────────────
+    # ── 文件树操作 ───────────────────────────────────
 
     def _on_file_double_clicked(self, item: QTreeWidgetItem, _column: int) -> None:
         abs_path = item.data(0, FILE_PATH_ROLE)

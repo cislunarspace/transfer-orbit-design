@@ -151,7 +151,7 @@ def apply_standard_plot_config(
     *,
     use_env: bool = True,
 ):
-    """应用统一 PlotConfig，并补充中文字体 fallback。"""
+    """应用统一 PlotConfig，并补充中文字体回退。"""
     config = get_standard_plot_config(font_sizes, use_env=use_env)
     config.apply_rcparams()
 
@@ -196,7 +196,7 @@ def apply_standard_plot_config(
 
 
 def style_colorbar(colorbar, config, label: str | None = None):
-    """统一 colorbar 标签和刻度字号。"""
+    """统一色标标签和刻度字号。"""
     if label is not None:
         colorbar.set_label(label, fontsize=config.colorbar)
     elif colorbar.ax.get_ylabel() or colorbar.ax.get_xlabel():
@@ -206,15 +206,15 @@ def style_colorbar(colorbar, config, label: str | None = None):
 
 
 def subsample_indices(n: int, max_points: int | None, seed: int) -> np.ndarray:
-    """执行 subsample_indices 对应的处理逻辑。
+    """对轨道索引进行亚采样（当轨道数超过最大点数时）。
     
     Args:
-        n: 调用方传入的参数值。
-        max_points: 调用方传入的参数值。
-        seed: 调用方传入的参数值。
+        n: 轨道总数。
+        max_points: 最大采样点数，None 表示不采样。
+        seed: 随机种子。
     
     Returns:
-        函数执行结果。
+        排序后的采样索引数组。
     """
     if max_points is None or n <= max_points:
         return np.arange(n)

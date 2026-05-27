@@ -63,7 +63,7 @@ def main():
     vy0 = args.vy0  # 初始y方向速度（无量纲）
 
     # 目标周期：27.32 days ≈ 6.283 TU (Time Unit)
-    # TU = 4.34811305 days (lunar sidereal period)
+    # TU = 4.34811305 天（月球恒星周期）
     target_period = args.period  # 转换为无量纲时间单位
     t_half = target_period / 2  # 半周期
 

@@ -43,7 +43,7 @@ class DocWindow(QMainWindow):
         self._setup_ui()
 
     def _set_window_icon(self) -> None:
-        """Load and set the application window icon."""
+        """加载并设置应用窗口图标。"""
         if platform.system() == "Linux":
             icon_path = self._repo_root / "icon.png"
             if not icon_path.exists():
@@ -67,7 +67,7 @@ class DocWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # Toolbar with navigation controls
+        # 带导航控件的工具栏
         toolbar = QToolBar()
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
@@ -98,11 +98,11 @@ class DocWindow(QMainWindow):
         self._open_ext_btn.setToolTip(self.tr("在系统浏览器中打开"))
         toolbar.addWidget(self._open_ext_btn)
 
-        # Web view
+        # Web 视图
         self._web_view = QWebEngineView()
         layout.addWidget(self._web_view)
 
-        # Connect signals
+        # 连接信号
         self._back_btn.clicked.connect(self._web_view.back)
         self._forward_btn.clicked.connect(self._web_view.forward)
         self._refresh_btn.clicked.connect(self._web_view.reload)
@@ -139,12 +139,12 @@ class DocWindow(QMainWindow):
             QDesktopServices.openUrl(url)
 
     def _get_doc_path(self, script_path: str) -> Path:
-        """Convert script path to documentation path.
+        """将脚本路径转换为文档路径。
 
-        Example: 'tod/generates/cr3bp/dro/generate_dro_family.py'
+        示例: 'tod/generates/cr3bp/dro/generate_dro_family.py'
                  -> 'docs/build/html/tod/generates/cr3bp/dro/generate_dro_family.html'
         """
-        # Remove .py extension and get relative path
+        # 移除 .py 扩展名，获取相对路径
         doc_rel = script_path
         if doc_rel.endswith(".py"):
             doc_rel = doc_rel[:-3]
@@ -152,10 +152,10 @@ class DocWindow(QMainWindow):
         return self._doc_root / f"{doc_rel}.html"
 
     def load_script_doc(self, script_path: str) -> None:
-        """Load documentation for a script.
+        """加载脚本对应的文档。
 
         Args:
-            script_path: The script path, e.g., 'tod/generates/cr3bp/dro/generate_dro_family.py'
+            script_path: 脚本路径，如 'tod/generates/cr3bp/dro/generate_dro_family.py'
         """
         doc_path = self._get_doc_path(script_path)
 
@@ -168,7 +168,7 @@ class DocWindow(QMainWindow):
         self.setWindowTitle(f"Documentation - {Path(script_path).stem}")
 
     def _show_error_page(self, message: str) -> None:
-        """Display an error page with the given message."""
+        """显示带给定消息的错误页面。"""
         escaped_message = html.escape(message)
         html_content = f"""
         <!DOCTYPE html>

@@ -1,10 +1,10 @@
 """
-Tests for data loading and file generation functionality
+数据加载与文件生成功能测试
 
-These tests:
-- Test loading existing orbit family JSON files
-- Test file naming conventions
-- Test data structure validation
+这些测试：
+- 测试加载现有轨道族 JSON 文件
+- 测试文件命名规范
+- 测试数据结构验证
 """
 
 import pytest
@@ -14,7 +14,7 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent.parent
 
 
-# Sample orbit family data structure for testing
+# 用于测试的示例轨道族数据结构
 SAMPLE_ORBIT_DATA = {
     "family_type": "distant_retrograde_orbit",
     "system": {"mu": 0.0121506683, "primary": "earth", "secondary": "moon"},
@@ -62,16 +62,16 @@ class TestOrbitFamilyDataStructure:
         """Test structure of a single orbit"""
         orbit = SAMPLE_ORBIT_DATA["orbits"][0]
 
-        # States should be a list of lists with 6 elements
+        # 状态应为包含 6 个元素的列表的列表
         assert "states" in orbit
         assert len(orbit["states"]) > 0
         assert len(orbit["states"][0]) == 6
 
-        # Times should match states length
+        # 时间应与状态长度匹配
         assert "times" in orbit
         assert len(orbit["times"]) == len(orbit["states"])
 
-        # Period should be positive
+        # 周期应为正
         assert "period" in orbit
         assert orbit["period"] > 0
 
@@ -83,13 +83,13 @@ class TestOrbitFamilyFileNaming:
         """Test 3:1 RO family filename pattern"""
         filename = "ro_31_family_0.8905--0.8304999999999999-0.001_3856910376.json"
 
-        # Should contain family type identifier
+        # 应包含轨道族类型标识
         assert "ro_31_family" in filename
 
-        # Should contain parameter range
+        # 应包含参数范围
         assert "0.8905" in filename
 
-        # Should end with .json
+        # 应以 .json 结尾
         assert filename.endswith(".json")
 
     def test_ro_32_filename_pattern(self):
@@ -110,12 +110,12 @@ class TestOrbitFamilyFileNaming:
         """Test that filename contains timestamp-like suffix"""
         filename = "ro_31_family_0.8905--0.8304999999999999-0.001_3856910376.json"
 
-        # Extract the numeric suffix (timestamp)
+        # 提取数字后缀（时间戳）
         parts = filename.replace(".json", "").split("_")
         last_part = parts[-1]
 
-        # Should be a reasonably large number (timestamp)
-        assert len(last_part) >= 7  # At least 7 digits for timestamp
+        # 应为足够大的数字（时间戳）
+        assert len(last_part) >= 7  # 至少 7 位数字的时间戳
         assert last_part.isdigit() or last_part.replace(".", "").isdigit()
 
 

@@ -50,7 +50,7 @@ class JobManager(QObject):
         self._repo_root = repo_root
         self._jobs: dict[str, Job] = {}
 
-    # -- public API --
+    # -- 公开 API --
 
     def start_job(
         self,
@@ -116,7 +116,7 @@ class JobManager(QObject):
             return
         job._intentional_stop = True
         if job.process.state() != QProcess.ProcessState.NotRunning:
-            # Windows: 使用 taskkill /F /T 杀死整个进程树，避免子进程残留
+            # Windows：使用 taskkill /F /T 杀死整个进程树，避免子进程残留
             if os.name == "nt":
                 try:
                     subprocess.run(
@@ -175,7 +175,7 @@ class JobManager(QObject):
         """
         return list(self._jobs.values())
 
-    # -- private handlers --
+    # -- 私有处理器 --
 
     def _force_kill_if_needed(self, job_id: str) -> None:
         job = self._jobs.get(job_id)
