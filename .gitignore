@@ -156,6 +156,12 @@ cython_debug/
 # Claude Code
 .claude/
 
+# Reasonix — track config/hooks/skills, ignore runtime artifacts
+.reasonix/.session-marker
+.reasonix/session-files.log
+.reasonix/sessions/
+.reasonix/usage.jsonl
+
 # macOS
 .DS_Store
 

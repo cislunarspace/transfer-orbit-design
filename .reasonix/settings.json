@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "match": "write_file|edit_file|multi_edit",
+        "command": "node .reasonix/hooks/session-file-tracker.js"
+      }
+    ]
+  }
+}
