@@ -179,7 +179,7 @@ wheels = [
 
 [[package]]
 name = "e2m2e"
-version = "4.1.0"
+version = "4.2.1"
 source = { directory = "../e2m2e" }
 dependencies = [
     { name = "matplotlib" },
@@ -1090,7 +1090,7 @@ wheels = [
 
 [[package]]
 name = "transfer-orbit-design"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "e2m2e" },
