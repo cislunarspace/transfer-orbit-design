@@ -29,7 +29,7 @@ def _parse_log_level(level_str: str) -> int:
 
 def parse_args():
     """解析命令行参数。
-    
+
     Returns:
         解析后的命令行参数命名空间。
     """
@@ -60,7 +60,7 @@ OUTPUT_DIR = project_root / "output" / "dro"
 
 def main():
     """执行脚本主流程。
-    
+
     Returns:
         None。
     """
@@ -106,12 +106,12 @@ def main():
     # =============================================================================
     def on_iteration(iteration, error, converged):
         """执行 on_iteration 对应的处理逻辑。
-        
+
         Args:
             iteration: 调用方传入的参数值。
             error: 调用方传入的参数值。
             converged: 调用方传入的参数值。
-        
+
         Returns:
             None。
         """
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     # 想调哪个值就改下方对应字面量即可。
     if len(sys.argv) == 1:
         sys.argv += [
-            "--x0", "1.1202",                               # 初始 x 坐标（无量纲）
+            "--x0", "1.1202",                              # 初始 x 坐标（无量纲）
             "--vy0", "-0.4618",                             # 初始 y 方向速度（无量纲）
             "--period", "2.095",                            # 目标周期（无量纲）
         ]

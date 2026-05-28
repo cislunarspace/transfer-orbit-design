@@ -32,8 +32,8 @@ import numpy as np
 import matplotlib
 try:
     matplotlib.use("TkAgg")
-except ImportError:
-    pass
+except (ImportError, ValueError):
+    pass  # Backend unavailable or already finalized
 
 from e2m2e.algorithms.stability import StabilityAnalysis
 from e2m2e.core import CR3BP_System, Orbit, OrbitFamily

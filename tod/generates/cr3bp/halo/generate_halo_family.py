@@ -159,6 +159,10 @@ def _export_csv(orbits: OrbitFamily, libration_point: int, halo_class: int,
     lp_name = f"L{libration_point}"
     class_name = "NS" if branches == "both" else ("N" if halo_class == 0 else "S")
     shared_suffix = "_shared" if branches == "both" else ""
+    if not rows:
+        logger.warning("轨道族为空，跳过 CSV 导出")
+        return None
+
     csv_path = OUTPUT_DIR / f"halo_{lp_name}_{class_name}_family{shared_suffix}_{ts}.csv"
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
