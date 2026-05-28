@@ -1,31 +1,66 @@
 """脚本共享的常量、路径与工具。
 
 本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+
+硬编码常量（M_SUN / OMEGA_SUN / RHO / FAMILY_FILENAME）在模块导入时即可用，不依赖 e2m2e。
+CR3BP 派生常量（MU / DU / TU / VU / T_MOON）通过 __getattr__ 惰性计算——首次访问时才
+导入 e2m2e 并调用 CR3BP_System.from_known_system("earth_moon")。
 """
 
 
 import math
+from typing import TYPE_CHECKING
 
-from e2m2e.core import CR3BP_System
-
-# ============================================================
-# 地月系统（CR3BP）— 从 e2m2e 导出
-# ============================================================
-_em = CR3BP_System.from_known_system("earth_moon")
-MU: float = _em.mu  # 1.21506683e-2
-DU: float = _em.DU  # 384405.0 km
-TU: float = _em.TU  # 4.34811305 天
-VU: float = _em.VU  # 1023.23281 m/s
-T_MOON: float = 2.0 * math.pi  # 月球轨道周期（无量纲）
+if TYPE_CHECKING:
+    # 为类型检查器声明 CR3BP 常量类型，实际值在 __getattr__ 中惰性赋值。
+    MU: float
+    DU: float
+    TU: float
+    VU: float
+    T_MOON: float
 
 # ============================================================
-# 太阳摄动（BR4BP）— 本地定义
+# 硬编码常量 — 始终可用，不依赖 e2m2e
 # ============================================================
+
+# 太阳摄动（BR4BP）
 M_SUN: float = 3.28900541e5  # 太阳无量纲质量
 OMEGA_SUN: float = 9.25195985e-1  # 太阳无量纲角速度
 RHO: float = 3.88811143e2  # 太阳到地月质心无量纲距离
 
-# ============================================================
 # 文件命名
-# ============================================================
 FAMILY_FILENAME: str = "family.json"
+
+# ============================================================
+# CR3BP 派生常量 — 惰性计算（首次访问时导入 e2m2e）
+# ============================================================
+
+_cr3bp_initialized: bool = False
+
+
+def _init_cr3bp() -> None:
+    """惰性初始化地月 CR3BP 系统常量。
+
+    仅在首次访问 MU / DU / TU / VU / T_MOON 时调用一次，
+    将 CR3BP_System 导入推迟到真正需要时。
+    """
+    global _cr3bp_initialized, MU, DU, TU, VU, T_MOON
+    if _cr3bp_initialized:
+        return
+    from e2m2e.core import CR3BP_System
+
+    _em = CR3BP_System.from_known_system("earth_moon")
+    MU = _em.mu  # 1.21506683e-2
+    DU = _em.DU  # 384405.0 km
+    TU = _em.TU  # 4.34811305 天
+    VU = _em.VU  # 1023.23281 m/s
+    T_MOON = 2.0 * math.pi  # 月球轨道周期（无量纲）
+    _cr3bp_initialized = True
+
+
+def __getattr__(name: str) -> float:
+    """模块级惰性属性访问——仅在 name 不在 globals() 中时触发。"""
+    if name in ("MU", "DU", "TU", "VU", "T_MOON"):
+        _init_cr3bp()
+        return globals()[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -11,7 +11,12 @@ from pathlib import Path
 from .constants import FAMILY_FILENAME
 
 __all__ = [
-    "find_project_root", "load_or_compute", "safe_resolve_within",
+    "ensure_output_dir",
+    "find_project_root",
+    "get_latest_family_file",
+    "load_or_compute",
+    "safe_resolve_within",
+    "save_family_to_file",
 ]
 
 logger = logging.getLogger(__name__)
@@ -100,7 +105,8 @@ def get_latest_family_file(output_dir, family_filename=FAMILY_FILENAME):
     # 按修改时间排序，返回最新的
     dirs.sort(key=lambda x: os.path.getmtime(os.path.join(output_dir, x)), reverse=True)
     latest_dir = dirs[0]
-    return os.path.join(output_dir, latest_dir, family_filename)
+    latest_path = os.path.join(output_dir, latest_dir, family_filename)
+    return latest_path if os.path.exists(latest_path) else None
 
 
 def load_or_compute(
