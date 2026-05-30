@@ -144,12 +144,12 @@ class RunMixin:
                 if key != "halo_class"
             ]
             if not branch_inputs:
-                return [base_args + ["--branches", "both"]]
+                return [base_args + ["--branches", "both", "--method", "pseudo_arclength"]]
             for combo in product(*[vals for _, _, vals in branch_inputs]):
                 args = base_args.copy()
                 for (_, flag, _), value in zip(branch_inputs, combo):
                     args.extend([flag, value])
-                args.extend(["--branches", "both"])
+                args.extend(["--branches", "both", "--method", "pseudo_arclength"])
                 combinations.append(args)
             return combinations
 

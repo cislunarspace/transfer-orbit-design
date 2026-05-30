@@ -54,7 +54,7 @@ class TestRunMixinChipExpansion:
             {"libration_point": ["L1"], "halo_class": ["0", "1"]},
         )
 
-        assert combinations == [["--method", "pseudo_arclength", "--libration-point", "L1", "--branches", "both"]]
+        assert combinations == [["--method", "pseudo_arclength", "--libration-point", "L1", "--branches", "both", "--method", "pseudo_arclength"]]
 
     def test_halo_north_south_selection_combines_per_libration_point(self):
         from tod.gui.run_mixin import RunMixin
@@ -77,8 +77,8 @@ class TestRunMixinChipExpansion:
         combinations = harness._expand_combinations([], {"libration_point": ["L1", "L2"], "halo_class": ["0", "1"]})
 
         assert combinations == [
-            ["--libration-point", "L1", "--branches", "both"],
-            ["--libration-point", "L2", "--branches", "both"],
+            ["--libration-point", "L1", "--branches", "both", "--method", "pseudo_arclength"],
+            ["--libration-point", "L2", "--branches", "both", "--method", "pseudo_arclength"],
         ]
 
 
