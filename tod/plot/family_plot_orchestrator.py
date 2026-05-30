@@ -10,7 +10,7 @@
 多文件模式示例:
     .. code-block:: bash
 
-       uv run python -m tod.plot.halo.plot_halo_family \
+       uv run python -m tod.plot.plot_orbits \
          --json-file '[{"path": "a.json", "start": 0, "end": 10, "step": 1}, {"path": "b.json", "start": 5, "end": -1, "step": 2}]' \
          --view-2d
 """
@@ -243,7 +243,6 @@ class FamilyPlotConfig:
     dynamic_bounds: bool = False
     libration_point_sizes: list[int] | None = None
     supports_center_choice: bool = False
-    allow_single_orbit: bool = True  # always handles both family and single-orbit JSON
     step: int = 5
 
 

@@ -336,13 +336,13 @@ class TestElevAzimFromArgs:
 
 
 class TestSingleOrbitLoad:
-    """P2 fix: Halo single-orbit JSON loading via allow_single_orbit."""
+    """Unified loader handles both family and single-orbit JSON formats."""
 
     def test_loads_family_file_when_orbits_key_present(self, tmp_path) -> None:
         json_file = tmp_path / "family.json"
         json_file.write_text('{"orbits": []}')
 
-        config = _make_config(allow_single_orbit=True)
+        config = _make_config()
         args = _make_args(json_file=str(json_file))
         orchestrator = FamilyPlotOrchestrator(config, args)
 
@@ -356,7 +356,7 @@ class TestSingleOrbitLoad:
         json_file = tmp_path / "single_orbit.json"
         json_file.write_text('{"states": []}')
 
-        config = _make_config(allow_single_orbit=True)
+        config = _make_config()
         args = _make_args(json_file=str(json_file))
         orchestrator = FamilyPlotOrchestrator(config, args)
 
@@ -374,9 +374,9 @@ class TestSingleOrbitLoad:
 class TestUnifiedFlags:
     """P1 fix: unified --plot-global-2d/3d and --plot-jacobi-stability flags."""
 
-    def test_config_default_allows_single_orbit(self) -> None:
+    def test_config_default_step(self) -> None:
         config = _make_config()
-        assert config.allow_single_orbit is True
+        assert config.step == 5
 
     def test_build_argparser_accepts_unified_flags(self) -> None:
         from tod.plot.family_plot_orchestrator import build_argparser

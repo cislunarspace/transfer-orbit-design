@@ -87,7 +87,7 @@ def _rro_config() -> FamilyPlotConfig:
         default_filename="rro_32_family_placeholder",
         output_subdir="ro",
         plane="xy",
-        center_3d=(-0.9, 0, 0.1),
+        center_3d=(-0.85, 0, 0.1),
         radius_3d=0.5,
         elev_3d=20,
         azim_3d=-90,

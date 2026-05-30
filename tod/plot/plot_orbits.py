@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
-import json as _json
 import logging
 import sys
 from pathlib import Path
@@ -34,7 +33,7 @@ from tod.plot.family_plot_orchestrator import (
     FamilyPlotOrchestrator,
     _parse_json_file_arg,
 )
-from tod.plot.orbit_config_registry import detect_orbit_config
+from tod.plot.orbit_config_registry import FALLBACK_CONFIG, detect_orbit_config
 
 logger = logging.getLogger(__name__)
 
@@ -62,8 +61,8 @@ def build_argparser() -> argparse.ArgumentParser:
         help="绘制 Jacobi 常数与周期、稳定性的关系曲线",
     )
     parser.add_argument(
-        "--plane", type=str, default=None, choices=["xy", "xz", "yz"],
-        help="覆盖自动检测的投影平面",
+        "--plane", type=str, default=None,
+        help="覆盖自动检测的投影平面（xy / xz / yz），留空表示自动检测",
     )
     parser.add_argument(
         "--output-dir", type=str, default=None,
@@ -75,7 +74,7 @@ def build_argparser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--plot-elev", type=float, default=20.0, help="3D 视图仰角（度）")
     parser.add_argument("--plot-azim", type=float, default=-60.0, help="3D 视图方位角（度）")
-    parser.add_argument("--step", type=int, default=1, help="绘制轨道的间隔步长，1 表示绘制全部（仅单文件模式有效）")
+    parser.add_argument("--step", type=int, default=None, help="绘制轨道的间隔步长，1 表示绘制全部（仅单文件模式有效）")
     parser.add_argument("--no-show", action="store_true", help="只保存图片，不弹窗显示")
     return parser
 
@@ -96,24 +95,17 @@ def _resolve_config(args: argparse.Namespace) -> FamilyPlotConfig:
     if first_file and first_file.exists():
         base_config = detect_orbit_config(first_file)
     else:
-        base_config = FamilyPlotConfig(
-            family_type="Orbit",
-            default_filename="orbits",
-            output_subdir="plot",
-            plane="xy",
-            dynamic_bounds=True,
-            step=5,
-        )
+        base_config = FALLBACK_CONFIG
 
     overrides: dict = {}
-    if args.plane is not None:
+    if args.plane:
+        valid_planes = {"xy", "xz", "yz"}
+        if args.plane not in valid_planes:
+            raise ValueError(f"--plane 值无效: {args.plane!r}，可选: {valid_planes}")
         overrides["plane"] = args.plane
 
-    output_dir = args.output_dir or "plot"
-    overrides["output_subdir"] = output_dir
-
-    if not dataclasses.is_dataclass(base_config):
-        return base_config
+    if args.output_dir:
+        overrides["output_subdir"] = args.output_dir
 
     return dataclasses.replace(base_config, **overrides)
 

@@ -43,22 +43,31 @@ class TestPlotOrbitsParams:
         multi_flags = [p.flag for p in raw_entry.multi_cli_params]
         assert "--json-file" in multi_flags, "Missing --json-file parameter"
 
-    def test_json_file_has_no_category_restriction(self, raw_entry) -> None:
-        """--json-file should accept any file (no file_category restriction)."""
-        json_param = next(p for p in raw_entry.multi_cli_params if p.flag == "--json-file")
-        assert json_param.file_category is None
+        cli_params = raw_entry.cli_params
+        step_param = next((p for p in cli_params if p.flag == "--step"), None)
+        assert step_param is not None
+        assert step_param.default == ""  # empty default = auto-detect from config
 
     def test_has_view_2d_param(self, plot_orbits) -> None:
         flags = [p.flag for p in plot_orbits.cli_params]
         assert "--view-2d" in flags
 
-    def test_has_view_3d_param(self, plot_orbits) -> None:
+    def test_has_plane_param(self, plot_orbits) -> None:
         flags = [p.flag for p in plot_orbits.cli_params]
-        assert "--view-3d" in flags
+        assert "--plane" in flags
 
-    def test_has_jacobi_period_stability_param(self, plot_orbits) -> None:
+    def test_has_plot_center_param(self, plot_orbits) -> None:
         flags = [p.flag for p in plot_orbits.cli_params]
-        assert "--jacobi-period-stability" in flags
+        assert "--plot-center" in flags
+
+    def test_has_plot_elev_param(self, plot_orbits) -> None:
+        flags = [p.flag for p in plot_orbits.cli_params]
+        assert "--plot-elev" in flags
+
+    def test_json_file_has_orbit_category(self, raw_entry) -> None:
+        """--json-file should filter by orbit category."""
+        json_param = next(p for p in raw_entry.multi_cli_params if p.flag == "--json-file")
+        assert json_param.file_category == "orbit"
 
     def test_no_env_params(self, plot_orbits) -> None:
         assert len(plot_orbits.env_params) == 0

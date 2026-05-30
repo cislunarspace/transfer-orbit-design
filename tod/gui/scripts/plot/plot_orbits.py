@@ -17,7 +17,7 @@ SCRIPT_ENTRY = ScriptEntry(
         MultiCliParam(
             flag='--json-file',
             label='轨道文件',
-            file_category=None,
+            file_category='orbit',
             name_pattern='*.json',
             help='支持多文件：点击"添加文件"选择多个 JSON 文件（家族或单条轨道），每个文件可单独配置绘制范围',
         ),
@@ -25,10 +25,13 @@ SCRIPT_ENTRY = ScriptEntry(
     cli_params=[
         CliParam('--start', '起始轨道索引', 'int', '-1', help='起始轨道索引，-1 表示从第一条（仅单文件模式有效）', advanced=True),
         CliParam('--end', '结束轨道索引', 'int', '-1', help='结束轨道索引（含），-1 表示到最后一条（仅单文件模式有效）', advanced=True),
-        CliParam('--step', '绘制步长', 'int', '1', help='绘制轨道的间隔步长，1 表示绘制全部（仅单文件模式有效）', advanced=True),
-        CliParam('--plane', '投影平面', 'str', '', help='覆盖自动检测的投影平面（xy / xz / yz）', choices=('自动', 'XY 平面', 'XZ 平面', 'YZ 平面'), choice_values={'自动': '', 'XY 平面': 'xy', 'XZ 平面': 'xz', 'YZ 平面': 'yz'}, advanced=True),
+        CliParam('--step', '绘制步长', 'int', '', help='绘制轨道的间隔步长，1 表示绘制全部（仅单文件模式有效）', advanced=True),
+        CliParam('--plane', '投影平面', 'str', '', help='覆盖自动检测的投影平面（留空=自动）', advanced=True),
         CliParam('--view-2d', '2D 视图', 'bool', '', help='绘制轨道在选定平面的 2D 视图，勾选后启用。'),
         CliParam('--view-3d', '3D 视图', 'bool', '', help='绘制轨道的 3D 示意图，勾选后启用。'),
+        CliParam('--plot-center', '绘图中心', 'str', 'moon', help='3D 视图的绘图中心', choices=('月球', '地球', '地月质心'), choice_values={'月球': 'moon', '地球': 'earth', '地月质心': 'emb'}, hidden_when='--plot-global-3d'),
+        CliParam('--plot-elev', '仰角（度）', 'float', '20', help='3D 视图仰角（度）', hidden_when='--plot-global-3d'),
+        CliParam('--plot-azim', '方位角（度）', 'float', '-60', help='3D 视图方位角（度）', hidden_when='--plot-global-3d'),
         CliParam('--jacobi-period-stability', 'Jacobi-周期-稳定性图', 'bool', '', help='绘制 Jacobi 常数-周期-稳定性联合图，勾选后启用。'),
     ],
 )

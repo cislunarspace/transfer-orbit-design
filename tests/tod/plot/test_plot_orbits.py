@@ -19,11 +19,23 @@ class TestBuildArgparser:
             args = parser.parse_args()
         assert args.plane == "xz"
 
+    def test_plane_accepts_empty_string(self) -> None:
+        parser = build_argparser()
+        with patch.object(sys, "argv", ["prog", "--plane", ""]):
+            args = parser.parse_args()
+        assert args.plane == ""
+
     def test_accepts_output_dir(self) -> None:
         parser = build_argparser()
         with patch.object(sys, "argv", ["prog", "--output-dir", "my_output"]):
             args = parser.parse_args()
         assert args.output_dir == "my_output"
+
+    def test_step_default_is_none(self) -> None:
+        parser = build_argparser()
+        with patch.object(sys, "argv", ["prog"]):
+            args = parser.parse_args()
+        assert args.step is None
 
     def test_view_2d_flag(self) -> None:
         parser = build_argparser()
@@ -85,7 +97,18 @@ class TestResolveConfig:
         config = _resolve_config(args)
         assert config.output_subdir == "custom_output"
 
-    def test_default_output_dir_is_plot(self) -> None:
+    def test_detected_output_subdir_preserved_when_no_cli_override(self, tmp_path: Path) -> None:
+        halo_file = tmp_path / "halo_L1_N_family.json"
+        halo_file.write_text("{}")
+        args = argparse.Namespace(
+            json_file=str(halo_file),
+            plane=None,
+            output_dir=None,
+        )
+        config = _resolve_config(args)
+        assert config.output_subdir == "halo"
+
+    def test_default_output_subdir_is_plot(self) -> None:
         args = argparse.Namespace(
             json_file=None,
             plane=None,
@@ -104,3 +127,25 @@ class TestResolveConfig:
         )
         config = _resolve_config(args)
         assert config.family_type == "Halo"
+
+    def test_empty_plane_string_does_not_override(self, tmp_path: Path) -> None:
+        halo_file = tmp_path / "halo_L1_N_family.json"
+        halo_file.write_text("{}")
+        args = argparse.Namespace(
+            json_file=str(halo_file),
+            plane="",
+            output_dir=None,
+        )
+        config = _resolve_config(args)
+        assert config.plane == "xz"  # auto-detected from halo, not overridden by ""
+
+    def test_invalid_plane_raises(self, tmp_path: Path) -> None:
+        halo_file = tmp_path / "halo_L1_N_family.json"
+        halo_file.write_text("{}")
+        args = argparse.Namespace(
+            json_file=str(halo_file),
+            plane="invalid",
+            output_dir=None,
+        )
+        with pytest.raises(ValueError, match="--plane"):
+            _resolve_config(args)
