@@ -47,13 +47,12 @@ class TestParamsPanelStateMixinImportable:
             assert hasattr(ParamsPanelStateMixin, name), f"ParamsPanelStateMixin missing method: {name}"
 
 
-class TestMainWindowInheritsParamsPanelMixins:
-    def test_main_window_inherits_layout_mixin(self):
-        from tod.gui.params_panel_layout_mixin import ParamsPanelLayoutMixin
+class TestMainWindowUsesScriptTabBar:
+    def test_main_window_has_script_tab_bar(self):
+        from PyQt6.QtWidgets import QApplication
         from tod.gui.main_window import MainWindow
-        assert issubclass(MainWindow, ParamsPanelLayoutMixin)
+        from tod.gui.script_tab_bar import ScriptTabBar
 
-    def test_main_window_inherits_state_mixin(self):
-        from tod.gui.params_panel_state_mixin import ParamsPanelStateMixin
-        from tod.gui.main_window import MainWindow
-        assert issubclass(MainWindow, ParamsPanelStateMixin)
+        app = QApplication.instance() or QApplication([])
+        window = MainWindow(repo_root=".")
+        assert isinstance(window._script_tab_bar, ScriptTabBar)

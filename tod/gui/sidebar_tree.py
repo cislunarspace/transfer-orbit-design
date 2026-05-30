@@ -158,6 +158,36 @@ class SidebarTreeWidget(QTreeWidget):
             item.addChild(self._build_item(child))
         return item
 
+    def select_script(self, script_path: str) -> None:
+        """高亮选中指定 script_path 的节点，并滚动到可见。"""
+        for i in range(self.topLevelItemCount()):
+            item = self.topLevelItem(i)
+            found = self._find_and_select(item, script_path)
+            if found:
+                return
+
+    def _find_and_select(
+        self, item: QTreeWidgetItem, script_path: str
+    ) -> bool:
+        node = item.data(0, self._NODE_ROLE)
+        if not isinstance(node, TreeNode):
+            return False
+
+        if (
+            node.node_type == "script"
+            and node.script_entry is not None
+            and node.script_entry.script_path == script_path
+        ):
+            self.setCurrentItem(item)
+            self.scrollToItem(item)
+            return True
+
+        for i in range(item.childCount()):
+            if self._find_and_select(item.child(i), script_path):
+                item.setExpanded(True)
+                return True
+        return False
+
     def _on_item_clicked(self, item: QTreeWidgetItem, _column: int) -> None:
         node = item.data(0, self._NODE_ROLE)
         if not isinstance(node, TreeNode):

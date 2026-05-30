@@ -7,22 +7,18 @@
 from __future__ import annotations
 
 import json
+from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtCore import QTimer, Qt, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
-    QComboBox,
     QDialog,
-    QFormLayout,
-    QFrame,
-    QHBoxLayout,
     QMainWindow,
     QMessageBox,
     QPushButton,
-    QScrollArea,
     QSplitter,
     QStatusBar,
     QTabWidget,
@@ -36,25 +32,26 @@ from tod.gui.file_tree_mixin import FileTreeMixin
 from tod.gui.job_manager import JobManager
 from tod.gui.job_panel_mixin import JobPanelMixin
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
-from tod.gui.cli_widget_factory import CliWidgetFactory
-from tod.gui.params_panel_layout_mixin import ParamsPanelLayoutMixin
-from tod.gui.params_panel_state_mixin import ParamsPanelStateMixin
 from tod.gui.run_mixin import RunMixin
 from tod.gui.script_registry import SCRIPTS, ScriptEntry
+from tod.gui.script_tab_bar import ScriptTabBar
+from tod.gui.script_tab_widget import ScriptTabWidget
 from tod.gui.settings_schema import SETTINGS_SCHEMA
 from tod.gui.sidebar_widget import SidebarWidget
-from tod.gui.theme_utils import resolve_theme as _resolve_theme
 from tod.gui.theme_utils import get_theme_stylesheet as _get_theme_stylesheet
 
 if TYPE_CHECKING:
     from tod.gui.doc_window import DocWindow
 
 
-class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin, ParamsPanelStateMixin, QMainWindow):
+class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, QMainWindow):
     """提供 MainWindow 对应的 GUI 组件。
-    
+
     该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
     """
+
+    doc_link_clicked = pyqtSignal(str)
+
     def __init__(self, repo_root: str, parent=None):
         super().__init__(parent)
         self._repo_root = Path(repo_root)
@@ -62,6 +59,9 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
         self._current_script: ScriptEntry | None = None
         self._right_tabs: QTabWidget | None = None
         self._files: list[FileInfo] = []
+
+        # 多 Tab 脚本面板
+        self._script_tab_bar: ScriptTabBar | None = None
 
         # 任务管理
         self._job_manager = JobManager(repo_root, self)
@@ -128,13 +128,11 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
             self._gui_defaults["settings"].update(settings)
             self._save_gui_defaults()
 
-            # 只有 theme 实际改变时才 rebuild UI
             if "theme" in settings and settings["theme"] != self._current_theme_mode:
                 self._current_theme_mode = settings["theme"]
                 MainWindow._current_theme_mode = settings["theme"]
                 self._on_theme_changed()
 
-            # 语言变更提示重启
             new_language = settings.get("language", "zh")
             if new_language != old_language:
                 QMessageBox.information(
@@ -145,10 +143,6 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
 
     def _on_theme_changed(self) -> None:
         """主题变化后，重建左侧面板和参数面板的颜色，并应用新样式表。"""
-        # 暂存当前参数值（用于 rebuild 后恢复）
-        saved_params = self._collect_current_param_values() if self._current_script else None
-
-        # 应用新样式表
         self.setStyleSheet(_get_theme_stylesheet(self._current_theme_mode))
 
         # 重建左侧面板
@@ -159,12 +153,9 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
             old_panel.hide()
             old_panel.deleteLater()
 
-        # 重建参数面板（如果当前有选中脚本）
-        if self._current_script is not None:
-            self._rebuild_params_panel(self._current_script)
-            # 恢复暂存的参数值
-            if saved_params:
-                self._restore_param_values(saved_params)
+        # 更新所有 tab 的主题
+        if self._script_tab_bar is not None:
+            self._script_tab_bar.update_theme(self._current_theme_mode)
 
     # ── 工具栏 ────────────────────────────────────────────────
 
@@ -200,11 +191,9 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
     # ── 中央控件 ─────────────────────────────────────────
 
     def _build_central(self) -> None:
-        # 水平分割：左=脚本选择+参数，右=Job 面板
         splitter = QSplitter(Qt.Orientation.Horizontal)
         self._main_splitter = splitter
 
-        # 左侧：脚本按钮 + 右侧 tabs
         left_splitter = QSplitter(Qt.Orientation.Horizontal)
         left_splitter.addWidget(self._build_left_panel())
         self._left_splitter = left_splitter
@@ -212,7 +201,6 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
         left_splitter.setStretchFactor(0, 1)
         left_splitter.setStretchFactor(1, 2)
 
-        # 右侧：Job 面板
         job_panel = self._build_job_panel()
 
         splitter.addWidget(left_splitter)
@@ -228,6 +216,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
         sidebar = SidebarWidget()
         sidebar.set_script_selected_callback(self._on_script_selected)
         sidebar.setMinimumWidth(220)
+        self._sidebar_widget = sidebar
         return sidebar
 
     # ── 右侧面板：标签页 ──────────────────────────────────────
@@ -235,73 +224,43 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
     def _build_right_panel(self) -> QTabWidget:
         tabs = QTabWidget()
 
-        # ── Merged Tab: Script Info + Params ───────────────────
-        merged_widget = QWidget()
-        merged_layout = QVBoxLayout(merged_widget)
-        merged_layout.setContentsMargins(0, 0, 0, 0)
-        merged_layout.setSpacing(0)
-
-        # 可滚动的参数区域（脚本信息由 _rebuild_params_panel 附加到顶部）
-        self._params_scroll = QScrollArea()
-        self._params_scroll.setWidgetResizable(True)
-        self._params_scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self._params_container = QWidget()
-        self._params_layout = QFormLayout(self._params_container)
-        self._params_layout.setContentsMargins(12, 12, 12, 12)
-        self._params_layout.setSpacing(8)
-        self._params_scroll.setWidget(self._params_container)
-
-        self._env_widgets: dict[str, QComboBox] = {}
-        self._cli_widgets: dict[str, QWidget] = {}
-        self._chip_widgets: dict[str, QWidget] = {}  # 多选芯片控件
-        self._multi_file_widgets: dict[str, QWidget] = {}  # 多文件控件
-        self._multi_file_config_panels: dict[str, QWidget] = {}  # 多文件索引配置面板
-        self._param_defaults: dict[QWidget, str] = {}  # 控件 → 默认值（标准单位）
-        self._factory_defaults: dict[QWidget, str] = {}  # 控件 → 出厂默认值（用于 CLI 参数比较）
-        self._cli_row_containers: dict[str, QWidget] = {}  # key → row container (for hidden_when)
-        self._cli_row_labels: dict[str, QWidget] = {}  # key → row label (for hidden_when)
-        self._widget_factory = CliWidgetFactory(
+        # ── Tab 1: Script Tab Bar (多脚本面板) ─────────────────
+        self._script_tab_bar = ScriptTabBar(
             files=self._files,
-            on_path_mode_changed=self._on_path_mode_changed,
-            on_unit_changed=self._on_unit_changed,
+            repo_root=self._repo_root,
+            gui_defaults=self._gui_defaults,
+            theme_mode=self._current_theme_mode,
         )
+        self._script_tab_bar.tab_switched.connect(self._on_tab_switched)
+        self._script_tab_bar.run_requested.connect(self._run_from_tab)
+        self._script_tab_bar.doc_link_clicked.connect(self._open_doc_window)
+        self._script_tab_bar.status_message.connect(
+            lambda msg, timeout: self._status_bar.showMessage(msg, timeout)
+        )
+        self._script_tab_bar.copy_path_requested.connect(self._copy_path_to_clipboard)
+        self._script_tab_bar.defaults_changed.connect(self._save_gui_defaults)
 
-        merged_layout.addWidget(self._params_scroll, stretch=1)
-
-        # 运行按钮固定在底部（始终可见）
-        self._run_btn = QPushButton(self.tr("运行"))
-        self._run_btn.setEnabled(False)
-        self._run_btn.clicked.connect(self._on_run)
-        self._run_btn.setStyleSheet(self._RUN_STYLE_READY)
-        self._run_btn.setMinimumHeight(36)
-        btn_container = QWidget()
-        btn_layout = QHBoxLayout(btn_container)
-        btn_layout.setContentsMargins(12, 8, 12, 8)
-        btn_layout.addWidget(self._run_btn)
-        merged_layout.addWidget(btn_container)
-
-        tabs.addTab(merged_widget, self.tr("脚本信息"))
+        tabs.addTab(self._script_tab_bar, self.tr("脚本信息"))
         self._right_tabs = tabs
 
-        # ── File Browser Tab ────────────────────────────────────
+        # ── Tab 2: File Browser ────────────────────────────────
         self._build_file_browser_tab(tabs)
 
         return tabs
 
-    # ── 槽：脚本选择 ────────────────────────────────
+    # ── 槽：脚本选择（侧边栏 → tab） ──────────────────────────
 
     def _on_script_selected(self, entry: ScriptEntry) -> None:
         self._current_script = entry
-        self._run_btn.setEnabled(True)
 
-        # 高亮关联的输出目录
         if entry.output_dir:
             self._highlight_category(Path(entry.output_dir).name)
 
-        # 重建参数面板（含 Script Info 表头）
-        self._rebuild_params_panel(entry)
+        # 通过 ScriptTabBar 打开/切换到该脚本
+        if self._script_tab_bar is not None:
+            self._script_tab_bar.open_script(entry)
 
-        # 自动切换回 Script Info 标签页
+        # 自动切换回脚本信息标签页
         if self._right_tabs is not None:
             script_info_titles = {self.tr("脚本信息")}
             for i in range(self._right_tabs.count()):
@@ -309,12 +268,128 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
                     self._right_tabs.setCurrentIndex(i)
                     break
 
+    # ── 槽：tab 切换（tab → 侧边栏同步） ──────────────────────
+
+    def _on_tab_switched(self, entry: ScriptEntry) -> None:
+        """ScriptTabBar tab 切换时，同步侧边栏高亮和 _current_script。"""
+        self._current_script = entry
+
+        # 同步侧边栏高亮
+        if hasattr(self, "_sidebar_widget"):
+            tree = self._sidebar_widget._tree
+            tree.blockSignals(True)
+            tree.select_script(entry.script_path)
+            tree.blockSignals(False)
+
+        # 高亮输出目录
+        if entry.output_dir:
+            self._highlight_category(Path(entry.output_dir).name)
+
+    # ── 运行（从 ScriptTabWidget 委托） ────────────────────────
+
+    def _on_run(self) -> None:
+        """快捷键 Ctrl+R：运行当前 tab 的脚本。"""
+        if self._script_tab_bar is None:
+            return
+        widget = self._script_tab_bar.current_widget()
+        if widget is None:
+            return
+        self._run_from_tab(widget)
+
+    def _run_from_tab(self, tab: ScriptTabWidget) -> None:
+        """从 ScriptTabWidget 收集参数并启动 Job。"""
+        entry = tab.entry
+
+        if not tab.validate_params():
+            return
+
+        chip_selections = tab.collect_chip_selections()
+        multi_file_configs = tab.collect_multi_file_configs()
+
+        env_overrides = tab.collect_env_overrides()
+        extra_args = tab.collect_run_args()
+
+        # 如果脚本支持 --file 且用户在文件树中选中了文件
+        if entry.accepts_file_arg:
+            selected = self._file_tree.currentItem()
+            if selected:
+                from tod.gui.file_operations import FILE_PATH_ROLE
+                abs_path = selected.data(0, FILE_PATH_ROLE)
+                if abs_path:
+                    extra_args = ["--file", abs_path] + extra_args
+
+        from tod.plot.config import body_icon_env_from_settings, plot_font_env_from_settings
+        env_overrides.update(plot_font_env_from_settings(self._gui_defaults.get("settings", {})))
+        env_overrides.update(body_icon_env_from_settings(self._gui_defaults.get("settings", {})))
+
+        # 展开芯片参数组合
+        all_args_combinations = self._expand_chip_combinations(entry, extra_args, chip_selections)
+
+        # 添加多文件参数
+        for args in all_args_combinations:
+            for key, configs in multi_file_configs.items():
+                if not configs:
+                    continue
+                flag = None
+                for multi_param in entry.multi_cli_params:
+                    multi_key = multi_param.flag.lstrip("-").replace("-", "_")
+                    if multi_key == key:
+                        flag = multi_param.flag
+                        break
+                if flag:
+                    args.extend([flag, json.dumps(configs)])
+
+        for args in all_args_combinations:
+            self._job_manager.start_job(entry, args, env_overrides.copy())
+
+    def _expand_chip_combinations(
+        self,
+        entry: ScriptEntry,
+        base_args: list[str],
+        chip_selections: dict[str, list[str]],
+    ) -> list[list[str]]:
+        """展开芯片参数选择的所有组合。"""
+        if not chip_selections:
+            return [base_args]
+
+        chip_params_list: list[tuple[str, str, list[str]]] = []
+        for key, values in chip_selections.items():
+            flag = None
+            for chip_param in entry.cli_chip_params:
+                chip_key = chip_param.flag.lstrip("-").replace("-", "_")
+                if chip_key == key:
+                    flag = chip_param.flag
+                    break
+            if flag and values:
+                chip_params_list.append((key, flag, values))
+
+        if not chip_params_list:
+            return [base_args]
+
+        combinations: list[list[str]] = []
+        for combo in product(*[vals for _, _, vals in chip_params_list]):
+            args = base_args.copy()
+            for (_, flag, _), value in zip(chip_params_list, combo):
+                args.extend([flag, value])
+            combinations.append(args)
+
+        return combinations
+
+    # ── 文件刷新（覆盖 FileTreeMixin 的回调） ──────────────────
+
+    def _refresh_files(self) -> None:
+        """刷新文件列表，同步到所有 tab。"""
+        super()._refresh_files()
+
+        # 同步文件列表到 ScriptTabBar
+        if hasattr(self, "_script_tab_bar") and self._script_tab_bar is not None:
+            self._script_tab_bar.refresh_files(self._files)
+
     # ── GUI 默认值持久化 ──────────────────────────────────────────
 
     _GUI_DEFAULTS_FILE = "gui_defaults.json"
 
     def _load_gui_defaults(self) -> dict[str, dict[str, str]]:
-        """从 gui_defaults.json 加载用户自定义默认值。"""
         path = self._repo_root / self._GUI_DEFAULTS_FILE
         if path.exists():
             try:
@@ -324,7 +399,6 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
         return {}
 
     def _save_gui_defaults(self) -> None:
-        """将当前 _gui_defaults 写入 gui_defaults.json。"""
         path = self._repo_root / self._GUI_DEFAULTS_FILE
         try:
             path.write_text(
@@ -337,7 +411,6 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
                 sb.showMessage(self.tr("保存默认值失败: {}").format(e), 5000)
 
     def _copy_path_to_clipboard(self, path: str, target_btn: QWidget) -> None:
-        """将路径复制到剪贴板，显示复制确认 tooltip。"""
         from PyQt6.QtWidgets import QApplication, QToolTip
 
         cb = QApplication.clipboard()
@@ -353,14 +426,6 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
     # ── 窗口事件 ─────────────────────────────────────────
 
     def closeEvent(self, event) -> None:  # type: ignore[override]
-        """执行 closeEvent 对应的处理逻辑。
-        
-        Args:
-            event: 调用方传入的参数值。
-        
-        Returns:
-            None。
-        """
         running = self._job_manager.running_jobs()
         if running:
             reply = QMessageBox.question(
@@ -379,7 +444,6 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
     # ── 文档窗口 ─────────────────────────────────────
 
     def _open_doc_window(self, script_path: str) -> None:
-        """打开或弹出给定脚本的文档窗口。"""
         if self._doc_window is None:
             from tod.gui.doc_window import DocWindow
 
@@ -392,5 +456,4 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin,
         self._doc_window.activateWindow()
 
     def _on_doc_window_closed(self) -> None:
-        """Called when the documentation window is closed."""
         self._doc_window = None
