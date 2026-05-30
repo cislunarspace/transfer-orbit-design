@@ -49,12 +49,7 @@ PARAMS_FILES = [
     "transfer/leo_to_dro/grid_search_leo_to_dro.py",
     "transfer/leo_to_dro/optimize_leo_to_dro.py",
     # Plot
-    "plot/dro/plot_dro_family.py",
-    "plot/halo/plot_halo_family.py",
-    "plot/ro/plot_31_ro_family.py",
-    "plot/ro/plot_32_ro_family.py",
-    "plot/ro/plot_aro_family.py",
-    "plot/ro/plot_rro_family.py",
+    "plot/plot_orbits.py",
     "plot/ephemeris/plot_ephemeris_correction.py",
     "plot/transfer/dro_to_geo/plot_search_results_dro_to_geo.py",
     "plot/transfer/dro_to_geo/plot_optimize_result_dro_to_geo.py",

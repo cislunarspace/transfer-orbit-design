@@ -374,9 +374,9 @@ class TestSingleOrbitLoad:
 class TestUnifiedFlags:
     """P1 fix: unified --plot-global-2d/3d and --plot-jacobi-stability flags."""
 
-    def test_halo_config_uses_allow_single_orbit(self) -> None:
-        from tod.plot.halo.plot_halo_family import CONFIG
-        assert CONFIG.allow_single_orbit is True
+    def test_config_default_allows_single_orbit(self) -> None:
+        config = _make_config()
+        assert config.allow_single_orbit is True
 
     def test_build_argparser_accepts_unified_flags(self) -> None:
         from tod.plot.family_plot_orchestrator import build_argparser

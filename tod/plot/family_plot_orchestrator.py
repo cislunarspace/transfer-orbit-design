@@ -243,7 +243,7 @@ class FamilyPlotConfig:
     dynamic_bounds: bool = False
     libration_point_sizes: list[int] | None = None
     supports_center_choice: bool = False
-    allow_single_orbit: bool = False
+    allow_single_orbit: bool = True  # always handles both family and single-orbit JSON
     step: int = 5
 
 
@@ -404,7 +404,7 @@ class FamilyPlotOrchestrator:
                 continue
 
             try:
-                family = OrbitFamily.load_from_file(filename=family_path, system=system)
+                family = self._load_orbit_data(family_path, system)
             except Exception as e:
                 logger.warning(f"加载文件失败 {family_path}: {e}")
                 continue
@@ -472,6 +472,23 @@ class FamilyPlotOrchestrator:
                 plotter, merged_family, merged_jacobi, stability_subset, output_dir, combined_name, total_orbits
             )
 
+    def _load_orbit_data(
+        self,
+        file_path: Path,
+        system: CR3BP_System,
+    ) -> OrbitFamily:
+        """加载轨道数据，自动检测家族/单条轨道格式。"""
+        with open(file_path, "r") as f:
+            data = _json.load(f)
+        if "orbits" in data:
+            return OrbitFamily.load_from_file(filename=file_path, system=system)
+        if "states" in data:
+            orbit = Orbit.load_from_file(filename=file_path, system=system)
+            family = OrbitFamily(system=system)
+            family.add_orbit(orbit)
+            return family
+        return OrbitFamily.load_from_file(filename=file_path, system=system)
+
     def _load_single_family(
         self,
         system: CR3BP_System,
@@ -493,18 +510,7 @@ class FamilyPlotOrchestrator:
             logger.info(f"数据文件不存在: {family_path}")
             raise SystemExit(1)
 
-        if cfg.allow_single_orbit:
-            with open(family_path, "r") as f:
-                data = _json.load(f)
-            if "orbits" in data:
-                family = OrbitFamily.load_from_file(filename=family_path, system=system)
-            else:
-                orbit = Orbit.load_from_file(filename=family_path, system=system)
-                family = OrbitFamily(system=system)
-                family.add_orbit(orbit)
-        else:
-            family = OrbitFamily.load_from_file(filename=family_path, system=system)
-
+        family = self._load_orbit_data(family_path, system)
         return family, family_name
 
     def _build_subset(self, family: OrbitFamily, start: int, end: int) -> OrbitFamily:

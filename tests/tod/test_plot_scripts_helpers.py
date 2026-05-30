@@ -1,5 +1,5 @@
 """
-tod/plot 脚本的测试 (plot_31_ro_family.py, plot_32_ro_family.py, plot_dro_family.py, plot_interactive_orbit_inspector.py)
+tod/plot 脚本的测试 (plot_orbits.py, plot_interactive_orbit_inspector.py)
 
 These tests focus on:
 - Testing helper functions without displaying plots
@@ -43,20 +43,17 @@ class TestPlotScriptImports:
 
         return MockOrbitFamily(mock_system)
 
-    @patch("e2m2e.algorithms.stability.StabilityAnalysis")
     @patch("e2m2e.core.OrbitFamily.load_from_file")
     @patch("e2m2e.core.CR3BP_System")
-    def test_plot_31_ro_imports(self, mock_system, mock_load, mock_stability):
-        """Test that plot_31_ro_family.py can be imported without errors"""
-        # Mock expensive data loading to avoid long-running tests
+    def test_plot_orbits_imports(self, mock_system, mock_load):
+        """Test that plot_orbits.py can be imported without errors"""
         mock_load.return_value = self._create_mock_family_result(
             mock_system.return_value
         )
         mock_system.return_value = MagicMock()
-        mock_stability.return_value.compute_stability_index.return_value = np.array([1.0, 1.5])
 
-        script_path = project_root / "tod" / "plot" / "ro" / "plot_31_ro_family.py"
-        spec = importlib.util.spec_from_file_location("plot_31_ro_family", script_path)
+        script_path = project_root / "tod" / "plot" / "plot_orbits.py"
+        spec = importlib.util.spec_from_file_location("plot_orbits", script_path)
         assert spec is not None
         module = importlib.util.module_from_spec(spec)
 
@@ -65,54 +62,6 @@ class TestPlotScriptImports:
         except ImportError as e:
             pytest.skip(f"Missing dependency: {e}")
         except (Exception, SystemExit) as e:
-            # Scripts may fail due to mock data shapes - that's OK for import test
-            pass
-
-    @patch("e2m2e.core.OrbitFamily.load_from_file")
-    @patch("e2m2e.core.CR3BP_System")
-    def test_plot_32_ro_imports(self, mock_system, mock_load):
-        """Test that plot_32_ro_family.py can be imported without errors"""
-        # Mock expensive data loading to avoid long-running tests
-        mock_load.return_value = self._create_mock_family_result(
-            mock_system.return_value
-        )
-        mock_system.return_value = MagicMock()
-
-        script_path = project_root / "tod" / "pipelines" / "ro" / "plot" / "plot_32_ro_family.py"
-        spec = importlib.util.spec_from_file_location("plot_32_ro_family", script_path)
-        assert spec is not None
-        module = importlib.util.module_from_spec(spec)
-
-        try:
-            spec.loader.exec_module(module)  # type: ignore[union-attr]
-        except ImportError as e:
-            pytest.skip(f"Missing dependency: {e}")
-        except (Exception, SystemExit) as e:
-            pass
-
-    @patch("e2m2e.algorithms.stability.StabilityAnalysis")
-    @patch("e2m2e.core.OrbitFamily.load_from_file")
-    @patch("e2m2e.core.CR3BP_System")
-    def test_plot_dro_imports(self, mock_system, mock_load, mock_stability):
-        """Test that plot_dro_family.py can be imported without errors"""
-        # Mock expensive data loading to avoid long-running tests
-        mock_load.return_value = self._create_mock_family_result(
-            mock_system.return_value
-        )
-        mock_system.return_value = MagicMock()
-        mock_stability.return_value.compute_stability_index.return_value = np.array([1.0, 1.5])
-
-        script_path = project_root / "tod" / "plot" / "dro" / "plot_dro_family.py"
-        spec = importlib.util.spec_from_file_location("plot_dro_family", script_path)
-        assert spec is not None
-        module = importlib.util.module_from_spec(spec)
-
-        try:
-            spec.loader.exec_module(module)  # type: ignore[union-attr]
-        except ImportError as e:
-            pytest.skip(f"Missing dependency: {e}")
-        except (Exception, SystemExit) as e:
-            # Scripts may fail due to mock data shapes or missing files - that's OK for import test
             pass
 
     @patch("e2m2e.core.OrbitFamily.load_from_file")
