@@ -25,7 +25,7 @@ from tod.gui.file_operations import FILE_PATH_ROLE
 
 if TYPE_CHECKING:
     from tod.gui.job_manager import JobManager
-    from tod.gui.params_panel import CliWidgetFactory
+    from tod.gui.cli_widget_factory import CliWidgetFactory
     from tod.gui.script_registry import ScriptEntry
 
 

@@ -22,8 +22,8 @@ class _Harness:
         self._current_script: ScriptEntry | None = None
 
     def _setup_conditional_visibility(self, entry: ScriptEntry) -> None:
-        from tod.gui.params_panel_mixin import ParamsPanelMixin
-        return ParamsPanelMixin._setup_conditional_visibility(self, entry)
+        from tod.gui.params_panel_state_mixin import ParamsPanelStateMixin
+        return ParamsPanelStateMixin._setup_conditional_visibility(self, entry)
 
     def _find_cli_param(self, key: str) -> CliParam | None:
         if self._current_script is None:

@@ -36,8 +36,9 @@ from tod.gui.file_tree_mixin import FileTreeMixin
 from tod.gui.job_manager import JobManager
 from tod.gui.job_panel_mixin import JobPanelMixin
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
-from tod.gui.params_panel import CliWidgetFactory
-from tod.gui.params_panel_mixin import ParamsPanelMixin
+from tod.gui.cli_widget_factory import CliWidgetFactory
+from tod.gui.params_panel_layout_mixin import ParamsPanelLayoutMixin
+from tod.gui.params_panel_state_mixin import ParamsPanelStateMixin
 from tod.gui.run_mixin import RunMixin
 from tod.gui.script_registry import SCRIPTS, ScriptEntry
 from tod.gui.settings_schema import SETTINGS_SCHEMA
@@ -49,7 +50,7 @@ if TYPE_CHECKING:
     from tod.gui.doc_window import DocWindow
 
 
-class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelMixin, QMainWindow):
+class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, ParamsPanelLayoutMixin, ParamsPanelStateMixin, QMainWindow):
     """提供 MainWindow 对应的 GUI 组件。
     
     该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。

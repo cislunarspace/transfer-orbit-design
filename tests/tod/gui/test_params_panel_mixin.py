@@ -1,35 +1,59 @@
-"""params_panel_mixin — 参数面板 Mixin 的接口测试。"""
+"""params_panel_layout_mixin — 参数面板布局 Mixin 的接口测试。"""
 
 
-class TestParamsPanelMixinImportable:
+class TestParamsPanelLayoutMixinImportable:
     def test_mixin_importable(self):
-        from tod.gui.params_panel_mixin import ParamsPanelMixin
-        assert ParamsPanelMixin is not None
+        from tod.gui.params_panel_layout_mixin import ParamsPanelLayoutMixin
+        assert ParamsPanelLayoutMixin is not None
 
     def test_mixin_has_required_methods(self):
-        from tod.gui.params_panel_mixin import ParamsPanelMixin
+        from tod.gui.params_panel_layout_mixin import ParamsPanelLayoutMixin
         methods = [
             "_rebuild_params_panel",
-            "_on_path_mode_changed",
+            "_add_cli_param_row",
+            "_add_multi_file_param",
+            "_create_config_panel",
+            "_on_multi_file_selection_changed",
+            "_on_doc_link_clicked",
             "_make_cli_widget",
             "_display_widget",
+        ]
+        for name in methods:
+            assert hasattr(ParamsPanelLayoutMixin, name), f"ParamsPanelLayoutMixin missing method: {name}"
+
+
+class TestParamsPanelStateMixinImportable:
+    def test_mixin_importable(self):
+        from tod.gui.params_panel_state_mixin import ParamsPanelStateMixin
+        assert ParamsPanelStateMixin is not None
+
+    def test_mixin_has_required_methods(self):
+        from tod.gui.params_panel_state_mixin import ParamsPanelStateMixin
+        methods = [
+            "_on_path_mode_changed",
             "_set_widget_std_value",
-            "_add_cli_param_row",
-            "_connect_param_highlight",
-            "_update_param_highlight",
             "_to_standard_unit",
             "_on_unit_changed",
             "_find_cli_param",
             "_setup_conditional_visibility",
+            "_connect_param_highlight",
+            "_update_param_highlight",
             "_on_save_defaults",
             "_on_reset_defaults",
+            "_collect_current_param_values",
+            "_restore_param_values",
         ]
         for name in methods:
-            assert hasattr(ParamsPanelMixin, name), f"ParamsPanelMixin missing method: {name}"
+            assert hasattr(ParamsPanelStateMixin, name), f"ParamsPanelStateMixin missing method: {name}"
 
 
-class TestMainWindowInheritsParamsPanelMixin:
-    def test_main_window_inherits_params_panel_mixin(self):
-        from tod.gui.params_panel_mixin import ParamsPanelMixin
+class TestMainWindowInheritsParamsPanelMixins:
+    def test_main_window_inherits_layout_mixin(self):
+        from tod.gui.params_panel_layout_mixin import ParamsPanelLayoutMixin
         from tod.gui.main_window import MainWindow
-        assert issubclass(MainWindow, ParamsPanelMixin)
+        assert issubclass(MainWindow, ParamsPanelLayoutMixin)
+
+    def test_main_window_inherits_state_mixin(self):
+        from tod.gui.params_panel_state_mixin import ParamsPanelStateMixin
+        from tod.gui.main_window import MainWindow
+        assert issubclass(MainWindow, ParamsPanelStateMixin)
