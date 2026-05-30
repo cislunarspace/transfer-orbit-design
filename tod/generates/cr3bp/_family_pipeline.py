@@ -25,6 +25,7 @@ import e2m2e
 from e2m2e.core import CR3BP_Dynamics as _CR3BP_Dynamics
 from e2m2e.core import CR3BP_System as _CR3BP_System
 from e2m2e.core import Orbit, OrbitFamily
+from tod.commons.common import find_project_root
 from tod.commons.constants import MU
 
 logger = logging.getLogger(__name__)
@@ -51,9 +52,6 @@ def setup_logging(level_str: str) -> None:
     )
 
 
-def find_project_root() -> Path:
-    """从 ``tod/generates/cr3bp/_family_pipeline.py`` 向上走 5 级到项目根。"""
-    return Path(__file__).resolve().parent.parent.parent.parent.parent
 
 
 # =============================================================================
