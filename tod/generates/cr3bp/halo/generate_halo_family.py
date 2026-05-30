@@ -275,6 +275,14 @@ class HaloFamilyGenerator(FamilyGenerator):
             raise RuntimeError("种子轨道修正失败")
         print(f"[1/3] 完成，周期 = {corrected.period:.4f} TU")
 
+        # iterate_correction 创建新 Orbit 时不保留 parameters/family_type，需手动回填
+        corrected.family_type = "halo"
+        corrected.parameters.update({
+            "libration_point": libration_point,
+            "halo_class": halo_class,
+            "amplitude_z": abs(float(np.asarray(corrected.states)[0, 2])),
+        })
+
         # z_range 模式
         z_range = self._resolve_z_range(args, halo_class, corrected)
         if z_range is not None and not (
