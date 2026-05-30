@@ -10,14 +10,16 @@
 
 from __future__ import annotations
 
+import argparse
 import csv
 import logging
 import math
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 import e2m2e
 from e2m2e.core import CR3BP_Dynamics as _CR3BP_Dynamics
@@ -233,7 +235,9 @@ def print_summary_table(
         if config.summary_format_row is None:
             continue
         row = config.summary_format_row(o)
-        row_str = "  " + " ".join(f"{v:>10}" for v in row[:-1])
+        # 合约：summary_format_row 返回 N 个字符串（与 summary_columns 一一对应），
+        # 基类追加 Periodicity Err 列，共 N+1 列，与表头一致。
+        row_str = "  " + " ".join(f"{v:>10}" for v in row)
         row_str += f"  {float(o.periodicity_error or 0.0):14.2e}"
         print(row_str)
 
@@ -249,7 +253,7 @@ def export_csv(
     *,
     filename_prefix: str | None = None,
     extra_filename_parts: list[str] | None = None,
-) -> Path:
+) -> Path | None:
     """将全量轨道数据导出为 CSV，返回文件路径。
 
     泛化了 DRO 和 Halo 的 ``_export_csv``，通过 ``FamilyGeneratorConfig``
@@ -259,14 +263,18 @@ def export_csv(
         orbits: 轨道族。
         config: 族生成器配置。
         output_dir: 输出目录。
-        filename_prefix: CSV 文件名前缀（默认使用 ``config.family_type``）。
-        extra_filename_parts: 额外的文件名片段。
+        filename_prefix: CSV 文件名前缀（不含 ``.csv``，默认使用 ``config.family_type``）。
+        extra_filename_parts: 前缀之后的文件名片段列表。
 
     Returns:
-        导出文件路径。
+        导出文件路径；轨道族为空时返回 ``None``。
     """
     if config.csv_format_row is None:
         raise ValueError("csv_format_row callback is required for CSV export")
+
+    if len(orbits) == 0:
+        logger.warning("轨道族为空，跳过 CSV 导出")
+        return None
 
     milestone_idx = set(find_milestone_indices(len(orbits), config.n_milestones))
 
@@ -277,10 +285,11 @@ def export_csv(
 
     ts = int(time.time())
     prefix = filename_prefix or config.family_type
-    parts = [prefix, str(ts)]
+    all_parts = [prefix]
     if extra_filename_parts:
-        parts = [prefix] + extra_filename_parts + [str(ts)]
-    csv_path = output_dir / f"{'_'.join(parts)}.csv"
+        all_parts.extend(p for p in extra_filename_parts if p)  # 过滤空字符串
+    all_parts.append(str(ts))
+    csv_path = output_dir / f"{'_'.join(all_parts)}.csv"
 
     with open(csv_path, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
@@ -288,6 +297,96 @@ def export_csv(
         writer.writerows(rows)
 
     return csv_path
+
+
+# =============================================================================
+# 进度跟踪器（可选）
+# =============================================================================
+
+
+class ProgressTracker:
+    """进度跟踪器：独立线程定期打印延拓进度。
+
+    子类可在 ``_run_continuation`` 中实例化并调用 ``update()`` 更新进度。
+    """
+
+    def __init__(self, total: int, interval: float = 2.0):
+        self.total = total
+        self.current = 0
+        self._stop = False
+        self._lock = threading.Lock()
+        self._thread = threading.Thread(target=self._run, args=(interval,), daemon=True)
+
+    def start(self) -> None:
+        """启动进度线程。"""
+        self._thread.start()
+
+    def update(self, count: int) -> None:
+        """更新当前进度。"""
+        with self._lock:
+            self.current = count
+
+    def stop(self) -> None:
+        """停止进度线程。"""
+        self._stop = True
+        self._thread.join(timeout=5.0)
+
+    def _run(self, interval: float) -> None:
+        while not self._stop:
+            time.sleep(interval)
+            with self._lock:
+                if self.current > 0 and not self._stop:
+                    pct = self.current / self.total * 100 if self.total > 0 else 0
+                    print(f"\r[2/3] 延拓进度: {self.current}/{self.total} ({pct:.0f}%)", end="", flush=True)
+        print()  # 换行
+
+
+# =============================================================================
+# 通用参数解析器工厂
+# =============================================================================
+
+
+def build_family_argparser(description: str) -> argparse.ArgumentParser:
+    """构建共享的轨道族生成器参数解析器。
+
+    所有族共享的参数（输出目录、日志级别、详细输出、里程碑数量）。
+    族通过 ``FamilyGenerator.add_family_args(parser)`` 扩展族特有参数。
+
+    Args:
+        description: 脚本描述。
+
+    Returns:
+        配置好的 ``argparse.ArgumentParser`` 实例。
+    """
+    parser = argparse.ArgumentParser(
+        description=description,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="输出目录（默认 output/<family_type>）",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default=_DEFAULT_LOG_LEVEL,
+        choices=_LOG_LEVELS,
+        help="日志级别",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="显示详细过程（每步迭代、收敛进度等）",
+    )
+    parser.add_argument(
+        "--n-milestones",
+        type=int,
+        default=5,
+        help="摘要表中选取的里程碑轨道数量",
+    )
+    return parser
 
 
 # =============================================================================
@@ -384,15 +483,52 @@ class FamilyGenerator:
         return out
 
     # ------------------------------------------------------------------
+    # 类方法：参数扩展（子类可选覆盖）
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def add_family_args(cls, parser: argparse.ArgumentParser) -> None:
+        """向通用参数解析器添加族特有参数。
+
+        子类覆盖此方法以声明族特有的 CLI 参数（如 --x0、--vy0 等）。
+        默认空实现——族没有特有参数时无需覆盖。
+
+        Args:
+            parser: 通用参数解析器实例（已含 --output-dir、--log-level 等）。
+        """
+        pass
+
+    @classmethod
+    def build_parser(cls, description: str) -> argparse.ArgumentParser:
+        """构建完整的族参数解析器。
+
+        1. 创建通用解析器（含 --output-dir、--log-level 等）
+        2. 调用 ``add_family_args`` 注入族特有参数
+
+        Args:
+            description: 脚本描述。
+
+        Returns:
+            完整的 ``argparse.ArgumentParser`` 实例。
+        """
+        parser = build_family_argparser(description)
+        cls.add_family_args(parser)
+        return parser
+
+    # ------------------------------------------------------------------
     # 钩子方法（子类必须或可选覆盖）
     # ------------------------------------------------------------------
 
     def parse_args(self, argv: list[str] | None = None) -> Any:
         """解析命令行参数。
 
-        子类必须覆盖此方法，返回 argparse.Namespace 或等效对象。
+        默认使用 ``build_parser`` 解析；子类可覆盖以完全自定义解析逻辑。
+
+        Returns:
+            解析后的 argparse.Namespace 或等效对象。
         """
-        raise NotImplementedError("subclass must implement parse_args()")
+        parser = self.build_parser(f"生成 {self.config.family_type.upper()} 轨道族")
+        return parser.parse_args(argv)
 
     def _get_seed_orbit(self, args: Any) -> Orbit:
         """生成或加载种子轨道。
@@ -413,12 +549,14 @@ class FamilyGenerator:
     ) -> Orbit | None:
         """对种子轨道执行微分修正。
 
-        默认调用 ``corrector.iterate_correction``。子类可覆盖以自定义行为。
+        默认调用 ``corrector.iterate_correction``，转发 ``args.verbose``。
+        子类可覆盖以自定义行为。
 
         Returns:
             修正后的轨道；若失败则返回 None。
         """
-        return corrector.iterate_correction(initial_guess=seed_orbit)
+        verbose = getattr(args, "verbose", False)
+        return corrector.iterate_correction(initial_guess=seed_orbit, verbose=verbose)
 
     def _run_continuation(
         self, corrector: Any, seed_orbit: Orbit, args: Any
@@ -439,6 +577,50 @@ class FamilyGenerator:
         if self.config.csv_format_row is None:
             raise ValueError("csv_format_row callback is required")
         return self.config.csv_format_row(orbit, index, is_milestone)
+
+    def _make_progress_tracker(self, total: int) -> ProgressTracker | None:
+        """创建进度跟踪器；默认返回 ``None``（不显示进度）。
+
+        子类（如 DRO）可覆盖此方法返回 ``ProgressTracker`` 实例，
+        在 ``_run_continuation`` 中调用 ``tracker.update()`` 更新进度。
+
+        Args:
+            total: 预计总步数。
+
+        Returns:
+            进度跟踪器实例，或 ``None`` 表示不跟踪。
+        """
+        return None
+
+    def _build_json_filename(self, args: Any, ts: int) -> str:
+        """构建 JSON 输出文件名（不含 ``.json`` 扩展名）。
+
+        默认返回 ``{family_type}_family_{ts}``。
+        子类可覆盖以添加族特有的文件名片段（如参数范围、平动点等）。
+
+        Args:
+            args: 解析后的命令行参数。
+            ts: 时间戳。
+
+        Returns:
+            文件名字符串。
+        """
+        return f"{self.config.family_type}_family_{ts}"
+
+    def _build_csv_filename_parts(self, args: Any, ts: int) -> list[str]:
+        """构建 CSV 输出文件名的片段列表。
+
+        默认返回 ``[{family_type}, str(ts)]``，最终拼接为 ``{family_type}_{ts}.csv``。
+        子类可覆盖以添加族特有的文件名片段。
+
+        Args:
+            args: 解析后的命令行参数。
+            ts: 时间戳。
+
+        Returns:
+            文件名片段列表，用 ``_`` 拼接。
+        """
+        return [self.config.family_type, str(ts)]
 
     # ------------------------------------------------------------------
     # 主流程
@@ -477,18 +659,35 @@ class FamilyGenerator:
         logger.info("轨道族生成完成: 共 %d 条轨道", len(family))
 
         # 4. 保存
-        output_dir = self.get_output_dir(project_root)
+        # 应用共享 CLI 参数覆盖：--output-dir / --n-milestones
+        output_dir_override = getattr(args, "output_dir", None)
+        if output_dir_override is not None:
+            output_dir = Path(output_dir_override)
+            output_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            output_dir = self.get_output_dir(project_root)
+        if hasattr(args, "n_milestones"):
+            self.config.n_milestones = args.n_milestones
+
         ts = int(time.time())
-        json_path = output_dir / f"{self.config.family_type}_family_{ts}.json"
+        json_name = self._build_json_filename(args, ts)
+        json_path = output_dir / f"{json_name}.json"
         family.save_to_file(filename=str(json_path))
 
-        csv_path = export_csv(family, self.config, output_dir)
+        csv_parts = self._build_csv_filename_parts(args, ts)
+        csv_path = export_csv(
+            family, self.config, output_dir,
+            filename_prefix=csv_parts[0] if csv_parts else None,
+            extra_filename_parts=csv_parts[1:] if len(csv_parts) > 1 else None,
+        )
         logger.info("已保存 JSON: %s", json_path)
-        logger.info("已保存 CSV:  %s", csv_path)
+        if csv_path is not None:
+            logger.info("已保存 CSV:  %s", csv_path)
 
         print(f"[3/3] 已保存：")
         print(f"  JSON: {json_path}")
-        print(f"  CSV:  {csv_path}")
+        if csv_path is not None:
+            print(f"  CSV:  {csv_path}")
 
         # 5. 摘要表
         print_summary_table(family, self.config)
