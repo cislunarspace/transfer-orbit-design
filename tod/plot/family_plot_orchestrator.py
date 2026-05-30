@@ -313,6 +313,7 @@ class FamilyPlotOrchestrator:
 
         system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
         output_dir = find_project_root(Path(__file__)) / "output" / self.config.output_subdir
+        output_dir.mkdir(parents=True, exist_ok=True)
 
         # 解析多文件参数
         single_path, multi_configs = _parse_json_file_arg(a.json_file)
