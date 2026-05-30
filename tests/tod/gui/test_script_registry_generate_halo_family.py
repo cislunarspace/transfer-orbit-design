@@ -55,10 +55,14 @@ class TestGenerateHaloFamilyParams:
         param = next(p for p in entry.cli_params if p.flag == "--step-size")
         assert param.hidden_when == "--method==pseudo_arclength"
 
-    def test_halo_class_help_mentions_shared_crossing_orbit(self, entry: ScriptEntry) -> None:
+    def test_direction_default_is_both(self, entry: ScriptEntry) -> None:
+        param = next(p for p in entry.cli_params if p.flag == "--direction")
+        assert param.default == "both"
+
+    def test_halo_class_help_no_longer_mentions_shared_crossing(self, entry: ScriptEntry) -> None:
         param = next(p for p in entry.cli_chip_params if p.flag == "--halo-class")
-        assert "交叉轨道" in param.help
-        assert "北族+南族" in param.help
+        assert "交叉轨道" not in param.help
+        assert "独立" in param.help
 
     def test_description_updated(self, entry: ScriptEntry) -> None:
         assert "伪弧长延拓" not in entry.description

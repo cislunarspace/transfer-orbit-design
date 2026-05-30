@@ -27,7 +27,7 @@ dependencies = [
 ]
 
 [tool.uv.sources]
-e2m2e = { path = "../e2m2e" }
+e2m2e = { path = "../e2m2e", editable = true }
 
 [project.optional-dependencies]
 test = ["pytest>=7.0"]

@@ -28,14 +28,15 @@ from typing import Any
 import numpy as np
 
 import e2m2e
-from e2m2e.core import Orbit, OrbitFamily
+from e2m2e.core import Orbit
 
-from tod.commons.constants import MU
 from tod.generates.cr3bp._family_pipeline import (
     FamilyGenerator,
     FamilyGeneratorConfig,
+    export_csv,
     inject_debug_args,
     jacobi_constant,
+    print_summary_table,
     setup_logging,
 )
 
@@ -97,75 +98,13 @@ def _set_halo_branch(orbit: Orbit, branch: str) -> Orbit:
 
 
 # ------------------------------------------------------------------------------
-# 组合 Halo 族（both 分支）
-# ------------------------------------------------------------------------------
-
-
-def _locate_halo_crossing_orbit(*, system, libration_point: int) -> Orbit:
-    raise NotImplementedError("shared Halo crossing orbit locator is not implemented yet")
-
-
-def _branch_switch_halo_from_crossing(*, crossing_orbit: Orbit, branch: str) -> Orbit:
-    raise NotImplementedError("Halo branch switching is not implemented yet")
-
-
-def _crossing_orbit_metadata(crossing_orbit: Orbit) -> dict[str, float | str]:
-    state = np.asarray(crossing_orbit.states)[0]
-    return {
-        "family": "Lyapunov",
-        "role": "vertical_critical_crossing_orbit",
-        "x0": float(state[0]),
-        "z0": float(state[2]),
-        "period": float(crossing_orbit.period or 0.0),
-    }
-
-
-def _generate_combined_halo_family(
-    *,
-    continuation,
-    system,
-    libration_point: int,
-    n_orbits: int,
-    step_size: float,
-    step_size_negative: float,
-) -> OrbitFamily:
-    crossing_orbit = _locate_halo_crossing_orbit(system=system, libration_point=libration_point)
-    combined_family = OrbitFamily([])
-    for branch in ("north", "south"):
-        seed_orbit = _branch_switch_halo_from_crossing(crossing_orbit=crossing_orbit, branch=branch)
-        branch_family = continuation.halo_pseudo_arclength_continuation(
-            seed_orbit=seed_orbit,
-            n_orbits=n_orbits,
-            direction="positive",
-            step_size=step_size,
-            step_size_negative=step_size_negative,
-            verbose=True,
-        )
-        for orbit in branch_family:
-            combined_family.add_orbit(_set_halo_branch(orbit, branch))
-    combined_family.metadata["generation_mode"] = "shared_crossing_orbit"
-    combined_family.metadata["halo_branches"] = ["north", "south"]
-    combined_family.metadata["libration_point"] = libration_point
-    combined_family.metadata["crossing_orbit"] = _crossing_orbit_metadata(crossing_orbit)
-    combined_family.metadata["continuation_method"] = "pseudo_arclength"
-    return combined_family
-
-
-# ------------------------------------------------------------------------------
 # 参数与验证
 # ------------------------------------------------------------------------------
 
 
 def _resolve_halo_branches(args) -> str:
-    if args.branches is not None:
-        return args.branches
+    """由 ``--halo-class`` 推断分支：0=北族, 1=南族。"""
     return "north" if args.halo_class == 0 else "south"
-
-
-def _validate_halo_branch_request(args) -> None:
-    branches = _resolve_halo_branches(args)
-    if branches == "both" and args.method != "pseudo_arclength":
-        raise ValueError("combined north/south Halo generation requires pseudo_arclength")
 
 
 # ------------------------------------------------------------------------------
@@ -203,13 +142,6 @@ class HaloFamilyGenerator(FamilyGenerator):
             help="0=北 Halo, 1=南 Halo",
         )
         parser.add_argument(
-            "--branches",
-            type=str,
-            default=None,
-            choices=["north", "south", "both"],
-            help="Halo 分支选择：north=北族, south=南族, both=共享交叉轨道生成北族和南族",
-        )
-        parser.add_argument(
             "--n-orbits",
             type=int,
             default=20,
@@ -236,9 +168,9 @@ class HaloFamilyGenerator(FamilyGenerator):
         parser.add_argument(
             "--direction",
             type=str,
-            default="positive",
+            default="both",
             choices=["positive", "negative", "both"],
-            help="延拓方向",
+            help="延拓方向（默认 both：从种子向振幅更小和更大双向铺开）",
         )
         parser.add_argument(
             "--seed-file",
@@ -249,9 +181,9 @@ class HaloFamilyGenerator(FamilyGenerator):
         parser.add_argument(
             "--method",
             type=str,
-            default="natural",
+            default="pseudo_arclength",
             choices=["natural", "pseudo_arclength"],
-            help="延拓方法",
+            help="延拓方法（默认 pseudo_arclength）",
         )
         parser.add_argument(
             "--z-min",
@@ -268,7 +200,6 @@ class HaloFamilyGenerator(FamilyGenerator):
 
     def run(self, args, *, project_root=None):
         """执行 Halo 轨道族生成（覆盖基类以支持特有流程）。"""
-        _validate_halo_branch_request(args)
         self.init_system()
 
         libration_point = LIBRATION_POINT_MAP[args.libration_point]
@@ -285,49 +216,14 @@ class HaloFamilyGenerator(FamilyGenerator):
         corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=self.dynamics)
         continuation = e2m2e.algorithms.Continuation(corrector=corrector)
 
-        # --- both 分支：组合 Halo 族 ---
-        if branches == "both":
-            logger.info("开始 Halo 北族+南族共享交叉轨道生成...")
-            family_result = _generate_combined_halo_family(
-                continuation=continuation,
-                system=self.system,
-                libration_point=libration_point,
-                n_orbits=n_orbits,
-                step_size=step_size,
-                step_size_negative=step_size_negative,
-            )
-            self._lp = libration_point
-            self._hc = halo_class
-            self._branches = branches
-            self.config.n_milestones = getattr(args, "n_milestones", 5)
+        # 总览行
+        method_label = "伪弧长延拓" if method == "pseudo_arclength" else "自然参数延拓"
+        class_label = "北族" if halo_class == 0 else "南族"
+        print(
+            f"Halo 轨道族生成：L{libration_point} {class_label}，"
+            f"{method_label}（步长 {step_size}），{n_orbits} 条轨道"
+        )
 
-            output_dir = self.get_output_dir(project_root)
-            output_dir.mkdir(parents=True, exist_ok=True)
-            ts = int(time.time())
-            family_name = f"halo_L{libration_point}_NS_family_shared_{ts}"
-            json_path = output_dir / f"{family_name}.json"
-            family_result.save_to_file(filename=str(json_path))
-
-            csv_path = export_csv(
-                family_result, self.config, output_dir,
-                filename_prefix=f"halo_L{libration_point}_NS_family_shared",
-                extra_filename_parts=None,
-            )
-
-            logger.info("轨道族已保存至: %s", json_path)
-            logger.info("  轨道族名称: %s", family_name)
-            print(f"[3/3] 已保存：")
-            print(f"  JSON: {json_path}")
-            if csv_path is not None:
-                print(f"  CSV:  {csv_path}")
-
-            self._print_halo_summary(
-                family_result, libration_point, halo_class, method, step_size,
-                step_size_negative, direction, z_range=None
-            )
-            return family_result
-
-        # --- 单分支：north 或 south ---
         amplitude_z = args.amplitude_z
 
         # 种子轨道获取
@@ -389,15 +285,25 @@ class HaloFamilyGenerator(FamilyGenerator):
             )
 
         # 延拓
+        def _on_orbit(i, total, orbit, br):
+            dir_label = "正向" if br == "positive" else "负向"
+            z0 = float(np.asarray(orbit.states)[0, 2])
+            print(
+                f"[2/3] {dir_label} #{i}/{total} 完成，"
+                f"z0={z0:.4f}，T={float(orbit.period or 0.0):.2f} TU"
+            )
+
+        t_start = time.time()
         if method == "natural":
-            logger.info("开始 Halo 轨道族自然参数延拓（沿 z 方向）...")
+            print("[2/3] 开始自然参数延拓...")
             family_result = continuation.generate_halo_family(
                 seed_orbit=corrected,
                 n_orbits=n_orbits,
                 direction=direction,
                 step_size=args.step_size,
                 z_range=z_range,
-                verbose=True,
+                verbose=False,
+                progress_callback=_on_orbit,
             )
             from e2m2e.core.orbit import OrbitFamily
             family = OrbitFamily([corrected])
@@ -405,21 +311,26 @@ class HaloFamilyGenerator(FamilyGenerator):
                 family.add_orbit(o)
             family_result = family
         else:
-            logger.info("开始 Halo 轨道族伪弧长延拓...")
+            print("[2/3] 开始伪弧长延拓...")
             family_result = continuation.halo_pseudo_arclength_continuation(
                 seed_orbit=corrected,
                 n_orbits=n_orbits,
                 direction=direction,
                 step_size=step_size,
                 step_size_negative=step_size_negative,
-                verbose=True,
+                verbose=False,
+                progress_callback=_on_orbit,
             )
+        print(
+            f"[2/3] 完成，共 {len(family_result)} 条轨道，"
+            f"耗时 {time.time() - t_start:.1f}s"
+        )
 
         logger.info("轨道族生成完成: 共%d条轨道", len(family_result))
 
         self._lp = libration_point
         self._hc = halo_class
-        self._branches = branches
+        self.config = self._build_config(args, libration_point, halo_class)
         self.config.n_milestones = getattr(args, "n_milestones", 5)
 
         output_dir = self.get_output_dir(project_root)
@@ -527,16 +438,14 @@ class HaloFamilyGenerator(FamilyGenerator):
     def _build_csv_filename_parts(self, args: Any, ts: int) -> list[str]:
         """Halo CSV 文件名前缀片段（不含 ts）。
 
-        从 run() 设置的实例变量中获取 libration_point / halo_class / branches。
+        从 run() 设置的实例变量中获取 libration_point / halo_class。
         基类 ``run()`` 会在最后追加 ts。
         """
         lp = getattr(self, "_lp", 1)
         hc = getattr(self, "_hc", 0)
-        branches = getattr(self, "_branches", None)
         lp_name = f"L{lp}"
-        class_name = "NS" if branches == "both" else ("N" if hc == 0 else "S")
-        shared = "_shared" if branches == "both" else ""
-        return [f"halo_{lp_name}_{class_name}_family{shared}"]
+        class_name = "N" if hc == 0 else "S"
+        return [f"halo_{lp_name}_{class_name}_family"]
 
     def _build_json_filename(self, args: Any, ts: int) -> str:
         """Halo JSON 文件名由 run() 自行管理，此处返回默认值。"""
@@ -547,7 +456,6 @@ class HaloFamilyGenerator(FamilyGenerator):
     ) -> FamilyGeneratorConfig:
         """构建 Halo 的 FamilyGeneratorConfig。"""
         lp_name = f"L{libration_point}"
-        class_name = "NS" if branches == "both" else ("N" if halo_class == 0 else "S")
         title = f"  Earth-Moon {lp_name} {'北' if halo_class == 0 else '南'} Halo 轨道族：配置、统计与代表性轨道"
         return FamilyGeneratorConfig(
             family_type="halo",
@@ -624,8 +532,6 @@ class HaloFamilyGenerator(FamilyGenerator):
             extra_lines.append(f"  负向步长     {pal_neg}")
             extra_lines.append(f"  延拓方向     {direction}")
 
-        from tod.generates.cr3bp._family_pipeline import print_summary_table
-
         cfg = self._build_config(None, libration_point, halo_class)
         print_summary_table(orbits, cfg, extra_lines=extra_lines)
 
@@ -652,9 +558,9 @@ if __name__ == "__main__":
             "--amplitude-z", "0.001",
             "--halo-class", "1",
             "--n-orbits", "20",
-            "--step-size", "0.002",
-            "--direction", "positive",
-            "--method", "natural",
+            "--step-size-pal", "0.0045",
+            "--direction", "both",
+            "--method", "pseudo_arclength",
         ],
     )
     main()

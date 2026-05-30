@@ -132,27 +132,6 @@ class RunMixin:
         if not chip_params_list:
             return [base_args]
 
-        if (
-            self._current_script
-            and self._current_script.name == "generate_halo_family"
-            and set(chip_selections.get("halo_class", [])) == {"0", "1"}
-        ):
-            combinations: list[list[str]] = []
-            branch_inputs = [
-                (key, flag, values)
-                for key, flag, values in chip_params_list
-                if key != "halo_class"
-            ]
-            if not branch_inputs:
-                return [base_args + ["--branches", "both", "--method", "pseudo_arclength"]]
-            for combo in product(*[vals for _, _, vals in branch_inputs]):
-                args = base_args.copy()
-                for (_, flag, _), value in zip(branch_inputs, combo):
-                    args.extend([flag, value])
-                args.extend(["--branches", "both", "--method", "pseudo_arclength"])
-                combinations.append(args)
-            return combinations
-
         # 生成所有组合
         combinations: list[list[str]] = []
         for combo in product(*[vals for _, _, vals in chip_params_list]):

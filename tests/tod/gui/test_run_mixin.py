@@ -31,7 +31,7 @@ class TestMainWindowInheritsRunMixin:
 
 
 class TestRunMixinChipExpansion:
-    def test_halo_north_south_selection_becomes_one_combined_job(self):
+    def test_halo_north_south_selection_expands_to_two_independent_jobs(self):
         from tod.gui.run_mixin import RunMixin
 
         class Harness(RunMixin):
@@ -54,9 +54,13 @@ class TestRunMixinChipExpansion:
             {"libration_point": ["L1"], "halo_class": ["0", "1"]},
         )
 
-        assert combinations == [["--method", "pseudo_arclength", "--libration-point", "L1", "--branches", "both", "--method", "pseudo_arclength"]]
+        # 北+南 不再合并为单个 both 作业，而是各自独立的单分支作业。
+        assert combinations == [
+            ["--method", "pseudo_arclength", "--libration-point", "L1", "--halo-class", "0"],
+            ["--method", "pseudo_arclength", "--libration-point", "L1", "--halo-class", "1"],
+        ]
 
-    def test_halo_north_south_selection_combines_per_libration_point(self):
+    def test_halo_north_south_selection_expands_per_libration_point(self):
         from tod.gui.run_mixin import RunMixin
 
         class Harness(RunMixin):
@@ -76,9 +80,12 @@ class TestRunMixinChipExpansion:
 
         combinations = harness._expand_combinations([], {"libration_point": ["L1", "L2"], "halo_class": ["0", "1"]})
 
+        # 2 平动点 × 2 分支 = 4 个独立作业（笛卡尔积）。
         assert combinations == [
-            ["--libration-point", "L1", "--branches", "both", "--method", "pseudo_arclength"],
-            ["--libration-point", "L2", "--branches", "both", "--method", "pseudo_arclength"],
+            ["--libration-point", "L1", "--halo-class", "0"],
+            ["--libration-point", "L1", "--halo-class", "1"],
+            ["--libration-point", "L2", "--halo-class", "0"],
+            ["--libration-point", "L2", "--halo-class", "1"],
         ]
 
 

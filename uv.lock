@@ -180,7 +180,7 @@ wheels = [
 [[package]]
 name = "e2m2e"
 version = "4.2.1"
-source = { directory = "../e2m2e" }
+source = { editable = "../e2m2e" }
 dependencies = [
     { name = "matplotlib" },
     { name = "numpy" },
@@ -1114,7 +1114,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "e2m2e", directory = "../e2m2e" },
+    { name = "e2m2e", editable = "../e2m2e" },
     { name = "matplotlib", specifier = ">=3.10.0" },
     { name = "myst-parser", marker = "extra == 'docs'", specifier = ">=2.0" },
     { name = "numpy", specifier = ">=2.4.0" },
