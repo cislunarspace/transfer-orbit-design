@@ -8,6 +8,8 @@ version = "1.0.0"
 description = "地月空间 CR3BP 轨道生成、转移设计与星历转换脚本工具集"
 readme = "README.md"
 requires-python = ">=3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Operating System :: OS Independent",
@@ -41,7 +43,7 @@ docs = [
 transfer-orbit-design = "tod.gui.main:main"
 
 [project.urls]
-Repository = "https://github.com/ouyangjiahong/transfer-orbit-design"
+Repository = "https://github.com/cislunarspace/transfer-orbit-design"
 
 [tool.pyright]
 pythonVersion = "3.13"

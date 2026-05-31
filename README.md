@@ -1,6 +1,16 @@
 # Transfer Orbit Design
 
-Transfer Orbit Design 是一组面向地月空间轨道设计的脚本和 GUI 工具，用于复现并扩展 Cui et al. (2025) 中的 DRO↔RO 两脉冲转移研究。仓库本身以脚本编排、参数管理、结果保存和可视化为主，核心动力学、修正器、延拓器和转移算法由本地 sibling 仓库 `e2m2e` 提供。
+[![Release](https://img.shields.io/github/v/release/cislunarspace/transfer-orbit-design?label=release)](https://github.com/cislunarspace/transfer-orbit-design/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/cislunarspace/transfer-orbit-design/ci.yml?branch=master&label=CI)](https://github.com/cislunarspace/transfer-orbit-design/actions/workflows/ci.yml)
+[![Stars](https://img.shields.io/github/stars/cislunarspace/transfer-orbit-design?style=flat)](https://github.com/cislunarspace/transfer-orbit-design/stargazers)
+[![Issues](https://img.shields.io/github/issues/cislunarspace/transfer-orbit-design)](https://github.com/cislunarspace/transfer-orbit-design/issues)
+[![Last commit](https://img.shields.io/github/last-commit/cislunarspace/transfer-orbit-design/master)](https://github.com/cislunarspace/transfer-orbit-design/commits/master)
+[![Python](https://img.shields.io/badge/python-3.13%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+
+Transfer Orbit Design 是一组面向地月空间轨道设计的脚本和 GUI 工具，提供 CR3BP 周期轨道族生成、DRO↔RO/GEO/LEO 转移搜索与优化、CR3BP 到星历模型的修正，以及配套的绘图与图形界面。本仓库负责脚本编排、参数管理、结果保存和可视化；动力学、修正器、延拓器和转移算法由同级目录下的 `e2m2e` 仓库提供。
+
+> 本工具服务于地月空间发展的三大技术方向：**在轨机动**、**在轨服务**、**地月技术**。当前版本聚焦“在轨机动”方向的轨道设计基础能力，并以此为基座向其余两个方向扩展。背景、能力对应关系与后续路线图见文末「[使命与路线图](#使命与路线图)」。
 
 ## 功能全景
 
@@ -17,30 +27,25 @@ Transfer Orbit Design 是一组面向地月空间轨道设计的脚本和 GUI �
 
 ### 1. 克隆 e2m2e 依赖库
 
-本项目依赖 `e2m2e` 核心算法库，需要先克隆到本地：
+本项目的核心算法依赖 `e2m2e`，它在 `pyproject.toml` 中被配置为本地路径依赖（`../e2m2e`），因此 `uv sync` 不会自动从远程拉取，需要先手动克隆到与本仓库同级的目录：
 
 ```bash
-# 克隆到与本仓库同级的目录
 cd ..
 git clone https://github.com/cislunarspace/e2m2e.git
-
-# 安装为 editable 模式
-cd e2m2e
-uv pip install -e .
-cd ../transfer-orbit-design
+cd transfer-orbit-design
 ```
+
+无需在 e2m2e 目录里单独安装，下一步的 `uv sync` 会以 editable 模式装好它。
 
 ### 2. 安装本项目
 
-推荐使用 Python 3.13；项目要求 Python `>=3.11`。
+项目要求 Python `>=3.13`，仓库已通过 `.python-version` 固定为 3.13。在仓库根目录执行：
 
 ```bash
-conda create -n orbit-py313 python=3.13
-conda activate orbit-py313
 uv sync
 ```
 
-`uv sync` 会安装本项目并从 `../e2m2e` 以 editable 方式安装核心算法依赖。若两个仓库不是 sibling 目录，请先调整 `pyproject.toml` 中的 `tool.uv.sources.e2m2e` 路径。
+`uv sync` 会一次完成：准备 Python 3.13 解释器、创建虚拟环境、安装全部 PyPI 依赖、以 editable 模式从 `../e2m2e` 安装核心算法库，并以 editable 模式安装本项目。若两个仓库不在同级目录，请先修改 `pyproject.toml` 中的 `tool.uv.sources.e2m2e` 路径。
 
 星历转换脚本还需要 SPICE kernels：
 
@@ -57,13 +62,13 @@ export SPICE_KERNEL_DIR=../e2m2e/kernels
 uv run python -m tod.gui.main
 ```
 
-GUI 会按”生成 / 星历转换 / 转移 / 绘图”组织脚本，并根据 `tod/gui/scripts/` 中的注册信息展示参数、帮助文本和输出目录。
+GUI 会按“生成 / 星历转换 / 转移 / 绘图”组织脚本，并根据 `tod/gui/scripts/` 中的注册信息展示参数、帮助文本和输出目录。
 
-**语言切换**：GUI 支持 `zh`（中文，默认）和 `en`（英文）界面语言。修改 `gui_defaults.json` 中的 `”language”` 配置项后重启生效。缺失翻译时自动回退到中文。
+**语言切换**：GUI 支持 `zh`（中文，默认）和 `en`（英文）两种界面语言。修改 `gui_defaults.json` 中的 `"language"` 配置项后重启生效；缺失的翻译条目自动回退到中文。
 
 ### CLI
 
-先生成基准轨道，再运行转移或绘图脚本。所有命令建议在仓库根目录执行。
+先生成基准轨道，再运行转移或绘图脚本。命令都在仓库根目录执行。
 
 ```bash
 # DRO / DPO / Halo
@@ -102,7 +107,7 @@ uv run python -m tod.generates.ephemeris.halo.correct_halo_to_ephemeris \
   --reference-epoch 2026-01-01T00:00:00
 ```
 
-部分转移脚本仍含硬编码输入路径；运行前请检查对应脚本顶部或 `main()` 附近的默认文件路径，并替换为本地已生成的 JSON 文件。
+部分转移脚本仍带有硬编码的输入路径。运行前请检查脚本顶部或 `main()` 附近的默认文件路径，改成本地已生成的 JSON 文件。
 
 ## 脚本清单
 
@@ -124,8 +129,6 @@ uv run python -m tod.generates.ephemeris.halo.correct_halo_to_ephemeris \
 | Tadpole | `tod.generates.cr3bp.tadpole.generate_tadpole_orbit` | `tod.generates.cr3bp.tadpole.generate_tadpole_family` | 围绕单个三角平动点的蝌蚪形轨道 |
 | Horseshoe | `tod.generates.cr3bp.horseshoe.generate_horseshoe_orbit` | `tod.generates.cr3bp.horseshoe.generate_horseshoe_family` | 跨越两个三角平动点的马蹄形轨道 |
 | Resonant | `tod.generates.cr3bp.resonant.generate_resonant_orbit` | `tod.generates.cr3bp.resonant.generate_resonant_family` | m:n 共振周期轨道，通过 `--ratio` 选择 3:1 / 3:2 / 2:1 |
-
-> **已弃用**：旧的 RO 脚本（`tod.generates.cr3bp.ro.generate_31_ro_orbit`、`generate_31_ro_family`、`generate_32_ro_family`、`generate_rro_family`、`generate_aro_family`）及其独立绘图脚本已移至 `deprecated/` 目录，由 Resonant 族统一替代。
 
 ### 转移搜索与优化
 
@@ -197,6 +200,48 @@ docs/
 output/           运行脚本后按需创建的结果目录
 ```
 
+## 使命与路线图
+
+### 使命背景
+
+Transfer Orbit Design 面向地月空间发展需求，围绕三个技术方向展开：**在轨机动**、**在轨服务**、**地月技术**。它的定位是为这三个方向提供可复现、可扩展的轨道设计与分析基座。当前版本已在“在轨机动”方向落地核心能力，其余两个方向按路线图逐步推进。
+
+状态标识：✅ 已实现　🚧 开发中　📐 规划中
+
+### 一、在轨机动　✅ 已实现
+
+这一方向的目标是大幅提升轨道机动能力。软件在其中的作用，是用 CR3BP 低能量轨道与转移设计**支撑**这一目标，而不是由软件本身完成机动——后者是任务层面的工程目标。
+
+当前已实现的能力对应到本仓库的脚本：
+
+- **周期轨道族生成**：12 类 CR3BP 周期轨道族（DRO、DPO、Halo、Lyapunov、Vertical、Axial、Butterfly、SPO、LPO、Tadpole、Horseshoe、Resonant），可作为转移设计的出发/目标轨道。见[轨道生成（CR3BP）](#轨道生成cr3bp)。
+- **转移搜索与优化**：DRO→RO、DRO→GEO、GEO→DRO、LEO→DRO 的两脉冲网格搜索与 NLP 优化，最小化 Δv 或插入代价，为低能耗转移设计提供候选解。见[转移搜索与优化](#转移搜索与优化)。
+- **星历修正**：将 CR3BP 设计结果多重打靶修正到真实星历模型，缩小设计与工程实现的差距。见[星历转换](#星历转换)。
+
+### 二、在轨服务　📐 规划中
+
+目标方向：航天器在轨加注、维修与快速替换。计划覆盖：
+
+- 交会接近段的轨迹设计
+- 在轨加注、服务任务的窗口与机动序列规划
+- 服务航天器与目标航天器的协同轨道设计
+
+> 当前版本尚无对应实现，列入后续路线图。
+
+### 三、地月技术　📐 规划中
+
+目标方向：支撑深空域感知与行动，突破地月空间态势表征、轨道编目、导航、通信与控制等技术。计划覆盖：
+
+- 地月空间态势表征与可观测性分析
+- 轨道编目与目标关联
+- 面向导航、通信、控制的轨道支撑设计
+
+> 当前版本尚无对应实现，列入后续路线图。
+
+### 对标与定位
+
+Transfer Orbit Design 与 STK Cislunar Orbit Design (CODE)、NASA General Mission Analysis Tool (GMAT)、普渡大学 Adaptive Trajectory Design (ATD) 同属地月空间轨道设计领域，方法论基础一致：CR3BP/BR4BP 动力学、微分修正、自然与伪弧长延拓、星历多重打靶修正。与这几个成熟平台相比，本工具的侧重点是轻量和开源：用可读的脚本和可复现的流水线组织轨道生成、转移搜索与星历修正，便于按需裁剪、二次开发，或嵌入更大的任务设计流程，而不追求功能上的对等。
+
 ## 文档与开发
 
 - 开发规范：[`docs/development.md`](docs/development.md)
@@ -209,4 +254,4 @@ uv run --extra docs python -m sphinx -b html docs/source docs/build/html
 
 ## 许可证
 
-当前仓库未声明开源许可证。复用前请联系维护者确认授权范围。
+本项目采用 [Apache License 2.0](LICENSE) 授权。你可以自由使用、修改和分发本软件，但需保留版权与许可声明，并遵守许可证中的专利授权与商标条款。详见仓库根目录的 [`LICENSE`](LICENSE) 文件。
