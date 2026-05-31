@@ -34,7 +34,9 @@ class ScriptTabBar(QWidget):
     - 全部关闭时显示空白占位
     """
 
-    tab_switched = pyqtSignal(ScriptEntry)
+    # NOTE: 运行时实际传入 _ScanEntry（_registry.py 的 ScriptEntry 代理），
+    # 用 object 避免 PyQt6 的 isinstance 类型检查。
+    tab_switched = pyqtSignal(object)
     tab_cleared = pyqtSignal()  # 所有 tab 关闭
     run_requested = pyqtSignal(ScriptTabWidget)
     doc_link_clicked = pyqtSignal(str)
@@ -125,10 +127,13 @@ class ScriptTabBar(QWidget):
         )
 
         self._stack.addWidget(tab_widget)
+        # 必须在 addTab 之前 append：addTab 在空 QTabBar 上会自动切换到
+        # index 0 并触发 currentChanged，若 _widgets 尚未包含该 widget，
+        # _on_current_changed 会因索引越界而跳过，导致首个 tab 内容不显示。
+        self._widgets.append(tab_widget)
 
         tab_idx = self._tab_bar.addTab(entry.name)
         self._tab_bar.setTabToolTip(tab_idx, entry.script_path)
-        self._widgets.append(tab_widget)
         self._rebuild_path_index()
         self._tab_bar.setCurrentIndex(tab_idx)
 
