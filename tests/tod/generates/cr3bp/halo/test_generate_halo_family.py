@@ -42,6 +42,7 @@ def _make_halo_args(**overrides) -> MagicMock:
     args.step_size = overrides.get("step_size", 0.002)
     args.step_size_pal = overrides.get("step_size_pal", None)
     args.step_size_negative = overrides.get("step_size_negative", None)
+    args.method = overrides.get("method", "pseudo_arclength")
     args.direction = overrides.get("direction", "both")
     args.seed_file = overrides.get("seed_file", None)
     args.z_min = overrides.get("z_min", None)
@@ -402,3 +403,37 @@ class TestRunContinuationZRange:
 
             result = gen._run_continuation(MagicMock(), mock_seed, args)
         assert result is mock_family
+
+    # ---------------------------------------------------------------------------
+    # 8. _run_continuation — 延拓方法路由
+    # ---------------------------------------------------------------------------
+
+    def test_run_continuation_raises_on_unknown_method(self):
+        """未知延拓方法应抛出 ValueError。"""
+        gen = _make_halo_gen()
+        args = _make_halo_args(method="unknown_method")
+
+        mock_seed = MagicMock()
+        mock_seed.states = np.array([[0.93, 0.0, 0.23, 0.0, 0.1, 0.0]])
+
+        with pytest.raises(ValueError, match="未实现的延拓方法"):
+            gen._run_continuation(MagicMock(), mock_seed, args)
+
+    def test_run_continuation_pal_calls_pal_api(self):
+        """method=pseudo_arclength 时应调用 halo_pseudo_arclength_continuation。"""
+        gen = _make_halo_gen()
+        args = _make_halo_args(method="pseudo_arclength")
+
+        mock_seed = MagicMock()
+        mock_seed.states = np.array([[0.93, 0.0, 0.23, 0.0, 0.1, 0.0]])
+
+        with patch("tod.generates.cr3bp.halo.generate_halo_family.e2m2e.algorithms.Continuation") as MockCont:
+            mock_family = MagicMock()
+            mock_cont_instance = MagicMock()
+            mock_cont_instance.halo_pseudo_arclength_continuation.return_value = mock_family
+            MockCont.return_value = mock_cont_instance
+
+            result = gen._run_continuation(MagicMock(), mock_seed, args)
+
+        assert result is mock_family
+        mock_cont_instance.halo_pseudo_arclength_continuation.assert_called_once()

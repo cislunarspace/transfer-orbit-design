@@ -465,10 +465,10 @@ class TestHaloFamilyNewParams:
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_method_default_is_pseudo_arclength(self, mock_cont, mock_corr, mock_dyn, mock_sys):
-        """--method 已删除：Halo 统一使用伪弧长延拓。"""
+        """--method 默认 pseudo_arclength。"""
         module = _load_halo_family_module()
         args = _parse_halo_args(module, [])
-        assert not hasattr(args, "method")
+        assert args.method == "pseudo_arclength"
 
     @patch("e2m2e.core.system.CR3BP_System")
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
@@ -503,10 +503,10 @@ class TestHaloFamilyNewParams:
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
-    def test_step_size_pal_defaults_to_none(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+    def test_step_size_pal_defaults_to_0_0045(self, mock_cont, mock_corr, mock_dyn, mock_sys):
         module = _load_halo_family_module()
         args = _parse_halo_args(module, [])
-        assert args.step_size_pal is None
+        assert args.step_size_pal == pytest.approx(0.0045)
 
     @patch("e2m2e.core.system.CR3BP_System")
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
@@ -556,14 +556,13 @@ class TestHaloSummaryTableOutput:
         ])
 
         def _summary_extra_info():
-            libration_point = module.LIBRATION_POINT_MAP[args.libration_point]
-            halo_class = args.halo_class
-            step_size = args.step_size_pal if args.step_size_pal is not None else args.step_size
+            step_size = args.step_size_pal
             step_size_negative = (
                 args.step_size_negative if args.step_size_negative is not None else step_size
             )
+            method_label = {"pseudo_arclength": "伪弧长延拓"}.get(args.method, args.method)
             return [
-                "  延拓方法     伪弧长延拓",
+                f"  延拓方法     {method_label}",
                 f"  正向步长     {step_size}",
                 f"  负向步长     {step_size_negative}",
                 f"  延拓方向     {args.direction}",

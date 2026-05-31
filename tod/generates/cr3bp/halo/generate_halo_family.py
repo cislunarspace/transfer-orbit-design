@@ -223,16 +223,16 @@ class HaloFamilyGenerator(FamilyGenerator):
     # ------------------------------------------------------------------
 
     def _run_continuation(self, corrector: Any, seed_orbit: Any, args: Any):
-        """执行伪弧长延拓生成 Halo 轨道族。
+        """延拓路由：根据 args.method 分发到对应延拓方法。
 
-        验证 z_range（若提供），然后调用 PAL 延拓。
+        z_range 验证为共享逻辑，在路由前执行。
 
         Raises:
-            ValueError: 种子 z0 不在 z_range 范围内。
+            ValueError: 种子 z0 不在 z_range 范围内 / 未实现的延拓方法。
         """
         halo_class = args.halo_class
 
-        # z_range 验证
+        # z_range 验证（所有方法共享）
         z_range = self._resolve_z_range(args, halo_class)
         if z_range is not None:
             z0 = float(np.asarray(seed_orbit.states)[0, 2])
@@ -241,7 +241,14 @@ class HaloFamilyGenerator(FamilyGenerator):
                     f"种子 z0={z0:.4f} 不在 z_range [{z_range[0]:.4f}, {z_range[1]:.4f}] 内"
                 )
 
-        step_size = args.step_size_pal if args.step_size_pal is not None else args.step_size
+        method = args.method
+        if method == "pseudo_arclength":
+            return self._run_pal_continuation(corrector, seed_orbit, args)
+        raise ValueError(f"未实现的延拓方法: {method}")
+
+    def _run_pal_continuation(self, corrector: Any, seed_orbit: Any, args: Any):
+        """伪弧长延拓（PAL）生成 Halo 轨道族。"""
+        step_size = args.step_size_pal
         step_size_negative = (
             args.step_size_negative if args.step_size_negative is not None else step_size
         )
@@ -347,6 +354,13 @@ class HaloFamilyGenerator(FamilyGenerator):
             help="0=北 Halo, 1=南 Halo",
         )
         parser.add_argument(
+            "--method",
+            type=str,
+            default="pseudo_arclength",
+            choices=["pseudo_arclength"],
+            help="延拓方法：pseudo_arclength（伪弧长延拓）",
+        )
+        parser.add_argument(
             "--n-orbits",
             type=int,
             default=20,
@@ -361,7 +375,7 @@ class HaloFamilyGenerator(FamilyGenerator):
         parser.add_argument(
             "--step-size-pal",
             type=float,
-            default=None,
+            default=0.0045,
             help="伪弧长延拓步长 |Δs|（提供时覆盖 --step-size）",
         )
         parser.add_argument(
@@ -485,16 +499,17 @@ def main() -> None:
     def _summary_extra_info():
         libration_point = LIBRATION_POINT_MAP[args.libration_point]
         halo_class = args.halo_class
-        step_size = args.step_size_pal if args.step_size_pal is not None else args.step_size
+        step_size = args.step_size_pal
         step_size_negative = (
             args.step_size_negative if args.step_size_negative is not None else step_size
         )
         lp_name = f"L{libration_point}"
         class_name = "北" if halo_class == 0 else "南"
+        method_label = {"pseudo_arclength": "伪弧长延拓"}.get(args.method, args.method)
         lines = [
             f"  平动点       {lp_name}",
             f"  Halo 类别   {class_name} Halo (Class {'I' if halo_class == 0 else 'II'})",
-            "  延拓方法     伪弧长延拓",
+            f"  延拓方法     {method_label}",
             f"  正向步长     {step_size}",
             f"  负向步长     {step_size_negative}",
             f"  延拓方向     {args.direction}",

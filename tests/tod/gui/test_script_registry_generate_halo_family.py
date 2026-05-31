@@ -1,6 +1,7 @@
-"""Tests for generate_halo_family ScriptEntry — issue #123.
+"""Tests for generate_halo_family ScriptEntry.
 
-Updated after removing --method parameter: Halo now uses PAL continuation only.
+Updated after restoring --method parameter: Halo uses PAL continuation,
+with method selector for future extensibility.
 """
 
 import pytest
@@ -22,13 +23,29 @@ class TestGenerateHaloFamilyParams:
     def entry(self) -> ScriptEntry:
         return _find_halo_family_entry()
 
-    def test_no_method_param(self, entry: ScriptEntry) -> None:
-        """--method 已删除：Halo 统一使用伪弧长延拓。"""
+    # --method 参数 --
+
+    def test_method_param_exists(self, entry: ScriptEntry) -> None:
+        """--method 参数存在。"""
         flags = [p.flag for p in entry.cli_params]
-        assert "--method" not in flags
+        assert "--method" in flags
+
+    def test_method_default_is_pseudo_arclength(self, entry: ScriptEntry) -> None:
+        param = next(p for p in entry.cli_params if p.flag == "--method")
+        assert param.default == "伪弧长延拓"
+
+    def test_method_choices_contain_pal(self, entry: ScriptEntry) -> None:
+        param = next(p for p in entry.cli_params if p.flag == "--method")
+        assert "伪弧长延拓" in param.choices
+        assert param.choice_values["伪弧长延拓"] == "pseudo_arclength"
+
+    def test_method_has_no_hidden_when(self, entry: ScriptEntry) -> None:
+        param = next(p for p in entry.cli_params if p.flag == "--method")
+        assert param.hidden_when is None
+
+    # -- 共享参数无条件隐藏 --
 
     def test_direction_has_no_hidden_when(self, entry: ScriptEntry) -> None:
-        """--direction 不再依赖 --method 条件隐藏。"""
         direction_param = next(p for p in entry.cli_params if p.flag == "--direction")
         assert direction_param.hidden_when is None
 
@@ -40,17 +57,30 @@ class TestGenerateHaloFamilyParams:
         z_max_param = next(p for p in entry.cli_params if p.flag == "--z-max")
         assert z_max_param.hidden_when is None
 
-    def test_step_size_negative_has_no_hidden_when(self, entry: ScriptEntry) -> None:
-        ssn_param = next(p for p in entry.cli_params if p.flag == "--step-size-negative")
-        assert ssn_param.hidden_when is None
-
     def test_n_orbits_has_no_hidden_when(self, entry: ScriptEntry) -> None:
         param = next(p for p in entry.cli_params if p.flag == "--n-orbits")
         assert param.hidden_when is None
 
-    def test_step_size_has_no_hidden_when(self, entry: ScriptEntry) -> None:
+    # -- PAL 专属参数 hidden_when --
+
+    def test_step_size_pal_hidden_when_natural(self, entry: ScriptEntry) -> None:
+        """PAL 步长在自然延拓方法下隐藏。"""
+        param = next(p for p in entry.cli_params if p.flag == "--step-size-pal")
+        assert param.hidden_when == "--method==natural"
+
+    def test_step_size_negative_hidden_when_natural(self, entry: ScriptEntry) -> None:
+        """负向支步长在自然延拓方法下隐藏。"""
+        param = next(p for p in entry.cli_params if p.flag == "--step-size-negative")
+        assert param.hidden_when == "--method==natural"
+
+    # -- 自然延拓预留参数 hidden_when --
+
+    def test_step_size_hidden_when_pal(self, entry: ScriptEntry) -> None:
+        """--step-size 预留给自然延拓，PAL 方法下隐藏。"""
         param = next(p for p in entry.cli_params if p.flag == "--step-size")
-        assert param.hidden_when is None
+        assert param.hidden_when == "--method==pseudo_arclength"
+
+    # -- 其他不变属性 --
 
     def test_direction_default_is_both(self, entry: ScriptEntry) -> None:
         param = next(p for p in entry.cli_params if p.flag == "--direction")
