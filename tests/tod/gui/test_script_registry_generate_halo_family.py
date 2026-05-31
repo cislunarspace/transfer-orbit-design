@@ -1,4 +1,7 @@
-"""Tests for generate_halo_family ScriptEntry — issue #123."""
+"""Tests for generate_halo_family ScriptEntry — issue #123.
+
+Updated after removing --method parameter: Halo now uses PAL continuation only.
+"""
 
 import pytest
 
@@ -19,41 +22,35 @@ class TestGenerateHaloFamilyParams:
     def entry(self) -> ScriptEntry:
         return _find_halo_family_entry()
 
-    def test_has_method_param(self, entry: ScriptEntry) -> None:
+    def test_no_method_param(self, entry: ScriptEntry) -> None:
+        """--method 已删除：Halo 统一使用伪弧长延拓。"""
         flags = [p.flag for p in entry.cli_params]
-        assert "--method" in flags
+        assert "--method" not in flags
 
-        method_param = next(p for p in entry.cli_params if p.flag == "--method")
-        assert method_param.choices == ("natural", "pseudo_arclength")
-        assert method_param.default == "pseudo_arclength"
-
-    def test_method_has_no_hidden_when(self, entry: ScriptEntry) -> None:
-        method_param = next(p for p in entry.cli_params if p.flag == "--method")
-        assert method_param.hidden_when is None
-
-    def test_direction_has_hidden_when(self, entry: ScriptEntry) -> None:
+    def test_direction_has_no_hidden_when(self, entry: ScriptEntry) -> None:
+        """--direction 不再依赖 --method 条件隐藏。"""
         direction_param = next(p for p in entry.cli_params if p.flag == "--direction")
-        assert direction_param.hidden_when == "--method==pseudo_arclength"
+        assert direction_param.hidden_when is None
 
-    def test_z_min_has_hidden_when(self, entry: ScriptEntry) -> None:
+    def test_z_min_has_no_hidden_when(self, entry: ScriptEntry) -> None:
         z_min_param = next(p for p in entry.cli_params if p.flag == "--z-min")
-        assert z_min_param.hidden_when == "--method==pseudo_arclength"
+        assert z_min_param.hidden_when is None
 
-    def test_z_max_has_hidden_when(self, entry: ScriptEntry) -> None:
+    def test_z_max_has_no_hidden_when(self, entry: ScriptEntry) -> None:
         z_max_param = next(p for p in entry.cli_params if p.flag == "--z-max")
-        assert z_max_param.hidden_when == "--method==pseudo_arclength"
+        assert z_max_param.hidden_when is None
 
-    def test_step_size_negative_has_hidden_when(self, entry: ScriptEntry) -> None:
+    def test_step_size_negative_has_no_hidden_when(self, entry: ScriptEntry) -> None:
         ssn_param = next(p for p in entry.cli_params if p.flag == "--step-size-negative")
-        assert ssn_param.hidden_when == "--method==natural"
+        assert ssn_param.hidden_when is None
 
     def test_n_orbits_has_no_hidden_when(self, entry: ScriptEntry) -> None:
         param = next(p for p in entry.cli_params if p.flag == "--n-orbits")
         assert param.hidden_when is None
 
-    def test_step_size_has_hidden_when(self, entry: ScriptEntry) -> None:
+    def test_step_size_has_no_hidden_when(self, entry: ScriptEntry) -> None:
         param = next(p for p in entry.cli_params if p.flag == "--step-size")
-        assert param.hidden_when == "--method==pseudo_arclength"
+        assert param.hidden_when is None
 
     def test_direction_default_is_both(self, entry: ScriptEntry) -> None:
         param = next(p for p in entry.cli_params if p.flag == "--direction")

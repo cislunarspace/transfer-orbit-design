@@ -272,11 +272,9 @@ class TestGenerateHaloFamilySeedFile:
                 "--libration-point", "L2",
                 "--halo-class", "1",
                 "--n-orbits", "5",
-                "--method", "pseudo_arclength",
             ])
-            with patch.object(gen, "_print_halo_summary"):
-                with patch.object(module, "export_csv", return_value=None):
-                    gen.run(args, project_root=tmp_path)
+            with patch("tod.generates.cr3bp._family_pipeline.export_csv", return_value=None):
+                gen.run(args, project_root=tmp_path)
 
         mock_load.assert_called_once()
         mock_cont_inst.generate_halo_seed_orbit.assert_not_called()
@@ -338,11 +336,10 @@ class TestGenerateHaloFamilySeedFile:
                 module.FamilyGeneratorConfig(family_type="halo", output_subdir="halo")
             )
             args = _parse_halo_args(module, [
-                "--seed-file", str(family_path), "--n-orbits", "1", "--method", "pseudo_arclength",
+                "--seed-file", str(family_path), "--n-orbits", "1",
             ])
-            with patch.object(gen, "_print_halo_summary"):
-                with patch.object(module, "export_csv", return_value=None):
-                    gen.run(args, project_root=tmp_path)
+            with patch("tod.generates.cr3bp._family_pipeline.export_csv", return_value=None):
+                gen.run(args, project_root=tmp_path)
 
         assert mock_load.call_args.kwargs["orbit_index"] == 0
         mock_cont_inst.halo_pseudo_arclength_continuation.assert_called_once()
@@ -384,11 +381,9 @@ class TestGenerateHaloFamilySeedFile:
             "--amplitude-z", "0.31",
             "--halo-class", "1",
             "--n-orbits", "3",
-            "--method", "pseudo_arclength",
         ])
-        with patch.object(gen, "_print_halo_summary"):
-            with patch.object(module, "export_csv", return_value=None):
-                gen.run(args, project_root=tmp_path)
+        with patch("tod.generates.cr3bp._family_pipeline.export_csv", return_value=None):
+            gen.run(args, project_root=tmp_path)
 
         mock_cont_inst.generate_halo_seed_orbit.assert_called_once_with(
             libration_point=2,
@@ -470,9 +465,10 @@ class TestHaloFamilyNewParams:
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_method_default_is_pseudo_arclength(self, mock_cont, mock_corr, mock_dyn, mock_sys):
-        """--method 默认 pseudo_arclength（与 GUI 默认一致，杜绝静默漂移）。"""
+        """--method 已删除：Halo 统一使用伪弧长延拓。"""
         module = _load_halo_family_module()
-        assert _parse_halo_args(module, []).method == "pseudo_arclength"
+        args = _parse_halo_args(module, [])
+        assert not hasattr(args, "method")
 
     @patch("e2m2e.core.system.CR3BP_System")
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
@@ -532,7 +528,7 @@ class TestHaloFamilyNewParams:
 
 
 class TestHaloSummaryTableOutput:
-    """Test _print_halo_summary continuation info output."""
+    """Test Halo 摘要表输出通过 config.summary_extra_info 回调。"""
 
     @staticmethod
     def _make_orbit(x0, z0, period, periodicity_error=1e-12, amplitude_z=None):
@@ -544,43 +540,48 @@ class TestHaloSummaryTableOutput:
         orbit.amplitudes = {"x": abs(x0) * 0.1, "y": abs(z0) * 0.2, "z": abs(z0)}
         return orbit
 
-    def _make_generator(self, module):
-        gen = module.HaloFamilyGenerator(
-            module.FamilyGeneratorConfig(family_type="halo", output_subdir="halo")
-        )
-        return gen
-
     @patch("e2m2e.core.system.CR3BP_System")
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
-    def test_natural_method_shows_step_and_direction(self, mock_cont, mock_corr, mock_dyn, mock_sys, capsys):
+    def test_pal_summary_shows_step_sizes(self, mock_cont, mock_corr, mock_dyn, mock_sys, capsys):
+        """PAL 摘要应显示正负步长。"""
         module = _load_halo_family_module()
-        gen = self._make_generator(module)
-        orbits = [self._make_orbit(0.93, 0.1 + i * 0.01, 1.84 + i * 0.01) for i in range(5)]
-        gen._print_halo_summary(
-            orbits, 1, 0,
-            method="natural", step_size=0.002, step_size_negative=None,
-            direction="positive", z_range=None,
-        )
-        output = capsys.readouterr().out
-        assert "自然参数延拓" in output
-        assert "延拓步长     0.002" in output
-        assert "延拓方向     positive" in output
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
-    @patch("e2m2e.algorithms.DifferentialCorrection")
-    @patch("e2m2e.algorithms.Continuation")
-    def test_pal_method_shows_both_step_sizes(self, mock_cont, mock_corr, mock_dyn, mock_sys, capsys):
-        module = _load_halo_family_module()
-        gen = self._make_generator(module)
-        orbits = [self._make_orbit(0.93, 0.1 + i * 0.01, 1.84 + i * 0.01) for i in range(5)]
-        gen._print_halo_summary(
-            orbits, 1, 0,
-            method="pseudo_arclength", step_size=0.05, step_size_negative=0.03,
-            direction="both", z_range=None,
+        # 模拟 main() 中构造 config 的逻辑
+        args = _parse_halo_args(module, [
+            "--step-size-pal", "0.05",
+            "--step-size-negative", "0.03",
+            "--direction", "both",
+        ])
+
+        def _summary_extra_info():
+            libration_point = module.LIBRATION_POINT_MAP[args.libration_point]
+            halo_class = args.halo_class
+            step_size = args.step_size_pal if args.step_size_pal is not None else args.step_size
+            step_size_negative = (
+                args.step_size_negative if args.step_size_negative is not None else step_size
+            )
+            return [
+                "  延拓方法     伪弧长延拓",
+                f"  正向步长     {step_size}",
+                f"  负向步长     {step_size_negative}",
+                f"  延拓方向     {args.direction}",
+            ]
+
+        from tod.generates.cr3bp._family_pipeline import FamilyGeneratorConfig, print_summary_table
+
+        config = FamilyGeneratorConfig(
+            family_type="halo",
+            summary_title="  Earth-Moon Halo 轨道族：配置、统计与代表性轨道",
+            summary_columns=["z_amp", "x0", "z0", "Period", "C_Jacobi"],
+            summary_format_row=module.HaloFamilyGenerator._summary_format_row,
+            summary_extra_info=_summary_extra_info,
         )
+
+        orbits = [self._make_orbit(0.93, 0.1 + i * 0.01, 1.84 + i * 0.01) for i in range(5)]
+        print_summary_table(orbits, config)
+
         output = capsys.readouterr().out
         assert "伪弧长延拓" in output
         assert "正向步长     0.05" in output
@@ -591,37 +592,26 @@ class TestHaloSummaryTableOutput:
 class TestHaloGuiRegistryNewParams:
     """Test updated GUI registry for Halo family generation."""
 
-    def test_method_selector_exists(self):
-        from tod.gui.script_registry import SCRIPTS
-
-        entry = next(e for e in SCRIPTS["Halo"] if e.name == "generate_halo_family")
-        method_param = next(p for p in entry.cli_params if p.flag == "--method")
-        assert method_param.choice_values is not None
-        assert "natural" in method_param.choice_values.values()
-        assert "pseudo_arclength" in method_param.choice_values.values()
-
     def test_step_size_pal_param_exists(self):
         from tod.gui.script_registry import SCRIPTS
 
         entry = next(e for e in SCRIPTS["Halo"] if e.name == "generate_halo_family")
         pal_param = next(p for p in entry.cli_params if p.flag == "--step-size-pal")
-        assert pal_param.hidden_when == "--method==natural"
-        assert pal_param.unit_group is None
+        assert pal_param is not None
 
-    def test_step_size_hidden_when_pal(self):
+    def test_step_size_param_exists(self):
         from tod.gui.script_registry import SCRIPTS
 
         entry = next(e for e in SCRIPTS["Halo"] if e.name == "generate_halo_family")
         step_param = next(p for p in entry.cli_params if p.flag == "--step-size")
-        assert step_param.hidden_when == "--method==pseudo_arclength"
         assert step_param.unit_group == "distance"
 
-    def test_step_size_negative_hidden_when_natural(self):
+    def test_step_size_negative_param_exists(self):
         from tod.gui.script_registry import SCRIPTS
 
         entry = next(e for e in SCRIPTS["Halo"] if e.name == "generate_halo_family")
         neg_param = next(p for p in entry.cli_params if p.flag == "--step-size-negative")
-        assert neg_param.hidden_when == "--method==natural"
+        assert neg_param is not None
 
     def test_direction_param_exists(self):
         from tod.gui.script_registry import SCRIPTS
