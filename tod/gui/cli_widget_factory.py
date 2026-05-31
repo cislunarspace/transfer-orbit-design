@@ -21,8 +21,10 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
+    QAbstractItemView,
+    QHeaderView,
+    QTableWidget,
+    QTableWidgetItem,
     QPushButton,
     QSizePolicy,
     QSpinBox,
@@ -314,61 +316,64 @@ class CliWidgetFactory:
         multi_param,
         repo_root: str,
     ) -> tuple[str, QWidget]:
-        """创建多文件控件（ListWidget + 添加/删除按钮）。
+        """创建多文件控件（表格 + 添加按钮），每行显示文件名 + per-file 字段。
 
         Args:
-            multi_param: MultiCliParam 实例
+            multi_param: MultiCliParam 实例（含 per_file_fields）
             repo_root: 项目根目录路径
 
         Returns:
             (key, container_widget)
         """
-        from tod.gui.script_registry import MultiCliParam
-
         key = multi_param.flag.lstrip("-").replace("-", "_")
+        per_fields = multi_param.per_file_fields
 
-        # 主容器：左右布局
+        # 主容器
         container = QWidget()
         container.setObjectName(f"multi_file_container_{key}")
-        main_layout = QHBoxLayout(container)
+        main_layout = QVBoxLayout(container)
         main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(8)
+        main_layout.setSpacing(4)
 
-        # 左侧：ListWidget + 按钮
-        left_widget = QWidget()
-        left_layout = QVBoxLayout(left_widget)
-        left_layout.setContentsMargins(0, 0, 0, 0)
-        left_layout.setSpacing(4)
+        # 表头：文件名 | per-file 字段... | 删除
+        headers = [QCoreApplication.translate("CliWidgetFactory", "文件名")]
+        for f in per_fields:
+            headers.append(f.label)
+        headers.append("")  # 删除按钮列
 
-        # ListWidget 显示已选文件
-        list_widget = QListWidget()
-        list_widget.setAlternatingRowColors(True)
-        list_widget.setMinimumHeight(120)
-        list_widget.setMaximumHeight(200)
-        list_widget.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
-        left_layout.addWidget(list_widget)
+        table = QTableWidget()
+        table.setColumnCount(len(headers))
+        table.setHorizontalHeaderLabels(headers)
+        table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        table.setMinimumHeight(120)
+        table.setMaximumHeight(250)
+        table.verticalHeader().setVisible(False)
 
-        # 按钮行
+        # 列宽策略：文件名拉伸，per-field 自适应，删除列固定
+        header = table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        for col in range(1, len(headers) - 1):
+            header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        delete_col = len(headers) - 1
+        header.setSectionResizeMode(delete_col, QHeaderView.ResizeMode.Fixed)
+        table.setColumnWidth(delete_col, 60)
+
+        # 存储引用，供 collect_multi_file_configs 读取
+        table._per_file_fields = per_fields
+        table._delete_col = delete_col
+
+        # 添加文件按钮
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(4)
 
         add_btn = QPushButton(QCoreApplication.translate("CliWidgetFactory", "添加文件"))
         add_btn.setToolTip(QCoreApplication.translate("CliWidgetFactory", "添加 JSON 文件到列表"))
-        remove_btn = QPushButton(QCoreApplication.translate("CliWidgetFactory", "移除"))
-        remove_btn.setToolTip(QCoreApplication.translate("CliWidgetFactory", "移除选中的文件"))
-        remove_btn.setEnabled(False)
 
         btn_layout.addWidget(add_btn)
-        btn_layout.addWidget(remove_btn)
         btn_layout.addStretch()
-        left_layout.addLayout(btn_layout)
 
-        # 存储引用
-        list_widget._file_items = {}  # path -> (item, config_data)
-        list_widget._multi_param = multi_param
-        list_widget._repo_root = repo_root
-
-        # 添加文件按钮点击
+        # 添加文件回调
         def _on_add_clicked() -> None:
             filters = "JSON Files (*.json)"
             paths, _ = QFileDialog.getOpenFileNames(
@@ -378,50 +383,70 @@ class CliWidgetFactory:
                 filters,
             )
             for path in paths:
-                if path not in list_widget._file_items:
-                    item = QListWidgetItem(Path(path).name)
-                    item.setData(Qt.ItemDataRole.UserRole, path)
-                    list_widget.addItem(item)
-                    list_widget._file_items[path] = {
-                        "path": path,
-                        "start": -1,
-                        "end": -1,
-                        "step": 1,
-                    }
-
-        # 移除按钮点击
-        def _on_remove_clicked() -> None:
-            current_item = list_widget.currentItem()
-            if current_item:
-                path = current_item.data(Qt.ItemDataRole.UserRole)
-                if path in list_widget._file_items:
-                    del list_widget._file_items[path]
-                list_widget.takeItem(list_widget.row(current_item))
-                remove_btn.setEnabled(False)
-                # 通知外部配置面板清空
-                if container._multi_file_cb:
-                    container._multi_file_cb(key, None)
-
-        # ListWidget 选择变化
-        def _on_selection_changed() -> None:
-            current_item = list_widget.currentItem()
-            remove_btn.setEnabled(current_item is not None)
-            if current_item:
-                path = current_item.data(Qt.ItemDataRole.UserRole)
-                config = list_widget._file_items.get(path)
-                if container._multi_file_cb:
-                    container._multi_file_cb(key, config)
-            else:
-                if container._multi_file_cb:
-                    container._multi_file_cb(key, None)
+                _add_file_row(table, path, per_fields, delete_col)
 
         add_btn.clicked.connect(_on_add_clicked)
-        remove_btn.clicked.connect(_on_remove_clicked)
-        list_widget.itemSelectionChanged.connect(_on_selection_changed)
 
-        main_layout.addWidget(left_widget, stretch=1)
-
-        # 回调接口：外部通过 widget._multi_file_cb = lambda k, cfg: ... 订阅
-        container._multi_file_cb = None
+        main_layout.addWidget(table)
+        main_layout.addLayout(btn_layout)
 
         return key, container
+
+
+def _add_file_row(
+    table: QTableWidget,
+    file_path: str,
+    fields: list,
+    delete_col: int,
+) -> None:
+    """向表格中添加一行文件配置。"""
+    row = table.rowCount()
+    table.insertRow(row)
+
+    # Column 0: 文件名（只读）
+    name_item = QTableWidgetItem(Path(file_path).name)
+    name_item.setData(Qt.ItemDataRole.UserRole, file_path)
+    name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+    name_item.setToolTip(file_path)
+    table.setItem(row, 0, name_item)
+
+    # Column 1..N: per-file 字段
+    for col, field_def in enumerate(fields, start=1):
+        if field_def.field_type == "int":
+            widget = QSpinBox()
+            widget.setRange(
+                int(field_def.min_value) if field_def.min_value is not None else -99999,
+                int(field_def.max_value) if field_def.max_value is not None else 99999,
+            )
+            widget.setValue(int(field_def.default) if field_def.default else 0)
+            widget.setToolTip(field_def.help)
+            widget.setMinimumWidth(70)
+        elif field_def.field_type == "float":
+            widget = QLineEdit()
+            validator = QDoubleValidator(-99999.0, 99999.0, 15)
+            validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+            widget.setValidator(validator)
+            if field_def.default:
+                widget.setText(field_def.default)
+            widget.setToolTip(field_def.help)
+            widget.setMinimumWidth(70)
+        else:
+            widget = QLineEdit()
+            if field_def.default:
+                widget.setText(field_def.default)
+            widget.setToolTip(field_def.help)
+            widget.setMinimumWidth(70)
+        table.setCellWidget(row, col, widget)
+
+    # 最后一列：删除按钮
+    del_btn = QPushButton(QCoreApplication.translate("CliWidgetFactory", "移除"))
+    del_btn.setFixedWidth(50)
+
+    def _on_delete(clicked_btn=del_btn, col_idx=delete_col) -> None:
+        for r in range(table.rowCount()):
+            if table.cellWidget(r, col_idx) is clicked_btn:
+                table.removeRow(r)
+                break
+
+    del_btn.clicked.connect(_on_delete)
+    table.setCellWidget(row, delete_col, del_btn)

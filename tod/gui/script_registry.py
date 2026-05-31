@@ -68,6 +68,22 @@ class CliChipParam:
 
 
 @dataclass(frozen=True)
+class PerFileField:
+    """多文件参数中每个文件的声明式字段定义。
+
+    用于 MultiCliParam.per_file_fields，描述表格中每行除文件名外的可编辑列。
+    """
+
+    key: str  # 字典中的 key，如 "start", "end", "step"
+    label: str  # UI 表头，如 "起始索引"
+    field_type: str  # "int" | "float" | "str"
+    default: str = ""  # 默认值
+    help: str = ""  # tooltip
+    min_value: int | float | None = None  # SpinBox 最小值（仅 int/float 有效）
+    max_value: int | float | None = None  # SpinBox 最大值（仅 int/float 有效）
+
+
+@dataclass(frozen=True)
 class MultiFileConfig:
     """多文件绘制配置项：表示单个文件的绘制参数。"""
 
@@ -93,9 +109,9 @@ class MultiFileConfig:
 
 @dataclass(frozen=True)
 class MultiCliParam:
-    """多文件参数：GUI 渲染为文件列表控件，每项包含路径和索引配置。
+    """多文件参数：GUI 渲染为表格控件，每行显示文件名 + per-file 字段。
 
-    用户可添加多个 JSON 文件，每个文件可独立配置绘制范围（start/end/step）。
+    用户可添加多个 JSON 文件，每个文件可独立配置 per_file_fields 中声明的字段。
     所有文件的数据将叠加绘制在同一张图上。
     """
 
@@ -106,6 +122,7 @@ class MultiCliParam:
     name_pattern: str | None = None  # 文件名过滤模式，如 "*_family_*.json"
     help: str = ""  # 帮助文本
     default: str = ""  # 默认值，JSON 字符串格式的 MultiFileConfig 列表
+    per_file_fields: list[PerFileField] = field(default_factory=list)  # 每个文件的可配置字段
 
 
 @dataclass(frozen=True)

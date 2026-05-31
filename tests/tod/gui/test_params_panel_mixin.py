@@ -12,8 +12,6 @@ class TestParamsPanelLayoutMixinImportable:
             "_rebuild_params_panel",
             "_add_cli_param_row",
             "_add_multi_file_param",
-            "_create_config_panel",
-            "_on_multi_file_selection_changed",
             "_on_doc_link_clicked",
             "_make_cli_widget",
             "_display_widget",

@@ -39,14 +39,21 @@ class TestPlotOrbitsParams:
         return _load_raw_entry()
 
     def test_has_json_file_param(self, raw_entry) -> None:
-        """plot_orbits should have --json-file parameter."""
+        """plot_orbits should have --json-file parameter with per-file fields."""
         multi_flags = [p.flag for p in raw_entry.multi_cli_params]
         assert "--json-file" in multi_flags, "Missing --json-file parameter"
 
-        cli_params = raw_entry.cli_params
-        step_param = next((p for p in cli_params if p.flag == "--step"), None)
-        assert step_param is not None
-        assert step_param.default == ""  # empty default = auto-detect from config
+        json_param = next(p for p in raw_entry.multi_cli_params if p.flag == "--json-file")
+        per_field_keys = [f.key for f in json_param.per_file_fields]
+        assert "start" in per_field_keys, "Missing 'start' per-file field"
+        assert "end" in per_field_keys, "Missing 'end' per-file field"
+        assert "step" in per_field_keys, "Missing 'step' per-file field"
+
+        # start/end/step 不再作为 cli_params 出现（已移至 per_file_fields）
+        cli_flags = [p.flag for p in raw_entry.cli_params]
+        assert "--start" not in cli_flags, "--start should be removed from cli_params"
+        assert "--end" not in cli_flags, "--end should be removed from cli_params"
+        assert "--step" not in cli_flags, "--step should be removed from cli_params"
 
     def test_has_view_2d_param(self, plot_orbits) -> None:
         flags = [p.flag for p in plot_orbits.cli_params]

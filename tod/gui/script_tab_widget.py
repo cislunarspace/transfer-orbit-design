@@ -16,7 +16,6 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QListWidget,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -77,7 +76,6 @@ class ScriptTabWidget(QWidget):
         self._env_widgets: dict[str, QComboBox] = {}
         self._chip_widgets: dict[str, QWidget] = {}
         self._multi_file_widgets: dict[str, QWidget] = {}
-        self._multi_file_config_panels: dict[str, QWidget] = {}
         self._param_defaults: dict[QWidget, str] = {}
         self._factory_defaults: dict[QWidget, str] = {}
         self._cli_row_containers: dict[str, QWidget] = {}
@@ -399,131 +397,22 @@ class ScriptTabWidget(QWidget):
         self._params_layout.addRow(adv_group)
 
     def _add_multi_file_param(self, multi_param: MultiCliParam) -> None:
+        """创建多文件参数控件（表格，每行含文件名 + per-file 字段）。"""
         key, widget = self._widget_factory.make_multi_file_widget(
             multi_param, str(self._repo_root)
         )
         self._multi_file_widgets[key] = widget
 
-        config_panel = self._create_config_panel(key, multi_param)
-        self._multi_file_config_panels[key] = config_panel
-
-        widget._multi_file_cb = (  # type: ignore[attr-defined]
-            lambda k, cfg: self._on_multi_file_selection_changed(k, cfg)
-        )
-
-        container = QWidget()
-        container.setObjectName(f"multi_file_param_{key}")
-        c_layout = QVBoxLayout(container)
-        c_layout.setContentsMargins(0, 0, 0, 0)
-        c_layout.setSpacing(8)
-        c_layout.addWidget(widget)
-        c_layout.addWidget(config_panel)
-
         row_container = QWidget()
         row_layout = QHBoxLayout(row_container)
         row_layout.setContentsMargins(0, 0, 0, 0)
-        row_layout.addWidget(container)
+        row_layout.addWidget(widget)
         self._cli_row_containers[key] = row_container
 
         self._params_layout.addRow(f"{multi_param.label}:", row_container)
         label = self._params_layout.labelForField(row_container)
         if label is not None:
             self._cli_row_labels[key] = label
-
-    def _create_config_panel(self, key: str, multi_param: MultiCliParam) -> QWidget:
-        panel = QWidget()
-        panel.setObjectName(f"config_panel_{key}")
-        panel.setVisible(False)
-
-        layout = QFormLayout(panel)
-        layout.setContentsMargins(8, 4, 8, 4)
-        layout.setSpacing(6)
-
-        file_label = QLabel(self.tr("未选择文件"))
-        file_label.setObjectName("file_info_label")
-        layout.addRow("", file_label)
-
-        start_spin = QSpinBox()
-        start_spin.setRange(-99999, 99999)
-        start_spin.setValue(-1)
-        start_spin.setObjectName("start_spin")
-        layout.addRow(self.tr("起始索引:"), start_spin)
-
-        end_spin = QSpinBox()
-        end_spin.setRange(-99999, 99999)
-        end_spin.setValue(-1)
-        end_spin.setObjectName("end_spin")
-        layout.addRow(self.tr("结束索引:"), end_spin)
-
-        step_spin = QSpinBox()
-        step_spin.setRange(1, 99999)
-        step_spin.setValue(1)
-        step_spin.setObjectName("step_spin")
-        layout.addRow(self.tr("绘制间隔:"), step_spin)
-
-        panel._file_label = file_label  # type: ignore[attr-defined]
-        panel._start_spin = start_spin  # type: ignore[attr-defined]
-        panel._end_spin = end_spin  # type: ignore[attr-defined]
-        panel._step_spin = step_spin  # type: ignore[attr-defined]
-
-        return panel
-
-    def _on_multi_file_selection_changed(
-        self, key: str, config: dict | None
-    ) -> None:
-        panel = self._multi_file_config_panels.get(key)
-        widget = self._multi_file_widgets.get(key)
-        if panel is None or widget is None:
-            return
-
-        if config is None:
-            panel.setVisible(False)
-            return
-
-        try:
-            panel._start_spin.valueChanged.disconnect()  # type: ignore[attr-defined]
-            panel._end_spin.valueChanged.disconnect()  # type: ignore[attr-defined]
-            panel._step_spin.valueChanged.disconnect()  # type: ignore[attr-defined]
-        except Exception:
-            pass
-
-        panel.setVisible(True)
-        file_label = panel._file_label  # type: ignore[attr-defined]
-        path = config.get("path", "")
-
-        orbit_count = ""
-        try:
-            from e2m2e.core import OrbitFamily  # type: ignore[import-untyped]
-            from tod.commons.constants import MU
-            from e2m2e.core import CR3BP_System  # type: ignore[import-untyped]
-
-            system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
-            family = OrbitFamily.load_from_file(Path(path), system)
-            orbit_count = self.tr(" ({n} 条轨道)").format(n=len(family))
-        except Exception:
-            pass
-
-        file_label.setText(f"{Path(path).name}{orbit_count}")
-        panel._start_spin.setValue(config.get("start", -1))  # type: ignore[attr-defined]
-        panel._end_spin.setValue(config.get("end", -1))  # type: ignore[attr-defined]
-        panel._step_spin.setValue(config.get("step", 1))  # type: ignore[attr-defined]
-
-        def _update_config() -> None:
-            list_widget = widget.findChild(QListWidget)
-            if list_widget is None:
-                return
-            current_item = list_widget.currentItem()
-            if current_item is None:
-                return
-            item_path = current_item.data(Qt.ItemDataRole.UserRole)
-            if item_path in list_widget._file_items:  # type: ignore[attr-defined]
-                list_widget._file_items[item_path]["start"] = panel._start_spin.value()  # type: ignore[attr-defined]
-                list_widget._file_items[item_path]["end"] = panel._end_spin.value()  # type: ignore[attr-defined]
-                list_widget._file_items[item_path]["step"] = panel._step_spin.value()  # type: ignore[attr-defined]
-
-        panel._start_spin.valueChanged.connect(_update_config)  # type: ignore[attr-defined]
-        panel._end_spin.valueChanged.connect(_update_config)  # type: ignore[attr-defined]
-        panel._step_spin.valueChanged.connect(_update_config)  # type: ignore[attr-defined]
 
     def _add_defaults_buttons(self) -> None:
         btn_layout = QHBoxLayout()
@@ -895,16 +784,44 @@ class ScriptTabWidget(QWidget):
         return selections
 
     def collect_multi_file_configs(self) -> dict[str, list[dict]]:
-        """收集多文件参数配置。"""
+        """从表格控件收集多文件参数配置。
+
+        遍历每行，读取文件路径（UserRole data）和 per-file 字段值，
+        构建与 CLI --json-file 参数兼容的 JSON 列表。
+        """
+        from PyQt6.QtWidgets import QTableWidget, QSpinBox
+
         configs: dict[str, list[dict]] = {}
         for key, widget in self._multi_file_widgets.items():
-            list_widget = widget.findChild(QListWidget)
-            if list_widget is None:
+            table = widget.findChild(QTableWidget)
+            if table is None:
                 continue
-            file_configs = []
-            file_items: dict[str, dict] = list_widget._file_items  # type: ignore[assignment]
-            for _path, config in file_items.items():
-                file_configs.append(config.copy())
+            per_fields = getattr(table, '_per_file_fields', [])
+            file_configs: list[dict] = []
+            for row in range(table.rowCount()):
+                name_item = table.item(row, 0)
+                if name_item is None:
+                    continue
+                path = name_item.data(Qt.ItemDataRole.UserRole)
+                if not path:
+                    continue
+                config: dict = {"path": path}
+                for col, field_def in enumerate(per_fields, start=1):
+                    cell_widget = table.cellWidget(row, col)
+                    if cell_widget is None:
+                        continue
+                    if isinstance(cell_widget, QSpinBox):
+                        config[field_def.key] = cell_widget.value()
+                    elif isinstance(cell_widget, QLineEdit):
+                        text = cell_widget.text().strip()
+                        if field_def.field_type == "float" and text:
+                            try:
+                                config[field_def.key] = float(text)
+                            except ValueError:
+                                config[field_def.key] = text
+                        else:
+                            config[field_def.key] = text if text else field_def.default
+                file_configs.append(config)
             if file_configs:
                 configs[key] = file_configs
         return configs
@@ -993,7 +910,6 @@ class ScriptTabWidget(QWidget):
         self._env_widgets.clear()
         self._chip_widgets.clear()
         self._multi_file_widgets.clear()
-        self._multi_file_config_panels.clear()
         self._param_defaults.clear()
         self._factory_defaults.clear()
         self._cli_row_containers.clear()

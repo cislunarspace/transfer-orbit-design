@@ -2,9 +2,10 @@
 
 统一入口，支持 DRO / RO / Halo 轨道族和单条轨道的绘图。
 用户可混合选择不同类型文件叠加绘制在同一张图上。
+每个文件可在表格中独立配置绘制范围（起始索引、结束索引、绘制间隔）。
 """
 
-from tod.gui.script_registry import CliParam, MultiCliParam, ScriptEntry
+from tod.gui.script_registry import CliParam, MultiCliParam, PerFileField, ScriptEntry
 
 SCRIPT_ENTRY = ScriptEntry(
     module='plot',
@@ -19,13 +20,35 @@ SCRIPT_ENTRY = ScriptEntry(
             label='轨道文件',
             file_category='orbit',
             name_pattern='*.json',
-            help='支持多文件：点击"添加文件"选择多个 JSON 文件（家族或单条轨道），每个文件可单独配置绘制范围',
+            help='支持多文件：点击"添加文件"选择多个 JSON 文件（家族或单条轨道），'
+                 '每个文件可在表格中独立配置绘制范围',
+            per_file_fields=[
+                PerFileField(
+                    key='start',
+                    label='起始索引',
+                    field_type='int',
+                    default='-1',
+                    help='起始轨道索引，-1 表示从第一条',
+                ),
+                PerFileField(
+                    key='end',
+                    label='结束索引',
+                    field_type='int',
+                    default='-1',
+                    help='结束轨道索引（含），-1 表示到最后一条',
+                ),
+                PerFileField(
+                    key='step',
+                    label='绘制间隔',
+                    field_type='int',
+                    default='1',
+                    help='每隔 N 条轨道绘制 1 条，1 表示绘制全部',
+                    min_value=1,
+                ),
+            ],
         ),
     ],
     cli_params=[
-        CliParam('--start', '起始轨道索引', 'int', '-1', help='起始轨道索引，-1 表示从第一条（仅单文件模式有效）', advanced=True),
-        CliParam('--end', '结束轨道索引', 'int', '-1', help='结束轨道索引（含），-1 表示到最后一条（仅单文件模式有效）', advanced=True),
-        CliParam('--step', '绘制步长', 'int', '', help='绘制轨道的间隔步长，1 表示绘制全部（仅单文件模式有效）', advanced=True),
         CliParam('--plane', '投影平面', 'str', '', help='覆盖自动检测的投影平面（留空=自动）', advanced=True),
         CliParam('--view-2d', '2D 视图', 'bool', '', help='绘制轨道在选定平面的 2D 视图，勾选后启用。'),
         CliParam('--view-3d', '3D 视图', 'bool', '', help='绘制轨道的 3D 示意图，勾选后启用。'),

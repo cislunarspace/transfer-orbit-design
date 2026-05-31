@@ -82,18 +82,39 @@ class RunMixin:
         Returns:
             {key: [config_dicts]}，如 {"json_file": [{"path": "a.json", "start": 0, "end": 10, "step": 1}, ...]}
         """
-        from PyQt6.QtWidgets import QListWidget
+        from PyQt6.QtWidgets import QTableWidget, QSpinBox
 
         configs: dict[str, list[dict]] = {}
         for key, widget in self._multi_file_widgets.items():
-            # 找到 ListWidget
-            list_widget = widget.findChild(QListWidget)
-            if list_widget is None:
+            table = widget.findChild(QTableWidget)
+            if table is None:
                 continue
-            file_configs = []
-            file_items: dict[str, dict] = list_widget._file_items  # type: ignore[assignment]
-            for path, config in file_items.items():
-                file_configs.append(config.copy())
+            per_fields = getattr(table, '_per_file_fields', [])
+            file_configs: list[dict] = []
+            for row in range(table.rowCount()):
+                name_item = table.item(row, 0)
+                if name_item is None:
+                    continue
+                path = name_item.data(Qt.ItemDataRole.UserRole)
+                if not path:
+                    continue
+                config: dict = {"path": path}
+                for col, field_def in enumerate(per_fields, start=1):
+                    cell_widget = table.cellWidget(row, col)
+                    if cell_widget is None:
+                        continue
+                    if isinstance(cell_widget, QSpinBox):
+                        config[field_def.key] = cell_widget.value()
+                    elif isinstance(cell_widget, QLineEdit):
+                        text = cell_widget.text().strip()
+                        if field_def.field_type == "float" and text:
+                            try:
+                                config[field_def.key] = float(text)
+                            except ValueError:
+                                config[field_def.key] = text
+                        else:
+                            config[field_def.key] = text if text else field_def.default
+                file_configs.append(config)
             if file_configs:
                 configs[key] = file_configs
         return configs
