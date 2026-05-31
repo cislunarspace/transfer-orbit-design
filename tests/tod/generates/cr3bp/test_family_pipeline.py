@@ -404,8 +404,8 @@ class TestFamilyGenerator:
     def test_abstract_methods_raise(self):
         cfg = fp.FamilyGeneratorConfig()
         gen = fp.FamilyGenerator(cfg)
-        with pytest.raises(NotImplementedError):
-            gen.parse_args()
+        # parse_args() is not abstract — it builds a real parser and succeeds.
+        # Only hook methods raise NotImplementedError.
         with pytest.raises(NotImplementedError):
             gen._get_seed_orbit(None)
         with pytest.raises(NotImplementedError):

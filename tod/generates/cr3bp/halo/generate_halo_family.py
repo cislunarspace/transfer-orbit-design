@@ -356,19 +356,19 @@ class HaloFamilyGenerator(FamilyGenerator):
             "--step-size",
             type=float,
             default=0.002,
-            help="伪弧长延拓 z 方向步长（当 --step-size-pal 未指定时使用）",
+            help="伪弧长延拓步长的 fallback（当 --step-size-pal 未指定时使用）",
         )
         parser.add_argument(
             "--step-size-pal",
             type=float,
             default=None,
-            help="伪弧长延拓步长（提供时覆盖 --step-size）",
+            help="伪弧长延拓步长 |Δs|（提供时覆盖 --step-size）",
         )
         parser.add_argument(
             "--step-size-negative",
             type=float,
             default=None,
-            help="伪弧长延拓负向步长（默认等于正向步长）",
+            help="负向支延拓步长覆盖（默认等于正向步长）",
         )
         parser.add_argument(
             "--direction",

@@ -35,9 +35,9 @@ SCRIPT_ENTRY = ScriptEntry(
         CliParam('--direction', '延拓方向', 'str', 'both', help='延拓方向，默认 both（从种子向振幅更小和更大双向铺开）。', choices=('positive', 'negative', 'both'), choice_values={'positive': 'positive', 'negative': 'negative', 'both': 'both'}),
         CliParam('--z-min', 'z 振幅下限', 'float', '0.001', help='延拓 z 振幅范围下限（正数，南族自动转为负值），默认 0.001，单位 DU。', unit_group='distance', default_unit='DU'),
         CliParam('--z-max', 'z 振幅上限', 'float', '0.5', help='延拓 z 振幅范围上限（正数，南族自动转为负值），默认 0.5，单位 DU。', unit_group='distance', default_unit='DU'),
-        CliParam('--step-size', 'z 方向步长', 'float', '0.002', help='伪弧长延拓步长（当 --step-size-pal 未指定时使用），默认 0.002，单位 DU。', unit_group='distance', default_unit='DU'),
-        CliParam('--step-size-pal', '弧长步长', 'float', '0.0045', help='伪弧长延拓步长（提供时覆盖 --step-size），默认 0.0045。'),
-        CliParam('--step-size-negative', '负向步长', 'float', '0.009', help='伪弧长延拓负向步长（默认等于正向步长）'),
+        CliParam('--step-size-pal', '伪弧长延拓步长', 'float', '0.0045', help='伪弧长延拓步长 |Δs|，默认 0.0045，单位 DU。', unit_group='distance', default_unit='DU'),
+        CliParam('--step-size-negative', '负向支步长', 'float', '0.009', help='负向支延拓步长覆盖（默认等于伪弧长延拓步长）', advanced=True),
+        CliParam('--step-size', '延拓步长（fallback）', 'float', '0.002', help='当 --step-size-pal 未指定时的 fallback，默认 0.002，单位 DU。', unit_group='distance', default_unit='DU', advanced=True),
         CliParam('--n-orbits', '轨道数量', 'int', '20', help='延拓轨道数量（z_range 模式下的最大轨道数安全阀），默认 20。', advanced=True),
     ],
 )
