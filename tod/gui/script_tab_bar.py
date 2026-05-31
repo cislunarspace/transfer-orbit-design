@@ -35,8 +35,10 @@ class ScriptTabBar(QWidget):
     """
 
     tab_switched = pyqtSignal(ScriptEntry)
+    tab_cleared = pyqtSignal()  # 所有 tab 关闭
     run_requested = pyqtSignal(ScriptTabWidget)
     doc_link_clicked = pyqtSignal(str)
+    doc_link_missing = pyqtSignal(str)  # 文档未构建时发出警告消息
     status_message = pyqtSignal(str, int)
     copy_path_requested = pyqtSignal(str, QWidget)
     defaults_changed = pyqtSignal()
@@ -55,9 +57,7 @@ class ScriptTabBar(QWidget):
         self._gui_defaults = gui_defaults
         self._theme_mode = theme_mode
 
-        # tab-bar index -> ScriptTabWidget（与 QTabBar 保持同步）
         self._widgets: list[ScriptTabWidget] = []
-        # script_path -> tab-bar index
         self._path_to_index: dict[str, int] = {}
 
         self._setup_ui()
@@ -134,6 +134,7 @@ class ScriptTabBar(QWidget):
 
         tab_widget.run_requested.connect(lambda tw=tab_widget: self.run_requested.emit(tw))
         tab_widget.doc_link_clicked.connect(self.doc_link_clicked.emit)
+        tab_widget.doc_link_missing.connect(self.doc_link_missing.emit)
         tab_widget.status_message.connect(self.status_message.emit)
         tab_widget.copy_path_requested.connect(self.copy_path_requested.emit)
         tab_widget.defaults_changed.connect(self.defaults_changed.emit)
@@ -148,12 +149,25 @@ class ScriptTabBar(QWidget):
         widget = self._widgets.pop(index)
         self._tab_bar.removeTab(index)
         self._stack.removeWidget(widget)
+
+        # 断开所有信号连接，防止 deleteLater 后信号仍传播
+        try:
+            widget.run_requested.disconnect()
+            widget.doc_link_clicked.disconnect()
+            widget.doc_link_missing.disconnect()
+            widget.status_message.disconnect()
+            widget.copy_path_requested.disconnect()
+            widget.defaults_changed.disconnect()
+        except (TypeError, RuntimeError):
+            pass
+
         widget.deleteLater()
 
         self._rebuild_path_index()
 
         if self._tab_bar.count() == 0:
             self._stack.setCurrentWidget(self._empty_placeholder)
+            self.tab_cleared.emit()
 
     def close_all(self) -> None:
         while self._tab_bar.count() > 0:

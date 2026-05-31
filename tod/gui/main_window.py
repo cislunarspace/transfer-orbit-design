@@ -27,7 +27,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from tod.gui.file_discovery import FileInfo
+from tod.gui.file_discovery import FileInfo, discover_files
 from tod.gui.file_tree_mixin import FileTreeMixin
 from tod.gui.job_manager import JobManager
 from tod.gui.job_panel_mixin import JobPanelMixin
@@ -224,7 +224,6 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, QMainWindow):
     def _build_right_panel(self) -> QTabWidget:
         tabs = QTabWidget()
 
-        # ── Tab 1: Script Tab Bar (多脚本面板) ─────────────────
         self._script_tab_bar = ScriptTabBar(
             files=self._files,
             repo_root=self._repo_root,
@@ -232,8 +231,12 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, QMainWindow):
             theme_mode=self._current_theme_mode,
         )
         self._script_tab_bar.tab_switched.connect(self._on_tab_switched)
+        self._script_tab_bar.tab_cleared.connect(self._on_tab_cleared)
         self._script_tab_bar.run_requested.connect(self._run_from_tab)
         self._script_tab_bar.doc_link_clicked.connect(self._open_doc_window)
+        self._script_tab_bar.doc_link_missing.connect(
+            lambda msg: self._status_bar.showMessage(msg, 5000)
+        )
         self._script_tab_bar.status_message.connect(
             lambda msg, timeout: self._status_bar.showMessage(msg, timeout)
         )
@@ -243,7 +246,6 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, QMainWindow):
         tabs.addTab(self._script_tab_bar, self.tr("脚本信息"))
         self._right_tabs = tabs
 
-        # ── Tab 2: File Browser ────────────────────────────────
         self._build_file_browser_tab(tabs)
 
         return tabs
@@ -256,11 +258,9 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, QMainWindow):
         if entry.output_dir:
             self._highlight_category(Path(entry.output_dir).name)
 
-        # 通过 ScriptTabBar 打开/切换到该脚本
         if self._script_tab_bar is not None:
             self._script_tab_bar.open_script(entry)
 
-        # 自动切换回脚本信息标签页
         if self._right_tabs is not None:
             script_info_titles = {self.tr("脚本信息")}
             for i in range(self._right_tabs.count()):
@@ -274,21 +274,22 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, QMainWindow):
         """ScriptTabBar tab 切换时，同步侧边栏高亮和 _current_script。"""
         self._current_script = entry
 
-        # 同步侧边栏高亮
         if hasattr(self, "_sidebar_widget"):
             tree = self._sidebar_widget._tree
             tree.blockSignals(True)
             tree.select_script(entry.script_path)
             tree.blockSignals(False)
 
-        # 高亮输出目录
         if entry.output_dir:
             self._highlight_category(Path(entry.output_dir).name)
+
+    def _on_tab_cleared(self) -> None:
+        """所有 tab 关闭后，清空 _current_script。"""
+        self._current_script = None
 
     # ── 运行（从 ScriptTabWidget 委托） ────────────────────────
 
     def _on_run(self) -> None:
-        """快捷键 Ctrl+R：运行当前 tab 的脚本。"""
         if self._script_tab_bar is None:
             return
         widget = self._script_tab_bar.current_widget()
@@ -309,7 +310,6 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, QMainWindow):
         env_overrides = tab.collect_env_overrides()
         extra_args = tab.collect_run_args()
 
-        # 如果脚本支持 --file 且用户在文件树中选中了文件
         if entry.accepts_file_arg:
             selected = self._file_tree.currentItem()
             if selected:
@@ -322,10 +322,8 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, QMainWindow):
         env_overrides.update(plot_font_env_from_settings(self._gui_defaults.get("settings", {})))
         env_overrides.update(body_icon_env_from_settings(self._gui_defaults.get("settings", {})))
 
-        # 展开芯片参数组合
         all_args_combinations = self._expand_chip_combinations(entry, extra_args, chip_selections)
 
-        # 添加多文件参数
         for args in all_args_combinations:
             for key, configs in multi_file_configs.items():
                 if not configs:
@@ -348,7 +346,6 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, QMainWindow):
         base_args: list[str],
         chip_selections: dict[str, list[str]],
     ) -> list[list[str]]:
-        """展开芯片参数选择的所有组合。"""
         if not chip_selections:
             return [base_args]
 
@@ -375,15 +372,57 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, QMainWindow):
 
         return combinations
 
-    # ── 文件刷新（覆盖 FileTreeMixin 的回调） ──────────────────
+    # ── 文件刷新（完全覆盖 FileTreeMixin._refresh_files） ─────
 
     def _refresh_files(self) -> None:
-        """刷新文件列表，同步到所有 tab。"""
-        super()._refresh_files()
+        """刷新文件列表，同步到文件树和所有 tab。"""
+        self._files = discover_files(self._repo_root)
+
+        if hasattr(self, "_file_tree"):
+            self._rebuild_file_tree()
 
         # 同步文件列表到 ScriptTabBar
         if hasattr(self, "_script_tab_bar") and self._script_tab_bar is not None:
             self._script_tab_bar.refresh_files(self._files)
+
+        # 反馈
+        n = len(self._files)
+        categories = len({f.category for f in self._files})
+        if n > 0:
+            self._status_bar.showMessage(self.tr("已刷新：{} 个文件，{} 个类别").format(n, categories), 5000)
+        else:
+            self._status_bar.showMessage(self.tr("未找到输出文件。运行脚本以生成数据。"), 5000)
+
+    # ── Job panel run-button 更新（覆盖 JobPanelMixin） ───────
+
+    def _update_job_count(self) -> None:
+        """覆盖 JobPanelMixin._update_job_count，改为更新当前 tab 的运行按钮。"""
+        running = sum(1 for c in self._job_cards.values() if c.is_running)
+        total = len(self._job_cards)
+        if total == 0:
+            self._job_count_label.setText("Jobs")
+        else:
+            self._job_count_label.setText(f"Jobs ({running} running, {total} total)")
+
+        self._status_bar.showMessage(
+            f"{running} running, {total} total"
+            if running > 0
+            else "Ready"
+        )
+
+        # 更新当前 tab 的运行按钮
+        if self._script_tab_bar is not None:
+            tab = self._script_tab_bar.current_widget()
+            if tab is not None:
+                btn = tab._run_btn
+                if running >= JobManager.MAX_CONCURRENT:
+                    btn.setText(self.tr("已达上限 ({})").format(JobManager.MAX_CONCURRENT))
+                    btn.setStyleSheet(self._RUN_STYLE_FULL)
+                    btn.setEnabled(True)
+                else:
+                    btn.setText(self.tr("运行"))
+                    btn.setStyleSheet(self._RUN_STYLE_READY)
+                    btn.setEnabled(True)
 
     # ── GUI 默认值持久化 ──────────────────────────────────────────
 

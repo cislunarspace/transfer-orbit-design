@@ -50,6 +50,7 @@ class ScriptTabWidget(QWidget):
 
     run_requested = pyqtSignal()
     doc_link_clicked = pyqtSignal(str)
+    doc_link_missing = pyqtSignal(str)  # 文档未构建时发出警告消息
     status_message = pyqtSignal(str, int)  # (message, timeout_ms)
     copy_path_requested = pyqtSignal(str, QWidget)  # (path, target_btn)
     defaults_changed = pyqtSignal()  # 保存/恢复默认值后通知持久化
@@ -132,7 +133,7 @@ class ScriptTabWidget(QWidget):
         # 标题（可点击文档链接）
         doc_url = self._get_doc_url(entry.script_path)
         title = make_doc_link_label(entry.name, doc_url)
-        title.clicked.connect(lambda: self.doc_link_clicked.emit(entry.script_path))
+        title.clicked.connect(lambda du=doc_url: self._on_doc_link_clicked(du))
         self._params_layout.addRow(title)
 
         # 描述
@@ -231,7 +232,7 @@ class ScriptTabWidget(QWidget):
 
     def _add_command_row(self, entry: ScriptEntry) -> None:
         cmd_label = QLabel(f"python {entry.script_path}")
-        if _resolve_theme() == "dark":
+        if _resolve_theme(self._theme_mode) == "dark":
             cmd_bg, cmd_color, cmd_accent = "#2d2d2d", "#bbbbbb", "#4da6ff"
         else:
             cmd_bg, cmd_color, cmd_accent = "#e8e8e8", "#333333", "#1976d2"
@@ -768,6 +769,7 @@ class ScriptTabWidget(QWidget):
                     saved[cli_param.flag] = text
 
         self._gui_defaults[self.entry.name] = saved
+        self.defaults_changed.emit()
         self.status_message.emit(self.tr("默认值已保存"), 3000)
 
         for key, widget in self._cli_widgets.items():
@@ -777,8 +779,6 @@ class ScriptTabWidget(QWidget):
             if cli_param.flag in saved:
                 self._param_defaults[widget] = saved[cli_param.flag]
                 self._update_param_highlight(widget)
-
-        self.defaults_changed.emit()
 
     def _on_reset_defaults(self) -> None:
         self._gui_defaults.pop(self.entry.name, None)
@@ -796,8 +796,8 @@ class ScriptTabWidget(QWidget):
             self._param_defaults[widget] = factory_default
             self._update_param_highlight(widget)
 
-        self.status_message.emit(self.tr("已恢复出厂默认值"), 3000)
         self.defaults_changed.emit()
+        self.status_message.emit(self.tr("已恢复出厂默认值"), 3000)
 
     # ── 公开接口：参数收集 ─────────────────────────────────────
 
@@ -821,7 +821,7 @@ class ScriptTabWidget(QWidget):
                 if factory_default:
                     if abs(val - float(factory_default)) > 1e-9:
                         extra_args.extend([cli_param.flag, str(val)])
-                elif abs(val) > 1e-9:
+                elif val != 0:
                     extra_args.extend([cli_param.flag, str(val)])
             elif isinstance(widget, QLineEdit):
                 text = widget.text().strip()
@@ -863,7 +863,8 @@ class ScriptTabWidget(QWidget):
                 continue
             if isinstance(widget, QComboBox):
                 text = widget.currentText().strip()
-                if text:
+                default = self._param_defaults.get(widget, "")
+                if text and text != default:
                     env_var = _CLI_TO_ENV.get(cli_param.flag)
                     if env_var:
                         env_overrides[env_var] = text
@@ -977,13 +978,68 @@ class ScriptTabWidget(QWidget):
     # ── 公开接口：主题 & 文件刷新 ───────────────────────────────
 
     def update_theme(self, mode: str) -> None:
-        """更新主题相关的样式。"""
+        """更新主题相关的样式——重新构建整个参数面板。"""
         self._theme_mode = mode
 
+        # 清空旧布局
+        while self._params_layout.count():
+            item = self._params_layout.takeAt(0)
+            if item is not None:
+                w = item.widget()
+                if w is not None:
+                    w.setParent(None)
+
+        self._cli_widgets.clear()
+        self._env_widgets.clear()
+        self._chip_widgets.clear()
+        self._multi_file_widgets.clear()
+        self._multi_file_config_panels.clear()
+        self._param_defaults.clear()
+        self._factory_defaults.clear()
+        self._cli_row_containers.clear()
+        self._cli_row_labels.clear()
+        self._widget_factory.reset()
+        self._widget_factory._files = self._files
+
+        self._build_params()
+
     def refresh_files(self, files: list[FileInfo]) -> None:
-        """更新文件列表（用于文件下拉框刷新）。"""
+        """更新文件列表并刷新所有文件下拉框。"""
         self._files = files
         self._widget_factory._files = files
+
+        # 刷新环境变量参数下拉框
+        for key, env_param in self.entry.env_params.items():
+            combo = self._env_widgets.get(key)
+            if combo is None:
+                continue
+            current_data = combo.currentData()
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItem(self.tr("（使用脚本默认值）"), None)
+            matching = filter_files(
+                self._files,
+                category=env_param.file_category,
+                file_type=env_param.file_type,
+                name_pattern=env_param.name_pattern,
+            )
+            for fi in matching:
+                combo.addItem(fi.name, fi.abs_path)
+            # 尝试恢复之前选中的文件
+            if current_data:
+                idx = combo.findData(current_data)
+                if idx >= 0:
+                    combo.setCurrentIndex(idx)
+            combo.blockSignals(False)
+
+    def _on_doc_link_clicked(self, doc_url: str | None) -> None:
+        """处理文档链接点击：文档存在时打开，不存在时发出警告。"""
+        if doc_url is None:
+            self.doc_link_missing.emit(
+                self.tr("⚠ 文档未构建：运行 sphinx-build 生成文档后再试")
+            )
+            return
+        self.doc_link_clicked.emit(self.entry.script_path)
 
     # ── 文档 URL ───────────────────────────────────────────────
 
