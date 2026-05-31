@@ -4,6 +4,8 @@
 不再覆盖 run()。
 """
 
+# pyright: reportOptionalMemberAccess=false
+
 from unittest.mock import MagicMock, patch
 
 import numpy as np
