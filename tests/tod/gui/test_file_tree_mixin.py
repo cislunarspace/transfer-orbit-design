@@ -18,7 +18,6 @@ class TestFileTreeMixinImportable:
             "_on_delete_files",
             "_update_file_toolbar_state",
             "_on_file_tree_context_menu",
-            "_refresh_files",
             "_rebuild_file_tree",
             "_highlight_category",
         ]

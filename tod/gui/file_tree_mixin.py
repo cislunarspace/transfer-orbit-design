@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, cast
+from typing import TYPE_CHECKING, cast
 
 from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtGui import QKeySequence, QShortcut
@@ -45,7 +45,6 @@ class FileTreeMixin:
     _files: list[FileInfo]
     _status_bar: QStatusBar
     _current_script: ScriptEntry | None
-    _rebuild_params_panel: Callable[..., Any]
     _file_tree: QTreeWidget
 
     def _build_file_browser_tab(self, tabs) -> None:
@@ -182,20 +181,6 @@ class FileTreeMixin:
         viewport = self._file_tree.viewport()
         if viewport is not None:
             menu.exec(viewport.mapToGlobal(position))
-
-    def _refresh_files(self) -> None:
-        self._files = discover_files(self._repo_root)
-        self._rebuild_file_tree()
-        # 刷新参数面板中的文件下拉框
-        if self._current_script:
-            self._rebuild_params_panel(self._current_script)
-        # 反馈
-        n = len(self._files)
-        categories = len({f.category for f in self._files})
-        if n > 0:
-            self._status_bar.showMessage(QCoreApplication.translate("FileTreeMixin", "已刷新：{} 个文件，{} 个类别").format(n, categories), 5000)
-        else:
-            self._status_bar.showMessage(QCoreApplication.translate("FileTreeMixin", "未找到输出文件。运行脚本以生成数据。"), 5000)
 
     def _rebuild_file_tree(self) -> None:
         # 保存当前排序状态
