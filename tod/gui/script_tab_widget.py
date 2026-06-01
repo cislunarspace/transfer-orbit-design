@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QLineEdit, QMessageBox, QWidget
+from PyQt6.QtWidgets import QLineEdit, QMessageBox, QVBoxLayout, QWidget
 
 from tod.gui.file_discovery import FileInfo
 from tod.gui.param_value_store import ParamValueStore
@@ -46,6 +46,10 @@ class ScriptTabWidget(QWidget):
         self.entry = entry
         self._gui_defaults = gui_defaults
 
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+
         # 构造 store（_find_cli_param 由 widget 注入）
         self._store = ParamValueStore(
             files=files,
@@ -61,6 +65,7 @@ class ScriptTabWidget(QWidget):
             theme_mode=theme_mode,
             parent=self,
         )
+        layout.addWidget(self._panel)
 
         # 转发 panel 的信号到外层
         self._panel.run_requested.connect(self.run_requested)
