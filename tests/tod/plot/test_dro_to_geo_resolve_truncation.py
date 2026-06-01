@@ -10,9 +10,30 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo import (
+    _resolve_dro_file,
     _resolve_truncation,
 )
+
+
+def test_resolve_dro_file_discovers_new_single_dro_name(monkeypatch, tmp_path: Path) -> None:
+    dro_dir = tmp_path / "output" / "dro"
+    dro_dir.mkdir(parents=True)
+    old_name = dro_dir / "dro_31_300.json"
+    family = dro_dir / "dro_31_family_999.json"
+    newest = dro_dir / "dro_200.json"
+    older = dro_dir / "dro_100.json"
+    for path in (old_name, family, newest, older):
+        path.write_text("{}", encoding="utf-8")
+
+    monkeypatch.setattr(
+        "tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo.project_root",
+        tmp_path,
+    )
+
+    assert _resolve_dro_file(None) == newest.resolve()
 
 
 class TestResolveTruncationIntersectionPath:

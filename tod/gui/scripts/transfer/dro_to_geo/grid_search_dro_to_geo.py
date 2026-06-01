@@ -14,7 +14,7 @@ SCRIPT_ENTRY = ScriptEntry(
     output_dir='output/transfer',
     group_label='DRO→GEO',
     cli_params=[
-        CliParam('--dro-file', 'DRO 文件', 'str', '', help='DRO 轨道 JSON 文件路径。', file_category='dro', name_pattern='dro_31_[0-9]*.json'),
+        CliParam('--dro-file', 'DRO 文件', 'str', '', help='DRO 轨道 JSON 文件路径。', file_category='dro', name_pattern='dro_[0-9]*.json'),
         CliParam('--n-departure', '出发点数', 'int', '200', help='出发时间网格数，默认 200。'),
         CliParam('--n-alpha', 'alpha 密度', 'int', '100', help='alpha 网格密度，默认 100。'),
         CliParam('--alpha-min', 'alpha 下界', 'float', '0.5', help='alpha 搜索下界，默认 0.5。'),

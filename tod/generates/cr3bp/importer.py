@@ -252,7 +252,7 @@ def import_cr3bp_xlsx_catalog(raw_dir: Path, output_dir: Path, *, overwrite: boo
     families_dir.mkdir(parents=True, exist_ok=True)
 
     family_files = _write_family_csvs(datasets, families_dir)
-    index_rows = _write_index_csv(datasets, output_dir / "index.csv", family_files)
+    _write_index_csv(datasets, output_dir / "index.csv", family_files)
     _write_catalog_yaml(datasets, output_dir / "catalog.yaml", family_files)
 
     return ImportReport(

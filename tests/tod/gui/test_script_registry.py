@@ -1,6 +1,7 @@
 """Tests for tod.gui.script_registry."""
 
 from pathlib import Path
+import json
 
 import tod
 from tod.gui.script_registry import SCRIPTS, UNIT_GROUPS
@@ -19,9 +20,38 @@ def test_all_registered_script_paths_exist() -> None:
                 missing.append(f"[{category}] {entry.name}: {entry.script_path}")
 
     assert not missing, (
-        f"The following registered script paths do not exist on disk:\n"
+        "The following registered script paths do not exist on disk:\n"
         + "\n".join(missing)
     )
+
+
+def test_dro_single_generator_is_registered_under_new_name() -> None:
+    entries = {entry.name: entry for entry in SCRIPTS["generates"]}
+
+    assert "generate_dro_orbit" in entries
+    assert "generate_31_dro_orbit" not in entries
+
+    entry = entries["generate_dro_orbit"]
+    assert entry.description == "生成 DRO 轨道"
+    assert entry.script_path == "tod/generates/cr3bp/dro/generate_dro_orbit.py"
+
+
+def test_dro_single_generator_exposes_catalog_seed_controls() -> None:
+    entry = {entry.name: entry for entry in SCRIPTS["generates"]}["generate_dro_orbit"]
+    params = {param.flag: param for param in entry.cli_params}
+
+    assert {"--jacobi", "--seed-id", "--jacobi-tolerance", "--catalog-dir", "--raw-data-dir", "--no-auto-build-catalog"} <= params.keys()
+    assert params["--jacobi"].advanced is True
+    assert params["--seed-id"].advanced is True
+    assert params["--catalog-dir"].advanced is True
+
+
+def test_gui_defaults_use_renamed_dro_generator_key() -> None:
+    defaults_path = PROJECT_ROOT / "gui_defaults.json"
+    defaults = json.loads(defaults_path.read_text(encoding="utf-8"))
+
+    assert "generate_dro_orbit" in defaults
+    assert "generate_31_dro_orbit" not in defaults
 
 
 def test_all_cli_param_unit_groups_are_registered() -> None:

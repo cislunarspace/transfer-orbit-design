@@ -72,7 +72,9 @@ GUI 会按“生成 / 星历转换 / 转移 / 绘图”组织脚本，并根据 
 
 ```bash
 # DRO / DPO / Halo
-uv run python -m tod.generates.cr3bp.dro.generate_31_dro_orbit
+uv run python -m tod.generates.cr3bp.dro.generate_dro_orbit
+uv run python -m tod.generates.cr3bp.dro.generate_dro_orbit --jacobi 3.1
+uv run python -m tod.generates.cr3bp.dro.generate_dro_orbit --seed-id earth-moon_dro:000001
 uv run python -m tod.generates.cr3bp.dro.generate_dro_family
 uv run python -m tod.generates.cr3bp.dpo.generate_dpo_orbit
 uv run python -m tod.generates.cr3bp.dpo.generate_dpo_family
@@ -99,7 +101,7 @@ uv run python -m tod.transfers.dro_to_ro.optimize_dro_to_ro
 
 # 星历修正示例（单轨道）
 uv run python -m tod.generates.ephemeris.dro.correct_dro_to_ephemeris \
-  --input-file output/dro/dro_31_<timestamp>.json \
+  --input-file output/dro/dro_<timestamp>.json \
   --reference-epoch 2026-01-01T00:00:00
 
 uv run python -m tod.generates.ephemeris.halo.correct_halo_to_ephemeris \
@@ -113,11 +115,13 @@ uv run python -m tod.generates.ephemeris.halo.correct_halo_to_ephemeris \
 
 ### 轨道生成（CR3BP）
 
+DRO 单轨生成入口已从旧的 3:1 专用脚本改名为 `generate_dro_orbit`。manual 路径继续支持 `--x0/--vy0/--period` 并执行固定周期微分修正；catalog 路径可通过 `--jacobi` 或 `--seed-id` 从 `data/cr3bp_data/normalized` 选择完整 6 维 seed 并直接传播保存。若 normalized catalog 缺失，脚本默认从 `data/cr3bp_data/raw` 自动生成；传入 `--no-auto-build-catalog` 可禁用自动生成。单轨输出命名为 `output/dro/dro_<timestamp>.json`；`dro_31_family_*` 等 DRO family artifact 不受单轨改名影响。
+
 每个轨道族提供**单轨道生成**（固定周期微分修正）和**轨道族延拓**（自然延拓）两个脚本。
 
 | 轨道族 | 单轨道脚本 | 轨道族脚本 | 说明 |
 |--------|-----------|-----------|------|
-| DRO | `tod.generates.cr3bp.dro.generate_31_dro_orbit` | `tod.generates.cr3bp.dro.generate_dro_family` | 次天体逆行轨道 |
+| DRO | `tod.generates.cr3bp.dro.generate_dro_orbit` | `tod.generates.cr3bp.dro.generate_dro_family` | 次天体逆行轨道 |
 | DPO | `tod.generates.cr3bp.dpo.generate_dpo_orbit` | `tod.generates.cr3bp.dpo.generate_dpo_family` | 次天体顺行轨道 |
 | Halo | `tod.generates.cr3bp.halo.generate_halo_orbit` | `tod.generates.cr3bp.halo.generate_halo_family` | 三维周期轨道，支持自然/伪弧长延拓 |
 | Lyapunov | `tod.generates.cr3bp.lyapunov.generate_lyapunov_orbit` | `tod.generates.cr3bp.lyapunov.generate_lyapunov_family` | 平面周期轨道，沿共线平动点主轴振荡 |

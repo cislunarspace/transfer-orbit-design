@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import re
 import sys
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -36,6 +35,7 @@ from e2m2e.orbits.geo import R_GEO
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
 from tod.commons.constants import MU, TU, VU
 from tod.commons.common import find_project_root, safe_resolve_within
+from tod.generates.artifacts import find_latest_single_dro
 from tod.plot.config import apply_standard_plot_config, subsample_indices
 from tod.plot.transfer.common import (
     load_search_results,
@@ -69,24 +69,19 @@ RESULTS_JSON = (
 )
 
 def _resolve_dro_file(cli_path: str | None) -> Path:
-    """DRO 文件解析优先级: CLI --dro-file > env DRO_FILE > output/dro 下最新 dro_31_*.json。
+    """DRO 文件解析优先级: CLI --dro-file > env DRO_FILE > output/dro 下最新 dro_*.json。
 
-    与 plot_search_results_geo_to_dro 保持一致，避免写死过期文件名。
+    与 transfer 搜索脚本保持一致，避免写死过期文件名。
     """
     if cli_path:
         return Path(cli_path).expanduser().resolve()
     env_path = os.environ.get("DRO_FILE")
     if env_path:
         return Path(env_path).expanduser().resolve()
-    # 仅匹配单条 DRO 文件（dro_31_<digits>.json），排除 family 集合文件（dro_31_family_*.json）
-    dro_dir = project_root / "output/dro"
-    pat = re.compile(r"^dro_31_\d+\.json$")
-    candidates = sorted(p for p in dro_dir.glob("dro_31_*.json") if pat.match(p.name))
-    if not candidates:
-        raise FileNotFoundError(
-            f"未找到单条 DRO 轨道文件: 请通过 --dro-file 指定，或在 {dro_dir} 下放置 dro_31_<timestamp>.json"
-        )
-    return candidates[-1].resolve()
+    try:
+        return find_latest_single_dro(project_root)
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(str(exc)) from exc
 
 
 def _resolve_and_load_dro(cli_path: str | None) -> Orbit:
@@ -427,7 +422,7 @@ def main() -> None:
         description="绘制 grid_search_dro_to_geo 结果（α–Δv 散点图 / 转移轨道示意图）"
     )
     parser.add_argument("--file", type=str, default=None, help="搜索结果 JSON 路径")
-    parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 路径；不传则按 env DRO_FILE / output/dro 最新 dro_31_*.json 自动发现")
+    parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 路径；不传则按 env DRO_FILE / output/dro 最新 dro_*.json 自动发现")
     parser.add_argument("--save", type=str, default=None, help="保存 PNG 路径")
     parser.add_argument("--max-points", type=int, default=50000, help="散点最多可行点数")
     parser.add_argument("--seed", type=int, default=0, help="子采样随机种子")

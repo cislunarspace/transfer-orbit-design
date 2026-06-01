@@ -29,7 +29,7 @@ PARAMS_FILES = [
     "generates/ephemeris/halo/correct_halo_to_ephemeris.py",
     "generates/ephemeris/halo/correct_halo_family_to_ephemeris.py",
     # generates/cr3bp/
-    "generates/cr3bp/dro/generate_31_dro_orbit.py",
+    "generates/cr3bp/dro/generate_dro_orbit.py",
     "generates/cr3bp/dro/generate_dro_family.py",
     "generates/cr3bp/halo/generate_halo_orbit.py",
     "generates/cr3bp/halo/generate_halo_family.py",
@@ -220,4 +220,4 @@ def test_scanner_discovers_all_expected_files() -> None:
     scanned_paths = {str(p.relative_to(scripts_dir)).replace("\\", "/") for p in iter_script_files(scripts_dir)}
     expected_paths = {p.replace("\\", "/") for p in PARAMS_FILES}
     missing = expected_paths - scanned_paths
-    assert not missing, f"Scanner missed these params files:\n" + "\n".join(sorted(missing))
+    assert not missing, "Scanner missed these params files:\n" + "\n".join(sorted(missing))
