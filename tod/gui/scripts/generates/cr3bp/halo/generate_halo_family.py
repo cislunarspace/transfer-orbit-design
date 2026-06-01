@@ -17,7 +17,7 @@ SCRIPT_ENTRY = ScriptEntry(
         CliChipParam(
             flag='--libration-point',
             label='平动点',
-            options={'L1': 'L1', 'L2': 'L2', 'L3': 'L3'},
+            options={'L1': 'L1', 'L2': 'L2'},
             default='L1',
             help='平动点选择，支持多选以批量生成多个平动点的轨道族',
         ),
@@ -30,7 +30,7 @@ SCRIPT_ENTRY = ScriptEntry(
         ),
     ],
     cli_params=[
-        CliParam('--seed-file', '种子轨道文件', 'str', '', help='已有 Halo 轨道 JSON 文件（提供时跳过种子生成）', file_category='halo', name_pattern='halo_L[123]_[NS]_[0-9]*.json', required=False, advanced=True),
+        CliParam('--seed-file', '种子轨道文件', 'str', '', help='已有 Halo 轨道 JSON 文件（提供时跳过种子生成）', file_category='halo', name_pattern='halo_L[12]_[NS]_[0-9]*.json', required=False, advanced=True),
         CliParam('--amplitude-z', 'Z 振幅', 'float', '0.001', help='Z 方向振幅（种子轨道），默认 0.001，单位 DU。', unit_group='distance', default_unit='DU', advanced=True, hidden_when='--seed-file'),
         CliParam('--method', '延拓方法', 'str', '伪弧长延拓', help='延拓方法选择', choices=('伪弧长延拓',), choice_values={'伪弧长延拓': 'pseudo_arclength'}),
         CliParam('--step-size-pal', '伪弧长延拓步长', 'float', '0.0045', help='伪弧长延拓步长 |Δs|，默认 0.0045，单位 DU。', unit_group='distance', default_unit='DU', hidden_when='--method==natural'),

@@ -14,7 +14,7 @@ SCRIPT_ENTRY = ScriptEntry(
     output_dir='output/halo',
     group_label='生成',
     cli_params=[
-        CliParam('--libration-point', '平动点', 'str', 'L1', help='平动点：L1, L2, L3，默认 L1。', choices=('L1', 'L2', 'L3')),
+        CliParam('--libration-point', '平动点', 'str', 'L1', help='平动点：L1, L2，默认 L1。', choices=('L1', 'L2')),
         CliParam('--amplitude-z', 'Z 振幅', 'float', '0.23', help='Z 方向振幅，默认 0.23，单位 DU。', unit_group='distance', default_unit='DU'),
         CliParam('--halo-class', 'Halo 类型', 'str', '北族', help='Halo 轨道族类型，默认 北族。', choices=('北族', '南族'), choice_values={'北族': '0', '南族': '1'}),
         CliParam('--period', '目标周期', 'float', '1.839732', help='目标周期（无量纲），默认 1.839732。', unit_group='time', default_unit='days'),

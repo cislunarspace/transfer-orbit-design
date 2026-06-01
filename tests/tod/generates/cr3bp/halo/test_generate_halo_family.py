@@ -12,10 +12,7 @@ import numpy as np
 import pytest
 
 from tod.generates.cr3bp._family_pipeline import FamilyGeneratorConfig
-from tod.generates.cr3bp.halo.generate_halo_family import (
-    LIBRATION_POINT_MAP,
-    HaloFamilyGenerator,
-)
+from tod.generates.cr3bp.halo.generate_halo_family import HaloFamilyGenerator
 
 
 # ---------------------------------------------------------------------------
@@ -72,11 +69,11 @@ class TestBuildJsonFilename:
         result = gen._build_json_filename(args, ts=9999)
         assert result == "halo_L2_S_family_0.23_9999"
 
-    def test_l3_north_halo(self):
+    def test_l2_north_halo(self):
         gen = _make_halo_gen()
-        args = _make_halo_args(libration_point="L3", halo_class=0, amplitude_z=0.05)
+        args = _make_halo_args(libration_point="L2", halo_class=0, amplitude_z=0.05)
         result = gen._build_json_filename(args, ts=0)
-        assert result == "halo_L3_N_family_0.05_0"
+        assert result == "halo_L2_N_family_0.05_0"
 
     def test_no_temporal_coupling(self):
         """不应依赖 self._lp / self._hc 实例变量。"""
@@ -112,9 +109,9 @@ class TestBuildCsvFilenameParts:
     def test_no_temporal_coupling(self):
         gen = _make_halo_gen()
         assert not hasattr(gen, "_lp") or getattr(gen, "_lp", None) is None
-        args = _make_halo_args(libration_point="L3", halo_class=0)
+        args = _make_halo_args(libration_point="L2", halo_class=0)
         result = gen._build_csv_filename_parts(args, ts=0)
-        assert "L3" in result[0]
+        assert "L2" in result[0]
         assert "N" in result[0]
 
 
@@ -443,6 +440,11 @@ class TestArgparseRemovedParams:
         """--direction 应不被 argparse 接受。"""
         with pytest.raises(SystemExit):
             HaloFamilyGenerator.build_parser("test").parse_args(["--direction", "both"])
+
+    def test_l3_libration_point_not_accepted(self):
+        """L3 处无经典 Halo 轨道族，CLI 应拒绝该平动点。"""
+        with pytest.raises(SystemExit):
+            HaloFamilyGenerator.build_parser("test").parse_args(["--libration-point", "L3"])
 
     def test_step_size_negative_not_accepted(self):
         """--step-size-negative 应不被 argparse 接受。"""

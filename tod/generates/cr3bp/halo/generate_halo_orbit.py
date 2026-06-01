@@ -311,8 +311,7 @@ def main():
     # =============================================================================
     # 2. Halo轨道参数
     # =============================================================================
-    LIBRATION_POINT_MAP = {"L1": 1, "L2": 2}
-    libration_point = LIBRATION_POINT_MAP[args.libration_point]
+    libration_point = int(args.libration_point[1:])
     amplitude_z = args.amplitude_z
     halo_class = args.halo_class
     z0 = amplitude_z if halo_class == 0 else -amplitude_z

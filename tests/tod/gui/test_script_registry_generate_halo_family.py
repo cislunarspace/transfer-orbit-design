@@ -109,6 +109,16 @@ class TestGenerateHaloFamilyParams:
         param = next(p for p in entry.cli_params if p.flag == "--z-max")
         assert param.default == ""
 
+    def test_libration_point_options_are_l1_l2_only(self, entry: ScriptEntry) -> None:
+        """Halo family 不应提供 L3 平动点选项。"""
+        param = next(p for p in entry.cli_chip_params if p.flag == "--libration-point")
+        assert param.options == {"L1": "L1", "L2": "L2"}
+
+    def test_seed_file_pattern_excludes_l3_halo_seeds(self, entry: ScriptEntry) -> None:
+        """种子文件选择器不应提供 L3 Halo 种子。"""
+        param = next(p for p in entry.cli_params if p.flag == "--seed-file")
+        assert param.name_pattern == "halo_L[12]_[NS]_[0-9]*.json"
+
     # -- 其他不变属性 --
 
     def test_halo_class_help_no_longer_mentions_shared_crossing(self, entry: ScriptEntry) -> None:

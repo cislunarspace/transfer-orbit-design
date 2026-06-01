@@ -19,7 +19,7 @@ _Avoid_: 采样轨道、代表性轨道集
 | 族名 | 英文名 | 相关平动点 | 物理特征 |
 |------|--------|------------|----------|
 | Lyapunov | Lyapunov Family | L1–L5 | 平面周期轨道，沿共线平动点主轴振荡 |
-| Halo | Halo Family (North/South/Near-Rectilinear) | L1, L2, L3 | 三维周期轨道，含近直线晕轨道 (NRHO) |
+| Halo | Halo Family (North/South/Near-Rectilinear) | L1, L2 | 三维周期轨道，含近直线晕轨道 (NRHO)。L3 处无经典 Halo 轨道族。 |
 | Vertical | Vertical Family | L1–L5 | 垂直方向振荡的周期轨道 |
 | Axial | Axial Family | L1–L5 | 沿平动点轴向的周期轨道 |
 | Butterfly | Butterfly Family | L1–L2 | 连接两个共线平动点的对称轨道 |

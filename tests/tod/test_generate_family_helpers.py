@@ -357,6 +357,7 @@ class TestHaloGuiRegistry:
 
         assert seed_param.name_pattern is not None
         assert fnmatch("halo_L2_S_0.23_123456.json", seed_param.name_pattern)
+        assert not fnmatch("halo_L3_S_0.23_123456.json", seed_param.name_pattern)
         assert not fnmatch("halo_L2_S_family_0.23_123456.json", seed_param.name_pattern)
 
 

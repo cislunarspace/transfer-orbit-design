@@ -1,7 +1,7 @@
 """Regression tests for 3D view bounds calculation.
 
 Ensures that auto-computed center/radius contain the orbit data,
-regardless of whether it is an L1, L2, or L3 family.
+regardless of whether it is an L1 or L2 family.
 """
 
 import numpy as np
@@ -42,8 +42,8 @@ class TestComputeViewBounds:
         assert z_min >= center_3d[2] - radius_3d
         assert z_max <= center_3d[2] + radius_3d
 
-    def test_hardcoded_l1_center_misses_l3(self) -> None:
-        states = _make_fake_orbit_states(-1.0, 0.0, 0.0)
+    def test_hardcoded_l1_center_misses_l2(self) -> None:
+        states = _make_fake_orbit_states(1.35, 0.0, 0.0)
         x_min, x_max = states[:, 0].min(), states[:, 0].max()
 
         old_center = 0.9
@@ -51,7 +51,7 @@ class TestComputeViewBounds:
         old_xlim = (old_center - old_radius, old_center + old_radius)
 
         assert x_min < old_xlim[0] or x_max > old_xlim[1], (
-            "L3 orbit should fall outside the old hard-coded L1 view"
+            "L2 orbit should fall outside the old hard-coded L1 view"
         )
 
     def test_2d_bounds_are_reasonable(self) -> None:

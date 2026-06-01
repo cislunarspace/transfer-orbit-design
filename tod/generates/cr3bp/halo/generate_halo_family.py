@@ -3,7 +3,7 @@
 本模块在地月 CR3BP 中构造 Halo 种子轨道，调用 e2m2e 的微分修正和
 伪弧长延拓算法生成 Halo 轨道族。
 
-支持：L1/L2/L3 平动点，北/南分支。
+支持：L1/L2 平动点，北/南分支。
 
 本脚本通过 ``FamilyGenerator`` 基类实现，族特有逻辑在子类 hook 中声明
 （种子获取、修正配置、延拓执行），共享流程（系统初始化、保存、
@@ -38,8 +38,6 @@ from tod.generates.cr3bp._family_pipeline import (
 )
 
 logger = logging.getLogger(__name__)
-
-LIBRATION_POINT_MAP = {"L1": 1, "L2": 2, "L3": 3}
 
 
 # ------------------------------------------------------------------------------
@@ -122,7 +120,7 @@ class HaloFamilyGenerator(FamilyGenerator):
         Raises:
             RuntimeError: 种子生成和 fallback 均失败。
         """
-        libration_point = LIBRATION_POINT_MAP[args.libration_point]
+        libration_point = int(args.libration_point[1:])
         halo_class = args.halo_class
         amplitude_z = args.amplitude_z
 
@@ -182,7 +180,7 @@ class HaloFamilyGenerator(FamilyGenerator):
         北族 z0 为正，南族 z0 为负。
         """
         corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=self.dynamics)
-        libration_point = LIBRATION_POINT_MAP[args.libration_point]
+        libration_point = int(args.libration_point[1:])
         amplitude_z = args.amplitude_z
         halo_class = args.halo_class
         z0 = amplitude_z if halo_class == 0 else -amplitude_z
@@ -202,7 +200,7 @@ class HaloFamilyGenerator(FamilyGenerator):
         """
         corrected = super()._correct_seed_orbit(corrector, seed_orbit, args)
         if corrected is not None:
-            libration_point = LIBRATION_POINT_MAP[args.libration_point]
+            libration_point = int(args.libration_point[1:])
             halo_class = args.halo_class
             corrected.family_type = "halo"
             params = getattr(corrected, "parameters", None)
@@ -306,8 +304,8 @@ class HaloFamilyGenerator(FamilyGenerator):
             "--libration-point",
             type=str,
             default="L1",
-            choices=["L1", "L2", "L3"],
-            help="平动点：L1, L2, L3",
+            choices=["L1", "L2"],
+            help="平动点：L1, L2",
         )
         parser.add_argument(
             "--amplitude-z",
@@ -375,7 +373,7 @@ class HaloFamilyGenerator(FamilyGenerator):
         从 args 提取参数，不依赖 self._lp / self._hc 实例变量。
         返回 [前缀, ts]，基类拼接为 halo_L{lp}_{N|S}_family_{ts}.csv。
         """
-        libration_point = LIBRATION_POINT_MAP[args.libration_point]
+        libration_point = int(args.libration_point[1:])
         halo_class = args.halo_class
         lp_name = f"L{libration_point}"
         class_name = "N" if halo_class == 0 else "S"
@@ -386,7 +384,7 @@ class HaloFamilyGenerator(FamilyGenerator):
 
         从 args 提取参数，不依赖 self._lp / self._hc 实例变量。
         """
-        libration_point = LIBRATION_POINT_MAP[args.libration_point]
+        libration_point = int(args.libration_point[1:])
         halo_class = args.halo_class
         amplitude_z = args.amplitude_z
         class_name = "N" if halo_class == 0 else "S"
@@ -452,7 +450,7 @@ def main() -> None:
 
     # 摘要额外信息需要 args，通过回调注入
     def _summary_extra_info():
-        libration_point = LIBRATION_POINT_MAP[args.libration_point]
+        libration_point = int(args.libration_point[1:])
         halo_class = args.halo_class
         step_size = args.step_size_pal
         lp_name = f"L{libration_point}"
