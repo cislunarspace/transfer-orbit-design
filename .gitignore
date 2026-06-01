@@ -227,7 +227,8 @@ Desktop.ini
 # 大型数据文件（默认不纳入；CR3BP 种子数据是显式例外，单独保留）
 /data/**
 !/data/cr3bp_data/
-!/data/cr3bp_data/**
+!/data/cr3bp_data/raw/
+!/data/cr3bp_data/raw/**
 /output/
 /scripts/output/
 /results/
