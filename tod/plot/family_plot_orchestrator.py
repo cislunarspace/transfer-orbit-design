@@ -8,10 +8,11 @@
        uv run python -m tod.plot.family_plot_orchestrator --help
 
 多文件模式示例:
+
     .. code-block:: bash
 
-       uv run python -m tod.plot.plot_orbits \
-         --json-file '[{"path": "a.json", "start": 0, "end": 10, "step": 1}, {"path": "b.json", "start": 5, "end": -1, "step": 2}]' \
+       uv run python -m tod.plot.plot_orbits \\
+         --json-file '[{"path": "a.json", "start": 0, "end": 10, "step": 1}, {"path": "b.json", "start": 5, "end": -1, "step": 2}]' \\
          --view-2d
 """
 
@@ -152,6 +153,39 @@ def _get_center_coordinates(center_type: str, mu: float) -> tuple[float, float, 
     elif center_type == "emb":
         return (mu, 0.0, 0.0)
     raise ValueError(f"Unknown center type: {center_type}")
+
+
+def _resolve_3d_center_radius(
+    cfg: FamilyPlotConfig,
+    args: argparse.Namespace,
+    bounds: tuple | None,
+) -> tuple[tuple[float, float, float], float]:
+    """根据用户 --plot-center 选择和配置计算 3D 视图的中心与半径。
+
+    始终使用 args.plot_center 确定视图中心（moon/earth/emb）。
+    半径优先使用 dynamic_bounds 计算，回退到配置默认值。
+
+    Args:
+        cfg: 轨道族绘图配置
+        args: 命令行参数（需包含 plot_center）
+        bounds: compute_view_bounds 的返回值，可为 None
+
+    Returns:
+        (center, radius) 元组
+    """
+    center = _get_center_coordinates(args.plot_center, MU)
+
+    if cfg.dynamic_bounds and bounds is not None:
+        data_center = bounds[2]
+        data_radius = bounds[3]
+        offset = float(np.sqrt(sum((c - d) ** 2 for c, d in zip(center, data_center))))
+        radius = offset + data_radius
+    elif cfg.radius_3d is not None:
+        radius = cfg.radius_3d
+    else:
+        radius = 1.0
+
+    return center, radius
 
 
 def _project_2d(xyz: Sequence[float] | np.ndarray, plane: str) -> tuple[float, float]:
@@ -682,16 +716,7 @@ class FamilyPlotOrchestrator:
         a = self.args
         jmin, jmax = min(jacobi), max(jacobi)
 
-        if cfg.dynamic_bounds and bounds is not None:
-            center = bounds[2]
-            radius = bounds[3]
-        elif cfg.supports_center_choice:
-            center = _get_center_coordinates(a.plot_center, MU)
-            radius = cfg.radius_3d or 1.5
-        else:
-            center = cfg.center_3d or (0.0, 0.0, 0.0)
-            radius = cfg.radius_3d or 1.0
-
+        center, radius = _resolve_3d_center_radius(cfg, a, bounds)
         elev = a.plot_elev
         azim = a.plot_azim
 
@@ -746,8 +771,7 @@ class FamilyPlotOrchestrator:
         all_jacobi = [j for jacobi in jacobis for j in jacobi]
         jmin, jmax = min(all_jacobi), max(all_jacobi)
 
-        center = bounds[2] if bounds else (0.0, 0.0, 0.0)
-        radius = bounds[3] if bounds else 1.0
+        center, radius = _resolve_3d_center_radius(cfg, a, bounds)
         elev = a.plot_elev
         azim = a.plot_azim
 
