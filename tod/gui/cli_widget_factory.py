@@ -13,16 +13,17 @@ from typing import TYPE_CHECKING, cast
 from PyQt6.QtCore import QCoreApplication, Qt
 from PyQt6.QtGui import QDoubleValidator
 from PyQt6.QtWidgets import (
+    QAbstractItemView,
+    QAbstractScrollArea,
     QCheckBox,
     QComboBox,
     QDialog,
     QFileDialog,
     QFormLayout,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QLineEdit,
-    QAbstractItemView,
-    QHeaderView,
     QTableWidget,
     QTableWidgetItem,
     QPushButton,
@@ -346,9 +347,12 @@ class CliWidgetFactory:
         table.setHorizontalHeaderLabels(headers)
         table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        table.setMinimumHeight(120)
+        table.setSizeAdjustPolicy(QAbstractScrollArea.SizeAdjustPolicy.AdjustToContents)
+        table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
+        table.setMinimumHeight(0)
         table.setMaximumHeight(250)
         table.verticalHeader().setVisible(False)
+        table.verticalHeader().setDefaultSectionSize(28)
 
         # 列宽策略：文件名拉伸，per-field 自适应，删除列固定
         header = table.horizontalHeader()
@@ -447,6 +451,8 @@ def _add_file_row(
             if table.cellWidget(r, col_idx) is clicked_btn:
                 table.removeRow(r)
                 break
+        table.updateGeometry()
 
     del_btn.clicked.connect(_on_delete)
     table.setCellWidget(row, delete_col, del_btn)
+    table.updateGeometry()
