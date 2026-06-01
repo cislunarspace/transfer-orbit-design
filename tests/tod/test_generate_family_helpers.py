@@ -2,9 +2,9 @@
 tod/generates/cr3bp 生成脚本的测试 (generate_31_ro_family.py, generate_32_ro_family.py, generate_dro_family.py)
 
 These tests focus on:
-- Testing the parameter configurations
 - Testing the import structure
 - Testing that scripts can be parsed without errors
+- Testing Halo family generation parameters and behavior
 """
 
 import matplotlib
@@ -102,60 +102,6 @@ class TestGenerateScriptImports:
             pytest.skip(f"Missing dependency: {e}")
         except Exception as e:
             pytest.fail(f"Script import failed with unexpected error: {e}")
-
-
-class TestGenerate31ROParameters:
-    """Test generate_31_ro_family.py parameter configurations"""
-
-    def test_seed_parameters_31ro(self):
-        """Test that 3:1 RO seed orbit parameters are reasonable"""
-        # These are theoretical values from the script
-        x0 = -0.8805
-        z0 = 0.0
-        vy0 = 0.3921
-        vz0 = 0.0
-
-        # x0 应在 3:1 RO 的有效范围内
-        assert -2 < x0 < 0  # RO 轨道在月球远端
-        assert z0 == 0  # 平面轨道
-        assert vy0 > 0  # 逆行轨道 vy 为正
-        assert vz0 == 0  # 平面轨道
-
-    def test_continuation_range_31ro(self):
-        """Test that 3:1 RO continuation range is reasonable"""
-        x0 = -0.8805
-        param_min = x0
-        param_max = x0 + 0.02  # Narrowed from 0.05 to 0.02
-
-        assert param_min < 0  # RO orbits are on Moon's far side (negative x)
-        assert param_max > param_min
-        assert param_max < 0  # Should be in valid RO region
-
-
-class TestGenerate32ROParameters:
-    """Test generate_32_ro_family.py parameter configurations"""
-
-    def test_seed_parameters_32ro(self):
-        """Test that 3:2 RO seed orbit parameters are reasonable"""
-        x0 = -1.1453
-        z0 = 0.0
-        vy0 = 0.4633
-        vz0 = 0.0
-
-        # x0 should be in valid range for 3:2 RO
-        assert -2 < x0 < 0
-        assert z0 == 0
-        assert vy0 > 0
-        assert vz0 == 0
-
-    def test_continuation_range_32ro(self):
-        """Test that 3:2 RO continuation range is reasonable"""
-        param_min = -1.0  # Narrowed from -1.2 to -1.0
-        param_max = -0.9  # Narrowed from -0.8 to -0.9
-
-        assert param_min < param_max
-        assert -2 < param_min < 0
-        assert -2 < param_max < 0
 
 
 def _load_halo_family_module():
@@ -412,30 +358,6 @@ class TestHaloGuiRegistry:
         assert seed_param.name_pattern is not None
         assert fnmatch("halo_L2_S_0.23_123456.json", seed_param.name_pattern)
         assert not fnmatch("halo_L2_S_family_0.23_123456.json", seed_param.name_pattern)
-
-
-class TestGenerateDROParameters:
-    """Test generate_dro_family.py parameter configurations"""
-
-    def test_seed_parameters_dro(self):
-        """Test that DRO seed orbit parameters are reasonable"""
-        x0 = 0.79188556619742
-        vy0 = 0.53682
-
-        # DRO 轨道在地月之间，x0 应为正
-        assert 0 < x0 < 1
-        assert vy0 > 0
-
-    def test_continuation_range_dro(self):
-        """Test that DRO continuation range is reasonable"""
-        param_min = 0.6
-        param_max = 0.7  # Narrowed from 0.8 to 0.7
-        step_size = 0.005
-
-        assert 0 < param_min < param_max
-        assert param_max < 1
-        assert step_size > 0
-        assert step_size < 0.1  # Step size should be reasonable
 
 
 class TestHaloFamilyNewParams:

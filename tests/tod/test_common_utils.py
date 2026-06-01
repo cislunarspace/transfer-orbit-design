@@ -4,6 +4,8 @@ tod/commons/io.py 模块的测试
 测试多个脚本共用的常量和辅助函数。
 """
 
+import math
+
 import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -11,6 +13,7 @@ import os
 import tempfile
 
 from tod.commons.constants import MU, TU, DU, VU, T_MOON, FAMILY_FILENAME
+from tod.commons.constants import M_SUN, OMEGA_SUN, RHO
 from tod.commons.common import ensure_output_dir, find_project_root, get_latest_family_file, safe_resolve_within, save_family_to_file
 
 
@@ -36,9 +39,26 @@ class TestConstants:
 
     def test_t_moon_equals_2pi(self):
         """Moon orbital period in nondimensional units should be 2π"""
-        import math
-
         assert math.isclose(T_MOON, 2 * math.pi, rel_tol=1e-10)
+
+    def test_m_sun_is_positive(self):
+        """M_SUN (nondimensional sun mass) should be positive"""
+        assert M_SUN > 0
+
+    def test_omega_sun_is_positive(self):
+        """OMEGA_SUN (nondimensional angular velocity) should be positive"""
+        assert OMEGA_SUN > 0
+        assert OMEGA_SUN < 1  # Should be less than 1 rotation per time unit
+
+    def test_rho_is_positive(self):
+        """RHO (nondimensional sun-Earth-moon distance) should be positive"""
+        assert RHO > 0
+        assert RHO > 1  # Sun is much farther than 1 DU
+
+    def test_vu_consistency_with_du_tu(self):
+        """VU should be consistent with DU and TU (VU = DU/TU in appropriate units)"""
+        expected_vu = DU * 1000 / (TU * 86400)
+        assert math.isclose(VU, expected_vu, rel_tol=0.01)
 
     def test_family_filename_default(self):
         """FAMILY_FILENAME should be a string"""
