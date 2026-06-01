@@ -226,6 +226,10 @@ Desktop.ini
 # 项目特定的忽略
 # 大型数据文件
 /data/
+# 例外：纳入 CR3BP 轨道族种子数据 catalog
+!/data/cr3bp_data/
+!/data/cr3bp_data/raw/
+!/data/cr3bp_data/normalized/
 /output/
 /scripts/output/
 /results/
