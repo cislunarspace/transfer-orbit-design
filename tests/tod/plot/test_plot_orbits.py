@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -121,7 +122,7 @@ class TestResolveConfig:
         halo_file = tmp_path / "halo_L1_N_family.json"
         halo_file.write_text("{}")
         args = argparse.Namespace(
-            json_file=f'[{{"path": "{halo_file}"}}]',
+            json_file=json.dumps([{"path": str(halo_file)}]),
             plane=None,
             output_dir=None,
         )
