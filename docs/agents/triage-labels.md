@@ -1,15 +1,35 @@
 # Triage Labels
 
-The skills speak in terms of five canonical triage roles. This file maps those roles to the actual label strings used in this repo's issue tracker.
+Five labels drive the triage state machine. They must exist in the GitHub repository; if missing, create them via `gh label create`.
 
-| Label in mattpocock/skills | Label in our tracker | Meaning                                  |
-| -------------------------- | -------------------- | ---------------------------------------- |
-| `needs-triage`             | `needs-triage`       | Maintainer needs to evaluate this issue  |
-| `needs-info`               | `needs-info`         | Waiting on reporter for more information |
-| `ready-for-agent`          | `ready-for-agent`    | Fully specified, ready for an AFK agent  |
-| `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
-| `wontfix`                  | `wontfix`            | Will not be actioned                     |
+| Label | Role | Meaning |
+|-------|------|---------|
+| `needs-triage` | Entry | Maintainer needs to evaluate this issue |
+| `needs-info` | Blocked | Waiting on the reporter for more information |
+| `ready-for-agent` | Ready (agent) | Fully specified; an AFK agent can pick it up with no additional human context |
+| `ready-for-human` | Ready (human) | Needs human implementation |
+| `wontfix` | Closed | Will not be actioned |
 
-When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
+## State machine
 
-Edit the right-hand column to match whatever vocabulary you actually use.
+```
+[New issue] → needs-triage
+needs-triage → needs-info        (reporter must clarify)
+needs-triage → ready-for-agent   (fully specified, AFK-ready)
+needs-triage → ready-for-human   (needs human hands)
+needs-triage → wontfix           (out of scope / rejected)
+needs-info → needs-triage        (reporter responded, re-evaluate)
+needs-info → wontfix             (no response after reasonable time)
+ready-for-agent → (issue closed) (agent completed the work)
+ready-for-human → (issue closed) (human completed the work)
+```
+
+## Label colours (suggested)
+
+| Label | Colour |
+|-------|--------|
+| `needs-triage` | `#fbca04` (yellow) |
+| `needs-info` | `#006b75` (teal) |
+| `ready-for-agent` | `#0e8a16` (green) |
+| `ready-for-human` | `#1d76db` (blue) |
+| `wontfix` | `#b60205` (red) |

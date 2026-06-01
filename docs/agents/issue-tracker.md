@@ -1,22 +1,25 @@
-# Issue tracker: GitHub
+# Issue Tracker
 
-Issues and PRDs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
+**System:** GitHub Issues
+
+**Remote:** `https://github.com/cislunarspace/transfer-orbit-design`
+
+**CLI:** `gh` (GitHub CLI)
+
+## Commands
+
+| Action | Command |
+|--------|---------|
+| Create issue | `gh issue create --title "..." --body "..."` |
+| List issues | `gh issue list` |
+| View issue | `gh issue view <number>` |
+| Close issue | `gh issue close <number>` |
+| Add label | `gh issue edit <number> --add-label "..."` |
+| Remove label | `gh issue edit <number> --remove-label "..."` |
+| Comment | `gh issue comment <number> --body "..."` |
 
 ## Conventions
 
-- **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
-- **Read an issue**: `gh issue view <number> --comments`, filtering comments by `jq` and also fetching labels.
-- **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
-- **Comment on an issue**: `gh issue comment <number> --body "..."`
-- **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
-- **Close**: `gh issue close <number> --comment "..."`
-
-Infer the repo from `git remote -v` — `gh` does this automatically when run inside a clone.
-
-## When a skill says "publish to the issue tracker"
-
-Create a GitHub issue.
-
-## When a skill says "fetch the relevant ticket"
-
-Run `gh issue view <number> --comments`.
+- Use conventional commit prefixes in issue titles when applicable (feat:, fix:, refactor:, etc.).
+- Always assign a triage label when creating or updating an issue.
+- Reference issues in commits with `Fixes #<number>` or `Closes #<number>`.

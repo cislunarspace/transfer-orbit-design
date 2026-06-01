@@ -19,3 +19,17 @@ Transfer Orbit Design 是一个轨道设计工具，提供 CR3BP 轨道生成、
 ## 交流语言
 
 与用户使用**中文**交流。
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked on GitHub (`cislunarspace/transfer-orbit-design`), using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical triage labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
