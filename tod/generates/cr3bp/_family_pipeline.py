@@ -183,10 +183,12 @@ def print_summary_table(
         return
 
     # --- 统计摘要 ---
-    periods = [o.period for o in orbits]
+    periods = [o.period for o in orbits if o.period is not None]
     errors = [o.periodicity_error for o in orbits if o.periodicity_error is not None]
     if not errors:
         errors = [0.0]
+    if not periods:
+        periods = [0.0]
     seed_orbit = orbits[0]
     s_seed = seed_orbit.states[0]
 

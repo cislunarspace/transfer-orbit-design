@@ -579,7 +579,7 @@ class TestHaloSummaryTableOutput:
         )
 
         orbits = [self._make_orbit(0.93, 0.1 + i * 0.01, 1.84 + i * 0.01) for i in range(5)]
-        print_summary_table(orbits, config)
+        print_summary_table(orbits, config)  # pyright: ignore[reportArgumentType]
 
         output = capsys.readouterr().out
         assert "伪弧长延拓" in output

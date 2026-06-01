@@ -165,7 +165,7 @@ class ParamsPanelStateMixin:
         file_combo.blockSignals(True)
         file_combo.clear()
         file_combo.addItem("")
-        matching = filter_files(self._files, category=file_category, file_type="json", name_pattern=name_pattern)
+        matching = filter_files(self._files, category=file_category, file_type="json", name_pattern=name_pattern)  # pyright: ignore[reportAttributeAccessIssue]
         for fi in matching:
             if is_relative:
                 file_combo.addItem(fi.path)

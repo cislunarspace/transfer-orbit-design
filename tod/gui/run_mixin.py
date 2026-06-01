@@ -10,6 +10,7 @@ from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, cast
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,

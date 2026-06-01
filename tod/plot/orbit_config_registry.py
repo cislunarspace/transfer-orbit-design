@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Callable
 
 import numpy as np
 
@@ -96,7 +97,7 @@ def _rro_config() -> FamilyPlotConfig:
     )
 
 
-_CONFIG_REGISTRY: list[tuple[str, object]] = [
+_CONFIG_REGISTRY: list[tuple[str, Callable[[], FamilyPlotConfig]]] = [
     ("halo_", _halo_config),
     ("dro_", _dro_config),
     ("ro_31_", _ro_31_config),

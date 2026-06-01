@@ -85,7 +85,7 @@ class ParamsPanelLayoutMixin(DocLinkMixin):
         self._cli_widgets[key] = widget
         self._param_defaults[widget] = cli_param.default or ""
         self._factory_defaults[widget] = cli_param.default or ""
-        self._connect_param_highlight(widget)
+        self._connect_param_highlight(widget)  # pyright: ignore[reportAttributeAccessIssue]
 
         # 包裹到容器中以支持 hidden_when
         row_container = QWidget()
@@ -365,7 +365,7 @@ class ParamsPanelLayoutMixin(DocLinkMixin):
                     self._cli_widgets[key] = widget
                     self._param_defaults[widget] = cli_param.default or ""
                     self._factory_defaults[widget] = cli_param.default or ""
-                    self._connect_param_highlight(widget)
+                    self._connect_param_highlight(widget)  # pyright: ignore[reportAttributeAccessIssue]
 
                     row_container = QWidget()
                     row_layout = QHBoxLayout(row_container)
@@ -390,15 +390,15 @@ class ParamsPanelLayoutMixin(DocLinkMixin):
         saved = self._gui_defaults.get(entry.name, {})
         if saved:
             for key, widget in self._cli_widgets.items():
-                cli_param = self._find_cli_param(key)
+                cli_param = self._find_cli_param(key)  # pyright: ignore[reportAttributeAccessIssue]
                 if cli_param is None or cli_param.flag not in saved:
                     continue
                 val = saved[cli_param.flag]
-                self._set_widget_std_value(widget, val)
+                self._set_widget_std_value(widget, val)  # pyright: ignore[reportAttributeAccessIssue]
                 self._param_defaults[widget] = val
 
         # 设置条件可见性（hidden_when）
-        self._setup_conditional_visibility(entry)
+        self._setup_conditional_visibility(entry)  # pyright: ignore[reportAttributeAccessIssue]
 
         # 保存/恢复默认值按钮
         if has_any:
@@ -406,10 +406,10 @@ class ParamsPanelLayoutMixin(DocLinkMixin):
             btn_layout.setContentsMargins(0, 8, 0, 0)
             save_btn = QPushButton(QCoreApplication.translate("ParamsPanelLayoutMixin", "保存为默认值"))
             save_btn.setToolTip(QCoreApplication.translate("ParamsPanelLayoutMixin", "将当前参数值保存为此脚本的默认值"))
-            save_btn.clicked.connect(self._on_save_defaults)
+            save_btn.clicked.connect(self._on_save_defaults)  # pyright: ignore[reportAttributeAccessIssue]
             reset_btn = QPushButton(QCoreApplication.translate("ParamsPanelLayoutMixin", "恢复出厂默认"))
             reset_btn.setToolTip(QCoreApplication.translate("ParamsPanelLayoutMixin", "恢复为系统预设的默认参数值"))
-            reset_btn.clicked.connect(self._on_reset_defaults)
+            reset_btn.clicked.connect(self._on_reset_defaults)  # pyright: ignore[reportAttributeAccessIssue]
             btn_layout.addWidget(save_btn)
             btn_layout.addWidget(reset_btn)
             btn_layout.addStretch()

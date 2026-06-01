@@ -36,7 +36,9 @@ class TestGenerateHaloFamilyParams:
 
     def test_method_choices_contain_pal(self, entry: ScriptEntry) -> None:
         param = next(p for p in entry.cli_params if p.flag == "--method")
+        assert param.choices is not None
         assert "伪弧长延拓" in param.choices
+        assert param.choice_values is not None
         assert param.choice_values["伪弧长延拓"] == "pseudo_arclength"
 
     def test_method_has_no_hidden_when(self, entry: ScriptEntry) -> None:

@@ -1,3 +1,4 @@
+# pyright: reportArgumentType=false, reportIncompatibleMethodOverride=false
 """Unit tests for tod.generates.cr3bp._family_pipeline shared module."""
 
 import math
@@ -188,10 +189,14 @@ def _make_mock_orbit(
 
 
 class _FakeOrbitFamily:
-    """Minimal OrbitFamily-like for testing print_summary_table/export_csv."""
+    """Minimal OrbitFamily-like for testing print_summary_table/export_csv.
+
+    pyright: ignore reportArgumentType, reportAttributeAccessIssue
+    """
 
     def __init__(self, orbits: list):
         self._orbits = orbits
+        self.save_to_file = MagicMock()
 
     def __len__(self):
         return len(self._orbits)
@@ -260,11 +265,12 @@ class TestExportCsv:
         output_dir.mkdir(parents=True)
         csv_path = fp.export_csv(orbits, cfg, output_dir)
 
-        assert csv_path.exists()
-        assert csv_path.suffix == ".csv"
+        assert csv_path is not None
+        assert csv_path.exists()  # pyright: ignore[reportOptionalMemberAccess]
+        assert csv_path.suffix == ".csv"  # pyright: ignore[reportOptionalMemberAccess]
 
         # Read back and verify
-        content = csv_path.read_text()
+        content = csv_path.read_text()  # pyright: ignore[reportOptionalMemberAccess]
         assert "idx" in content
         assert "x0" in content
         assert "period" in content
@@ -288,7 +294,7 @@ class TestExportCsv:
         output_dir.mkdir(parents=True)
         csv_path = fp.export_csv(orbits, cfg, output_dir)
 
-        lines = csv_path.read_text().strip().split("\n")
+        lines = csv_path.read_text().strip().split("\n")  # pyright: ignore[reportOptionalMemberAccess]
         # First and last rows should be milestones (indices 0 and 9)
         assert "True" in lines[1]  # row 0 is milestone
         assert "True" in lines[-1]  # row 9 is milestone
@@ -343,8 +349,6 @@ class _MinimalGenerator(fp.FamilyGenerator):
 
     def _run_continuation(self, corrector, seed_orbit, args):
         family = _FakeOrbitFamily([seed_orbit] + [_make_mock_orbit(0.8, 3.5) for _ in range(4)])
-        # Add save_to_file
-        family.save_to_file = MagicMock()
         return family
 
 

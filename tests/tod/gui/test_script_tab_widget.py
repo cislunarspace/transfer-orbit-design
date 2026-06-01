@@ -2,6 +2,7 @@
 
 import pytest
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import patch
 
 from PyQt6.QtWidgets import QApplication, QCheckBox, QComboBox, QLineEdit, QSpinBox
@@ -10,8 +11,8 @@ from tod.gui.file_discovery import FileInfo
 from tod.gui.script_registry import CliParam, ScriptEntry
 
 
-def _make_entry(**overrides) -> ScriptEntry:
-    defaults = dict(
+def _make_entry(**overrides: Any) -> ScriptEntry:
+    defaults: dict[str, Any] = dict(
         module="dro",
         name="Test Script",
         description="Test description",
@@ -116,7 +117,7 @@ class TestScriptTabWidgetCollectRunArgs:
         assert "--orbit" not in args
 
         # 修改后收集
-        widget._cli_widgets["orbit"].setText("dro")
+        cast(QLineEdit, widget._cli_widgets["orbit"]).setText("dro")
         args = widget.collect_run_args()
         assert "--orbit" in args
         assert "dro" in args
@@ -134,7 +135,7 @@ class TestScriptTabWidgetCollectRunArgs:
             gui_defaults={}, theme_mode="system",
         )
         # 出厂默认值 100，改为 200
-        widget._cli_widgets["iterations"].setValue(200)
+        cast(QSpinBox, widget._cli_widgets["iterations"]).setValue(200)
         args = widget.collect_run_args()
         assert "--iterations" in args
         assert "200" in args
@@ -156,7 +157,7 @@ class TestScriptTabWidgetCollectRunArgs:
         assert "--verbose" not in args
 
         # 选中后收集 flag（无值）
-        widget._cli_widgets["verbose"].setChecked(True)
+        cast(QCheckBox, widget._cli_widgets["verbose"]).setChecked(True)
         args = widget.collect_run_args()
         assert "--verbose" in args
 
@@ -212,7 +213,7 @@ class TestScriptTabWidgetDefaults:
             entry=entry, files=[], repo_root=tmp_path,
             gui_defaults=gui_defaults, theme_mode="system",
         )
-        widget._cli_widgets["orbit"].setText("dro")
+        cast(QLineEdit, widget._cli_widgets["orbit"]).setText("dro")
         widget._on_save_defaults()
 
         assert "Test Script" in gui_defaults

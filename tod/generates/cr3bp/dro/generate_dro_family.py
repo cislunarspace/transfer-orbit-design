@@ -181,6 +181,7 @@ class DroFamilyGenerator(FamilyGenerator):
 
 def _csv_format_row(orbit: Orbit, index: int, is_milestone: bool) -> dict[str, Any]:
     """格式化单条 DRO 轨道的 CSV 行。"""
+    assert orbit.period is not None and orbit.periodicity_error is not None
     s = orbit.states[0]
     return {
         "continuation_step": orbit.metadata.get("continuation_step", ""),
@@ -202,6 +203,7 @@ def _csv_format_row(orbit: Orbit, index: int, is_milestone: bool) -> dict[str, A
 
 def _summary_format_row(orbit: Orbit) -> list[str]:
     """格式化 DRO 摘要表的单行。"""
+    assert orbit.period is not None
     s = orbit.states[0]
     return [
         f"{float(s[0]):10.6f}",

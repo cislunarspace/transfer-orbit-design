@@ -291,7 +291,7 @@ class ScriptTabWidget(QWidget):
         out_label.setWordWrap(False)
         out_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
 
-        abs_out_path = str(self._repo_root / entry.output_dir)
+        abs_out_path = str(self._repo_root / (entry.output_dir or "."))
 
         out_abs_btn = QPushButton(self.tr("复制路径"))
         out_abs_btn.setStyleSheet(
