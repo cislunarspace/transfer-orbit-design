@@ -442,7 +442,7 @@ def _add_file_row(
     del_btn = QPushButton(QCoreApplication.translate("CliWidgetFactory", "移除"))
     del_btn.setFixedWidth(50)
 
-    def _on_delete(clicked_btn=del_btn, col_idx=delete_col) -> None:
+    def _on_delete(_checked, clicked_btn=del_btn, col_idx=delete_col) -> None:
         for r in range(table.rowCount()):
             if table.cellWidget(r, col_idx) is clicked_btn:
                 table.removeRow(r)
