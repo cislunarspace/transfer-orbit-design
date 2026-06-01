@@ -1,7 +1,7 @@
 """守护测试：GUI 下拉参数默认值必须与底层脚本 argparse 默认值一致。
 
 根因背景：GUI 仅在「控件值 ≠ GUI 默认值」时才把参数发射到命令行
-（``run_mixin._on_run``）。若 GUI 默认值与脚本 argparse 默认值不一致，
+（``ScriptTabWidget.collect_run_args``）。若 GUI 默认值与脚本 argparse 默认值不一致，
 用户保持 GUI 默认时该参数被吞掉，脚本回退到自己的 argparse 默认——
 导致「GUI 选了 A，脚本却跑了 B」的静默 bug（曾发生在 Halo 的 --method 上）。
 

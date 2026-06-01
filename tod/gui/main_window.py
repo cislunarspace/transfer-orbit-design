@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import json
-from itertools import product
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -32,7 +31,7 @@ from tod.gui.file_tree_mixin import FileTreeMixin
 from tod.gui.job_manager import JobManager
 from tod.gui.job_panel_mixin import JobPanelMixin
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
-from tod.gui.run_mixin import RunMixin
+from tod.gui.run_orchestrator import RunOrchestrator
 from tod.gui.script_registry import SCRIPTS, ScriptEntry
 from tod.gui.script_tab_bar import ScriptTabBar
 from tod.gui.script_tab_widget import ScriptTabWidget
@@ -44,7 +43,7 @@ if TYPE_CHECKING:
     from tod.gui.doc_window import DocWindow
 
 
-class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, QMainWindow):
+class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
     """提供 MainWindow 对应的 GUI 组件。
 
     该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
@@ -304,73 +303,22 @@ class MainWindow(FileTreeMixin, JobPanelMixin, RunMixin, QMainWindow):
         if not tab.validate_params():
             return
 
-        chip_selections = tab.collect_chip_selections()
-        multi_file_configs = tab.collect_multi_file_configs()
-
-        env_overrides = tab.collect_env_overrides()
-        extra_args = tab.collect_run_args()
-
+        file_arg: list[str] | None = None
         if entry.accepts_file_arg:
             selected = self._file_tree.currentItem()
             if selected:
                 from tod.gui.file_operations import FILE_PATH_ROLE
                 abs_path = selected.data(0, FILE_PATH_ROLE)
                 if abs_path:
-                    extra_args = ["--file", abs_path] + extra_args
+                    file_arg = ["--file", abs_path]
 
         from tod.plot.config import body_icon_env_from_settings, plot_font_env_from_settings
-        env_overrides.update(plot_font_env_from_settings(self._gui_defaults.get("settings", {})))
-        env_overrides.update(body_icon_env_from_settings(self._gui_defaults.get("settings", {})))
+        plot_env: dict[str, str] = {}
+        plot_env.update(plot_font_env_from_settings(self._gui_defaults.get("settings", {})))
+        plot_env.update(body_icon_env_from_settings(self._gui_defaults.get("settings", {})))
 
-        all_args_combinations = self._expand_chip_combinations(entry, extra_args, chip_selections)
-
-        for args in all_args_combinations:
-            for key, configs in multi_file_configs.items():
-                if not configs:
-                    continue
-                flag = None
-                for multi_param in entry.multi_cli_params:
-                    multi_key = multi_param.flag.lstrip("-").replace("-", "_")
-                    if multi_key == key:
-                        flag = multi_param.flag
-                        break
-                if flag:
-                    args.extend([flag, json.dumps(configs)])
-
-        for args in all_args_combinations:
-            self._job_manager.start_job(entry, args, env_overrides.copy())
-
-    def _expand_chip_combinations(
-        self,
-        entry: ScriptEntry,
-        base_args: list[str],
-        chip_selections: dict[str, list[str]],
-    ) -> list[list[str]]:
-        if not chip_selections:
-            return [base_args]
-
-        chip_params_list: list[tuple[str, str, list[str]]] = []
-        for key, values in chip_selections.items():
-            flag = None
-            for chip_param in entry.cli_chip_params:
-                chip_key = chip_param.flag.lstrip("-").replace("-", "_")
-                if chip_key == key:
-                    flag = chip_param.flag
-                    break
-            if flag and values:
-                chip_params_list.append((key, flag, values))
-
-        if not chip_params_list:
-            return [base_args]
-
-        combinations: list[list[str]] = []
-        for combo in product(*[vals for _, _, vals in chip_params_list]):
-            args = base_args.copy()
-            for (_, flag, _), value in zip(chip_params_list, combo):
-                args.extend([flag, value])
-            combinations.append(args)
-
-        return combinations
+        specs = RunOrchestrator.build_run_specs(tab, file_arg, plot_env)
+        RunOrchestrator.dispatch(specs, entry, self._job_manager)
 
     # ── 文件刷新（完全覆盖 FileTreeMixin._refresh_files） ─────
 

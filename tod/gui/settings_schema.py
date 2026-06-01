@@ -13,7 +13,7 @@ from tod.plot.config import (
 )
 from tod.gui.settings_dialog import SettingItem
 
-# GUI 设置 key：天体图标缩放系数。值会被 RunMixin 写入到环境变量
+# GUI 设置 key：天体图标缩放系数。值会被 _run_from_tab 写入到环境变量
 # E2M2E_BODY_ICON_SCALE 中传给绘图子进程。
 BODY_ICON_SCALE_SETTING_KEY = "plot_body_icon_scale"
 
