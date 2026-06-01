@@ -89,10 +89,6 @@ def _tag_halo_seed_orbit(
 # ------------------------------------------------------------------------------
 
 
-def _resolve_halo_branches(args) -> str:
-    """由 ``--halo-class`` 推断分支：0=北族, 1=南族。"""
-    return "north" if args.halo_class == 0 else "south"
-
 
 # ------------------------------------------------------------------------------
 # Halo 族生成器
@@ -225,22 +221,9 @@ class HaloFamilyGenerator(FamilyGenerator):
     def _run_continuation(self, corrector: Any, seed_orbit: Any, args: Any):
         """延拓路由：根据 args.method 分发到对应延拓方法。
 
-        z_range 验证为共享逻辑，在路由前执行。
-
         Raises:
-            ValueError: 种子 z0 不在 z_range 范围内 / 未实现的延拓方法。
+            ValueError: 未实现的延拓方法。
         """
-        halo_class = args.halo_class
-
-        # z_range 验证（所有方法共享）
-        z_range = self._resolve_z_range(args, halo_class)
-        if z_range is not None:
-            z0 = float(np.asarray(seed_orbit.states)[0, 2])
-            if not (z_range[0] <= z0 <= z_range[1]):
-                raise ValueError(
-                    f"种子 z0={z0:.4f} 不在 z_range [{z_range[0]:.4f}, {z_range[1]:.4f}] 内"
-                )
-
         method = args.method
         if method == "pseudo_arclength":
             return self._run_pal_continuation(corrector, seed_orbit, args)
@@ -249,9 +232,6 @@ class HaloFamilyGenerator(FamilyGenerator):
     def _run_pal_continuation(self, corrector: Any, seed_orbit: Any, args: Any):
         """伪弧长延拓（PAL）生成 Halo 轨道族。"""
         step_size = args.step_size_pal
-        step_size_negative = (
-            args.step_size_negative if args.step_size_negative is not None else step_size
-        )
 
         continuation = e2m2e.algorithms.Continuation(corrector=corrector)
 
@@ -266,9 +246,8 @@ class HaloFamilyGenerator(FamilyGenerator):
         family_result = continuation.halo_pseudo_arclength_continuation(
             seed_orbit=seed_orbit,
             n_orbits=args.n_orbits,
-            direction=args.direction,
+            direction="both",
             step_size=step_size,
-            step_size_negative=step_size_negative,
             verbose=False,
             progress_callback=_on_orbit,
         )
@@ -277,17 +256,6 @@ class HaloFamilyGenerator(FamilyGenerator):
     # ------------------------------------------------------------------
     # 内部辅助
     # ------------------------------------------------------------------
-
-    def _resolve_z_range(self, args, halo_class: int) -> tuple[float, float] | None:
-        """解析 z_range。南族取负值范围。"""
-        if args.z_min is None or args.z_max is None:
-            return None
-        if args.z_min >= args.z_max:
-            logger.error("z_min (%.4f) 必须小于 z_max (%.4f)", args.z_min, args.z_max)
-            raise ValueError(f"z_min ({args.z_min}) 必须小于 z_max ({args.z_max})")
-        if halo_class == 0:
-            return (args.z_min, args.z_max)
-        return (-args.z_max, -args.z_min)
 
     def _fallback_seed_generation(
         self, libration_point: int, halo_class: int, amplitude_z: float,
@@ -370,26 +338,13 @@ class HaloFamilyGenerator(FamilyGenerator):
             "--step-size",
             type=float,
             default=0.002,
-            help="伪弧长延拓步长的 fallback（当 --step-size-pal 未指定时使用）",
+            help="自然延拓步长（预留给自然延拓方法）",
         )
         parser.add_argument(
             "--step-size-pal",
             type=float,
             default=0.0045,
-            help="伪弧长延拓步长 |Δs|（提供时覆盖 --step-size）",
-        )
-        parser.add_argument(
-            "--step-size-negative",
-            type=float,
-            default=None,
-            help="负向支延拓步长覆盖（默认等于正向步长）",
-        )
-        parser.add_argument(
-            "--direction",
-            type=str,
-            default="both",
-            choices=["positive", "negative", "both"],
-            help="延拓方向（默认 both：从种子向振幅更小和更大双向铺开）",
+            help="伪弧长延拓步长 |Δs|",
         )
         parser.add_argument(
             "--seed-file",
@@ -500,9 +455,6 @@ def main() -> None:
         libration_point = LIBRATION_POINT_MAP[args.libration_point]
         halo_class = args.halo_class
         step_size = args.step_size_pal
-        step_size_negative = (
-            args.step_size_negative if args.step_size_negative is not None else step_size
-        )
         lp_name = f"L{libration_point}"
         class_name = "北" if halo_class == 0 else "南"
         method_label = {"pseudo_arclength": "伪弧长延拓"}.get(args.method, args.method)
@@ -510,9 +462,7 @@ def main() -> None:
             f"  平动点       {lp_name}",
             f"  Halo 类别   {class_name} Halo (Class {'I' if halo_class == 0 else 'II'})",
             f"  延拓方法     {method_label}",
-            f"  正向步长     {step_size}",
-            f"  负向步长     {step_size_negative}",
-            f"  延拓方向     {args.direction}",
+            f"  延拓步长     {step_size}",
         ]
         return lines
 
@@ -530,7 +480,6 @@ if __name__ == "__main__":
             "--halo-class", "1",
             "--n-orbits", "20",
             "--step-size-pal", "0.0045",
-            "--direction", "both",
         ],
     )
     main()

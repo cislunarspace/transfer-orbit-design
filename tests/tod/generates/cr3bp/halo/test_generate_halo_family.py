@@ -33,17 +33,15 @@ def _make_halo_gen() -> HaloFamilyGenerator:
 
 
 def _make_halo_args(**overrides) -> MagicMock:
-    """构造模拟 Halo CLI args。"""
+    """构造模拟 Halo CLI args（不含已删除的 direction/step_size_negative）。"""
     args = MagicMock()
     args.libration_point = overrides.get("libration_point", "L1")
     args.halo_class = overrides.get("halo_class", 0)
     args.amplitude_z = overrides.get("amplitude_z", 0.001)
     args.n_orbits = overrides.get("n_orbits", 20)
     args.step_size = overrides.get("step_size", 0.002)
-    args.step_size_pal = overrides.get("step_size_pal", None)
-    args.step_size_negative = overrides.get("step_size_negative", None)
+    args.step_size_pal = overrides.get("step_size_pal", 0.0045)
     args.method = overrides.get("method", "pseudo_arclength")
-    args.direction = overrides.get("direction", "both")
     args.seed_file = overrides.get("seed_file", None)
     args.z_min = overrides.get("z_min", None)
     args.z_max = overrides.get("z_max", None)
@@ -334,74 +332,30 @@ class TestGetSeedOrbitSeedFile:
 
 
 # ---------------------------------------------------------------------------
-# 7. _run_continuation — z_range 验证
+# 7. _run_continuation — PAL 不做 z_range 验证
 # ---------------------------------------------------------------------------
 
 
-class TestRunContinuationZRange:
-    """验证 _run_continuation 中 z_range 验证行为。"""
+class TestRunContinuationNoZRangeForPAL:
+    """验证 PAL 模式下 _run_continuation 不做 z_range 验证。"""
 
-    def test_z_range_passes_when_seed_in_range(self):
-        """种子 z0 在 z_range 范围内时应正常执行。"""
+    def test_pal_ignores_z_range(self):
+        """PAL 模式即使传入 z_min/z_max 也不验证范围。"""
         gen = _make_halo_gen()
-        args = _make_halo_args(halo_class=0, z_min=0.1, z_max=0.5)
-
-        mock_seed = MagicMock()
-        mock_seed.states = np.array([[0.93, 0.0, 0.23, 0.0, 0.1, 0.0]])
-
-        with patch("tod.generates.cr3bp.halo.generate_halo_family.e2m2e.algorithms.Continuation") as MockCont:
-            mock_family = MagicMock()
-            mock_cont_instance = MagicMock()
-            mock_cont_instance.halo_pseudo_arclength_continuation.return_value = mock_family
-            MockCont.return_value = mock_cont_instance
-
-            result = gen._run_continuation(MagicMock(), mock_seed, args)
-
-        assert result is mock_family
-
-    def test_z_range_raises_when_seed_out_of_range(self):
-        """种子 z0 不在 z_range 范围内时应抛出 ValueError。"""
-        gen = _make_halo_gen()
-        args = _make_halo_args(halo_class=0, z_min=0.5, z_max=1.0)
+        args = _make_halo_args(method="pseudo_arclength", halo_class=0, z_min=0.5, z_max=1.0)
 
         mock_seed = MagicMock()
         mock_seed.states = np.array([[0.93, 0.0, 0.1, 0.0, 0.1, 0.0]])  # z0=0.1 < z_min
 
-        with pytest.raises(ValueError, match="z_range"):
-            gen._run_continuation(MagicMock(), mock_seed, args)
-
-    def test_z_range_south_halo_negative_z0(self):
-        """南族 z_range 应取负值范围。"""
-        gen = _make_halo_gen()
-        args = _make_halo_args(halo_class=1, z_min=0.1, z_max=0.5)
-
-        mock_seed = MagicMock()
-        mock_seed.states = np.array([[0.93, 0.0, -0.23, 0.0, 0.1, 0.0]])  # z0=-0.23 ∈ [-0.5, -0.1]
-
         with patch("tod.generates.cr3bp.halo.generate_halo_family.e2m2e.algorithms.Continuation") as MockCont:
             mock_family = MagicMock()
             mock_cont_instance = MagicMock()
             mock_cont_instance.halo_pseudo_arclength_continuation.return_value = mock_family
             MockCont.return_value = mock_cont_instance
 
+            # 不应抛出 ValueError
             result = gen._run_continuation(MagicMock(), mock_seed, args)
-        assert result is mock_family
 
-    def test_no_z_range_skips_validation(self):
-        """不提供 z_min/z_max 时跳过验证。"""
-        gen = _make_halo_gen()
-        args = _make_halo_args(z_min=None, z_max=None)
-
-        mock_seed = MagicMock()
-        mock_seed.states = np.array([[0.93, 0.0, 0.23, 0.0, 0.1, 0.0]])
-
-        with patch("tod.generates.cr3bp.halo.generate_halo_family.e2m2e.algorithms.Continuation") as MockCont:
-            mock_family = MagicMock()
-            mock_cont_instance = MagicMock()
-            mock_cont_instance.halo_pseudo_arclength_continuation.return_value = mock_family
-            MockCont.return_value = mock_cont_instance
-
-            result = gen._run_continuation(MagicMock(), mock_seed, args)
         assert result is mock_family
 
     # ---------------------------------------------------------------------------
@@ -437,3 +391,60 @@ class TestRunContinuationZRange:
 
         assert result is mock_family
         mock_cont_instance.halo_pseudo_arclength_continuation.assert_called_once()
+
+    def test_run_continuation_pal_uses_direction_both(self):
+        """PAL 应硬编码 direction='both'。"""
+        gen = _make_halo_gen()
+        args = _make_halo_args(method="pseudo_arclength")
+
+        mock_seed = MagicMock()
+        mock_seed.states = np.array([[0.93, 0.0, 0.23, 0.0, 0.1, 0.0]])
+
+        with patch("tod.generates.cr3bp.halo.generate_halo_family.e2m2e.algorithms.Continuation") as MockCont:
+            mock_family = MagicMock()
+            mock_cont_instance = MagicMock()
+            mock_cont_instance.halo_pseudo_arclength_continuation.return_value = mock_family
+            MockCont.return_value = mock_cont_instance
+
+            gen._run_continuation(MagicMock(), mock_seed, args)
+
+        call_kwargs = mock_cont_instance.halo_pseudo_arclength_continuation.call_args
+        assert call_kwargs.kwargs.get("direction") == "both"
+
+    def test_run_continuation_pal_no_step_size_negative(self):
+        """PAL 调用不应包含 step_size_negative 参数。"""
+        gen = _make_halo_gen()
+        args = _make_halo_args(method="pseudo_arclength")
+
+        mock_seed = MagicMock()
+        mock_seed.states = np.array([[0.93, 0.0, 0.23, 0.0, 0.1, 0.0]])
+
+        with patch("tod.generates.cr3bp.halo.generate_halo_family.e2m2e.algorithms.Continuation") as MockCont:
+            mock_family = MagicMock()
+            mock_cont_instance = MagicMock()
+            mock_cont_instance.halo_pseudo_arclength_continuation.return_value = mock_family
+            MockCont.return_value = mock_cont_instance
+
+            gen._run_continuation(MagicMock(), mock_seed, args)
+
+        call_kwargs = mock_cont_instance.halo_pseudo_arclength_continuation.call_args
+        assert "step_size_negative" not in call_kwargs.kwargs
+
+
+# ---------------------------------------------------------------------------
+# 9. argparse — 已删除参数不接受
+# ---------------------------------------------------------------------------
+
+
+class TestArgparseRemovedParams:
+    """验证 argparse 不再接受已删除的参数。"""
+
+    def test_direction_not_accepted(self):
+        """--direction 应不被 argparse 接受。"""
+        with pytest.raises(SystemExit):
+            HaloFamilyGenerator.build_parser("test").parse_args(["--direction", "both"])
+
+    def test_step_size_negative_not_accepted(self):
+        """--step-size-negative 应不被 argparse 接受。"""
+        with pytest.raises(SystemExit):
+            HaloFamilyGenerator.build_parser("test").parse_args(["--step-size-negative", "0.01"])

@@ -1,7 +1,9 @@
 """Tests for generate_halo_family ScriptEntry.
 
-Updated after restoring --method parameter: Halo uses PAL continuation,
-with method selector for future extensibility.
+Halo family generator uses method-based parameter visibility:
+- PAL mode: step-size-pal, n-orbits
+- Natural mode: step-size, z-min, z-max
+- Removed: --direction (hardcoded "both"), --step-size-negative (unused)
 """
 
 import pytest
@@ -45,34 +47,23 @@ class TestGenerateHaloFamilyParams:
         param = next(p for p in entry.cli_params if p.flag == "--method")
         assert param.hidden_when is None
 
-    # -- 共享参数无条件隐藏 --
+    # -- 已删除参数 --
 
-    def test_direction_has_no_hidden_when(self, entry: ScriptEntry) -> None:
-        direction_param = next(p for p in entry.cli_params if p.flag == "--direction")
-        assert direction_param.hidden_when is None
+    def test_direction_not_in_params(self, entry: ScriptEntry) -> None:
+        """--direction 已删除（硬编码 "both"）。"""
+        flags = [p.flag for p in entry.cli_params]
+        assert "--direction" not in flags
 
-    def test_z_min_has_no_hidden_when(self, entry: ScriptEntry) -> None:
-        z_min_param = next(p for p in entry.cli_params if p.flag == "--z-min")
-        assert z_min_param.hidden_when is None
-
-    def test_z_max_has_no_hidden_when(self, entry: ScriptEntry) -> None:
-        z_max_param = next(p for p in entry.cli_params if p.flag == "--z-max")
-        assert z_max_param.hidden_when is None
-
-    def test_n_orbits_has_no_hidden_when(self, entry: ScriptEntry) -> None:
-        param = next(p for p in entry.cli_params if p.flag == "--n-orbits")
-        assert param.hidden_when is None
+    def test_step_size_negative_not_in_params(self, entry: ScriptEntry) -> None:
+        """--step-size-negative 已删除（无用参数）。"""
+        flags = [p.flag for p in entry.cli_params]
+        assert "--step-size-negative" not in flags
 
     # -- PAL 专属参数 hidden_when --
 
     def test_step_size_pal_hidden_when_natural(self, entry: ScriptEntry) -> None:
         """PAL 步长在自然延拓方法下隐藏。"""
         param = next(p for p in entry.cli_params if p.flag == "--step-size-pal")
-        assert param.hidden_when == "--method==natural"
-
-    def test_step_size_negative_hidden_when_natural(self, entry: ScriptEntry) -> None:
-        """负向支步长在自然延拓方法下隐藏。"""
-        param = next(p for p in entry.cli_params if p.flag == "--step-size-negative")
         assert param.hidden_when == "--method==natural"
 
     # -- 自然延拓预留参数 hidden_when --
@@ -82,11 +73,43 @@ class TestGenerateHaloFamilyParams:
         param = next(p for p in entry.cli_params if p.flag == "--step-size")
         assert param.hidden_when == "--method==pseudo_arclength"
 
-    # -- 其他不变属性 --
+    # -- 方法分流：PAL 参数 --
 
-    def test_direction_default_is_both(self, entry: ScriptEntry) -> None:
-        param = next(p for p in entry.cli_params if p.flag == "--direction")
-        assert param.default == "both"
+    def test_n_orbits_hidden_when_natural(self, entry: ScriptEntry) -> None:
+        """PAL 模式下 n-orbits 可见，Natural 下隐藏。"""
+        param = next(p for p in entry.cli_params if p.flag == "--n-orbits")
+        assert param.hidden_when == "--method==natural"
+
+    # -- 方法分流：Natural 参数 --
+
+    def test_z_min_hidden_when_pal(self, entry: ScriptEntry) -> None:
+        """z-min 仅在 Natural 模式下显示。"""
+        param = next(p for p in entry.cli_params if p.flag == "--z-min")
+        assert param.hidden_when == "--method==pseudo_arclength"
+
+    def test_z_max_hidden_when_pal(self, entry: ScriptEntry) -> None:
+        """z-max 仅在 Natural 模式下显示。"""
+        param = next(p for p in entry.cli_params if p.flag == "--z-max")
+        assert param.hidden_when == "--method==pseudo_arclength"
+
+    # -- 默认值 --
+
+    def test_amplitude_z_default_is_0_001(self, entry: ScriptEntry) -> None:
+        """种子振幅默认 0.001（小种子利于 Richardson 收敛）。"""
+        param = next(p for p in entry.cli_params if p.flag == "--amplitude-z")
+        assert param.default == "0.001"
+
+    def test_z_min_default_is_empty(self, entry: ScriptEntry) -> None:
+        """z-min 默认空，不启用 z_range 模式。"""
+        param = next(p for p in entry.cli_params if p.flag == "--z-min")
+        assert param.default == ""
+
+    def test_z_max_default_is_empty(self, entry: ScriptEntry) -> None:
+        """z-max 默认空，不启用 z_range 模式。"""
+        param = next(p for p in entry.cli_params if p.flag == "--z-max")
+        assert param.default == ""
+
+    # -- 其他不变属性 --
 
     def test_halo_class_help_no_longer_mentions_shared_crossing(self, entry: ScriptEntry) -> None:
         param = next(p for p in entry.cli_chip_params if p.flag == "--halo-class")

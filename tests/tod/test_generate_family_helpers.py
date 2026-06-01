@@ -367,10 +367,30 @@ class TestHaloFamilyNewParams:
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
-    def test_branch_selection_from_halo_class(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+    def test_direction_param_removed(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+        """--direction 已删除：硬编码 both。"""
         module = _load_halo_family_module()
-        assert module._resolve_halo_branches(_parse_halo_args(module, ["--halo-class", "0"])) == "north"
-        assert module._resolve_halo_branches(_parse_halo_args(module, ["--halo-class", "1"])) == "south"
+        args = _parse_halo_args(module, [])
+        assert not hasattr(args, "direction")
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_step_size_negative_param_removed(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+        """--step-size-negative 已删除：无用参数。"""
+        module = _load_halo_family_module()
+        args = _parse_halo_args(module, [])
+        assert not hasattr(args, "step_size_negative")
+
+    @patch("e2m2e.core.system.CR3BP_System")
+    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.algorithms.DifferentialCorrection")
+    @patch("e2m2e.algorithms.Continuation")
+    def test_resolve_halo_branches_removed(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+        """_resolve_halo_branches 已删除：无调用方。"""
+        module = _load_halo_family_module()
+        assert not hasattr(module, "_resolve_halo_branches")
 
     @patch("e2m2e.core.system.CR3BP_System")
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
@@ -396,19 +416,21 @@ class TestHaloFamilyNewParams:
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
-    def test_step_size_negative_defaults_to_none(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+    def test_step_size_negative_not_accepted(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+        """--step-size-negative 已删除，不应被 argparse 接受。"""
         module = _load_halo_family_module()
-        args = _parse_halo_args(module, [])
-        assert args.step_size_negative is None
+        with pytest.raises(SystemExit):
+            _parse_halo_args(module, ["--step-size-negative", "0.01"])
 
     @patch("e2m2e.core.system.CR3BP_System")
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
-    def test_step_size_negative_explicit(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+    def test_direction_not_accepted(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+        """--direction 已删除，不应被 argparse 接受。"""
         module = _load_halo_family_module()
-        args = _parse_halo_args(module, ["--step-size-negative", "0.01"])
-        assert args.step_size_negative == pytest.approx(0.01)
+        with pytest.raises(SystemExit):
+            _parse_halo_args(module, ["--direction", "positive"])
 
     @patch("e2m2e.core.system.CR3BP_System")
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
@@ -429,116 +451,3 @@ class TestHaloFamilyNewParams:
         module = _load_halo_family_module()
         args = _parse_halo_args(module, [])
         assert args.step_size_pal == pytest.approx(0.0045)
-
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
-    @patch("e2m2e.algorithms.DifferentialCorrection")
-    @patch("e2m2e.algorithms.Continuation")
-    def test_direction_param_accepted(self, mock_cont, mock_corr, mock_dyn, mock_sys):
-        module = _load_halo_family_module()
-        args = _parse_halo_args(module, ["--direction", "positive"])
-        assert args.direction == "positive"
-
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
-    @patch("e2m2e.algorithms.DifferentialCorrection")
-    @patch("e2m2e.algorithms.Continuation")
-    def test_direction_default_is_both(self, mock_cont, mock_corr, mock_dyn, mock_sys):
-        """--direction 默认 both（与 GUI 默认一致，从种子双向铺开）。"""
-        module = _load_halo_family_module()
-        assert _parse_halo_args(module, []).direction == "both"
-
-
-class TestHaloSummaryTableOutput:
-    """Test Halo 摘要表输出通过 config.summary_extra_info 回调。"""
-
-    @staticmethod
-    def _make_orbit(x0, z0, period, periodicity_error=1e-12, amplitude_z=None):
-        orbit = MagicMock()
-        orbit.states = np.array([[x0, 0, z0, 0, 0.1, 0]])
-        orbit.period = period
-        orbit.periodicity_error = periodicity_error
-        orbit.parameters = {"amplitude_z": amplitude_z or abs(z0)}
-        orbit.amplitudes = {"x": abs(x0) * 0.1, "y": abs(z0) * 0.2, "z": abs(z0)}
-        return orbit
-
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
-    @patch("e2m2e.algorithms.DifferentialCorrection")
-    @patch("e2m2e.algorithms.Continuation")
-    def test_pal_summary_shows_step_sizes(self, mock_cont, mock_corr, mock_dyn, mock_sys, capsys):
-        """PAL 摘要应显示正负步长。"""
-        module = _load_halo_family_module()
-
-        # 模拟 main() 中构造 config 的逻辑
-        args = _parse_halo_args(module, [
-            "--step-size-pal", "0.05",
-            "--step-size-negative", "0.03",
-            "--direction", "both",
-        ])
-
-        def _summary_extra_info():
-            step_size = args.step_size_pal
-            step_size_negative = (
-                args.step_size_negative if args.step_size_negative is not None else step_size
-            )
-            method_label = {"pseudo_arclength": "伪弧长延拓"}.get(args.method, args.method)
-            return [
-                f"  延拓方法     {method_label}",
-                f"  正向步长     {step_size}",
-                f"  负向步长     {step_size_negative}",
-                f"  延拓方向     {args.direction}",
-            ]
-
-        from tod.generates.cr3bp._family_pipeline import FamilyGeneratorConfig, print_summary_table
-
-        config = FamilyGeneratorConfig(
-            family_type="halo",
-            summary_title="  Earth-Moon Halo 轨道族：配置、统计与代表性轨道",
-            summary_columns=["z_amp", "x0", "z0", "Period", "C_Jacobi"],
-            summary_format_row=module.HaloFamilyGenerator._summary_format_row,
-            summary_extra_info=_summary_extra_info,
-        )
-
-        orbits = [self._make_orbit(0.93, 0.1 + i * 0.01, 1.84 + i * 0.01) for i in range(5)]
-        print_summary_table(orbits, config)  # pyright: ignore[reportArgumentType]
-
-        output = capsys.readouterr().out
-        assert "伪弧长延拓" in output
-        assert "正向步长     0.05" in output
-        assert "负向步长     0.03" in output
-        assert "延拓方向     both" in output
-
-
-class TestHaloGuiRegistryNewParams:
-    """Test updated GUI registry for Halo family generation."""
-
-    def test_step_size_pal_param_exists(self):
-        from tod.gui.script_registry import SCRIPTS
-
-        entry = next(e for e in SCRIPTS["Halo"] if e.name == "generate_halo_family")
-        pal_param = next(p for p in entry.cli_params if p.flag == "--step-size-pal")
-        assert pal_param is not None
-
-    def test_step_size_param_exists(self):
-        from tod.gui.script_registry import SCRIPTS
-
-        entry = next(e for e in SCRIPTS["Halo"] if e.name == "generate_halo_family")
-        step_param = next(p for p in entry.cli_params if p.flag == "--step-size")
-        assert step_param.unit_group == "distance"
-
-    def test_step_size_negative_param_exists(self):
-        from tod.gui.script_registry import SCRIPTS
-
-        entry = next(e for e in SCRIPTS["Halo"] if e.name == "generate_halo_family")
-        neg_param = next(p for p in entry.cli_params if p.flag == "--step-size-negative")
-        assert neg_param is not None
-
-    def test_direction_param_exists(self):
-        from tod.gui.script_registry import SCRIPTS
-
-        entry = next(e for e in SCRIPTS["Halo"] if e.name == "generate_halo_family")
-        dir_param = next(p for p in entry.cli_params if p.flag == "--direction")
-        assert dir_param.choice_values is not None
-        assert "positive" in dir_param.choice_values.values()
-        assert "both" in dir_param.choice_values.values()

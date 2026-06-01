@@ -31,14 +31,12 @@ SCRIPT_ENTRY = ScriptEntry(
     ],
     cli_params=[
         CliParam('--seed-file', '种子轨道文件', 'str', '', help='已有 Halo 轨道 JSON 文件（提供时跳过种子生成）', file_category='halo', name_pattern='halo_L[123]_[NS]_[0-9]*.json', required=False, advanced=True),
-        CliParam('--amplitude-z', 'Z 振幅', 'float', '0.23', help='Z 方向振幅，默认 0.23，单位 DU。', unit_group='distance', default_unit='DU', advanced=True, hidden_when='--seed-file'),
+        CliParam('--amplitude-z', 'Z 振幅', 'float', '0.001', help='Z 方向振幅（种子轨道），默认 0.001，单位 DU。', unit_group='distance', default_unit='DU', advanced=True, hidden_when='--seed-file'),
         CliParam('--method', '延拓方法', 'str', '伪弧长延拓', help='延拓方法选择', choices=('伪弧长延拓',), choice_values={'伪弧长延拓': 'pseudo_arclength'}),
-        CliParam('--direction', '延拓方向', 'str', 'both', help='延拓方向，默认 both（从种子向振幅更小和更大双向铺开）。', choices=('positive', 'negative', 'both'), choice_values={'positive': 'positive', 'negative': 'negative', 'both': 'both'}),
-        CliParam('--z-min', 'z 振幅下限', 'float', '0.001', help='延拓 z 振幅范围下限（正数，南族自动转为负值），默认 0.001，单位 DU。', unit_group='distance', default_unit='DU'),
-        CliParam('--z-max', 'z 振幅上限', 'float', '0.5', help='延拓 z 振幅范围上限（正数，南族自动转为负值），默认 0.5，单位 DU。', unit_group='distance', default_unit='DU'),
         CliParam('--step-size-pal', '伪弧长延拓步长', 'float', '0.0045', help='伪弧长延拓步长 |Δs|，默认 0.0045，单位 DU。', unit_group='distance', default_unit='DU', hidden_when='--method==natural'),
-        CliParam('--step-size-negative', '负向支步长', 'float', '0.009', help='负向支延拓步长覆盖（默认等于伪弧长延拓步长）', advanced=True, hidden_when='--method==natural'),
+        CliParam('--n-orbits', '轨道数量', 'int', '20', help='延拓轨道数量，默认 20。', hidden_when='--method==natural'),
         CliParam('--step-size', '延拓步长', 'float', '0.002', help='自然延拓步长，默认 0.002，单位 DU。', unit_group='distance', default_unit='DU', advanced=True, hidden_when='--method==pseudo_arclength'),
-        CliParam('--n-orbits', '轨道数量', 'int', '20', help='延拓轨道数量（z_range 模式下的最大轨道数安全阀），默认 20。', advanced=True),
+        CliParam('--z-min', 'z 振幅下限', 'float', '', help='延拓 z 振幅范围下限（正数，南族自动转为负值），与 --z-max 同时填写启用范围模式。', unit_group='distance', default_unit='DU', required=False, hidden_when='--method==pseudo_arclength'),
+        CliParam('--z-max', 'z 振幅上限', 'float', '', help='延拓 z 振幅范围上限（正数，南族自动转为负值），与 --z-min 同时填写启用范围模式。', unit_group='distance', default_unit='DU', required=False, hidden_when='--method==pseudo_arclength'),
     ],
 )
