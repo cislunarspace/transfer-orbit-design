@@ -259,7 +259,6 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
     system.compute_libration_points()
     if system.L1 is None or system.L2 is None:
         raise RuntimeError("L1/L2 平动点未计算")
-    lp_data = [("L1", system.L1[0]), ("L2", system.L2[0])]
 
     logger.info("\nInteractive browse: GEO -> DRO search results")
     logger.info(f"{n} feasible results, sorted by transfer time")

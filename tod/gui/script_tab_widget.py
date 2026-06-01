@@ -8,10 +8,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QLineEdit, QMessageBox, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QComboBox, QLineEdit, QVBoxLayout, QWidget
 
 from tod.gui.file_discovery import FileInfo
 from tod.gui.param_value_store import ParamValueStore
@@ -90,7 +90,7 @@ class ScriptTabWidget(QWidget):
         return self._store._cli_widgets
 
     @property
-    def _env_widgets(self) -> dict[str, QWidget]:
+    def _env_widgets(self) -> dict[str, QComboBox]:
         return self._store._env_widgets
 
     @property
@@ -132,17 +132,18 @@ class ScriptTabWidget(QWidget):
         ``_store``，所以直接用 self 上的 dict 走 store 逻辑。
         """
         store = getattr(self, "_store", None)
-        if store is not None:
+        if isinstance(store, ParamValueStore):
             store.setup_conditional_visibility(entry)
-        else:
-            # Harness 路径：从 self 读 dicts，find_cli_param 用 self._find_cli_param
-            ParamValueStore.setup_conditional_visibility(
-                self,
-                entry,
-                cli_widgets=getattr(self, "_cli_widgets", None),
-                row_containers=getattr(self, "_cli_row_containers", None),
-                row_labels=getattr(self, "_cli_row_labels", None),
-            )
+            return
+
+        find_cli_param = cast(Callable[[str], CliParam | None], getattr(self, "_find_cli_param"))
+        harness_store = ParamValueStore(files=[], find_cli_param=find_cli_param)
+        harness_store.setup_conditional_visibility(
+            entry,
+            cli_widgets=getattr(self, "_cli_widgets", {}),
+            row_containers=getattr(self, "_cli_row_containers", {}),
+            row_labels=getattr(self, "_cli_row_labels", {}),
+        )
 
     def _set_widget_std_value(self, widget: QWidget, std_val_str: str) -> None:
         self._store.set_widget_std_value(widget, std_val_str)

@@ -25,6 +25,7 @@ def test_doc_window_importable_after_qapplication() -> None:
     from PyQt6.QtWidgets import QApplication
 
     app = QApplication.instance() or QApplication(sys.argv)
+    assert app is not None
 
     # This used to fail when QtWebEngineWidgets was only imported lazily
     # inside _open_doc_window, after QApplication already existed.

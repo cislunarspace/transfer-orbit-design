@@ -149,7 +149,7 @@ class TestSetupCorrector:
             mock_corrector = MagicMock()
             MockDC.return_value = mock_corrector
 
-            result = gen._setup_corrector(args)
+            gen._setup_corrector(args)
 
             mock_corrector.setup_halo_orbit_fixed_z0.assert_called_once_with(
                 z0=-0.15, libration_point=2,

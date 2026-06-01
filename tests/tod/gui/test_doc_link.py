@@ -62,6 +62,7 @@ def test_make_doc_link_label_with_url() -> None:
     app = QApplication.instance() or QApplication([])
     label = make_doc_link_label("Test Script", "file:///path/to/doc")
 
+    assert app is not None
     assert label.property("doc_url") == "file:///path/to/doc"
     assert label.cursor().shape() == Qt.CursorShape.PointingHandCursor
 
@@ -71,4 +72,5 @@ def test_make_doc_link_label_without_url() -> None:
     app = QApplication.instance() or QApplication([])
     label = make_doc_link_label("Test Script", None)
 
+    assert app is not None
     assert label.property("doc_url") is None

@@ -7,8 +7,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Mapping
 
 from PyQt6.QtWidgets import (
     QCheckBox,
@@ -182,7 +181,7 @@ class ParamValueStore:
                     mode_combo.blockSignals(True)
                     mode_combo.setCurrentIndex(1 if data.get("mode") == "relative" else 0)
                     mode_combo.blockSignals(False)
-                    self._on_path_mode_changed(widget, mode_combo)
+                    self.on_path_mode_changed(widget, mode_combo)
                     widget.setCurrentText(data.get("path", ""))
                     return
                 except (json.JSONDecodeError, KeyError):
@@ -222,9 +221,9 @@ class ParamValueStore:
     def setup_conditional_visibility(
         self,
         entry: ScriptEntry,
-        cli_widgets: dict[str, QWidget] | None = None,
-        row_containers: dict[str, QWidget] | None = None,
-        row_labels: dict[str, QWidget] | None = None,
+        cli_widgets: Mapping[str, QWidget] | None = None,
+        row_containers: Mapping[str, QWidget] | None = None,
+        row_labels: Mapping[str, QWidget] | None = None,
     ) -> None:
         """为所有带 hidden_when 的参数挂上信号联动。
 

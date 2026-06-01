@@ -127,7 +127,7 @@ class TestPlotResidualConvergence:
         plot_residual_convergence(fig, pos_history, vel_history)
         ax_vel = fig.get_axes()[1]
         lines = ax_vel.get_lines()
-        vel_data_lines = [l for l in lines if l.get_label() and "vel" in l.get_label().lower()]
+        vel_data_lines = [line for line in lines if line.get_label() and "vel" in line.get_label().lower()]
         assert len(vel_data_lines) >= 1
         plt.close(fig)
 
@@ -147,7 +147,7 @@ class TestPlotResidualConvergence:
         )
         ax_pos = fig.get_axes()[0]
         lines = ax_pos.get_lines()
-        tol_lines = [l for l in lines if l.get_linestyle() == "--"]
+        tol_lines = [line for line in lines if line.get_linestyle() == "--"]
         assert len(tol_lines) >= 1
         plt.close(fig)
 

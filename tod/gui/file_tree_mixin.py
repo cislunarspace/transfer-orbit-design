@@ -237,6 +237,10 @@ class FileTreeMixin:
         for col in range(4):
             self._file_tree.resizeColumnToContents(col)
 
+    def _refresh_files(self) -> None:
+        self._files = discover_files(self._repo_root)
+        self._rebuild_file_tree()
+
     def _highlight_category(self, category: str) -> None:
         """展开并滚动到指定类别。"""
         root = self._file_tree.invisibleRootItem()

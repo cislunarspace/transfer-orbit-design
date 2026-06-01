@@ -211,7 +211,7 @@ class TestFunctionLineCounts:
     def test_richardson_initial_guess_under_50_lines(self, halo_module):
         """richardson_initial_guess 应少于 50 行。"""
         source = inspect.getsource(halo_module.richardson_initial_guess)
-        lines = [l for l in source.split('\n') if l.strip() and not l.strip().startswith('#')]
+        lines = [line for line in source.split('\n') if line.strip() and not line.strip().startswith('#')]
         assert len(lines) < 50, f"Function has {len(lines)} lines, should be < 50"
 
     def test_sub_functions_under_50_lines(self, halo_module):
@@ -223,5 +223,5 @@ class TestFunctionLineCounts:
         ]
         for func in funcs:
             source = inspect.getsource(func)
-            lines = [l for l in source.split('\n') if l.strip() and not l.strip().startswith('#')]
+            lines = [line for line in source.split('\n') if line.strip() and not line.strip().startswith('#')]
             assert len(lines) < 50, f"{func.__name__} has {len(lines)} lines, should be < 50"

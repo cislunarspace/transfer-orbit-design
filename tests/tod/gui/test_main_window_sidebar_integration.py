@@ -1,8 +1,6 @@
 # pyright: reportArgumentType=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false
 """MainWindow + SidebarWidget 集成测试（issue #63）。"""
 
-import pytest
-
 
 class TestMainWindowSidebarIntegration:
     """Tests for sidebar tree integration into MainWindow."""
@@ -12,6 +10,7 @@ class TestMainWindowSidebarIntegration:
         from PyQt6.QtWidgets import QApplication
 
         app = QApplication.instance() or QApplication([])
+        assert app is not None
         from tod.gui.main_window import MainWindow
 
         window = MainWindow(repo_root=".")
@@ -28,6 +27,7 @@ class TestMainWindowSidebarIntegration:
         from PyQt6.QtWidgets import QApplication
 
         app = QApplication.instance() or QApplication([])
+        assert app is not None
         from tod.gui.main_window import MainWindow
         from tod.gui.script_registry import ScriptEntry
         from tod.gui.script_tree import TreeNode
@@ -76,6 +76,7 @@ class TestMainWindowSidebarIntegration:
         from PyQt6.QtWidgets import QApplication
 
         app = QApplication.instance() or QApplication([])
+        assert app is not None
         from tod.gui.main_window import MainWindow
         from tod.gui.script_registry import ScriptEntry
 
@@ -111,6 +112,7 @@ class TestMainWindowThemeSwitching:
         from PyQt6.QtWidgets import QApplication
 
         app = QApplication.instance() or QApplication([])
+        assert app is not None
         from tod.gui.main_window import MainWindow
         from tod.gui.sidebar_widget import SidebarWidget
 
@@ -137,6 +139,7 @@ class TestMainWindowPreservedFeatures:
         from PyQt6.QtWidgets import QApplication
 
         app = QApplication.instance() or QApplication([])
+        assert app is not None
         from tod.gui.main_window import MainWindow
 
         window = MainWindow(repo_root=".")
@@ -155,6 +158,7 @@ class TestMainWindowPreservedFeatures:
         from PyQt6.QtWidgets import QApplication
 
         app = QApplication.instance() or QApplication([])
+        assert app is not None
         from tod.gui.main_window import MainWindow
 
         window = MainWindow(repo_root=".")

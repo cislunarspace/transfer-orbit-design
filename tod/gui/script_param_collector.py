@@ -6,9 +6,8 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any, Callable
+from typing import Callable, Mapping
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QCheckBox, QComboBox, QLineEdit, QMessageBox, QSpinBox, QTableWidget, QWidget
@@ -22,12 +21,12 @@ class ScriptParamCollector:
     @staticmethod
     def collect_run_args(
         entry: ScriptEntry,
-        cli_widgets: dict[str, QWidget],
-        cli_row_containers: dict[str, QWidget],
-        param_defaults: dict[QWidget, str],
-        factory_defaults: dict[QWidget, str],
+        cli_widgets: Mapping[str, QWidget],
+        cli_row_containers: Mapping[str, QWidget],
+        param_defaults: Mapping[QWidget, str],
+        factory_defaults: Mapping[QWidget, str],
         to_standard_unit: Callable[[QLineEdit], str],
-        unit_combos: dict[QLineEdit, QComboBox],
+        unit_combos: Mapping[QLineEdit, QComboBox],
         find_cli_param: Callable[[str], CliParam | None],
     ) -> list[str]:
         """收集 CLI 参数（不含芯片参数展开，由调用方处理）。"""
@@ -73,9 +72,9 @@ class ScriptParamCollector:
     @staticmethod
     def collect_env_overrides(
         entry: ScriptEntry,
-        env_widgets: dict[str, QComboBox],
-        cli_widgets: dict[str, QWidget],
-        param_defaults: dict[QWidget, str],
+        env_widgets: Mapping[str, QComboBox],
+        cli_widgets: Mapping[str, QWidget],
+        param_defaults: Mapping[QWidget, str],
         find_cli_param: Callable[[str], CliParam | None],
     ) -> dict[str, str]:
         """收集环境变量覆盖。"""
@@ -109,7 +108,7 @@ class ScriptParamCollector:
     @staticmethod
     def collect_chip_selections(
         entry: ScriptEntry,
-        chip_widgets: dict[str, QWidget],
+        chip_widgets: Mapping[str, QWidget],
     ) -> dict[str, list[str]]:
         """收集芯片参数选择。"""
         selections: dict[str, list[str]] = {}
@@ -135,7 +134,7 @@ class ScriptParamCollector:
 
     @staticmethod
     def collect_multi_file_configs(
-        multi_file_widgets: dict[str, QWidget],
+        multi_file_widgets: Mapping[str, QWidget],
     ) -> dict[str, list[dict]]:
         """从表格控件收集多文件参数配置。
 
@@ -181,8 +180,8 @@ class ScriptParamCollector:
     def validate_params(
         parent: QWidget,
         entry: ScriptEntry,
-        cli_widgets: dict[str, QWidget],
-        cli_row_containers: dict[str, QWidget],
+        cli_widgets: Mapping[str, QWidget],
+        cli_row_containers: Mapping[str, QWidget],
         find_cli_param: Callable[[str], CliParam | None],
         tr: Callable[[str], str] = lambda s: s,
     ) -> bool:
