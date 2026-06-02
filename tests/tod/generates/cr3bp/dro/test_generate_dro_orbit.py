@@ -165,8 +165,61 @@ def test_jacobi_path_records_match_metadata(monkeypatch, tmp_path: Path) -> None
     assert metadata["actual"] == 3.1
     assert metadata["error"] == pytest.approx(0.00005)
     assert metadata["tolerance"] == 0.001
-    assert metadata["source_file"] == "earth-moon_dro.xlsx"
-    assert metadata["source_row"] == 2
+    assert metadata["raw_source_path"] == "earth-moon_dro.xlsx"
+    assert metadata["raw_source_row"] == 2
+    assert metadata["normalized_catalog_dir"].endswith("normalized")
+
+
+def test_jacobi_strict_tolerance_failure_reports_match_context(tmp_path: Path) -> None:
+    """strict Jacobi tolerance fails fast with target, matched seed, delta, and tolerance."""
+    import tod.generates.cr3bp.dro.generate_dro_orbit as mod
+
+    catalog_dir = tmp_path / "normalized"
+    _write_dro_catalog(catalog_dir)
+
+    with pytest.raises(SystemExit) as exc_info:
+        mod.main(["--jacobi", "0.0", "--jacobi-tolerance", "0.1", "--catalog-dir", str(catalog_dir)])
+
+    message = str(exc_info.value)
+    assert "Jacobi strict tolerance exceeded" in message
+    assert "target=0.0" in message
+    assert "delta=" in message
+    assert "tolerance=0.1" in message
+
+
+def test_jacobi_success_logs_matched_seed_and_delta(monkeypatch, tmp_path: Path, capsys) -> None:
+    """Jacobi catalog mode reports the matched seed and delta in non-interactive logs."""
+    import tod.generates.cr3bp.dro.generate_dro_orbit as mod
+
+    catalog_dir = tmp_path / "normalized"
+    output_dir = tmp_path / "out"
+    _write_dro_catalog(catalog_dir)
+
+    class FakeOrbit:
+        def __init__(self, states, times):
+            self.states = states
+            self.times = times
+            self.period = None
+            self.metadata: dict[str, object] = {}
+
+        def save_to_file(self, filename: str) -> None:
+            Path(filename).write_text(json.dumps({"metadata": self.metadata}), encoding="utf-8")
+
+    def fake_propagate(initial_state, period, dynamics, **kwargs):
+        return FakeOrbit([initial_state], [0.0])
+
+    monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
+    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod, "_propagate_catalog_seed", fake_propagate)
+
+    mod.main(["--jacobi", "3.10005", "--catalog-dir", str(catalog_dir)])
+
+    output = capsys.readouterr().out
+    assert "matched seed: earth-moon_dro:000001" in output
+    assert "Jacobi delta:" in output
+    import re as _re
+    assert _re.search(r"Jacobi delta:\s*5e-05|0\.00005", output)
 
 
 def test_jacobi_path_defaults_to_no_hard_tolerance(monkeypatch, tmp_path: Path) -> None:
@@ -304,6 +357,101 @@ def test_catalog_seed_id_path_propagates_without_correction(monkeypatch, tmp_pat
     assert payload["metadata"]["atol"] == 1e-12
     assert payload["metadata"]["is_corrected"] is False
     assert payload["metadata"]["generation_method"] == "catalog_seed_propagation"
+
+
+def test_catalog_seed_id_path_provenance_metadata(monkeypatch, tmp_path: Path) -> None:
+    """catalog seed path records raw/normalized provenance plus num-points trajectory length."""
+    import tod.generates.cr3bp.dro.generate_dro_orbit as mod
+
+    catalog_dir = tmp_path / "normalized"
+    output_dir = tmp_path / "out"
+    _write_dro_catalog(catalog_dir)
+    saved_files: list[Path] = []
+
+    class FakeOrbit:
+        def __init__(self, states, times):
+            self.states = states
+            self.times = times
+            self.period = None
+            self.metadata: dict[str, object] = {}
+
+        def save_to_file(self, filename: str) -> None:
+            path = Path(filename)
+            saved_files.append(path)
+            path.write_text(
+                json.dumps({"states": self.states, "times": self.times, "metadata": self.metadata}),
+                encoding="utf-8",
+            )
+
+    num_points = 5
+
+    def fake_propagate(initial_state, period, dynamics, **kwargs):
+        duration = period * kwargs["period_multiplier"]
+        states = [list(initial_state) for _ in range(num_points)]
+        times = [duration * i / (num_points - 1) for i in range(num_points)]
+        return FakeOrbit(states, times)
+
+    monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
+    monkeypatch.setattr(mod.time, "time", lambda: 1234567890)
+    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod, "_propagate_catalog_seed", fake_propagate)
+
+    mod.main([
+        "--seed-id", "earth-moon_dro:000001",
+        "--catalog-dir", str(catalog_dir),
+        "--raw-data-dir", str(tmp_path / "raw"),
+        "--period-multiplier", "1.0",
+        "--num-points", str(num_points),
+    ])
+
+    payload = json.loads(saved_files[0].read_text(encoding="utf-8"))
+    metadata = payload["metadata"]
+
+    assert metadata["raw_source_path"].endswith("earth-moon_dro.xlsx")
+    assert metadata["raw_source_row"] == 2
+    assert metadata["normalized_catalog_dir"].endswith("normalized")
+    assert metadata["num_points"] == num_points
+    assert len(payload["states"]) == num_points
+    assert len(payload["times"]) == num_points
+
+
+def test_jacobi_path_records_raw_normalized_provenance(monkeypatch, tmp_path: Path) -> None:
+    """Jacobi catalog mode also records raw/normalized provenance in metadata."""
+    import tod.generates.cr3bp.dro.generate_dro_orbit as mod
+
+    catalog_dir = tmp_path / "normalized"
+    output_dir = tmp_path / "out"
+    _write_dro_catalog(catalog_dir)
+    saved_files: list[Path] = []
+
+    class FakeOrbit:
+        def __init__(self, states, times):
+            self.states = states
+            self.times = times
+            self.period = None
+            self.metadata: dict[str, object] = {}
+
+        def save_to_file(self, filename: str) -> None:
+            path = Path(filename)
+            saved_files.append(path)
+            path.write_text(json.dumps({"metadata": self.metadata}), encoding="utf-8")
+
+    monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
+    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod, "_propagate_catalog_seed", lambda *a, **kw: FakeOrbit([[0, 0, 0, 0, 0, 0]], [0.0]))
+
+    mod.main([
+        "--jacobi", "3.10005",
+        "--catalog-dir", str(catalog_dir),
+        "--raw-data-dir", str(tmp_path / "raw"),
+    ])
+
+    metadata = json.loads(saved_files[0].read_text(encoding="utf-8"))["metadata"]
+    assert metadata["raw_source_path"].endswith("earth-moon_dro.xlsx")
+    assert metadata["raw_source_row"] == 2
+    assert metadata["normalized_catalog_dir"].endswith("normalized")
 
 
 def test_parser_exposes_catalog_seed_arguments() -> None:

@@ -1,7 +1,7 @@
 {
   "_comment": "英文翻译表 — 按脚本名结构化。翻译缺失时回退到中文原始文本。",
 
-  "generate_31_dro_orbit": { "description": "Generate 3:1 Orbit" },
+  "generate_dro_orbit": { "description": "Generate DRO Orbit" },
   "generate_dro_family": { "description": "Generate Orbit Family" },
 
   "generate_halo_orbit": { "description": "Generate Orbit" },

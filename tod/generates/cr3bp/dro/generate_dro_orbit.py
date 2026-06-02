@@ -153,7 +153,13 @@ def _manual_seed_metadata(initial_state: list[float], period: float) -> dict[str
     }
 
 
-def _catalog_seed_metadata(seed: CatalogSeed, *, period_multiplier: float, num_points: int) -> dict[str, object]:
+def _catalog_seed_metadata(
+    seed: CatalogSeed,
+    *,
+    period_multiplier: float,
+    num_points: int,
+    catalog_dir: Path,
+) -> dict[str, object]:
     """返回 catalog seed 路径写入单轨 JSON 的 provenance metadata。"""
     propagation_duration = seed.period * period_multiplier
     metadata: dict[str, object] = {
@@ -171,8 +177,9 @@ def _catalog_seed_metadata(seed: CatalogSeed, *, period_multiplier: float, num_p
         "atol": CATALOG_ATOL,
         "is_corrected": False,
         "generation_method": "catalog_seed_propagation",
-        "source_file": seed.record.source_file,
-        "source_row": seed.record.source_row,
+        "raw_source_path": seed.record.source_file,
+        "raw_source_row": seed.record.source_row,
+        "normalized_catalog_dir": str(catalog_dir),
     }
     if seed.target_jacobi is not None:
         metadata.update(
@@ -212,12 +219,24 @@ def _select_catalog_seed(args: argparse.Namespace) -> CatalogSeed:
             raise SystemExit(f"未找到 DRO catalog seed_id={args.seed_id!r}；catalog_dir={args.catalog_dir}")
 
         record = catalog.nearest_jacobi("dro", args.jacobi, tolerance=args.jacobi_tolerance)
+        if args.jacobi_tolerance is not None and abs(record.jacobi - args.jacobi) > args.jacobi_tolerance:
+            raise SystemExit(
+                "Jacobi strict tolerance exceeded: "
+                f"target={args.jacobi}, matched seed={record.orbit_id}, "
+                f"delta={abs(record.jacobi - args.jacobi):.6g}, tolerance={args.jacobi_tolerance}"
+            )
         return CatalogSeed(
             source="catalog_jacobi",
             record=record,
             target_jacobi=args.jacobi,
             tolerance=args.jacobi_tolerance,
         )
+    except Cr3bpCatalogLookupError as exc:
+        raise SystemExit(
+            f"Jacobi strict tolerance exceeded: target={args.jacobi}, "
+            f"matched seed=unknown, delta=abs(actual-target), tolerance={args.jacobi_tolerance}; "
+            f"underlying: {exc}"
+        ) from exc
     except Cr3bpCatalogLookupError as exc:
         raise SystemExit(
             f"DRO catalog 查找失败：catalog_dir={args.catalog_dir}, "
@@ -289,6 +308,10 @@ def main(argv: Sequence[str] | None = None) -> None:
     if args.seed_id is not None or args.jacobi is not None:
         seed = _select_catalog_seed(args)
         print(f"[1/2] 使用 catalog seed: {seed.record.orbit_id}")
+        if seed.target_jacobi is not None:
+            delta = abs(seed.record.jacobi - seed.target_jacobi)
+            print(f"      matched seed: {seed.record.orbit_id}")
+            print(f"      Jacobi delta: {delta:.6g} (target={seed.target_jacobi}, matched={seed.record.jacobi})")
         orbit_result = _propagate_catalog_seed(
             seed.initial_state,
             seed.period,
@@ -298,7 +321,12 @@ def main(argv: Sequence[str] | None = None) -> None:
         )
         output_file = _save_orbit(
             orbit_result,
-            _catalog_seed_metadata(seed, period_multiplier=args.period_multiplier, num_points=args.num_points),
+            _catalog_seed_metadata(
+                seed,
+                period_multiplier=args.period_multiplier,
+                num_points=args.num_points,
+                catalog_dir=args.catalog_dir,
+            ),
             seed_id=seed.record.orbit_id,
         )
         print(f"[2/2] 已保存至: {output_file}")
