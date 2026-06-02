@@ -296,7 +296,11 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         self._run_from_tab(widget)
 
     def _run_from_tab(self, tab: ScriptTabWidget) -> None:
-        """从 ScriptTabWidget 收集参数并启动 Job。"""
+        """从 ScriptTabWidget 收集参数并启动 Job。
+
+        流程（issue #181 / ADR 0003）：参数校验 → 构造 RunPlan → 运行前确认 → dispatch。
+        取消时不创建任何 Job（参见 :class:`RunConfirmationDialog`）。
+        """
         entry = tab.entry
 
         if not tab.validate_params():
@@ -316,8 +320,21 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         plot_env.update(plot_font_env_from_settings(self._gui_defaults.get("settings", {})))
         plot_env.update(body_icon_env_from_settings(self._gui_defaults.get("settings", {})))
 
-        specs = RunOrchestrator.build_run_specs(tab, file_arg, plot_env)
-        RunOrchestrator.dispatch(specs, entry, self._job_manager)
+        plan = RunOrchestrator.build_run_plan(tab, file_arg, plot_env, self._repo_root)
+
+        if not self._confirm_run(plan):
+            self._status_bar.showMessage(self.tr("运行已取消"), 3000)
+            return
+
+        RunOrchestrator.dispatch(list(plan.specs), plan.entry, self._job_manager)
+
+    def _confirm_run(self, plan) -> bool:
+        """运行前确认入口；测试可通过 ``_confirm_run_provider`` 注入假实现。"""
+        provider = getattr(self, "_confirm_run_provider", None)
+        if provider is not None:
+            return provider(plan)
+        from tod.gui.run_confirmation_dialog import RunConfirmationDialog
+        return RunConfirmationDialog.show_and_confirm(plan, self)
 
     # ── 文件刷新（完全覆盖 FileTreeMixin._refresh_files） ─────
 
