@@ -224,6 +224,13 @@ def test_catalog_seed_selector_supports_jacobi_mode_without_realtime_preview(qap
     state.enabled_checkbox.setChecked(True)
     state.mode_widget.setCurrentIndex(state.mode_widget.findData("jacobi_match"))
 
+    # 双层断言：label 是 CONTEXT 措辞中文 + key 稳定为 jacobi_match
+    assert state.mode_widget.currentData() == "jacobi_match"
+    jacobi_idx = state.mode_widget.findData("jacobi_match")
+    assert state.mode_widget.itemText(jacobi_idx) == "按 Jacobi 常数匹配"
+    record_id_idx = state.mode_widget.findData("reference_record_id")
+    assert state.mode_widget.itemText(record_id_idx) == "按参考记录编号选择"
+
     assert not state.selector_widget.isEnabled()
     assert state.jacobi_widget.isEnabled()
     assert state.tolerance_widget.isEnabled()
