@@ -104,7 +104,7 @@ class TestGuiJacobiDrivesCliRegression:
         )
         state = widget._catalog_seed_selectors["dro_catalog_seed"]
         state.enabled_checkbox.setChecked(True)
-        state.mode_widget.setCurrentText("Jacobi nearest-neighbor")
+        state.mode_widget.setCurrentIndex(state.mode_widget.findData("jacobi_match"))
         state.jacobi_widget.setText("3.10005")
         state.tolerance_widget.setText("1e-3")
 
@@ -157,7 +157,7 @@ class TestGuiJacobiDrivesCliRegression:
         )
         state = widget._catalog_seed_selectors["dro_catalog_seed"]
         state.enabled_checkbox.setChecked(True)
-        state.mode_widget.setCurrentText("Jacobi nearest-neighbor")
+        state.mode_widget.setCurrentIndex(state.mode_widget.findData("jacobi_match"))
         state.jacobi_widget.setText("0.0")
         state.tolerance_widget.setText("0.1")
 

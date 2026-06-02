@@ -222,7 +222,7 @@ def test_catalog_seed_selector_supports_jacobi_mode_without_realtime_preview(qap
     state = store._catalog_seed_selectors["dro_catalog_seed"]
 
     state.enabled_checkbox.setChecked(True)
-    state.mode_widget.setCurrentText("Jacobi nearest-neighbor")
+    state.mode_widget.setCurrentIndex(state.mode_widget.findData("jacobi_match"))
 
     assert not state.selector_widget.isEnabled()
     assert state.jacobi_widget.isEnabled()

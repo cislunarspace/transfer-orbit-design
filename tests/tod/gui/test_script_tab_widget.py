@@ -257,7 +257,7 @@ class TestCatalogSeedSelectorDefaults:
         widget = ScriptTabWidget(entry=entry, files=[], repo_root=tmp_path, gui_defaults={}, theme_mode="system")
         state = widget._catalog_seed_selectors["dro_catalog_seed"]
 
-        state.mode_widget.setCurrentText("Jacobi nearest-neighbor")
+        state.mode_widget.setCurrentIndex(state.mode_widget.findData("jacobi_match"))
         state.enabled_checkbox.setChecked(True)
         state.jacobi_widget.setText("3.10005")
         assert widget.collect_run_args() == ["--jacobi", "3.10005"]
