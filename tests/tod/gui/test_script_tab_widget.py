@@ -783,3 +783,91 @@ class TestHiddenWhenValueCondition:
         # Fill seed-file → amplitude_z becomes hidden.
         cast(QLineEdit, widget._cli_widgets["seed_file"]).setText("seed.json")
         assert amp_container.isHidden()
+
+
+# 禁用术语白名单:HITL 审定初始名单 (issue #196)。
+# DRO Generate 面板任何面向用户可见文本(QLabel text、QLineEdit placeholder、
+# QCheckBox text、QComboBox item text)不得出现下列术语。实现细节术语
+# (normalized / raw XLSX / importer)按 ADR-0002 + CONTEXT.md 允许保留。
+_DRO_GUI_FORBIDDEN_TERMS = (
+    "Seed ID",
+    "Catalog 初值",
+    "Catalog 种子",
+    "Jacobi nearest-neighbor",
+    "nearest-neighbor",
+    "Catalog 目录",
+    "禁用自动导入 catalog",
+    "加载 Catalog",
+    "raw/normalized catalog",
+)
+
+
+def _collect_dro_gui_visible_texts(widget) -> list[tuple[str, str]]:
+    """遍历 widget 树,收集所有面向用户的可见文本。
+
+    返回 [(widget_class, text), ...] 列表;QComboBox 展开每个 item text。
+    """
+    from PyQt6.QtWidgets import QComboBox, QWidget
+
+    collected: list[tuple[str, str]] = []
+
+    def walk(node: QWidget) -> None:
+        cls_name = type(node).__name__
+        text = node.text() if hasattr(node, "text") else ""
+        if callable(text):
+            try:
+                text = text()
+            except Exception:
+                text = ""
+        if text:
+            collected.append((cls_name, str(text)))
+        if hasattr(node, "placeholderText"):
+            try:
+                placeholder = node.placeholderText()
+            except Exception:
+                placeholder = ""
+            if placeholder:
+                collected.append((cls_name + ".placeholder", str(placeholder)))
+        if isinstance(node, QComboBox):
+            for i in range(node.count()):
+                item_text = node.itemText(i)
+                if item_text:
+                    collected.append((cls_name + ".item", str(item_text)))
+        for child in node.children():
+            if isinstance(child, QWidget):
+                walk(child)
+
+    walk(widget)
+    return collected
+
+
+class TestDroGuiTerminologySnapshot:
+    """DRO Generate GUI 可见文本不得含禁用术语。
+
+    锁住 issue #196 的白名单:任何未来回归(把 Seed ID 写回 label 等)
+    都会被此测试捕获。白名单范围由 HITL 审定。
+    """
+
+    def test_dro_gui_has_no_forbidden_user_terms(self, qapp_fixture, tmp_path):
+        from tod.gui.scripts.generates.cr3bp.dro.generate_dro_orbit import SCRIPT_ENTRY
+        from tod.gui.script_tab_widget import ScriptTabWidget
+
+        widget = ScriptTabWidget(
+            entry=SCRIPT_ENTRY,
+            files=[],
+            repo_root=tmp_path,
+            gui_defaults={},
+            theme_mode="system",
+        )
+        visible_texts = _collect_dro_gui_visible_texts(widget)
+
+        offenders: list[tuple[str, str, str]] = []
+        for source, text in visible_texts:
+            for forbidden in _DRO_GUI_FORBIDDEN_TERMS:
+                if forbidden in text:
+                    offenders.append((forbidden, source, text))
+
+        assert not offenders, (
+            "DRO Generate GUI 含禁用术语 (issue #196 白名单):\n"
+            + "\n".join(f"  {term!r} in {src}: {text!r}" for term, src, text in offenders)
+        )
