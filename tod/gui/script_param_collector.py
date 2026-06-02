@@ -88,7 +88,10 @@ class ScriptParamCollector:
                 if state is None or not state.enabled_checkbox.isChecked():
                     continue
                 mode_widget = getattr(state, "mode_widget", None)
-                if isinstance(mode_widget, QComboBox) and mode_widget.currentText() == "Jacobi nearest-neighbor":
+                if (
+                    isinstance(mode_widget, QComboBox)
+                    and mode_widget.currentData() == selector.mode_jacobi_key
+                ):
                     jacobi_widget = getattr(state, "jacobi_widget", None)
                     tolerance_widget = getattr(state, "tolerance_widget", None)
                     if isinstance(jacobi_widget, QLineEdit) and jacobi_widget.text().strip():

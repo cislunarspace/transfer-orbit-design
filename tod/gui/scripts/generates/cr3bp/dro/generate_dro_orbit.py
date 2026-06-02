@@ -16,7 +16,7 @@ SCRIPT_ENTRY = ScriptEntry(
     catalog_seed_selectors=[
         CatalogSeedSelectorParam(
             key='dro_catalog_seed',
-            label='DRO Catalog 初值',
+            label='DRO 参考初值',
             orbit_type='dro',
             manual_flags=('--x0', '--vy0', '--period'),
         ),

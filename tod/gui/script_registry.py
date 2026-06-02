@@ -132,7 +132,9 @@ class CatalogSeedSelectorParam:
     key: str
     label: str
     orbit_type: str
-    enabled_label: str = "使用 Catalog 初值"
+    enabled_label: str = "使用参考初值"
+    mode_record_id_key: str = "reference_record_id"
+    mode_jacobi_key: str = "jacobi_match"
     seed_id_flag: str = "--seed-id"
     jacobi_flag: str = "--jacobi"
     jacobi_tolerance_flag: str = "--jacobi-tolerance"

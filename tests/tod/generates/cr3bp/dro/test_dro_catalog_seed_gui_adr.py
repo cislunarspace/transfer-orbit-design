@@ -11,8 +11,8 @@ def test_dro_catalog_seed_gui_adr_records_v1_contract() -> None:
     required_terms = [
         "DRO single-orbit Generate",
         "Seed ID",
-        "Jacobi nearest-neighbor",
-        "manual/catalog mutual exclusion",
+        "Jacobi 实时 nearest-neighbor preview",
+        "manual/reference mutual exclusion",
         "lazy normalized catalog",
         "SCRIPT_ENTRY",
         "period multiplier",

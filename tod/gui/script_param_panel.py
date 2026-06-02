@@ -370,10 +370,11 @@ class ScriptParamPanel(QWidget):
         selector_widget.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         if selector_widget.completer() is not None:
             selector_widget.completer().setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
-        selector_widget.addItem(self.tr("（启用后加载 Catalog）"))
+        selector_widget.addItem(self.tr("（启用后加载参考数据集）"))
         selector_widget.setEnabled(selector.default_enabled)
         mode_widget = QComboBox()
-        mode_widget.addItems(["Seed ID", "Jacobi nearest-neighbor"])
+        mode_widget.addItem("Seed ID", selector.mode_record_id_key)
+        mode_widget.addItem("Jacobi nearest-neighbor", selector.mode_jacobi_key)
         mode_widget.setEnabled(selector.default_enabled)
         jacobi_widget = QLineEdit()
         jacobi_widget.setPlaceholderText("Jacobi")
@@ -381,7 +382,7 @@ class ScriptParamPanel(QWidget):
         tolerance_widget.setPlaceholderText("Jacobi tolerance（可选）")
         jacobi_widget.setEnabled(False)
         tolerance_widget.setEnabled(False)
-        preview_label = QLabel(self.tr("未选择 Catalog 初值"))
+        preview_label = QLabel(self.tr("未选择参考初值"))
         preview_label.setWordWrap(True)
         row = QWidget()
         row_layout = QVBoxLayout(row)
@@ -396,13 +397,16 @@ class ScriptParamPanel(QWidget):
         self._params_layout.addRow(f"{selector.label}:", row)
         manual_keys = tuple(flag.lstrip("-").replace("-", "_") for flag in selector.manual_flags)
 
+        def is_jacobi_mode() -> bool:
+            return mode_widget.currentData() == selector.mode_jacobi_key
+
         def apply_enabled_state(is_enabled: bool) -> None:
             mode_widget.setEnabled(is_enabled)
-            is_jacobi_mode = mode_widget.currentText() == "Jacobi nearest-neighbor"
-            selector_widget.setEnabled(is_enabled and not is_jacobi_mode)
-            preview_label.setEnabled(is_enabled and not is_jacobi_mode)
-            jacobi_widget.setEnabled(is_enabled and is_jacobi_mode)
-            tolerance_widget.setEnabled(is_enabled and is_jacobi_mode)
+            jacobi = is_jacobi_mode()
+            selector_widget.setEnabled(is_enabled and not jacobi)
+            preview_label.setEnabled(is_enabled and not jacobi)
+            jacobi_widget.setEnabled(is_enabled and jacobi)
+            tolerance_widget.setEnabled(is_enabled and jacobi)
             for manual_key in manual_keys:
                 manual_widget = self._store._cli_widgets.get(manual_key)
                 if manual_widget is None:
@@ -412,11 +416,11 @@ class ScriptParamPanel(QWidget):
 
         def on_enabled_toggled(is_enabled: bool) -> None:
             apply_enabled_state(is_enabled)
-            if is_enabled and mode_widget.currentText() != "Jacobi nearest-neighbor":
+            if is_enabled and not is_jacobi_mode():
                 try:
                     self._load_catalog_seed_options(selector, selector_widget)
                 except Exception as exc:  # pragma: no cover - Qt slot must not leak exceptions
-                    preview_label.setText(self.tr("Catalog 加载失败：{}\n请检查 raw/normalized catalog 路径。用于手动模式时可取消勾选。").format(exc))
+                    preview_label.setText(self.tr("参考数据集加载失败：{}\n请检查参考数据集路径。用于手动模式时可取消勾选。").format(exc))
 
         apply_enabled_state(selector.default_enabled)
         enabled.toggled.connect(on_enabled_toggled)
@@ -476,7 +480,7 @@ class ScriptParamPanel(QWidget):
         if preview_label is None:
             return
         if record is None:
-            preview_label.setText(self.tr("未选择 Catalog 初值"))
+            preview_label.setText(self.tr("未选择参考初值"))
             return
         state = getattr(record, "state", None)
         source_file = getattr(record, "source_file", "")
