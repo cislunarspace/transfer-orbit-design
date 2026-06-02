@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -20,7 +20,6 @@ import numpy as np
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 from tod.commons.constants import DU, MU, TU
 from tod.transfers.optimize_config import (
-    OptimizationProgress,
     apply_blas_env_for_child_processes,
     blas_threads_per_worker,
 )

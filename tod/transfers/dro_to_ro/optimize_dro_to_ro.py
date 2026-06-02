@@ -630,8 +630,6 @@ def main() -> None:
     ro_file = Path(args.ro_file or os.environ.get("RO_FILE", RO_FILE_DEFAULT))
     alpha_min = args.alpha_min
     alpha_max = args.alpha_max
-    nlp_maxiter = args.nlp_maxiter
-    nlp_ftol = args.nlp_ftol
     top_k = args.top_k if args.top_k is not None else TOP_K_FEASIBLE
     max_cases = args.max_cases if args.max_cases is not None else MAX_CASES
     n_workers = args.n_workers if args.n_workers is not None else N_WORKERS
@@ -648,7 +646,7 @@ def main() -> None:
     if not ro_file.is_file():
         raise FileNotFoundError(f"未找到 RO 文件: {ro_file}")
 
-    logger.info(f"\n优化配置:")
+    logger.info("\n优化配置:")
     _cpu = multiprocessing.cpu_count() or 1
     logger.info(
         f"  并行: n_workers={n_workers}（None=逻辑 CPU 数 {_cpu}）, backend={PARALLEL_BACKEND}"
@@ -661,7 +659,7 @@ def main() -> None:
     logger.info(f"  进度条: {'开启（tqdm）' if USE_TQDM else '关闭（OPTIMIZE_NO_TQDM）'}")
     logger.info(f"  自动推算 t_ins: {COMPUTE_T_INS_FROM_TRAJECTORY}")
 
-    logger.info(f"\n加载网格结果:")
+    logger.info("\n加载网格结果:")
     logger.info(f"  文件: {search_file}")
     logger.info("  正在读取 JSON（大文件可能较慢）…")
     all_results = load_search_results(search_file)
@@ -692,7 +690,7 @@ def main() -> None:
         logger.info("\n没有可行解，退出。")
         return
 
-    logger.info(f"\n加载轨道数据:")
+    logger.info("\n加载轨道数据:")
     dro_orbit = load_orbit_from_json(str(dro_file))
     ro_orbit = load_orbit_from_json(str(ro_file))
     logger.info(f"  DRO: {dro_file}")
@@ -713,7 +711,7 @@ def main() -> None:
         max_step=DT,
         mu=MU,
     )
-    logger.info(f"\ne2m2e 动力学已就绪")
+    logger.info("\ne2m2e 动力学已就绪")
     logger.info(f"  系统: μ = {system.mu:.6e}")
     logger.info(f"  积分器: {dynamics.integrator}")
     logger.info(f"  rtol/atol: {dynamics.rtol:g} / {dynamics.atol:g}")

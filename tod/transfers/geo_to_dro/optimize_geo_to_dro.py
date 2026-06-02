@@ -613,7 +613,7 @@ def main() -> None:
     dro_orbit.period = dro_data.get("properties", {}).get("period", None)
 
     _cpu = multiprocessing.cpu_count() or 1
-    logger.info(f"\n优化配置:")
+    logger.info("\n优化配置:")
     logger.info(f"  并行: n_workers={n_workers}（None=逻辑CPU数 {_cpu}）, backend={PARALLEL_BACKEND}")
     logger.info(f"  α 范围: [{alpha_min}, {alpha_max}]")
     logger.info(f"  T 范围: [{t_min}, {t_max}] TU = [{t_min * TU:.1f}, {t_max * TU:.1f}] 天")
@@ -758,7 +758,7 @@ def main() -> None:
     if valid:
         best = min(valid, key=lambda r: r["nlp"]["objective_value"])
         b = best["nlp"]
-        logger.info(f"\n最优解:")
+        logger.info("\n最优解:")
         logger.info(f"  α = {b['alpha']:.6f}")
         logger.info(f"  T = {b['transfer_time']:.6f} TU ({b['transfer_time'] * TU:.2f} 天)")
         logger.info(f"  t_ins = {b['t_ins']:.6f} TU")

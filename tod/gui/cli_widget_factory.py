@@ -17,12 +17,9 @@ from PyQt6.QtWidgets import (
     QAbstractScrollArea,
     QCheckBox,
     QComboBox,
-    QDialog,
     QFileDialog,
-    QFormLayout,
     QHBoxLayout,
     QHeaderView,
-    QLabel,
     QLineEdit,
     QTableWidget,
     QTableWidgetItem,
@@ -260,7 +257,6 @@ class CliWidgetFactory:
 
         # 存储芯片按钮的引用，用于状态切换
         chip_buttons: dict[str, QPushButton] = {}
-        selected_options: set[str] = set()
 
         def _get_selected() -> set[str]:
             return {opt for opt, btn in chip_buttons.items() if btn.property("_selected")}

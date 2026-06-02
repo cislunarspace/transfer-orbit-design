@@ -10,7 +10,7 @@ import pytest
 import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import numpy as np
 
 project_root = Path(__file__).resolve().parent.parent.parent

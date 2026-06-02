@@ -398,7 +398,7 @@ def nlp_worker_packed(payload):
     Returns:
         优化结果字典。
     """
-    idx = payload["idx"]
+    payload["idx"]
     rec = payload["rec"]
     cfg = payload["cfg"]
 
@@ -455,7 +455,7 @@ def main() -> None:
         raise FileNotFoundError(f"未找到 DRO 文件: {dro_file}")
 
     _cpu = multiprocessing.cpu_count() or 1
-    logger.info(f"\n优化配置:")
+    logger.info("\n优化配置:")
     logger.info(f"  并行: n_workers={n_workers}（None=逻辑CPU数 {_cpu}）, backend={PARALLEL_BACKEND}")
     logger.info(f"  α 范围: [{alpha_min}, {alpha_max}]")
     logger.info(f"  T 范围: [{t_min}, {t_max}]")
@@ -535,7 +535,6 @@ def main() -> None:
                 )
                 records.append(row)
                 nlp = row.get("nlp", {})
-                elapsed = 0.0
                 logger.info(
                     f"  case {k + 1}/{n_total} (idx={global_idx}) | "
                     f"success={nlp.get('success')} ΔV={nlp.get('objective_value', 'N/A')}"
@@ -602,7 +601,7 @@ def main() -> None:
     if successes:
         best = min(successes, key=lambda r: r["nlp"]["objective_value"])
         b = best["nlp"]
-        logger.info(f"\n最优解:")
+        logger.info("\n最优解:")
         logger.info(f"  α = {b['alpha']:.6f}")
         logger.info(f"  T = {b['transfer_time']:.6f} TU ({b['transfer_time'] * TU:.2f} days)")
         logger.info(f"  Δv1 = {b['delta_v1']:.6f} VU ({b['delta_v1'] * VU:.1f} m/s)")

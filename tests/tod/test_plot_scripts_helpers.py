@@ -59,7 +59,7 @@ class TestPlotScriptImports:
             spec.loader.exec_module(module)  # type: ignore[union-attr]
         except ImportError as e:
             pytest.skip(f"Missing dependency: {e}")
-        except (Exception, SystemExit) as e:
+        except (Exception, SystemExit):
             pass
 
     @patch("e2m2e.core.OrbitFamily.load_from_file")
@@ -89,5 +89,5 @@ class TestPlotScriptImports:
             spec.loader.exec_module(module)  # type: ignore[union-attr]
         except ImportError as e:
             pytest.skip(f"Missing dependency: {e}")
-        except (Exception, SystemExit) as e:
+        except (Exception, SystemExit):
             pass

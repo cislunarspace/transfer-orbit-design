@@ -4,7 +4,6 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-import json
 from typing import Any
 from unittest.mock import patch
 

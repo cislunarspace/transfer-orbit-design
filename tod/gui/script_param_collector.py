@@ -28,12 +28,27 @@ class ScriptParamCollector:
         to_standard_unit: Callable[[QLineEdit], str],
         unit_combos: Mapping[QLineEdit, QComboBox],
         find_cli_param: Callable[[str], CliParam | None],
+        catalog_seed_selectors: Mapping[str, object] | None = None,
     ) -> list[str]:
         """收集 CLI 参数（不含芯片参数展开，由调用方处理）。"""
         extra_args: list[str] = []
+        skip_flags: set[str] = set()
+        if catalog_seed_selectors is not None:
+            for selector in entry.catalog_seed_selectors:
+                state = catalog_seed_selectors.get(selector.key)
+                if state is not None and not state.enabled_checkbox.isChecked():
+                    skip_flags.update(
+                        {
+                            selector.seed_id_flag,
+                            selector.jacobi_flag,
+                            selector.jacobi_tolerance_flag,
+                            selector.period_multiplier_flag,
+                            selector.num_points_flag,
+                        }
+                    )
         for key, widget in cli_widgets.items():
             cli_param = find_cli_param(key)
-            if cli_param is None:
+            if cli_param is None or cli_param.flag in skip_flags:
                 continue
             container = cli_row_containers.get(key)
             if container is not None and container.isHidden():
@@ -66,6 +81,25 @@ class ScriptParamCollector:
                     if cli_param.choice_values and text in cli_param.choice_values:
                         text = cli_param.choice_values[text]
                     extra_args.extend([cli_param.flag, text])
+
+        if catalog_seed_selectors is not None:
+            for selector in entry.catalog_seed_selectors:
+                state = catalog_seed_selectors.get(selector.key)
+                if state is None or not state.enabled_checkbox.isChecked():
+                    continue
+                mode_widget = getattr(state, "mode_widget", None)
+                if isinstance(mode_widget, QComboBox) and mode_widget.currentText() == "Jacobi nearest-neighbor":
+                    jacobi_widget = getattr(state, "jacobi_widget", None)
+                    tolerance_widget = getattr(state, "tolerance_widget", None)
+                    if isinstance(jacobi_widget, QLineEdit) and jacobi_widget.text().strip():
+                        extra_args.extend([selector.jacobi_flag, jacobi_widget.text().strip()])
+                    if isinstance(tolerance_widget, QLineEdit) and tolerance_widget.text().strip():
+                        extra_args.extend([selector.jacobi_tolerance_flag, tolerance_widget.text().strip()])
+                    continue
+                if isinstance(state.selector_widget, QComboBox):
+                    seed_id = state.selector_widget.currentData()
+                    if seed_id:
+                        extra_args.extend([selector.seed_id_flag, str(seed_id)])
 
         return extra_args
 

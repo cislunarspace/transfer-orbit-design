@@ -1,11 +1,10 @@
 """Unit tests for tod.transfers._pipeline shared module."""
 
 import json
-import sys
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import argparse
 import csv
+import math
 import sys
 
 from tod.generates.cr3bp._raw_naming import RawDatasetName, RawDatasetNameError, parse_raw_xlsx_name
@@ -277,7 +278,7 @@ def load_cr3bp_catalog(data_dir: Path) -> Cr3bpCatalog:
         index_rows = list(csv.DictReader(stream))
 
     datasets = {row["dataset_id"]: row for row in index_rows}
-    family_paths = sorted({data_dir / row["family_csv"] for row in index_rows})
+    family_paths = sorted({_family_csv_path(data_dir, row["family_csv"]) for row in index_rows})
     records: list[OrbitRecord] = []
     for family_path in family_paths:
         if not family_path.exists():
@@ -286,6 +287,19 @@ def load_cr3bp_catalog(data_dir: Path) -> Cr3bpCatalog:
             records.extend(_orbit_record_from_csv_row(row) for row in csv.DictReader(stream))
 
     return Cr3bpCatalog(datasets, records)
+
+
+def _family_csv_path(data_dir: Path, family_csv: str) -> Path:
+    """返回 normalized catalog 中受约束的 family CSV 路径。"""
+    relative_path = Path(family_csv)
+    if relative_path.is_absolute() or relative_path.suffix != ".csv" or ".." in relative_path.parts:
+        raise Cr3bpImportError(f"Invalid normalized catalog family_csv path: {family_csv!r}")
+    path = data_dir / relative_path
+    families_dir = (data_dir / "families").resolve(strict=False)
+    resolved = path.resolve(strict=False)
+    if families_dir not in resolved.parents:
+        raise Cr3bpImportError(f"Invalid normalized catalog family_csv path outside families/: {family_csv!r}")
+    return path
 
 
 def script_status_for(name: RawDatasetName) -> str:
@@ -487,6 +501,28 @@ def _orbit_record_to_csv_row(record: OrbitRecord) -> dict[str, str]:
     return {field: str(getattr(record, field)) for field in ORBIT_FIELDNAMES}
 
 
+def _csv_float(row: dict[str, str], field: str) -> float:
+    orbit_id = row.get("orbit_id", "<unknown>")
+    source_row = row.get("source_row", "<unknown>")
+    try:
+        value = float(row[field])
+    except KeyError as exc:
+        raise Cr3bpImportSchemaError(f"{orbit_id} source_row={source_row}: missing catalog CSV field {field}") from exc
+    except ValueError as exc:
+        raise Cr3bpImportSchemaError(
+            f"{orbit_id} source_row={source_row}: catalog CSV field {field} is not a float: {row.get(field)!r}"
+        ) from exc
+    if not math.isfinite(value):
+        raise Cr3bpImportSchemaError(
+            f"{orbit_id} source_row={source_row}: catalog CSV field {field} must be finite, got {row[field]!r}"
+        )
+    if field == "period" and value <= 0.0:
+        raise Cr3bpImportSchemaError(
+            f"{orbit_id} source_row={source_row}: catalog CSV field period must be > 0, got {row[field]!r}"
+        )
+    return value
+
+
 def _orbit_record_from_csv_row(row: dict[str, str]) -> OrbitRecord:
     return OrbitRecord(
         orbit_id=row["orbit_id"],
@@ -500,19 +536,19 @@ def _orbit_record_from_csv_row(row: dict[str, str]) -> OrbitRecord:
         resonance=row["resonance"],
         source_file=row["source_file"],
         source_row=int(row["source_row"]),
-        x=float(row["x"]),
-        y=float(row["y"]),
-        z=float(row["z"]),
-        vx=float(row["vx"]),
-        vy=float(row["vy"]),
-        vz=float(row["vz"]),
-        jacobi=float(row["jacobi"]),
-        period=float(row["period"]),
-        stability=float(row["stability"]),
-        mu=float(row["mu"]),
-        length_unit_km=float(row["length_unit_km"]),
-        time_unit_s=float(row["time_unit_s"]),
-        radius_secondary=float(row["radius_secondary"]),
+        x=_csv_float(row, "x"),
+        y=_csv_float(row, "y"),
+        z=_csv_float(row, "z"),
+        vx=_csv_float(row, "vx"),
+        vy=_csv_float(row, "vy"),
+        vz=_csv_float(row, "vz"),
+        jacobi=_csv_float(row, "jacobi"),
+        period=_csv_float(row, "period"),
+        stability=_csv_float(row, "stability"),
+        mu=_csv_float(row, "mu"),
+        length_unit_km=_csv_float(row, "length_unit_km"),
+        time_unit_s=_csv_float(row, "time_unit_s"),
+        radius_secondary=_csv_float(row, "radius_secondary"),
         script_status=row["script_status"],
     )
 

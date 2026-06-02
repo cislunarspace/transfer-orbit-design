@@ -7,19 +7,20 @@
 from __future__ import annotations
 
 from pathlib import Path
+from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QComboBox,
     QFormLayout,
     QFrame,
     QGroupBox,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QPushButton,
+    QCheckBox,
+    QLineEdit,
     QScrollArea,
     QSizePolicy,
     QVBoxLayout,
@@ -28,7 +29,7 @@ from PyQt6.QtWidgets import (
 
 from tod.gui.doc_link_mixin import make_doc_link_label
 from tod.gui.file_discovery import FileInfo, filter_files
-from tod.gui.param_value_store import ParamValueStore
+from tod.gui.param_value_store import CatalogSeedSelectorState, ParamValueStore
 from tod.gui.script_registry import CliParam, MultiCliParam, ScriptEntry
 from tod.gui.theme_utils import resolve_theme as _resolve_theme
 
@@ -70,6 +71,7 @@ class ScriptParamPanel(QWidget):
         gui_defaults: dict[str, Any],
         theme_mode: str,
         parent: QWidget | None = None,
+        catalog_seed_loader: Callable[[Path, str], Iterable[object]] | None = None,
     ):
         super().__init__(parent)
         self.entry = entry
@@ -77,6 +79,7 @@ class ScriptParamPanel(QWidget):
         self._repo_root = repo_root
         self._gui_defaults = gui_defaults
         self._theme_mode = theme_mode
+        self._catalog_seed_loader = catalog_seed_loader
 
         self._setup_ui()
         self.build_params()
@@ -195,6 +198,11 @@ class ScriptParamPanel(QWidget):
             if advanced:
                 self.add_advanced_group(advanced)
 
+            has_any = True
+
+        if entry.catalog_seed_selectors:
+            for selector in entry.catalog_seed_selectors:
+                self.add_catalog_seed_selector(selector)
             has_any = True
 
         # 用户保存的默认值
@@ -352,6 +360,131 @@ class ScriptParamPanel(QWidget):
             label = self._params_layout.labelForField(row_container)
             if label is not None:
                 self._store._row_labels[key] = label
+
+    def add_catalog_seed_selector(self, selector) -> None:
+        """添加 catalog seed selector 的默认关闭占位控件。"""
+        enabled = QCheckBox(selector.enabled_label)
+        enabled.setChecked(selector.default_enabled)
+        selector_widget = QComboBox()
+        selector_widget.setEditable(True)
+        selector_widget.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        if selector_widget.completer() is not None:
+            selector_widget.completer().setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        selector_widget.addItem(self.tr("（启用后加载 Catalog）"))
+        selector_widget.setEnabled(selector.default_enabled)
+        mode_widget = QComboBox()
+        mode_widget.addItems(["Seed ID", "Jacobi nearest-neighbor"])
+        mode_widget.setEnabled(selector.default_enabled)
+        jacobi_widget = QLineEdit()
+        jacobi_widget.setPlaceholderText("Jacobi")
+        tolerance_widget = QLineEdit()
+        tolerance_widget.setPlaceholderText("Jacobi tolerance（可选）")
+        jacobi_widget.setEnabled(False)
+        tolerance_widget.setEnabled(False)
+        preview_label = QLabel(self.tr("未选择 Catalog 初值"))
+        preview_label.setWordWrap(True)
+        row = QWidget()
+        row_layout = QVBoxLayout(row)
+        row_layout.setContentsMargins(0, 0, 0, 0)
+        row_layout.setSpacing(4)
+        row_layout.addWidget(enabled)
+        row_layout.addWidget(mode_widget)
+        row_layout.addWidget(selector_widget)
+        row_layout.addWidget(jacobi_widget)
+        row_layout.addWidget(tolerance_widget)
+        row_layout.addWidget(preview_label)
+        self._params_layout.addRow(f"{selector.label}:", row)
+        manual_keys = tuple(flag.lstrip("-").replace("-", "_") for flag in selector.manual_flags)
+
+        def apply_enabled_state(is_enabled: bool) -> None:
+            mode_widget.setEnabled(is_enabled)
+            is_jacobi_mode = mode_widget.currentText() == "Jacobi nearest-neighbor"
+            selector_widget.setEnabled(is_enabled and not is_jacobi_mode)
+            preview_label.setEnabled(is_enabled and not is_jacobi_mode)
+            jacobi_widget.setEnabled(is_enabled and is_jacobi_mode)
+            tolerance_widget.setEnabled(is_enabled and is_jacobi_mode)
+            for manual_key in manual_keys:
+                manual_widget = self._store._cli_widgets.get(manual_key)
+                if manual_widget is None:
+                    continue
+                manual_widget.setEnabled(not is_enabled)
+                self._store.widget_factory.display_widget(manual_widget).setEnabled(not is_enabled)
+
+        def on_enabled_toggled(is_enabled: bool) -> None:
+            apply_enabled_state(is_enabled)
+            if is_enabled and mode_widget.currentText() != "Jacobi nearest-neighbor":
+                try:
+                    self._load_catalog_seed_options(selector, selector_widget)
+                except Exception as exc:  # pragma: no cover - Qt slot must not leak exceptions
+                    preview_label.setText(self.tr("Catalog 加载失败：{}\n请检查 raw/normalized catalog 路径。用于手动模式时可取消勾选。").format(exc))
+
+        apply_enabled_state(selector.default_enabled)
+        enabled.toggled.connect(on_enabled_toggled)
+        mode_widget.currentTextChanged.connect(lambda _text: apply_enabled_state(enabled.isChecked()))
+        self._store._catalog_seed_selectors[selector.key] = CatalogSeedSelectorState(
+            enabled_checkbox=enabled,
+            selector_widget=selector_widget,
+            preview_label=preview_label,
+            mode_widget=mode_widget,
+            jacobi_widget=jacobi_widget,
+            tolerance_widget=tolerance_widget,
+            manual_keys=manual_keys,
+        )
+
+    def _load_catalog_seed_options(self, selector, selector_widget: QComboBox) -> None:
+        if selector_widget.property("_catalog_seed_loaded"):
+            return
+        loader = self._catalog_seed_loader
+        if loader is None:
+            def loader(repo_root: Path, orbit_type: str):
+                from tod.generates.cr3bp.importer import import_cr3bp_xlsx_catalog, load_cr3bp_catalog
+
+                normalized_dir = repo_root / "data" / "cr3bp_data" / "normalized"
+                raw_dir = repo_root / "data" / "cr3bp_data" / "raw"
+                index_file = normalized_dir / "index.csv"
+                family_file = normalized_dir / "families" / f"{orbit_type}.csv"
+                if not index_file.exists() or not family_file.exists():
+                    import_cr3bp_xlsx_catalog(raw_dir, normalized_dir, overwrite=False)
+                catalog = load_cr3bp_catalog(normalized_dir)
+                return catalog.records(orbit_type=orbit_type)
+
+        records = list(loader(self._repo_root, selector.orbit_type))
+        selector_widget.clear()
+        for record in records:
+            orbit_id = getattr(record, "orbit_id")
+            jacobi = getattr(record, "jacobi", None)
+            period = getattr(record, "period", None)
+            details = []
+            if jacobi is not None:
+                details.append(f"C={jacobi:g}")
+            if period is not None:
+                details.append(f"T={period:g}")
+            label = orbit_id if not details else f"{orbit_id} | {' | '.join(details)}"
+            selector_widget.addItem(label, orbit_id)
+            selector_widget.setItemData(selector_widget.count() - 1, record, Qt.ItemDataRole.UserRole + 1)
+        selector_widget.currentIndexChanged.connect(lambda _idx, w=selector_widget: self._update_catalog_seed_preview(w))
+        self._update_catalog_seed_preview(selector_widget)
+        selector_widget.setProperty("_catalog_seed_loaded", True)
+
+    def _update_catalog_seed_preview(self, selector_widget: QComboBox) -> None:
+        record = selector_widget.currentData(Qt.ItemDataRole.UserRole + 1)
+        preview_label = None
+        for state in self._store._catalog_seed_selectors.values():
+            if state.selector_widget is selector_widget:
+                preview_label = state.preview_label
+                break
+        if preview_label is None:
+            return
+        if record is None:
+            preview_label.setText(self.tr("未选择 Catalog 初值"))
+            return
+        state = getattr(record, "state", None)
+        source_file = getattr(record, "source_file", "")
+        source_row = getattr(record, "source_row", "")
+        preview_label.setText(
+            f"{getattr(record, 'orbit_id')} | C={getattr(record, 'jacobi'):g} | T={getattr(record, 'period'):g}\n"
+            f"state={state}\nsource={source_file} row {source_row}"
+        )
 
     def add_advanced_group(self, advanced_params: list[CliParam]) -> None:
         adv_group = QGroupBox(self.tr("高级选项"))

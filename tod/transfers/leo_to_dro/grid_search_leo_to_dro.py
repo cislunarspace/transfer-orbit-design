@@ -283,7 +283,7 @@ def main() -> None:
                      if r.get("min_distance", float("inf")) < float("inf")]
             if dists:
                 logger.info(f"  最小距离: {min(dists):.6f} DU = {min(dists) * DU:.0f} km")
-                logger.info(f"  建议: 调整 alpha 范围或增加积分时间")
+                logger.info("  建议: 调整 alpha 范围或增加积分时间")
 
 
 if __name__ == "__main__":

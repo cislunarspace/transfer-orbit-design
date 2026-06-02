@@ -277,7 +277,7 @@ def test_transfer_search():
             if min_dists:
                 logger.info(f"  最小距离范围: [{min(min_dists):.6f}, {max(min_dists):.6f}] DU")
                 logger.info(f"  最小距离范围: [{min(min_dists) * DU:.0f}, {max(min_dists) * DU:.0f}] km")
-                logger.info(f"  最佳 5 个:")
+                logger.info("  最佳 5 个:")
                 sorted_results = sorted(results, key=lambda r: r.get("min_distance", float("inf")))
                 for r in sorted_results[:5]:
                     md = r.get("min_distance", float("inf"))

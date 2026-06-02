@@ -102,6 +102,10 @@ class ScriptTabWidget(QWidget):
         return self._store._multi_file_widgets
 
     @property
+    def _catalog_seed_selectors(self):
+        return self._store._catalog_seed_selectors
+
+    @property
     def _param_defaults(self) -> dict[QWidget, str]:
         return self._store._param_defaults
 
@@ -187,6 +191,7 @@ class ScriptTabWidget(QWidget):
             to_standard_unit=self._store.to_standard_unit,
             unit_combos=self._store._widget_factory.unit_combos,
             find_cli_param=self._find_cli_param,
+            catalog_seed_selectors=self._store._catalog_seed_selectors,
         )
 
     def collect_env_overrides(self) -> dict[str, str]:

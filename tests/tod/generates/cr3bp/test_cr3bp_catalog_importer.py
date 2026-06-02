@@ -15,6 +15,56 @@ from tod.generates.cr3bp.importer import (
     normalize_workbook,
 )
 
+def _write_minimal_normalized_catalog(output_dir: Path, *, x: str = "1", period: str = "7") -> None:
+    output_dir.mkdir(parents=True)
+    families_dir = output_dir / "families"
+    families_dir.mkdir()
+    with (output_dir / "index.csv").open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=["dataset_id", "orbit_type", "family_csv"])
+        writer.writeheader()
+        writer.writerow({"dataset_id": "earth-moon_dro", "orbit_type": "dro", "family_csv": "families/dro.csv"})
+    with (families_dir / "dro.csv").open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(
+            stream,
+            fieldnames=[
+                "orbit_id", "dataset_id", "system", "source_orbit_type", "orbit_type", "variant",
+                "libration_point", "branch", "resonance", "source_file", "source_row",
+                "x", "y", "z", "vx", "vy", "vz", "jacobi", "period", "stability",
+                "mu", "length_unit_km", "time_unit_s", "radius_secondary", "script_status",
+            ],
+        )
+        writer.writeheader()
+        writer.writerow({
+            "orbit_id": "earth-moon_dro:000001", "dataset_id": "earth-moon_dro",
+            "system": "earth-moon", "source_orbit_type": "dro", "orbit_type": "dro",
+            "variant": "", "libration_point": "", "branch": "", "resonance": "",
+            "source_file": "earth-moon_dro.xlsx", "source_row": "2",
+            "x": x, "y": "2", "z": "3", "vx": "4", "vy": "5", "vz": "6",
+            "jacobi": "3.1", "period": period, "stability": "8", "mu": "0.01215",
+            "length_unit_km": "389703", "time_unit_s": "382981", "radius_secondary": "1737.1",
+            "script_status": "supported",
+        })
+
+
+@pytest.mark.parametrize(
+    ("field", "kwargs"),
+    [
+        ("x", {"x": "nan"}),
+        ("period", {"period": "0"}),
+        ("period", {"period": "inf"}),
+    ],
+)
+def test_load_catalog_rejects_non_finite_or_non_positive_numeric_values(
+    tmp_path: Path,
+    field: str,
+    kwargs: dict[str, str],
+) -> None:
+    output_dir = tmp_path / "normalized"
+    _write_minimal_normalized_catalog(output_dir, **kwargs)
+
+    with pytest.raises(Cr3bpImportSchemaError, match=rf"earth-moon_dro:000001.*{field}"):
+        load_cr3bp_catalog(output_dir)
+
 SHEET1_COLUMNS = ["x", "y", "z", "vx", "vy", "vz", "jacobi", "period", "stability"]
 SHEET2_COLUMNS = ["Mass ratio", "Length unit, LU (km)", "Time unit, TU (s)", "radius_secondary"]
 
@@ -239,3 +289,17 @@ def test_loads_catalog_and_finds_nearest_jacobi_with_filters(tmp_path: Path) -> 
 
     with pytest.raises(Cr3bpCatalogLookupError, match="tolerance"):
         catalog.nearest_jacobi("halo", 3.12, libration_point="L1", branch="N", tolerance=0.01)
+
+
+def test_load_catalog_rejects_family_csv_outside_catalog_dir(tmp_path: Path) -> None:
+    output_dir = tmp_path / "normalized"
+    output_dir.mkdir()
+    outside = tmp_path / "evil.csv"
+    outside.write_text("orbit_id\n", encoding="utf-8")
+    with (output_dir / "index.csv").open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=["dataset_id", "orbit_type", "family_csv"])
+        writer.writeheader()
+        writer.writerow({"dataset_id": "earth-moon_dro", "orbit_type": "dro", "family_csv": "../evil.csv"})
+
+    with pytest.raises(Cr3bpImportError, match="family_csv"):
+        load_cr3bp_catalog(output_dir)

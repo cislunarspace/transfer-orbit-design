@@ -20,7 +20,6 @@ from itertools import product
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from tod.gui.job_manager import JobManager
     from tod.gui.script_registry import ScriptEntry
     from tod.gui.script_tab_widget import ScriptTabWidget
 

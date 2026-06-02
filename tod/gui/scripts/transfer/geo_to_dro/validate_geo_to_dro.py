@@ -4,7 +4,7 @@
 """
 
 
-from tod.gui.script_registry import CliParam, ScriptEntry
+from tod.gui.script_registry import ScriptEntry
 
 SCRIPT_ENTRY = ScriptEntry(
     module='transfer',

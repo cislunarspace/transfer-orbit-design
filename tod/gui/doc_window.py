@@ -11,11 +11,10 @@ import html
 import platform
 from pathlib import Path
 
-from PyQt6.QtCore import QUrl, Qt
+from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import (
-    QHBoxLayout,
     QLineEdit,
     QMainWindow,
     QPushButton,

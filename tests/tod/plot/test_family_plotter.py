@@ -270,7 +270,7 @@ class TestBuildSubset:
         args = _make_args()
         orchestrator = FamilyPlotOrchestrator(config, args)
 
-        with patch("tod.plot.family_plot_orchestrator.OrbitFamily", return_value=MagicMock()) as MockOF:
+        with patch("tod.plot.family_plot_orchestrator.OrbitFamily", return_value=MagicMock()):
             orchestrator._build_subset(family, 1, 3)
 
         assert family.__getitem__.call_count == 3

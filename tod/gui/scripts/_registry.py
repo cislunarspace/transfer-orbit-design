@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Iterator
 
 if TYPE_CHECKING:
-    from tod.gui.script_registry import ScriptEntry
+    pass
 
 # 自包含的最小类型，避免在导入时触发 sciPy 等重型依赖。
 # params 文件从 tod.gui.script_registry 导入真实的 ScriptEntry，
@@ -33,6 +33,7 @@ class _ScanEntry:
     needs_spice: bool = False
     cli_chip_params: list = field(default_factory=list)
     multi_cli_params: list = field(default_factory=list)
+    catalog_seed_selectors: list = field(default_factory=list)
     env_params: dict = field(default_factory=dict)
     cli_params: list = field(default_factory=list)
     group_label: str = ""
@@ -78,6 +79,7 @@ def _load_script_entry(file_path: Path) -> _ScanEntry:
         needs_spice=raw.needs_spice,
         cli_chip_params=raw.cli_chip_params,
         multi_cli_params=raw.multi_cli_params,
+        catalog_seed_selectors=getattr(raw, "catalog_seed_selectors", []),
         env_params=raw.env_params,
         cli_params=raw.cli_params,
         group_label=raw.group_label,

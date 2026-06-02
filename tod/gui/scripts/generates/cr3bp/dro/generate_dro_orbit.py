@@ -4,7 +4,7 @@
 """
 
 
-from tod.gui.script_registry import CliParam, ScriptEntry
+from tod.gui.script_registry import CatalogSeedSelectorParam, CliParam, ScriptEntry
 
 SCRIPT_ENTRY = ScriptEntry(
     module='dro',
@@ -13,13 +13,23 @@ SCRIPT_ENTRY = ScriptEntry(
     script_path='tod/generates/cr3bp/dro/generate_dro_orbit.py',
     output_dir='output/dro',
     group_label='生成',
+    catalog_seed_selectors=[
+        CatalogSeedSelectorParam(
+            key='dro_catalog_seed',
+            label='DRO Catalog 初值',
+            orbit_type='dro',
+            manual_flags=('--x0', '--vy0', '--period'),
+        ),
+    ],
     cli_params=[
         CliParam('--x0', '初始 x 坐标', 'float', '1.1202', help='manual 路径初始 x 坐标（无量纲），默认 1.1202。', unit_group='distance', default_unit='DU'),
         CliParam('--vy0', '初始 vy 速度', 'float', '-0.4618', help='manual 路径初始 y 方向速度（无量纲），默认 -0.4618。', unit_group='velocity'),
         CliParam('--period', '目标周期', 'float', '2.095', help='manual 路径目标周期（无量纲），默认 2.095。', unit_group='time', default_unit='days'),
         CliParam('--jacobi', '目标 Jacobi', 'float', '', help='catalog 路径：按目标 Jacobi 值从 normalized DRO catalog 选择 seed。', advanced=True),
         CliParam('--seed-id', 'Seed ID', 'str', '', help='catalog 路径：按 seed/orbit id 从 normalized DRO catalog 选择 seed。', advanced=True),
-        CliParam('--jacobi-tolerance', 'Jacobi 容差', 'float', '1e-4', help='Jacobi 最近邻匹配容差。', advanced=True),
+        CliParam('--jacobi-tolerance', 'Jacobi 容差', 'float', '', help='Jacobi 最近邻匹配容差；留空表示不启用硬容差。', advanced=True),
+        CliParam('--period-multiplier', '外推周期数', 'float', '1.0', help='catalog 路径外推周期倍数，必须大于 0。', advanced=True),
+        CliParam('--num-points', '采样点数', 'int', '1000', help='catalog 路径外推轨迹采样点数，范围 2..100000。', advanced=True),
         CliParam('--catalog-dir', 'Catalog 目录', 'str', 'data/cr3bp_data/normalized', help='normalized CR3BP catalog 目录。', advanced=True),
         CliParam('--raw-data-dir', 'Raw 数据目录', 'str', 'data/cr3bp_data/raw', help='normalized catalog 缺失时用于自动导入的 raw XLSX 数据目录。', advanced=True),
         CliParam('--no-auto-build-catalog', '禁用自动导入 catalog', 'bool', '', help='normalized catalog 缺失时不自动从 raw 数据生成。', advanced=True),

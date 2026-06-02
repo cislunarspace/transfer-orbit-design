@@ -103,10 +103,11 @@ def test_catalog_path_auto_builds_normalized_catalog_when_missing(monkeypatch, t
             path.write_text(json.dumps({"metadata": self.metadata}), encoding="utf-8")
 
     def fake_import(raw_data_dir, normalized_dir, *, overwrite=False):
+        assert overwrite is False
         calls.append((raw_data_dir, normalized_dir))
         _write_dro_catalog(normalized_dir)
 
-    def fake_propagate(initial_state, period, dynamics):
+    def fake_propagate(initial_state, period, dynamics, **kwargs):
         orbit = FakeOrbit([initial_state], [0.0])
         orbit.period = period
         return orbit
@@ -121,7 +122,7 @@ def test_catalog_path_auto_builds_normalized_catalog_when_missing(monkeypatch, t
     mod.main(["--seed-id", "earth-moon_dro:000001", "--catalog-dir", str(catalog_dir), "--raw-data-dir", str(raw_dir)])
 
     assert calls == [(raw_dir, catalog_dir)]
-    assert saved_files == [output_dir / "dro_1234567890.json"]
+    assert saved_files == [output_dir / "dro_catalog_earth-moon_dro_000001_1234567890.json"]
 
 
 def test_jacobi_path_records_match_metadata(monkeypatch, tmp_path: Path) -> None:
@@ -145,7 +146,7 @@ def test_jacobi_path_records_match_metadata(monkeypatch, tmp_path: Path) -> None
             saved_files.append(path)
             path.write_text(json.dumps({"metadata": self.metadata}), encoding="utf-8")
 
-    def fake_propagate(initial_state, period, dynamics):
+    def fake_propagate(initial_state, period, dynamics, **kwargs):
         orbit = FakeOrbit([initial_state], [0.0])
         orbit.period = period
         return orbit
@@ -168,8 +169,8 @@ def test_jacobi_path_records_match_metadata(monkeypatch, tmp_path: Path) -> None
     assert metadata["source_row"] == 2
 
 
-def test_catalog_seed_id_path_propagates_without_correction(monkeypatch, tmp_path: Path) -> None:
-    """catalog seed path uses full 6D state + period and skips differential correction."""
+def test_jacobi_path_defaults_to_no_hard_tolerance(monkeypatch, tmp_path: Path) -> None:
+    """Jacobi mode chooses the nearest seed by default even when the delta is large."""
     import tod.generates.cr3bp.dro.generate_dro_orbit as mod
 
     catalog_dir = tmp_path / "normalized"
@@ -187,15 +188,88 @@ def test_catalog_seed_id_path_propagates_without_correction(monkeypatch, tmp_pat
         def save_to_file(self, filename: str) -> None:
             path = Path(filename)
             saved_files.append(path)
+            path.write_text(json.dumps({"metadata": self.metadata}), encoding="utf-8")
+
+    def fake_propagate(initial_state, period, dynamics, **kwargs):
+        orbit = FakeOrbit([initial_state], [0.0])
+        orbit.period = period
+        return orbit
+
+    monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
+    monkeypatch.setattr(mod.time, "time", lambda: 1234567890)
+    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod, "_propagate_catalog_seed", fake_propagate)
+
+    mod.main(["--jacobi", "0.0", "--catalog-dir", str(catalog_dir)])
+
+    metadata = json.loads(saved_files[0].read_text(encoding="utf-8"))["metadata"]
+    assert metadata["seed_source"] == "catalog_jacobi"
+    assert metadata["target"] == 0.0
+    assert metadata["actual"] == 3.1
+    assert metadata["error"] == pytest.approx(3.1)
+    assert metadata["tolerance"] is None
+    assert metadata["selection_mode"] == "jacobi"
+    assert metadata["matched_seed_id"] == "earth-moon_dro:000001"
+    assert metadata["target_jacobi"] == 0.0
+    assert metadata["matched_jacobi"] == 3.1
+    assert metadata["jacobi_delta"] == pytest.approx(3.1)
+
+
+def test_catalog_csv_errors_are_reported_as_cli_friendly_system_exit(monkeypatch, tmp_path: Path) -> None:
+    """invalid normalized catalog data should not leak a raw importer traceback to GUI jobs."""
+    import tod.generates.cr3bp.dro.generate_dro_orbit as mod
+
+    catalog_dir = tmp_path / "normalized"
+    _write_dro_catalog(catalog_dir)
+    dro_csv = catalog_dir / "families" / "dro.csv"
+    with dro_csv.open(newline="", encoding="utf-8") as stream:
+        rows = list(csv.DictReader(stream))
+        fieldnames = list(rows[0].keys())
+    rows[0]["x"] = "nan"
+    with dro_csv.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+
+    with pytest.raises(SystemExit, match="catalog CSV.*earth-moon_dro:000001.*x"):
+        mod.main(["--seed-id", "earth-moon_dro:000001", "--catalog-dir", str(catalog_dir)])
+
+
+def test_catalog_seed_id_path_propagates_without_correction(monkeypatch, tmp_path: Path) -> None:
+    """catalog seed path uses full 6D state + period and skips differential correction."""
+    import tod.generates.cr3bp.dro.generate_dro_orbit as mod
+
+    catalog_dir = tmp_path / "normalized"
+    output_dir = tmp_path / "out"
+    _write_dro_catalog(catalog_dir)
+    saved_files: list[Path] = []
+
+    propagated_options: list[dict[str, object]] = []
+
+    class FakeOrbit:
+        def __init__(self, states, times):
+            self.states = states
+            self.times = times
+            self.period = None
+            self.metadata: dict[str, object] = {}
+
+        def save_to_file(self, filename: str) -> None:
+            path = Path(filename)
+            saved_files.append(path)
             path.write_text(json.dumps({"states": self.states, "times": self.times, "metadata": self.metadata}), encoding="utf-8")
 
     class FailingCorrector:
         def __init__(self, dynamic):
             raise AssertionError("catalog path must not run differential correction")
 
-    def fake_propagate(initial_state, period, dynamics):
-        orbit = FakeOrbit([initial_state], [0.0])
-        orbit.period = period
+    def fake_propagate(initial_state, period, dynamics, **kwargs):
+        propagated_options.append({"period": period, **kwargs})
+        orbit = FakeOrbit([initial_state], [0.0, 14.0])
+        orbit.period = period * kwargs["period_multiplier"]
         return orbit
 
     monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
@@ -205,15 +279,29 @@ def test_catalog_seed_id_path_propagates_without_correction(monkeypatch, tmp_pat
     monkeypatch.setattr(mod.e2m2e.algorithms, "DifferentialCorrection", FailingCorrector)
     monkeypatch.setattr(mod, "_propagate_catalog_seed", fake_propagate)
 
-    mod.main(["--seed-id", "earth-moon_dro:000001", "--catalog-dir", str(catalog_dir)])
+    mod.main([
+        "--seed-id", "earth-moon_dro:000001",
+        "--catalog-dir", str(catalog_dir),
+        "--period-multiplier", "2.0",
+        "--num-points", "2",
+    ])
 
-    assert saved_files == [output_dir / "dro_1234567890.json"]
+    assert propagated_options == [{"period": 7.0, "period_multiplier": 2.0, "num_points": 2}]
+    assert saved_files == [output_dir / "dro_catalog_earth-moon_dro_000001_1234567890.json"]
     payload = json.loads(saved_files[0].read_text(encoding="utf-8"))
     assert payload["states"] == [[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]]
     assert payload["metadata"]["seed_source"] == "catalog_seed_id"
+    assert payload["metadata"]["selection_mode"] == "seed_id"
+    assert payload["metadata"]["matched_seed_id"] == "earth-moon_dro:000001"
     assert payload["metadata"]["seed_id"] == "earth-moon_dro:000001"
     assert payload["metadata"]["initial_state"] == [1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
     assert payload["metadata"]["period"] == 7.0
+    assert payload["metadata"]["period_multiplier"] == 2.0
+    assert payload["metadata"]["propagation_duration"] == 14.0
+    assert payload["metadata"]["num_points"] == 2
+    assert payload["metadata"]["integrator"] == "DOP853"
+    assert payload["metadata"]["rtol"] == 1e-12
+    assert payload["metadata"]["atol"] == 1e-12
     assert payload["metadata"]["is_corrected"] is False
     assert payload["metadata"]["generation_method"] == "catalog_seed_propagation"
 
@@ -226,19 +314,54 @@ def test_parser_exposes_catalog_seed_arguments() -> None:
 
     assert args.jacobi == 2.95
     assert args.seed_id is None
-    assert args.jacobi_tolerance == 1e-4
+    assert args.jacobi_tolerance is None
     assert str(args.catalog_dir) == "data/cr3bp_data/normalized"
 
 
 def test_parser_exposes_manual_defaults() -> None:
-    """new DRO generator keeps manual teaching-path defaults."""
+    """raw parser leaves manual seed unset so catalog mode can detect explicit overrides."""
     import tod.generates.cr3bp.dro.generate_dro_orbit as mod
 
     args = mod.parse_args([])
 
-    assert args.x0 == 1.1202
-    assert args.vy0 == -0.4618
-    assert args.period == 2.095
+    assert args.x0 is None
+    assert args.vy0 is None
+    assert args.period is None
+    assert mod.DEFAULT_DRO_X0 == 1.1202
+    assert mod.DEFAULT_DRO_VY0 == -0.4618
+    assert mod.DEFAULT_DRO_PERIOD == 2.095
+
+
+def test_parser_exposes_period_multiplier_and_num_points_bounds() -> None:
+    """catalog propagation controls expose safe defaults and reject invalid ranges."""
+    import tod.generates.cr3bp.dro.generate_dro_orbit as mod
+
+    args = mod.parse_args([])
+    assert args.period_multiplier == 1.0
+    assert args.num_points == 1000
+
+    valid = mod.parse_args(["--period-multiplier", "2.5", "--num-points", "2"])
+    assert valid.period_multiplier == 2.5
+    assert valid.num_points == 2
+
+    valid_upper = mod.parse_args(["--num-points", "100000"])
+    assert valid_upper.num_points == 100000
+
+    for argv in (["--period-multiplier", "0"], ["--period-multiplier", "-1"], ["--num-points", "1"], ["--num-points", "100001"]):
+        with pytest.raises(SystemExit):
+            mod.parse_args(argv)
+
+
+def test_catalog_mode_rejects_explicit_manual_seed_arguments(tmp_path: Path) -> None:
+    """catalog selection cannot be mixed with explicit manual x0/vy0/period overrides."""
+    import tod.generates.cr3bp.dro.generate_dro_orbit as mod
+
+    with pytest.raises(SystemExit, match="--seed-id.*--period"):
+        mod.main([
+            "--seed-id", "earth-moon_dro:000001",
+            "--period", "3.0",
+            "--catalog-dir", str(tmp_path / "missing"),
+        ])
 
 
 def test_manual_path_corrects_and_saves_dro_json_metadata(monkeypatch, tmp_path: Path) -> None:

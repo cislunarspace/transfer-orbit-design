@@ -73,6 +73,52 @@ def test_iter_script_files_skips_init_and_private(toy_scripts_dir: Path) -> None
     assert not any(p.name.startswith("_") for p in py_files if p.name.endswith(".py"))
 
 
+def test_get_scripts_carries_catalog_seed_selector_without_loading_catalog(tmp_path: Path, monkeypatch) -> None:
+    """scanner copies lightweight selector metadata without importing catalog loaders."""
+    scripts_dir = tmp_path / "scripts"
+    script_dir = scripts_dir / "generates" / "cr3bp" / "dro"
+    script_dir.mkdir(parents=True)
+    (script_dir / "generate_dro.py").write_text(
+        "from dataclasses import dataclass, field\n"
+        "@dataclass(frozen=True)\n"
+        "class ScriptEntry:\n"
+        '    module: str\n'
+        '    name: str\n'
+        '    description: str\n'
+        '    script_path: str\n'
+        '    output_dir: str | None = None\n'
+        '    accepts_file_arg: bool = False\n'
+        '    needs_spice: bool = False\n'
+        '    cli_chip_params: list = field(default_factory=list)\n'
+        '    multi_cli_params: list = field(default_factory=list)\n'
+        '    catalog_seed_selectors: list = field(default_factory=list)\n'
+        '    env_params: dict = field(default_factory=dict)\n'
+        '    cli_params: list = field(default_factory=list)\n'
+        '    group_label: str = ""\n'
+        "SCRIPT_ENTRY = ScriptEntry(\n"
+        '    module="dro", name="generate_dro", description="Test",\n'
+        '    script_path="tod/generates/cr3bp/dro/generate_dro.py",\n'
+        '    catalog_seed_selectors=[{"key": "dro_catalog_seed", "orbit_type": "dro"}],\n'
+        ")\n",
+        encoding="utf-8",
+    )
+    import builtins
+
+    real_import = builtins.__import__
+
+    def guard_import(name, *args, **kwargs):
+        if name.startswith("tod.generates.cr3bp.importer"):
+            raise AssertionError("scanner must not import catalog loader")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", guard_import)
+
+    from tod.gui.scripts._registry import get_scripts
+
+    entry = get_scripts(scripts_dir)["generates"][0]
+    assert entry.catalog_seed_selectors == [{"key": "dro_catalog_seed", "orbit_type": "dro"}]
+
+
 @pytest.fixture
 def toy_scripts_dir(tmp_path: Path, monkeypatch) -> Path:
     """在临时目录创建玩具 scripts 结构用于测试扫描器。

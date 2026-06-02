@@ -6,13 +6,15 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+import numpy as np
 
 from tod.plot.plot_orbits import build_argparser, _resolve_config
 from tod.plot.family_plot_orchestrator import (
     FamilyPlotConfig,
+    FamilyPlotOrchestrator,
     _get_center_coordinates,
     _resolve_3d_center_radius,
 )
@@ -156,6 +158,36 @@ class TestResolveConfig:
         )
         with pytest.raises(ValueError, match="--plane"):
             _resolve_config(args)
+
+
+class TestCatalogOrbitJsonCompatibility:
+    def test_catalog_dro_orbit_json_loads_as_single_orbit_family(self, tmp_path: Path) -> None:
+        catalog_orbit = tmp_path / "dro_catalog_earth-moon_dro_000001_123.json"
+        catalog_orbit.write_text(
+            json.dumps(
+                {
+                    "states": [[1, 0, 0, 0, 1, 0], [1, 0.1, 0, -0.1, 1, 0]],
+                    "times": [0, 1],
+                    "properties": {"period": 1},
+                    "metadata": {
+                        "generation_method": "catalog_seed_propagation",
+                        "selection_mode": "seed_id",
+                        "matched_seed_id": "earth-moon_dro:000001",
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        args = argparse.Namespace(json_file=str(catalog_orbit))
+        orchestrator = FamilyPlotOrchestrator(
+            FamilyPlotConfig(family_type="DRO", default_filename="dro", output_subdir="dro", plane="xy"),
+            args,
+        )
+
+        family = orchestrator._load_orbit_data(catalog_orbit, system=None)
+
+        assert len(family) == 1
+        np.testing.assert_allclose(family[0].states[0], [1, 0, 0, 0, 1, 0])
 
 
 class TestGetCenterCoordinates:

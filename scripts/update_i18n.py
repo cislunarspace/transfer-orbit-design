@@ -56,7 +56,7 @@ def extract_ts() -> None:
     if unfinished > 0:
         print(f"  共 {unfinished} 条未翻译，请编辑 {ts_path}")
     else:
-        print(f"  全部翻译已完成")
+        print("  全部翻译已完成")
 
     print(f"  完成: {ts_path}")
 

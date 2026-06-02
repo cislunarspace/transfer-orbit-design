@@ -22,7 +22,6 @@ from PyQt6.QtWidgets import (
     QStatusBar,
     QTabWidget,
     QToolBar,
-    QVBoxLayout,
     QWidget,
 )
 
@@ -32,7 +31,7 @@ from tod.gui.job_manager import JobManager
 from tod.gui.job_panel_mixin import JobPanelMixin
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
 from tod.gui.run_orchestrator import RunOrchestrator
-from tod.gui.script_registry import SCRIPTS, ScriptEntry
+from tod.gui.script_registry import ScriptEntry
 from tod.gui.script_tab_bar import ScriptTabBar
 from tod.gui.script_tab_widget import ScriptTabWidget
 from tod.gui.settings_schema import SETTINGS_SCHEMA

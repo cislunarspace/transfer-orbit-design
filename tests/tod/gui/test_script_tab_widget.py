@@ -5,14 +5,11 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from pathlib import Path
 from typing import Any, cast
-from unittest.mock import patch
 
 from PyQt6.QtWidgets import QApplication, QCheckBox, QComboBox, QLineEdit, QSpinBox, QWidget
 
-from tod.gui.file_discovery import FileInfo
-from tod.gui.script_registry import CliParam, ScriptEntry
+from tod.gui.script_registry import CatalogSeedSelectorParam, CliParam, ScriptEntry
 
 
 def _make_entry(**overrides: Any) -> ScriptEntry:
@@ -101,6 +98,172 @@ class TestScriptTabWidgetConstruction:
             theme_mode="system",
         )
         assert "dro_file" in widget._env_widgets
+
+
+class TestCatalogSeedSelectorDefaults:
+    def test_catalog_selector_defaults_to_manual_mode_without_loading_catalog(self, qapp_fixture, tmp_path):
+        from tod.gui.script_tab_widget import ScriptTabWidget
+
+        entry = _make_entry(
+            catalog_seed_selectors=[
+                CatalogSeedSelectorParam(
+                    key="dro_catalog_seed",
+                    label="DRO Catalog 初值",
+                    orbit_type="dro",
+                )
+            ],
+            cli_params=[
+                CliParam("--x0", "初始 x 坐标", "float", "1.1202", unit_group="distance", default_unit="DU"),
+                CliParam("--vy0", "初始 vy 速度", "float", "-0.4618", unit_group="velocity"),
+                CliParam("--period", "目标周期", "float", "2.095", unit_group="time"),
+                CliParam("--seed-id", "Seed ID", "str", ""),
+                CliParam("--jacobi", "Jacobi", "float", ""),
+            ],
+        )
+        widget = ScriptTabWidget(entry=entry, files=[], repo_root=tmp_path, gui_defaults={}, theme_mode="system")
+
+        state = widget._catalog_seed_selectors["dro_catalog_seed"]
+        assert not state.enabled_checkbox.isChecked()
+        assert not state.selector_widget.isEnabled()
+        for key in ("x0", "vy0", "period"):
+            manual_widget = widget._cli_widgets[key]
+            assert manual_widget.isEnabled()
+            assert widget._widget_factory.display_widget(manual_widget).isEnabled()
+
+        args = widget.collect_run_args()
+        assert "--seed-id" not in args
+        assert "--jacobi" not in args
+
+
+    def test_catalog_selector_unchecked_skips_seed_and_jacobi_even_if_fields_have_text(self, qapp_fixture, tmp_path):
+        from tod.gui.script_tab_widget import ScriptTabWidget
+
+        entry = _make_entry(
+            catalog_seed_selectors=[
+                CatalogSeedSelectorParam(
+                    key="dro_catalog_seed",
+                    label="DRO Catalog 初值",
+                    orbit_type="dro",
+                )
+            ],
+            cli_params=[
+                CliParam("--x0", "初始 x 坐标", "float", "1.1202"),
+                CliParam("--vy0", "初始 vy 速度", "float", "-0.4618"),
+                CliParam("--period", "目标周期", "float", "2.095"),
+                CliParam("--seed-id", "Seed ID", "str", ""),
+                CliParam("--jacobi", "Jacobi", "float", ""),
+                CliParam("--jacobi-tolerance", "Jacobi 容差", "float", ""),
+            ],
+        )
+        widget = ScriptTabWidget(entry=entry, files=[], repo_root=tmp_path, gui_defaults={}, theme_mode="system")
+
+        cast(QLineEdit, widget._cli_widgets["seed_id"]).setText("earth-moon_dro:000001")
+        cast(QLineEdit, widget._cli_widgets["jacobi"]).setText("3.1")
+        cast(QLineEdit, widget._cli_widgets["jacobi_tolerance"]).setText("1e-4")
+
+        args = widget.collect_run_args()
+
+        assert "--seed-id" not in args
+        assert "--jacobi" not in args
+        assert "--jacobi-tolerance" not in args
+
+
+    def test_catalog_selector_checkbox_toggles_manual_and_selector_widgets(self, qapp_fixture, tmp_path):
+        from tod.gui.script_tab_widget import ScriptTabWidget
+
+        entry = _make_entry(
+            catalog_seed_selectors=[
+                CatalogSeedSelectorParam(
+                    key="dro_catalog_seed",
+                    label="DRO Catalog 初值",
+                    orbit_type="dro",
+                )
+            ],
+            cli_params=[
+                CliParam("--x0", "初始 x 坐标", "float", "1.1202", unit_group="distance", default_unit="DU"),
+                CliParam("--vy0", "初始 vy 速度", "float", "-0.4618", unit_group="velocity"),
+                CliParam("--period", "目标周期", "float", "2.095", unit_group="time"),
+                CliParam("--seed-id", "Seed ID", "str", ""),
+                CliParam("--jacobi", "Jacobi", "float", ""),
+            ],
+        )
+        widget = ScriptTabWidget(entry=entry, files=[], repo_root=tmp_path, gui_defaults={}, theme_mode="system")
+        state = widget._catalog_seed_selectors["dro_catalog_seed"]
+
+        state.enabled_checkbox.setChecked(True)
+
+        assert state.selector_widget.isEnabled()
+        for key in ("x0", "vy0", "period"):
+            manual_widget = widget._cli_widgets[key]
+            assert not manual_widget.isEnabled()
+            assert not widget._widget_factory.display_widget(manual_widget).isEnabled()
+
+        state.enabled_checkbox.setChecked(False)
+
+        assert not state.selector_widget.isEnabled()
+        for key in ("x0", "vy0", "period"):
+            manual_widget = widget._cli_widgets[key]
+            assert manual_widget.isEnabled()
+            assert widget._widget_factory.display_widget(manual_widget).isEnabled()
+
+
+    def test_catalog_selector_enabled_collects_selected_seed_id_arg(self, qapp_fixture, tmp_path):
+        from tod.gui.script_tab_widget import ScriptTabWidget
+
+        entry = _make_entry(
+            catalog_seed_selectors=[
+                CatalogSeedSelectorParam(
+                    key="dro_catalog_seed",
+                    label="DRO Catalog 初值",
+                    orbit_type="dro",
+                )
+            ],
+            cli_params=[
+                CliParam("--x0", "初始 x 坐标", "float", "1.1202"),
+                CliParam("--vy0", "初始 vy 速度", "float", "-0.4618"),
+                CliParam("--period", "目标周期", "float", "2.095"),
+                CliParam("--seed-id", "Seed ID", "str", ""),
+                CliParam("--jacobi", "Jacobi", "float", ""),
+            ],
+        )
+        widget = ScriptTabWidget(entry=entry, files=[], repo_root=tmp_path, gui_defaults={}, theme_mode="system")
+        state = widget._catalog_seed_selectors["dro_catalog_seed"]
+        cast(QComboBox, state.selector_widget).addItem(
+            "earth-moon_dro:000001 | C=3.1 | T=7.0",
+            "earth-moon_dro:000001",
+        )
+
+        state.enabled_checkbox.setChecked(True)
+        cast(QComboBox, state.selector_widget).setCurrentIndex(1)
+        args = widget.collect_run_args()
+
+        assert args == ["--seed-id", "earth-moon_dro:000001"]
+
+
+    def test_catalog_selector_jacobi_mode_collects_jacobi_args(self, qapp_fixture, tmp_path):
+        from tod.gui.script_tab_widget import ScriptTabWidget
+
+        entry = _make_entry(
+            catalog_seed_selectors=[CatalogSeedSelectorParam(key="dro_catalog_seed", label="DRO Catalog 初值", orbit_type="dro")],
+            cli_params=[
+                CliParam("--x0", "初始 x 坐标", "float", "1.1202"),
+                CliParam("--vy0", "初始 vy 速度", "float", "-0.4618"),
+                CliParam("--period", "目标周期", "float", "2.095"),
+                CliParam("--seed-id", "Seed ID", "str", ""),
+                CliParam("--jacobi", "Jacobi", "float", ""),
+                CliParam("--jacobi-tolerance", "Jacobi 容差", "float", ""),
+            ],
+        )
+        widget = ScriptTabWidget(entry=entry, files=[], repo_root=tmp_path, gui_defaults={}, theme_mode="system")
+        state = widget._catalog_seed_selectors["dro_catalog_seed"]
+
+        state.mode_widget.setCurrentText("Jacobi nearest-neighbor")
+        state.enabled_checkbox.setChecked(True)
+        state.jacobi_widget.setText("3.10005")
+        assert widget.collect_run_args() == ["--jacobi", "3.10005"]
+
+        state.tolerance_widget.setText("1e-4")
+        assert widget.collect_run_args() == ["--jacobi", "3.10005", "--jacobi-tolerance", "1e-4"]
 
 
 class TestScriptTabWidgetCollectRunArgs:

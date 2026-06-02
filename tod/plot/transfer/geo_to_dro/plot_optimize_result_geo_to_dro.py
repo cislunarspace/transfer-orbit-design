@@ -441,7 +441,7 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
     dro_y = dro_orbit.states[:, 1]
     dro_z = dro_orbit.states[:, 2]
 
-    logger.info(f"\nInteractive browse: GEO -> DRO optimized transfers")
+    logger.info("\nInteractive browse: GEO -> DRO optimized transfers")
     logger.info(f"{n} valid results, sorted by dv_total")
     logger.info("Commands: Enter=next, q=quit, s N=skip N, j N=jump to #N, r=redraw")
 

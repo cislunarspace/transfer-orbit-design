@@ -2,9 +2,8 @@
 """Unit tests for tod.generates.cr3bp._family_pipeline shared module."""
 
 import math
-from dataclasses import dataclass
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest

@@ -11,15 +11,8 @@
 import argparse
 import logging
 import sys
-import time
 from pathlib import Path
 
-import e2m2e
-import numpy as np
-from e2m2e.core import Orbit
-from scipy import integrate as sci_integrate
-from scipy.optimize import least_squares
-from tod.commons.constants import MU, TU
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 
@@ -51,7 +44,7 @@ def main():
     Returns:
         None。
     """
-    args = parse_args()
+    parse_args()
     raise NotImplementedError("Lyapunov 轨道生成尚未实现")
 
 

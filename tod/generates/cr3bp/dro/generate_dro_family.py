@@ -18,13 +18,11 @@ from __future__ import annotations
 
 import logging
 import sys
-from pathlib import Path
 from typing import Any
 
 import e2m2e
 from e2m2e.core import Orbit, OrbitFamily
 
-from tod.commons.constants import MU
 from tod.generates.cr3bp._family_pipeline import (
     FamilyGenerator,
     FamilyGeneratorConfig,

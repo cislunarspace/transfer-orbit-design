@@ -60,7 +60,6 @@ repo_root = Path(__file__).resolve().parent.parent.parent
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
-from PyQt6 import QtWebEngineWidgets  # noqa: E402  # 必须在 QApplication 之前导入
 from PyQt6.QtGui import QIcon  # noqa: E402
 from PyQt6.QtWidgets import QApplication  # noqa: E402
 

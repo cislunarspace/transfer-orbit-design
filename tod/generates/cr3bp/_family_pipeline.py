@@ -14,14 +14,12 @@ import argparse
 import csv
 import logging
 import math
-import sys
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
-import e2m2e
 from e2m2e.core import CR3BP_Dynamics as _CR3BP_Dynamics
 from e2m2e.core import CR3BP_System as _CR3BP_System
 from e2m2e.core import Orbit, OrbitFamily
@@ -190,7 +188,7 @@ def print_summary_table(
     if not periods:
         periods = [0.0]
     seed_orbit = orbits[0]
-    s_seed = seed_orbit.states[0]
+    seed_orbit.states[0]
 
     # --- 里程碑轨道 ---
     milestone_idx = find_milestone_indices(len(orbits), config.n_milestones)
@@ -684,7 +682,7 @@ class FamilyGenerator:
         if csv_path is not None:
             logger.info("已保存 CSV:  %s", csv_path)
 
-        print(f"[3/3] 已保存：")
+        print("[3/3] 已保存：")
         print(f"  JSON: {json_path}")
         if csv_path is not None:
             print(f"  CSV:  {csv_path}")

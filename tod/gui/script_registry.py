@@ -126,6 +126,23 @@ class MultiCliParam:
 
 
 @dataclass(frozen=True)
+class CatalogSeedSelectorParam:
+    """CR3BP catalog seed 选择器声明，只描述 GUI/CLI 映射。"""
+
+    key: str
+    label: str
+    orbit_type: str
+    enabled_label: str = "使用 Catalog 初值"
+    seed_id_flag: str = "--seed-id"
+    jacobi_flag: str = "--jacobi"
+    jacobi_tolerance_flag: str = "--jacobi-tolerance"
+    period_multiplier_flag: str = "--period-multiplier"
+    num_points_flag: str = "--num-points"
+    manual_flags: tuple[str, ...] = ("--x0", "--vy0", "--period")
+    default_enabled: bool = False
+
+
+@dataclass(frozen=True)
 class ScriptEntry:
     """表示 ScriptEntry 相关的数据结构或行为。
 
@@ -141,6 +158,7 @@ class ScriptEntry:
     needs_spice: bool = False  # 是否需要 SPICE_KERNEL_DIR
     cli_chip_params: list[CliChipParam] = field(default_factory=list)  # 多选芯片参数
     multi_cli_params: list[MultiCliParam] = field(default_factory=list)  # 多文件参数
+    catalog_seed_selectors: list[CatalogSeedSelectorParam] = field(default_factory=list)
     env_params: dict[str, EnvParam] = field(default_factory=dict)
     cli_params: list[CliParam] = field(default_factory=list)
     group_label: str = ""  # GUI 分组标签，如 "生成"、"绘图"；空表示不分组

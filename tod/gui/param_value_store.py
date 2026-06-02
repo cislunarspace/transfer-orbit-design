@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Mapping
 
 from PyQt6.QtWidgets import (
@@ -23,6 +24,19 @@ from tod.gui.script_registry import UNIT_GROUPS, CliParam, ScriptEntry
 
 if TYPE_CHECKING:
     pass
+
+
+@dataclass(frozen=True)
+class CatalogSeedSelectorState:
+    """Catalog seed selector 的轻量 UI 状态。"""
+
+    enabled_checkbox: QCheckBox
+    selector_widget: QWidget
+    preview_label: QWidget
+    mode_widget: QWidget
+    jacobi_widget: QWidget
+    tolerance_widget: QWidget
+    manual_keys: tuple[str, ...]
 
 
 class ParamValueStore:
@@ -47,6 +61,7 @@ class ParamValueStore:
         self._env_widgets: dict[str, QComboBox] = {}
         self._chip_widgets: dict[str, QWidget] = {}
         self._multi_file_widgets: dict[str, QWidget] = {}
+        self._catalog_seed_selectors: dict[str, CatalogSeedSelectorState] = {}
 
         # 默认值字典
         self._param_defaults: dict[QWidget, str] = {}

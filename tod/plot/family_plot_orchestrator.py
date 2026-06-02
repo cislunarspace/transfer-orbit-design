@@ -24,9 +24,8 @@ import json as _json
 import logging
 import warnings
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 
@@ -421,7 +420,6 @@ class FamilyPlotOrchestrator:
     ) -> None:
         """多文件绘制模式。"""
         cfg = self.config
-        a = self.args
 
         # 加载所有文件并聚合
         all_subsets: list[OrbitFamily] = []
@@ -530,7 +528,6 @@ class FamilyPlotOrchestrator:
     ) -> tuple[OrbitFamily, str]:
         """加载单个轨道族文件。"""
         cfg = self.config
-        a = self.args
 
         if single_path:
             family_path = single_path

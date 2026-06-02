@@ -1,7 +1,6 @@
 """ScriptTabBar — 多脚本 Tab 管理器的接口与行为测试。"""
 
 import pytest
-from pathlib import Path
 
 from tod.gui.script_registry import ScriptEntry
 
@@ -156,7 +155,6 @@ class TestScriptTabBarSwitching:
 
     def test_current_widget_returns_correct_widget(self, qapp_fixture, tmp_path):
         from tod.gui.script_tab_bar import ScriptTabBar
-        from tod.gui.script_tab_widget import ScriptTabWidget
 
         bar = ScriptTabBar(files=[], repo_root=tmp_path, gui_defaults={}, theme_mode="system")
         e1 = _make_entry("A", "tod/a.py")

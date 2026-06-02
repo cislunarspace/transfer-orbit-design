@@ -4,7 +4,7 @@ from pathlib import Path
 import json
 
 import tod
-from tod.gui.script_registry import SCRIPTS, UNIT_GROUPS
+from tod.gui.script_registry import CatalogSeedSelectorParam, SCRIPTS, UNIT_GROUPS
 
 # Project root: parent of the `tod/` package directory.
 PROJECT_ROOT = Path(tod.__file__).resolve().parent.parent
@@ -44,6 +44,20 @@ def test_dro_single_generator_exposes_catalog_seed_controls() -> None:
     assert params["--jacobi"].advanced is True
     assert params["--seed-id"].advanced is True
     assert params["--catalog-dir"].advanced is True
+
+
+def test_dro_single_generator_declares_catalog_seed_selector() -> None:
+    entry = {entry.name: entry for entry in SCRIPTS["generates"]}["generate_dro_orbit"]
+
+    assert len(entry.catalog_seed_selectors) == 1
+    selector = entry.catalog_seed_selectors[0]
+    assert isinstance(selector, CatalogSeedSelectorParam)
+    assert selector.key == "dro_catalog_seed"
+    assert selector.orbit_type == "dro"
+    assert selector.seed_id_flag == "--seed-id"
+    assert selector.jacobi_flag == "--jacobi"
+    assert selector.manual_flags == ("--x0", "--vy0", "--period")
+    assert selector.default_enabled is False
 
 
 def test_gui_defaults_use_renamed_dro_generator_key() -> None:
