@@ -4,19 +4,21 @@
 抽取为单一职责的协调器：
 
 - :class:`RunSpec` —— 单个待运行任务的不可变描述（args + env）
-- :class:`RunOrchestrator` —— 静态工具类，提供 :meth:`build_run_specs` 与 :meth:`dispatch`
+- :class:`RunPlan` —— 一次"运行前确认"的完整数据载体（specs + 摘要元数据）
+- :class:`RunOrchestrator` —— 静态工具类，提供 :meth:`build_run_specs`、:meth:`build_run_plan`、:meth:`dispatch`
 
 设计原则：
-- **不可变**：``RunSpec`` 为 frozen dataclass，避免调用方意外修改。
-- **纯函数**：`build_run_specs` 不持有 Qt 状态，只接受已经收集好的数据。
+- **不可变**：``RunSpec``、``RunPlan``、``OverwriteTarget``、``ChipGroup`` 均为 frozen dataclass，避免调用方意外修改。
+- **纯函数**：`build_run_specs` / `build_run_plan` 不持有 Qt 状态，只接受已经收集好的数据。
 - **不绑死 MainWindow**：``dispatch`` 接受任意 ``JobManager``-like 对象（duck-typed `start_job`）。
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import product
+from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
@@ -52,8 +54,59 @@ class RunSpec:
         return {"args": list(self.args), "env": dict(self.env)}
 
 
+@dataclass(frozen=True)
+class OverwriteTarget:
+    """被 spec 指向的、已存在并将被覆盖的输出文件。
+
+    Attributes:
+        path: 覆盖目标的绝对或相对路径（与用户在 --output-file 输入一致，不 resolve）。
+        shared_count: 多少个 RunSpec 共享该文件。
+    """
+
+    path: str
+    shared_count: int
+
+
+@dataclass(frozen=True)
+class ChipGroup:
+    """按第一个 chip key-value 分组后的 spec 集合。
+
+    Attributes:
+        group_key: 分组键对应的 flag（如 "--libration-point"）。
+        group_value: 当前组对应的 chip 值（如 "1" / "L1"）。
+        specs: 属于该分组的 RunSpec 列表（按 spec 顺序保持稳定）。
+    """
+
+    group_key: str
+    group_value: str
+    specs: tuple[RunSpec, ...]
+
+
+@dataclass(frozen=True)
+class RunPlan:
+    """一次"运行前确认"的完整数据载体。
+
+    Attributes:
+        specs: 待 dispatch 的 RunSpec 列表。
+        file_input: 当前选择文件的绝对路径（来自 `accepts_file_arg` 注入），无则 None。
+        overwrites: 已被检测出将被覆盖的输出文件列表（按 spec 共享数聚合）。
+        chip_groups: 按第一个被选中的 chip 分组后的 spec 集合；无 chip 或第一个 chip 未选时为 ()。
+        has_output_file_param: 工具是否声明了 `kind="file_output"` 的 CliParam。
+        total_tasks: spec 数量（= len(specs)）。
+        entry: 关联的 ScriptEntry（供 dialog 显示工具名 + dispatch 时传入）。
+    """
+
+    specs: tuple[RunSpec, ...]
+    file_input: str | None
+    overwrites: tuple[OverwriteTarget, ...]
+    chip_groups: tuple[ChipGroup, ...]
+    has_output_file_param: bool
+    total_tasks: int
+    entry: "ScriptEntry"
+
+
 class RunOrchestrator:
-    """构造并派发 RunSpec。"""
+    """构造并派发 RunSpec / RunPlan。"""
 
     @staticmethod
     def build_run_specs(
@@ -105,6 +158,43 @@ class RunOrchestrator:
         ]
 
     @staticmethod
+    def build_run_plan(
+        tab: "ScriptTabWidget",
+        file_arg: list[str] | None,
+        plot_env: dict[str, str],
+        repo_root: Path,
+    ) -> RunPlan:
+        """构造 RunPlan：在 build_run_specs 之上叠加覆盖检测 + chip 分组。
+
+        Args:
+            tab: 当前 ScriptTabWidget。
+            file_arg: 若不为空，注入到基础 args 头部。
+            plot_env: 合并到每个 spec 的 env 中。
+            repo_root: 项目根目录，用于解析 `--output-file` 相对路径。
+        """
+        specs = RunOrchestrator.build_run_specs(tab, file_arg, plot_env)
+        spec_tuple = tuple(specs)
+        entry = tab.entry
+
+        file_input = file_arg[1] if file_arg and len(file_arg) >= 2 else None
+
+        overwrites, has_output_file_param = RunOrchestrator._detect_overwrites(
+            entry, specs, repo_root
+        )
+
+        chip_groups = RunOrchestrator._group_by_first_chip(entry, specs)
+
+        return RunPlan(
+            specs=spec_tuple,
+            file_input=file_input,
+            overwrites=overwrites,
+            chip_groups=chip_groups,
+            has_output_file_param=has_output_file_param,
+            total_tasks=len(spec_tuple),
+            entry=entry,
+        )
+
+    @staticmethod
     def dispatch(
         specs: list[RunSpec],
         entry: "ScriptEntry",
@@ -152,3 +242,81 @@ class RunOrchestrator:
             combinations.append(args)
 
         return combinations
+
+    @staticmethod
+    def _detect_overwrites(
+        entry: "ScriptEntry",
+        specs: list[RunSpec],
+        repo_root: Path,
+    ) -> tuple[tuple[OverwriteTarget, ...], bool]:
+        """扫描所有 spec 的 --output-file 参数，统计已存在并将被覆盖的目标。
+
+        Returns:
+            (overwrites, has_output_file_param)：
+            - overwrites: 去重后按 (path, shared_count) 聚合的覆盖目标
+            - has_output_file_param: entry 是否声明了 kind="file_output" 的 CliParam
+        """
+        output_params = [p for p in entry.cli_params if p.kind == "file_output"]
+        if not output_params:
+            return ((), False)
+
+        # 取第一个 kind="file_output" 的 flag（理论上一个工具只有一个 --output-file）
+        output_flag = output_params[0].flag
+
+        # 收集所有 spec 中该 flag 后面的非空值
+        from collections import Counter
+
+        path_counter: Counter[str] = Counter()
+        for spec in specs:
+            args = list(spec.args)
+            for i, token in enumerate(args):
+                if token == output_flag and i + 1 < len(args):
+                    value = args[i + 1].strip()
+                    if value:
+                        path_counter[value] += 1
+
+        # 过滤出"已存在的文件"（相对路径相对 repo_root 解析）
+        overwrites: list[OverwriteTarget] = []
+        for path, count in path_counter.items():
+            candidate = (repo_root / path).expanduser()
+            if candidate.is_file():
+                overwrites.append(
+                    OverwriteTarget(path=path, shared_count=count)
+                )
+
+        # 路径顺序按首次出现顺序稳定
+        return (tuple(overwrites), True)
+
+    @staticmethod
+    def _group_by_first_chip(
+        entry: "ScriptEntry",
+        specs: list[RunSpec],
+    ) -> tuple[ChipGroup, ...]:
+        """按 entry.cli_chip_params[0] 的值分组；当第一个 chip 用户未选时返回 ()。"""
+        if not entry.cli_chip_params or not specs:
+            return ()
+
+        first_chip = entry.cli_chip_params[0]
+        first_chip_flag = first_chip.flag
+
+        # 遍历每个 spec，找出 first_chip_flag 后面的值
+        groups_dict: dict[str, list[RunSpec]] = {}
+        for spec in specs:
+            args = list(spec.args)
+            for i, token in enumerate(args):
+                if token == first_chip_flag and i + 1 < len(args):
+                    value = args[i + 1]
+                    groups_dict.setdefault(value, []).append(spec)
+                    break
+
+        if not groups_dict:
+            return ()
+
+        return tuple(
+            ChipGroup(
+                group_key=first_chip_flag,
+                group_value=value,
+                specs=tuple(group_specs),
+            )
+            for value, group_specs in groups_dict.items()
+        )

@@ -49,6 +49,7 @@ class CliParam:
     name_pattern: str | None = None  # 文件名过滤模式，如 "*_family_*.json"
     hidden_when: str | None = None   # "flag" (有值时隐藏) 或 "flag==value" (等于指定值时隐藏)
     required: bool | None = None     # None 保持旧逻辑；False 声明为可选文件参数
+    kind: str = ""                   # ""=普通参数；"file_output"=输出文件(覆盖目标)，供 RunPlan 检测
 
 
 @dataclass(frozen=True)
@@ -198,7 +199,7 @@ def _ephemeris_conversion_cli_params(orbit_type: str, mode: str) -> list[CliPara
             CliParam("--velocity-tol", "速度容差", "float", "1e-6", help="速度连续性容差（km/s）", advanced=True),
             CliParam("--spice-kernel-dir", "SPICE 内核目录", "str", help="SPICE 内核目录", advanced=True),
             CliParam("--bodies", "天体集合", "str", "EARTH,MOON,SUN", help="逗号分隔的天体集合", advanced=True),
-            CliParam("--output-file", "输出文件", "str", help="输出 JSON 文件路径", advanced=True),
+            CliParam("--output-file", "输出文件", "str", help="输出 JSON 文件路径", advanced=True, kind="file_output"),
             CliParam("--per-orbit-workers", "单轨 worker 数", "int", "1", help="单条轨道修正并行 worker 数", advanced=True),
         ]
     )

@@ -24,7 +24,7 @@ SCRIPT_ENTRY = ScriptEntry(
         CliParam('--velocity-tol', '速度容差', 'float', '1e-6', help='速度连续性容差（km/s），默认 1e-6。', advanced=True),
         CliParam('--spice-kernel-dir', 'SPICE 内核目录', 'str', '', help='SPICE 内核目录。', advanced=True),
         CliParam('--bodies', '天体集合', 'str', 'EARTH,MOON,SUN', help='逗号分隔的天体集合，默认 EARTH,MOON,SUN。', advanced=True),
-        CliParam('--output-file', '输出文件', 'str', '', help='输出 JSON 文件路径。', advanced=True),
+        CliParam('--output-file', '输出文件', 'str', '', help='输出 JSON 文件路径。', advanced=True, kind='file_output'),
         CliParam('--per-orbit-workers', '单轨 worker 数', 'int', '1', help='单条轨道修正并行 worker 数，默认 1。', advanced=True),
     ],
 )
