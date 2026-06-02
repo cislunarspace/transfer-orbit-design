@@ -108,7 +108,7 @@ class TestCatalogSeedSelectorDefaults:
             catalog_seed_selectors=[
                 CatalogSeedSelectorParam(
                     key="dro_catalog_seed",
-                    label="DRO Catalog 初值",
+                    label="DRO 参考初值",
                     orbit_type="dro",
                 )
             ],
@@ -116,7 +116,7 @@ class TestCatalogSeedSelectorDefaults:
                 CliParam("--x0", "初始 x 坐标", "float", "1.1202", unit_group="distance", default_unit="DU"),
                 CliParam("--vy0", "初始 vy 速度", "float", "-0.4618", unit_group="velocity"),
                 CliParam("--period", "目标周期", "float", "2.095", unit_group="time"),
-                CliParam("--seed-id", "Seed ID", "str", ""),
+                CliParam("--seed-id", "参考记录编号", "str", ""),
                 CliParam("--jacobi", "Jacobi", "float", ""),
             ],
         )
@@ -142,7 +142,7 @@ class TestCatalogSeedSelectorDefaults:
             catalog_seed_selectors=[
                 CatalogSeedSelectorParam(
                     key="dro_catalog_seed",
-                    label="DRO Catalog 初值",
+                    label="DRO 参考初值",
                     orbit_type="dro",
                 )
             ],
@@ -150,7 +150,7 @@ class TestCatalogSeedSelectorDefaults:
                 CliParam("--x0", "初始 x 坐标", "float", "1.1202"),
                 CliParam("--vy0", "初始 vy 速度", "float", "-0.4618"),
                 CliParam("--period", "目标周期", "float", "2.095"),
-                CliParam("--seed-id", "Seed ID", "str", ""),
+                CliParam("--seed-id", "参考记录编号", "str", ""),
                 CliParam("--jacobi", "Jacobi", "float", ""),
                 CliParam("--jacobi-tolerance", "Jacobi 容差", "float", ""),
             ],
@@ -175,7 +175,7 @@ class TestCatalogSeedSelectorDefaults:
             catalog_seed_selectors=[
                 CatalogSeedSelectorParam(
                     key="dro_catalog_seed",
-                    label="DRO Catalog 初值",
+                    label="DRO 参考初值",
                     orbit_type="dro",
                 )
             ],
@@ -183,7 +183,7 @@ class TestCatalogSeedSelectorDefaults:
                 CliParam("--x0", "初始 x 坐标", "float", "1.1202", unit_group="distance", default_unit="DU"),
                 CliParam("--vy0", "初始 vy 速度", "float", "-0.4618", unit_group="velocity"),
                 CliParam("--period", "目标周期", "float", "2.095", unit_group="time"),
-                CliParam("--seed-id", "Seed ID", "str", ""),
+                CliParam("--seed-id", "参考记录编号", "str", ""),
                 CliParam("--jacobi", "Jacobi", "float", ""),
             ],
         )
@@ -214,7 +214,7 @@ class TestCatalogSeedSelectorDefaults:
             catalog_seed_selectors=[
                 CatalogSeedSelectorParam(
                     key="dro_catalog_seed",
-                    label="DRO Catalog 初值",
+                    label="DRO 参考初值",
                     orbit_type="dro",
                 )
             ],
@@ -222,7 +222,7 @@ class TestCatalogSeedSelectorDefaults:
                 CliParam("--x0", "初始 x 坐标", "float", "1.1202"),
                 CliParam("--vy0", "初始 vy 速度", "float", "-0.4618"),
                 CliParam("--period", "目标周期", "float", "2.095"),
-                CliParam("--seed-id", "Seed ID", "str", ""),
+                CliParam("--seed-id", "参考记录编号", "str", ""),
                 CliParam("--jacobi", "Jacobi", "float", ""),
             ],
         )
@@ -244,12 +244,12 @@ class TestCatalogSeedSelectorDefaults:
         from tod.gui.script_tab_widget import ScriptTabWidget
 
         entry = _make_entry(
-            catalog_seed_selectors=[CatalogSeedSelectorParam(key="dro_catalog_seed", label="DRO Catalog 初值", orbit_type="dro")],
+            catalog_seed_selectors=[CatalogSeedSelectorParam(key="dro_catalog_seed", label="DRO 参考初值", orbit_type="dro")],
             cli_params=[
                 CliParam("--x0", "初始 x 坐标", "float", "1.1202"),
                 CliParam("--vy0", "初始 vy 速度", "float", "-0.4618"),
                 CliParam("--period", "目标周期", "float", "2.095"),
-                CliParam("--seed-id", "Seed ID", "str", ""),
+                CliParam("--seed-id", "参考记录编号", "str", ""),
                 CliParam("--jacobi", "Jacobi", "float", ""),
                 CliParam("--jacobi-tolerance", "Jacobi 容差", "float", ""),
             ],
