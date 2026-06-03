@@ -1,5 +1,5 @@
 """
-tod/generates/cr3bp 生成脚本的测试 (generate_31_ro_family.py, generate_32_ro_family.py, generate_dro_family.py)
+tod/generates/cr3bp 生成脚本的测试 (generate_ro_family.py, generate_dro_family.py)
 
 These tests focus on:
 - Testing the import structure
@@ -29,43 +29,16 @@ class TestGenerateScriptImports:
     @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
-    def test_generate_31_ro_imports(self, mock_cont, mock_corr, mock_dyn, mock_sys):
-        """Test that generate_31_ro_family.py can be imported without errors"""
-        # Mock expensive computations to avoid long-running tests
+    def test_generate_ro_family_imports(self, mock_cont, mock_corr, mock_dyn, mock_sys):
+        """Test that generate_ro_family.py can be imported without errors"""
         mock_corr.return_value.iterate_correction.return_value = MagicMock()
         mock_cont.return_value.natural_continuation.return_value = MagicMock()
 
         script_path = (
-            project_root / "tod" / "generates" / "cr3bp" / "ro" / "deprecated" / "generate_31_ro_family.py"
+            project_root / "tod" / "generates" / "cr3bp" / "ro" / "generate_ro_family.py"
         )
         spec = importlib.util.spec_from_file_location(
-            "generate_31_ro_family", script_path
-        )
-        assert spec is not None
-        module = importlib.util.module_from_spec(spec)
-
-        try:
-            spec.loader.exec_module(module)  # type: ignore[union-attr]
-        except ImportError as e:
-            pytest.skip(f"Missing dependency: {e}")
-        except Exception as e:
-            pytest.fail(f"Script import failed with unexpected error: {e}")
-
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
-    @patch("e2m2e.algorithms.DifferentialCorrection")
-    @patch("e2m2e.algorithms.Continuation")
-    def test_generate_32_ro_imports(self, mock_cont, mock_corr, mock_dyn, mock_sys):
-        """Test that generate_32_ro_family.py can be imported without errors"""
-        # Mock expensive computations to avoid long-running tests
-        mock_corr.return_value.iterate_correction.return_value = MagicMock()
-        mock_cont.return_value.natural_continuation.return_value = MagicMock()
-
-        script_path = (
-            project_root / "tod" / "generates" / "cr3bp" / "ro" / "deprecated" / "generate_32_ro_family.py"
-        )
-        spec = importlib.util.spec_from_file_location(
-            "generate_32_ro_family", script_path
+            "generate_ro_family", script_path
         )
         assert spec is not None
         module = importlib.util.module_from_spec(spec)
