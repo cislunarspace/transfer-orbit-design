@@ -309,7 +309,7 @@ def script_status_for(name: RawDatasetName) -> str:
         return "supported"
     if name.orbit_type == "halo" and name.libration_point == "L3":
         return "unsupported_parameter"
-    if name.orbit_type == "resonant" and name.resonance not in {"21", "31", "32"}:
+    if name.orbit_type in {"ro", "resonant"} and name.resonance not in {"31", "32"}:
         return "unsupported_parameter"
     if name.orbit_type in {"dragonfly"}:
         return "script_missing"
