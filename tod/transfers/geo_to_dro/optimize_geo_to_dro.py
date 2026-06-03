@@ -30,6 +30,11 @@ from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 from e2m2e.core.orbit import Orbit
 from e2m2e.transfer import load_orbit_from_json
 from tod.commons.constants import DU, MU, TU, VU
+from tod.cli.input_file import (
+    InputFileRequest,
+    InputResolutionError,
+    resolve_input_file,
+)
 from tod.transfers.optimize_config import apply_blas_env_for_child_processes, blas_threads_per_worker
 from e2m2e.orbits.geo import (
     compute_departure_velocity,
@@ -43,11 +48,16 @@ project_root = Path(__file__).resolve().parent.parent.parent.parent
 # =====================================================================
 # 配置 — 运行前须更新文件路径
 # =====================================================================
+# ``SEARCH_RESULTS_DEFAULT`` / ``DRO_FILE_DEFAULT`` 与 module-level
+# ``SEARCH_RESULTS_FILE`` / ``DRO_FILE`` 仅作历史参考：issue #183 后，输入
+# 必须通过 ``--search-file`` / ``--dro-file`` 或对应的 ``--auto-latest*``
+# 显式提供，不再读取环境变量也不再依赖默认值。
 SEARCH_RESULTS_DEFAULT = str(project_root / "output/transfer/search_geo_dro_10-200-1-1.5-2.2998_1775916430.json")
 DRO_FILE_DEFAULT = str(project_root / "output/dro/dro_31_3857864736.json")
 
-SEARCH_RESULTS_FILE = Path(os.environ.get("SEARCH_RESULTS_FILE", SEARCH_RESULTS_DEFAULT))
-DRO_FILE = Path(os.environ.get("DRO_FILE", DRO_FILE_DEFAULT))
+# 保留常量以避免破坏潜在外部 import；运行时不再读取其值。
+SEARCH_RESULTS_FILE = Path(SEARCH_RESULTS_DEFAULT)
+DRO_FILE = Path(DRO_FILE_DEFAULT)
 
 ALPHA_MIN = 1.0
 ALPHA_MAX = 1.5
@@ -83,13 +93,16 @@ PARALLEL_BACKEND: str = "threads"
 
 def parse_args():
     """解析命令行参数。
-    
+
     Returns:
-        解析后的命令行参数命名空间。
+        (parser, args) 元组：parser 暴露给调用方以便在 main 中使用
+        ``parser.error(...)`` 触发 exit 2 + usage 风格错误信息。
     """
     parser = argparse.ArgumentParser(description="GEO→DRO 转移 NLP 优化", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--search-file", type=str, default=None, help="网格搜索结果 JSON 文件路径")
+    parser.add_argument("--auto-latest", action="store_true", help="显式 opt-in：按 mtime 选最新搜索结果 JSON")
     parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
+    parser.add_argument("--auto-latest-dro", action="store_true", help="显式 opt-in：按 mtime 选最新 dro_<digits>.json")
     parser.add_argument("--alpha-min", type=float, default=ALPHA_MIN, help="alpha 搜索下界")
     parser.add_argument("--alpha-max", type=float, default=ALPHA_MAX, help="alpha 搜索上界")
     parser.add_argument("--t-min", type=float, default=T_MIN, help="转移时间下界（无量纲）")
@@ -102,7 +115,7 @@ def parse_args():
     parser.add_argument("--top-k", type=int, default=None, help="取前 K 个可行解优化")
     parser.add_argument("--max-cases", type=int, default=None, help="最大优化案例数")
     parser.add_argument("--n-workers", type=int, default=None, help="并行 worker 数")
-    return parser.parse_args()
+    return parser, parser.parse_args()
 
 
 # =====================================================================
@@ -572,14 +585,48 @@ def main() -> None:
     Raises:
         Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
     """
-    args = parse_args()
+    parser_obj, args = parse_args()
 
     # 限制 BLAS 线程，避免过量订阅（保留已有环境变量，不覆盖）——原用 setdefault
     apply_blas_env_for_child_processes(blas_threads_per_worker(), overwrite=False)
 
     # CLI 参数覆盖
-    search_file = Path(args.search_file or os.environ.get("SEARCH_RESULTS_FILE", SEARCH_RESULTS_DEFAULT))
-    dro_file = Path(args.dro_file or os.environ.get("DRO_FILE", DRO_FILE_DEFAULT))
+    try:
+        search_file = resolve_input_file(
+            InputFileRequest(
+                explicit_path=Path(args.search_file) if args.search_file else None,
+                auto_latest=bool(args.auto_latest),
+                search_root=project_root / "output/transfer",
+                pattern="search_geo_dro_*.json",
+                flag="--search-file",
+                auto_latest_flag="--auto-latest",
+            )
+        )
+    except InputResolutionError as exc:
+        msg = str(exc)
+        if exc.candidates or exc.remaining:
+            msg = f"{msg}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+        parser_obj.error(msg)
+        return
+
+    try:
+        dro_file = resolve_input_file(
+            InputFileRequest(
+                explicit_path=Path(args.dro_file) if args.dro_file else None,
+                auto_latest=bool(args.auto_latest_dro),
+                search_root=project_root / "output/dro",
+                pattern="dro_*.json",
+                flag="--dro-file",
+                auto_latest_flag="--auto-latest-dro",
+            )
+        )
+    except InputResolutionError as exc:
+        msg = str(exc)
+        if exc.candidates or exc.remaining:
+            msg = f"{msg}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+        parser_obj.error(msg)
+        return
+
     alpha_min = args.alpha_min
     alpha_max = args.alpha_max
     t_min = args.t_min
@@ -598,13 +645,7 @@ def main() -> None:
     if not search_file.is_file():
         raise FileNotFoundError(f"未找到搜索结果: {search_file}")
 
-    # 查找 DRO 文件
-    if not dro_file.exists():
-        dro_dir = project_root / "output/dro"
-        dro_files = sorted(dro_dir.glob("dro_31_*.json"))
-        if not dro_files:
-            raise FileNotFoundError("找不到 DRO 轨道文件")
-        dro_file = dro_files[-1]
+    # 加载 DRO 轨道（已由 resolve_input_file 完成契约解析；不再有 latest fallback）
 
     # 加载 DRO 轨道
     dro_orbit = load_orbit_from_json(str(dro_file))

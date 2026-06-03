@@ -11,12 +11,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import logging
 
 # 复用 GEO→DRO 优化脚本的全部逻辑
 # 仅覆盖默认参数
 import tod.transfers.geo_to_dro.optimize_geo_to_dro as base_opt
-import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +29,20 @@ base_opt.T_MIN = 5.0
 base_opt.T_MAX = 80.0
 base_opt.T_INS_MAX = 10.0
 
-# LEO 搜索结果文件默认值
-SEARCH_RESULTS_DEFAULT_LEO = str(project_root / "output/transfer/search_leo_dro_UPDATE_ME.json")
-base_opt.SEARCH_RESULTS_DEFAULT = SEARCH_RESULTS_DEFAULT_LEO
+# 旧版 ``search_leo_dro_UPDATE_ME.json`` 占位默认路径已被 issue #183 移除：
+# LEO→DRO 优化器现在要求用户显式传 ``--search-file`` 或 ``--auto-latest``。
+# 想跑通：
+#   uv run python -m tod.transfers.leo_to_dro.optimize_leo_to_dro \
+#       --auto-latest --auto-latest-dro
+# 或显式：
+#   uv run python -m tod.transfers.leo_to_dro.optimize_leo_to_dro \
+#       --search-file output/transfer/search_leo_dro_*.json \
+#       --dro-file output/dro/dro_*.json
 
 
 def main() -> None:
     """执行脚本主流程。
-    
+
     Returns:
         None。
     """
