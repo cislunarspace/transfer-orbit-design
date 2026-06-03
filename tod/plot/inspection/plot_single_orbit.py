@@ -24,6 +24,11 @@ if not logging.getLogger().handlers:
 
 from tod.commons.constants import MU, TU
 from tod.plot.config import apply_standard_plot_config
+from tod.cli.input_file import (
+    InputFileRequest,
+    InputResolutionError,
+    resolve_input_file,
+)
 
 import matplotlib.pyplot as plt
 from e2m2e.core import Orbit, CR3BP_System
@@ -38,7 +43,7 @@ PLOT_CONFIG = apply_standard_plot_config()
 
 def parse_args():
     """解析命令行参数。
-    
+
     Returns:
         解析后的命令行参数命名空间。
     """
@@ -46,10 +51,19 @@ def parse_args():
     parser.add_argument(
         "--json-file", type=str, default=None, help="轨道 JSON 文件路径"
     )
+    parser.add_argument(
+        "--auto-latest", action="store_true",
+        help="显式 opt-in：按 mtime 选最新 ro_*.json（项目 output/ro 下）",
+    )
     return parser.parse_args()
 
 
-DEFAULT_ORBIT_FILENAME = "ro_31_3857030320.json"
+# 默认输入文件路径被 issue #183 移除：
+# - ``--json-file`` 现在是必填（或显式 opt-in ``--auto-latest``）
+# - 直跑 ``python -m tod.plot.inspection.plot_single_orbit`` 不再注入默认参数
+# - 想调哪个值就改运行命令，例如：
+#     uv run python -m tod.plot.inspection.plot_single_orbit \
+#         --json-file output/ro/<orbit>.json
 
 
 def main():
@@ -65,12 +79,27 @@ def main():
 
     output_dir = project_root / "output" / "ro"
 
-    if args.json_file:
-        orbit_path = Path(args.json_file)
-        orbit_filename = orbit_path.name
-    else:
-        orbit_filename = DEFAULT_ORBIT_FILENAME
-        orbit_path = output_dir / orbit_filename
+    try:
+        orbit_path = resolve_input_file(
+            InputFileRequest(
+                explicit_path=Path(args.json_file) if args.json_file else None,
+                auto_latest=bool(args.auto_latest),
+                search_root=output_dir,
+                pattern="ro_*.json",
+                flag="--json-file",
+                auto_latest_flag="--auto-latest",
+            )
+        )
+    except InputResolutionError as exc:
+        parser = argparse.ArgumentParser(prog="plot_single_orbit", description="绘制单条轨道")
+        if exc.candidates or exc.remaining:
+            parser.error(
+                f"{exc}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+            )
+        parser.error(str(exc))
+        return  # unreachable
+
+    orbit_filename = orbit_path.name
 
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
     orbit = Orbit.load_from_file(filename=orbit_path, system=system)
@@ -211,9 +240,7 @@ def main():
 
 
 if __name__ == "__main__":
-    # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
-    # 命令行调用时不影响。
-    # 想调哪个值就改下方对应字面量即可。
-    if len(sys.argv) == 1:
-        logger.debug("使用代码内置调试参数")
+    # 旧版 F5 直跑自动注入默认参数已被 issue #183 移除：
+    # 直跑也会进入「需要显式输入」契约失败路径。开发者请显式传：
+    #   --json-file <path> 或 --auto-latest
     main()

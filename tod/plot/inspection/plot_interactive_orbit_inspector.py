@@ -27,6 +27,11 @@ from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization.base import OrbitVisualizer
 from tod.commons.constants import MU, TU
 from tod.plot.config import apply_standard_plot_config, style_colorbar
+from tod.cli.input_file import (
+    InputFileRequest,
+    InputResolutionError,
+    resolve_input_file,
+)
 import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.colors import Normalize
@@ -41,13 +46,17 @@ PLOT_CONFIG = apply_standard_plot_config()
 
 def parse_args():
     """解析命令行参数。
-    
+
     Returns:
         解析后的命令行参数命名空间。
     """
     parser = argparse.ArgumentParser(description="交互式轨道检查器", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--json-file", type=str, default=None, help="轨道族 JSON 文件路径"
+    )
+    parser.add_argument(
+        "--auto-latest", action="store_true",
+        help="显式 opt-in：按 mtime 选最新 ro_*.json 或 dro_*.json",
     )
     parser.add_argument(
         "--plane", type=str, default="xy", choices=["xy", "xz", "yz"], help="投影平面"
@@ -61,7 +70,10 @@ def parse_args():
     return parser.parse_args()
 
 
-DEFAULT_FAMILY_NAME = "ro_31_family_0.8905--0.8304999999999999-0.001_3856910376"
+# 旧的 ``DEFAULT_FAMILY_NAME`` 硬编码默认文件被 issue #183 移除：
+# - ``--json-file`` 必填或显式 opt-in ``--auto-latest``
+# - 直跑 ``python -m tod.plot.inspection.plot_interactive_orbit_inspector``
+#   不再自动注入默认参数（见 ``__main__`` 块注释）
 
 
 # 全局图形窗口（在 main() 中初始化）
@@ -136,17 +148,33 @@ def main():
 
     args = parse_args()
 
-    # 解析参数
-    if args.json_file:
-        _family_path = Path(args.json_file)
+    # 解析参数：按 issue #183 契约解析 --json-file 或 --auto-latest
+    parser_obj = argparse.ArgumentParser(prog="plot_interactive_orbit_inspector", description="交互式轨道检查器")
+    try:
+        # 默认在 output/ro 下搜；若 ro 下没有 ro_*.json，回退到 output/dro
+        # （保持旧版「dro_ 前缀走 output/dro」分类行为，但仍然不硬编码文件名）
+        ro_root = project_root / "output" / "ro"
+        dro_root = project_root / "output" / "dro"
+        primary_root = ro_root if ro_root.is_dir() else dro_root
+        primary_pattern = "ro_*.json" if primary_root is ro_root else "dro_*.json"
+
+        _family_path = resolve_input_file(
+            InputFileRequest(
+                explicit_path=Path(args.json_file) if args.json_file else None,
+                auto_latest=bool(args.auto_latest),
+                search_root=primary_root,
+                pattern=primary_pattern,
+                flag="--json-file",
+                auto_latest_flag="--auto-latest",
+            )
+        )
         _family_name = _family_path.stem
-    else:
-        _family_name = DEFAULT_FAMILY_NAME
-        if _family_name.startswith("dro_"):
-            _family_dir = project_root / "output" / "dro"
-        else:
-            _family_dir = project_root / "output" / "ro"
-        _family_path = _family_dir / f"{_family_name}.json"
+    except InputResolutionError as exc:
+        msg = str(exc)
+        if exc.candidates or exc.remaining:
+            msg = f"{msg}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+        parser_obj.error(msg)
+        return  # unreachable; parser.error exits 2
 
     _plane = args.plane
     _show_3d = args.show_3d
@@ -329,13 +357,7 @@ def main():
 
 
 if __name__ == "__main__":
-    # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
-    # 命令行调用时不影响。
-    # 想调哪个值就改下方对应字面量即可。
-    if len(sys.argv) == 1:
-        sys.argv += [
-            "--plane", "xy",                              # 投影平面
-            "--fig-size", "10", "8",                      # 图形大小 (宽 高)
-        ]
-        logger.debug("使用代码内置调试参数")
+    # 旧版 F5 直跑自动注入默认参数已被 issue #183 移除：
+    # 直跑也会进入「需要显式输入」契约失败路径。开发者请显式传：
+    #   --json-file <path> 或 --auto-latest
     main()
