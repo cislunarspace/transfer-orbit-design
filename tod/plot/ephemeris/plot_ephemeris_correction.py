@@ -54,6 +54,12 @@ def parse_args():
     parser = argparse.ArgumentParser(description="绘制 DRO 星历修正前后对比图", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
     parser.add_argument("--ephemeris-file", type=str, default=None, help="星历修正 JSON 文件路径")
+    parser.add_argument(
+        "--reference-epoch",
+        type=str,
+        default=None,
+        help="参考历元；可选，未填时使用星历修正 JSON 中的 reference_epoch，填写时必须与 JSON 一致。",
+    )
     return parser.parse_args()
 
 REFERENCE_EPOCH = "2025-06-21T11:00:06"
@@ -64,6 +70,42 @@ SPICE_KERNEL_DIR = os.environ.get(
 BODIES = ["EARTH", "MOON", "SUN"]
 TU_SECONDS = TU * 86400
 N_PERIODS = 3
+J2000_AXIS_LABELS = ("X (DU)", "Y (DU)", "Z (DU)")
+
+
+def resolve_reference_epoch(
+    eph_data: dict,
+    requested_reference_epoch: str | None,
+) -> str:
+    """从星历修正 JSON 和用户请求中解析参考历元。
+
+    未传入时返回 JSON 顶层 ``reference_epoch``；传入时必须严格字符串
+    相等，否则抛出 ValueError。
+
+    Args:
+        eph_data: 已加载的星历修正 JSON 字典。
+        requested_reference_epoch: 用户通过 ``--reference-epoch`` 传入的值。
+
+    Returns:
+        经过校验的参考历元字符串。
+
+    Raises:
+        ValueError: 当显式值与 JSON 值不一致时。
+        KeyError: 当 JSON 中缺少 ``reference_epoch`` 字段时。
+    """
+    if "reference_epoch" not in eph_data:
+        raise ValueError(
+            "星历修正 JSON 缺少 reference_epoch，无法确定 synodic/J2000 转换参考历元"
+        )
+    json_reference_epoch = eph_data["reference_epoch"]
+    if requested_reference_epoch is None:
+        return json_reference_epoch
+    if requested_reference_epoch != json_reference_epoch:
+        raise ValueError(
+            f"显式传入的 --reference-epoch（{requested_reference_epoch!r}）"
+            f"与 JSON 中的 reference_epoch（{json_reference_epoch!r}）不一致"
+        )
+    return json_reference_epoch
 
 
 def set_axes_equal(ax):
@@ -132,6 +174,10 @@ def main():
     if not ephemeris_json_file.is_file():
         raise FileNotFoundError(f"星历修正数据文件不存在: {ephemeris_json_file}")
 
+    with open(ephemeris_json_file, encoding="utf-8") as f:
+        eph_data = json.load(f)
+    reference_epoch = resolve_reference_epoch(eph_data, args.reference_epoch)
+
     spice = SPICEManager()
     kernel_path = spice.find_ephemeris_kernel(SPICE_KERNEL_DIR)
     import spiceypy
@@ -141,7 +187,7 @@ def main():
     spice.load_kernel(kernel_path)
 
     try:
-        reference_et = spice.utc_to_et(REFERENCE_EPOCH)
+        reference_et = spice.utc_to_et(reference_epoch)
         cr3bp_system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
         syn_j2000 = SynodicJ2000Transformation(
             cr3bp_system=cr3bp_system,
@@ -157,9 +203,6 @@ def main():
             t_syn_arr=dro_times_3t,
             et0=reference_et,
         )
-
-        with open(ephemeris_json_file, encoding="utf-8") as f:
-            eph_data = json.load(f)
 
         converged = eph_data["converged"]
         period_tu = eph_data["cr3bp_dro"]["period_tu"]
@@ -255,9 +298,9 @@ def main():
 
         ax2.scatter(0, 0, 0, color="green", s=100, zorder=5, label="Earth")
 
-        ax2.set_xlabel("X (×10⁵ km)")
-        ax2.set_ylabel("Y (×10⁵ km)")
-        ax2.set_zlabel("Z (×10⁵ km)")
+        ax2.set_xlabel(J2000_AXIS_LABELS[0])
+        ax2.set_ylabel(J2000_AXIS_LABELS[1])
+        ax2.set_zlabel(J2000_AXIS_LABELS[2])
         status = "Converged" if converged else "Not converged"
         ax2.set_title(f"J2000 Inertial Frame ({status})", fontsize=PLOT_CONFIG.title)
         ax2.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
