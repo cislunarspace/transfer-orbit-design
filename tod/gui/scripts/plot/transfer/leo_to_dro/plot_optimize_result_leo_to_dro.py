@@ -15,6 +15,7 @@ SCRIPT_ENTRY = ScriptEntry(
     group_label='LEO→DRO',
     cli_params=[
         CliParam('--file', '优化结果文件', 'str', '', help='优化结果 JSON 文件路径。', file_category='transfer'),
+        CliParam('--auto-latest', '按 mtime 选最新（显式 opt-in）', 'bool', '', help='显式 opt-in：按 mtime 选最新 optimization_leo_dro_*.json；与 --file 互斥。', advanced=True),
         CliParam('--orbit', '转移轨道图（3D）', 'bool', '', help='重新积分并绘制转移轨道 3D 示意图，勾选后启用。'),
         CliParam('--time-dv', '转移时间-Δv 散点图', 'bool', '', help='转移时间 vs Δv 散点图，勾选后启用。'),
         CliParam('--interactive', '逐条浏览模式', 'bool', '', help='按转移时间排序逐条浏览，勾选后启用。'),

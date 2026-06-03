@@ -14,5 +14,6 @@ SCRIPT_ENTRY = ScriptEntry(
     group_label='单轨道绘图',
     cli_params=[
         CliParam('--json-file', '轨道文件', 'str', '', help='轨道 JSON 文件路径。'),
+        CliParam('--auto-latest', '按 mtime 选最新（显式 opt-in）', 'bool', '', help='显式 opt-in：按 mtime 选最新 ro_*.json；与 --json-file 互斥。', advanced=True),
     ],
 )
