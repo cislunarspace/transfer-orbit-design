@@ -367,17 +367,7 @@ def convert_orbit(
         include_full_trajectory,
     )
     result = {
-        "status": "success",
-        "converged": bool(correction.converged),
-        "iterations": int(correction.iterations),
-        "max_residual": float(correction.max_residual),
-        "velocity_residual": _optional_float(correction.velocity_residual),
-        "residual_history": [float(value) for value in correction.residual_history],
-        "velocity_residual_history": _optional_float_list(
-            correction.velocity_residual_history
-        ),
-        "corrected_states": _to_nested_list(correction.state_patch),
-        "corrected_times_et": _to_list(correction.t_patch),
+        **_conversion_result_fields(correction),
         "position_errors_km": continuity["position_errors_km"],
         "source_summary": _orbit_source_summary(payload),
     }
@@ -627,7 +617,7 @@ def run_default_family_payload_conversion_parallel(
             except Exception as exc:
                 entries[index] = _family_failure_entry(index, payload, exc)
             else:
-                entries[index] = _family_success_entry(index, conversion_result)
+                entries[index] = _family_entry_from_conversion(index, conversion_result)
     return [entry for entry in entries if entry is not None]
 
 
@@ -686,7 +676,7 @@ def run_family_payload_conversion(
             except Exception as exc:
                 entries[index] = _family_failure_entry(index, payload, exc)
             else:
-                entries[index] = _family_success_entry(index, conversion_result)
+                entries[index] = _family_entry_from_conversion(index, conversion_result)
     return [entry for entry in entries if entry is not None]
 
 
@@ -706,14 +696,46 @@ def _run_family_payload_conversion_serial(
             if fail_fast:
                 break
         else:
-            entries.append(_family_success_entry(index, conversion_result))
+            entry = _family_entry_from_conversion(index, conversion_result)
+            entries.append(entry)
+            if fail_fast and entry["status"] != "success":
+                break
     return entries
+
+
+def _conversion_status(converged: bool) -> str:
+    return "success" if converged else "not_converged"
+
+
+def _conversion_result_fields(correction: Any) -> dict[str, Any]:
+    converged = bool(correction.converged)
+    return {
+        "status": _conversion_status(converged),
+        "converged": converged,
+        "iterations": int(correction.iterations),
+        "max_residual": float(correction.max_residual),
+        "velocity_residual": _optional_float(correction.velocity_residual),
+        "residual_history": [float(value) for value in correction.residual_history],
+        "velocity_residual_history": _optional_float_list(
+            correction.velocity_residual_history
+        ),
+        "corrected_states": _to_nested_list(correction.state_patch),
+        "corrected_times_et": _to_list(correction.t_patch),
+    }
 
 
 def _family_success_entry(index: int, conversion_result: dict[str, Any]) -> dict[str, Any]:
     return {
         "orbit_index": index,
         "status": "success",
+        "result": conversion_result,
+    }
+
+
+def _family_not_converged_entry(index: int, conversion_result: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "orbit_index": index,
+        "status": "not_converged",
         "result": conversion_result,
     }
 
@@ -725,6 +747,12 @@ def _family_failure_entry(index: int, payload: dict[str, Any], exc: Exception) -
         "error": str(exc),
         "source_summary": _orbit_source_summary(payload),
     }
+
+
+def _family_entry_from_conversion(index: int, conversion_result: dict[str, Any]) -> dict[str, Any]:
+    if conversion_result.get("status") == "not_converged":
+        return _family_not_converged_entry(index, conversion_result)
+    return _family_success_entry(index, conversion_result)
 
 
 def _validate_continuity(

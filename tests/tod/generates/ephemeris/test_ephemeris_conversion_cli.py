@@ -641,3 +641,115 @@ def test_convert_orbit_omits_full_trajectory_when_not_requested(tmp_path):
     assert output["velocity_residual"] is None
     assert "full_trajectory_states" not in output
     assert "full_trajectory_times_et" not in output
+
+
+def test_convert_orbit_marks_not_converged_when_corrector_does_not_converge(tmp_path):
+    payload = {"states": [[1, 2, 3, 4, 5, 6]], "times": [0], "period": 1.0}
+    config = _conversion.SingleConversionConfig(
+        orbit_type="dro",
+        input_file=tmp_path / "orbit.json",
+        reference_epoch="2025-06-21T11:00:06",
+        method="two_level",
+        patch_points=2,
+        position_tol=1e-3,
+        velocity_tol=1e-6,
+        spice_kernel_dir=tmp_path / "kernels",
+        bodies=("EARTH", "MOON", "SUN"),
+        output_file=None,
+        per_orbit_workers=1,
+        orbit_index=None,
+    )
+    orbit = SimpleNamespace(period=1.0, states=[[1, 2, 3, 4, 5, 6]])
+    result = SimpleNamespace(
+        converged=False,
+        iterations=10,
+        max_residual=1.0,
+        residual_history=[1.0],
+        velocity_residual=None,
+        velocity_residual_history=None,
+        t_patch=[10.0, 20.0],
+        state_patch=[[1.0, 0, 0, 0, 0, 0], [2.0, 0, 0, 0, 0, 0]],
+    )
+    dynamics = MagicMock()
+    dynamics.propagate.return_value = {
+        "states": [[1, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0]],
+        "time": [10, 20],
+    }
+    deps = _conversion.ConversionDependencies(
+        build_orbit=lambda orbit_payload: orbit,
+        build_dynamics=lambda conversion_config: dynamics,
+        reference_et=lambda conversion_config: 123.0,
+        sample_patch_points=MagicMock(return_value=([0.0, 1.0], [[1], [2]])),
+        convert_to_j2000=MagicMock(return_value=([10.0, 20.0], [[10], [20]])),
+        correct_patch_points=MagicMock(return_value=result),
+    )
+
+    output = _conversion.convert_orbit(payload, config, deps, include_full_trajectory=False)
+
+    assert output["status"] == "not_converged"
+    assert output["converged"] is False
+    assert output["max_residual"] == 1.0
+    assert output["residual_history"] == [1.0]
+    assert output["position_errors_km"] == [0.0]
+    assert output["source_summary"] is not None
+
+
+def test_run_family_payload_conversion_records_not_converged_and_continues():
+    not_converged_result = {"status": "not_converged", "converged": False}
+
+    def convert(payload, index, include_full_trajectory):
+        if index == 1:
+            return not_converged_result
+        return {"status": "success", "converged": True}
+
+    result = _conversion.run_family_payload_conversion(
+        [{"period": 1.0}, {"period": 2.0}, {"period": 3.0}],
+        convert,
+        fail_fast=False,
+        include_full_trajectory=False,
+    )
+
+    assert [entry["orbit_index"] for entry in result] == [0, 1, 2]
+    assert result[0]["status"] == "success"
+    assert result[1]["status"] == "not_converged"
+    assert result[1]["result"] == not_converged_result
+    assert result[2]["status"] == "success"
+
+
+def test_run_family_payload_conversion_fail_fast_stops_after_not_converged():
+    not_converged_result = {"status": "not_converged", "converged": False}
+
+    def convert(payload, index, include_full_trajectory):
+        if index == 1:
+            return not_converged_result
+        return {"status": "success", "converged": True}
+
+    result = _conversion.run_family_payload_conversion(
+        [{"period": 1.0}, {"period": 2.0}, {"period": 3.0}],
+        convert,
+        fail_fast=True,
+        include_full_trajectory=False,
+    )
+
+    assert [entry["status"] for entry in result] == ["success", "not_converged"]
+    assert len(result) == 2
+
+
+def test_run_family_payload_conversion_parallel_records_not_converged_in_input_order():
+    not_converged_result = {"status": "not_converged", "converged": False}
+
+    def convert(payload, index, include_full_trajectory):
+        if index == 1:
+            return not_converged_result
+        return {"status": "success", "converged": True}
+
+    result = _conversion.run_family_payload_conversion(
+        [{"period": 1.0}, {"period": 2.0}, {"period": 3.0}],
+        convert,
+        fail_fast=False,
+        include_full_trajectory=False,
+        family_workers=2,
+    )
+
+    assert [entry["orbit_index"] for entry in result] == [0, 1, 2]
+    assert [entry["status"] for entry in result] == ["success", "not_converged", "success"]
