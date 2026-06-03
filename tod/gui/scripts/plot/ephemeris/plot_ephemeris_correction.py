@@ -17,5 +17,6 @@ SCRIPT_ENTRY = ScriptEntry(
     cli_params=[
         CliParam('--dro-file', 'DRO 文件', 'str', '', help='DRO 轨道 JSON 文件路径。', file_category='dro'),
         CliParam('--ephemeris-file', '星历修正文件', 'str', '', help='星历修正 JSON 文件路径。', file_category='ephemeris'),
+        CliParam('--reference-epoch', '参考历元', 'str', '', help='可选；未填时使用星历修正 JSON 中的 reference_epoch。若填写，必须与 JSON 一致。'),
     ],
 )

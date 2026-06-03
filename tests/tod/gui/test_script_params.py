@@ -221,3 +221,21 @@ def test_scanner_discovers_all_expected_files() -> None:
     expected_paths = {p.replace("\\", "/") for p in PARAMS_FILES}
     missing = expected_paths - scanned_paths
     assert not missing, "Scanner missed these params files:\n" + "\n".join(sorted(missing))
+
+
+# ─── Targeted: plot_ephemeris_correction has --reference-epoch ──────────────────
+
+
+def test_plot_ephemeris_correction_exposes_reference_epoch_param() -> None:
+    """plot_ephemeris_correction GUI entry exposes optional --reference-epoch."""
+    scripts_dir = PROJECT_ROOT / "tod" / "gui" / "scripts"
+    file_path = scripts_dir / "plot" / "ephemeris" / "plot_ephemeris_correction.py"
+    spec = importlib.util.spec_from_file_location(
+        "tod.gui.scripts.plot.ephemeris.plot_ephemeris_correction", str(file_path),
+    )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    flags = [p.flag for p in module.SCRIPT_ENTRY.cli_params]
+    assert "--reference-epoch" in flags
