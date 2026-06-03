@@ -36,6 +36,11 @@ from matplotlib.axes import Axes
 from matplotlib.colors import Normalize
 from tod.commons.constants import MU, TU, VU
 from tod.commons.common import find_project_root
+from tod.cli.input_file import (
+    InputFileRequest,
+    InputResolutionError,
+    resolve_input_file,
+)
 from tod.plot.config import apply_standard_plot_config, style_colorbar
 
 project_root = find_project_root(Path(__file__))
@@ -59,6 +64,31 @@ def _latest_optimization_json() -> Optional[Path]:
     transfer_dir = project_root / "output/transfer"
     candidates = sorted(transfer_dir.glob("optimization_results_*.json"))
     return candidates[-1] if candidates else None
+
+
+def _resolve_opt_input(args) -> Path:
+    """按 issue #183 契约解析 optimization_results_*.json。"""
+    try:
+        return resolve_input_file(
+            InputFileRequest(
+                explicit_path=Path(args.file) if args.file else None,
+                auto_latest=bool(args.auto_latest),
+                search_root=project_root / "output/transfer",
+                pattern="optimization_results_*.json",
+                flag="--file",
+                auto_latest_flag="--auto-latest",
+            )
+        )
+    except InputResolutionError as exc:
+        parser = argparse.ArgumentParser(
+            prog="plot_optimize_result_dro_to_ro",
+            description="可视化 DRO→RO 优化结果",
+        )
+        if exc.candidates or exc.remaining:
+            parser.error(
+                f"{exc}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+            )
+        parser.error(str(exc))
 
 
 def load_optimization_results(path: Path) -> Dict[str, Any]:
@@ -488,6 +518,7 @@ def main() -> None:
     """
     parser = argparse.ArgumentParser(description="可视化 NLP 优化结果", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--file", type=str, default=None, help="optimization_results_*.json 路径（默认自动选最新）")
+    parser.add_argument("--auto-latest", action="store_true", help="显式 opt-in：按 mtime 选最新 optimization_results_*.json")
     parser.add_argument("--save", type=str, default=None, help="保存图片路径")
     parser.add_argument("--dpi", type=int, default=150)
     parser.add_argument("--orbit", action="store_true", help="绘制转移轨道 3D 示意图")
@@ -497,17 +528,8 @@ def main() -> None:
     parser.add_argument("--max-points", type=int, default=500, help="--orbit --idx all 时最多绘制条数")
     args = parser.parse_args()
 
-    if args.file:
-        opt_path = Path(args.file).expanduser().resolve()
-        # 路径遍历防护
-        try:
-            opt_path.relative_to(project_root.resolve())
-        except ValueError:
-            logger.info(f"安全拒绝: {opt_path} 不在项目根目录 {project_root} 内")
-            sys.exit(1)
-    else:
-        opt_path = _latest_optimization_json()
-    if opt_path is None or not opt_path.is_file():
+    opt_path = _resolve_opt_input(args)
+    if not opt_path.is_file():
         raise FileNotFoundError("未找到 optimization_results_*.json")
     logger.info(f"读取: {opt_path}")
 

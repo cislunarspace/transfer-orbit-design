@@ -29,6 +29,11 @@ import matplotlib  # noqa: E402
 import numpy as np
 from tod.commons.constants import TU, VU
 from tod.commons.common import find_project_root
+from tod.cli.input_file import (
+    InputFileRequest,
+    InputResolutionError,
+    resolve_input_file,
+)
 
 project_root = find_project_root(Path(__file__))
 
@@ -58,6 +63,31 @@ def _latest_optimization_json() -> Path | None:
     transfer_dir = project_root / "output/transfer"
     candidates = sorted(transfer_dir.glob("optimization_dro_geo_*.json"))
     return candidates[-1] if candidates else None
+
+
+def _resolve_opt_input(args) -> Path:
+    """按 issue #183 契约解析 optimization_dro_geo_*.json。"""
+    try:
+        return resolve_input_file(
+            InputFileRequest(
+                explicit_path=Path(args.file) if args.file else None,
+                auto_latest=bool(args.auto_latest),
+                search_root=project_root / "output/transfer",
+                pattern="optimization_dro_geo_*.json",
+                flag="--file",
+                auto_latest_flag="--auto-latest",
+            )
+        )
+    except InputResolutionError as exc:
+        parser = argparse.ArgumentParser(
+            prog="plot_optimize_result_dro_to_geo",
+            description="可视化 DRO→GEO 优化结果",
+        )
+        if exc.candidates or exc.remaining:
+            parser.error(
+                f"{exc}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+            )
+        parser.error(str(exc))
 
 
 def _successful_records(results: list[dict]) -> list[dict]:
@@ -126,6 +156,7 @@ def main() -> None:
     """
     parser = argparse.ArgumentParser(description="可视化 DRO→GEO 优化结果", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--file", type=str, default=None, help="优化结果 JSON 路径")
+    parser.add_argument("--auto-latest", action="store_true", help="显式 opt-in：按 mtime 选最新 optimization_dro_geo_*.json")
     parser.add_argument("--orbit", action="store_true", help="绘制转移轨道 3D 示意图")
     parser.add_argument("--time-dv", action="store_true", help="转移时间 vs Δv 散点图")
     parser.add_argument("--idx", type=str, default="best", help="选择索引")
@@ -136,10 +167,9 @@ def main() -> None:
     parser.add_argument("--no-show", action="store_true", help="生成图像后不弹窗显示（GUI 后台运行）")
     args = parser.parse_args()
 
-    opt_path = Path(args.file).expanduser().resolve() if args.file else _latest_optimization_json()
-    if opt_path is None or not opt_path.is_file():
+    opt_path = _resolve_opt_input(args)
+    if not opt_path.is_file():
         raise FileNotFoundError("未找到优化结果 JSON")
-
     logger.info(f"读取: {opt_path}")
     data = load_optimization_results(opt_path)
     results = data.get("results", [])

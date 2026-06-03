@@ -37,6 +37,11 @@ from e2m2e.orbits.geo import (
 from e2m2e.transfer import load_orbit_from_json
 from tod.commons.constants import MU, TU, VU
 from tod.commons.common import find_project_root
+from tod.cli.input_file import (
+    InputFileRequest,
+    InputResolutionError,
+    resolve_input_file,
+)
 from tod.plot.config import apply_standard_plot_config, subsample_indices
 from tod.plot.transfer.common import (
     load_search_results,
@@ -363,6 +368,9 @@ def main():
     """
     parser = argparse.ArgumentParser(description="GEO → DRO 搜索结果可视化", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--file", type=str, default=None, help="搜索结果 JSON 路径")
+    parser.add_argument("--auto-latest", action="store_true", help="显式 opt-in：按 mtime 选最新 search_geo_dro_*.json")
+    parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 路径")
+    parser.add_argument("--auto-latest-dro", action="store_true", help="显式 opt-in：按 mtime 选最新 dro_<digits>.json")
     parser.add_argument("--save", type=str, default=None, help="保存 PNG 路径；不传则弹窗显示")
     parser.add_argument("--max-points", type=int, default=50000,
                         help="散点最多绘制的可行点数（过多时随机子采样）")
@@ -375,35 +383,51 @@ def main():
                         help="轨道选择: all, best, best:N, random, 或序号")
     args = parser.parse_args()
 
-    # 搜索结果文件: CLI > 环境变量 > 自动发现
-    if args.file:
-        results_file = Path(args.file)
-    else:
-        env_val = os.environ.get("SEARCH_RESULTS_FILE")
-        if env_val:
-            results_file = Path(env_val)
-        else:
-            candidates = sorted((project_root / "output/transfer").glob("search_geo_dro_*.json"))
-            if not candidates:
-                logger.info("未找到搜索结果文件，请用 --file 指定")
-                return
-            results_file = candidates[-1]
-            logger.info(f"自动发现: {results_file}")
+    # 搜索结果文件: 显式 --file 或 --auto-latest
+    parser_obj = parser  # parser.error 需要原始 parser 触发 exit 2
+    try:
+        results_file = resolve_input_file(
+            InputFileRequest(
+                explicit_path=Path(args.file) if args.file else None,
+                auto_latest=bool(args.auto_latest),
+                search_root=project_root / "output/transfer",
+                pattern="search_geo_dro_*.json",
+                flag="--file",
+                auto_latest_flag="--auto-latest",
+            )
+        )
+        logger.info(f"读取: {results_file}")
+    except InputResolutionError as exc:
+        msg = str(exc)
+        if exc.candidates or exc.remaining:
+            msg = f"{msg}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+        parser_obj.error(msg)
+        return  # unreachable; parser.error exits with 2
 
     rows = load_search_results(results_file)
     feasible_rows = [r for r in rows if r.get("is_feasible")]
     logger.info(f"加载 {len(rows)} 条记录, {len(feasible_rows)} 个可行解")
 
-    # DRO 文件: CLI > 环境变量 > 自动发现
-    dro_file_env = os.environ.get("DRO_FILE")
-    if dro_file_env:
-        dro_file = Path(dro_file_env)
-    else:
-        dro_files = sorted((project_root / "output/dro").glob("dro_31_*.json"))
-        if not dro_files:
-            logger.info("找不到 DRO 文件")
-            return
-        dro_file = dro_files[-1]
+    # DRO 文件: 显式 --dro-file 或 --auto-latest-dro（与主输入同样走契约）
+    try:
+        dro_file = resolve_input_file(
+            InputFileRequest(
+                explicit_path=Path(args.dro_file) if args.dro_file else None,
+                auto_latest=bool(args.auto_latest_dro),
+                search_root=project_root / "output/dro",
+                pattern="dro_*.json",
+                flag="--dro-file",
+                auto_latest_flag="--auto-latest-dro",
+            )
+        )
+        logger.info(f"DRO: {dro_file}")
+    except InputResolutionError as exc:
+        msg = str(exc)
+        if exc.candidates or exc.remaining:
+            msg = f"{msg}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+        parser_obj.error(msg)
+        return
+
     dro_orbit = load_orbit_from_json(str(dro_file))
     with open(dro_file) as f:
         dro_data = json.load(f)

@@ -31,6 +31,11 @@ from e2m2e.transfer import load_orbit_from_json
 from matplotlib.colors import Normalize
 from tod.commons.constants import DU, TU, VU
 from tod.commons.common import find_project_root
+from tod.cli.input_file import (
+    InputFileRequest,
+    InputResolutionError,
+    resolve_input_file,
+)
 from tod.plot.config import apply_standard_plot_config, style_colorbar
 from tod.plot.transfer.common import (
     geo_circle_points,
@@ -53,7 +58,9 @@ logger = logging.getLogger(__name__)
 # =====================================================================
 # 配置
 # =====================================================================
-DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
+
+# 旧的 hardcoded ``DRO_FILE`` 已被 issue #183 移除：现在 DRO 轨道必须通过
+# ``--dro-file`` 或显式 opt-in ``--auto-latest-dro`` 提供。
 
 
 # =====================================================================
@@ -64,6 +71,56 @@ DRO_FILE = project_root / "output/dro/dro_31_3857864736.json"
 def _latest_optimization_json():
     candidates = sorted((project_root / "output/transfer").glob("optimization_geo_dro_*.json"))
     return candidates[-1] if candidates else None
+
+
+def _resolve_opt_input(args) -> Path:
+    """按 issue #183 契约解析 optimization JSON。"""
+    try:
+        return resolve_input_file(
+            InputFileRequest(
+                explicit_path=Path(args.file) if args.file else None,
+                auto_latest=bool(args.auto_latest),
+                search_root=project_root / "output/transfer",
+                pattern="optimization_geo_dro_*.json",
+                flag="--file",
+                auto_latest_flag="--auto-latest",
+            )
+        )
+    except InputResolutionError as exc:
+        parser = argparse.ArgumentParser(
+            prog="plot_optimize_result_geo_to_dro",
+            description="可视化 GEO→DRO 优化结果",
+        )
+        if exc.candidates or exc.remaining:
+            parser.error(
+                f"{exc}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+            )
+        parser.error(str(exc))
+
+
+def _resolve_dro_input(args) -> Path:
+    """按 issue #183 契约解析 DRO 轨道文件。"""
+    try:
+        return resolve_input_file(
+            InputFileRequest(
+                explicit_path=Path(args.dro_file) if args.dro_file else None,
+                auto_latest=bool(args.auto_latest_dro),
+                search_root=project_root / "output/dro",
+                pattern="dro_*.json",
+                flag="--dro-file",
+                auto_latest_flag="--auto-latest-dro",
+            )
+        )
+    except InputResolutionError as exc:
+        parser = argparse.ArgumentParser(
+            prog="plot_optimize_result_geo_to_dro",
+            description="可视化 GEO→DRO 优化结果",
+        )
+        if exc.candidates or exc.remaining:
+            parser.error(
+                f"{exc}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+            )
+        parser.error(str(exc))
 
 
 def load_optimization_results(path: Path) -> Dict[str, Any]:
@@ -548,6 +605,9 @@ def main():
         epilog=__doc__,
     )
     parser.add_argument("--file", type=str, default=None, help="optimization JSON path (auto-detect latest)")
+    parser.add_argument("--auto-latest", action="store_true", help="显式 opt-in：按 mtime 选最新 optimization_geo_dro_*.json")
+    parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 路径")
+    parser.add_argument("--auto-latest-dro", action="store_true", help="显式 opt-in：按 mtime 选最新 dro_<digits>.json")
     parser.add_argument("--orbit", action="store_true", help="3D transfer orbit plot")
     parser.add_argument("--time-dv", action="store_true", help="transfer time vs dv scatter plot")
     parser.add_argument("--interactive", action="store_true", help="interactive browsing mode")
@@ -562,33 +622,17 @@ def main():
     parser.add_argument("--dpi", type=int, default=150)
     args = parser.parse_args()
 
-    if args.file:
-        opt_path = Path(args.file).expanduser().resolve()
-        # 路径遍历防护
-        try:
-            opt_path.relative_to(project_root.resolve())
-        except ValueError:
-            logger.info(f"安全拒绝: {opt_path} 不在项目根目录 {project_root} 内")
-            sys.exit(1)
-    else:
-        opt_path = _latest_optimization_json()
-    if opt_path is None or not opt_path.exists():
-        logger.info("optimization result JSON not found")
-        return
-
+    opt_path = _resolve_opt_input(args)
+    if not opt_path.exists():
+        parser.error(f"optimization result JSON not found: {opt_path}")
     logger.info(f"Loading: {opt_path}")
     data = load_optimization_results(opt_path)
     records = _collect_nlp_records(data)
 
-    # 加载 DRO
-    dro_file = DRO_FILE
-    if not dro_file.exists():
-        dro_files = sorted((project_root / "output/dro").glob("dro_31_*.json"))
-        if not dro_files:
-            logger.info("DRO file not found")
-            return
-        dro_file = dro_files[-1]
-    dro_orbit = load_orbit_from_json(str(dro_file))
+    # 加载 DRO：通过契约解析（无 hardcoded DRO_FILE，无 latest fallback）
+    dro_file = _resolve_dro_input(args)
+    if not dro_file.is_file():
+        parser.error(f"DRO file not found: {dro_file}")
     with open(dro_file) as f:
         dro_data = json.load(f)
     dro_orbit.period = dro_data.get("properties", {}).get("period")

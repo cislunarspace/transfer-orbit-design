@@ -27,6 +27,11 @@ if not logging.getLogger().handlers:
 
 import matplotlib  # noqa: E402
 import numpy as np
+from tod.cli.input_file import (
+    InputFileRequest,
+    InputResolutionError,
+    resolve_input_file,
+)
 from tod.commons.constants import TU, VU
 from tod.commons.common import find_project_root
 from tod.plot.transfer.common import (
@@ -63,6 +68,31 @@ def _latest_search_json() -> Path | None:
     transfer_dir = project_root / "output/transfer"
     candidates = sorted(transfer_dir.glob("search_leo_dro_*.json"))
     return candidates[-1] if candidates else None
+
+
+def _resolve_search_input(args) -> Path:
+    """按 issue #183 契约解析搜索结果文件。"""
+    try:
+        return resolve_input_file(
+            InputFileRequest(
+                explicit_path=Path(args.file) if args.file else None,
+                auto_latest=bool(args.auto_latest),
+                search_root=project_root / "output/transfer",
+                pattern="search_leo_dro_*.json",
+                flag="--file",
+                auto_latest_flag="--auto-latest",
+            )
+        )
+    except InputResolutionError as exc:
+        parser = argparse.ArgumentParser(
+            prog="plot_search_results_leo_to_dro",
+            description="可视化 LEO→DRO 网格搜索结果",
+        )
+        if exc.candidates or exc.remaining:
+            parser.error(
+                f"{exc}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+            )
+        parser.error(str(exc))
 
 
 def _selected_feasible(feasible: list[dict], idx_arg: str, seed: int, max_points: int) -> list[dict]:
@@ -150,6 +180,7 @@ def main() -> None:
     """
     parser = argparse.ArgumentParser(description="可视化 LEO→DRO 网格搜索结果", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--file", type=str, default=None, help="搜索结果 JSON 路径")
+    parser.add_argument("--auto-latest", action="store_true", help="显式 opt-in：按 mtime 选最新搜索结果 JSON")
     parser.add_argument("--orbit", action="store_true", help="绘制转移轨道 3D 示意图")
     parser.add_argument("--time-dv", action="store_true", help="转移时间 vs Δv 散点图")
     parser.add_argument("--interactive", action="store_true", help="交互式逐条浏览")
@@ -161,10 +192,9 @@ def main() -> None:
     parser.add_argument("--no-show", action="store_true", help="生成图像后不弹窗显示（GUI 后台运行）")
     args = parser.parse_args()
 
-    search_path = Path(args.file).expanduser().resolve() if args.file else _latest_search_json()
-    if search_path is None or not search_path.is_file():
+    search_path = _resolve_search_input(args)
+    if not search_path.is_file():
         raise FileNotFoundError("未找到 LEO→DRO 搜索结果 JSON")
-
     logger.info(f"读取: {search_path}")
     data = load_search_results(search_path)
     results = data.get("results", [])
