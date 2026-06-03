@@ -1,6 +1,6 @@
 """轨道类型自动检测与默认配置注册表。
 
-根据文件名前缀自动推断轨道族类型（Halo / DRO / RO 子类型），
+根据文件名前缀自动推断轨道族类型（Halo / DRO / Resonant），
 返回对应的 FamilyPlotConfig 默认配置。
 """
 
@@ -37,73 +37,37 @@ def _dro_config() -> FamilyPlotConfig:
     )
 
 
-def _ro_31_config() -> FamilyPlotConfig:
+_RATIO_PLOT_OVERRIDES: dict[str, dict[str, object]] = {
+    "3:1": {"center_3d": (-0.85, 0, 0), "target_period": 2 * np.pi},
+    "3:2": {"center_3d": (-0.9, 0, 0), "target_period": 4 * np.pi},
+}
+
+
+def _resonant_config(ratio: str) -> FamilyPlotConfig:
+    """构建 Resonant 族绘图配置，按共振比应用差异参数。"""
+    overrides = _RATIO_PLOT_OVERRIDES[ratio]
+    ratio_tag = ratio.replace(":", "")
     return FamilyPlotConfig(
-        family_type="3:1 RO",
-        default_filename="ro_31_family_placeholder",
+        family_type="Resonant",
+        ratio=ratio,
+        default_filename=f"resonant_{ratio_tag}_family_placeholder",
         output_subdir="ro",
         plane="xy",
-        center_3d=(-0.85, 0, 0),
         radius_3d=0.5,
         elev_3d=0,
         azim_3d=-90,
         show_seed_overlay=True,
-        target_period=2 * np.pi,
-    )
-
-
-def _ro_32_config() -> FamilyPlotConfig:
-    return FamilyPlotConfig(
-        family_type="3:2 RO",
-        default_filename="ro_32_family_placeholder",
-        output_subdir="ro",
-        plane="xy",
-        center_3d=(-0.9, 0, 0),
-        radius_3d=0.5,
-        elev_3d=0,
-        azim_3d=-90,
-        show_seed_overlay=True,
-        target_period=4 * np.pi,
-    )
-
-
-def _aro_config() -> FamilyPlotConfig:
-    return FamilyPlotConfig(
-        family_type="3:2 ARO",
-        default_filename="aro_32_family_placeholder",
-        output_subdir="ro",
-        plane="xy",
-        center_3d=(-0.85, 0, 0.2),
-        radius_3d=0.5,
-        elev_3d=20,
-        azim_3d=-90,
-        show_seed_overlay=True,
-        target_period=4 * np.pi,
-    )
-
-
-def _rro_config() -> FamilyPlotConfig:
-    return FamilyPlotConfig(
-        family_type="3:2 RRO",
-        default_filename="rro_32_family_placeholder",
-        output_subdir="ro",
-        plane="xy",
-        center_3d=(-0.85, 0, 0.1),
-        radius_3d=0.5,
-        elev_3d=20,
-        azim_3d=-90,
-        show_seed_overlay=True,
-        target_period=4 * np.pi,
+        **overrides,
     )
 
 
 _CONFIG_REGISTRY: list[tuple[str, Callable[[], FamilyPlotConfig]]] = [
     ("halo_", _halo_config),
     ("dro_", _dro_config),
-    ("ro_31_", _ro_31_config),
-    ("ro_32_", _ro_32_config),
-    ("aro_", _aro_config),
-    ("rro_", _rro_config),
+    ("ro_31_", lambda: _resonant_config("3:1")),
+    ("ro_32_", lambda: _resonant_config("3:2")),
+    ("resonant_31_", lambda: _resonant_config("3:1")),
+    ("resonant_32_", lambda: _resonant_config("3:2")),
 ]
 
 FALLBACK_CONFIG = FamilyPlotConfig(

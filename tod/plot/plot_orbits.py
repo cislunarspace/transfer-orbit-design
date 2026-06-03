@@ -136,7 +136,7 @@ def main(
         args.plot_jacobi_stability = plot3
 
     config = _resolve_config(args)
-    logger.info(f"检测到轨道类型: {config.family_type}, 投影平面: {config.plane}")
+    logger.info(f"检测到轨道类型: {config.display_name}, 投影平面: {config.plane}")
 
     FamilyPlotOrchestrator(config, args).run()
 

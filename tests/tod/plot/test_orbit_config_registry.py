@@ -15,21 +15,24 @@ class TestDetectOrbitConfig:
     """Verify filename → config mapping for all registered types."""
 
     @pytest.mark.parametrize(
-        "filename, expected_type",
+        "filename, expected_type, expected_ratio",
         [
-            ("halo_L1_N_family_0.001_1234.json", "Halo"),
-            ("halo_L2_S_orbit_5678.json", "Halo"),
-            ("dro_31_family_0.14_1234.json", "DRO"),
-            ("dro_31_5678.json", "DRO"),
-            ("ro_31_family_1234.json", "3:1 RO"),
-            ("ro_32_family_1234.json", "3:2 RO"),
-            ("aro_32_family_1234.json", "3:2 ARO"),
-            ("rro_32_family_1234.json", "3:2 RRO"),
+            ("halo_L1_N_family_0.001_1234.json", "Halo", None),
+            ("halo_L2_S_orbit_5678.json", "Halo", None),
+            ("dro_31_family_0.14_1234.json", "DRO", None),
+            ("dro_31_5678.json", "DRO", None),
+            ("ro_31_family_1234.json", "Resonant", "3:1"),
+            ("ro_32_family_1234.json", "Resonant", "3:2"),
+            ("resonant_31_family_1234.json", "Resonant", "3:1"),
+            ("resonant_32_family_1234.json", "Resonant", "3:2"),
         ],
     )
-    def test_detects_known_types(self, filename: str, expected_type: str) -> None:
+    def test_detects_known_types(
+        self, filename: str, expected_type: str, expected_ratio: str | None,
+    ) -> None:
         config = detect_orbit_config(Path(filename))
         assert config.family_type == expected_type
+        assert config.ratio == expected_ratio
 
     def test_unknown_filename_returns_fallback(self) -> None:
         config = detect_orbit_config(Path("unknown_orbit_1234.json"))
@@ -59,11 +62,23 @@ class TestDetectOrbitConfig:
         config = detect_orbit_config(Path("ro_32_family.json"))
         assert config.target_period == pytest.approx(4 * np.pi)
 
+    def test_resonant_31_display_name(self) -> None:
+        config = detect_orbit_config(Path("resonant_31_family.json"))
+        assert config.display_name == "Resonant (3:1)"
+
+    def test_resonant_32_display_name(self) -> None:
+        config = detect_orbit_config(Path("resonant_32_family.json"))
+        assert config.display_name == "Resonant (3:2)"
+
+    def test_non_resonant_display_name_equals_family_type(self) -> None:
+        config = detect_orbit_config(Path("halo_L1_N_family.json"))
+        assert config.display_name == "Halo"
+
 
 class TestRegistryCompleteness:
     """Verify the registry has all expected entries."""
 
-    EXPECTED_PREFIXES = {"halo_", "dro_", "ro_31_", "ro_32_", "aro_", "rro_"}
+    EXPECTED_PREFIXES = {"halo_", "dro_", "ro_31_", "ro_32_", "resonant_31_", "resonant_32_"}
 
     def test_all_prefixes_registered(self) -> None:
         registered = {prefix for prefix, _ in _CONFIG_REGISTRY}

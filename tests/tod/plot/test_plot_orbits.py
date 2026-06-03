@@ -265,7 +265,8 @@ class TestResolve3dCenterRadius:
     def test_ro_config_respects_plot_center_over_hardcoded(self) -> None:
         """RO configs with hardcoded center_3d must also respect --plot-center."""
         cfg = FamilyPlotConfig(
-            family_type="3:1 RO",
+            family_type="Resonant",
+            ratio="3:1",
             default_filename="ro_31_family",
             output_subdir="ro",
             plane="xy",

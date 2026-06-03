@@ -277,6 +277,14 @@ class FamilyPlotConfig:
     libration_point_sizes: list[int] | None = None
     supports_center_choice: bool = False
     step: int = 5
+    ratio: str | None = None
+
+    @property
+    def display_name(self) -> str:
+        """返回用户可见的族名，含共振子类型。"""
+        if self.ratio:
+            return f"{self.family_type} ({self.ratio})"
+        return self.family_type
 
 
 def _parse_json_file_arg(arg_value: str | None) -> tuple[Path | None, list[MultiFileConfig]]:
@@ -372,7 +380,7 @@ class FamilyPlotOrchestrator:
 
         family, family_name = self._load_single_family(system, single_path, output_dir)
         n_orbits = len(family)
-        logger.info(f"加载了 {n_orbits} 条 {cfg.family_type} 轨道")
+        logger.info(f"加载了 {n_orbits} 条 {cfg.display_name} 轨道")
 
         start, end = resolve_plot_range(a.start, a.end, n_orbits)
         subset = self._build_subset(family, start, end)
@@ -581,12 +589,12 @@ class FamilyPlotOrchestrator:
 
         if cfg.show_seed_overlay:
             kwargs["title"] = (
-                f"{cfg.family_type.upper()} Orbit Family ({cfg.plane.upper()} Plane) - {n_orbits} orbits\n"
+                f"{cfg.display_name.upper()} Orbit Family ({cfg.plane.upper()} Plane) - {n_orbits} orbits\n"
                 f"C = [{jmin:.4f}, {jmax:.4f}]"
             )
         else:
             kwargs["title"] = (
-                f"{cfg.family_type.upper()} Orbit Family ({cfg.plane.upper()} Plane) - {n_orbits} orbits\n"
+                f"{cfg.display_name.upper()} Orbit Family ({cfg.plane.upper()} Plane) - {n_orbits} orbits\n"
                 f"C = [{jmin:.4f}, {jmax:.4f}]"
             )
 
@@ -654,7 +662,7 @@ class FamilyPlotOrchestrator:
 
         # 设置标题
         ax.set_title(
-            f"{cfg.family_type.upper()} Orbit Families ({plane.upper()} Plane) - {total_orbits} orbits\n"
+            f"{cfg.display_name.upper()} Orbit Families ({plane.upper()} Plane) - {total_orbits} orbits\n"
             f"C = [{jmin:.4f}, {jmax:.4f}]"
         )
 
@@ -722,7 +730,7 @@ class FamilyPlotOrchestrator:
             fig, ax = plotter.plot_family_3d(
                 subset, jacobi,
                 title=(
-                    f"{cfg.family_type.upper()} Orbit Family (3D) - {n_orbits} orbits\n"
+                    f"{cfg.display_name.upper()} Orbit Family (3D) - {n_orbits} orbits\n"
                     f"C = [{jmin:.4f}, {jmax:.4f}]"
                 ),
                 center=center, radius=radius,
@@ -810,7 +818,7 @@ class FamilyPlotOrchestrator:
 
             # 设置标题
             ax.set_title(
-                f"{cfg.family_type.upper()} Orbit Families (3D) - {total_orbits} orbits\n"
+                f"{cfg.display_name.upper()} Orbit Families (3D) - {total_orbits} orbits\n"
                 f"C = [{jmin:.4f}, {jmax:.4f}]",
                 fontsize=12,
             )
@@ -846,7 +854,7 @@ class FamilyPlotOrchestrator:
         stability_sorted = np.array(stability)[sort_idx].tolist()
 
         kwargs: dict = dict(
-            title=f"{cfg.family_type.upper()} Orbit Family - Period and Stability (n = {n_orbits})",
+            title=f"{cfg.display_name.upper()} Orbit Family - Period and Stability (n = {n_orbits})",
             save_path=str(output_dir / f"{family_name}_period_stability.png"),
             show=not self.args.no_show,
         )
