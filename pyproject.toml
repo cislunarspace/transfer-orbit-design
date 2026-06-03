@@ -32,7 +32,10 @@ dependencies = [
 e2m2e = { path = "../e2m2e", editable = true }
 
 [project.optional-dependencies]
-test = ["pytest>=7.0"]
+test = [
+    "pytest>=7.0",
+    "pytest-qt>=4.5.0",
+]
 docs = [
     "sphinx>=7.0",
     "sphinx-rtd-theme>=2.0",

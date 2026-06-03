@@ -22,11 +22,15 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from tod.gui.batch import BATCH_AGGREGATE_DISPLAY, BatchAggregate
+from tod.gui.batch_summary_card import BatchJobRow, BatchSummaryCard, BatchSummaryViewModel
 from tod.gui.job_manager import JobManager
 from tod.gui.job_status import JobFinishResult, JobStatus
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
 
 if TYPE_CHECKING:
+    from tod.gui.batch_manager import BatchManager
+    from tod.gui.batch import BatchRun
     from tod.gui.script_registry import ScriptEntry
 
 
@@ -40,6 +44,8 @@ class JobPanelMixin:
     _has_jobs: bool
     _current_script: ScriptEntry | None
     _run_btn: QPushButton
+    _batch_manager: BatchManager
+    _batch_cards: dict[str, BatchSummaryCard]
 
     def _build_job_panel(self) -> QWidget:
         panel = QWidget()
@@ -61,6 +67,10 @@ class JobPanelMixin:
         self._clear_completed_btn.clicked.connect(self._clear_completed_jobs)
         header.addWidget(self._clear_completed_btn)
         layout.addLayout(header)
+
+        # 批量运行摘要卡片区
+        batches_section = self._build_batches_section()
+        layout.addWidget(batches_section)
 
         # 任务卡片列表
         self._job_scroll = QScrollArea()
@@ -92,6 +102,122 @@ class JobPanelMixin:
 
         layout.addWidget(self._output_tabs, stretch=1)
         return panel
+
+    # ── 批量运行摘要卡片区 ─────────────────────────────────
+
+    def _build_batches_section(self) -> QWidget:
+        """构建批量运行摘要卡片区（位于 jobs 上方）。"""
+        container = QWidget()
+        layout = QVBoxLayout(container)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+
+        header = QHBoxLayout()
+        self._batches_label = QLabel(QCoreApplication.translate("JobPanelMixin", "批量任务"))
+        self._batches_label.setStyleSheet("font-weight: bold; font-size: 13px;")
+        header.addWidget(self._batches_label)
+        header.addStretch()
+        layout.addLayout(header)
+
+        self._batch_scroll = QScrollArea()
+        self._batch_scroll.setWidgetResizable(True)
+        self._batch_scroll.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        self._batch_scroll.setMaximumHeight(200)
+        self._batch_scroll.setMinimumHeight(0)
+
+        self._batch_cards_container = QWidget()
+        self._batch_cards_layout = QVBoxLayout(self._batch_cards_container)
+        self._batch_cards_layout.setContentsMargins(0, 0, 0, 0)
+        self._batch_cards_layout.setSpacing(4)
+        self._batch_cards_layout.addStretch()
+        self._batch_scroll.setWidget(self._batch_cards_container)
+        layout.addWidget(self._batch_scroll)
+
+        # 初始隐藏（无 batch 时整个区域不可见）
+        container.setVisible(False)
+        self._batches_container = container
+
+        return container
+
+    def _build_batch_summary_view_model(
+        self, batch_id: str
+    ) -> BatchSummaryViewModel | None:
+        """从 BatchManager 查询，构造 BatchSummaryViewModel 纯数据快照。
+
+        Returns:
+            BatchSummaryViewModel 或 None（batch 不存在或聚合查询失败时）。
+        """
+        batch: BatchRun | None = self._batch_manager.get_batch(batch_id)
+        if batch is None:
+            return None
+        agg: BatchAggregate | None = self._batch_manager.get_aggregate(batch_id)
+        if agg is None:
+            return None
+
+        jobs: list[BatchJobRow] = []
+        stopped_count = 0
+        for i, jid in enumerate(batch.job_ids):
+            status = self._batch_manager._get_job_status(jid)
+            if status is None:
+                continue
+            jobs.append(BatchJobRow(job_id=jid, index=i + 1, status=status))
+            if status == JobStatus.STOPPED:
+                stopped_count += 1
+
+        return BatchSummaryViewModel(
+            batch_id=batch_id,
+            script_name=batch.script_name,
+            total_jobs=len(batch.job_ids),
+            aggregate_status=agg,
+            jobs=tuple(jobs),
+            stopped_count=stopped_count,
+        )
+
+    # ── 批量运行信号槽 ─────────────────────────────────────
+
+    def _on_batch_created(self, batch_id: str) -> None:
+        """BatchManager batch_created 信号处理：创建 BatchSummaryCard 并插入 UI。"""
+        vm = self._build_batch_summary_view_model(batch_id)
+        if vm is None:
+            return
+
+        card = BatchSummaryCard()
+        card.update_view_model(vm)
+        card.job_selected.connect(self._on_batch_job_selected)
+        self._batch_cards[batch_id] = card
+        # 插入到 stretch 之前
+        self._batch_cards_layout.insertWidget(
+            self._batch_cards_layout.count() - 1, card
+        )
+        self._batches_container.setVisible(True)
+
+    def _on_batch_aggregate_changed(
+        self, batch_id: str, _aggregate: object
+    ) -> None:
+        """BatchManager batch_aggregate_changed 信号处理：刷新卡片 view model。"""
+        card = self._batch_cards.get(batch_id)
+        if card is None:
+            return
+        vm = self._build_batch_summary_view_model(batch_id)
+        if vm is not None:
+            card.update_view_model(vm)
+
+    def _on_batch_removed(self, batch_id: str) -> None:
+        """BatchManager batch_removed 信号处理：移除卡片。"""
+        card = self._batch_cards.pop(batch_id, None)
+        if card is None:
+            return
+        self._batch_cards_layout.removeWidget(card)
+        card.deleteLater()
+        # 无剩余 batch 时隐藏整个区域
+        if not self._batch_cards:
+            self._batches_container.setVisible(False)
+
+    def _on_batch_job_selected(self, job_id: str) -> None:
+        """BatchSummaryCard job_selected 信号处理：切换到对应 output tab。"""
+        self._on_job_card_clicked(job_id)
 
     # ── 槽：任务生命周期 ───────────────────────────────────
 
