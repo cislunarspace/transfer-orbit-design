@@ -17,7 +17,6 @@ PLOT_MODULES = [
     "tod.plot.ephemeris.plot_ephemeris_correction",
     "tod.plot.ephemeris.plot_halo_ephemeris_correction",
     "tod.plot.inspection.plot_interactive_orbit_inspector",
-    "tod.plot.inspection.plot_single_orbit",
 ]
 
 

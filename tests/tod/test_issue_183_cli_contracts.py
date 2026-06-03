@@ -28,12 +28,6 @@ from pathlib import Path
 
 import pytest
 
-from tod.cli.input_file import (
-    InputFileRequest,
-    InputResolutionError,
-    resolve_input_file,
-)
-
 
 # ============================================================
 # 子进程级 smoke：缺参 → exit 2
@@ -47,7 +41,6 @@ CLI_MODULES = [
     "tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro",
     "tod.plot.transfer.dro_to_geo.plot_optimize_result_dro_to_geo",
     "tod.plot.inspection.plot_interactive_orbit_inspector",
-    "tod.plot.inspection.plot_single_orbit",
     "tod.transfers.geo_to_dro.optimize_geo_to_dro",
 ]
 
@@ -174,48 +167,3 @@ def test_resolve_dro_geo_dro_auto_latest(monkeypatch, tmp_path: Path) -> None:
     assert resolved == newer.resolve()
 
 
-def test_resolve_single_orbit_auto_latest(monkeypatch, tmp_path: Path) -> None:
-    from tod.plot.inspection import plot_single_orbit
-
-    _patch_project_root(monkeypatch, plot_single_orbit.__name__, tmp_path)
-    # 解析 main() 的 inline resolver：直接构造一个 dummy args
-    # 因 inline 不可直接调用，我们改为验证 module-level 标志 + argparse
-    import argparse
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--json-file")
-    parser.add_argument("--auto-latest", action="store_true")
-    # 走真正契约
-    from tod.cli.input_file import resolve_input_file
-
-    _touch(tmp_path / "output" / "ro" / "ro_old.json", mtime=100.0)
-    newer = _touch(tmp_path / "output" / "ro" / "ro_new.json", mtime=200.0)
-    resolved = resolve_input_file(
-        InputFileRequest(
-            explicit_path=None,
-            auto_latest=True,
-            search_root=tmp_path / "output/ro",
-            pattern="ro_*.json",
-            flag="--json-file",
-            auto_latest_flag="--auto-latest",
-        )
-    )
-    assert resolved == newer.resolve()
-
-
-def test_resolve_single_orbit_missing_uses_resolver(tmp_path: Path) -> None:
-    from tod.cli.input_file import resolve_input_file
-
-    with pytest.raises(InputResolutionError) as exc_info:
-        resolve_input_file(
-            InputFileRequest(
-                explicit_path=None,
-                auto_latest=False,
-                search_root=tmp_path / "output/ro",
-                pattern="ro_*.json",
-                flag="--json-file",
-                auto_latest_flag="--auto-latest",
-            )
-        )
-    assert exc_info.value.reason == "missing"
-    assert exc_info.value.flag == "--json-file"

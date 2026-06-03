@@ -57,7 +57,6 @@ PARAMS_FILES = [
     "plot/transfer/leo_to_dro/plot_search_results_leo_to_dro.py",
     "plot/transfer/leo_to_dro/plot_optimize_result_leo_to_dro.py",
     "plot/inspection/plot_interactive_orbit_inspector.py",
-    "plot/inspection/plot_single_orbit.py",
 ]
 
 
