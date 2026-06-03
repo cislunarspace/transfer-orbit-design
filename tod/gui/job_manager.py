@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from PyQt6.QtCore import QProcessEnvironment, QObject, QProcess, QTimer, pyqtSignal
 
-from tod.gui.job_status import JobStatus
+from tod.gui.job_status import DispatchResult, JobStatus
 from tod.gui.script_registry import ScriptEntry
 
 _KILL_TIMEOUT_MS = 3000
@@ -42,8 +42,8 @@ class JobManager(QObject):
 
     job_started = pyqtSignal(str, str)     # (job_id, script_name)
     job_output = pyqtSignal(str, str, str) # (job_id, text, stream)  stream="stdout"|"stderr"
-    job_finished = pyqtSignal(str, str, int)  # (job_id, script_name, exit_code)
-    job_error = pyqtSignal(str, str)       # (job_id, error_message)
+    job_finished = pyqtSignal(object)      # DispatchResult
+    job_error = pyqtSignal(object)         # DispatchResult
 
     def __init__(self, repo_root: str, parent=None):
         super().__init__(parent)
@@ -63,9 +63,13 @@ class JobManager(QObject):
             1 for j in self._jobs.values() if j.status == JobStatus.RUNNING
         )
         if running_count >= self.MAX_CONCURRENT:
-            self.job_error.emit(
-                "", self.tr("同时运行的任务数已达上限 ({})").format(self.MAX_CONCURRENT)
-            )
+            self.job_error.emit(DispatchResult(
+                job_id="",
+                status=JobStatus.FAILURE,
+                exit_code=None,
+                error_message=self.tr("同时运行的任务数已达上限 ({})").format(self.MAX_CONCURRENT),
+                script_name="",
+            ))
             return ""
 
         job_id = uuid.uuid4().hex[:8]
@@ -215,7 +219,13 @@ class JobManager(QObject):
         # 不再覆盖；只补 exit_code
         if not job.status.is_terminal:
             job.status = JobStatus.from_exit_code(exit_code)
-        self.job_finished.emit(job_id, job.script_entry.name, exit_code)
+        self.job_finished.emit(DispatchResult(
+            job_id=job_id,
+            status=job.status,
+            exit_code=exit_code,
+            error_message="",
+            script_name=job.script_entry.name,
+        ))
         self._prune_terminal()
 
     def _on_error(self, job_id: str, error) -> None:
@@ -226,13 +236,24 @@ class JobManager(QObject):
         if error == QProcess.ProcessError.FailedToStart:
             # 显式标 FAILURE；_on_finished 看到 is_terminal 会跳过重写
             job.status = JobStatus.FAILURE
-            self.job_error.emit(
-                job_id,
-                self.tr("脚本启动失败: {}\nPython 解释器未找到，请确认 Python 已正确安装").format(name),
-            )
+            msg = self.tr("脚本启动失败: {}\nPython 解释器未找到，请确认 Python 已正确安装").format(name)
+            self.job_error.emit(DispatchResult(
+                job_id=job_id,
+                status=job.status,
+                exit_code=None,
+                error_message=msg,
+                script_name=name,
+            ))
         elif error != QProcess.ProcessError.UnknownError:
             err_name = error.name if hasattr(error, "name") else str(error)
-            self.job_error.emit(job_id, self.tr("进程错误 ({}): {}").format(name, err_name))
+            msg = self.tr("进程错误 ({}): {}").format(name, err_name)
+            self.job_error.emit(DispatchResult(
+                job_id=job_id,
+                status=job.status,
+                exit_code=None,
+                error_message=msg,
+                script_name=name,
+            ))
 
     def _prune_terminal(self) -> None:
         """仅保留最近 _MAX_COMPLETED 个已终态的 job。"""

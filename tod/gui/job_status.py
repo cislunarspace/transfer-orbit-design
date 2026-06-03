@@ -1,10 +1,11 @@
-"""JobStatus — 任务生命周期枚举与中文显示映射。
+"""JobStatus — 任务生命周期枚举、DispatchResult 与中文显示映射。
 
 集中管理 Job 状态机：
 
 - :class:`JobStatus` —— StrEnum 五个取值：pending / running / success / failure / stopped
 - :data:`JOB_STATUS_DISPLAY` —— 集中硬编码的中文显示文本（不做 i18n）
 - :meth:`JobStatus.from_exit_code` —— 子进程退出码到状态的纯函数
+- :class:`DispatchResult` —— Job 终态信号的统一数据载体，取代分散的 exit_code / error_message 参数
 
 设计约束：
 
@@ -15,6 +16,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import StrEnum
 
 
@@ -72,3 +74,26 @@ JOB_STATUS_DISPLAY: dict[JobStatus, str] = {
     JobStatus.FAILURE: "失败",
     JobStatus.STOPPED: "已停止",
 }
+
+
+@dataclass(frozen=True)
+class DispatchResult:
+    """Job 终态信号的统一数据载体。
+
+    由 ``JobManager`` 在 ``_on_finished`` / ``_on_error`` 中构造，通过
+    ``job_finished`` / ``job_error`` 信号发出。消费端（``JobPanelMixin`` 等）
+    直接读取 ``status`` 字段，无需再回调 ``JobManager.get_job`` 查询。
+
+    Attributes:
+        job_id: 任务唯一标识。
+        status: 最终 JobStatus（已是终态）。
+        exit_code: 子进程退出码；未获取到时为 None。
+        error_message: 错误详情；正常结束时为空字符串。
+        script_name: 脚本显示名。
+    """
+
+    job_id: str
+    status: JobStatus
+    exit_code: int | None
+    error_message: str
+    script_name: str

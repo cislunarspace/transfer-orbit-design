@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
 )
 
 from tod.gui.job_manager import JobManager
-from tod.gui.job_status import JobStatus
+from tod.gui.job_status import DispatchResult, JobStatus
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
 
 if TYPE_CHECKING:
@@ -130,17 +130,10 @@ class JobPanelMixin:
         if output:
             output.append_output(text, stream)
 
-    def _on_job_finished(self, job_id: str, name: str, exit_code: int) -> None:
-        card = self._job_cards.get(job_id)
+    def _on_job_finished(self, result: DispatchResult) -> None:
+        card = self._job_cards.get(result.job_id)
         if card:
-            # 查询 JobManager 获取实际状态（区分 stopped vs failure）
-            job = self._job_manager.get_job(job_id)
-            status: JobStatus = (
-                job.status
-                if job is not None
-                else (JobStatus.SUCCESS if exit_code == 0 else JobStatus.FAILURE)
-            )
-            card.set_status(status)
+            card.set_status(result.status)
 
         # 任务栏闪烁通知（仅 macOS 支持）
         from PyQt6.QtWidgets import QApplication
@@ -150,35 +143,35 @@ class JobPanelMixin:
             app.alert(self)  # type: ignore[attr-defined]
 
         # 状态栏详细消息
-        if exit_code == 0:
-            self._status_bar.showMessage(QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 完成 (exit code: 0)").format(name), 5000)
+        if result.exit_code == 0:
+            self._status_bar.showMessage(QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 完成 (exit code: 0)").format(result.script_name), 5000)
         else:
             self._status_bar.showMessage(
-                QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 失败 (exit code: {})").format(name, exit_code), 8000
+                QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 失败 (exit code: {})").format(result.script_name, result.exit_code), 8000
             )
 
         # 在输出面板追加结束信息
-        output = self._job_outputs.get(job_id)
+        output = self._job_outputs.get(result.job_id)
         if output:
-            banner = f"\n{'='*60}\n[{QCoreApplication.translate("JobPanelMixin", '进程结束')}] exit code: {exit_code}\n{'='*60}\n"
+            banner = f"\n{'='*60}\n[{QCoreApplication.translate("JobPanelMixin", '进程结束')}] exit code: {result.exit_code}\n{'='*60}\n"
             output.append_output(banner, "stdout")
             output.set_finished()
 
         self._update_job_count()
 
-    def _on_job_error(self, job_id: str, msg: str) -> None:
-        if not job_id:
+    def _on_job_error(self, result: DispatchResult) -> None:
+        if not result.job_id:
             # 全局错误（如达到并发上限）
-            self._status_bar.showMessage(msg)
+            self._status_bar.showMessage(result.error_message)
             return
 
-        card = self._job_cards.get(job_id)
+        card = self._job_cards.get(result.job_id)
         if card:
-            card.set_status(JobStatus.FAILURE)
+            card.set_status(result.status)
 
-        output = self._job_outputs.get(job_id)
+        output = self._job_outputs.get(result.job_id)
         if output:
-            output.append_output(f"\n[ERROR] {msg}\n", "stderr")
+            output.append_output(f"\n[ERROR] {result.error_message}\n", "stderr")
 
         self._update_job_count()
 
