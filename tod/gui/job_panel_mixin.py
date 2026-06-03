@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 )
 
 from tod.gui.job_manager import JobManager
+from tod.gui.job_status import JobStatus
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
 
 if TYPE_CHECKING:
@@ -132,9 +133,13 @@ class JobPanelMixin:
     def _on_job_finished(self, job_id: str, name: str, exit_code: int) -> None:
         card = self._job_cards.get(job_id)
         if card:
-            # 查询 JobManager 获取实际状态（区分 killed vs error）
+            # 查询 JobManager 获取实际状态（区分 stopped vs failure）
             job = self._job_manager.get_job(job_id)
-            status = job.status if job else ("completed" if exit_code == 0 else "error")
+            status: JobStatus = (
+                job.status
+                if job is not None
+                else (JobStatus.SUCCESS if exit_code == 0 else JobStatus.FAILURE)
+            )
             card.set_status(status)
 
         # 任务栏闪烁通知（仅 macOS 支持）
@@ -169,7 +174,7 @@ class JobPanelMixin:
 
         card = self._job_cards.get(job_id)
         if card:
-            card.set_status("error")
+            card.set_status(JobStatus.FAILURE)
 
         output = self._job_outputs.get(job_id)
         if output:
@@ -228,7 +233,7 @@ class JobPanelMixin:
         if job_id_to_remove:
             # 如果 job 还在运行，先确认
             job = self._job_manager.get_job(job_id_to_remove)
-            if job and job.status == "running":
+            if job and job.status == JobStatus.RUNNING:
                 reply = QMessageBox.question(
                     cast(QWidget, self),
                     QCoreApplication.translate("JobPanelMixin", "确认关闭"),
