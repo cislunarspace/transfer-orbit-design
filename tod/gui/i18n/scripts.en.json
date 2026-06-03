@@ -34,9 +34,8 @@
   "generate_vertical_orbit": { "description": "Generate Orbit" },
   "generate_vertical_family": { "description": "Generate Orbit Family" },
 
-  "generate_31_ro_orbit": { "description": "Generate 3:1 Orbit" },
-  "generate_31_ro_family": { "description": "Generate 3:1 Orbit Family" },
-  "generate_32_ro_family": { "description": "Generate 3:2 Orbit Family" },
+  "generate_ro_orbit": { "description": "Generate Orbit" },
+  "generate_ro_family": { "description": "Generate Orbit Family" },
 
   "correct_dro_to_ephemeris": { "description": "Correct Single Orbit" },
   "correct_dro_family_to_ephemeris": { "description": "Correct Orbit Family" },

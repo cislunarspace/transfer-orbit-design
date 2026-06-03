@@ -33,9 +33,8 @@ PARAMS_FILES = [
     "generates/cr3bp/dro/generate_dro_family.py",
     "generates/cr3bp/halo/generate_halo_orbit.py",
     "generates/cr3bp/halo/generate_halo_family.py",
-    "generates/cr3bp/ro/deprecated/generate_31_ro_orbit.py",
-    "generates/cr3bp/ro/deprecated/generate_31_ro_family.py",
-    "generates/cr3bp/ro/deprecated/generate_32_ro_family.py",
+    "generates/cr3bp/ro/generate_ro_orbit.py",
+    "generates/cr3bp/ro/generate_ro_family.py",
     # Transfer
     "transfer/dro_to_ro/grid_search_dro_to_ro.py",
     "transfer/dro_to_ro/optimize_dro_to_ro.py",
