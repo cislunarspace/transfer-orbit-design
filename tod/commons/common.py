@@ -11,6 +11,7 @@ from pathlib import Path
 from .constants import FAMILY_FILENAME
 
 __all__ = [
+    "LoadInputContractError",
     "ensure_output_dir",
     "find_project_root",
     "get_latest_family_file",
@@ -18,6 +19,15 @@ __all__ = [
     "safe_resolve_within",
     "save_family_to_file",
 ]
+
+
+class LoadInputContractError(ValueError):
+    """``load_or_compute`` 输入契约违反时抛出的领域错误。
+
+    触发条件：``args.load`` 为真但既不是字符串路径，也没有同时传
+    ``args.auto_latest=True``。此约束来自 issue #183：公共层不再允许
+    隐式选择最新族文件。
+    """
 
 logger = logging.getLogger(__name__)
 
@@ -112,10 +122,18 @@ def get_latest_family_file(output_dir, family_filename=FAMILY_FILENAME):
 def load_or_compute(
     args, system, compute_func, output_dir, family_filename=FAMILY_FILENAME
 ):
-    """加载或计算轨道族
+    """加载或计算轨道族。
 
     参数:
-        args: 命令行参数
+        args: 命令行参数；需提供 ``args.load`` 与 ``args.auto_latest``：
+            - 两者皆为 falsy：进入「计算」分支，``compute_func`` 在调用方
+              控制。
+            - ``args.load`` 是字符串路径：直接加载该路径。
+            - ``args.auto_latest`` 为 True 且 ``args.load`` 为 falsy：按
+              mtime 最新加载 ``get_latest_family_file`` 命中的族文件。
+            - ``args.load`` 为真但既不是字符串路径、也未传
+              ``args.auto_latest``：抛 ``LoadInputContractError``。这一约束
+              由 issue #183 落地：公共 helper 不再接受「隐式选最新」。
         system: CR3BP_System对象
         compute_func: 计算轨道族的函数，接受system参数
         output_dir: 输出目录
@@ -124,24 +142,33 @@ def load_or_compute(
     返回:
         system: CR3BP_System对象
         family_result: OrbitFamily对象或None
+
+    Raises:
+        LoadInputContractError: ``args.load`` 触发新契约失败。
     """
     from e2m2e.core import OrbitFamily
 
-    # 加载模式
-    if args.load:
-        if args.load is True:
-            # 未指定具体文件，查找最新的
+    auto_latest = bool(getattr(args, "auto_latest", False))
+    load_value = getattr(args, "load", None)
+
+    # 加载模式：路径字符串 或 显式 auto_latest
+    if load_value or auto_latest:
+        if load_value is True or (load_value and not isinstance(load_value, str)):
+            raise LoadInputContractError(
+                "args.load 必须是显式路径字符串，或同时设置 args.auto_latest=True "
+                "以显式 opt-in 自动选择最新族文件"
+            )
+
+        if auto_latest and not load_value:
             family_path = get_latest_family_file(output_dir, family_filename)
         else:
-            # 指定了文件名（可能是完整路径或相对路径）
-            if os.path.isabs(args.load):
-                family_path = args.load
+            load_str = str(load_value)
+            if os.path.isabs(load_str):
+                family_path = load_str
+            elif os.path.exists(load_str):
+                family_path = load_str
             else:
-                # 可能是 output/phase1_dro/xxx 或直接文件名
-                if os.path.exists(args.load):
-                    family_path = args.load
-                else:
-                    family_path = os.path.join(output_dir, args.load, family_filename)
+                family_path = os.path.join(output_dir, load_str, family_filename)
 
         if family_path and os.path.exists(family_path):
             # 路径遍历防护：解析真实路径并检查是否在项目根目录内
