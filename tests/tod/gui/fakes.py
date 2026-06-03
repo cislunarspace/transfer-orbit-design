@@ -1,7 +1,7 @@
 """Reusable test doubles for GUI 层测试。
 
 提供可组合的 stub / factory，避免各测试文件重复构造
-``DispatchResult``、``Job`` 等对象的样板代码。
+``JobFinishResult``、``Job`` 等对象的样板代码。
 
 使用示例::
 
@@ -13,7 +13,7 @@
 
 from __future__ import annotations
 
-from tod.gui.job_status import DispatchResult, JobStatus
+from tod.gui.job_status import JobFinishResult, JobStatus
 
 FAKE_SCRIPT_NAME = "test_script"
 
@@ -25,12 +25,12 @@ def make_result(
     exit_code: int | None = 0,
     error_message: str = "",
     script_name: str = FAKE_SCRIPT_NAME,
-) -> DispatchResult:
-    """构造 ``DispatchResult`` 实例，默认为成功终态。
+) -> JobFinishResult:
+    """构造 ``JobFinishResult`` 实例，默认为成功终态。
 
     所有字段均有合理默认值，调用方只需覆盖关心的字段。
     """
-    return DispatchResult(
+    return JobFinishResult(
         job_id=job_id,
         status=status,
         exit_code=exit_code,

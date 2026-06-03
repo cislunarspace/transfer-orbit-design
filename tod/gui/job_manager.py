@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 from PyQt6.QtCore import QProcessEnvironment, QObject, QProcess, QTimer, pyqtSignal
 
-from tod.gui.job_status import DispatchResult, JobStatus
+from tod.gui.job_status import JobFinishResult, JobStatus
 from tod.gui.script_registry import ScriptEntry
 
 _KILL_TIMEOUT_MS = 3000
@@ -40,10 +40,13 @@ class JobManager(QObject):
 
     MAX_CONCURRENT = 8
 
-    job_started = pyqtSignal(str, str)     # (job_id, script_name)
-    job_output = pyqtSignal(str, str, str) # (job_id, text, stream)  stream="stdout"|"stderr"
-    job_finished = pyqtSignal(object)      # DispatchResult
-    job_error = pyqtSignal(object)         # DispatchResult
+    job_created = pyqtSignal(str, str)          # (job_id, script_name) — Job 对象已进入系统
+    job_started = pyqtSignal(str, str)          # (job_id, script_name) — QProcess 已真正启动
+    job_state_changed = pyqtSignal(str, str, str)  # (job_id, old_status.value, new_status.value)
+    job_output = pyqtSignal(str, str, str)      # (job_id, text, stream)  stream="stdout"|"stderr"
+    job_finished = pyqtSignal(object)           # JobFinishResult — 进程结束（含 exit_code）
+    job_error = pyqtSignal(object)              # JobFinishResult — 启动失败 / 进程错误
+    jobs_pruned = pyqtSignal(list)              # pruned_job_ids — 历史 Job 被清理
 
     def __init__(self, repo_root: str, parent=None):
         super().__init__(parent)
@@ -63,7 +66,7 @@ class JobManager(QObject):
             1 for j in self._jobs.values() if j.status == JobStatus.RUNNING
         )
         if running_count >= self.MAX_CONCURRENT:
-            self.job_error.emit(DispatchResult(
+            self.job_error.emit(JobFinishResult(
                 job_id="",
                 status=JobStatus.FAILURE,
                 exit_code=None,
@@ -112,6 +115,7 @@ class JobManager(QObject):
         process.start(sys.executable, args)
         # 进程已启动（start() 同步发起），记录 started_at
         job.started_at = time.time()
+        self.job_created.emit(job_id, script_entry.name)
         self.job_started.emit(job_id, script_entry.name)
         return job_id
 
@@ -121,7 +125,9 @@ class JobManager(QObject):
         if job is None or job.status != JobStatus.RUNNING:
             return
         # 显式写 STOPPED，后续 _on_finished 看到 is_terminal 会跳过
+        old = job.status
         job.status = JobStatus.STOPPED
+        self.job_state_changed.emit(job_id, old.value, JobStatus.STOPPED.value)
         if job.process.state() != QProcess.ProcessState.NotRunning:
             # Windows：使用 taskkill /F /T 杀死整个进程树，避免子进程残留
             if os.name == "nt":
@@ -158,22 +164,19 @@ class JobManager(QObject):
                 pass
 
     def get_job(self, job_id: str) -> Job | None:
-        """执行 get_job 对应的处理逻辑。
-
-        Args:
-            job_id: 调用方传入的参数值。
-
-        Returns:
-            函数执行结果。
-        """
+        """获取 Job 对象，不存在时返回 None。"""
         return self._jobs.get(job_id)
 
-    def running_jobs(self) -> list[Job]:
-        """执行 running_jobs 对应的处理逻辑。
+    def get_job_status(self, job_id: str) -> JobStatus | None:
+        """获取指定 job 的当前状态，被 prune 后返回 None。
 
-        Returns:
-            函数执行结果。
+        PR2 (BatchManager) 通过注入此方法查询 Job 状态。
         """
+        job = self._jobs.get(job_id)
+        return job.status if job is not None else None
+
+    def running_jobs(self) -> list[Job]:
+        """返回当前状态为运行中的 Job 列表。"""
         return [j for j in self._jobs.values() if j.status == JobStatus.RUNNING]
 
     def all_jobs(self) -> list[Job]:
@@ -215,11 +218,14 @@ class JobManager(QObject):
         if job is None:
             return
         job.exit_code = exit_code
+        old_status = job.status
         # 若已被 stop_job / _on_error 显式写过终态（例如 STOPPED / FAILURE 启动失败），
         # 不再覆盖；只补 exit_code
-        if not job.status.is_terminal:
+        if not old_status.is_terminal:
             job.status = JobStatus.from_exit_code(exit_code)
-        self.job_finished.emit(DispatchResult(
+        if job.status != old_status:
+            self.job_state_changed.emit(job_id, old_status.value, job.status.value)
+        self.job_finished.emit(JobFinishResult(
             job_id=job_id,
             status=job.status,
             exit_code=exit_code,
@@ -235,9 +241,12 @@ class JobManager(QObject):
         name = job.script_entry.name
         if error == QProcess.ProcessError.FailedToStart:
             # 显式标 FAILURE；_on_finished 看到 is_terminal 会跳过重写
+            old = job.status
             job.status = JobStatus.FAILURE
+            if job.status != old:
+                self.job_state_changed.emit(job_id, old.value, job.status.value)
             msg = self.tr("脚本启动失败: {}\nPython 解释器未找到，请确认 Python 已正确安装").format(name)
-            self.job_error.emit(DispatchResult(
+            self.job_error.emit(JobFinishResult(
                 job_id=job_id,
                 status=job.status,
                 exit_code=None,
@@ -247,7 +256,7 @@ class JobManager(QObject):
         elif error != QProcess.ProcessError.UnknownError:
             err_name = error.name if hasattr(error, "name") else str(error)
             msg = self.tr("进程错误 ({}): {}").format(name, err_name)
-            self.job_error.emit(DispatchResult(
+            self.job_error.emit(JobFinishResult(
                 job_id=job_id,
                 status=job.status,
                 exit_code=None,
@@ -263,5 +272,7 @@ class JobManager(QObject):
             if j.status.is_terminal
         ]
         if len(terminal) > _MAX_COMPLETED:
-            for jid in terminal[: len(terminal) - _MAX_COMPLETED]:
+            pruned = terminal[: len(terminal) - _MAX_COMPLETED]
+            for jid in pruned:
                 del self._jobs[jid]
+            self.jobs_pruned.emit(pruned)

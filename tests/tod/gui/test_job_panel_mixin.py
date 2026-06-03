@@ -10,7 +10,7 @@ from unittest.mock import MagicMock
 from PyQt6.QtWidgets import QApplication, QLabel, QPushButton, QStatusBar, QTabWidget
 
 from tod.gui.job_panel_mixin import JobPanelMixin
-from tod.gui.job_status import DispatchResult, JobStatus
+from tod.gui.job_status import JobFinishResult, JobStatus
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
 
 
@@ -84,8 +84,8 @@ def _make_result(
     exit_code: int | None = 0,
     error_message: str = "",
     script_name: str = "test_script",
-) -> DispatchResult:
-    return DispatchResult(
+) -> JobFinishResult:
+    return JobFinishResult(
         job_id=job_id,
         status=status,
         exit_code=exit_code,
@@ -94,8 +94,8 @@ def _make_result(
     )
 
 
-class TestOnJobFinishedWithDispatchResult:
-    """_on_job_finished 直接使用 DispatchResult.status，不再回调 get_job。"""
+class TestOnJobFinishedWithJobFinishResult:
+    """_on_job_finished 直接使用 JobFinishResult.status，不再回调 get_job。"""
 
     def test_success_status_sets_card_status(self, qapp):
         mixin, ctx = _make_mixin(qapp)
@@ -125,7 +125,7 @@ class TestOnJobFinishedWithDispatchResult:
         card.set_status.assert_called_once_with(JobStatus.FAILURE)
 
     def test_stopped_status_sets_card_status(self, qapp):
-        """停止任务通过 DispatchResult.STOPPED 直接传入，不需再查 JobManager。"""
+        """停止任务通过 JobFinishResult.STOPPED 直接传入，不需再查 JobManager。"""
         mixin, ctx = _make_mixin(qapp)
         card = MagicMock(spec=JobCard)
         ctx["job_cards"]["j1"] = card
@@ -162,8 +162,8 @@ class TestOnJobFinishedWithDispatchResult:
         )
 
 
-class TestOnJobErrorWithDispatchResult:
-    """_on_job_error 接收 DispatchResult，status 由 JobManager 构造时确定。"""
+class TestOnJobErrorWithJobFinishResult:
+    """_on_job_error 接收 JobFinishResult，status 由 JobManager 构造时确定。"""
 
     def test_error_sets_card_to_failure(self, qapp):
         mixin, ctx = _make_mixin(qapp)

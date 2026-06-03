@@ -1,7 +1,7 @@
-"""DispatchResult frozen dataclass + fakes 模块的单测。
+"""JobFinishResult frozen dataclass + fakes 模块的单测。
 
 覆盖范围：
-- DispatchResult 冻结属性（不可变契约）
+- JobFinishResult 冻结属性（不可变契约）
 - 五种 JobStatus 的构造
 - None exit_code 场景（启动失败、并发上限错误）
 - error_message 字段行为
@@ -11,12 +11,12 @@
 
 import pytest
 
-from tod.gui.job_status import DispatchResult, JobStatus
+from tod.gui.job_status import JobFinishResult, JobStatus
 from tests.tod.gui.fakes import FAKE_SCRIPT_NAME, FakeJob, make_fake_job, make_result
 
 
-class TestDispatchResultFrozen:
-    """DispatchResult 是 frozen dataclass，字段不可写。"""
+class TestJobFinishResultFrozen:
+    """JobFinishResult 是 frozen dataclass，字段不可写。"""
 
     def test_frozen_rejects_field_assignment(self):
         result = make_result()
@@ -44,7 +44,7 @@ class TestDispatchResultFrozen:
             result.script_name = "changed"  # type: ignore[misc]
 
 
-class TestDispatchResultFields:
+class TestJobFinishResultFields:
     """字段类型和值语义。"""
 
     def test_has_five_fields(self):
@@ -72,7 +72,7 @@ class TestDispatchResultFields:
         assert result.script_name == "my_script"
 
 
-class TestDispatchResultEquality:
+class TestJobFinishResultEquality:
     """frozen dataclass 自动生成 __eq__，相同字段值应相等。"""
 
     def test_identical_results_are_equal(self):
@@ -101,8 +101,8 @@ class TestDispatchResultEquality:
         assert r1 != r2
 
 
-class TestDispatchResultStatusVariants:
-    """构造所有五种终态的 DispatchResult。"""
+class TestJobFinishResultStatusVariants:
+    """构造所有五种终态的 JobFinishResult。"""
 
     def test_success(self):
         result = make_result(status=JobStatus.SUCCESS, exit_code=0)
@@ -130,7 +130,7 @@ class TestDispatchResultStatusVariants:
         assert result.status.is_active
 
 
-class TestDispatchResultNoneExitCode:
+class TestJobFinishResultNoneExitCode:
     """exit_code 为 None 的场景（启动失败、并发上限）。"""
 
     def test_none_exit_code_with_failure(self):
@@ -158,7 +158,7 @@ class TestDispatchResultNoneExitCode:
         assert result.exit_code is None
 
 
-class TestDispatchResultErrorMessage:
+class TestJobFinishResultErrorMessage:
     """error_message 字段在不同场景下的行为。"""
 
     def test_success_has_empty_error_message(self):
@@ -181,7 +181,7 @@ class TestMakeResultFromFakes:
 
     def test_returns_dispatch_result(self):
         result = make_result()
-        assert isinstance(result, DispatchResult)
+        assert isinstance(result, JobFinishResult)
 
     def test_frozen(self):
         result = make_result()
@@ -230,7 +230,7 @@ class TestFakeJob:
         assert job.script_entry.name == "test_name"
 
     def test_status_mutable(self):
-        """FakeJob 是普通对象，status 可变（与 frozen DispatchResult 对比）。"""
+        """FakeJob 是普通对象，status 可变（与 frozen JobFinishResult 对比）。"""
         job = make_fake_job()
         job.status = JobStatus.SUCCESS
         assert job.status == JobStatus.SUCCESS

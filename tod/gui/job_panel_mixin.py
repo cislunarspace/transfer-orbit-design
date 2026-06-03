@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
 )
 
 from tod.gui.job_manager import JobManager
-from tod.gui.job_status import DispatchResult, JobStatus
+from tod.gui.job_status import JobFinishResult, JobStatus
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
 
 if TYPE_CHECKING:
@@ -130,7 +130,7 @@ class JobPanelMixin:
         if output:
             output.append_output(text, stream)
 
-    def _on_job_finished(self, result: DispatchResult) -> None:
+    def _on_job_finished(self, result: JobFinishResult) -> None:
         card = self._job_cards.get(result.job_id)
         if card:
             card.set_status(result.status)
@@ -159,7 +159,7 @@ class JobPanelMixin:
 
         self._update_job_count()
 
-    def _on_job_error(self, result: DispatchResult) -> None:
+    def _on_job_error(self, result: JobFinishResult) -> None:
         if not result.job_id:
             # 全局错误（如达到并发上限）
             self._status_bar.showMessage(result.error_message)

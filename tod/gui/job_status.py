@@ -1,11 +1,11 @@
-"""JobStatus — 任务生命周期枚举、DispatchResult 与中文显示映射。
+"""JobStatus — 任务生命周期枚举、JobFinishResult 与中文显示映射。
 
 集中管理 Job 状态机：
 
 - :class:`JobStatus` —— StrEnum 五个取值：pending / running / success / failure / stopped
 - :data:`JOB_STATUS_DISPLAY` —— 集中硬编码的中文显示文本（不做 i18n）
 - :meth:`JobStatus.from_exit_code` —— 子进程退出码到状态的纯函数
-- :class:`DispatchResult` —— Job 终态信号的统一数据载体，取代分散的 exit_code / error_message 参数
+- :class:`JobFinishResult` —— Job 终态信号的统一数据载体，取代分散的 exit_code / error_message 参数
 
 设计约束：
 
@@ -77,7 +77,7 @@ JOB_STATUS_DISPLAY: dict[JobStatus, str] = {
 
 
 @dataclass(frozen=True)
-class DispatchResult:
+class JobFinishResult:
     """Job 终态信号的统一数据载体。
 
     由 ``JobManager`` 在 ``_on_finished`` / ``_on_error`` 中构造，通过
