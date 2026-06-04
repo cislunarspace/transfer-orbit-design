@@ -38,8 +38,8 @@ class LyapunovFamilyGenerator(FamilyGenerator):
             "--libration-point",
             type=str,
             default="L1",
-            choices=["L1", "L2", "L3", "L4", "L5"],
-            help="平动点选择，默认 L1",
+            choices=["L1", "L2", "L3"],
+            help="共线平动点选择（L1/L2/L3），默认 L1",
         )
         parser.add_argument(
             "--method",

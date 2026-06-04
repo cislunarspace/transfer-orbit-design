@@ -18,15 +18,15 @@ _Avoid_: 采样轨道、代表性轨道集
 
 | 族名 | 英文名 | 相关平动点 | 物理特征 |
 |------|--------|------------|----------|
-| Lyapunov | Lyapunov Family | L1–L5 | 平面周期轨道，沿共线平动点主轴振荡 |
-| Halo | Halo Family (North/South/Near-Rectilinear) | L1, L2 | 三维周期轨道，含近直线晕轨道 (NRHO)。L3 处无经典 Halo 轨道族。 |
+| Lyapunov | Lyapunov Family | L1, L2, L3 | 平面周期轨道，沿共线平动点主轴振荡 |
+| Halo | Halo Family (North/South) | L1, L2 | 三维周期轨道，稳定性指数接近 1 的高振幅区域通常称为近直线晕轨道 (NRHO)；L3 处无经典 Halo 轨道族。 |
 | Vertical | Vertical Family | L1–L5 | 垂直方向振荡的周期轨道 |
 | Axial | Axial Family | L1–L5 | 沿平动点轴向的周期轨道 |
 | Butterfly | Butterfly Family | L1–L2 | 连接两个共线平动点的对称轨道 |
 | DRO | Distant Retrograde Orbit | secondary | 围绕次天体的远程逆行轨道 |
 | DPO | Direct Prograde Orbit | secondary | 围绕次天体的顺行轨道 |
-| SPO | Short Period Orbit | L4, L5 | 三角平动点附近的短周期轨道（Lyapunov 族的特殊分支） |
-| LPO | Long Period Orbit | L4, L5 | 三角平动点附近的长周期轨道（Lyapunov 族的特殊分支） |
+| SPO | Short Period Orbit | L4, L5 | 三角平动点附近的短周期轨道 |
+| LPO | Long Period Orbit | L4, L5 | 三角平动点附近的长周期轨道 |
 | Tadpole | Tadpole Orbits | L4, L5 | 围绕单个三角平动点的蝌蚪形轨道 |
 | Horseshoe | Horseshoe Orbits | L4–L5 | 跨越两个三角平动点的马蹄形轨道 |
 | RO | Resonant Orbit（共振轨道） | 全系统 | 满足 m:n 共振比例的周期轨道，如 3:1（周期是月球周期的 3 倍）、3:2（1.5 倍），通过 `--ratio` 区分 |
