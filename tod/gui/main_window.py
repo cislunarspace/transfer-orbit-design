@@ -27,6 +27,7 @@ from PyQt6.QtWidgets import (
 
 from tod.gui.file_discovery import FileInfo, discover_files
 from tod.gui.file_tree_mixin import FileTreeMixin
+from tod.gui.i18n import qt_format
 from tod.gui.job_manager import JobManager
 from tod.gui.job_panel_mixin import JobPanelMixin
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
@@ -241,7 +242,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         self._script_tab_bar.copy_path_requested.connect(self._copy_path_to_clipboard)
         self._script_tab_bar.defaults_changed.connect(self._save_gui_defaults)
 
-        tabs.addTab(self._script_tab_bar, self.tr("脚本信息"))
+        tabs.addTab(self._script_tab_bar, self.tr("工具信息"))
         self._right_tabs = tabs
 
         self._build_file_browser_tab(tabs)
@@ -260,7 +261,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
             self._script_tab_bar.open_script(entry)
 
         if self._right_tabs is not None:
-            script_info_titles = {self.tr("脚本信息")}
+            script_info_titles = {self.tr("工具信息")}
             for i in range(self._right_tabs.count()):
                 if self._right_tabs.tabText(i) in script_info_titles:
                     self._right_tabs.setCurrentIndex(i)
@@ -353,9 +354,9 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         n = len(self._files)
         categories = len({f.category for f in self._files})
         if n > 0:
-            self._status_bar.showMessage(self.tr("已刷新：{} 个文件，{} 个类别").format(n, categories), 5000)
+            self._status_bar.showMessage(qt_format(self.tr("已刷新：%1 个文件，%2 个类别"), n, categories), 5000)
         else:
-            self._status_bar.showMessage(self.tr("未找到输出文件。运行脚本以生成数据。"), 5000)
+            self._status_bar.showMessage(self.tr("未找到输出文件。运行工具以生成数据。"), 5000)
 
     # ── Job panel run-button 更新（覆盖 JobPanelMixin） ───────
 
@@ -364,14 +365,14 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         running = sum(1 for c in self._job_cards.values() if c.is_running)
         total = len(self._job_cards)
         if total == 0:
-            self._job_count_label.setText("Jobs")
+            self._job_count_label.setText(self.tr("任务"))
         else:
-            self._job_count_label.setText(f"Jobs ({running} running, {total} total)")
+            self._job_count_label.setText(qt_format(self.tr("任务（%1 运行中，共 %2）"), running, total))
 
         self._status_bar.showMessage(
-            f"{running} running, {total} total"
+            qt_format(self.tr("%1 运行中，共 %2"), running, total)
             if running > 0
-            else "Ready"
+            else self.tr("就绪")
         )
 
         # 更新当前 tab 的运行按钮
@@ -380,7 +381,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
             if tab is not None:
                 btn = tab._run_btn
                 if running >= JobManager.MAX_CONCURRENT:
-                    btn.setText(self.tr("已达上限 ({})").format(JobManager.MAX_CONCURRENT))
+                    btn.setText(qt_format(self.tr("已达上限（%1）"), JobManager.MAX_CONCURRENT))
                     btn.setStyleSheet(self._RUN_STYLE_FULL)
                     btn.setEnabled(True)
                 else:
@@ -411,7 +412,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         except OSError as e:
             sb = self.statusBar()
             if sb:
-                sb.showMessage(self.tr("保存默认值失败: {}").format(e), 5000)
+                sb.showMessage(qt_format(self.tr("保存默认值失败：%1"), str(e)), 5000)
 
     def _copy_path_to_clipboard(self, path: str, target_btn: QWidget) -> None:
         from PyQt6.QtWidgets import QApplication, QToolTip
@@ -434,7 +435,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
             reply = QMessageBox.question(
                 self,
                 self.tr("确认关闭"),
-                self.tr("仍有 {} 个作业正在运行。\n关闭窗口将停止所有作业。确定关闭？").format(len(running)),
+                qt_format(self.tr("仍有 %1 个任务正在运行。\n关闭窗口将停止所有任务。确定关闭？"), len(running)),
                 QMessageBox.StandardButton.Close | QMessageBox.StandardButton.Cancel,
                 QMessageBox.StandardButton.Cancel,
             )

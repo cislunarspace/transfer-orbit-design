@@ -25,6 +25,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from tod.gui.i18n import qt_format
+
 if TYPE_CHECKING:
     from tod.gui.run_orchestrator import OverwriteTarget, RunPlan
 
@@ -78,7 +80,7 @@ class RunConfirmationDialog(QDialog):
             )
             list_widget = QListWidget()
             for group in plan.chip_groups:
-                item = QListWidgetItem(f"[{group.group_value}] — {len(group.specs)} 个任务")
+                item = QListWidgetItem(qt_format(self.tr("[%1] — %2 个任务"), group.group_value, len(group.specs)))
                 list_widget.addItem(item)
             layout.addWidget(list_widget)
 

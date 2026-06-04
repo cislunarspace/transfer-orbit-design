@@ -24,6 +24,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from tod.gui.i18n import qt_format
+
 # ANSI 转义序列匹配
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
 
@@ -73,15 +75,15 @@ class StructuredOutputWidget(QWidget):
         toolbar.setContentsMargins(0, 0, 0, 0)
 
         self._copy_btn = QPushButton(self.tr("复制全部"))
-        self._copy_btn.setToolTip(self.tr("复制全部输出到剪贴板"))
+        self._copy_btn.setToolTip(self.tr("复制全部日志到剪贴板"))
         self._copy_btn.clicked.connect(self._copy_all)
 
         self._save_btn = QPushButton(self.tr("保存到文件"))
-        self._save_btn.setToolTip(self.tr("保存输出到文件"))
+        self._save_btn.setToolTip(self.tr("保存日志到文件"))
         self._save_btn.clicked.connect(self._save_to_file)
 
         self._clear_btn = QPushButton(self.tr("清除"))
-        self._clear_btn.setToolTip(self.tr("清除输出"))
+        self._clear_btn.setToolTip(self.tr("清除日志"))
         self._clear_btn.clicked.connect(self.clear)
 
         toolbar.addWidget(self._copy_btn)
@@ -284,13 +286,13 @@ class StructuredOutputWidget(QWidget):
 
         path, _ = QFileDialog.getSaveFileName(
             self,
-            self.tr("保存输出"),
-            f"output_{self._start_time:%Y%m%d_%H%M%S}.log",
+            self.tr("保存日志"),
+            f"log_{self._start_time:%Y%m%d_%H%M%S}.log",
             "Log Files (*.log);;All Files (*)",
         )
         if path:
             Path(path).write_text(self._browser.toPlainText(), encoding="utf-8")
-            self.status_message.emit(self.tr("输出已保存到 {}").format(Path(path).name))
+            self.status_message.emit(qt_format(self.tr("日志已保存到 %1"), Path(path).name))
 
     def _on_scroll_changed(self, value: int) -> None:
         sb = self._browser.verticalScrollBar()
@@ -311,7 +313,7 @@ class StructuredOutputWidget(QWidget):
         total_secs = int(elapsed.total_seconds())
         h, rem = divmod(total_secs, 3600)
         m, s = divmod(rem, 60)
-        self._elapsed_label.setText(self.tr("完成 {}").format(f"{h:02d}:{m:02d}:{s:02d}"))
+        self._elapsed_label.setText(qt_format(self.tr("完成 %1"), f"{h:02d}:{m:02d}:{s:02d}"))
         self._progress_bar.hide()
 
 

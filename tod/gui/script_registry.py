@@ -194,7 +194,7 @@ def _ephemeris_conversion_cli_params(orbit_type: str, mode: str) -> list[CliPara
         params.append(CliParam("--orbit-index", "轨道索引", "int", help="从轨道族文件中选择单条轨道"))
     params.extend(
         [
-            CliParam("--patch-points", "分段点数量", "int", "10", help="多重打靶分段点数量", advanced=True),
+            CliParam("--patch-points", "拼接点数量", "int", "10", help="拼接点数量，用于轨迹连续性修正", advanced=True),
             CliParam("--position-tol", "位置容差", "float", "1e-3", help="位置连续性容差（km）", advanced=True),
             CliParam("--velocity-tol", "速度容差", "float", "1e-6", help="速度连续性容差（km/s）", advanced=True),
             CliParam("--spice-kernel-dir", "SPICE 内核目录", "str", help="SPICE 内核目录", advanced=True),

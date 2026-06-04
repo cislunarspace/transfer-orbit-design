@@ -200,7 +200,7 @@ class FileTreeMixin:
         if not visible_files:
             empty = QTreeWidgetItem(
                 self._file_tree,
-                [QCoreApplication.translate("FileTreeMixin", "尚未生成输出文件。运行脚本以生成轨道数据。")],
+                [QCoreApplication.translate("FileTreeMixin", "尚未生成输出文件。运行工具以生成轨道数据。")],
             )
             empty.setFlags(empty.flags() & ~Qt.ItemFlag.ItemIsSelectable)
             font = empty.font(0)

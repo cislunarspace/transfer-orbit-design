@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from tod.gui.i18n import qt_format
 from tod.gui.job_manager import JobManager
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
 
@@ -48,7 +49,7 @@ class JobPanelMixin:
 
         # 顶部：标题 + Clear All Completed
         header = QHBoxLayout()
-        self._job_count_label = QLabel("Jobs")
+        self._job_count_label = QLabel(QCoreApplication.translate("JobPanelMixin", "任务"))
         self._job_count_label.setStyleSheet("font-weight: bold; font-size: 13px;")
         header.addWidget(self._job_count_label)
         header.addStretch()
@@ -84,7 +85,7 @@ class JobPanelMixin:
         self._output_tabs.tabCloseRequested.connect(self._on_output_tab_close)
 
         # 空状态占位
-        self._empty_label = QLabel("No active jobs.\nSelect a script and click Run.")
+        self._empty_label = QLabel(QCoreApplication.translate("JobPanelMixin", "没有活跃任务。\n请从左侧选择工具并点击运行。"))
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._empty_label.setStyleSheet("color: #666; font-size: 12px; padding: 40px;")
         self._output_tabs.addTab(self._empty_label, "(empty)")
@@ -146,16 +147,16 @@ class JobPanelMixin:
 
         # 状态栏详细消息
         if exit_code == 0:
-            self._status_bar.showMessage(QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 完成 (exit code: 0)").format(name), 5000)
+            self._status_bar.showMessage(qt_format(QCoreApplication.translate("JobPanelMixin", "任务 '%1' 已完成（退出码：0）"), name), 5000)
         else:
             self._status_bar.showMessage(
-                QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 失败 (exit code: {})").format(name, exit_code), 8000
+                qt_format(QCoreApplication.translate("JobPanelMixin", "任务 '%1' 失败（退出码：%2）"), name, exit_code), 8000
             )
 
         # 在输出面板追加结束信息
         output = self._job_outputs.get(job_id)
         if output:
-            banner = f"\n{'='*60}\n[{QCoreApplication.translate("JobPanelMixin", '进程结束')}] exit code: {exit_code}\n{'='*60}\n"
+            banner = f"\n{'='*60}\n[{QCoreApplication.translate('JobPanelMixin', '进程结束')}] exit code: {exit_code}\n{'='*60}\n"
             output.append_output(banner, "stdout")
             output.set_finished()
 
@@ -207,7 +208,7 @@ class JobPanelMixin:
             reply = QMessageBox.question(
                 cast(QWidget, self),
                 QCoreApplication.translate("JobPanelMixin", "确认停止"),
-                QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 已运行 {} 秒。\n确定停止？").format(job.script_entry.name, int(elapsed)),
+                qt_format(QCoreApplication.translate("JobPanelMixin", "任务 '%1' 已运行 %2 秒。\n确定停止？"), job.script_entry.name, int(elapsed)),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No,
             )
@@ -232,7 +233,7 @@ class JobPanelMixin:
                 reply = QMessageBox.question(
                     cast(QWidget, self),
                     QCoreApplication.translate("JobPanelMixin", "确认关闭"),
-                    QCoreApplication.translate("JobPanelMixin", "脚本 '{}' 正在运行。\n停止并关闭？").format(job.script_entry.name),
+                    qt_format(QCoreApplication.translate("JobPanelMixin", "任务 '%1' 正在运行。\n停止并关闭？"), job.script_entry.name),
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.No,
                 )
@@ -304,20 +305,20 @@ class JobPanelMixin:
         running = sum(1 for c in self._job_cards.values() if c.is_running)
         total = len(self._job_cards)
         if total == 0:
-            self._job_count_label.setText("Jobs")
+            self._job_count_label.setText(QCoreApplication.translate("JobPanelMixin", "任务"))
         else:
-            self._job_count_label.setText(f"Jobs ({running} running, {total} total)")
+            self._job_count_label.setText(qt_format(QCoreApplication.translate("JobPanelMixin", "任务（%1 运行中，共 %2）"), running, total))
 
         self._status_bar.showMessage(
-            f"{running} running, {total} total"
+            qt_format(QCoreApplication.translate("JobPanelMixin", "%1 运行中，共 %2"), running, total)
             if running > 0
-            else "Ready"
+            else QCoreApplication.translate("JobPanelMixin", "就绪")
         )
 
         # 更新运行按钮状态
         if self._current_script is not None:
             if running >= JobManager.MAX_CONCURRENT:
-                self._run_btn.setText(QCoreApplication.translate("JobPanelMixin", "已达上限 ({})").format(JobManager.MAX_CONCURRENT))
+                self._run_btn.setText(qt_format(QCoreApplication.translate("JobPanelMixin", "已达上限（%1）"), JobManager.MAX_CONCURRENT))
                 self._run_btn.setStyleSheet(self._RUN_STYLE_FULL)
                 self._run_btn.setEnabled(True)  # 仍可点击以显示错误
             else:

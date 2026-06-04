@@ -88,7 +88,7 @@ class TestMainWindowSidebarIntegration:
             i for i in range(tabs.count()) if tabs.tabText(i) == "Files"
         )
         script_info_idx = next(
-            i for i in range(tabs.count()) if tabs.tabText(i) in {"Script Info", "脚本信息"}
+            i for i in range(tabs.count()) if tabs.tabText(i) in {"Tool Info", "工具信息"}
         )
         tabs.setCurrentIndex(files_idx)
 
@@ -101,7 +101,7 @@ class TestMainWindowSidebarIntegration:
         window._on_script_selected(entry)
 
         assert tabs.currentIndex() == script_info_idx
-        assert tabs.tabText(tabs.currentIndex()) in {"Script Info", "脚本信息"}
+        assert tabs.tabText(tabs.currentIndex()) in {"Tool Info", "工具信息"}
 
 
 class TestMainWindowThemeSwitching:

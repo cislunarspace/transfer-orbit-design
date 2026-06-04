@@ -34,7 +34,7 @@ class SidebarWidget(QWidget):
         self._setup_brand_header(layout)
 
         self._search_input = QLineEdit()
-        self._search_input.setPlaceholderText(self.tr("搜索脚本..."))
+        self._search_input.setPlaceholderText(self.tr("搜索工具..."))
         self._search_input.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         layout.addWidget(self._search_input)
 

@@ -12,6 +12,7 @@ from typing import Callable, Mapping
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QCheckBox, QComboBox, QLineEdit, QMessageBox, QSpinBox, QTableWidget, QWidget
 
+from tod.gui.i18n import qt_format
 from tod.gui.script_registry import CliParam, ScriptEntry
 
 
@@ -248,7 +249,7 @@ class ScriptParamCollector:
                     QMessageBox.warning(
                         parent,
                         tr("参数缺失"),
-                        tr("脚本需要参数 '{}'，但未填写。").format(cli_param.label),
+                        qt_format(tr("工具需要参数 '%1'，但未填写。"), cli_param.label),
                     )
                     widget.setFocus()
                     return False
@@ -262,7 +263,7 @@ class ScriptParamCollector:
                         QMessageBox.warning(
                             parent,
                             tr("参数无效"),
-                            tr("参数 '{}' 需要数值，当前输入 '{}' 无效。").format(cli_param.label, text),
+                            qt_format(tr("参数 '%1' 需要数值，当前输入 '%2' 无效。"), cli_param.label, text),
                         )
                         widget.setFocus()
                         return False
@@ -278,7 +279,7 @@ class ScriptParamCollector:
                     reply = QMessageBox.question(
                         parent,
                         tr("文件不存在"),
-                        tr("参数 '{}' 引用的文件不存在：\n{}\n\n仍然继续？").format(cli_param.label, text),
+                        qt_format(tr("参数 '%1' 引用的文件不存在：\n%2\n\n仍然继续？"), cli_param.label, text),
                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                         QMessageBox.StandardButton.No,
                     )

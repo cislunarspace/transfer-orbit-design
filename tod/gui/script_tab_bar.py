@@ -101,7 +101,7 @@ class ScriptTabBar(QWidget):
         p_layout = QVBoxLayout(placeholder)
         p_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        label = QLabel(self.tr("请从左侧选择脚本"))
+        label = QLabel(self.tr("请从左侧选择工具"))
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         label.setStyleSheet("color: #888; font-size: 13px; padding: 40px;")
         p_layout.addWidget(label)

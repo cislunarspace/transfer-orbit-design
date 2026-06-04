@@ -29,6 +29,7 @@ from PyQt6.QtWidgets import (
 
 from tod.gui.doc_link_mixin import make_doc_link_label
 from tod.gui.file_discovery import FileInfo, filter_files
+from tod.gui.i18n import qt_format
 from tod.gui.param_value_store import CatalogSeedSelectorState, ParamValueStore
 from tod.gui.script_registry import CliParam, MultiCliParam, ScriptEntry
 from tod.gui.theme_utils import resolve_theme as _resolve_theme
@@ -224,7 +225,7 @@ class ScriptParamPanel(QWidget):
             self.add_defaults_buttons()
 
         if not has_any:
-            label = QLabel(self.tr("此脚本无可配置参数"))
+            label = QLabel(self.tr("此工具无可配置参数"))
             label.setStyleSheet("color: #999; font-style: italic;")
             self._params_layout.addRow(label)
 
@@ -324,7 +325,7 @@ class ScriptParamPanel(QWidget):
 
     def add_env_param(self, key: str, env_param) -> None:
         combo = QComboBox()
-        combo.addItem(self.tr("（使用脚本默认值）"), None)
+        combo.addItem(self.tr("（使用工具默认值）"), None)
         matching = filter_files(
             self._store._files,
             category=env_param.file_category,
@@ -420,7 +421,7 @@ class ScriptParamPanel(QWidget):
                 try:
                     self._load_catalog_seed_options(selector, selector_widget)
                 except Exception as exc:  # pragma: no cover - Qt slot must not leak exceptions
-                    preview_label.setText(self.tr("参考数据集加载失败：{}\n请检查参考数据集路径。用于手动模式时可取消勾选。").format(exc))
+                    preview_label.setText(qt_format(self.tr("参考数据集加载失败：%1\n请检查参考数据集路径。用于手动模式时可取消勾选。"), str(exc)))
 
         apply_enabled_state(selector.default_enabled)
         enabled.toggled.connect(on_enabled_toggled)
@@ -546,9 +547,10 @@ class ScriptParamPanel(QWidget):
     def add_defaults_buttons(self) -> None:
         btn_layout = QHBoxLayout()
         btn_layout.setContentsMargins(0, 8, 0, 0)
-        save_btn = QPushButton(self.tr("保存为默认值"))
+        save_btn = QPushButton(self.tr("保存为用户默认值"))
         save_btn.clicked.connect(self._on_save_defaults)
-        reset_btn = QPushButton(self.tr("恢复出厂默认"))
+        reset_btn = QPushButton(self.tr("恢复工具默认值"))
+        reset_btn.setToolTip(self.tr("清除您的自定义设置，恢复为工具内置默认参数"))
         reset_btn.clicked.connect(self._on_reset_defaults)
         btn_layout.addWidget(save_btn)
         btn_layout.addWidget(reset_btn)
@@ -562,12 +564,12 @@ class ScriptParamPanel(QWidget):
     def _on_save_defaults(self) -> None:
         self._store.save_defaults(self.entry, self._gui_defaults)
         self.defaults_changed.emit()
-        self.status_message.emit(self.tr("默认值已保存"), 3000)
+        self.status_message.emit(self.tr("用户默认值已保存"), 3000)
 
     def _on_reset_defaults(self) -> None:
         self._store.reset_defaults(self.entry, self._gui_defaults)
         self.defaults_changed.emit()
-        self.status_message.emit(self.tr("已恢复出厂默认值"), 3000)
+        self.status_message.emit(self.tr("已恢复工具默认值"), 3000)
 
     # ── 主题 / 文件刷新 ───────────────────────────────────────
 
@@ -598,7 +600,7 @@ class ScriptParamPanel(QWidget):
             current_data = combo.currentData()
             combo.blockSignals(True)
             combo.clear()
-            combo.addItem(self.tr("（使用脚本默认值）"), None)
+            combo.addItem(self.tr("（使用工具默认值）"), None)
             matching = filter_files(
                 self._store._files,
                 category=env_param.file_category,

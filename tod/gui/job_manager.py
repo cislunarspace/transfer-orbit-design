@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 
 from PyQt6.QtCore import QProcessEnvironment, QObject, QProcess, QTimer, pyqtSignal
 
+from tod.gui.i18n import qt_format
 from tod.gui.script_registry import ScriptEntry
 
 _KILL_TIMEOUT_MS = 3000
@@ -64,7 +65,7 @@ class JobManager(QObject):
         )
         if running_count >= self.MAX_CONCURRENT:
             self.job_error.emit(
-                "", self.tr("同时运行的任务数已达上限 ({})").format(self.MAX_CONCURRENT)
+                "", qt_format(self.tr("同时运行的任务数已达上限（%1）"), self.MAX_CONCURRENT)
             )
             return ""
 
@@ -228,11 +229,11 @@ class JobManager(QObject):
             job.status = "error"
             self.job_error.emit(
                 job_id,
-                self.tr("脚本启动失败: {}\nPython 解释器未找到，请确认 Python 已正确安装").format(name),
+                qt_format(self.tr("任务启动失败：%1\nPython 解释器未找到，请确认 Python 已正确安装"), name),
             )
         elif error != QProcess.ProcessError.UnknownError:
             err_name = error.name if hasattr(error, "name") else str(error)
-            self.job_error.emit(job_id, self.tr("进程错误 ({}): {}").format(name, err_name))
+            self.job_error.emit(job_id, qt_format(self.tr("进程错误（%1）：%2"), name, err_name))
 
     def _prune_completed(self) -> None:
         """仅保留最近 _MAX_COMPLETED 个已完成的 job。"""

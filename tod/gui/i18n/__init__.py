@@ -17,6 +17,18 @@ if TYPE_CHECKING:
     from tod.gui.script_registry import ScriptEntry
 
 
+def qt_format(s: str, *args: object) -> str:
+    """Replace Qt ``%1``, ``%2``, … placeholders with positional arguments.
+
+    PyQt6 ``tr()`` returns a plain Python ``str`` which lacks C++ Qt's
+    ``QString.arg()`` method.  This helper bridges that gap so that
+    translatable strings can use the standard Qt placeholder syntax.
+    """
+    for i, arg in enumerate(args, start=1):
+        s = s.replace(f"%{i}", str(arg))
+    return s
+
+
 class TranslationLoader:
     """加载并管理 GUI 翻译文件和脚本翻译表。"""
 
