@@ -1,0 +1,68 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/generates/cr3bp/lpo/generate_lpo_orbit.rst:2
+#: 7c8ffe9b86744aaca61aa460fadd51c8
+msgid "generate_lpo_orbit"
+msgstr ""
+
+#: 88a7426fb45542e4a116b52cc09f63fe of
+#: tod.generates.cr3bp.lpo.generate_lpo_orbit:1
+msgid "generate_lpo_orbit LPO轨道生成脚本。"
+msgstr ""
+
+#: 4a10890696a245179957453bcf2e59e7 of
+#: tod.generates.cr3bp.lpo.generate_lpo_orbit:3
+msgid ""
+"本模块在地月 CR3BP 中通过微分修正生成单条轨道。围绕三角平动点（L4 或 L5）的长周期振荡轨道，周期较长，覆盖范围更大。 "
+"输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/lpo/ 下对应轨道类别的 JSON/CSV 文件。"
+msgstr ""
+
+#: afa15517295d4895a239a0724ab32777 of
+#: tod.generates.cr3bp.lpo.generate_lpo_orbit:6
+msgid "运行示例:"
+msgstr ""
+
+#: 1c293ac3e6824af8b698e9e269d64769 of
+#: tod.generates.cr3bp.lpo.generate_lpo_orbit.main:1
+msgid "执行脚本主流程。"
+msgstr ""
+
+#: ../../source/tod/generates/cr3bp/lpo/generate_lpo_orbit.rst
+#: 34d83b3e62b44c81870678afd1a53da4 dd506ba6e6664d45902e60abfe9d63fd
+msgid "返回"
+msgstr ""
+
+#: 1da04066649c4130bffb373e96f41523 of
+#: tod.generates.cr3bp.lpo.generate_lpo_orbit.main:3
+msgid "None。"
+msgstr ""
+
+#: 0b4633bdf9f648b39c7ffd7a38ada1b2 of
+#: tod.generates.cr3bp.lpo.generate_lpo_orbit.parse_args:1
+msgid "解析命令行参数。"
+msgstr ""
+
+#: 105d52f54025471e9091b91789fa4c04 of
+#: tod.generates.cr3bp.lpo.generate_lpo_orbit.parse_args:3
+msgid "解析后的命令行参数命名空间。"
+msgstr ""
+

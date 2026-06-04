@@ -1,0 +1,93 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/plot/transfer/dro_to_geo/plot_optimize_result_dro_to_geo.rst:2
+#: dfa661af7e124e11b5426167e363c7ed
+msgid "tod.plot.transfer.dro_to_geo.plot_optimize_result_dro_to_geo"
+msgstr ""
+
+#: 775ba02c0d5947fda84f0ef11227cac5 of
+#: tod.plot.transfer.dro_to_geo.plot_optimize_result_dro_to_geo:1
+msgid "plot_optimize_result_dro_to_geo 可视化脚本。"
+msgstr ""
+
+#: 44ef7d09368841eb878600adde695863 of
+#: tod.plot.transfer.dro_to_geo.plot_optimize_result_dro_to_geo:3
+msgid ""
+"本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ "
+"下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。"
+msgstr ""
+
+#: 0ef1917c8821441ea65052fac2bc33f8 of
+#: tod.plot.transfer.dro_to_geo.plot_optimize_result_dro_to_geo:5
+msgid "运行示例:"
+msgstr ""
+
+#: 9558149e74b84f58aa0b02b229ff16b1 of
+#: tod.plot.transfer.dro_to_geo.plot_optimize_result_dro_to_geo.load_optimization_results:1
+msgid "读取转移优化结果 JSON 文件。"
+msgstr ""
+
+#: ../../source/tod/plot/transfer/dro_to_geo/plot_optimize_result_dro_to_geo.rst
+#: 9b4499ff563d40bf9c3d299108519a59
+msgid "参数"
+msgstr ""
+
+#: b1727f30d47340939c0f05646126b9d2 of
+#: tod.plot.transfer.dro_to_geo.plot_optimize_result_dro_to_geo.load_optimization_results:3
+msgid "调用方传入的参数值。"
+msgstr ""
+
+#: ../../source/tod/plot/transfer/dro_to_geo/plot_optimize_result_dro_to_geo.rst
+#: 398a2a53a14f42b7962fa41b449cd96b 624f6b4507f34273bb94f497fcb767b4
+msgid "返回"
+msgstr ""
+
+#: 4d83eeec50e34d3d87e2fac7ba97c6ee of
+#: tod.plot.transfer.dro_to_geo.plot_optimize_result_dro_to_geo.load_optimization_results:5
+msgid "函数执行结果。"
+msgstr ""
+
+#: ../../source/tod/plot/transfer/dro_to_geo/plot_optimize_result_dro_to_geo.rst
+#: 56e986f4b069413ca7f52fd9ffd99a4f 5e5c881ab60b483daa88217650f05090
+msgid "返回类型"
+msgstr ""
+
+#: 54afb1a28ade48ff80a262988496c5e3 of
+#: tod.plot.transfer.dro_to_geo.plot_optimize_result_dro_to_geo.main:1
+msgid "执行脚本主流程。"
+msgstr ""
+
+#: 97fe4f980314457699b5429dd8011d29 of
+#: tod.plot.transfer.dro_to_geo.plot_optimize_result_dro_to_geo.main:3
+msgid "None。"
+msgstr ""
+
+#: ../../source/tod/plot/transfer/dro_to_geo/plot_optimize_result_dro_to_geo.rst
+#: 0235cd067e1a45108123996560bd7990
+msgid "抛出"
+msgstr ""
+
+#: f931877482a74a6b9de70874c5770f45 of
+#: tod.plot.transfer.dro_to_geo.plot_optimize_result_dro_to_geo.main:5
+msgid "当输入数据、文件或数值流程不满足脚本要求时抛出。"
+msgstr ""
+

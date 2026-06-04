@@ -1,0 +1,68 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/gui/settings_dialog.rst:2 cf1bc5c55b364aeea815d1f0398336cd
+msgid "tod.gui.settings_dialog"
+msgstr ""
+
+#: 24e780d841254a62bf10cf94919316f1 of tod.gui.settings_dialog:1
+msgid "PyQt6 图形界面组件。"
+msgstr ""
+
+#: 63bbab6a6fa148ea95f2e093dfd4e4d1 of tod.gui.settings_dialog:3
+msgid "本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。"
+msgstr ""
+
+#: cdc3980f85134731919fa70767f06e2e of tod.gui.settings_dialog.SettingItem:1
+msgid "单个设置项的定义。"
+msgstr ""
+
+#: ../../source/tod/gui/settings_dialog.rst 5ece02b58aba4adf870c70aefbb67333
+#: 675562d326d54653a6f322142a6acc12
+msgid "参数"
+msgstr ""
+
+#: 60739e12c7214b62bbf782dbd0b6f7f9 of tod.gui.settings_dialog.SettingsDialog:1
+msgid "设置对话框。"
+msgstr ""
+
+#: fd2432fa4d69493ea5f4dc0d7a4909b8 of tod.gui.settings_dialog.SettingsDialog:3
+msgid "用于编辑应用设置项，支持选择/整数/浮点数等类型。"
+msgstr ""
+
+#: f3de136f1dda42759788099fcc70919a of
+#: tod.gui.settings_dialog.SettingsDialog.get_settings:1
+msgid "获取当前设置值。"
+msgstr ""
+
+#: ../../source/tod/gui/settings_dialog.rst 14bfa283858a4baebe2fbb46de7fb0b6
+msgid "返回"
+msgstr ""
+
+#: e0f1bda2feb343f19b814365247c82e8 of
+#: tod.gui.settings_dialog.SettingsDialog.get_settings:3
+msgid "设置键值对字典。"
+msgstr ""
+
+#: ../../source/tod/gui/settings_dialog.rst 32910f085c324bfc88e52c389a8ce8db
+msgid "返回类型"
+msgstr ""
+

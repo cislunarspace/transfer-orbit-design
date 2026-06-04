@@ -1,0 +1,82 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/gui/file_operations.rst:2 9962af713a4449e589e0804d81fa2784
+msgid "tod.gui.file_operations"
+msgstr ""
+
+#: e158b21336cc4e41bc72b5a48135ed9c of tod.gui.file_operations:1
+msgid "PyQt6 图形界面组件。"
+msgstr ""
+
+#: 3256338b8a3a425cb37020642bfbc79c of tod.gui.file_operations:3
+msgid "本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。"
+msgstr ""
+
+#: 9f7ec3f9f1ac4c07b590a0a45ee5ed3a of
+#: tod.gui.file_operations.format_delete_confirmation:1
+msgid "生成删除确认对话框的标题和消息。"
+msgstr ""
+
+#: 4e199c6521e649d3886d3e5765f976f6 of
+#: tod.gui.file_operations.format_delete_confirmation:3
+msgid "单文件：直接显示文件名。 多文件：列出前 5 个文件名，超出显示\"及其他 N 个文件\"。"
+msgstr ""
+
+#: 1177f17a8f9c4e978b8fdde09c4e9d1c 1dac68ee6c974d7889dae1553bb568fb
+#: ff28c3350d4f4b238aa163c0bf77cc1f of
+#: tod.gui.file_operations.format_delete_confirmation
+#: tod.gui.file_operations.make_relative_paths
+#: tod.gui.file_operations.reveal_in_file_manager
+msgid "参数"
+msgstr ""
+
+#: 417cbc10eb4841198521267f6e750d5b 43b0e19ff0b24c18b8d1fb4d1c7a6356
+#: c5b83bbf279049abada0bd39a5814218 ff22c3d8dace45ce9b4d65f936f08e4d of
+#: tod.gui.file_operations.format_delete_confirmation
+#: tod.gui.file_operations.get_selected_paths
+#: tod.gui.file_operations.make_relative_paths
+#: tod.gui.file_operations.reveal_in_file_manager
+msgid "返回类型"
+msgstr ""
+
+#: 4a4badf3ccaa41caaa50556faca72210 of
+#: tod.gui.file_operations.get_selected_paths:1
+msgid "从 QTreeWidget 获取所有选中文件的绝对路径。"
+msgstr ""
+
+#: ff72492fe6b24d688ce5b63439e81403 of
+#: tod.gui.file_operations.make_relative_paths:1
+msgid "将绝对路径列表转换为相对于 repo root 的路径列表（统一用正斜杠）。"
+msgstr ""
+
+#: f76a58b1802a4229a0b37417e609f7c1 of
+#: tod.gui.file_operations.reveal_in_file_manager:1
+msgid "在系统文件管理器中显示指定文件。"
+msgstr ""
+
+#: 03813fc4d07541baa206f42fa7540a50 of
+#: tod.gui.file_operations.reveal_in_file_manager:3
+msgid ""
+"Windows: explorer /select,<path> macOS:   open -R <path> Linux:   xdg-"
+"open <parent_dir>"
+msgstr ""
+

@@ -1,0 +1,515 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:1
+#: a554ae3dd69a4a288c6fd81ad36a90eb
+msgid "PRD: 修复 CI 与 Release 工作流"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:3
+#: a87f0708927f4277bb1af2f67efdd986
+msgid "Problem Statement"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:5
+#: b832bf9da34645eabd5437fcb140d569
+msgid "当前项目的持续集成（CI）与自动发布（Release）工作流存在多个结构性缺陷，导致自动化流程无法正常运行："
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:7
+#: 6f908eabc53d4a64bdd8b81c4d7fdd31
+msgid ""
+"**PyInstaller spec 文件缺失**：`release.yml` 引用 `TransferOrbitDesign.spec` "
+"用于构建 Windows 可执行文件，但项目中该文件完全不存在，导致 Windows 构建 **100% 失败**。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:8
+#: a75217f5a1574803b170efcf92136a9b
+msgid ""
+"**pyproject.toml 包含本地路径依赖**：`[tool.uv.sources]` 和 "
+"`[tool.pyright.extraPaths]` 均指向 `../e2m2e`（本地文件系统路径），在 GitHub Actions "
+"环境中不存在，导致 pip 安装或 pyright 类型检查可能失败。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:9
+#: c12fa8e5264d42f5879f77bdb95048bc
+msgid ""
+"**pip 约束文件无法覆盖依赖来源**：`constraints-ci.txt` 试图通过 `-c` 约束文件将 `e2m2e` "
+"的来源从本地路径替换为 git URL，但 pip 的约束文件只能限制版本，**不能改变依赖来源**。因此 CI 实际会从 PyPI 安装 "
+"e2m2e（或失败），而非从 git 仓库安装。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:10
+#: 285882b2f72146ed8d348f3255448fa8
+msgid ""
+"**文档部署工作流与项目文档栈不匹配**：`deploy-docs.yml` 假设 docs 目录使用 "
+"Docusaurus（npm），但项目实际使用 Sphinx（Python），工作流完全不匹配，触发即失败。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:11
+#: ff0bd08f7bc94b4c8362382e9988d68f
+msgid ""
+"**PyInstaller 无入口点定义**：`pyproject.toml` 未定义 "
+"`[project.scripts]`，PyInstaller 构建时无法自动识别主入口模块。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:13
+#: 40a099efa45f41e1a59c98055a0030d4
+msgid "Solution"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:15
+#: 11d3c236eaaa4a87bf6ed5811fdb9002
+msgid "对 CI/CD 相关配置文件进行全面修复和重构："
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:17
+#: 09c92f3b041849d6bba5497d79c9873e
+msgid "修复 `pyproject.toml` 中的本地路径配置，确保 CI 友好"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:18
+#: d2a1979e40cc4b31aa7ec54db32d3f5b
+msgid "修复 `ci.yml` 中的依赖安装步骤，确保 e2m2e 从 git 正确安装"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:19
+#: 796be1047d0a42f1be51865c564ff442
+msgid ""
+"创建 `TransferOrbitDesign.spec`（PyInstaller 配置文件），使 Release 能成功构建 Windows "
+"可执行文件"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:20
+#: 0e24265357b54d5688e57842c63bb310
+msgid "重写 `deploy-docs.yml`，从 Docusaurus 改为 Sphinx 构建流程"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:21
+#: 94da6088ad2c4c76a18e9ed3221e4fb2
+msgid "修复 `release.yml` 的依赖安装步骤，与 CI 保持一致"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:22
+#: 36966d516d8d4a49a51d32b9bea9c8f3
+msgid "清理无效的 `constraints-ci.txt`"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:24
+#: 1de2d14a51354351b0efcb787a43216b
+msgid "User Stories"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:26
+#: 6293e385c736405b8445423e36c1421e
+msgid "作为项目维护者，我希望 CI 在所有操作系统和 Python 版本上都能正确安装依赖并运行测试，以便及时捕获回归问题"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:27
+#: 96eae6f051bc4b72ae365d85370af5d2
+msgid "作为项目维护者，我希望 pyright 类型检查在 CI 中能通过，以便保证代码类型安全"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:28
+#: 78a999ddad544fa7970ef4806d6cfc46
+msgid ""
+"作为项目维护者，我希望推送 `v*` 标签时能自动生成 Release 并附带 Windows 可执行文件，以便用户无需安装 Python "
+"环境即可运行软件"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:29
+#: 52b1b1bf326d4ae89edefbfa2b9c49db
+msgid "作为项目维护者，我希望 docs 目录的变更能自动构建 Sphinx 文档并部署到 GitHub Pages，以便保持在线文档的最新状态"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:30
+#: 999cca4fa53e44168602504aa7f9eb15
+msgid "作为贡献者，我希望提交 PR 时 CI 能正确安装 e2m2e（即使我没有本地路径），以便获得有效的 CI 反馈"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:31
+#: 716145a9c082419a99bbf868a13a6839
+msgid ""
+"作为 GUI 用户，我希望下载 Windows exe 后能正常运行软件（包括界面语言切换和轨道族绘图功能），以便在无 Python "
+"环境的情况下使用"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:32
+#: ba99c6268e70485c870e5db4d45dec57
+msgid "作为项目维护者，我希望 `pyproject.toml` 中不再包含 CI 不友好的本地绝对/相对路径，以便配置文件对任何环境都可用"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:34
+#: 8784b93394d84502a6a628e7adfe67a8
+msgid "Implementation Decisions"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:36
+#: 12b43ccca0244df6be7ed4626abb85ba
+msgid "1. 修复 pyproject.toml 中的 CI 不友好配置"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:38
+#: 7d5222b439db43fab8eeb12d8e7820aa
+msgid ""
+"**删除 `[tool.uv.sources]`**：该节仅用于本地 `uv` 开发环境，在 CI 中无意义。本地 `uv` "
+"用户可在个人配置中覆盖。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:39
+#: 993ffaa954d948a1874db5e5c6b3399c
+msgid ""
+"**删除 `[tool.pyright]` 中的 `extraPaths`**：e2m2e 在 CI 中通过 pip 安装到 site-"
+"packages，pyright 应能自动解析。如有本地开发需要，使用 `.gitignore` 的 `pyrightconfig.json` "
+"覆盖。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:40
+#: 5cc700b72d17419ca1cf16d49aa4509e
+msgid ""
+"**新增 `[project.scripts]`**：定义 `transfer-orbit-design = "
+"\"tod.gui.main:main\"`，为 PyInstaller 提供明确的入口点信息。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:42
+#: 12e474a5fcc14608a82c7ed16c748469
+msgid "2. 修复 ci.yml 的依赖安装"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:44
+#: c600300daa5444b2bd31ef1dbb6d1151
+msgid "在 Install dependencies 步骤中，将 e2m2e 的安装显式前置："
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:49
+#: 4edc23cb16974999846d03d834dd285c
+msgid "移除对 `constraints-ci.txt` 的依赖（该方式无法正确覆盖来源）。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:51
+#: 33a9fb78471d43e0923092277d142c39
+msgid "3. 创建 TransferOrbitDesign.spec"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:53
+#: 63c6ce1c927742728db21df801a4590e
+msgid ""
+"使用 PyInstaller 的 `Analysis + PYZ + EXE + COLLECT` 模式（onedir），因为 "
+"`tod/gui/main.py` 的 frozen 子进程执行逻辑需要访问目录中的 `.py` 脚本文件。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:54
+#: 5d144522b29746fdad2e09fc5bcf53df
+msgid "配置 `datas` 包含 `tod/gui/i18n/` 下的 `.qm` 和 `.json` 翻译资源文件。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:55
+#: ce7992f685fb447babfc69a33938e96a
+msgid "配置 `hiddenimports` 包含 e2m2e 及其子模块、PyQt6 相关子模块（如 `PyQt6.QtWebEngineCore`）。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:56
+#: c9adf585ac1c4513a89801cb94820a4f
+msgid "设置 `console=False`（GUI 应用）。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:57
+#: 918d36abac63429194f41458cdcaf813
+msgid "注意 PyQt6-WebEngine 的二进制依赖（DLL、翻译文件、资源文件），可能需要额外的 `binaries` 配置或 `hook` 文件。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:59
+#: 1e149f4f00c04939b10d3ef269f09606
+msgid "4. 重写 deploy-docs.yml"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:61
+#: 7fb4671985fc46d4a7d1f33564184f3b
+msgid "移除所有 Node/npm/Docusaurus 相关步骤（Setup Node、npm ci、npm run build）。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:62
+#: 9c4334d190a04182a1465c8c4a3bcb14
+msgid "替换为 Python/Sphinx 构建流程："
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:63
+#: 657b0ed8ca20409f95516b213ff83bd2
+msgid "Setup Python 3.13"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:64
+#: 53a7af0cbe1345d2a393d4bb926d21e1
+msgid "Install e2m2e from git"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:65
+#: 85427fdc0d21453189336a26ec3385f8
+msgid "Install project with `pip install -e \".[docs]\"`"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:66
+#: cd8d61b80a504845a0823afb3de85448
+msgid "Build with `sphinx-build -b html docs/source docs/build/html`"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:67
+#: 60929c865572409a8b6c5d49adf40e72
+msgid "artifact 上传路径从 `docs/build` 改为 `docs/build/html`。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:69
+#: e399ebfcfef149faac81eef83d19d76f
+msgid "5. 修复 release.yml"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:71
+#: 5dd419797120444598e1d72d0f820191
+msgid "`release` job（生成 changelog + 创建 GitHub Release）逻辑保持不变。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:72
+#: 9ef432c85d5546e29e6f1ffa925d6f42
+msgid "`build-windows` job 的依赖安装步骤与 `ci.yml` 一致："
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:78
+#: d5d7165c5689413e8daf832da7c5f73c
+msgid "使用 `pyinstaller TransferOrbitDesign.spec` 构建。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:80
+#: 181c5fab50ba41e3a3c7cd24deddf491
+msgid "6. 清理 constraints-ci.txt"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:82
+#: 6bebfc469edc46f2b35627642cd83754
+msgid "删除该文件或将其内容清空并标注弃用。该文件的设计假设（`-c` 约束文件可覆盖依赖来源）在 pip 中不成立。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:84
+#: 4f24ac0733d647a090ed61c8b707257f
+msgid "Testing Decisions"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:86
+#: 3ccbc65790a44adba6c61c35936c73e6
+msgid "测试覆盖范围"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:88
+#: 507b6af11986405c8cd84cc8e7edb5fe
+msgid "由于本 PRD 的目标是修复 CI/CD 工作流（基础设施层面），而非修改业务代码，因此测试主要通过以下方式验证："
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:90
+#: 4250211731984378b7f700b3a8bec998
+msgid "**手动触发 CI 验证**："
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:91
+#: 845b87fde88540dea3b0509118d8f7d1
+msgid "推送代码到分支，确认 CI 在 Ubuntu/macOS/Windows × Python 3.11/3.13 全部通过"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:92
+#: 121489e7b3264ad88ce49d7874bc6280
+msgid "确认 e2m2e 从 git 正确安装"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:93
+#: 9d0674d013ef4e5ca66b38db7c6e0e30
+msgid "确认 pytest 测试通过"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:94
+#: f2f544a80b2e4d4d9d3f6bddde929beb
+msgid "确认 pyright 类型检查通过（无需 `extraPaths`）"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:96
+#: 55bd9140a9e845f1bad0010f80ff54e5
+msgid "**本地 PyInstaller 构建验证**："
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:97
+#: 8b4da82e572846298ed57d3179b3a3eb
+msgid "在本地 Windows 环境运行 `pyinstaller TransferOrbitDesign.spec`"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:98
+#: 5e7c6295049a4b5f87c6b43d12f74525
+msgid "确认 `dist/TransferOrbitDesign/` 目录生成"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:99
+#: 0838613b7a9649d38fa915a6ee9340dd
+msgid "运行生成的 exe，确认 GUI 能正常启动"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:100
+#: ef9aa708b01e408197c8004d1965a604
+msgid "确认界面语言切换功能正常"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:101
+#: 7e732926ec004de78ac88b7644cb751e
+msgid "确认轨道族绘图功能正常（验证 frozen 子进程执行逻辑）"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:103
+#: bf0076191b164f48b53a59e5392acfea
+msgid "**本地 Sphinx 文档构建验证**："
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:104
+#: dc984bf8a0db463394fab867dc7ff6f9
+msgid "运行 `sphinx-build -b html docs/source docs/build/html`"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:105
+#: bde526ee122d49e9ba109abe986709ae
+msgid "确认 HTML 输出无致命错误"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:106
+#: 2ef9b6fad2d64b6c938557b07fbc6c67
+msgid "确认 autodoc 能正确解析 e2m2e 相关模块"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:108
+#: 1b91068c59374b65b7602bfbcf037e59
+msgid "**Release 流程验证**："
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:109
+#: 7977eece7d154b5fa1bc1208418d73ca
+msgid "推送测试标签（如 `v0.1.0-test`），确认 Release 自动创建"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:110
+#: 712a7dfe2bf44562958c5a14266c0ef8
+msgid "确认 Windows zip 附件成功上传"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:111
+#: adb4efc0125141418ab977e523f968eb
+msgid "下载 zip 并在干净的 Windows 环境中测试运行"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:113
+#: 295ef016004946d8b5c76fa873a07d33
+msgid "现有测试参考"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:115
+#: a18386f9a558478f986548601d7696e9
+msgid "`tests/` 目录下的 pytest 测试套件（CI 已通过）"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:116
+#: fa97aae7a9d14437a11d088f41396783
+msgid "`docs/source/conf.py` 中的 Sphinx autodoc 配置"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:118
+#: 77c71a6e60134bb19af0949bd52eec94
+msgid "Out of Scope"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:120
+#: 995620417c4a4894b699373482c13bd1
+msgid "修改业务代码或轨道族脚本逻辑"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:121
+#: adf6d455d54b44dcb78c5b76b505d51c
+msgid "新增功能或 GUI 改进"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:122
+#: 7e7e54f573754d48ae637d4e067a1b72
+msgid "修改 e2m2e 仓库本身"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:123
+#: 3f82c0dd2eba4bef989ce47e28293a1c
+msgid "添加 macOS 或 Linux 的可执行文件构建"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:124
+#: 40dbcce287e24163aec8a01db5095a38
+msgid "自动化 PyInstaller spec 文件的生成（本次为手动配置）"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:125
+#: 70440ef4aae54b71a7ddbe25653369d9
+msgid "为 CI 添加 Docker 构建或缓存优化"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:126
+#: 53b81537fd7d4fd5a07c6fb662c4eaaa
+msgid "修改 pyproject.toml 中的项目版本号（Release 时通过 tag 管理）"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:128
+#: 46575dd5ca994b8ca8ff65d462e36a1b
+msgid "Further Notes"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:130
+#: 5a608a2e80ae45579691b3fd5d83b150
+msgid ""
+"**e2m2e 仓库**：`github.com/ouyangjiahong/e2m2e` 是公开仓库，CI runner 无需额外认证即可通过 "
+"https URL 克隆。如果将来改为私有仓库，需要在 CI 中配置 `GITHUB_TOKEN` 或 SSH key。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:131
+#: ef3387cb1e9243dab5186947ef2a2912
+msgid ""
+"**PyQt6-WebEngine 打包**：Qt WebEngine 有大量二进制依赖（DLL、翻译文件、资源），PyInstaller "
+"的自动分析通常能捕获大部分，但可能需要手动验证 `PyQt6/Qt6/resources/` 和 "
+"`PyQt6/Qt6/translations/` 目录是否被打包。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:132
+#: f0e3ba89e73d44fbaec2cb6ca2b9e272
+msgid ""
+"**frozen 子进程执行**：`tod/gui/main.py` 实现了 `sys.frozen` 模式下的 `.py` "
+"脚本子进程执行，需要确保打包后的目录结构中 `tod/` 下的脚本文件可被访问。onedir 模式（`COLLECT`）比 onefile "
+"模式更适合此场景。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:133
+#: 8e3743190f9f473d879d1672b04e7bec
+msgid ""
+"**Sphinx 文档路径**：当前 `docs/source/conf.py` 配置下，`sphinx-build` 默认输出到 "
+"`docs/build/html`。`deploy-docs.yml` 中的 artifact 路径需与此匹配。"
+msgstr ""
+
+#: ../../source/narrative/prd-005-fix-ci-and-release.md:134
+#: 96e0a80917a84ef787946ed9ac2ea276
+msgid ""
+"**GUI 翻译资源**：PyInstaller 打包时必须包含 `tod/gui/i18n/*.qm` 和 "
+"`tod/gui/i18n/*.json`，否则切换界面语言时翻译文件加载失败。"
+msgstr ""
+

@@ -1,0 +1,73 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/gui/scripts/_registry.rst:2
+#: ae00a544b2984e5ca2f839be9130c365
+msgid "tod.gui.scripts._registry"
+msgstr ""
+
+#: bf243d3e28274bf581fb5c794e340ee1 of tod.gui.scripts._registry:1
+msgid "_registry 的 GUI 参数注册。"
+msgstr ""
+
+#: 4d9a15408d8a45faafee7ec0ebffa051 of tod.gui.scripts._registry:3
+msgid ""
+"本模块声明 ScriptEntry、CliParam 和文件选择规则，供 GUI 生成参数控件并调用对应底层脚本。description "
+"按“目的、输入、输出”描述脚本，help 文本说明默认值与单位。"
+msgstr ""
+
+#: 40d07d139b8f4fd48a04b5e2c120fe3f of tod.gui.scripts._registry.get_scripts:1
+msgid "扫描 scripts_dir，返回分类后的脚本注册表。"
+msgstr ""
+
+#: ../../source/tod/gui/scripts/_registry.rst 089f8e7afdca4294bd035a47d7e6abce
+#: 602e671adf6145cc993743e25e78d980 of
+#: tod.gui.scripts._registry.iter_script_files
+msgid "参数"
+msgstr ""
+
+#: fce7a80436594259b2cb37d0c1ec1b5e of tod.gui.scripts._registry.get_scripts:3
+msgid "scripts/ 目录路径，默认为 tod/gui/scripts/"
+msgstr ""
+
+#: 2d09f3286a354d28aedf809c47906b66 of tod.gui.scripts._registry.get_scripts:4
+msgid "脚本翻译表（按脚本名结构化），非空时应用于每个 ScriptEntry"
+msgstr ""
+
+#: ../../source/tod/gui/scripts/_registry.rst e4150f862a8d423483671234f20b4286
+msgid "返回"
+msgstr ""
+
+#: 9ef174f0bc3d48fea4bd57a33426e8d9 of tod.gui.scripts._registry.get_scripts:6
+msgid "按分类键分组的 _ScanEntry 列表"
+msgstr ""
+
+#: ../../source/tod/gui/scripts/_registry.rst 6125f3679c6b48a0affe93aace509de7
+#: 6db94f801d9944ec968f3a4ba5f4f27b of
+#: tod.gui.scripts._registry.iter_script_files
+msgid "返回类型"
+msgstr ""
+
+#: 276828d53780477bac6e2ea2879b9b85 of
+#: tod.gui.scripts._registry.iter_script_files:1
+msgid "Yield base 下所有含 SCRIPT_ENTRY 的 .py 文件（跳过私有目录和私有文件）。"
+msgstr ""
+

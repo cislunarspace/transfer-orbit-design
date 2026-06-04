@@ -1,0 +1,59 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/index.rst:10
+msgid "入门与规范"
+msgstr ""
+
+#: ../../source/index.rst:19
+msgid "API 参考"
+msgstr ""
+
+#: ../../source/index.rst:25
+msgid "PRD 文档"
+msgstr ""
+
+#: ../../source/index.rst:6 7521b4e32e104201998de99d6a41063b
+msgid "Transfer Orbit Design 文档"
+msgstr ""
+
+#: ../../source/index.rst:8 59404199a49542d4a0580580fd49bc64
+msgid ""
+"Transfer Orbit Design 提供地月 CR3BP 轨道生成、DRO/RO/GEO/LEO 转移设计、CR3BP "
+"到星历模型修正，以及配套 GUI 和绘图脚本。"
+msgstr ""
+
+#: ../../source/index.rst:36 f9d8389a5bb846eeb14edbb4ae0e4847
+msgid "索引"
+msgstr ""
+
+#: ../../source/index.rst:38 9ae5d742eb0e4d5e8611a037dbda0482
+msgid ":ref:`genindex`"
+msgstr ""
+
+#: ../../source/index.rst:39 7acdfd70f66440218a3cf22916fa5270
+msgid ":ref:`modindex`"
+msgstr ""
+
+#: ../../source/index.rst:40 b38f25cd439644659e7723571ddde0ee
+msgid ":ref:`search`"
+msgstr ""
+

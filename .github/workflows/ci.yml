@@ -4,12 +4,10 @@ on:
   push:
     branches: [master]
     paths-ignore:
-      - "**.md"
       - "output/**"
   pull_request:
     branches: [master]
     paths-ignore:
-      - "**.md"
       - "output/**"
 
 jobs:
@@ -46,3 +44,32 @@ jobs:
         run: |
           pip install pyright
           pyright
+
+  docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libegl1
+
+      - name: Check out e2m2e source dependency
+        run: git clone https://github.com/cislunarspace/e2m2e.git ../e2m2e
+
+      - name: Install documentation dependencies
+        run: uv sync --extra docs
+
+      - name: Build Chinese documentation
+        run: uv run sphinx-build -b html -D language=zh docs/source docs/build/html/zh
+
+      - name: Build English documentation
+        run: uv run sphinx-build -b html -D language=en docs/source docs/build/html/en

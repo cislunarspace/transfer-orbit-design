@@ -36,7 +36,7 @@
 
 5. **动态文本用 `%1`/`%2` 占位符**：`f-string` 无法被 `pylupdate6` 提取，需改写为 Qt 占位符格式 `self.tr("任务 %1 完成").arg(job_id)`。
 
-6. **预留多语言扩展**：文件命名采用 `gui.<lang>.ts` / `scripts.<lang>.json` 格式，配置项 `"language": "zh"` / `"en"` 存入 `gui_defaults.json`。
+6. **预留多语言扩展**：文件命名采用 `gui.<lang>.ts` / `scripts.<lang>.json` 格式，语言配置读取自 `gui_defaults.json` 的 `settings.language`，未设置时默认 `"zh"`。
 
 ## 后果
 
@@ -62,3 +62,12 @@
 | 纯自定义 JSON 字典 | 完全自研，工作量更大，无法利用 Qt Linguist 可视化翻译 |
 | 运行时热切换 | 动态参数面板刷新逻辑过于复杂，收益与成本不成正比 |
 | 英文作为源语言 | 需先将全部中文重构为英文，再翻译回中文，改动量翻倍 |
+
+## 实施状态与覆盖边界
+
+截至 issue #190 / #234，三套机制的落地状态如下：
+
+- **GUI 文本**：主要界面文本已通过 `tod/gui/i18n/gui.en.ts` 与编译后的 `gui.en.qm` 覆盖。运行时按 `gui_defaults.json` 的 `settings.language` 加载对应 Qt 翻译文件；未设置时默认中文。
+- **脚本描述/help**：`tod/gui/i18n/scripts.en.json` 当前翻译数据仅填充脚本 `description`。翻译加载代码已支持 `group_label`、`cli_params`、`env_params` 的 `label` / `help` 字段，但这些字段的英文数据尚未全量补齐；缺失翻译时继续显示中文源文本。
+- **Sphinx 用户文档**：文档国际化基础设施已采用 Sphinx `gettext` / `sphinx-intl`。中文 `.rst` / `.md` 为源文档，英文 `.po` 位于 `docs/source/locale/en/LC_MESSAGES/`，初始条目可以保持空 `msgstr`；未翻译条目在英文构建中回退显示中文源文。
+- **API 参考正文**：Sphinx gettext 会处理整棵 `docs/source/` 文档树，因此英文 `.po` 中可能出现 API `.rst` 壳文件文本，也可能出现 `autodoc` 从 Python docstring 动态生成的正文。当前工作只落地可维护的翻译基础设施，不承诺完成 API 正文英文翻译；缺失翻译时仍以中文 docstring 为源文回退显示。API 参考正文的术语梳理和英文翻译需作为后续独立工作处理。

@@ -1,0 +1,40 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/commons/constants.rst:2 e154870ffab54c98bd6dba7cbbfcc206
+msgid "tod.commons.constants"
+msgstr ""
+
+#: f553740540e84532ba933509e38727ee of tod.commons.constants:1
+msgid "脚本共享的常量、路径与工具。"
+msgstr ""
+
+#: a4f95c106ac0443fb4fd2431633b1df2 of tod.commons.constants:3
+msgid "本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。"
+msgstr ""
+
+#: 7cbeacfd7c1745e8a85eb1c3b8da38de of tod.commons.constants:5
+msgid ""
+"硬编码常量（M_SUN / OMEGA_SUN / RHO / FAMILY_FILENAME）在模块导入时即可用，不依赖 e2m2e。 "
+"CR3BP 派生常量（MU / DU / TU / VU / T_MOON）通过 __getattr__ 惰性计算——首次访问时才 导入 "
+"e2m2e 并调用 CR3BP_System.from_known_system(\"earth_moon\")。"
+msgstr ""
+

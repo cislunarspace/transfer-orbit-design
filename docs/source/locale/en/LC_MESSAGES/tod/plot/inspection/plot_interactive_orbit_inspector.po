@@ -1,0 +1,93 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/plot/inspection/plot_interactive_orbit_inspector.rst:2
+#: f320c25fc8174758a1a2a7d8ca727a3a
+msgid "tod.plot.inspection.plot_interactive_orbit_inspector"
+msgstr ""
+
+#: ac663e2b50bb4d0eb260fd436628fba9 of
+#: tod.plot.inspection.plot_interactive_orbit_inspector:1
+msgid "plot_interactive_orbit_inspector 可视化脚本。"
+msgstr ""
+
+#: 94909c536cf147c6991c02f1f57052ba of
+#: tod.plot.inspection.plot_interactive_orbit_inspector:3
+msgid ""
+"本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ "
+"下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。"
+msgstr ""
+
+#: e35c4e7542564cc1b184787336fd09dd of
+#: tod.plot.inspection.plot_interactive_orbit_inspector:5
+msgid "运行示例:"
+msgstr ""
+
+#: 4865d9356aa34e388b2c73b048545ad1 of
+#: tod.plot.inspection.plot_interactive_orbit_inspector.compute_global_axis_limits:1
+msgid "根据轨道族计算全局轴范围，确保所有轨道都能显示在同一窗口"
+msgstr ""
+
+#: 3374d729388e449caf4296813d84db34 of
+#: tod.plot.inspection.plot_interactive_orbit_inspector.compute_orbit_jacobi:1
+msgid "计算单条轨道的Jacobi常数"
+msgstr ""
+
+#: 5a50aa347be14e048a69f096b46e3561 of
+#: tod.plot.inspection.plot_interactive_orbit_inspector.main:1
+msgid "执行脚本主流程。"
+msgstr ""
+
+#: ../../source/tod/plot/inspection/plot_interactive_orbit_inspector.rst
+#: a4dfba54c13343c3a3e6fa59eb5854a4 fcefd6ee41d14e0590518efba6e49c89
+msgid "返回"
+msgstr ""
+
+#: 12cd3014f7df4696bf237f2a6d98658c of
+#: tod.plot.inspection.plot_interactive_orbit_inspector.main:3
+msgid "None。"
+msgstr ""
+
+#: ../../source/tod/plot/inspection/plot_interactive_orbit_inspector.rst
+#: 669617fa4f3c4c3c891e4b8d5a09e5a6
+msgid "抛出"
+msgstr ""
+
+#: dd4ed82efab6404d8823472740f5847d of
+#: tod.plot.inspection.plot_interactive_orbit_inspector.main:5
+msgid "当输入数据、文件或数值流程不满足脚本要求时抛出。"
+msgstr ""
+
+#: aa032b24033f4fe081af8ddb5d1eca65 of
+#: tod.plot.inspection.plot_interactive_orbit_inspector.parse_args:1
+msgid "解析命令行参数。"
+msgstr ""
+
+#: 152aa94347ee4db19aa014b9f32937ef of
+#: tod.plot.inspection.plot_interactive_orbit_inspector.parse_args:3
+msgid "解析后的命令行参数命名空间。"
+msgstr ""
+
+#: c7766e6d7d674339a1c6e9fc6e7e91f7 of
+#: tod.plot.inspection.plot_interactive_orbit_inspector.precompute_jacobi_for_family:1
+msgid "预计算轨道族所有轨道的Jacobi常数"
+msgstr ""
+

@@ -1,0 +1,72 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/generates/cr3bp/tadpole/generate_tadpole_family.rst:2
+#: 8633d3a3e887473883ea88bb616057b0
+msgid "generate_tadpole_family"
+msgstr ""
+
+#: 16eb402d42a34523bf319aa270ce8380 of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_family:1
+msgid "generate_tadpole_family Tadpole轨道生成脚本。"
+msgstr ""
+
+#: a95a93dc4bda4404b2799c272dfd35d2 of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_family:3
+msgid "本模块在地月 CR3BP 中延拓生成 Tadpole 轨道族。通过改变振幅参数， 系统生成一系列围绕单个三角平动点的蝌蚪形轨道。"
+msgstr ""
+
+#: c12314fddb2940c58ef9e78848914a81 of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_family:6
+msgid "本脚本通过 ``FamilyGenerator`` 基类实现，族特有逻辑在子类钩子中声明， 共享流程由基类处理。"
+msgstr ""
+
+#: 0c74654b9b404e199628c9edc5696d8a of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_family:9
+msgid "运行示例:"
+msgstr ""
+
+#: 649fa1e9098a4194a203f1dc622f0479 of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_family.TadpoleFamilyGenerator:1
+msgid "Tadpole 轨道族生成器。"
+msgstr ""
+
+#: ../../source/tod/generates/cr3bp/tadpole/generate_tadpole_family.rst
+#: 6436069bcb564e95bf29178bfe93db91
+msgid "参数"
+msgstr ""
+
+#: 1a051a758f4240fb8d8f9abfb2cc5fa0 of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_family.TadpoleFamilyGenerator.add_family_args:1
+msgid "声明 Tadpole 族特有的 CLI 参数。"
+msgstr ""
+
+#: e3181c51bc114f6288aec3fafb452634 f79adcbee5284ae8b25bfda83f6bed4b of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_family.TadpoleFamilyGenerator.add_family_args
+#: tod.generates.cr3bp.tadpole.generate_tadpole_family.main
+msgid "返回类型"
+msgstr ""
+
+#: d15ad6334e0b4971aa99bb20212f0b6d of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_family.main:1
+msgid "Tadpole 轨道族生成入口。"
+msgstr ""
+

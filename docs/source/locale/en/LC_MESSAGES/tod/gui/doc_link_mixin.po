@@ -1,0 +1,100 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/gui/doc_link_mixin.rst:2 91ad938ae4cf419f87be4f1ff78b8a3e
+msgid "tod.gui.doc_link_mixin"
+msgstr ""
+
+#: 2586ef1d1b704279b483d12ef43cb2ef of tod.gui.doc_link_mixin:1
+msgid "PyQt6 图形界面组件。"
+msgstr ""
+
+#: 682f82a72cab4177be0231ab7f09d14b of tod.gui.doc_link_mixin:3
+msgid "本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。"
+msgstr ""
+
+#: afee95dd81384aafada634362493bde3 of tod.gui.doc_link_mixin.ClickableLabel:1
+msgid "一个在鼠标按下时发出 clicked 信号的 QLabel。"
+msgstr ""
+
+#: 3f3cad81be784df2b1ece6989d5e7316 of
+#: tod.gui.doc_link_mixin.ClickableLabel.mousePressEvent:1
+msgid "执行 mousePressEvent 对应的处理逻辑。"
+msgstr ""
+
+#: ../../source/tod/gui/doc_link_mixin.rst 5f36d3c651d54ec096249200a588d822
+#: ac533548d4de4d71858f544b92020090
+msgid "参数"
+msgstr ""
+
+#: 4143445cac23415a964d4c977631a6ee of
+#: tod.gui.doc_link_mixin.ClickableLabel.mousePressEvent:3
+msgid "调用方传入的参数值。"
+msgstr ""
+
+#: ../../source/tod/gui/doc_link_mixin.rst 392cd384fd524c60b35ebd71133c6ae7
+#: e66875dafe5b41708f61ffe7771402cd
+msgid "返回"
+msgstr ""
+
+#: 0759df04b9074687998995af03dbc6fa of
+#: tod.gui.doc_link_mixin.ClickableLabel.mousePressEvent:5
+msgid "None。"
+msgstr ""
+
+#: ../../source/tod/gui/doc_link_mixin.rst 0cda904405a34982b6b8ef0d648e4600
+#: 3ce1cbcf182f487f9a6f76ff85983fb3
+msgid "返回类型"
+msgstr ""
+
+#: 0ce92d8ea02c495298c2af3b28622c77 of tod.gui.doc_link_mixin.DocLinkMixin:1
+msgid "用于处理可点击文档链接的 Mixin。"
+msgstr ""
+
+#: 06d012b5b2404ada87abbaae211ed93b of tod.gui.doc_link_mixin.DocLinkMixin:3
+msgid "提供： - 文档链接点击信号 - 将脚本路径解析为文档 URL 的辅助方法"
+msgstr ""
+
+#: d195998251a64841bffacc3ca3683f1a of
+#: tod.gui.doc_link_mixin.make_doc_link_label:1
+msgid "创建一个样式化为超链接的可点击标签。"
+msgstr ""
+
+#: 468e3f1070e54616b5d7877fd8f1b1f5 of
+#: tod.gui.doc_link_mixin.make_doc_link_label:3
+msgid "标签文本"
+msgstr ""
+
+#: 8f8f817cf3f144dc89589ddf02284c43 of
+#: tod.gui.doc_link_mixin.make_doc_link_label:4
+msgid "点击时要打开的 URL（None 表示禁用链接）"
+msgstr ""
+
+#: 5ba3117260ec48df88c0892b359435be of
+#: tod.gui.doc_link_mixin.make_doc_link_label:5
+msgid "父级控件"
+msgstr ""
+
+#: cfa974c6c0854cbdb44e94a35cded13e of
+#: tod.gui.doc_link_mixin.make_doc_link_label:7
+msgid "配置为可点击链接的 ClickableLabel。"
+msgstr ""
+

@@ -1,0 +1,68 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/generates/cr3bp/butterfly/generate_butterfly_orbit.rst:2
+#: 4d07709a4bf348fea504f06e620228ed
+msgid "generate_butterfly_orbit"
+msgstr ""
+
+#: 8bed11c258c448169ab9890f99d9e073 of
+#: tod.generates.cr3bp.butterfly.generate_butterfly_orbit:1
+msgid "generate_butterfly_orbit Butterfly轨道生成脚本。"
+msgstr ""
+
+#: 84cf5757ba454e5e829626c67115245b of
+#: tod.generates.cr3bp.butterfly.generate_butterfly_orbit:3
+msgid ""
+"本模块在地月 CR3BP 中通过微分修正生成单条轨道。轨道同时经过两个共线平动点附近，整体形态呈蝴蝶状对称结构，属于大振幅三维周期轨道。 "
+"输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/butterfly/ 下对应轨道类别的 JSON/CSV 文件。"
+msgstr ""
+
+#: e7447eab0d334775b38481ae6e6cb2d8 of
+#: tod.generates.cr3bp.butterfly.generate_butterfly_orbit:6
+msgid "运行示例:"
+msgstr ""
+
+#: 4ef6fbb855a94b2c8ccc4857c2087790 of
+#: tod.generates.cr3bp.butterfly.generate_butterfly_orbit.main:1
+msgid "执行脚本主流程。"
+msgstr ""
+
+#: ../../source/tod/generates/cr3bp/butterfly/generate_butterfly_orbit.rst
+#: 2fdbfd095090483f8193e90f12c1bdc6 a3a33d21b9a24d219f55b180a54e080d
+msgid "返回"
+msgstr ""
+
+#: b8a687299b9e45fd89dac5f239842093 of
+#: tod.generates.cr3bp.butterfly.generate_butterfly_orbit.main:3
+msgid "None。"
+msgstr ""
+
+#: a153dfc41be94c0aa410ec81ab7c3625 of
+#: tod.generates.cr3bp.butterfly.generate_butterfly_orbit.parse_args:1
+msgid "解析命令行参数。"
+msgstr ""
+
+#: bc68bf904dad41fda6e42c1bed4b6211 of
+#: tod.generates.cr3bp.butterfly.generate_butterfly_orbit.parse_args:3
+msgid "解析后的命令行参数命名空间。"
+msgstr ""
+

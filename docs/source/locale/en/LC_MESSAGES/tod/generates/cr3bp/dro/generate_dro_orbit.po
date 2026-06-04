@@ -1,0 +1,79 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/generates/cr3bp/dro/generate_dro_orbit.rst:2
+#: 7badf10a2078472e9db2dfbc8692437c
+msgid "tod.generates.cr3bp.dro.generate_dro_orbit"
+msgstr ""
+
+#: d0a1c1f4e31d444c8334fe7fbf16d245 of
+#: tod.generates.cr3bp.dro.generate_dro_orbit:1
+msgid "generate_dro_orbit 轨道生成脚本。"
+msgstr ""
+
+#: 3e12f80f1a1a4e1bb1e40464703608e7 of
+#: tod.generates.cr3bp.dro.generate_dro_orbit:3
+msgid ""
+"本模块在地月 CR3BP 中通过手动初值 + 固定周期微分修正生成单条 DRO 轨道。 输入为命令行给出的初始状态和周期猜测；输出为 "
+"output/dro/ 下的单条 DRO JSON 文件。"
+msgstr ""
+
+#: aeda8380b149461796dfe1f50d42dab9 of
+#: tod.generates.cr3bp.dro.generate_dro_orbit:6
+msgid "运行示例:"
+msgstr ""
+
+#: 352844c8bd03405e8c1704fad0a4ac38 of
+#: tod.generates.cr3bp.dro.generate_dro_orbit.CatalogSeed:1
+msgid "DRO catalog 中选出的单条 seed。"
+msgstr ""
+
+#: ../../source/tod/generates/cr3bp/dro/generate_dro_orbit.rst
+#: 0b5f5363f3214e018ff44690b61fd031 c403cd28f6e04e90a9a45d4f3d303ae6
+#: f9fea64be5b94044ad932279b80ee5a3 of
+#: tod.generates.cr3bp.dro.generate_dro_orbit.main
+#: tod.generates.cr3bp.dro.generate_dro_orbit.parse_args
+msgid "参数"
+msgstr ""
+
+#: b72b3224f4ba4e6c8f0ca20c95a110df of
+#: tod.generates.cr3bp.dro.generate_dro_orbit.build_parser:1
+msgid "构造单条 DRO 生成器 CLI parser。"
+msgstr ""
+
+#: 213d16cecdb84a9cb2ae7bbe6678423a 489862ca97e34a1ca9ebd7fc81e763cc
+#: a868d4a1861640c4bb2dc20e5123f7db of
+#: tod.generates.cr3bp.dro.generate_dro_orbit.build_parser
+#: tod.generates.cr3bp.dro.generate_dro_orbit.main
+#: tod.generates.cr3bp.dro.generate_dro_orbit.parse_args
+msgid "返回类型"
+msgstr ""
+
+#: 182514d715614aa897e934ecdcc2cea8 of
+#: tod.generates.cr3bp.dro.generate_dro_orbit.main:1
+msgid "执行脚本主流程。"
+msgstr ""
+
+#: 7d92f056a0b3449fbdba67e06cf0e76a of
+#: tod.generates.cr3bp.dro.generate_dro_orbit.parse_args:1
+msgid "解析命令行参数。"
+msgstr ""
+

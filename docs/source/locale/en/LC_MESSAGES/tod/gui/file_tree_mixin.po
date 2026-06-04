@@ -1,0 +1,37 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/gui/file_tree_mixin.rst:2 ef87706bca1547d5a390949e7c187d9e
+msgid "tod.gui.file_tree_mixin"
+msgstr ""
+
+#: 08ab1f8d67a14be4871301ffa7b2010a of tod.gui.file_tree_mixin:1
+msgid "PyQt6 图形界面组件。"
+msgstr ""
+
+#: 367f7eef12064626bed843e0a58e23e2 of tod.gui.file_tree_mixin:3
+msgid "本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。"
+msgstr ""
+
+#: 315c5dfadbab44e088d4b4f6b5bb3afd of tod.gui.file_tree_mixin.FileTreeMixin:1
+msgid "提供文件浏览器 Tab 的构建和操作方法，由 MainWindow 通过多重继承混入。"
+msgstr ""
+

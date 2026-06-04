@@ -1,0 +1,190 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/commons/common.rst:2 e0e8d7b21b1a40e09a66a04ce1363fdf
+msgid "tod.commons.common"
+msgstr ""
+
+#: 5b00b7d5a2374851b691c0caf22c8422 of tod.commons.common:1
+msgid "脚本共享的常量、路径与工具。"
+msgstr ""
+
+#: 2a4ec617c05a47048d4cabec0abd82ce of tod.commons.common:3
+msgid "本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。"
+msgstr ""
+
+#: 6aaba47e5f564d9ba5faa28240d4adf4 of
+#: tod.commons.common.LoadInputContractError:1
+msgid "``load_or_compute`` 输入契约违反时抛出的领域错误。"
+msgstr ""
+
+#: ae40990735634108add7acbf1e72e81a of
+#: tod.commons.common.LoadInputContractError:3
+msgid ""
+"触发条件：``args.load`` 为真但既不是字符串路径，也没有同时传 ``args.auto_latest=True``。此约束来自 "
+"issue #183：公共层不再允许 隐式选择最新族文件。"
+msgstr ""
+
+#: 84ec31d8a86c4de6a1767c8ae0533138 of tod.commons.common.ensure_output_dir:1
+msgid "确保输出目录存在"
+msgstr ""
+
+#: 02a05b0ab0054b169ab2c82a72bbb9b1 of tod.commons.common.find_project_root:1
+msgid "从给定起点向上遍历，直到找到项目根目录。"
+msgstr ""
+
+#: 0387717ae7a44d2a97988f174ffed4c1 of tod.commons.common.find_project_root:3
+msgid "项目根目录定义为包含 pyproject.toml 或 .git 的目录。"
+msgstr ""
+
+#: ../../source/tod/commons/common.rst 7f9b8de08777437b9e569650843dd45b
+#: e5be489160ec445cba7b10c7c909fc1c
+msgid "参数"
+msgstr ""
+
+#: 46e8b960017e49589285c2103308426e of tod.commons.common.find_project_root:5
+msgid "起始目录，默认使用调用者的 __file__ 所在目录"
+msgstr ""
+
+#: ../../source/tod/commons/common.rst 28508b0a76144594b2530833d41e2993
+#: d1344e0b368d4ce4ad0cad429f02ab7a
+msgid "返回"
+msgstr ""
+
+#: ee141eca96f942e59ba4dc66255d1b47 of tod.commons.common.find_project_root:7
+msgid "项目根目录的绝对路径"
+msgstr ""
+
+#: ../../source/tod/commons/common.rst 6e666079913743ed861a272339cf567b
+#: c4792a019c624f1c9a07793fb9911126
+msgid "抛出"
+msgstr ""
+
+#: a18ec14444ff4b6588eee78602449070 of tod.commons.common.find_project_root:9
+msgid "无法找到项目根目录"
+msgstr ""
+
+#: ../../source/tod/commons/common.rst c99a8a422050459faa13ba02356289ad
+#: cc414ca11129415b8d3b189aacb11bc7
+msgid "返回类型"
+msgstr ""
+
+#: ebb0d083bb72478bbe02068ed405e1b9 of
+#: tod.commons.common.get_latest_family_file:1
+msgid "获取最新的轨道族数据文件"
+msgstr ""
+
+#: 5002f66aa69949b39ecacd24f50428ef 84775a6cd916401ead5e84520804f054
+#: 84a6ead9de16467fa024a95dffbffe5b of
+#: tod.commons.common.get_latest_family_file:3
+#: tod.commons.common.load_or_compute:3
+#: tod.commons.common.save_family_to_file:3
+msgid "参数:"
+msgstr ""
+
+#: 1481cc1790e04ca2a4ae265064f3b57f of
+#: tod.commons.common.get_latest_family_file:4
+msgid "output_dir: 输出目录路径 family_filename: 轨道族文件名"
+msgstr ""
+
+#: 36e68db419b44802acef9a73c3b45154 5861106b482d4e089dfc97b3a162896a
+#: 5f452390721248af8a4d0a818dffa299 of
+#: tod.commons.common.get_latest_family_file:7
+#: tod.commons.common.load_or_compute:18
+#: tod.commons.common.save_family_to_file:8
+msgid "返回:"
+msgstr ""
+
+#: 5d07220f37784bf9a377d2fa9d034d2d of
+#: tod.commons.common.get_latest_family_file:8
+msgid "最新轨道族文件路径，如果没有则返回None"
+msgstr ""
+
+#: cd9f3ac9d70e4518913f7312594e649c of tod.commons.common.load_or_compute:1
+msgid "加载或计算轨道族。"
+msgstr ""
+
+#: 18811aacd6c94fa1a444c2029b92e43a of tod.commons.common.load_or_compute:4
+msgid "args: 命令行参数；需提供 ``args.load`` 与 ``args.auto_latest``："
+msgstr ""
+
+#: 6ac66049ff364f3296e3150d0e2dc750 of tod.commons.common.load_or_compute:5
+msgid "两者皆为 falsy：进入「计算」分支，``compute_func`` 在调用方 控制。"
+msgstr ""
+
+#: 52ac739239704b4eaa2f6dc51b5d2bba of tod.commons.common.load_or_compute:7
+msgid "``args.load`` 是字符串路径：直接加载该路径。"
+msgstr ""
+
+#: 4c6b3f0a459c4fefb90df1dab00eda4d of tod.commons.common.load_or_compute:8
+msgid ""
+"``args.auto_latest`` 为 True 且 ``args.load`` 为 falsy：按 mtime 最新加载 "
+"``get_latest_family_file`` 命中的族文件。"
+msgstr ""
+
+#: d895d819f7654940be875bdc60176ac6 of tod.commons.common.load_or_compute:10
+msgid ""
+"``args.load`` 为真但既不是字符串路径、也未传 ``args.auto_latest``：抛 "
+"``LoadInputContractError``。这一约束 由 issue #183 落地：公共 helper 不再接受「隐式选最新」。"
+msgstr ""
+
+#: 9ec47d79ab3848caac71aca05ff2f0ed of tod.commons.common.load_or_compute:13
+msgid ""
+"system: CR3BP_System对象 compute_func: 计算轨道族的函数，接受system参数 output_dir: 输出目录"
+" family_filename: 轨道族文件名"
+msgstr ""
+
+#: 11fd00ff8d524c979d1d6fa515eb21f0 of tod.commons.common.load_or_compute:19
+msgid "system: CR3BP_System对象 family_result: OrbitFamily对象或None"
+msgstr ""
+
+#: ec3f1fbdacff43f7bd8987ce1101b7b1 of tod.commons.common.load_or_compute:22
+msgid "``args.load`` 触发新契约失败。"
+msgstr ""
+
+#: 99850b8b774948e09225cf34fed456be of tod.commons.common.safe_resolve_within:1
+msgid "安全解析用户路径，验证其位于 allowed_root 内。"
+msgstr ""
+
+#: bbdf60b9aa6e4a369feba9b79e5a5fdd of tod.commons.common.safe_resolve_within:3
+msgid "用户提供的路径字符串"
+msgstr ""
+
+#: 4bdb4a4b47de47d793c743c47d384eea of tod.commons.common.safe_resolve_within:4
+msgid "允许访问的根目录"
+msgstr ""
+
+#: cb4b33858f23449493be52e49abc4acf of tod.commons.common.safe_resolve_within:6
+msgid "解析后的绝对路径；若路径在 allowed_root 外则返回 None"
+msgstr ""
+
+#: a0e7bc9ca0f342769fe0497cb43e32ec of tod.commons.common.save_family_to_file:1
+msgid "保存轨道族到文件（自动生成时间戳目录）"
+msgstr ""
+
+#: c3933d659b36416e9e9c09d22bab4bb5 of tod.commons.common.save_family_to_file:4
+msgid "family_result: OrbitFamily对象 output_dir: 输出目录 family_filename: 轨道族文件名"
+msgstr ""
+
+#: 4c6773d0e05a4872b1af1d578e507774 of tod.commons.common.save_family_to_file:9
+msgid "family_dir: 保存的目录路径"
+msgstr ""
+

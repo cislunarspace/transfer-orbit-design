@@ -1,0 +1,79 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/generates/cr3bp/dpo/generate_dpo_orbit.rst:2
+#: 43456c18911a4ddb8dfb85328fa307b7
+msgid "generate_dpo_orbit"
+msgstr ""
+
+#: 2ad00d4f833340d99f8eecfd1605b173 of
+#: tod.generates.cr3bp.dpo.generate_dpo_orbit:1
+msgid "generate_dpo_orbit DPO 轨道生成脚本。"
+msgstr ""
+
+#: 92f4f04ed6224efd95de3529e046ffaf of
+#: tod.generates.cr3bp.dpo.generate_dpo_orbit:3
+msgid ""
+"本模块在地月 CR3BP 中通过手动初值 + 固定周期微分修正生成单条 DPO 轨道。 输入为命令行给出的初始状态和周期猜测；输出为 "
+"output/dpo/ 下的单条 DPO JSON 文件。"
+msgstr ""
+
+#: b46f6fbfcdb044e683f4438f092a904a of
+#: tod.generates.cr3bp.dpo.generate_dpo_orbit:6
+msgid "运行示例:"
+msgstr ""
+
+#: 7f26fbd528bb4e1484fbcef456711ca3 of
+#: tod.generates.cr3bp.dpo.generate_dpo_orbit.CatalogSeed:1
+msgid "DPO catalog 中选出的单条 seed。"
+msgstr ""
+
+#: ../../source/tod/generates/cr3bp/dpo/generate_dpo_orbit.rst
+#: 176dd4155afc49fab2b324dd6541f931 27aa386241944b11a5e4df55e9a03a9e
+#: 2d7a1abbd51f4e8e9a52012c170976ba of
+#: tod.generates.cr3bp.dpo.generate_dpo_orbit.main
+#: tod.generates.cr3bp.dpo.generate_dpo_orbit.parse_args
+msgid "参数"
+msgstr ""
+
+#: 1d8409de173d4b71828311d5f1ef494f of
+#: tod.generates.cr3bp.dpo.generate_dpo_orbit.build_parser:1
+msgid "构造单条 DPO 生成器 CLI parser。"
+msgstr ""
+
+#: 7fc4edbbbc2a46bda0bc46b3b3f4644f c2ef1fc889aa43ae868c694ab2959af0
+#: e1849682cb304cbaa2896da7a4b9df6b of
+#: tod.generates.cr3bp.dpo.generate_dpo_orbit.build_parser
+#: tod.generates.cr3bp.dpo.generate_dpo_orbit.main
+#: tod.generates.cr3bp.dpo.generate_dpo_orbit.parse_args
+msgid "返回类型"
+msgstr ""
+
+#: 8be3b5804a54417d940f0c1e77b612ff of
+#: tod.generates.cr3bp.dpo.generate_dpo_orbit.main:1
+msgid "执行脚本主流程。"
+msgstr ""
+
+#: 7d4e6c958b9542969e6b44e1a29def01 of
+#: tod.generates.cr3bp.dpo.generate_dpo_orbit.parse_args:1
+msgid "解析命令行参数。"
+msgstr ""
+

@@ -1,0 +1,118 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/plot/config.rst:2 0acdceca99bf4c03bd2c075328f3c33e
+msgid "tod.plot.config"
+msgstr ""
+
+#: 172f5f2393de4ddb8e6942c93d18cf4f of tod.plot.config:1
+msgid "config 可视化脚本。"
+msgstr ""
+
+#: 815178b384d94796b927178881fe0eca of tod.plot.config:3
+msgid ""
+"本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ "
+"下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。"
+msgstr ""
+
+#: e2f2ddb010f249ecaede856444b2e535 of tod.plot.config:5
+msgid "运行示例:"
+msgstr ""
+
+#: cf6f5ca53aa247d79eed99a9236d997a of
+#: tod.plot.config.apply_standard_plot_config:1
+msgid "应用统一 PlotConfig，并补充中文字体回退。"
+msgstr ""
+
+#: ../../source/tod/plot/config.rst 1471bb4f5b36439d8ab01a1aa1d198d2
+#: 1de5098935b84d24b27e8d58394845f2 5cdcd201860046e98550936f25ecb228
+#: 6b55a40ffb4244c0b676015be8d6a3ed 7bb26851e69e4293ad25fd251235712b
+#: 7c5a54d146364259b4a23af739388567 8723404ebbb449e89cbace0a60859efe of
+#: tod.plot.config.apply_standard_plot_config
+#: tod.plot.config.body_icon_env_from_settings
+#: tod.plot.config.get_plot_font_sizes_from_env
+#: tod.plot.config.get_standard_plot_config
+#: tod.plot.config.plot_font_env_from_settings tod.plot.config.style_colorbar
+msgid "参数"
+msgstr ""
+
+#: 30abc681b6264a66b5565352d3fdf065 of
+#: tod.plot.config.body_icon_env_from_settings:1
+msgid "将 GUI 的 plot_body_icon_scale 设置转换为子进程环境变量。"
+msgstr ""
+
+#: 7d4b8bb34dc947b7bb1e861856461925 of
+#: tod.plot.config.body_icon_env_from_settings:3
+msgid "解析失败或值非正时返回空 dict（让 e2m2e 走自己的默认回退）。"
+msgstr ""
+
+#: ../../source/tod/plot/config.rst 218fd884025a4c5a81499bcf87ca495f
+#: 230d11ae20a14dbf9fa406b8315165ff e74fd36bfb004bf2abf6e1110179afb6
+#: f3af3a14313b4bc789b957aba7b34fa8 of
+#: tod.plot.config.body_icon_env_from_settings
+#: tod.plot.config.get_plot_font_sizes_from_env
+#: tod.plot.config.plot_font_env_from_settings
+msgid "返回类型"
+msgstr ""
+
+#: f382fec78125419ea241004a662d69ba of
+#: tod.plot.config.get_plot_font_sizes_from_env:1
+msgid "读取 GUI/终端通过环境变量传入的绘图字号覆盖值。"
+msgstr ""
+
+#: ee51fff6301b456bb473c5288a5a440e of
+#: tod.plot.config.get_standard_plot_config:1
+msgid "创建与 plot_dro_family.py 一致的 PlotConfig。"
+msgstr ""
+
+#: eb2138cf5e7c4689937b79075281486d of
+#: tod.plot.config.plot_font_env_from_settings:1
+msgid "将 GUI 持久化设置转换为子进程环境变量。"
+msgstr ""
+
+#: a73cdca6af394ba7a0161bd3c1a3c4a2 of tod.plot.config.style_colorbar:1
+msgid "统一色标标签和刻度字号。"
+msgstr ""
+
+#: 467941accc1c432aaef3b8981c3b9017 of tod.plot.config.subsample_indices:1
+msgid "对轨道索引进行亚采样（当轨道数超过最大点数时）。"
+msgstr ""
+
+#: 51acfad273744d2e8541bb05a0e8272b of tod.plot.config.subsample_indices:3
+msgid "轨道总数。"
+msgstr ""
+
+#: 8748b7bb65004ee1956431ffe1c3ac2c of tod.plot.config.subsample_indices:4
+msgid "最大采样点数，None 表示不采样。"
+msgstr ""
+
+#: 67d4dd82b3a045ae822bb8d69df7115a of tod.plot.config.subsample_indices:5
+msgid "随机种子。"
+msgstr ""
+
+#: ../../source/tod/plot/config.rst 37b677997d9849ab83f7674e54e472c4
+msgid "返回"
+msgstr ""
+
+#: e150da3a378048698ad517ceb9306f8b of tod.plot.config.subsample_indices:7
+msgid "排序后的采样索引数组。"
+msgstr ""
+

@@ -1,0 +1,205 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/transfers/dro_to_geo/optimize_dro_to_geo.rst:2
+#: 813437b78fc942d4a7452ea2eafd477a
+msgid "tod.transfers.dro_to_geo.optimize_dro_to_geo"
+msgstr ""
+
+#: 477528285c2344088fc35baa29924b34 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo:1
+msgid "optimize_dro_to_geo 转移设计脚本。"
+msgstr ""
+
+#: 97b9f7a411614b5fb0751c3e335e1cb3 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo:3
+msgid ""
+"本模块读取已生成的轨道或搜索结果 JSON，在地月 CR3BP 单位体系中执行搜索、验证或 NLP "
+"优化。网格类脚本输出候选转移，优化类脚本读取候选并最小化速度增量或插入误差，结果写入 output/transfer 相关目录。"
+msgstr ""
+
+#: 7497d7fe1bcb458a8760068574c97385 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo:5
+msgid "运行示例:"
+msgstr ""
+
+#: 1be9833861fa428c90b1e3d7e2305cc5 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.NlpPackConfig:1
+msgid "保存 NlpPackConfig 的配置字段。"
+msgstr ""
+
+#: ff1e24470075496d8f1ecd2c7f59ca0f of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.NlpPackConfig:3
+msgid "该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。"
+msgstr ""
+
+#: ../../source/tod/transfers/dro_to_geo/optimize_dro_to_geo.rst
+#: 116edc4fc4244af29bc8c92abe1020de 88d81a86fbdc4ed98124f5b5d7302865
+#: 9dbb9fd573bd454688ca2da1f83c2ab2 a0236583c7194cec8e63f2c34acd676e
+#: c0c0ac3ac59a4032adc435c094191257
+msgid "参数"
+msgstr ""
+
+#: 34b14186d6c946f98ee607415b601b08 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.build_dynamics:1
+msgid "构建脚本所需的动力学模型。"
+msgstr ""
+
+#: f1441362df2d40deb5de027209ff9807 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.build_dynamics:3
+msgid "积分器类型。"
+msgstr ""
+
+#: d01d0f45e9674a2eb5add774fc960753 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.build_dynamics:4
+msgid "相对容差。"
+msgstr ""
+
+#: 53b526e461d5490c8267b49a3eb56ef1 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.build_dynamics:5
+msgid "绝对容差。"
+msgstr ""
+
+#: e83663e3f0be42fc9de8cd5c88d4e6da of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.build_dynamics:6
+msgid "最大步长。"
+msgstr ""
+
+#: bf39d629c68d4b229d2d3dd6c998e35b of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.build_dynamics:7
+msgid "质量比。"
+msgstr ""
+
+#: ../../source/tod/transfers/dro_to_geo/optimize_dro_to_geo.rst
+#: 8d11b9d533634fd9bca557ab4ce1b9c8 a01cf0df3e5347d195a19139ec8e6855
+#: a3d0149a77db49ebbfff138b57ebdcad aa82e10a096b4b568396deaf55263f7d
+#: dcc7a949bdba4b47a149fdbca37c806c e44d0873045b4dc7ace621665791aede
+msgid "返回"
+msgstr ""
+
+#: ec75efefcfed4c3fb9cd02adbad63ffe of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.build_dynamics:9
+msgid "(system, dynamics) 元组。"
+msgstr ""
+
+#: e253c04ed21e4eb58afb8c3a9f97139f of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.forward_integrate_nlp:1
+msgid "对 NLP 优化过程进行前向积分。"
+msgstr ""
+
+#: 25e2a7f5c4b940cb8989fa47fefaae59 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.forward_integrate_nlp:3
+msgid "动力学对象。"
+msgstr ""
+
+#: c62e1aae6e824b79914562785ddb6a5b of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.forward_integrate_nlp:4
+msgid "初始状态。"
+msgstr ""
+
+#: 9e8b6c4d51834e4692e120928084a7bf of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.forward_integrate_nlp:5
+msgid "转移时间。"
+msgstr ""
+
+#: 4cf187f9b06945ba99a03f09992beaaf of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.forward_integrate_nlp:7
+msgid "(states, times) 元组。"
+msgstr ""
+
+#: f3ca4b65d4134271bfe815fdcfcc0f25 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.main:1
+msgid "执行脚本主流程。"
+msgstr ""
+
+#: e415b5b6b7914ee3a3d7c9183ffca097 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.main:3
+msgid "None。"
+msgstr ""
+
+#: ../../source/tod/transfers/dro_to_geo/optimize_dro_to_geo.rst
+#: 69c3ec33664f403aad84e8ad5d428474
+msgid "抛出"
+msgstr ""
+
+#: 54c63886b2e74022a256e91b25284946 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.main:5
+msgid "当输入数据、文件或数值流程不满足脚本要求时抛出。"
+msgstr ""
+
+#: ../../source/tod/transfers/dro_to_geo/optimize_dro_to_geo.rst
+#: 58fbbd3e9a4b4d9dba76eeac49ccd74b
+msgid "返回类型"
+msgstr ""
+
+#: d5666fb1d2eb4afb8edaae82152e32a1 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.nlp_worker_packed:1
+msgid "打包后的 NLP worker 函数。"
+msgstr ""
+
+#: 1e10b819987f47dc8ccb741afecbb058 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.nlp_worker_packed:3
+msgid "包含索引、记录和配置的打包数据。"
+msgstr ""
+
+#: bf9b1eff051f4eed89ccd2f67f6cebac of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.nlp_worker_packed:5
+msgid "优化结果字典。"
+msgstr ""
+
+#: 31bf7b50130049ac98a81276ba757fe2 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.optimize_one_case:1
+msgid "执行转移优化计算。"
+msgstr ""
+
+#: 11a31132601342618e0ecd5e466cf37f 279e445e3ae74a6f8229d2c4c4385e58
+#: 2a3d613255c044dd96ef26830e41d8b1 35bf9375d6384998a3c3a2b6a0427510
+#: 543a6b3760004e7bbad6c3a201b97485 566664c0082d4a18bc8dd84818eb1b3f
+#: 599364a33dd5468b8dccf1bd1753c78b 6f216a3c95804381b9fa9eab4273908a
+#: 9bbd03e94d134f6faf1773c47d385eef fa1eba66e684473697664a8cda67575f of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.optimize_one_case:3
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.optimize_one_case:4
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.optimize_one_case:5
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.optimize_one_case:6
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.optimize_one_case:7
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.optimize_one_case:8
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.optimize_one_case:9
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.optimize_one_case:10
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.optimize_one_case:11
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.optimize_one_case:12
+msgid "调用方传入的参数值。"
+msgstr ""
+
+#: 490a7fc3998a43c68a1d8e106f67f420 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.optimize_one_case:14
+msgid "函数执行结果。"
+msgstr ""
+
+#: dd9a97ba968a46ec9dbd3543f2d47509 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.parse_args:1
+msgid "解析命令行参数。"
+msgstr ""
+
+#: 5ce393face054f909cbd9b871a02c897 of
+#: tod.transfers.dro_to_geo.optimize_dro_to_geo.parse_args:3
+msgid "解析后的命令行参数命名空间。"
+msgstr ""
+

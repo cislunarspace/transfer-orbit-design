@@ -1,0 +1,117 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/gui/script_registry.rst:2 ef6f658b806b49289bc2274dc8795aab
+msgid "tod.gui.script_registry"
+msgstr ""
+
+#: 73c592a47b824d8aac75df93712cdef5 of tod.gui.script_registry:1
+msgid "PyQt6 图形界面组件。"
+msgstr ""
+
+#: c0931ded2acb49c283169b086bb4de8a of tod.gui.script_registry:3
+msgid "本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。"
+msgstr ""
+
+#: b92afbb62eb9456797d4ba5113a39c6d of
+#: tod.gui.script_registry.CatalogSeedSelectorParam:1
+msgid "CR3BP catalog seed 选择器声明，只描述 GUI/CLI 映射。"
+msgstr ""
+
+#: ../../source/tod/gui/script_registry.rst 22c5d3291e9e418ba7c5cac1dc4626d6
+#: 346a2534b9cf4efd8ce2cd0406e607f1 4c9b0f33cb2648cca7c9ef2eea09381f
+#: 8404326a463f4e41b1e8ef953268e552 9b308222cf5c4b068fd23755516eebfe
+#: c1e82307ca034ae5bd8927160b88e127 c2f7cdac40194341b829513c53595310
+#: e2d791b8f7cc4bb4b171bb2c8ad420d4 e6824347e71546fc96fb21e2f5170fcb
+#: f31b645b3572495d9698d737b934f6a6 of
+#: tod.gui.script_registry.MultiFileConfig.from_dict
+#: tod.gui.script_registry.set_script_translations
+msgid "参数"
+msgstr ""
+
+#: 3e287f61458c4d11af79e5cf014ac15d of tod.gui.script_registry.CliChipParam:1
+msgid "多选芯片参数：GUI 渲染为一组可多选的标签按钮。"
+msgstr ""
+
+#: 084504c5155b43d6aad7bb257bfa5888 of tod.gui.script_registry.CliChipParam:3
+msgid "用户可以选择多个选项，每个选项对应一个 CLI 参数值。 选中的选项会被展开为多个独立的参数组合，传给后端脚本。"
+msgstr ""
+
+#: 29e79d754f0744edbf7a092fbb4457e2 of tod.gui.script_registry.CliParam:1
+msgid "命令行参数：GUI 生成控件，值作为 extra_args 传给子进程。"
+msgstr ""
+
+#: 0ecc635b7d8a475cabf93489b5f01ab4 of tod.gui.script_registry.EnvParam:1
+msgid "环境变量参数：GUI 通过下拉框选择文件，以环境变量传给子进程。"
+msgstr ""
+
+#: 5777c7154d3b4f0f8b6aa113192e0be1 of tod.gui.script_registry.MultiCliParam:1
+msgid "多文件参数：GUI 渲染为表格控件，每行显示文件名 + per-file 字段。"
+msgstr ""
+
+#: 0e596d5f418543c29713c9d428264cf7 of tod.gui.script_registry.MultiCliParam:3
+msgid "用户可添加多个 JSON 文件，每个文件可独立配置 per_file_fields 中声明的字段。 所有文件的数据将叠加绘制在同一张图上。"
+msgstr ""
+
+#: b0633ee230eb48969e20f8ade522747b of
+#: tod.gui.script_registry.MultiFileConfig:1
+msgid "多文件绘制配置项：表示单个文件的绘制参数。"
+msgstr ""
+
+#: bed4b8ab56284bf48ca6ba3618adb06e of
+#: tod.gui.script_registry.MultiFileConfig.from_dict:1
+msgid "从字典反序列化。"
+msgstr ""
+
+#: 383a6ab16e8c4396815aebfa0cd50092 41eb9bc7bb864e00bf1471b767cdf7d8
+#: e0586f5a8174473f83186f5f81e75869 of
+#: tod.gui.script_registry.MultiFileConfig.from_dict
+#: tod.gui.script_registry.MultiFileConfig.to_json
+#: tod.gui.script_registry.set_script_translations
+msgid "返回类型"
+msgstr ""
+
+#: 0a7b755983914747b5af71620adfc0cf of
+#: tod.gui.script_registry.MultiFileConfig.to_json:1
+msgid "序列化为字典，用于 JSON 编码。"
+msgstr ""
+
+#: 13e53c8833e146db8aa4bc3f05fea9be of tod.gui.script_registry.PerFileField:1
+msgid "多文件参数中每个文件的声明式字段定义。"
+msgstr ""
+
+#: 9dd95137ca04475c9ab456bb3ea4830d of tod.gui.script_registry.PerFileField:3
+msgid "用于 MultiCliParam.per_file_fields，描述表格中每行除文件名外的可编辑列。"
+msgstr ""
+
+#: cd407e124e704d7385961d51b4324d1c of tod.gui.script_registry.ScriptEntry:1
+msgid "表示 ScriptEntry 相关的数据结构或行为。"
+msgstr ""
+
+#: ca02f1ab3067409e81c0bc47123e25c8 of tod.gui.script_registry.ScriptEntry:3
+msgid "该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。"
+msgstr ""
+
+#: 3ee7794344394cf2abcc38c475ca6d08 of
+#: tod.gui.script_registry.set_script_translations:1
+msgid "设置脚本翻译表（应在首次访问 SCRIPTS 之前调用）。"
+msgstr ""
+

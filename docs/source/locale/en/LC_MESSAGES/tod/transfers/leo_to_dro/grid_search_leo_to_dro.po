@@ -1,0 +1,84 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/transfers/leo_to_dro/grid_search_leo_to_dro.rst:2
+#: 3f83b31ec82a47168db445363a9f1e00
+msgid "tod.transfers.leo_to_dro.grid_search_leo_to_dro"
+msgstr ""
+
+#: 8c6f0023748f4a16936b4e4a64c3ca65 of
+#: tod.transfers.leo_to_dro.grid_search_leo_to_dro:1
+msgid "grid_search_leo_to_dro 转移设计脚本。"
+msgstr ""
+
+#: 0b22ca6b371149bc83f1e007cc4df213 of
+#: tod.transfers.leo_to_dro.grid_search_leo_to_dro:3
+msgid ""
+"本模块读取已生成的轨道或搜索结果 JSON，在地月 CR3BP 单位体系中执行搜索、验证或 NLP "
+"优化。网格类脚本输出候选转移，优化类脚本读取候选并最小化速度增量或插入误差，结果写入 output/transfer 相关目录。"
+msgstr ""
+
+#: ff7202919b044f2b8e21d843ca44daee of
+#: tod.transfers.leo_to_dro.grid_search_leo_to_dro:5
+msgid "运行示例:"
+msgstr ""
+
+#: 4a59c51f2a064ba1a848a46a23c6763a of
+#: tod.transfers.leo_to_dro.grid_search_leo_to_dro.generate_leo_orbit:1
+msgid "在 CR3BP 旋转系中生成 LEO 近似圆轨道。"
+msgstr ""
+
+#: 7be8877ec5fe47e7aeec1bb39ab7e03b of
+#: tod.transfers.leo_to_dro.grid_search_leo_to_dro.generate_leo_orbit
+msgid "参数"
+msgstr ""
+
+#: ../../source/tod/transfers/leo_to_dro/grid_search_leo_to_dro.rst
+#: 3f01b1abff5844c8b29e60e64bb94d75 99901398989448eb91a5760eb8f5bc2a of
+#: tod.transfers.leo_to_dro.grid_search_leo_to_dro.generate_leo_orbit
+msgid "返回类型"
+msgstr ""
+
+#: db3260269d7a4b1a963a74fc728a78c5 of
+#: tod.transfers.leo_to_dro.grid_search_leo_to_dro.main:1
+msgid "执行脚本主流程。"
+msgstr ""
+
+#: ../../source/tod/transfers/leo_to_dro/grid_search_leo_to_dro.rst
+#: 48e4865264e94ee7a7f0fee725829fe8 5fd2acfdd2e94169994a79cedfae566b
+msgid "返回"
+msgstr ""
+
+#: 89fc557f73164f88963a25a5b8a23cde of
+#: tod.transfers.leo_to_dro.grid_search_leo_to_dro.main:3
+msgid "None。"
+msgstr ""
+
+#: f4017c89683c4ad1821f80df6ea11578 of
+#: tod.transfers.leo_to_dro.grid_search_leo_to_dro.parse_args:1
+msgid "解析命令行参数。"
+msgstr ""
+
+#: 317d37fb4d4d4bb9af206186db58e01b of
+#: tod.transfers.leo_to_dro.grid_search_leo_to_dro.parse_args:3
+msgid "解析后的命令行参数命名空间。"
+msgstr ""
+

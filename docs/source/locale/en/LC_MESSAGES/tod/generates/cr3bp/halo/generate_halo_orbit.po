@@ -1,0 +1,117 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/generates/cr3bp/halo/generate_halo_orbit.rst:2
+#: c3ea7acc6fce450f9e43fc0dc3c3aeaa
+msgid "tod.generates.cr3bp.halo.generate_halo_orbit"
+msgstr ""
+
+#: a902272dc8854aca8e75a3e90aedd4a6 of
+#: tod.generates.cr3bp.halo.generate_halo_orbit:1
+msgid "generate_halo_orbit 轨道生成脚本。"
+msgstr ""
+
+#: 4bd0922c14e94bb2bc4203c55cda76a5 of
+#: tod.generates.cr3bp.halo.generate_halo_orbit:3
+msgid ""
+"本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e "
+"的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 "
+"JSON/CSV 文件。"
+msgstr ""
+
+#: d02d9cff656a4337992b7042893dfadf of
+#: tod.generates.cr3bp.halo.generate_halo_orbit:5
+msgid "运行示例:"
+msgstr ""
+
+#: 0f6b54df3e6d426ea6fdca6b81f51667 of
+#: tod.generates.cr3bp.halo.generate_halo_orbit.main:1
+msgid "执行脚本主流程。"
+msgstr ""
+
+#: ../../source/tod/generates/cr3bp/halo/generate_halo_orbit.rst
+#: 883ac13c46fb44549bb6822e905e9a6e cea5775d12444550b6e3baaec1c075b5
+#: d2fea1c649f847b9a588681677870ed6
+msgid "返回"
+msgstr ""
+
+#: 45440d0790ca45b9b3f35e0d8232b777 of
+#: tod.generates.cr3bp.halo.generate_halo_orbit.main:3
+msgid "None。"
+msgstr ""
+
+#: 2e5680e8a181462c9bc78b0cf386956b of
+#: tod.generates.cr3bp.halo.generate_halo_orbit.parse_args:1
+msgid "解析命令行参数。"
+msgstr ""
+
+#: a9179ac6cbcc405091ef2240c6567b82 of
+#: tod.generates.cr3bp.halo.generate_halo_orbit.parse_args:3
+msgid "解析后的命令行参数命名空间。"
+msgstr ""
+
+#: a35b3a3a4274469da3ec0328a866eae0 of
+#: tod.generates.cr3bp.halo.generate_halo_orbit.richardson_initial_guess:1
+msgid "用 Richardson 三阶近似生成 Halo 轨道初始猜测"
+msgstr ""
+
+#: 364b8979db0a4ba68c72bbb340f604d2 of
+#: tod.generates.cr3bp.halo.generate_halo_orbit.richardson_initial_guess:3
+msgid ""
+"调用 e2m2e 的 halo_third_order_approximation 生成完整近似轨道， 然后从中提取 z 达到最大偏移处的 "
+"(x0, vy0, T)，作为微分修正的种子。"
+msgstr ""
+
+#: ../../source/tod/generates/cr3bp/halo/generate_halo_orbit.rst
+#: 09603266c82a497994d25f8511b94ed3
+msgid "参数"
+msgstr ""
+
+#: fe7fa8471ba04c83be35d2a1eff78d65 of
+#: tod.generates.cr3bp.halo.generate_halo_orbit.richardson_initial_guess:6
+msgid "质量比 μ = m₂/(m₁+m₂)"
+msgstr ""
+
+#: 079564c4387143ffbaba032c40cae519 of
+#: tod.generates.cr3bp.halo.generate_halo_orbit.richardson_initial_guess:7
+msgid "目标 Z 方向振幅（无量纲）"
+msgstr ""
+
+#: 2fe2e680e9934ec78145529c2def561e of
+#: tod.generates.cr3bp.halo.generate_halo_orbit.richardson_initial_guess:8
+msgid "拉格朗日点编号 (1=L1, 2=L2)"
+msgstr ""
+
+#: ec25b0e232df402d93bb8045442e8df6 of
+#: tod.generates.cr3bp.halo.generate_halo_orbit.richardson_initial_guess:9
+msgid "0=北 Halo (Class I), 1=南 Halo (Class II)"
+msgstr ""
+
+#: 5bb3f0a4361d4503bbcf8267aed78867 of
+#: tod.generates.cr3bp.halo.generate_halo_orbit.richardson_initial_guess:11
+msgid "包含 x0, z0, vy0, period 的初始猜测参数"
+msgstr ""
+
+#: ../../source/tod/generates/cr3bp/halo/generate_halo_orbit.rst
+#: dac875d0d4134cb888fe5b961fff7283
+msgid "返回类型"
+msgstr ""
+

@@ -1,0 +1,69 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/generates/cr3bp/tadpole/generate_tadpole_orbit.rst:2
+#: c7620d11c8f24b2ab8d134d4269447b4
+msgid "generate_tadpole_orbit"
+msgstr ""
+
+#: 32cabc90e07149a7a9d2a086dcba13c7 of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_orbit:1
+msgid "generate_tadpole_orbit Tadpole轨道生成脚本。"
+msgstr ""
+
+#: f56afe9719c74c95b8760fd769b72d3f of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_orbit:3
+msgid ""
+"本模块在地月 CR3BP 中通过微分修正生成单条轨道。轨道呈蝌蚪状环绕单个三角平动点（L4 或 "
+"L5），分为领先（leading）和滞后（trailing）两种构型。 输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 "
+"output/tadpole/ 下对应轨道类别的 JSON/CSV 文件。"
+msgstr ""
+
+#: 35a5f4d93d7c4430bc774aaecf93bf8a of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_orbit:6
+msgid "运行示例:"
+msgstr ""
+
+#: 51df8736c63146a3a42cd6eac80115ce of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_orbit.main:1
+msgid "执行脚本主流程。"
+msgstr ""
+
+#: ../../source/tod/generates/cr3bp/tadpole/generate_tadpole_orbit.rst
+#: bda4775954ad41348405e06e73799d82 e11d5e34f5d04cc1b497e80518f34677
+msgid "返回"
+msgstr ""
+
+#: 933beed630e6470e8fd87ad003dac7c6 of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_orbit.main:3
+msgid "None。"
+msgstr ""
+
+#: ff7a8b575ac3453ea21d1e976f7e3781 of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_orbit.parse_args:1
+msgid "解析命令行参数。"
+msgstr ""
+
+#: 6b90b1f7aaef4678bbd90991886590d6 of
+#: tod.generates.cr3bp.tadpole.generate_tadpole_orbit.parse_args:3
+msgid "解析后的命令行参数命名空间。"
+msgstr ""
+

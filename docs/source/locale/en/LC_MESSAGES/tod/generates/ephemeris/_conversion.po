@@ -1,0 +1,245 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/generates/ephemeris/_conversion.rst:2
+#: f8b13f7fb1774d029edf3f2dc56e9472
+msgid "tod.generates.ephemeris._conversion"
+msgstr ""
+
+#: 687aa5bdd4c24777923c22b065c138fb of tod.generates.ephemeris._conversion:1
+msgid "_conversion 星历转换脚本。"
+msgstr ""
+
+#: 967397a1fb8c4b89a3db550b8bb799ca of tod.generates.ephemeris._conversion:3
+msgid ""
+"本模块将 CR3BP 轨道状态映射到真实星历模型，依赖 SPICE kernels（de440.bsp、naif0012.tls）和 UTC "
+"参考历元。输入为 DRO/Halo 单轨道或轨道族 JSON，输出为含修正状态、残差和元数据的星历转换结果。"
+msgstr ""
+
+#: f218ff47829542f8bd8e6eb3e1c9ab76 of tod.generates.ephemeris._conversion:5
+msgid "运行示例:"
+msgstr ""
+
+#: c5d7f204059246d3afbc2e6fedf8641d of
+#: tod.generates.ephemeris._conversion.ConversionDependencies:1
+msgid "表示 ConversionDependencies 相关的数据结构或行为。"
+msgstr ""
+
+#: a029cb1bc4db4637b5d190e365654d5d dd4a1498d6954cd8bd27a829f87c2bec
+#: ea566184ed4b498d832ed227c4cbabf9 fe178cd7c6aa4716b187be77566d5b2d of
+#: tod.generates.ephemeris._conversion.ConversionDependencies:3
+#: tod.generates.ephemeris._conversion.FamilyConversionConfig:3
+#: tod.generates.ephemeris._conversion.LoadedOrbitPayload:3
+#: tod.generates.ephemeris._conversion.SingleConversionConfig:3
+msgid "该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。"
+msgstr ""
+
+#: ../../source/tod/generates/ephemeris/_conversion.rst
+#: 0b8de120e2b74778a391cd74daedb7e7 20bac9f0744543579965fd7133a9e1da
+#: 3ff7e693479f4b6499d3b45fcb9d5344 4d54ab340626476cb1b038fa58880897
+#: 4f285bec2f2d4fc0ae0cdea55c44dd79 5c26caff87474cb290ad22c148e56b7c
+#: 5dcd0c2ac8694572a0b4874fe7792df2 78dea43befb4443b8f08d0d2177a1852
+#: 942d061bac21496ab8ad97cfbd79e605 94f1c05bf6d84962938fe6d18852155e
+#: 9f5af7af270a40d28f650dc02767cd23 ac06697d5f25456fbf5792b4ff3400ac
+#: b637439f9b2b4851941f9773e7ed27d7 c1c7fee3d63c4a319d09e7d619362d7b
+#: e255c0f7a7ad413bb26f843781395b21 e4b1c588c6c14395a9c5fe2d69bb03ed
+#: fc1a9fc079b7458caf60104d2e9b49d6
+msgid "参数"
+msgstr ""
+
+#: b87991951cb94d5cad1e31bf9993ae69 of
+#: tod.generates.ephemeris._conversion.FamilyConversionConfig:1
+msgid "保存 FamilyConversionConfig 的配置字段。"
+msgstr ""
+
+#: 45cdb1e36b2c41db82aad268e69985a7 of
+#: tod.generates.ephemeris._conversion.LoadedOrbitPayload:1
+msgid "表示 LoadedOrbitPayload 相关的数据结构或行为。"
+msgstr ""
+
+#: e3ff2e69b28b401682edac82e16f1a57 of
+#: tod.generates.ephemeris._conversion.SingleConversionConfig:1
+msgid "保存 SingleConversionConfig 的配置字段。"
+msgstr ""
+
+#: 72fc7fa9d6794167b843fcce53a80616 f2448ddd14444ac4b8bbb9f6d26f1810 of
+#: tod.generates.ephemeris._conversion.build_family_parser:1
+#: tod.generates.ephemeris._conversion.build_single_parser:1
+msgid "构建运行所需对象。"
+msgstr ""
+
+#: 08c2c84b65b640689ebe934a2d356fee 0a9d58eb72d8447ca48cc1c79e44acfe
+#: 127b22af363148a49af57a611dac387e 1ec92dac5dc2414cbd8ed67c9a1b5e98
+#: 3f1a8b547f99446589d197dbadc939a8 441de5a92c3c459480e9c85afdbb1fe6
+#: 44f8b8a6e4614e19a5f04c8305453626 45df488109ca460bbce0469d48a188a4
+#: 46ae748611bc4e02b36c84e1df37e83b 4bf69c88f3324e4cad65b442068dfff9
+#: 516f6ba6a35541f7b8a44f1906e64b5d 5948457c75dd4a56a7ad0adb52ae1346
+#: 59a507df327340ba90949be95ea080f2 5a19df4cd134495caa8f07e6b4472b1f
+#: 6afb496913bb41778552d93bfb6fa32c 7076b88299ab4d12abcafa7ce9fbe1d4
+#: 82e825f2bd5f47fd8d19195f7e47de04 8df2ec75e2104a34b8f8c4865586935c
+#: a1a8e3b3cc2d4b78a2d80340f2462aad b4113e100a144220a01272bb26d4d367
+#: b6f4f52b31be44e0a5b531e948f92197 c076c57f46c143079c8e4664c46ca073
+#: c3c01514d6634daf8956f6a428fa06a2 c5456b69370a4864bea27c2969bc326b
+#: e219e070d57b484d991128267898ac1d e7f9a26d325845328b73bd457019319a
+#: ec6d2aff6d5a4c4b87b79f58866c56cc ef0e1cf5df58493098c68bf8e977b6ca
+#: f8e4d0fe8288472b90bd5afe4bccf4a5 fc15703e3efd480292bb2fa449594a52 of
+#: tod.generates.ephemeris._conversion.build_family_parser:3
+#: tod.generates.ephemeris._conversion.build_single_parser:3
+#: tod.generates.ephemeris._conversion.convert_orbit:3
+#: tod.generates.ephemeris._conversion.convert_orbit:4
+#: tod.generates.ephemeris._conversion.convert_orbit:5
+#: tod.generates.ephemeris._conversion.convert_orbit:6
+#: tod.generates.ephemeris._conversion.family_config_from_args:3
+#: tod.generates.ephemeris._conversion.family_config_from_args:4
+#: tod.generates.ephemeris._conversion.load_family_payloads:3
+#: tod.generates.ephemeris._conversion.load_single_orbit_payload:3
+#: tod.generates.ephemeris._conversion.load_single_orbit_payload:4
+#: tod.generates.ephemeris._conversion.main_family:3
+#: tod.generates.ephemeris._conversion.main_family:4
+#: tod.generates.ephemeris._conversion.main_single:3
+#: tod.generates.ephemeris._conversion.main_single:4
+#: tod.generates.ephemeris._conversion.run_default_family_payload_conversion_parallel:3
+#: tod.generates.ephemeris._conversion.run_default_family_payload_conversion_parallel:4
+#: tod.generates.ephemeris._conversion.run_default_family_payload_conversion_parallel:5
+#: tod.generates.ephemeris._conversion.run_default_family_payload_conversion_parallel:6
+#: tod.generates.ephemeris._conversion.run_family_conversion:3
+#: tod.generates.ephemeris._conversion.run_family_conversion:4
+#: tod.generates.ephemeris._conversion.run_family_payload_conversion:3
+#: tod.generates.ephemeris._conversion.run_family_payload_conversion:4
+#: tod.generates.ephemeris._conversion.run_family_payload_conversion:5
+#: tod.generates.ephemeris._conversion.run_family_payload_conversion:6
+#: tod.generates.ephemeris._conversion.run_family_payload_conversion:7
+#: tod.generates.ephemeris._conversion.run_single_conversion:3
+#: tod.generates.ephemeris._conversion.run_single_conversion:4
+#: tod.generates.ephemeris._conversion.single_config_from_args:3
+#: tod.generates.ephemeris._conversion.single_config_from_args:4
+msgid "调用方传入的参数值。"
+msgstr ""
+
+#: ../../source/tod/generates/ephemeris/_conversion.rst
+#: 06ad91e77a2046e39bee1c5cfc5c4056 0ff896eef081402181ab3ccca986628f
+#: 193c55c4d4b94fc996567c577e46b5c6 29ba33dd0a2c4fd3a0000f2f5428b449
+#: 2ba2f256d5ad47068d6c552547f70a6a 5ba3223c65ae478a97f85642c0d055ac
+#: 5bc4540a8dbd4971a3aa949089b73bdf 5d344d994a924425a7b374b5f4d0ed6d
+#: 7ae202d2ab224b2d9a6a9186d523c222 ae1c85e06617424a978202f6201c94c4
+#: d4aacef29adb487e876deed7662f26bf e17fcda65e9942ac96d6b46382307ac4
+#: eb70f4643dfc47ca9af6a8f265b0415d ee9c794158724163b8cef1bc6c92adde
+msgid "返回"
+msgstr ""
+
+#: 026bc6df501c4488abc5606a4802dcdc 0ede1f715de543de8a717c11f96d704a
+#: 23dea2a62d83425abafa5f1e39df1623 3a54c977ae7b48dfa4ee7f9b6e7b1408
+#: 6d1f96acdcc14471b438fad6122896e0 864be8bc1e7d4813a6db85e07f859512
+#: 8c76a712d3a449bbaea34b2899e77ee0 a031527b92314b83a7b81d74b4ddb0f5
+#: b96713b443e44afc81852a1210c4bc69 d3c373362e5a47e0a730ea3b385a8dac
+#: ecee4c3315414844982ada2b1aee4b45 f0d4818a4d1f45a8af7f44dcd6141de7
+#: f1229027a5f140af831b5efb9d69f403 fd508120de0a44ac8135670e20cd98bf of
+#: tod.generates.ephemeris._conversion.build_family_parser:5
+#: tod.generates.ephemeris._conversion.build_single_parser:5
+#: tod.generates.ephemeris._conversion.convert_orbit:8
+#: tod.generates.ephemeris._conversion.default_conversion_dependencies:3
+#: tod.generates.ephemeris._conversion.family_config_from_args:6
+#: tod.generates.ephemeris._conversion.load_family_payloads:5
+#: tod.generates.ephemeris._conversion.load_single_orbit_payload:6
+#: tod.generates.ephemeris._conversion.main_family:6
+#: tod.generates.ephemeris._conversion.main_single:6
+#: tod.generates.ephemeris._conversion.run_default_family_payload_conversion_parallel:8
+#: tod.generates.ephemeris._conversion.run_family_conversion:6
+#: tod.generates.ephemeris._conversion.run_family_payload_conversion:9
+#: tod.generates.ephemeris._conversion.run_single_conversion:6
+#: tod.generates.ephemeris._conversion.single_config_from_args:6
+msgid "函数执行结果。"
+msgstr ""
+
+#: ../../source/tod/generates/ephemeris/_conversion.rst
+#: 08215e8a8bd54854b14e841b7a47d992 0965ff2adbdb4aa89845c9062af459b5
+#: 0c91eb02222c44aa93a06872e58600dc 1e12953b6f34414cbc838a1a0820d408
+#: 3e3286366814451f9dfb9ccc6612090c 45a0db5810204bf88089e734bd454a4a
+#: 522b3c164ac9487a9cffeed071d33902 555c49a60ed94c74b8a0ef659b6abf8c
+#: 696f9f565429409182dd5137956534a3 7a4666b426eb469497a93dd47fa57ebf
+#: 8278d77b44ea4c8785ecb2332c4fac21 a952a52a77ec4dc88ff7f2ceacacf621
+#: b11bf484bd984f018d581509b51efb20 ddaf2cc751344e10a9bff66a7c2fde99
+msgid "返回类型"
+msgstr ""
+
+#: b48c77b90090418bab26e4fd220f0d65 of
+#: tod.generates.ephemeris._conversion.convert_orbit:1
+msgid "执行单条轨道的星历转换。"
+msgstr ""
+
+#: ../../source/tod/generates/ephemeris/_conversion.rst
+#: 3f1902d4121b4abf8ec2c397206c092f 88293f9680244c768888d39ab38ef58f
+#: e47aa23f16e24e9c9e7498b418d2531b
+msgid "抛出"
+msgstr ""
+
+#: 1c77d6d784a443c795b9e64ba4677c10 255ac85ab29f4098bca73f9fe598ee17
+#: e7b811dc226e476c80958e30cf23f129 of
+#: tod.generates.ephemeris._conversion.convert_orbit:10
+#: tod.generates.ephemeris._conversion.load_family_payloads:7
+#: tod.generates.ephemeris._conversion.load_single_orbit_payload:8
+msgid "当输入数据、文件或数值流程不满足脚本要求时抛出。"
+msgstr ""
+
+#: ae0e517ada85417189ead7655b3ef050 of
+#: tod.generates.ephemeris._conversion.default_conversion_dependencies:1
+msgid "执行 default_conversion_dependencies 对应的处理逻辑。"
+msgstr ""
+
+#: 3579693982824b079aa8ffa7f606df15 of
+#: tod.generates.ephemeris._conversion.family_config_from_args:1
+msgid "执行 family_config_from_args 对应的处理逻辑。"
+msgstr ""
+
+#: f2f2cfac62594c6db21d5fe5d0e5d4ef of
+#: tod.generates.ephemeris._conversion.load_family_payloads:1
+msgid "读取轨道族文件中的全部轨道载荷。"
+msgstr ""
+
+#: 60180e50f9db413c9c6f5aa4a97f5d58 of
+#: tod.generates.ephemeris._conversion.load_single_orbit_payload:1
+msgid "读取单条轨道或轨道族中的轨道载荷。"
+msgstr ""
+
+#: e7573bd9418e4430b15cb6e98389c8a8 of
+#: tod.generates.ephemeris._conversion.main_family:1
+msgid "执行 main_family 对应的处理逻辑。"
+msgstr ""
+
+#: 48d58fbeb6ab49f5a49370b2831be0fe of
+#: tod.generates.ephemeris._conversion.main_single:1
+msgid "执行 main_single 对应的处理逻辑。"
+msgstr ""
+
+#: 695d5a2fcc3545f3993788e05eac5965 c736b2920b514cb7811dde5b743d0655
+#: d50abbea077b4f0e8e99da28381314d6 d6536863795747eaa6c52148d69217c8 of
+#: tod.generates.ephemeris._conversion.run_default_family_payload_conversion_parallel:1
+#: tod.generates.ephemeris._conversion.run_family_conversion:1
+#: tod.generates.ephemeris._conversion.run_family_payload_conversion:1
+#: tod.generates.ephemeris._conversion.run_single_conversion:1
+msgid "运行对应计算流程。"
+msgstr ""
+
+#: 33cfbf45cb04416eb41dc1ec5601562a of
+#: tod.generates.ephemeris._conversion.single_config_from_args:1
+msgid "执行 single_config_from_args 对应的处理逻辑。"
+msgstr ""
+

@@ -1,0 +1,81 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/generates/cr3bp/dro/generate_dro_family.rst:2
+#: 34f18c834cf84a61bb7a7a98c113b55c
+msgid "tod.generates.cr3bp.dro.generate_dro_family"
+msgstr ""
+
+#: 9eb9fcd421584ff5b0ffe73c0d310b5c of
+#: tod.generates.cr3bp.dro.generate_dro_family:1
+msgid "generate_dro_family 轨道生成脚本。"
+msgstr ""
+
+#: cf271b319d244e9f808f30b626dc5bd4 of
+#: tod.generates.cr3bp.dro.generate_dro_family:3
+msgid ""
+"本模块在地月 CR3BP 中构造 DRO 种子轨道，调用 e2m2e 的微分修正和自然延拓算法 生成 DRO "
+"轨道族。输入为命令行给出的初始状态、周期猜测和延拓配置； 输出为 output/dro/ 下的 JSON/CSV 文件。"
+msgstr ""
+
+#: fc539a9523b34a2baf10efd1d8282a69 of
+#: tod.generates.cr3bp.dro.generate_dro_family:7
+msgid ""
+"本脚本通过 ``FamilyGenerator`` 基类实现，族特有逻辑在子类钩子中声明， 共享流程（系统初始化、保存、CSV "
+"导出、摘要表打印）由基类处理。"
+msgstr ""
+
+#: 931e2467882f47d3aac7232149feda99 of
+#: tod.generates.cr3bp.dro.generate_dro_family:10
+msgid "运行示例:"
+msgstr ""
+
+#: f90af95784c7421286c8e6b2ee87b162 of
+#: tod.generates.cr3bp.dro.generate_dro_family.DroFamilyGenerator:1
+msgid "DRO 轨道族生成器。"
+msgstr ""
+
+#: b3bede8173cf4c6aacbb59ffe0512ac6 of
+#: tod.generates.cr3bp.dro.generate_dro_family.DroFamilyGenerator:3
+msgid "继承 ``FamilyGenerator`` 基类，实现 DRO 特有的种子构造、 微分修正器配置和自然延拓逻辑。"
+msgstr ""
+
+#: ../../source/tod/generates/cr3bp/dro/generate_dro_family.rst
+#: 4dc206a24957402db4fdd72940b4ca17
+msgid "参数"
+msgstr ""
+
+#: 9c1e8ba6d23e4ce7b87945edcd890291 of
+#: tod.generates.cr3bp.dro.generate_dro_family.DroFamilyGenerator.add_family_args:1
+msgid "声明 DRO 族特有的 CLI 参数。"
+msgstr ""
+
+#: b6b9b58b04ae4acbaedcddf65a2016ae ce9884f40e504b508787d0bc89998971 of
+#: tod.generates.cr3bp.dro.generate_dro_family.DroFamilyGenerator.add_family_args
+#: tod.generates.cr3bp.dro.generate_dro_family.main
+msgid "返回类型"
+msgstr ""
+
+#: 01235435093c42df97f0e285e3d44eea of
+#: tod.generates.cr3bp.dro.generate_dro_family.main:1
+msgid "DRO 轨道族生成入口。"
+msgstr ""
+

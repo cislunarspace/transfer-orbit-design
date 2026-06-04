@@ -1,0 +1,240 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/transfers/dro_to_ro/optimize_dro_to_ro.rst:2
+#: efd3cd34d25746bd9e79dd356e6f9af2
+msgid "tod.transfers.dro_to_ro.optimize_dro_to_ro"
+msgstr ""
+
+#: 1cd97e319e104ed9bc498c29a2666a0d of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro:1
+msgid "optimize_dro_to_ro 转移设计脚本。"
+msgstr ""
+
+#: 979cf1cf81724d0092ab8106bbf73f17 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro:3
+msgid ""
+"本模块读取已生成的轨道或搜索结果 JSON，在地月 CR3BP 单位体系中执行搜索、验证或 NLP "
+"优化。网格类脚本输出候选转移，优化类脚本读取候选并最小化速度增量或插入误差，结果写入 output/transfer 相关目录。"
+msgstr ""
+
+#: da22f1fa72fc42d8983d0a2a88dad131 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro:5
+msgid "运行示例:"
+msgstr ""
+
+#: 9354093a062e48b78190bf5cb491843f of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.NlpPackConfig:1
+msgid "保存 NlpPackConfig 的配置字段。"
+msgstr ""
+
+#: a7cd3afff80547a7a98af3bf571929e1 fba174bd1b8a4b51b4f154d4afd7af17 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.NlpPackConfig:3
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.ThreadNlpParams:3
+msgid "该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。"
+msgstr ""
+
+#: ../../source/tod/transfers/dro_to_ro/optimize_dro_to_ro.rst
+#: 12813a2c1f7c479480728c96ce68ac6c 22b5e686f7c94f93a7c26ce30a5cd1f4
+#: 4b59caad3b5948efaf631861805dfe6f 7308ba7cf12848999e23d5d5895488c6
+#: 927c19933b8544a5b2a4046a46069f9a 9f6c9e114e1049a2a5a66b0c68d9498a
+#: aaf2f4e621eb44549b97889275dc0d28 acc089dd1b7d4a7a867d48d1eda7a4bf
+#: bc7dc8f3669343fc82bd5d8c4fed65b7 bc8a9333741d4548b68b39d1fe3007ee
+#: c02090aa6c8b415ba2647ee387dd1e3c c14db4e6a2064dfe88d8ee7cbca7d832
+msgid "参数"
+msgstr ""
+
+#: 0741a4ce645d44618b68f9e6e5cd7aa1 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.ThreadNlpParams:1
+msgid "表示 ThreadNlpParams 相关的数据结构或行为。"
+msgstr ""
+
+#: e083f20d6e0842598baf8e730f8cde38 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.build_dynamics:1
+msgid "构建脚本所需的动力学模型。"
+msgstr ""
+
+#: 08c71cb101da478cbb082c25c5597c79 0bbe93bd2a8943c88d682f3c1110ce2d
+#: 1038067cb93643b3af8418d6f3912c5c 1c5af58fbbf74fa1af850e979b35286d
+#: 2cd7a9ab0a6945899deaa68e761e2e36 2db0902beecc47da8edc08cc1b62c702
+#: 2ed319ce966c47d18efbdfc7fe81a6e4 2f602e25a89e4936aae3ee78b2d004e0
+#: 332bc99c0e8b4d409517da6d1db1c700 386476b8c9ae4e84936fc033a7f38760
+#: 4a74a88e049547cc9dd50fcd060ea8e6 5140bc3278dc469db92c593e063105ae
+#: 6204aa3b22d94a59846e62a9f093261e 62f5bb391e8f4f229750de3336202f83
+#: 768d68569dd14ad1bf3d8b6d7fa9d792 7f330b532aaa41ab8a7bfc8603c43b90
+#: 89925ac5f25544229435d305b2b0e70c 8c0055e995e548ba904a835cb03bb28a
+#: 9049c7f1bf0a4bcbab30ac296a05006c 93eecbe63f0c4125891fd1e618a64d9f
+#: a1c7a3b0bb7746719ccd7c712a811bcc a8bedd97a296457c88c94b4f7b1a0209
+#: aa9692b16ae346bf905ddba08614b12b ad4a57be84b64e4196b1ee3ed3e23512
+#: af6cfb2ebdf94c9a9d00e10234261835 b090fe8e420943fa9f36430620eeb954
+#: bdf9f7a9b44f46bab1b61601d94987c4 c1e088eea9b145f5a457d4730c7f008c
+#: c2000d16e9734156b040b40a8e820051 c44a8446113e4df188f421bbdc5506d6
+#: c4665adeb1864aaa86d74458028a95b7 c872e6521f464f68bd93f287be1d9cde
+#: d47e82359e06404bb62d05009e82351d d5ddd63bebbd482aa55a2999349da7bd
+#: d7609b68c4b446c183e1d46ccf23dec8 e8444d6eb0734a339cd00fd43e0a298e
+#: f33995ebbc984c0aa2023e9515601150 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.build_dynamics:3
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.build_dynamics:4
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.build_dynamics:5
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.build_dynamics:6
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.build_dynamics:7
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.make_progress_callback:3
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.make_progress_callback:4
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.make_progress_callback:5
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.make_progress_callback:6
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.monitor_loop_serial_nlp:3
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.nlp_worker_packed:3
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:3
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:4
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:5
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:6
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:7
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:8
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:9
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:10
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:11
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:12
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:13
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:14
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:15
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:16
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:17
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:18
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:19
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.pack_nlp_task:3
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.pack_nlp_task:4
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.pack_nlp_task:5
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.pack_nlp_task:6
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.pack_nlp_task:7
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.row_template:3
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.row_template:4
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.serialize_nlp_result:3
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.worker_run_thread:3
+msgid "调用方传入的参数值。"
+msgstr ""
+
+#: ../../source/tod/transfers/dro_to_ro/optimize_dro_to_ro.rst
+#: 0eaae4b7e88d4d94b5d0774f350f0b9b 28029b712a5d41ba878422c7c63498e9
+#: 50ab1fe08b1240f0a57acae5443e4f59 643b006333f34c74866a048301bc9617
+#: 71ea246e00504ff69fea7581ea29d7e3 75558be27e7b450fb35919271272ba34
+#: 7df815efb614448db875ab20323b21b2 b75b3623e0b2438db764b54ab276cc96
+#: d497f02d35844672a82ea9979465eca0 e4300242a6b442669eb0d9a5b1a18780
+#: e46ff29037474759b405227a30f764fb
+msgid "返回"
+msgstr ""
+
+#: 15832d90d9da4e339422d0ece46ffc85 50df4046ddcf422c87244ad72106af43
+#: 5fd299f69bae41ff80a71ed73a991a97 8258d07b72df4638a744385f9c8c35cf
+#: aa546273ff1240189d543e0b8acd4815 af7740edff344159a55ec67ebc0a91a1
+#: e502fb44546c41a9ba4d34064f564071 e8728fcfd8c54159ba775f5dd000b32d of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.build_dynamics:9
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.make_progress_callback:8
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.nlp_worker_packed:5
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:21
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.pack_nlp_task:9
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.row_template:6
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.serialize_nlp_result:5
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.worker_run_thread:5
+msgid "函数执行结果。"
+msgstr ""
+
+#: ef8f50e8ca6c49658d28ffd9b8adb7d3 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.load_search_results:1
+msgid "读取转移搜索结果 JSON 文件。"
+msgstr ""
+
+#: 90203bab7fcc49d9b4b362bf7b40f63f of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.load_search_results:3
+msgid "搜索结果文件路径。"
+msgstr ""
+
+#: c379b2fa75f04b6692366d0b9593f661 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.load_search_results:5
+msgid "解析后的 JSON 数据列表。"
+msgstr ""
+
+#: ../../source/tod/transfers/dro_to_ro/optimize_dro_to_ro.rst
+#: 300995ba5a37450585dde7249f3b971d 52939be06d444e6b9c70675c68bd9097
+#: e947b79149084b079e7dc06fb09398e4 e96d47472c5a4647bff975c184d1f8fd of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.main
+msgid "返回类型"
+msgstr ""
+
+#: 7642af3769fa454e89714cdb0022c6e3 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.main:1
+msgid "加载网格与轨道、筛选可行解、按并行设置跑 NLP，并写出 ``optimization_results_*.json``。"
+msgstr ""
+
+#: f6421f23b83c4a46bba4a140cb4b8a4c of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.make_progress_callback:1
+msgid "执行 make_progress_callback 对应的处理逻辑。"
+msgstr ""
+
+#: bf7513742750477b852c8f694a8f3030 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.monitor_loop_serial_nlp:1
+msgid "执行 monitor_loop_serial_nlp 对应的处理逻辑。"
+msgstr ""
+
+#: a7d53b6b4c8b4a73b7a694601fe0f55f of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.monitor_loop_serial_nlp:5
+msgid "None。"
+msgstr ""
+
+#: f694e55d3a034f31a80e84d32af96c97 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.nlp_worker_packed:1
+msgid "执行 nlp_worker_packed 对应的处理逻辑。"
+msgstr ""
+
+#: 47f8705cf4914907892d3500f5f9cd1e of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.optimize_one_case:1
+msgid "执行转移优化计算。"
+msgstr ""
+
+#: 9dd6980adcec422a89a3c664c55f9fdb of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.pack_nlp_task:1
+msgid "执行 pack_nlp_task 对应的处理逻辑。"
+msgstr ""
+
+#: 78a9b2cbb1684880b9ef64fb7b8bcce6 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.parse_args:1
+msgid "解析命令行参数。"
+msgstr ""
+
+#: 92c8b05db7b84041acafca515a2eb2ab of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.parse_args:3
+msgid "解析后的命令行参数命名空间。"
+msgstr ""
+
+#: fc61af285bb74276b235b0008c19e022 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.row_template:1
+msgid "执行 row_template 对应的处理逻辑。"
+msgstr ""
+
+#: e3bb12fdab774d168fce9750d53602c9 of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.serialize_nlp_result:1
+msgid "将结果对象转换为可写入 JSON 的结构。"
+msgstr ""
+
+#: f8e34e547c1c432a91706ca3c009e0eb of
+#: tod.transfers.dro_to_ro.optimize_dro_to_ro.worker_run_thread:1
+msgid "执行 worker_run_thread 对应的处理逻辑。"
+msgstr ""
+

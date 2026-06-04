@@ -1,0 +1,89 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/generates/cr3bp/halo/generate_halo_family.rst:2
+#: 403a1b501b484e08a4d96239b2d8edff
+msgid "tod.generates.cr3bp.halo.generate_halo_family"
+msgstr ""
+
+#: abc5a14d51ec455e83ad7488ce2cc87e of
+#: tod.generates.cr3bp.halo.generate_halo_family:1
+msgid "generate_halo_family 轨道生成脚本。"
+msgstr ""
+
+#: 6586d2a119e842a1bf075dbdbcd1a440 of
+#: tod.generates.cr3bp.halo.generate_halo_family:3
+msgid "本模块在地月 CR3BP 中构造 Halo 种子轨道，调用 e2m2e 的微分修正和 伪弧长延拓算法生成 Halo 轨道族。"
+msgstr ""
+
+#: 863593771ceb4b88bb0d68d71e2c2298 of
+#: tod.generates.cr3bp.halo.generate_halo_family:6
+msgid "支持：L1/L2 平动点，北/南分支。"
+msgstr ""
+
+#: a3f4db5679894f46b4573bc62cd79630 of
+#: tod.generates.cr3bp.halo.generate_halo_family:8
+msgid ""
+"本脚本通过 ``FamilyGenerator`` 基类实现，族特有逻辑在子类 hook 中声明 "
+"（种子获取、修正配置、延拓执行），共享流程（系统初始化、保存、 CSV 导出、摘要表打印）由基类处理。"
+msgstr ""
+
+#: d693397c5f8c4025a1594bb542cbb638 of
+#: tod.generates.cr3bp.halo.generate_halo_family:12
+msgid "运行示例:"
+msgstr ""
+
+#: 1951a5e06dde48c9bc00064dc1f0e00e of
+#: tod.generates.cr3bp.halo.generate_halo_family.HaloFamilyGenerator:1
+msgid "Halo 轨道族生成器。"
+msgstr ""
+
+#: ad8cdac001a4469382de8e68d04dccf5 of
+#: tod.generates.cr3bp.halo.generate_halo_family.HaloFamilyGenerator:3
+msgid "通过基类 hook 方法实现 Halo 特有的种子获取、修正配置和伪弧长延拓。 不覆盖基类 ``run()``，共享保存和摘要输出逻辑。"
+msgstr ""
+
+#: 9c910eea29364811b8620a3b1abb04ee of
+#: tod.generates.cr3bp.halo.generate_halo_family.HaloFamilyGenerator:6
+msgid "支持的延拓方法：伪弧长延拓（PAL）。 种子获取策略：Richardson 三阶近似 → 预存实验初值 fallback。"
+msgstr ""
+
+#: ../../source/tod/generates/cr3bp/halo/generate_halo_family.rst
+#: c5e9b3825902464c83e10f701f0f49f1
+msgid "参数"
+msgstr ""
+
+#: 278076271439452997f3f8eae6f49c8d of
+#: tod.generates.cr3bp.halo.generate_halo_family.HaloFamilyGenerator.add_family_args:1
+msgid "声明 Halo 族特有的 CLI 参数。"
+msgstr ""
+
+#: 2eacb4b153c54e8589691de0ad571cef 8019bd9c09e7496292a1d71c90d6246c of
+#: tod.generates.cr3bp.halo.generate_halo_family.HaloFamilyGenerator.add_family_args
+#: tod.generates.cr3bp.halo.generate_halo_family.main
+msgid "返回类型"
+msgstr ""
+
+#: e48d9466255940f88c2cd6e0a39cfb6f of
+#: tod.generates.cr3bp.halo.generate_halo_family.main:1
+msgid "Halo 轨道族生成入口。"
+msgstr ""
+

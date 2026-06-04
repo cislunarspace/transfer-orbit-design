@@ -1,0 +1,37 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/gui/job_panel_mixin.rst:2 0f4d19f045e04c2a9d45f432f325f455
+msgid "tod.gui.job_panel_mixin"
+msgstr ""
+
+#: 95f1ceb341fe4b389356555328f83410 of tod.gui.job_panel_mixin:1
+msgid "PyQt6 图形界面组件。"
+msgstr ""
+
+#: 609b8fb90b784a499b1aadd989fdf101 of tod.gui.job_panel_mixin:3
+msgid "本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。"
+msgstr ""
+
+#: 89af88bd794946a1b6e600f022f4e8ff of tod.gui.job_panel_mixin.JobPanelMixin:1
+msgid "提供 Job 面板构建和生命周期管理方法，由 MainWindow 通过多重继承混入。"
+msgstr ""
+

@@ -1,0 +1,49 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/gui/main_window.rst:2 2af89f6dcf484422ad704c3af53212ef
+msgid "tod.gui.main_window"
+msgstr ""
+
+#: 4ed14b0b01054682b3100ab6e832481f of tod.gui.main_window:1
+msgid "PyQt6 图形界面组件。"
+msgstr ""
+
+#: 9eb6c2825eeb4e4eb4ad9c6668814cf2 of tod.gui.main_window:3
+msgid "本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。"
+msgstr ""
+
+#: 763b94e6296b47a1bd0910b906fa0d11 of tod.gui.main_window.MainWindow:1
+msgid "提供 MainWindow 对应的 GUI 组件。"
+msgstr ""
+
+#: 6c6670528d804fca8ee28793800c12ec of tod.gui.main_window.MainWindow:3
+msgid "该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。"
+msgstr ""
+
+#: ../../source/tod/gui/main_window.rst 2df2c2d085bc46fba7547bb20714653e
+msgid "参数"
+msgstr ""
+
+#: ../../source/tod/gui/main_window.rst a29b03b398294287ba16e47abf3fdcce
+msgid "返回类型"
+msgstr ""
+

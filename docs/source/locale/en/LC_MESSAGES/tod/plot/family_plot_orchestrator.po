@@ -1,0 +1,151 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/plot/family_plot_orchestrator.rst:2
+#: 5bbbad41cd4a43f7ba7aba8fc2c389ca
+msgid "tod.plot.family_plot_orchestrator"
+msgstr ""
+
+#: 4c27598e9c8841608918e019c8f77b94 of tod.plot.family_plot_orchestrator:1
+msgid "family_plot_orchestrator 可视化脚本。"
+msgstr ""
+
+#: c4b80b2751e640dcadf3f964e0d33eb2 of tod.plot.family_plot_orchestrator:3
+msgid ""
+"本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ "
+"下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。"
+msgstr ""
+
+#: 9a8ae7d0d5904d1bb9f2def29dae7236 of tod.plot.family_plot_orchestrator:5
+msgid "运行示例:"
+msgstr ""
+
+#: 09857c47b74d4c319fa21dd32afc51f6 of tod.plot.family_plot_orchestrator:10
+msgid "多文件模式示例:"
+msgstr ""
+
+#: a3565097802945d8a4aeef5a63cac9cf of
+#: tod.plot.family_plot_orchestrator.FamilyPlotConfig:1
+msgid "保存 FamilyPlotConfig 的配置字段。"
+msgstr ""
+
+#: 891b043be21b4d5b9602552417beeedc e70a01e97e0a4620a80b3d4dd4af40bb of
+#: tod.plot.family_plot_orchestrator.FamilyPlotConfig:3
+#: tod.plot.family_plot_orchestrator.FamilyPlotOrchestrator:3
+msgid "该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。"
+msgstr ""
+
+#: ../../source/tod/plot/family_plot_orchestrator.rst
+#: 1002def3527f49b08b573cda8b783f38 288ac007d34d4feeab22780334262f5d
+#: 3743ecbd7e80458c9ead020fd6b0132c 63774cb2ae7d4fb9982b34c64f1ae881
+#: acc1571f964144e88652191ec26f420f dbf0af235a214204b6c1ed876dc291c5
+#: ef9c557cf17b4348b79f4a72020dd185 of
+#: tod.plot.family_plot_orchestrator.build_argparser
+#: tod.plot.family_plot_orchestrator.compute_stability_indices
+#: tod.plot.family_plot_orchestrator.resolve_plot_range
+msgid "参数"
+msgstr ""
+
+#: e6dafc9bc35c48e992cea9b68e8cd801 of
+#: tod.plot.family_plot_orchestrator.FamilyPlotConfig.display_name:1
+msgid "返回用户可见的族名，含共振子类型。"
+msgstr ""
+
+#: 02cb1b5e00e8464db373ea27305ba997 of
+#: tod.plot.family_plot_orchestrator.FamilyPlotOrchestrator:1
+msgid "表示 FamilyPlotOrchestrator 相关的数据结构或行为。"
+msgstr ""
+
+#: 242b7825690c4f63af225c9f9174eef8 of
+#: tod.plot.family_plot_orchestrator.FamilyPlotOrchestrator.run:1
+msgid "执行 run 对应的处理逻辑。"
+msgstr ""
+
+#: ../../source/tod/plot/family_plot_orchestrator.rst
+#: 033f6df84e4a4c82967ec4d53c0999aa 1bf7dc6e317e439b830b0cd3ab9a19fd
+msgid "返回"
+msgstr ""
+
+#: 917ac9d523964e9cbe62d616eec338de of
+#: tod.plot.family_plot_orchestrator.FamilyPlotOrchestrator.run:3
+msgid "None。"
+msgstr ""
+
+#: ../../source/tod/plot/family_plot_orchestrator.rst
+#: 85311385cfcd4c37b185080ba842219b
+msgid "抛出"
+msgstr ""
+
+#: 449d0020bbc443d5bf68ddd07cccb71a of
+#: tod.plot.family_plot_orchestrator.FamilyPlotOrchestrator.run:5
+msgid "当输入数据、文件或数值流程不满足脚本要求时抛出。"
+msgstr ""
+
+#: ../../source/tod/plot/family_plot_orchestrator.rst
+#: 159e2ab8b3f742dd9f2befba97966d02 5710123fd0ab4fe7a3b31c22b85fd8ea
+#: 571d917cd7a8435e95a610ab451cad53 83dc72ad84d84281a1d27fe3e5a4f265
+#: f4095b3cab50439790ca12fed40470e6 of
+#: tod.plot.family_plot_orchestrator.build_argparser
+#: tod.plot.family_plot_orchestrator.compute_stability_indices
+#: tod.plot.family_plot_orchestrator.resolve_plot_range
+msgid "返回类型"
+msgstr ""
+
+#: 2d1469df11584099a6f5acd952ab5bc8 of
+#: tod.plot.family_plot_orchestrator.MultiFileConfig:1
+msgid "多文件绘制配置项。"
+msgstr ""
+
+#: 9011258804c54cbfa3a2559697785a59 of
+#: tod.plot.family_plot_orchestrator.build_argparser:1
+msgid "创建统一的轨道族绘图参数解析器。"
+msgstr ""
+
+#: c504df6ece9c41719b11d29af46c7375 of
+#: tod.plot.family_plot_orchestrator.compute_stability_indices:1
+msgid "计算轨道族的 Broucke 稳定性指数。"
+msgstr ""
+
+#: a3394a9e089d4d2ba0a37ea14e409251 of
+#: tod.plot.family_plot_orchestrator.compute_view_bounds:1
+msgid "根据轨道状态数组计算 2D 与 3D 视图的边界参数。"
+msgstr ""
+
+#: 3e4f64a6132d4359af8360a072c93b10 of
+#: tod.plot.family_plot_orchestrator.compute_view_bounds:3
+msgid "Nx6 状态数组"
+msgstr ""
+
+#: 821265ebc91c44f2a83d98bf69b7415a of
+#: tod.plot.family_plot_orchestrator.compute_view_bounds:4
+msgid "2D 投影平面 (\"xy\", \"xz\", \"yz\")"
+msgstr ""
+
+#: e05653eb20394039a6bf5588c1371e17 of
+#: tod.plot.family_plot_orchestrator.compute_view_bounds:6
+msgid "(xlim_2d, ylim_2d, center_3d, radius_3d)"
+msgstr ""
+
+#: 92ba8250d2fe45f9a708a7db5c96da81 of
+#: tod.plot.family_plot_orchestrator.resolve_plot_range:1
+msgid "解析 --start/--end 参数，返回 (plot_start, plot_end) 索引。"
+msgstr ""
+

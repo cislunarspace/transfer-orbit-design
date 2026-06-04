@@ -1,0 +1,68 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/generates/cr3bp/vertical/generate_vertical_orbit.rst:2
+#: 5b2159faeea641ff95d9f9f61dac2ce1
+msgid "generate_vertical_orbit"
+msgstr ""
+
+#: 160420805ae24d68b4557f20b4895d63 of
+#: tod.generates.cr3bp.vertical.generate_vertical_orbit:1
+msgid "generate_vertical_orbit Vertical轨道生成脚本。"
+msgstr ""
+
+#: f3d34c5a6e414c9388001dbbc013c446 of
+#: tod.generates.cr3bp.vertical.generate_vertical_orbit:3
+msgid ""
+"本模块在地月 CR3BP 中通过微分修正生成单条轨道。运动主要在垂直方向（yz 平面）振荡的三维周期轨道，与 Halo 轨道类似但对称性不同。 "
+"输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/vertical/ 下对应轨道类别的 JSON/CSV 文件。"
+msgstr ""
+
+#: 51c41462844d449e83e95bab32c82c81 of
+#: tod.generates.cr3bp.vertical.generate_vertical_orbit:6
+msgid "运行示例:"
+msgstr ""
+
+#: 3b0c0a7897054e8d823e725cee995830 of
+#: tod.generates.cr3bp.vertical.generate_vertical_orbit.main:1
+msgid "执行脚本主流程。"
+msgstr ""
+
+#: ../../source/tod/generates/cr3bp/vertical/generate_vertical_orbit.rst
+#: a1e4958fe1274ade9838975ab1abf7f3 e504403fdfc4443fb5073595ec78d447
+msgid "返回"
+msgstr ""
+
+#: f52d4417be51438684f6747cf0ff16d3 of
+#: tod.generates.cr3bp.vertical.generate_vertical_orbit.main:3
+msgid "None。"
+msgstr ""
+
+#: fbe042294c3e4f7380fb1923f3328b18 of
+#: tod.generates.cr3bp.vertical.generate_vertical_orbit.parse_args:1
+msgid "解析命令行参数。"
+msgstr ""
+
+#: cf9e95432f33472794d78035b63c7dd9 of
+#: tod.generates.cr3bp.vertical.generate_vertical_orbit.parse_args:3
+msgid "解析后的命令行参数命名空间。"
+msgstr ""
+

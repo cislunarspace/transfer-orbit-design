@@ -1,0 +1,118 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/gui/output_panel.rst:2 dcde10fc99bc4e54a6c4b7cc240b95d1
+msgid "tod.gui.output_panel"
+msgstr ""
+
+#: ecbd2c4ad5f74203bc2d0fdecbe99476 of tod.gui.output_panel:1
+msgid "PyQt6 图形界面组件。"
+msgstr ""
+
+#: 56e704b426cd4c40a1169f117f8ebec9 of tod.gui.output_panel:3
+msgid "本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。"
+msgstr ""
+
+#: 6d810a20c0b24af6bd7e97915286397e of tod.gui.output_panel.JobCard:1
+msgid "Job 列表中的单个卡片：显示脚本名、状态、运行时间、停止按钮。"
+msgstr ""
+
+#: ../../source/tod/gui/output_panel.rst 0d261aaf898340119b18624bd98f2cd7
+#: 3e5e0325bd0d41fb891e4ddfc1fdfec8 af79bd4b0c7943708f50db4f204b2554 of
+#: tod.gui.output_panel.JobCard.set_status
+#: tod.gui.output_panel.StructuredOutputWidget.append_output
+msgid "参数"
+msgstr ""
+
+#: bf17ee49a41b458caac50ed8fddbef7d of
+#: tod.gui.output_panel.JobCard.is_running:1
+msgid "执行 is_running 对应的处理逻辑。"
+msgstr ""
+
+#: ../../source/tod/gui/output_panel.rst 04a8d9ebd8b44c7cb215ccf29d0b0d58
+#: 4771e58d6cfc418e8a35392361fd8a9d
+msgid "返回"
+msgstr ""
+
+#: 4d466015c7204a21a2654e666c520434 of
+#: tod.gui.output_panel.JobCard.is_running:3
+msgid "函数执行结果。"
+msgstr ""
+
+#: 9afd19f7f7ef47e8a1b83b0dd44c1964 of
+#: tod.gui.output_panel.JobCard.mouseDoubleClickEvent:1
+msgid "Triggered when user double-clicks the job card."
+msgstr ""
+
+#: ../../source/tod/gui/output_panel.rst 1d119a6a287d44db9c54bfcd1ce8b515
+#: 4b6a35636c304279b3d8861d1fd7977a 5ba29682d2eb485c8fac050e076ac94d
+#: 8c8ec12834244bb8b6ec4987a6d4b07b f2feb3a901bd47179e12c32e1c5dea73
+#: fb4455e5e0834bc4bc666b7aba4524e2 of
+#: tod.gui.output_panel.JobCard.mouseDoubleClickEvent
+#: tod.gui.output_panel.JobCard.mousePressEvent
+#: tod.gui.output_panel.JobCard.set_status
+#: tod.gui.output_panel.StructuredOutputWidget.append_output
+#: tod.gui.output_panel.StructuredOutputWidget.set_finished
+msgid "返回类型"
+msgstr ""
+
+#: 4acb1d0d0874432ea7f4065d5cdca184 of
+#: tod.gui.output_panel.JobCard.mousePressEvent:1
+msgid ""
+"Triggered when user clicks the job card — single click navigates to "
+"output tab."
+msgstr ""
+
+#: d588d226d096492fafb18c094ee613fd of
+#: tod.gui.output_panel.JobCard.set_status:1
+msgid "设置状态：running / completed / error / killed。"
+msgstr ""
+
+#: d505c31a5d1c49cab665c037b368314d of
+#: tod.gui.output_panel.StructuredOutputWidget:1
+msgid "单个 Job 的结构化输出面板：时间戳、着色、自动滚动。"
+msgstr ""
+
+#: a4c31062d8064617bc61ad09ec3d32a2 of
+#: tod.gui.output_panel.StructuredOutputWidget.append_output:1
+msgid "追加输出文本。stream 为 'stdout' 或 'stderr'。"
+msgstr ""
+
+#: e5cd4ab4b83f465e826e07547cc9e3c9 of
+#: tod.gui.output_panel.StructuredOutputWidget.append_output:3
+msgid "使用 ``\\n`` 分段、``\\r`` 检测行覆盖，正确处理进度条输出。"
+msgstr ""
+
+#: e64747b470c842c2a4eef40de6b185f5 of
+#: tod.gui.output_panel.StructuredOutputWidget.clear:1
+msgid "执行 clear 对应的处理逻辑。"
+msgstr ""
+
+#: 53bb26024c6f433e96e1a1ecafd66202 of
+#: tod.gui.output_panel.StructuredOutputWidget.clear:3
+msgid "None。"
+msgstr ""
+
+#: 64080b01d7374a1fb50545d2385df40c of
+#: tod.gui.output_panel.StructuredOutputWidget.set_finished:1
+msgid "标记作业完成，停止计时并显示最终耗时。"
+msgstr ""
+

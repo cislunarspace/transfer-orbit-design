@@ -65,6 +65,8 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/build/
+docs/source/locale/**/LC_MESSAGES/*.mo
 
 # PyBuilder
 .pybuilder/

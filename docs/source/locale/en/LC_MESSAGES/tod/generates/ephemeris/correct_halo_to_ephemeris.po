@@ -1,0 +1,68 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/tod/generates/ephemeris/correct_halo_to_ephemeris.rst:2
+#: dc79b0c5aa014dc8b619e83029478014
+msgid "tod.generates.ephemeris.correct_halo_to_ephemeris"
+msgstr ""
+
+#: 9aad5978c3b54276b6febd4447da8e92 of
+#: tod.generates.ephemeris.correct_halo_to_ephemeris:1
+msgid "correct_halo_to_ephemeris 星历转换脚本。"
+msgstr ""
+
+#: 91c3af6197fe47ed94546fbfbcfddf16 of
+#: tod.generates.ephemeris.correct_halo_to_ephemeris:3
+msgid ""
+"本模块将 CR3BP 轨道状态映射到真实星历模型，依赖 SPICE kernels（de440.bsp、naif0012.tls）和 UTC "
+"参考历元。输入为 DRO/Halo 单轨道或轨道族 JSON，输出为含修正状态、残差和元数据的星历转换结果。"
+msgstr ""
+
+#: 570f7b8e4c2a421fb1836a5bf81753dd of
+#: tod.generates.ephemeris.correct_halo_to_ephemeris:5
+msgid "运行示例:"
+msgstr ""
+
+#: b5932c9441784a60bbe3f20239ecffd9 of
+#: tod.generates.ephemeris.correct_halo_to_ephemeris.main:1
+msgid "执行脚本主流程。"
+msgstr ""
+
+#: ../../source/tod/generates/ephemeris/correct_halo_to_ephemeris.rst
+#: 3e5c7d4d04cd434281a761d179ee0445
+msgid "参数"
+msgstr ""
+
+#: 78575ba6968c488eaa5b9e1d3853a947 of
+#: tod.generates.ephemeris.correct_halo_to_ephemeris.main:3
+msgid "调用方传入的参数值。"
+msgstr ""
+
+#: ../../source/tod/generates/ephemeris/correct_halo_to_ephemeris.rst
+#: 1bf275b9e2844a29aefe7928db6c078a
+msgid "返回"
+msgstr ""
+
+#: 61bde257905049b8abd6f7faa75f49b4 of
+#: tod.generates.ephemeris.correct_halo_to_ephemeris.main:5
+msgid "函数执行结果。"
+msgstr ""
+
