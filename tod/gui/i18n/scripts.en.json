@@ -13,7 +13,7 @@
   "generate_butterfly_orbit": { "description": "Generate Orbit" },
   "generate_butterfly_family": { "description": "Generate Orbit Family" },
 
-  "generate_dpo_orbit": { "description": "Generate Orbit" },
+  "generate_dpo_orbit": { "description": "Generate DPO Orbit" },
   "generate_dpo_family": { "description": "Generate Orbit Family" },
 
   "generate_spo_orbit": { "description": "Generate Orbit" },

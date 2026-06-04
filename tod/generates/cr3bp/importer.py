@@ -305,6 +305,8 @@ def _family_csv_path(data_dir: Path, family_csv: str) -> Path:
 def script_status_for(name: RawDatasetName) -> str:
     if name.orbit_type == "dro":
         return "supported"
+    if name.orbit_type == "dpo":
+        return "supported"
     if name.orbit_type == "halo" and name.libration_point in {"L1", "L2"}:
         return "supported"
     if name.orbit_type == "halo" and name.libration_point == "L3":
