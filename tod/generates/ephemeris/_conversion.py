@@ -390,12 +390,12 @@ def default_conversion_dependencies() -> ConversionDependencies:
     from e2m2e.algorithms import convert_to_j2000, sample_patch_points
     from e2m2e.core import (
         CR3BP_System,
-        EphemerisDynamics,
-        EphemerisSystem,
         Orbit,
-        SPICEManager,
         SynodicJ2000Transformation,
     )
+    from e2m2e.core.spice import SPICEManager
+    from e2m2e.core.ephemeris_system import EphemerisSystem
+    from e2m2e.core.ephemeris_dynamics import EphemerisDynamics
     import spiceypy
 
     from tod.commons.constants import MU, TU
