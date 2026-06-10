@@ -99,14 +99,16 @@ uv run python -m tod.generates.cr3bp.resonant.generate_resonant_family --ratio 3
 uv run python -m tod.transfers.dro_to_ro.grid_search_dro_to_ro
 uv run python -m tod.transfers.dro_to_ro.optimize_dro_to_ro
 
-# 星历修正示例（单轨道）
-uv run python -m tod.generates.ephemeris.dro.correct_dro_to_ephemeris \
+# 星历修正示例（单轨道，支持 DRO 和 Halo）
+uv run python -m tod.generates.ephemeris.correct_orbit_to_ephemeris \
   --input-file output/dro/dro_<timestamp>.json \
-  --reference-epoch 2026-01-01T00:00:00
+  --reference-epoch 2026-01-01T00:00:00 \
+  --orbit-type dro
 
-uv run python -m tod.generates.ephemeris.halo.correct_halo_to_ephemeris \
+uv run python -m tod.generates.ephemeris.correct_orbit_to_ephemeris \
   --input-file output/halo/halo_family_<timestamp>.json \
-  --reference-epoch 2026-01-01T00:00:00
+  --reference-epoch 2026-01-01T00:00:00 \
+  --orbit-type halo
 ```
 
 部分转移脚本仍带有硬编码的输入路径。运行前请检查脚本顶部或 `main()` 附近的默认文件路径，改成本地已生成的 JSON 文件。
@@ -148,11 +150,11 @@ DRO 单轨生成入口已从旧的 3:1 专用脚本改名为 `generate_dro_orbit
 
 | 目标 | 单轨道 | 轨道族 | 说明 |
 |------|--------|--------|------|
-| DRO | `tod.generates.ephemeris.dro.correct_dro_to_ephemeris` | `tod.generates.ephemeris.dro.correct_dro_family_to_ephemeris` | 多重打靶修正到星历模型 |
-| Halo | `tod.generates.ephemeris.halo.correct_halo_to_ephemeris` | `tod.generates.ephemeris.halo.correct_halo_family_to_ephemeris` | 多重打靶修正到星历模型 |
-| 对比 | `tod.generates.ephemeris.compare_ephemeris_methods` | — | 对比直接多重打靶与 homotopy 方法 |
+| 通用 | `tod.generates.ephemeris.correct_orbit_to_ephemeris` | — | 统一入口，支持 DRO/Halo 及多方法选择 |
+| DRO | — | `tod.generates.ephemeris.dro.correct_dro_family_to_ephemeris` | 轨道族多重打靶修正到星历模型 |
+| Halo | — | `tod.generates.ephemeris.halo.correct_halo_family_to_ephemeris` | 轨道族多重打靶修正到星历模型 |
 
-> 星历转换脚本还支持 `homotopy_dro_to_ephemeris`（DRO 单轨道的 homotopy λ-continuation 方法）。所有转换脚本通过 `--method` 参数选择算法，默认 `two_level`。
+> `correct_orbit_to_ephemeris` 通过 `--orbit-type`（`dro`/`halo`）和 `--method`（`standard`/`two_level`/`homotopy`）选择轨道类型与修正方法。`--output-prefix` 自动生成 `{prefix}_{method}_tol{tol}.json`。输出包含计时与地心距统计。所有转换方法通过 `--method` 参数选择，默认 `two_level`。
 
 ### 绘图
 
