@@ -84,7 +84,11 @@ def feasible_alpha_and_departure_dv(rows: list[dict]) -> tuple[np.ndarray, np.nd
 
 
 def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndarray]:
-    """提取可行解的 (transfer_times, dv_departure)。"""
+    """提取可行解的 (transfer_times, dv_departure)。
+
+    对可行解使用首次进入阈值的时间（first_intersection_time 或
+    first_min_distance_time），而非积分全程的 transfer_time。
+    """
     times: list[float] = []
     dvs: list[float] = []
     for r in rows:
@@ -93,7 +97,14 @@ def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndar
         dv = _extract_dv_from_row(r)
         if dv is None or not np.isfinite(dv):
             continue
-        tt = r.get("transfer_time")
+        # 优先使用首次进入阈值的时间（issue #238）
+        if r.get("intersection_found"):
+            tt = r.get("first_intersection_time")
+        else:
+            tt = r.get("first_min_distance_time")
+        # fallback: 若字段缺失则使用全程时间
+        if tt is None:
+            tt = r.get("transfer_time")
         if tt is None:
             continue
         times.append(float(tt))
@@ -218,12 +229,24 @@ def plot_celestial_bodies(ax, system, config) -> None:
 
 
 def set_equal_aspect_3d(ax, points: np.ndarray) -> None:
-    """设置 3D axes 等比例显示。"""
+    """设置 3D axes 等比例显示。
+
+    对平面轨迹（如 z≈0）特殊处理：z 轴使用小范围固定比例，
+    避免纯平面数据因 3D 透视产生虚假的 z 方向振幅感。
+    """
     mid = points.mean(axis=0)
-    half = np.ptp(points, axis=0).max() / 2.0 + 0.1
+    ptp = np.ptp(points, axis=0)
+    half = ptp.max() / 2.0 + 0.1
     ax.set_xlim(mid[0] - half, mid[0] + half)
     ax.set_ylim(mid[1] - half, mid[1] + half)
-    ax.set_zlim(mid[2] - half, mid[2] + half)
+
+    # 若 z 方向极差远小于 x/y，视为平面轨迹，z 轴使用小范围
+    if ptp[2] < 1e-8 and ptp[:2].max() > 1e-8:
+        z_half = ptp[:2].max() * 0.05 + 0.05
+    else:
+        z_half = half
+    ax.set_zlim(mid[2] - z_half, mid[2] + z_half)
+
     ax.set_box_aspect([1, 1, 1])
 
 

@@ -290,17 +290,27 @@ def optimize_one_case(
     best = None
     best_dv = float("inf")
 
+    # 转移时间惩罚权重（无量纲）：objective = dv + w * T
+    # w = 0.1 时，T = 5 TU 的惩罚约 0.5 VU，与 dv 量级相当，
+    # 使短转移时间解在总目标中占优。
+    TIME_PENALTY_WEIGHT = 0.1
+
+    # 多组 T_init：搜索结果的 T_0 + 短转移时间尝试
+    T_inits = [T_0, 5.0, 10.0, 15.0, 20.0]
+
     for a_start in alpha_starts:
-        a_sol, T_sol, ok = _solve_2d(float(a_start), T_0)
-        if not ok:
-            continue
-        c = _eval([a_sol, T_sol])
-        if c["empty"] or c["collided"]:
-            continue
-        dv_total = c["dv1"] + c["dv2"]
-        if dv_total < best_dv:
-            best_dv = dv_total
-            best = {"alpha": a_sol, "T": T_sol, "c": c}
+        for T_init in T_inits:
+            a_sol, T_sol, ok = _solve_2d(float(a_start), T_init)
+            if not ok:
+                continue
+            c = _eval([a_sol, T_sol])
+            if c["empty"] or c["collided"]:
+                continue
+            dv_total = c["dv1"] + c["dv2"]
+            obj = dv_total + TIME_PENALTY_WEIGHT * T_sol
+            if obj < best_dv:
+                best_dv = obj
+                best = {"alpha": a_sol, "T": T_sol, "c": c}
 
     used_fallback = False
     if best is None:

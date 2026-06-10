@@ -43,6 +43,11 @@ except ImportError:
     pass
 import matplotlib.pyplot as plt  # noqa: E402
 
+# 配置 matplotlib 以正确显示 CJK 字符（beamer 中消除方块字）
+from tod.plot.config import apply_standard_plot_config  # noqa: E402
+
+apply_standard_plot_config()
+
 logger = logging.getLogger(__name__)
 
 
