@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
 )
 
 from tod.gui.i18n import qt_format
+from tod.gui.job_status import JOB_STATUS_DISPLAY, JobStatus
 
 # ANSI 转义序列匹配
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
@@ -317,6 +318,19 @@ class StructuredOutputWidget(QWidget):
         self._progress_bar.hide()
 
 
+# 状态徽章颜色表（按 JobStatus 枚举键索引，集中维护，不接 i18n）
+_STATUS_COLORS: dict[JobStatus, str] = {
+    JobStatus.PENDING: "#9cdcfe",
+    JobStatus.RUNNING: "#4ec9b0",
+    JobStatus.SUCCESS: "#808080",
+    JobStatus.FAILURE: "#f44747",
+    JobStatus.STOPPED: "#ce9178",
+}
+
+# 运行中脉动时使用的低饱和基色
+_PULSE_DIM_COLOR = "#2a7a6a"
+
+
 class JobCard(QWidget):
     """Job 列表中的单个卡片：显示脚本名、状态、运行时间、停止按钮。"""
 
@@ -328,6 +342,7 @@ class JobCard(QWidget):
         self.job_id = job_id
         self._script_name = script_name
         self._is_running = True
+        self._status: JobStatus = JobStatus.RUNNING
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(8, 4, 8, 4)
@@ -335,9 +350,19 @@ class JobCard(QWidget):
 
         # 状态徽章
         self._badge = QLabel("●")
-        self._badge.setStyleSheet("color: #4ec9b0; font-size: 14px;")
+        self._badge.setStyleSheet(
+            f"color: {_STATUS_COLORS[JobStatus.RUNNING]}; font-size: 14px;"
+        )
         self._badge.setFixedWidth(16)
         layout.addWidget(self._badge)
+
+        # 状态文字标签（使用 JOB_STATUS_DISPLAY 集中映射）
+        self._status_label = QLabel(JOB_STATUS_DISPLAY[JobStatus.RUNNING])
+        self._status_label.setStyleSheet(
+            f"color: {_STATUS_COLORS[JobStatus.RUNNING]}; font-size: 10px;"
+        )
+        self._status_label.setMinimumWidth(50)
+        layout.addWidget(self._status_label)
 
         # 脚本名
         self._name_label = QLabel(script_name)
@@ -409,23 +434,21 @@ class JobCard(QWidget):
     @property
     def is_running(self) -> bool:
         """执行 is_running 对应的处理逻辑。
-        
+
         Returns:
             函数执行结果。
         """
         return self._is_running
 
-    def set_status(self, status: str) -> None:
-        """设置状态：running / completed / error / killed。"""
-        self._is_running = status == "running"
-        colors = {
-            "running": "#4ec9b0",
-            "completed": "#808080",
-            "error": "#f44747",
-            "killed": "#ce9178",
-        }
-        color = colors.get(status, "#808080")
+    def set_status(self, status: JobStatus) -> None:
+        """设置状态：传入 JobStatus 枚举，颜色表与文案都用枚举键集中维护。"""
+        self._status = status
+        self._is_running = status == JobStatus.RUNNING
+        color = _STATUS_COLORS.get(status, _STATUS_COLORS[JobStatus.FAILURE])
         self._badge.setStyleSheet(f"color: {color}; font-size: 14px;")
+        # 状态文字标签：使用集中映射，宽度按最宽字段预留
+        self._status_label.setText(JOB_STATUS_DISPLAY[status])
+        self._status_label.setStyleSheet(f"color: {color}; font-size: 10px;")
 
         self._stop_btn.setVisible(self._is_running)
         if not self._is_running:
@@ -437,7 +460,7 @@ class JobCard(QWidget):
         if not self._is_running:
             return
         self._pulse_phase = not self._pulse_phase
-        color = "#4ec9b0" if self._pulse_phase else "#2a7a6a"
+        color = _STATUS_COLORS[JobStatus.RUNNING] if self._pulse_phase else _PULSE_DIM_COLOR
         self._badge.setStyleSheet(f"color: {color}; font-size: 14px;")
 
     def _update_elapsed(self) -> None:

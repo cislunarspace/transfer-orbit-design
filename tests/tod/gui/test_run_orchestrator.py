@@ -354,11 +354,13 @@ class TestDispatch:
             tab=tab, file_arg=None, plot_env={}
         )
         jm = _FakeJobManager()
-        job_ids = RunOrchestrator.dispatch(specs, entry, jm)
+        result = RunOrchestrator.dispatch(specs, entry, jm)
 
-        assert len(job_ids) == 2
+        assert len(result.created_job_ids) == 2
         assert len(jm.calls) == 2
-        for jid in job_ids:
+        assert result.is_batch is True
+        assert result.total_tasks == 2
+        for jid in result.created_job_ids:
             assert jid.startswith("job-")
 
     def test_dispatch_passes_entry_args_and_env(
@@ -383,8 +385,10 @@ class TestDispatch:
             tab=tab, file_arg=None, plot_env=plot_env
         )
         jm = _FakeJobManager()
-        RunOrchestrator.dispatch(specs, entry, jm)
+        result = RunOrchestrator.dispatch(specs, entry, jm)
 
+        assert len(result.created_job_ids) == 2
+        assert len(jm.calls) == 2
         # 每次调用都必须带上 entry 引用、args list、env dict
         for call in jm.calls:
             assert call["entry"] is entry
@@ -416,8 +420,9 @@ class TestDispatch:
         )
 
         jm = _FakeJobManager()
-        RunOrchestrator.dispatch(specs, entry, jm)
+        result = RunOrchestrator.dispatch(specs, entry, jm)
 
+        assert len(result.created_job_ids) == 1
         # 修改 fake 收到的 args/env 不应反向影响 spec（dispatch 内部 to_dispatch_kwargs 已拷贝）
         call_args = jm.calls[0]["args"]
         call_env = jm.calls[0]["env"]

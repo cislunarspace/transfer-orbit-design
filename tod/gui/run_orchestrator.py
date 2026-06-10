@@ -55,6 +55,32 @@ class RunSpec:
 
 
 @dataclass(frozen=True)
+class DispatchResult:
+    """一次 RunOrchestrator.dispatch 的汇总结果。
+
+    由 ``RunOrchestrator.dispatch`` 返回；BatchManager 用它创建 batch。
+
+    Attributes:
+        created_job_ids: 本次成功创建的 job_id 列表。
+        rejected: 未能创建的 (job_id_or_empty, reason) 列表（如 MAX_CONCURRENT 触顶）。
+        total_tasks: 待 dispatch 的 spec 总数。
+        entry: 关联的 ScriptEntry。
+        batch_id: 若为多任务，BatchManager 会填充此字段（PR2）。PR1 为 None。
+    """
+
+    created_job_ids: tuple[str, ...]
+    rejected: tuple[tuple[str, str], ...]
+    total_tasks: int
+    entry: "ScriptEntry"
+    batch_id: str | None = None
+
+    @property
+    def is_batch(self) -> bool:
+        """是否为多任务 batch（>= 2 个 job_id）。"""
+        return len(self.created_job_ids) >= 2
+
+
+@dataclass(frozen=True)
 class OverwriteTarget:
     """被 spec 指向的、已存在并将被覆盖的输出文件。
 
@@ -199,16 +225,25 @@ class RunOrchestrator:
         specs: list[RunSpec],
         entry: "ScriptEntry",
         job_manager: _SupportsStartJob,
-    ) -> list[str]:
-        """为每个 RunSpec 启动一个 Job，返回 job_id 列表。"""
-        job_ids: list[str] = []
+    ) -> DispatchResult:
+        """为每个 RunSpec 启动一个 Job，返回 DispatchResult。"""
+        created: list[str] = []
+        rejected: list[tuple[str, str]] = []
         for spec in specs:
             kwargs = spec.to_dispatch_kwargs()
             job_id = job_manager.start_job(
                 entry, kwargs["args"], kwargs["env"]  # type: ignore[arg-type]
             )
-            job_ids.append(job_id)
-        return job_ids
+            if job_id:
+                created.append(job_id)
+            else:
+                rejected.append(("", "start_job returned empty"))
+        return DispatchResult(
+            created_job_ids=tuple(created),
+            rejected=tuple(rejected),
+            total_tasks=len(specs),
+            entry=entry,
+        )
 
     @staticmethod
     def _expand_chip_combinations(

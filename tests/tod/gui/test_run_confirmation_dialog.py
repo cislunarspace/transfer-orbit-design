@@ -323,8 +323,9 @@ class TestCancelDoesNotCreateJobs:
         jm = _FakeJobManager()
 
         # 调用 dispatch 应当得到 1 个 job_id
-        job_ids = RunOrchestrator.dispatch(list(plan.specs), plan.entry, jm)
-        assert len(job_ids) == 1
+        result = RunOrchestrator.dispatch(list(plan.specs), plan.entry, jm)
+        assert len(result.created_job_ids) == 1
+        assert result.is_batch is False
         assert len(jm.calls) == 1
 
     def test_dispatch_not_called_when_confirm_provider_returns_false(

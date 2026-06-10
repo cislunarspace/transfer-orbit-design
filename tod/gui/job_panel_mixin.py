@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
 
 from tod.gui.i18n import qt_format
 from tod.gui.job_manager import JobManager
+from tod.gui.job_status import JobFinishResult, JobStatus
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
 
 if TYPE_CHECKING:
@@ -130,13 +131,10 @@ class JobPanelMixin:
         if output:
             output.append_output(text, stream)
 
-    def _on_job_finished(self, job_id: str, name: str, exit_code: int) -> None:
-        card = self._job_cards.get(job_id)
+    def _on_job_finished(self, result: JobFinishResult) -> None:
+        card = self._job_cards.get(result.job_id)
         if card:
-            # 查询 JobManager 获取实际状态（区分 killed vs error）
-            job = self._job_manager.get_job(job_id)
-            status = job.status if job else ("completed" if exit_code == 0 else "error")
-            card.set_status(status)
+            card.set_status(result.status)
 
         # 任务栏闪烁通知（仅 macOS 支持）
         from PyQt6.QtWidgets import QApplication
@@ -146,35 +144,35 @@ class JobPanelMixin:
             app.alert(self)  # type: ignore[attr-defined]
 
         # 状态栏详细消息
-        if exit_code == 0:
-            self._status_bar.showMessage(qt_format(QCoreApplication.translate("JobPanelMixin", "任务 '%1' 已完成（退出码：0）"), name), 5000)
+        if result.exit_code == 0:
+            self._status_bar.showMessage(QCoreApplication.translate("JobPanelMixin", "任务 '{}' 已完成（退出码：0）").format(result.script_name), 5000)
         else:
             self._status_bar.showMessage(
-                qt_format(QCoreApplication.translate("JobPanelMixin", "任务 '%1' 失败（退出码：%2）"), name, exit_code), 8000
+                QCoreApplication.translate("JobPanelMixin", "任务 '{}' 失败（退出码：{}）").format(result.script_name, result.exit_code), 8000
             )
 
         # 在输出面板追加结束信息
-        output = self._job_outputs.get(job_id)
+        output = self._job_outputs.get(result.job_id)
         if output:
-            banner = f"\n{'='*60}\n[{QCoreApplication.translate('JobPanelMixin', '进程结束')}] exit code: {exit_code}\n{'='*60}\n"
+            banner = f"\n{'='*60}\n[{QCoreApplication.translate('JobPanelMixin', '进程结束')}] exit code: {result.exit_code}\n{'='*60}\n"
             output.append_output(banner, "stdout")
             output.set_finished()
 
         self._update_job_count()
 
-    def _on_job_error(self, job_id: str, msg: str) -> None:
-        if not job_id:
+    def _on_job_error(self, result: JobFinishResult) -> None:
+        if not result.job_id:
             # 全局错误（如达到并发上限）
-            self._status_bar.showMessage(msg)
+            self._status_bar.showMessage(result.error_message)
             return
 
-        card = self._job_cards.get(job_id)
+        card = self._job_cards.get(result.job_id)
         if card:
-            card.set_status("error")
+            card.set_status(result.status)
 
-        output = self._job_outputs.get(job_id)
+        output = self._job_outputs.get(result.job_id)
         if output:
-            output.append_output(f"\n[ERROR] {msg}\n", "stderr")
+            output.append_output(f"\n[ERROR] {result.error_message}\n", "stderr")
 
         self._update_job_count()
 
@@ -229,7 +227,7 @@ class JobPanelMixin:
         if job_id_to_remove:
             # 如果 job 还在运行，先确认
             job = self._job_manager.get_job(job_id_to_remove)
-            if job and job.status == "running":
+            if job and job.status == JobStatus.RUNNING:
                 reply = QMessageBox.question(
                     cast(QWidget, self),
                     QCoreApplication.translate("JobPanelMixin", "确认关闭"),
