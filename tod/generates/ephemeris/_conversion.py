@@ -400,13 +400,15 @@ def default_conversion_dependencies() -> ConversionDependencies:
     from e2m2e.core.spice import SPICEManager
     from e2m2e.core.ephemeris_system import EphemerisSystem
     from e2m2e.core.ephemeris_dynamics import EphemerisDynamics
+    from e2m2e.mbse.data.enums import ReferenceFrame
     import spiceypy
 
-    from tod.commons.constants import MU, TU
+    import tod.commons.constants as _tod_constants
+
     from tod.generates.ephemeris._corrector import correct_ephemeris_patch_points
 
     spice = SPICEManager()
-    cr3bp_system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
+    cr3bp_system = CR3BP_System(mu=_tod_constants.MU, primary="earth", secondary="moon")
 
     def build_orbit(payload: dict[str, Any]) -> Any:
         """构建运行所需对象。
@@ -442,7 +444,7 @@ def default_conversion_dependencies() -> ConversionDependencies:
             bodies=list(config.bodies),
             spice=spice,
             origin="EARTH",
-            frame="J2000",
+            frame=ReferenceFrame.J2000,
         )
         return EphemerisDynamics(system=eph_system)
 
@@ -469,7 +471,7 @@ def default_conversion_dependencies() -> ConversionDependencies:
             函数执行结果。
         """
         transform = SynodicJ2000Transformation(cr3bp_system=cr3bp_system, spice=spice)
-        return convert_to_j2000(t_patch_syn, states_syn, transform, reference_et_value, TU)
+        return convert_to_j2000(t_patch_syn, states_syn, transform, reference_et_value, _tod_constants.TU)
 
     def correct(
         config: SingleConversionConfig | FamilyConversionConfig,
@@ -488,17 +490,23 @@ def default_conversion_dependencies() -> ConversionDependencies:
         Returns:
             函数执行结果。
         """
+        kwargs: dict[str, Any] = {
+            "tolerance": config.position_tol,
+            "max_iter": config.max_iter,
+            "verbose": True,
+            "n_workers": config.per_orbit_workers,
+            "kernel_dir": str(config.spice_kernel_dir),
+            "velocity_tolerance": config.velocity_tol,
+        }
+        if config.method == "homotopy":
+            # 同伦过渡默认以地月二体为基准模型，逐步引入太阳摄动
+            kwargs["base_bodies"] = ["EARTH", "MOON"]
         return correct_ephemeris_patch_points(
             config.method,
             dynamics,
             t_patch_j2000,
             states_j2000,
-            tolerance=config.position_tol,
-            max_iter=config.max_iter,
-            verbose=True,
-            n_workers=config.per_orbit_workers,
-            kernel_dir=str(config.spice_kernel_dir),
-            velocity_tolerance=config.velocity_tol,
+            **kwargs,
         )
 
     return ConversionDependencies(

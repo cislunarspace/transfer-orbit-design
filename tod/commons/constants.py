@@ -49,11 +49,11 @@ def _init_cr3bp() -> None:
         return
     from e2m2e.core import CR3BP_System
 
-    _em = CR3BP_System.from_known_system("earth_moon")
-    MU = _em.mu  # 1.21506683e-2
+    _em = CR3BP_System(mu=0.012153645822478, primary="Earth", secondary="Moon")._with_default_scales()
+    MU = _em.mu  # 1.21536648e-2
     DU = _em.DU  # 384405.0 km
-    TU = _em.TU  # 4.34811305 天
-    VU = _em.VU  # 1023.23281 m/s
+    TU = _em.TU  # 375188.7319 s ≈ 4.3425 天
+    VU = _em.VU  # 1.024551 km/s
     T_MOON = 2.0 * math.pi  # 月球轨道周期（无量纲）
     _cr3bp_initialized = True
 
