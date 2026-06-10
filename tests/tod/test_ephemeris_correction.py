@@ -1,5 +1,5 @@
 """
-Tests for ephemeris correction script (correct_dro_to_ephemeris.py)
+Tests for ephemeris correction script (correct_orbit_to_ephemeris.py)
 
 These tests focus on:
 - Testing the import structure
@@ -19,20 +19,18 @@ project_root = Path(__file__).resolve().parent.parent.parent
 class TestEphemerisScriptImports:
     """Test that ephemeris correction script can be imported and parsed"""
 
-    def test_correct_dro_to_ephemeris_imports(
-        self,
-    ):
-        """Test that correct_dro_to_ephemeris.py can be imported without errors"""
+    def test_correct_orbit_to_ephemeris_imports(self):
+        """Test that correct_orbit_to_ephemeris.py can be imported without errors"""
 
         script_path = (
             project_root
             / "tod"
             / "generates"
             / "ephemeris"
-            / "correct_dro_to_ephemeris.py"
+            / "correct_orbit_to_ephemeris.py"
         )
         spec = importlib.util.spec_from_file_location(
-            "correct_dro_to_ephemeris", script_path
+            "correct_orbit_to_ephemeris", script_path
         )
         assert spec is not None
         module = importlib.util.module_from_spec(spec)

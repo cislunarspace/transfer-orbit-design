@@ -383,18 +383,30 @@ def test_run_family_payload_conversion_fail_fast_stops_on_first_failure():
     assert [entry["status"] for entry in result] == ["success", "failure"]
 
 
-def test_single_entry_scripts_delegate_to_single_conversion():
-    from tod.generates.ephemeris import correct_dro_to_ephemeris
-    from tod.generates.ephemeris import correct_halo_to_ephemeris
+def test_unified_entry_script_delegates_to_single_conversion():
+    from tod.generates.ephemeris import correct_orbit_to_ephemeris
 
     argv = ["--input-file", "orbit.json", "--reference-epoch", "2025-06-21T11:00:06"]
 
-    with patch.object(_conversion, "run_single_conversion", return_value={"ok": "dro"}) as run:
-        assert correct_dro_to_ephemeris.main(argv) == {"ok": "dro"}
+    with patch.object(
+        _conversion, "run_single_conversion", return_value={"ok": "dro", "result": {"status": "success"}}
+    ) as run:
+        result = correct_orbit_to_ephemeris.main(argv)
+        assert result["ok"] == "dro"
+        assert "timing_seconds" in result
         assert run.call_args.args[0].orbit_type == "dro"
 
-    with patch.object(_conversion, "run_single_conversion", return_value={"ok": "halo"}) as run:
-        assert correct_halo_to_ephemeris.main(argv) == {"ok": "halo"}
+    argv_halo = [
+        "--input-file", "orbit.json",
+        "--reference-epoch", "2025-06-21T11:00:06",
+        "--orbit-type", "halo",
+    ]
+    with patch.object(
+        _conversion, "run_single_conversion", return_value={"ok": "halo", "result": {"status": "success"}}
+    ) as run:
+        result = correct_orbit_to_ephemeris.main(argv_halo)
+        assert result["ok"] == "halo"
+        assert "timing_seconds" in result
         assert run.call_args.args[0].orbit_type == "halo"
 
 

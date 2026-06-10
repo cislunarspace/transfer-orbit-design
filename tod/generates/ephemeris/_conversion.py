@@ -62,7 +62,7 @@ class LoadedOrbitPayload:
 @dataclass(frozen=True)
 class SingleConversionConfig:
     """保存 SingleConversionConfig 的配置字段。
-    
+
     该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
     """
     orbit_type: str
@@ -78,12 +78,13 @@ class SingleConversionConfig:
     per_orbit_workers: int
     orbit_index: int | None
     include_full_trajectory: bool = True
+    max_iter: int = 50
 
 
 @dataclass(frozen=True)
 class FamilyConversionConfig:
     """保存 FamilyConversionConfig 的配置字段。
-    
+
     该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
     """
     orbit_type: str
@@ -100,6 +101,7 @@ class FamilyConversionConfig:
     family_workers: int
     fail_fast: bool
     include_full_trajectory: bool
+    max_iter: int = 50
 
 
 def build_single_parser(orbit_type: str) -> argparse.ArgumentParser:
@@ -181,6 +183,7 @@ def single_config_from_args(
         output_file=_optional_path(args.output_file),
         per_orbit_workers=args.per_orbit_workers,
         orbit_index=args.orbit_index,
+        max_iter=args.max_iter,
     )
 
 
@@ -211,6 +214,7 @@ def family_config_from_args(
         family_workers=args.family_workers,
         fail_fast=args.fail_fast,
         include_full_trajectory=args.include_full_trajectory,
+        max_iter=args.max_iter,
     )
 
 
@@ -490,7 +494,7 @@ def default_conversion_dependencies() -> ConversionDependencies:
             t_patch_j2000,
             states_j2000,
             tolerance=config.position_tol,
-            max_iter=50,
+            max_iter=config.max_iter,
             verbose=True,
             n_workers=config.per_orbit_workers,
             kernel_dir=str(config.spice_kernel_dir),
@@ -556,6 +560,12 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--bodies", default=",".join(DEFAULT_BODIES))
     parser.add_argument("--output-file", default=None)
     parser.add_argument("--per-orbit-workers", type=_positive_int, default=1)
+    parser.add_argument(
+        "--max-iter",
+        type=_positive_int,
+        default=50,
+        help="Maximum correction iterations per run.",
+    )
 
 
 def load_family_payloads(input_file: Path) -> list[dict[str, Any]]:

@@ -124,9 +124,8 @@ def test_ephemeris_conversion_entries_are_grouped_by_orbit_type() -> None:
     }
 
     expected_paths = {
-        "tod/generates/ephemeris/correct_dro_to_ephemeris.py",
+        "tod/generates/ephemeris/correct_orbit_to_ephemeris.py",
         "tod/generates/ephemeris/correct_dro_family_to_ephemeris.py",
-        "tod/generates/ephemeris/correct_halo_to_ephemeris.py",
         "tod/generates/ephemeris/correct_halo_family_to_ephemeris.py",
     }
 
@@ -142,9 +141,8 @@ def _ephemeris_conversion_entry(name: str):
 
 def test_ephemeris_conversion_entries_expose_required_method_controls() -> None:
     for name in (
-        "correct_dro_to_ephemeris",
+        "correct_orbit_to_ephemeris",
         "correct_dro_family_to_ephemeris",
-        "correct_halo_to_ephemeris",
         "correct_halo_family_to_ephemeris",
     ):
         params = {param.flag: param for param in _ephemeris_conversion_entry(name).cli_params}
@@ -152,17 +150,38 @@ def test_ephemeris_conversion_entries_expose_required_method_controls() -> None:
         assert params["--input-file"].label == "星历转换输入文件"
         assert params["--reference-epoch"].label == "参考历元"
         assert params["--reference-epoch"].required is True
-        assert params["--method"].label == "星历转换方法"
-        assert params["--method"].default == "two_level"
-        assert params["--method"].choices == ("standard", "two_level", "homotopy")
 
 
-def test_ephemeris_single_entries_allow_family_selection_by_index() -> None:
-    for name in ("correct_dro_to_ephemeris", "correct_halo_to_ephemeris"):
-        params = {param.flag: param for param in _ephemeris_conversion_entry(name).cli_params}
+def test_ephemeris_unified_entry_exposes_chip_params() -> None:
+    entry = _ephemeris_conversion_entry("correct_orbit_to_ephemeris")
 
-        assert "--orbit-index" in params
-        assert params["--input-file"].name_pattern is None
+    chip_flags = {chip.flag for chip in entry.cli_chip_params}
+    assert "--method" in chip_flags
+    assert "--position-tol" in chip_flags
+
+    method_chip = next(c for c in entry.cli_chip_params if c.flag == "--method")
+    assert method_chip.options == {
+        "标准法": "standard",
+        "双重": "two_level",
+        "同伦法": "homotopy",
+    }
+
+    tol_chip = next(c for c in entry.cli_chip_params if c.flag == "--position-tol")
+    assert tol_chip.options == {
+        "标准 (1e-3 km)": "1e-3",
+        "严格 (1e-6 km)": "1e-6",
+    }
+
+
+def test_ephemeris_unified_entry_allows_orbit_type_selection() -> None:
+    params = {
+        param.flag: param
+        for param in _ephemeris_conversion_entry("correct_orbit_to_ephemeris").cli_params
+    }
+
+    assert "--orbit-type" in params
+    assert params["--orbit-type"].choices == ("dro", "halo")
+    assert "--orbit-index" in params
 
 
 def test_ephemeris_family_entries_prefer_family_files_and_expose_family_controls() -> None:
@@ -177,18 +196,14 @@ def test_ephemeris_family_entries_prefer_family_files_and_expose_family_controls
 def test_ephemeris_conversion_entries_expose_advanced_controls() -> None:
     expected_advanced = {
         "--patch-points",
-        "--position-tol",
-        "--velocity-tol",
         "--spice-kernel-dir",
         "--bodies",
-        "--output-file",
         "--per-orbit-workers",
     }
 
     for name in (
-        "correct_dro_to_ephemeris",
+        "correct_orbit_to_ephemeris",
         "correct_dro_family_to_ephemeris",
-        "correct_halo_to_ephemeris",
         "correct_halo_family_to_ephemeris",
     ):
         params = {param.flag: param for param in _ephemeris_conversion_entry(name).cli_params}
