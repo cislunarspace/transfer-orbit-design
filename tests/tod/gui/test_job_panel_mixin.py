@@ -7,7 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import pytest
 from unittest.mock import MagicMock
 
-from PyQt6.QtWidgets import QApplication, QLabel, QPushButton, QStatusBar, QTabWidget
+from PyQt6.QtWidgets import QApplication, QLabel, QPushButton, QStatusBar, QTabWidget, QWidget
 
 from tod.gui.job_panel_mixin import JobPanelMixin
 from tod.gui.job_status import JobFinishResult, JobStatus
@@ -68,6 +68,10 @@ def _make_mixin(qapp) -> tuple[JobPanelMixin, dict]:
             self._job_count_label = MagicMock(spec=QLabel)
             self._output_tabs = MagicMock(spec=QTabWidget)
             self._clear_completed_btn = MagicMock()
+            # 批量运行 stub
+            self._batch_manager = MagicMock()
+            self._batch_cards: dict[str, MagicMock] = {}
+            self._batches_container = MagicMock(spec=QWidget)
 
     mixin = _StubMixin()
     return mixin, {
@@ -75,6 +79,9 @@ def _make_mixin(qapp) -> tuple[JobPanelMixin, dict]:
         "job_outputs": mixin._job_outputs,
         "job_cards": mixin._job_cards,
         "job_manager": mixin._job_manager,
+        "batch_manager": mixin._batch_manager,
+        "batch_cards": mixin._batch_cards,
+        "batches_container": mixin._batches_container,
     }
 
 
@@ -212,3 +219,251 @@ class TestOnJobErrorWithJobFinishResult:
         call_args = output.append_output.call_args[0]
         assert "[ERROR]" in call_args[0]
         assert call_args[1] == "stderr"
+
+
+# -- batch signal 槽测试 --
+
+
+def _make_batch_obj(
+    batch_id: str = "batch001",
+    script_name: str = "test_script",
+    job_ids: tuple[str, ...] = ("j1", "j2"),
+) -> MagicMock:
+    """构造 MagicMock BatchRun（带 batch_id / script_name / job_ids 属性）。"""
+    batch = MagicMock()
+    batch.batch_id = batch_id
+    batch.script_name = script_name
+    batch.job_ids = job_ids
+    return batch
+
+
+def _make_mock_batch_manager(
+    batch_id: str = "b1234567",
+    script_name: str = "test_script",
+    job_ids: tuple[str, ...] = ("j1",),
+    status_map: dict[str, JobStatus | None] | None = None,
+    aggregate: object | None = None,
+) -> MagicMock:
+    """构造 MagicMock BatchManager，注入真实的 get_batch / get_aggregate / _get_job_status 行为。
+
+    Args:
+        batch_id: batch 唯一标识。
+        script_name: 工具显示名。
+        job_ids: 子任务 job_id 元组。
+        status_map: job_id → JobStatus 映射；未在 map 中的 job 返回 None。
+        aggregate: get_aggregate 返回值；默认为非 None 的 MagicMock。
+    """
+    if status_map is None:
+        status_map = {}
+
+    bm = MagicMock()
+    batch = _make_batch_obj(
+        batch_id=batch_id,
+        script_name=script_name,
+        job_ids=job_ids,
+    )
+    bm.get_batch.return_value = batch
+    bm.get_aggregate.return_value = aggregate if aggregate is not None else MagicMock()
+    bm._get_job_status.side_effect = lambda jid: status_map.get(jid)
+    return bm
+
+
+class TestOnBatchCreated:
+    def test_creates_and_inserts_card(self, qapp):
+        from tod.gui.batch_summary_card import BatchSummaryCard
+
+        mixin, ctx = _make_mixin(qapp)
+        mixin._batch_manager = _make_mock_batch_manager(
+            job_ids=("j1", "j2"),
+            status_map={"j1": JobStatus.RUNNING, "j2": JobStatus.RUNNING},
+        )
+        mixin._batch_cards_layout = MagicMock()
+
+        mixin._on_batch_created("b1234567")
+
+        assert "b1234567" in mixin._batch_cards
+        assert isinstance(mixin._batch_cards["b1234567"], BatchSummaryCard)
+        mixin._batch_cards_layout.insertWidget.assert_called_once()
+
+    def test_shows_batches_container(self, qapp):
+        mixin, ctx = _make_mixin(qapp)
+        mixin._batch_manager = _make_mock_batch_manager(
+            job_ids=("j1",),
+            status_map={"j1": JobStatus.RUNNING},
+        )
+        mixin._batch_cards_layout = MagicMock()
+
+        mixin._on_batch_created("b1234567")
+
+        mixin._batches_container.setVisible.assert_called_with(True)
+
+
+class TestOnBatchAggregateChanged:
+    def test_updates_card_view_model(self, qapp):
+        from tod.gui.batch import BatchAggregate
+        from tod.gui.batch_summary_card import BatchSummaryCard
+
+        mixin, ctx = _make_mixin(qapp)
+        card = MagicMock(spec=BatchSummaryCard)
+        mixin._batch_cards["b1234567"] = card
+
+        mixin._batch_manager = _make_mock_batch_manager(
+            job_ids=("j1",),
+            status_map={"j1": JobStatus.SUCCESS},
+            aggregate=BatchAggregate.SUCCESS,
+        )
+
+        mixin._on_batch_aggregate_changed("b1234567", BatchAggregate.SUCCESS)
+
+        card.update_view_model.assert_called_once()
+        vm = card.update_view_model.call_args[0][0]
+        assert vm.aggregate_status == BatchAggregate.SUCCESS
+
+    def test_noop_when_card_missing(self, qapp):
+        mixin, ctx = _make_mixin(qapp)
+        mixin._on_batch_aggregate_changed("nonexistent", None)
+
+
+class TestOnBatchRemoved:
+    def test_removes_card_and_hides_container_when_empty(self, qapp):
+        from tod.gui.batch_summary_card import BatchSummaryCard
+
+        mixin, ctx = _make_mixin(qapp)
+        card = MagicMock(spec=BatchSummaryCard)
+        mixin._batch_cards["b1234567"] = card
+        mixin._batch_cards_layout = MagicMock()
+
+        mixin._on_batch_removed("b1234567")
+
+        assert "b1234567" not in mixin._batch_cards
+        mixin._batch_cards_layout.removeWidget.assert_called_once_with(card)
+        mixin._batches_container.setVisible.assert_called_with(False)
+
+    def test_noop_when_card_missing(self, qapp):
+        mixin, ctx = _make_mixin(qapp)
+        mixin._batch_cards_layout = MagicMock()
+        mixin._on_batch_removed("nonexistent")
+
+
+class TestOnBatchJobSelected:
+    def test_delegates_to_on_job_card_clicked(self, qapp):
+        mixin, ctx = _make_mixin(qapp)
+        mixin._on_batch_job_selected("j1")
+        # _on_job_card_clicked 是真实方法，不会因 job_id 不存在而报错
+        # （_job_outputs.get(job_id) 返回 None 时直接跳过）
+
+
+# -- 多任务 dispatch 接入测试 --
+
+
+class TestMainWindowDispatchBatch:
+    def test_multi_task_dispatch_creates_batch(self, qapp):
+        """多任务 dispatch（>= 2 job）时 batch_manager.create_batch 被调用。"""
+        from unittest.mock import patch
+        from tod.gui.run_orchestrator import DispatchResult, RunOrchestrator
+        from tod.gui.main_window import MainWindow
+
+        window = _make_main_window_stub(qapp)
+        tab = MagicMock()
+        tab.entry.name = "test_script"
+        tab.validate_params.return_value = True
+        tab.entry.accepts_file_arg = False
+        window._script_tab_bar.current_widget.return_value = tab
+        window._confirm_run_provider = lambda _plan: True
+
+        plan = MagicMock()
+        plan.entry = tab.entry
+        plan.specs = (MagicMock(), MagicMock(), MagicMock())
+
+        dispatch_result = DispatchResult(
+            created_job_ids=("j1", "j2", "j3"),
+            rejected=(),
+            total_tasks=3,
+            entry=tab.entry,
+        )
+
+        with (
+            patch.object(RunOrchestrator, 'build_run_plan', return_value=plan),
+            patch.object(RunOrchestrator, 'dispatch', return_value=dispatch_result),
+        ):
+            window._run_from_tab(tab)
+
+        window._batch_manager.create_batch.assert_called_once_with(
+            script_name="test_script",
+            job_ids=("j1", "j2", "j3"),
+        )
+
+    def test_single_task_dispatch_skips_batch(self, qapp):
+        """单任务 dispatch（len < 2）时 batch_manager.create_batch 不被调用。"""
+        from unittest.mock import patch
+        from tod.gui.run_orchestrator import DispatchResult, RunOrchestrator
+        from tod.gui.main_window import MainWindow
+
+        window = _make_main_window_stub(qapp)
+        tab = MagicMock()
+        tab.entry.name = "test_script"
+        tab.validate_params.return_value = True
+        tab.entry.accepts_file_arg = False
+        window._script_tab_bar.current_widget.return_value = tab
+        window._confirm_run_provider = lambda _plan: True
+
+        plan = MagicMock()
+        plan.entry = tab.entry
+        plan.specs = (MagicMock(),)
+
+        dispatch_result = DispatchResult(
+            created_job_ids=("j1",),
+            rejected=(),
+            total_tasks=1,
+            entry=tab.entry,
+        )
+
+        with (
+            patch.object(RunOrchestrator, 'build_run_plan', return_value=plan),
+            patch.object(RunOrchestrator, 'dispatch', return_value=dispatch_result),
+        ):
+            window._run_from_tab(tab)
+
+        window._batch_manager.create_batch.assert_not_called()
+
+    def test_cancelled_dispatch_skips_batch(self, qapp):
+        """取消运行时不调用 dispatch，不创建 batch。"""
+        from unittest.mock import patch
+        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.main_window import MainWindow
+
+        window = _make_main_window_stub(qapp)
+        tab = MagicMock()
+        tab.entry.name = "test_script"
+        tab.validate_params.return_value = True
+        tab.entry.accepts_file_arg = False
+        window._script_tab_bar.current_widget.return_value = tab
+        window._confirm_run_provider = lambda _plan: False
+
+        with patch.object(RunOrchestrator, 'dispatch') as mock_dispatch:
+            window._run_from_tab(tab)
+            mock_dispatch.assert_not_called()
+
+        window._batch_manager.create_batch.assert_not_called()
+
+
+def _make_main_window_stub(qapp) -> MagicMock:
+    """构造 MainWindow stub，注入所有依赖。"""
+    from tod.gui.main_window import MainWindow
+
+    class _StubMainWindow:
+        def __init__(self):
+            self._status_bar = MagicMock()
+            self._job_manager = MagicMock()
+            self._batch_manager = MagicMock()
+            self._confirm_run_provider = None
+            self._script_tab_bar = MagicMock()
+            self._gui_defaults = {"settings": {}}
+            self._repo_root = "."
+            self.tr = lambda s: s
+
+    stub = _StubMainWindow()
+    # 绑定 MainWindow 的实例方法到 stub
+    stub._run_from_tab = MainWindow._run_from_tab.__get__(stub)
+    stub._confirm_run = MainWindow._confirm_run.__get__(stub)
+    return stub

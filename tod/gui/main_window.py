@@ -28,6 +28,8 @@ from PyQt6.QtWidgets import (
 from tod.gui.file_discovery import FileInfo, discover_files
 from tod.gui.file_tree_mixin import FileTreeMixin
 from tod.gui.i18n import qt_format
+from tod.gui.batch_manager import BatchManager
+from tod.gui.batch_summary_card import BatchSummaryCard
 from tod.gui.job_manager import JobManager
 from tod.gui.job_panel_mixin import JobPanelMixin
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
@@ -68,6 +70,13 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         self._job_outputs: dict[str, StructuredOutputWidget] = {}
         self._has_jobs = False
 
+        # 批量运行管理（PR2 — 依赖 JobManager 已初始化）
+        self._batch_manager = BatchManager(
+            get_job_status=self._job_manager.get_job_status,
+            parent=self,
+        )
+        self._batch_cards: dict[str, BatchSummaryCard] = {}
+
         # 文档窗口
         self._doc_window: DocWindow | None = None
 
@@ -103,6 +112,16 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         self._job_manager.job_output.connect(self._on_job_output)
         self._job_manager.job_finished.connect(self._on_job_finished)
         self._job_manager.job_error.connect(self._on_job_error)
+
+        # 连接批量运行信号
+        self._batch_manager.batch_created.connect(self._on_batch_created)
+        self._batch_manager.batch_aggregate_changed.connect(
+            self._on_batch_aggregate_changed
+        )
+        self._batch_manager.batch_removed.connect(self._on_batch_removed)
+        self._batch_manager.batch_jobs_changed.connect(
+            lambda _bid: None  # 保留信号契约，暂无刷新逻辑（PR2 后续 commit 接入定时器时使用）
+        )
 
         # 连接文档链接信号
         self.doc_link_clicked.connect(self._open_doc_window)
@@ -327,7 +346,16 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
             self._status_bar.showMessage(self.tr("运行已取消"), 3000)
             return
 
-        RunOrchestrator.dispatch(list(plan.specs), plan.entry, self._job_manager)
+        result = RunOrchestrator.dispatch(
+            list(plan.specs), plan.entry, self._job_manager
+        )
+
+        # 多任务 dispatch 时自动建 batch（单任务不建，行为不变）
+        if result.is_batch:
+            self._batch_manager.create_batch(
+                script_name=plan.entry.name,
+                job_ids=result.created_job_ids,
+            )
 
     def _confirm_run(self, plan) -> bool:
         """运行前确认入口；测试可通过 ``_confirm_run_provider`` 注入假实现。"""

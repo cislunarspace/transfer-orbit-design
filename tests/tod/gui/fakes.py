@@ -9,6 +9,12 @@
 
     result = make_result(status=JobStatus.STOPPED, exit_code=-15)
     job = make_fake_job(status=JobStatus.RUNNING)
+
+    # BatchManager 测试：
+    from tests.tod.gui.fakes import FakeJobStatusProvider, make_batch_manager
+
+    provider = FakeJobStatusProvider({"j1": JobStatus.SUCCESS, "j2": JobStatus.RUNNING})
+    bm = make_batch_manager(provider)
 """
 
 from __future__ import annotations
@@ -88,3 +94,51 @@ class _FakeScriptEntry:
 
     def __init__(self, name: str) -> None:
         self.name = name
+
+
+# -- BatchManager 测试用 fakes --
+
+
+class FakeJobStatusProvider:
+    """可控的 ``get_job_status`` 替身，用于 BatchManager 单测。
+
+    通过 ``status_map`` 字典控制每个 job_id 返回的状态。
+    设置 ``status_map[jid] = None`` 可模拟 job 被 prune 的场景。
+
+    Usage::
+
+        provider = FakeJobStatusProvider({"j1": JobStatus.SUCCESS})
+        assert provider.get_job_status("j1") == JobStatus.SUCCESS
+        assert provider.get_job_status("unknown") is None
+
+        # 模拟 job 被 prune
+        provider.status_map["j1"] = None
+        assert provider.get_job_status("j1") is None
+    """
+
+    def __init__(
+        self, status_map: dict[str, JobStatus | None] | None = None
+    ) -> None:
+        self.status_map: dict[str, JobStatus | None] = dict(status_map or {})
+
+    def get_job_status(self, job_id: str) -> JobStatus | None:
+        """返回 job_id 对应的状态，不在 map 中则返回 None。"""
+        return self.status_map.get(job_id)
+
+
+def make_batch_manager(
+    provider: FakeJobStatusProvider | None = None,
+) -> "BatchManager":
+    """构造 ``BatchManager`` 实例，默认使用空的 ``FakeJobStatusProvider``。
+
+    Args:
+        provider: 可选的 ``FakeJobStatusProvider`` 实例。
+
+    Returns:
+        已配置好 ``get_job_status`` 注入的 ``BatchManager`` 实例。
+    """
+    from tod.gui.batch_manager import BatchManager
+
+    if provider is None:
+        provider = FakeJobStatusProvider()
+    return BatchManager(get_job_status=provider.get_job_status)
