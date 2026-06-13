@@ -60,6 +60,7 @@ repo_root = Path(__file__).resolve().parent.parent.parent
 if str(repo_root) not in sys.path:
     sys.path.insert(0, str(repo_root))
 
+from PyQt6.QtCore import Qt  # noqa: E402
 from PyQt6.QtGui import QIcon  # noqa: E402
 from PyQt6.QtWidgets import QApplication  # noqa: E402
 
@@ -68,10 +69,13 @@ from tod.gui.main_window import MainWindow  # noqa: E402
 
 def main() -> None:
     """执行脚本主流程。
-    
+
     Returns:
         None。
     """
+    # QtWebEngine 需要共享 OpenGL 上下文；必须在 QApplication 实例化之前设置
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+
     app = QApplication(sys.argv)
     app.setApplicationName("Transfer Orbit Design")
     window = MainWindow(repo_root=str(repo_root))

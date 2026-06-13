@@ -13,7 +13,6 @@ from pathlib import Path
 
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QDesktopServices, QIcon
-from PyQt6.QtWebEngineWidgets import QWebEngineView
 from PyQt6.QtWidgets import (
     QLineEdit,
     QMainWindow,
@@ -38,6 +37,13 @@ class DocWindow(QMainWindow):
 
         # 设置窗口图标
         self._set_window_icon()
+
+        # 延迟导入 QWebEngineView：必须在 QApplication 实例化之前导入
+        # QtWebEngineWidgets，或设置 Qt.AA_ShareOpenGLContexts；由于 DocWindow
+        # 在 QApplication 已创建后才首次被使用，因此选择在构造函数内延迟导入
+        from PyQt6.QtWebEngineWidgets import QWebEngineView
+
+        self._QWebEngineView = QWebEngineView
 
         self._setup_ui()
 
@@ -98,7 +104,7 @@ class DocWindow(QMainWindow):
         toolbar.addWidget(self._open_ext_btn)
 
         # Web 视图
-        self._web_view = QWebEngineView()
+        self._web_view = self._QWebEngineView()
         layout.addWidget(self._web_view)
 
         # 连接信号
