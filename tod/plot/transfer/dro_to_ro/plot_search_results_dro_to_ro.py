@@ -135,8 +135,8 @@ def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
 def _build_transfer_search() -> TransferSearch:
     """构建并配置 TransferSearch 实例（积分器参数与 grid_search_dro_to_ro.py 一致）。"""
     DT = 1.0 / (24.0 * TU)
-    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+    system = e2m2e.core.CR3BP_System(mu=MU, primary="earth", secondary="moon")
+    dynamics = e2m2e.core.CR3BP_Dynamics(system=system)
     dynamics.integrator = "DOP853"
     dynamics.rtol = 1e-12
     dynamics.atol = 1e-12
@@ -159,8 +159,8 @@ def _integrate_single_orbit(args: tuple) -> tuple:
     departure_state, alpha, max_transfer_time, mu, tu = args
     DT = 1.0 / (24.0 * tu)
     try:
-        system = e2m2e.core.system.CR3BP_System(mu=mu, primary="earth", secondary="moon")
-        dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+        system = e2m2e.core.CR3BP_System(mu=mu, primary="earth", secondary="moon")
+        dynamics = e2m2e.core.CR3BP_Dynamics(system=system)
         dynamics.integrator = "DOP853"
         dynamics.rtol = 1e-12
         dynamics.atol = 1e-12

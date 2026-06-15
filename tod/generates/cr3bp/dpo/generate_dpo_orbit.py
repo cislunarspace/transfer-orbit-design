@@ -290,8 +290,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     _validate_args(args)
     _setup_logging(args.log_level)
 
-    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+    system = e2m2e.core.CR3BP_System(mu=MU, primary="earth", secondary="moon")
+    dynamics = e2m2e.core.CR3BP_Dynamics(system=system)
 
     x0 = args.x0 if args.x0 is not None else DEFAULT_DPO_X0
     vy0 = args.vy0 if args.vy0 is not None else DEFAULT_DPO_VY0

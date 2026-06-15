@@ -94,8 +94,8 @@ def main(argv: list[str] | None = None) -> None:
     logger.info("目标周期: %.4f TU (%.2f days)", target_period, period_days)
 
     # 1. 系统与动力学模型初始化
-    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+    system = e2m2e.core.CR3BP_System(mu=MU, primary="earth", secondary="moon")
+    dynamics = e2m2e.core.CR3BP_Dynamics(system=system)
 
     # 2. 配置固定周期微分校正器
     corrector = e2m2e.algorithms.DifferentialCorrection(dynamic=dynamics)

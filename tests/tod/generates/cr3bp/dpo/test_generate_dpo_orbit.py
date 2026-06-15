@@ -112,8 +112,8 @@ def test_manual_path_corrects_and_saves_dpo_json_metadata(monkeypatch, tmp_path:
     monkeypatch.setattr(mod, "OUTPUT_DIR", tmp_path)
     monkeypatch.setattr(mod.time, "time", lambda: 1234567890)
     monkeypatch.setattr(mod, "Orbit", FakeOrbit)
-    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: object())
-    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: object())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **kwargs: object())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **kwargs: object())
     monkeypatch.setattr(mod.e2m2e.algorithms, "DifferentialCorrection", FakeCorrector)
     monkeypatch.setattr(mod, "_save_orbit", fake_save)
 
@@ -181,8 +181,8 @@ def test_catalog_seed_id_path_propagates_without_correction(monkeypatch, tmp_pat
 
     monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
     monkeypatch.setattr(mod.time, "time", lambda: 1234567890)
-    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
-    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
     monkeypatch.setattr(mod.e2m2e.algorithms, "DifferentialCorrection", FailingCorrector)
     monkeypatch.setattr(mod, "_propagate_catalog_seed", fake_propagate)
     monkeypatch.setattr(mod, "_save_orbit", fake_save)
@@ -244,8 +244,8 @@ def test_jacobi_path_records_match_metadata(monkeypatch, tmp_path: Path) -> None
 
     monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
     monkeypatch.setattr(mod.time, "time", lambda: 1234567890)
-    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
-    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
     monkeypatch.setattr(mod, "_propagate_catalog_seed", fake_propagate)
     monkeypatch.setattr(mod, "_save_orbit", fake_save)
 

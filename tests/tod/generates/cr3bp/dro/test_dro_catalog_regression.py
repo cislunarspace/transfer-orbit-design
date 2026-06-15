@@ -126,8 +126,8 @@ class TestGuiJacobiDrivesCliRegression:
                 )
 
         monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
-        monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **_: object())
-        monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **_: object())
+        monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **_: object())
+        monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **_: object())
         monkeypatch.setattr(mod, "_propagate_catalog_seed", lambda *a, **kw: FakeOrbit([[0, 0, 0, 0, 0, 0]], [0.0]))
 
         full_argv = list(cli_args) + ["--catalog-dir", str(catalog_dir)]
@@ -212,8 +212,8 @@ class TestGuiSeedIdDrivesCliRegression:
 
         monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
         monkeypatch.setattr(mod.time, "time", lambda: 1234567890)
-        monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **_: object())
-        monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **_: object())
+        monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **_: object())
+        monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **_: object())
         monkeypatch.setattr(mod, "_propagate_catalog_seed", lambda *a, **kw: FakeOrbit([[0, 0, 0, 0, 0, 0]], [0.0]))
 
         full_argv = list(cli_args) + ["--catalog-dir", str(catalog_dir)]

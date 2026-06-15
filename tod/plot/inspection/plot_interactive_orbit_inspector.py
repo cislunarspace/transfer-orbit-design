@@ -82,7 +82,7 @@ fig = None
 
 def compute_orbit_jacobi(orbit, system):
     """计算单条轨道的Jacobi常数"""
-    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+    dynamics = e2m2e.core.CR3BP_Dynamics(system=system)
     try:
         return dynamics.compute_jacobi_constant(orbit.states[0])
     except Exception:

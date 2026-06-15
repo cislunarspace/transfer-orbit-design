@@ -25,8 +25,8 @@ project_root = Path(__file__).resolve().parent.parent.parent
 class TestGenerateScriptImports:
     """测试生成脚本可被导入和解析"""
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_generate_ro_family_imports(self, mock_cont, mock_corr, mock_dyn, mock_sys):
@@ -50,8 +50,8 @@ class TestGenerateScriptImports:
         except Exception as e:
             pytest.fail(f"Script import failed with unexpected error: {e}")
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_generate_dro_imports(self, mock_cont, mock_corr, mock_dyn, mock_sys):
@@ -103,8 +103,8 @@ def _parse_halo_args(module, argv):
 class TestGenerateHaloFamilyImports:
     """Test generate_halo_family.py import and parameter parsing"""
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_generate_halo_family_imports(self, mock_cont, mock_corr, mock_dyn, mock_sys):
@@ -114,8 +114,8 @@ class TestGenerateHaloFamilyImports:
         except Exception as e:
             pytest.fail(f"Script import failed with unexpected error: {e}")
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_generate_halo_family_seed_file_param(self, mock_cont, mock_corr, mock_dyn, mock_sys):
@@ -124,8 +124,8 @@ class TestGenerateHaloFamilyImports:
         args = _parse_halo_args(module, ["--seed-file", "output/halo/test_seed.json"])
         assert args.seed_file == "output/halo/test_seed.json"
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_generate_halo_family_richardson_params_defaults(self, mock_cont, mock_corr, mock_dyn, mock_sys):
@@ -141,8 +141,8 @@ class TestGenerateHaloFamilyImports:
 class TestGenerateHaloFamilySeedFile:
     """Test generate_halo_family.py seed file loading path"""
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_seed_file_restores_metadata_before_continuation(
@@ -206,8 +206,8 @@ class TestGenerateHaloFamilySeedFile:
             "amplitude_z": pytest.approx(0.27),
         }
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_seed_family_file_loads_first_orbit(
@@ -263,8 +263,8 @@ class TestGenerateHaloFamilySeedFile:
         assert mock_load.call_args.kwargs["orbit_index"] == 0
         mock_cont_inst.halo_pseudo_arclength_continuation.assert_called_once()
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_no_seed_file_uses_richardson_seed_generation(self, mock_cont_cls, mock_corr_cls, mock_dyn, mock_sys, tmp_path):
@@ -337,8 +337,8 @@ class TestHaloGuiRegistry:
 class TestHaloFamilyNewParams:
     """Test new CLI parameters for generate_halo_family.py"""
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_direction_param_removed(self, mock_cont, mock_corr, mock_dyn, mock_sys):
@@ -347,8 +347,8 @@ class TestHaloFamilyNewParams:
         args = _parse_halo_args(module, [])
         assert not hasattr(args, "direction")
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_step_size_negative_param_removed(self, mock_cont, mock_corr, mock_dyn, mock_sys):
@@ -357,8 +357,8 @@ class TestHaloFamilyNewParams:
         args = _parse_halo_args(module, [])
         assert not hasattr(args, "step_size_negative")
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_resolve_halo_branches_removed(self, mock_cont, mock_corr, mock_dyn, mock_sys):
@@ -366,8 +366,8 @@ class TestHaloFamilyNewParams:
         module = _load_halo_family_module()
         assert not hasattr(module, "_resolve_halo_branches")
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_branches_param_removed(self, mock_cont, mock_corr, mock_dyn, mock_sys):
@@ -376,8 +376,8 @@ class TestHaloFamilyNewParams:
         args = _parse_halo_args(module, [])
         assert not hasattr(args, "branches")
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_method_default_is_pseudo_arclength(self, mock_cont, mock_corr, mock_dyn, mock_sys):
@@ -386,8 +386,8 @@ class TestHaloFamilyNewParams:
         args = _parse_halo_args(module, [])
         assert args.method == "pseudo_arclength"
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_step_size_negative_not_accepted(self, mock_cont, mock_corr, mock_dyn, mock_sys):
@@ -396,8 +396,8 @@ class TestHaloFamilyNewParams:
         with pytest.raises(SystemExit):
             _parse_halo_args(module, ["--step-size-negative", "0.01"])
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_direction_not_accepted(self, mock_cont, mock_corr, mock_dyn, mock_sys):
@@ -406,8 +406,8 @@ class TestHaloFamilyNewParams:
         with pytest.raises(SystemExit):
             _parse_halo_args(module, ["--direction", "positive"])
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_step_size_pal_overrides_step_size(self, mock_cont, mock_corr, mock_dyn, mock_sys):
@@ -417,8 +417,8 @@ class TestHaloFamilyNewParams:
         # 覆盖发生在 run() 中，而非 parse
         assert args.step_size == pytest.approx(0.002)
 
-    @patch("e2m2e.core.system.CR3BP_System")
-    @patch("e2m2e.core.dynamics.CR3BP_Dynamics")
+    @patch("e2m2e.core.CR3BP_System")
+    @patch("e2m2e.core.CR3BP_Dynamics")
     @patch("e2m2e.algorithms.DifferentialCorrection")
     @patch("e2m2e.algorithms.Continuation")
     def test_step_size_pal_defaults_to_0_0045(self, mock_cont, mock_corr, mock_dyn, mock_sys):

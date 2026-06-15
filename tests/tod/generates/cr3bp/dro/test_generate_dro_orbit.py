@@ -68,8 +68,8 @@ def test_catalog_path_can_disable_auto_build(monkeypatch, tmp_path: Path) -> Non
     def fail_import(*args, **kwargs):
         raise AssertionError("auto-build must be disabled")
 
-    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
-    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
     monkeypatch.setattr(mod, "import_cr3bp_xlsx_catalog", fail_import)
 
     with pytest.raises(SystemExit, match="normalized CR3BP catalog 缺失"):
@@ -114,8 +114,8 @@ def test_catalog_path_auto_builds_normalized_catalog_when_missing(monkeypatch, t
 
     monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
     monkeypatch.setattr(mod.time, "time", lambda: 1234567890)
-    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
-    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
     monkeypatch.setattr(mod, "import_cr3bp_xlsx_catalog", fake_import)
     monkeypatch.setattr(mod, "_propagate_catalog_seed", fake_propagate)
 
@@ -153,8 +153,8 @@ def test_jacobi_path_records_match_metadata(monkeypatch, tmp_path: Path) -> None
 
     monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
     monkeypatch.setattr(mod.time, "time", lambda: 1234567890)
-    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
-    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
     monkeypatch.setattr(mod, "_propagate_catalog_seed", fake_propagate)
 
     mod.main(["--jacobi", "3.10005", "--jacobi-tolerance", "0.001", "--catalog-dir", str(catalog_dir)])
@@ -209,8 +209,8 @@ def test_jacobi_success_logs_matched_seed_and_delta(monkeypatch, tmp_path: Path,
         return FakeOrbit([initial_state], [0.0])
 
     monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
-    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
-    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
     monkeypatch.setattr(mod, "_propagate_catalog_seed", fake_propagate)
 
     mod.main(["--jacobi", "3.10005", "--catalog-dir", str(catalog_dir)])
@@ -250,8 +250,8 @@ def test_jacobi_path_defaults_to_no_hard_tolerance(monkeypatch, tmp_path: Path) 
 
     monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
     monkeypatch.setattr(mod.time, "time", lambda: 1234567890)
-    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
-    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
     monkeypatch.setattr(mod, "_propagate_catalog_seed", fake_propagate)
 
     mod.main(["--jacobi", "0.0", "--catalog-dir", str(catalog_dir)])
@@ -285,8 +285,8 @@ def test_catalog_csv_errors_are_reported_as_cli_friendly_system_exit(monkeypatch
         writer.writeheader()
         writer.writerows(rows)
 
-    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
-    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
 
     with pytest.raises(SystemExit, match="catalog CSV.*earth-moon_dro:000001.*x"):
         mod.main(["--seed-id", "earth-moon_dro:000001", "--catalog-dir", str(catalog_dir)])
@@ -327,8 +327,8 @@ def test_catalog_seed_id_path_propagates_without_correction(monkeypatch, tmp_pat
 
     monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
     monkeypatch.setattr(mod.time, "time", lambda: 1234567890)
-    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
-    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
     monkeypatch.setattr(mod.e2m2e.algorithms, "DifferentialCorrection", FailingCorrector)
     monkeypatch.setattr(mod, "_propagate_catalog_seed", fake_propagate)
 
@@ -393,8 +393,8 @@ def test_catalog_seed_id_path_provenance_metadata(monkeypatch, tmp_path: Path) -
 
     monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
     monkeypatch.setattr(mod.time, "time", lambda: 1234567890)
-    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
-    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
     monkeypatch.setattr(mod, "_propagate_catalog_seed", fake_propagate)
 
     mod.main([
@@ -438,8 +438,8 @@ def test_jacobi_path_records_raw_normalized_provenance(monkeypatch, tmp_path: Pa
             path.write_text(json.dumps({"metadata": self.metadata}), encoding="utf-8")
 
     monkeypatch.setattr(mod, "OUTPUT_DIR", output_dir)
-    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: FakeSystem())
-    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **kwargs: FakeSystem())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **kwargs: FakeDynamics())
     monkeypatch.setattr(mod, "_propagate_catalog_seed", lambda *a, **kw: FakeOrbit([[0, 0, 0, 0, 0, 0]], [0.0]))
 
     mod.main([
@@ -560,8 +560,8 @@ def test_manual_path_corrects_and_saves_dro_json_metadata(monkeypatch, tmp_path:
     monkeypatch.setattr(mod, "OUTPUT_DIR", tmp_path)
     monkeypatch.setattr(mod.time, "time", lambda: 1234567890)
     monkeypatch.setattr(mod, "Orbit", FakeOrbit)
-    monkeypatch.setattr(mod.e2m2e.core.system, "CR3BP_System", lambda **kwargs: object())
-    monkeypatch.setattr(mod.e2m2e.core.dynamics, "CR3BP_Dynamics", lambda **kwargs: object())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_System", lambda **kwargs: object())
+    monkeypatch.setattr(mod.e2m2e.core, "CR3BP_Dynamics", lambda **kwargs: object())
     monkeypatch.setattr(mod.e2m2e.algorithms, "DifferentialCorrection", FakeCorrector)
 
     mod.main(["--x0", "1.2", "--vy0", "-0.4", "--period", "3.5"])
