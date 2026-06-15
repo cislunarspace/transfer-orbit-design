@@ -190,8 +190,7 @@ def _select_vy0_sign(x0, z0, vy0_raw, T, mu):
     Returns:
         float: 符号纠正后的 vy0
     """
-    from e2m2e.core.dynamics import CR3BP_Dynamics
-    from e2m2e.core.system import CR3BP_System
+    from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 
     system = CR3BP_System(mu=mu, primary="earth", secondary="moon")
     dynamics = CR3BP_Dynamics(system=system)
@@ -305,8 +304,8 @@ def main():
     # =============================================================================
     # 1. 系统与动力学模型初始化
     # =============================================================================
-    system = e2m2e.core.system.CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    dynamics = e2m2e.core.dynamics.CR3BP_Dynamics(system=system)
+    system = e2m2e.core.CR3BP_System(mu=MU, primary="earth", secondary="moon")
+    dynamics = e2m2e.core.CR3BP_Dynamics(system=system)
 
     # =============================================================================
     # 2. Halo轨道参数

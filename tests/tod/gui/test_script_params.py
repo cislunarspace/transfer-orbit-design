@@ -24,9 +24,8 @@ PROJECT_ROOT = Path(tod.__file__).resolve().parent.parent
 # All expected params files (relative to tod/gui/scripts/)
 PARAMS_FILES = [
     # Ephemeris — generates/ephemeris/
-    "generates/ephemeris/dro/correct_dro_to_ephemeris.py",
+    "generates/ephemeris/correct_orbit_to_ephemeris.py",
     "generates/ephemeris/dro/correct_dro_family_to_ephemeris.py",
-    "generates/ephemeris/halo/correct_halo_to_ephemeris.py",
     "generates/ephemeris/halo/correct_halo_family_to_ephemeris.py",
     # generates/cr3bp/
     "generates/cr3bp/dro/generate_dro_orbit.py",
