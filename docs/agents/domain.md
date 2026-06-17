@@ -1,21 +1,21 @@
-# Domain Docs
+# 领域文档
 
-**Layout:** Single-context
+**布局：** 单上下文
 
-## Locations
+## 文件位置
 
-| Document | Path | Purpose |
+| 文档 | 路径 | 用途 |
 |----------|------|---------|
-| Context | `CONTEXT.md` (repo root) | Domain language, terminology, and relationships for the entire project |
-| ADRs | `docs/adr/` | Architectural Decision Records, numbered (`NNNN-slug.md`) |
+| 领域上下文 | `CONTEXT.md`（仓库根目录） | 整个项目的领域语言、术语和关系 |
+| ADR | `docs/adr/` | 架构决策记录，按编号命名（`NNNN-slug.md`） |
 
-## Consumer rules
+## 使用规则
 
-1. **Read `CONTEXT.md`** before any architecture, refactoring, or diagnostic task. It defines the domain language — use its terms verbatim.
-2. **Check `docs/adr/`** for relevant past decisions before proposing architectural changes. Reference existing ADRs when they apply.
-3. **When writing new ADRs**, follow the numbering scheme (`NNNN-short-slug.md`) and cross-reference `CONTEXT.md` terms.
-4. **When `CONTEXT.md` terminology is insufficient** (new domain concept, ambiguity found), flag it and propose an update.
+1. 在做任何架构、重构或诊断任务之前，**先读 `CONTEXT.md`**。它定义了领域语言，请逐字使用其中的术语。
+2. 提出架构改动之前，**查阅 `docs/adr/`** 中相关的既有决策。适用时引用已有 ADR。
+3. **撰写新 ADR 时**，遵循编号约定（`NNNN-short-slug.md`），并交叉引用 `CONTEXT.md` 的术语。
+4. **当 `CONTEXT.md` 的术语不够用**（出现新的领域概念，或发现歧义）时，标记出来并提出更新建议。
 
-## No multi-context
+## 不存在多上下文
 
-This is a single-context repo. There is no `CONTEXT-MAP.md`. All domain language is unified under one `CONTEXT.md`.
+这是一个单上下文仓库，没有 `CONTEXT-MAP.md`，所有领域语言统一在唯一的 `CONTEXT.md` 下。

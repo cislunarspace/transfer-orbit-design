@@ -1,6 +1,6 @@
 # PRD: 修复 CI 与 Release 工作流
 
-## Problem Statement
+## 问题描述
 
 当前项目的持续集成（CI）与自动发布（Release）工作流存在多个结构性缺陷，导致自动化流程无法正常运行：
 
@@ -10,7 +10,7 @@
 4. **文档部署工作流与项目文档栈不匹配**：`deploy-docs.yml` 假设 docs 目录使用 Docusaurus（npm），但项目实际使用 Sphinx（Python），工作流完全不匹配，触发即失败。
 5. **PyInstaller 无入口点定义**：`pyproject.toml` 未定义 `[project.scripts]`，PyInstaller 构建时无法自动识别主入口模块。
 
-## Solution
+## 解决方案
 
 对 CI/CD 相关配置文件进行全面修复和重构：
 
@@ -21,7 +21,7 @@
 5. 修复 `release.yml` 的依赖安装步骤，与 CI 保持一致
 6. 清理无效的 `constraints-ci.txt`
 
-## User Stories
+## 用户故事
 
 1. 作为项目维护者，我希望 CI 在所有操作系统和 Python 版本上都能正确安装依赖并运行测试，以便及时捕获回归问题
 2. 作为项目维护者，我希望 pyright 类型检查在 CI 中能通过，以便保证代码类型安全
@@ -31,7 +31,7 @@
 6. 作为 GUI 用户，我希望下载 Windows exe 后能正常运行软件（包括界面语言切换和轨道族绘图功能），以便在无 Python 环境的情况下使用
 7. 作为项目维护者，我希望 `pyproject.toml` 中不再包含 CI 不友好的本地绝对/相对路径，以便配置文件对任何环境都可用
 
-## Implementation Decisions
+## 实现决策
 
 ### 1. 修复 pyproject.toml 中的 CI 不友好配置
 
@@ -81,7 +81,7 @@
 
 - 删除该文件或将其内容清空并标注弃用。该文件的设计假设（`-c` 约束文件可覆盖依赖来源）在 pip 中不成立。
 
-## Testing Decisions
+## 测试决策
 
 ### 测试覆盖范围
 
@@ -115,7 +115,7 @@
 - `tests/` 目录下的 pytest 测试套件（CI 已通过）
 - `docs/source/conf.py` 中的 Sphinx autodoc 配置
 
-## Out of Scope
+## 不在范围内
 
 - 修改业务代码或轨道族脚本逻辑
 - 新增功能或 GUI 改进
@@ -125,7 +125,7 @@
 - 为 CI 添加 Docker 构建或缓存优化
 - 修改 pyproject.toml 中的项目版本号（Release 时通过 tag 管理）
 
-## Further Notes
+## 补充说明
 
 - **e2m2e 仓库**：`github.com/ouyangjiahong/e2m2e` 是公开仓库，CI runner 无需额外认证即可通过 https URL 克隆。如果将来改为私有仓库，需要在 CI 中配置 `GITHUB_TOKEN` 或 SSH key。
 - **PyQt6-WebEngine 打包**：Qt WebEngine 有大量二进制依赖（DLL、翻译文件、资源），PyInstaller 的自动分析通常能捕获大部分，但可能需要手动验证 `PyQt6/Qt6/resources/` 和 `PyQt6/Qt6/translations/` 目录是否被打包。

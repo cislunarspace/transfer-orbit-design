@@ -1,4 +1,4 @@
-# Development Guide
+# 开发指南
 
 ## 文档规范
 
@@ -93,7 +93,7 @@ uv run --extra docs python -m sphinx -b html docs/source docs/build/html
 
 提交前应至少确认构建无 ERROR，并尽量清理 WARNING。若新增公开模块，请在对应 `docs/source/tod/` toctree 中加入页面。
 
-## Logging vs Print
+## 日志与打印
 
 本项目使用 Python `logging` 模块而非 `print()` 进行输出。
 

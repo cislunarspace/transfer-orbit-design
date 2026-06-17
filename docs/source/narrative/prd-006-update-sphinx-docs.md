@@ -1,6 +1,6 @@
 # PRD: 更新 Sphinx 文档以反映当前代码库状态
 
-## Problem Statement
+## 问题描述
 
 README.md 的同步更新（PRD #128）已完成，但 Sphinx 文档（`docs/source/`）仍存在以下缺口：
 
@@ -8,7 +8,7 @@ README.md 的同步更新（PRD #128）已完成，但 Sphinx 文档（`docs/sou
 2. **Plot API 文档缺口**：轨道族绘图 API 文档仅覆盖 DRO、Halo、RO 三类，新增的 DPO、Lyapunov、Vertical、Axial、Butterfly、SPO、LPO、Tadpole、Horseshoe、Resonant 等 10 个轨道族的绘图脚本文档完全缺失。
 3. **星历绘图文档部分缺失**：`plot/ephemeris/` 下已有 `plot_ephemeris_correction.rst` 和 `plot_halo_ephemeris_correction.rst`，但未创建 `plot_dro_ephemeris_correction.rst`（DRO 星历修正绘图）。
 
-## Solution
+## 解决方案
 
 对 Sphinx 文档进行结构性更新，填补 Plot API 和星历绘图文档缺口，并修复 toctree 引用：
 
@@ -17,7 +17,7 @@ README.md 的同步更新（PRD #128）已完成，但 Sphinx 文档（`docs/sou
 3. 创建 DRO 星历绘图文档 `plot_dro_ephemeris_correction.rst`
 4. 验证 Sphinx 构建无错误
 
-## User Stories
+## 用户故事
 
 1. 作为文档读者，我希望通过 Sphinx 导航访问 PRD-005，以便完整了解 CI/Release 工作流的修复背景。
 2. 作为新用户，我希望通过 Sphinx API 文档了解所有 13 类 CR3BP 轨道族的绘图脚本，以便学习如何使用绘图功能。
@@ -25,7 +25,7 @@ README.md 的同步更新（PRD #128）已完成，但 Sphinx 文档（`docs/sou
 4. 作为星历转换用户，我希望 DRO 星历修正结果的可视化脚本有独立文档，以便理解绘图输出的含义。
 5. 作为贡献者，我希望 Sphinx 构建无错误或警告，以便文档更新不影响 CI 状态。
 
-## Implementation Decisions
+## 实现决策
 
 ### 1. 更新 index.rst 的 PRD toctree
 
@@ -62,14 +62,14 @@ README.md 的同步更新（PRD #128）已完成，但 Sphinx 文档（`docs/sou
 - **RST 文件模式**：参考 `docs/source/tod/plot/dro/` 的现有结构。
 - **不修改业务代码**：本次仅更新 RST 文档文件。
 
-## Testing Decisions
+## 测试决策
 
 - **构建验证**：运行 `sphinx-build -b html docs/source docs/build/html`，确认无致命错误（ERROR 不可接受，WARNING 可接受）。
 - **链接检查**：Sphinx 自动检查内部链接完整性。
 - **格式一致性**：所有新增 RST 文件遵循现有格式（toctree、autodoc 指令）。
 - **不新增自动化测试**：纯文档变更。
 
-## Out of Scope
+## 不在范围内
 
 - 不修改任何 `.py` 脚本逻辑或 docstring
 - 不创建 `gui/scripts/` 下的绘图脚本文档（GUI 层文档结构待后续评估）
@@ -78,7 +78,7 @@ README.md 的同步更新（PRD #128）已完成，但 Sphinx 文档（`docs/sou
 - 不修改 `conf.py` 配置
 - 不添加截图或图片资源
 
-## Further Notes
+## 补充说明
 
 - Plot API 文档的结构与 `docs/source/tod/generates/cr3bp/` 类似，可参考 `dpo/index.rst` 和 `dpo/generate_dpo_family.rst` 作为新增轨道族绘图文档的模板。
 - `FamilyPlotOrchestrator` 是各轨道族绘图脚本的统一入口点，RST 文档应反映此架构模式。

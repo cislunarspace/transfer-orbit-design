@@ -1,4 +1,4 @@
-# ADR-0002: DRO catalog seed GUI v1
+# ADR-0002: DRO 参考初值 GUI v1
 
 ## 状态
 

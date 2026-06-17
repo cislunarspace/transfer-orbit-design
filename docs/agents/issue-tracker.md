@@ -1,25 +1,25 @@
-# Issue Tracker
+# Issue 跟踪
 
-**System:** GitHub Issues
+**系统：** GitHub Issues
 
-**Remote:** `https://github.com/cislunarspace/transfer-orbit-design`
+**远端：** `https://github.com/cislunarspace/transfer-orbit-design`
 
-**CLI:** `gh` (GitHub CLI)
+**CLI：** `gh`（GitHub CLI）
 
-## Commands
+## 命令
 
-| Action | Command |
+| 操作 | 命令 |
 |--------|---------|
-| Create issue | `gh issue create --title "..." --body "..."` |
-| List issues | `gh issue list` |
-| View issue | `gh issue view <number>` |
-| Close issue | `gh issue close <number>` |
-| Add label | `gh issue edit <number> --add-label "..."` |
-| Remove label | `gh issue edit <number> --remove-label "..."` |
-| Comment | `gh issue comment <number> --body "..."` |
+| 创建 issue | `gh issue create --title "..." --body "..."` |
+| 列出 issue | `gh issue list` |
+| 查看 issue | `gh issue view <number>` |
+| 关闭 issue | `gh issue close <number>` |
+| 添加标签 | `gh issue edit <number> --add-label "..."` |
+| 移除标签 | `gh issue edit <number> --remove-label "..."` |
+| 评论 | `gh issue comment <number> --body "..."` |
 
-## Conventions
+## 约定
 
-- Use conventional commit prefixes in issue titles when applicable (feat:, fix:, refactor:, etc.).
-- Always assign a triage label when creating or updating an issue.
-- Reference issues in commits with `Fixes #<number>` or `Closes #<number>`.
+- 适用时在 issue 标题中使用约定式提交前缀（feat:、fix:、refactor: 等）。
+- 创建或更新 issue 时，总要打上一个 triage 标签。
+- 在提交中用 `Fixes #<number>` 或 `Closes #<number>` 引用 issue。
