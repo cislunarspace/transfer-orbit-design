@@ -83,33 +83,72 @@ def feasible_alpha_and_departure_dv(rows: list[dict]) -> tuple[np.ndarray, np.nd
     return np.asarray(alphas, dtype=np.float64), np.asarray(dvs, dtype=np.float64)
 
 
-def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndarray]:
-    """提取可行解的 (transfer_times, dv_departure)。
+def _first_feasible_time(r: dict) -> float | None:
+    """可行解首次满足约束的时间（TU）。
 
-    对可行解使用首次进入阈值的时间（first_intersection_time 或
-    first_min_distance_time），而非积分全程的 transfer_time。
+    优先首次进入相交阈值（issue #238），否则首次最小距离，最后回退到积分全程时间。
+    旧 JSON 缺 ``first_*`` 字段时回退到 ``transfer_time``。
+    """
+    if r.get("intersection_found"):
+        tt = r.get("first_intersection_time")
+    else:
+        tt = r.get("first_min_distance_time")
+    if tt is None:
+        tt = r.get("transfer_time")
+    return None if tt is None else float(tt)
+
+
+def _arrival_dv_scalar(r: dict) -> float:
+    """从行中提取入轨/到达 Δv 标量（无量纲），缺失则为 0。"""
+    for key in ("dv_arrival", "dv_insertion"):
+        val = r.get(key)
+        if val is None:
+            continue
+        arr = np.asarray(val, dtype=np.float64).ravel()
+        if arr.size:
+            return float(arr[0])
+    return 0.0
+
+
+def feasible_time_dv_total(
+    rows: list[dict],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """提取可行解的 (transfer_times, dv_departure, dv_total)，三者按同一筛选顺序对齐。
+
+    对可行解使用首次进入阈值的时间（见 ``_first_feasible_time``），而非积分全程的
+    transfer_time。``dv_total = dv_departure + dv_arrival``，入轨脉冲缺失时退化为
+    出发脉冲。
     """
     times: list[float] = []
     dvs: list[float] = []
+    totals: list[float] = []
     for r in rows:
         if not r.get("is_feasible"):
             continue
         dv = _extract_dv_from_row(r)
         if dv is None or not np.isfinite(dv):
             continue
-        # 优先使用首次进入阈值的时间（issue #238）
-        if r.get("intersection_found"):
-            tt = r.get("first_intersection_time")
-        else:
-            tt = r.get("first_min_distance_time")
-        # fallback: 若字段缺失则使用全程时间
-        if tt is None:
-            tt = r.get("transfer_time")
+        tt = _first_feasible_time(r)
         if tt is None:
             continue
-        times.append(float(tt))
+        times.append(tt)
         dvs.append(dv)
-    return np.asarray(times, dtype=np.float64), np.asarray(dvs, dtype=np.float64)
+        totals.append(dv + _arrival_dv_scalar(r))
+    return (
+        np.asarray(times, dtype=np.float64),
+        np.asarray(dvs, dtype=np.float64),
+        np.asarray(totals, dtype=np.float64),
+    )
+
+
+def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndarray]:
+    """提取可行解的 (transfer_times, dv_departure)。
+
+    对可行解使用首次进入阈值的时间（first_intersection_time 或
+    first_min_distance_time），而非积分全程的 transfer_time。
+    """
+    times, dvs, _ = feasible_time_dv_total(rows)
+    return times, dvs
 
 
 def _dv_total_from_row(r: dict) -> float:
@@ -163,6 +202,14 @@ def select_feasible_indices(
         return [i]
 
 
+def _apply_title(ax: Axes, title: str | None, auto: str) -> None:
+    """设置标题：``None`` 用自动标题，``""`` 不设标题，其它字符串原样使用。"""
+    if title is None:
+        ax.set_title(auto)
+    elif title != "":
+        ax.set_title(title)
+
+
 def plot_alpha_delta_v(ax: Axes, alpha: np.ndarray, delta_v: np.ndarray, title_prefix: str, *, config=None) -> None:
     """绘制 α vs Δv_departure 散点图。"""
     from tod.commons.constants import VU
@@ -179,9 +226,24 @@ def plot_alpha_delta_v(ax: Axes, alpha: np.ndarray, delta_v: np.ndarray, title_p
 
 
 def plot_transfer_time_delta_v(
-    ax: Axes, transfer_time: np.ndarray, delta_v: np.ndarray, title_prefix: str, *, config=None
+    ax: Axes,
+    transfer_time: np.ndarray,
+    delta_v: np.ndarray,
+    title_prefix: str,
+    *,
+    config=None,
+    scatter_size: float = 6.0,
+    scatter_alpha: float = 0.6,
+    color: np.ndarray | None = None,
+    colorbar_label: str = "转移时间 (天)",
+    cmap: str = "viridis",
+    title: str | None = None,
 ) -> None:
-    """绘制转移时间 vs Δv 散点图。"""
+    """绘制转移时间 vs Δv 散点图。
+
+    ``color`` 为 None 时按转移时间（天）着色；否则按传入数组（已为显示单位）着色，
+    并用 ``colorbar_label`` 标注色标。``title`` 为 None 用自动标题，``""`` 不显示标题。
+    """
     from tod.commons.constants import TU, VU
     from tod.plot.config import style_colorbar
 
@@ -191,14 +253,21 @@ def plot_transfer_time_delta_v(
 
     if len(transfer_time) == 0:
         ax.text(0.5, 0.5, "无可行解", ha="center", va="center", transform=ax.transAxes)
-        ax.set_title(f"{title_prefix} 转移时间 vs Δv_departure")
+        _apply_title(ax, title, f"{title_prefix} 转移时间 vs Δv_departure")
         return
-    sc = ax.scatter(transfer_time * TU, delta_v * VU / 1000, s=6, alpha=0.6,
-                    c=transfer_time * TU, cmap="viridis")
-    style_colorbar(plt.colorbar(sc, ax=ax, label="转移时间 (天)"), config)
+    c = transfer_time * TU if color is None else np.asarray(color, dtype=np.float64)
+    sc = ax.scatter(
+        transfer_time * TU,
+        delta_v * VU / 1000,
+        s=scatter_size,
+        alpha=scatter_alpha,
+        c=c,
+        cmap=cmap,
+    )
+    style_colorbar(plt.colorbar(sc, ax=ax, label=colorbar_label), config)
     ax.set_xlabel("转移时间 (天)")
     ax.set_ylabel("Δv_departure (km/s)")
-    ax.set_title(f"{title_prefix} 转移时间 vs Δv_departure")
+    _apply_title(ax, title, f"{title_prefix} 转移时间 vs Δv_departure")
     ax.grid(True, alpha=0.3)
 
 

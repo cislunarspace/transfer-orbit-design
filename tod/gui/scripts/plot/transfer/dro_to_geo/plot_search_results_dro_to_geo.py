@@ -25,5 +25,10 @@ SCRIPT_ENTRY = ScriptEntry(
         CliParam('--seed', '随机种子', 'int', '0', help='子采样随机种子，默认 0。', advanced=True),
         CliParam('--dpi', '图片 DPI', 'int', '150', help='保存图片的分辨率，默认 150。', advanced=True),
         CliParam('--n-workers', '并行 worker 数', 'int', '', help='并行积分进程数，仅 --orbit 模式。', advanced=True),
+        CliParam('--figsize', '图尺寸(厘米)', 'str', '', help="图尺寸，格式 '宽,高'（厘米），如 '8.5,6'；不填使用默认。", advanced=True),
+        CliParam('--color-by', '散点着色量', 'str', 'transfer_time', help='散点颜色映射量，默认转移时间。', choices=('transfer_time', 'total_dv'), choice_values={'转移时间': 'transfer_time', '总 Δv': 'total_dv'}),
+        CliParam('--scatter-size', '散点大小', 'float', '10', help='散点大小，默认 10。', advanced=True),
+        CliParam('--scatter-alpha', '散点透明度', 'float', '0.7', help='散点透明度，默认 0.7。', advanced=True),
+        CliParam('--no-title', '隐藏标题', 'bool', '', help='勾选后不显示图标题，适合论文配图（图注在论文正文中撰写）。', advanced=True),
     ],
 )

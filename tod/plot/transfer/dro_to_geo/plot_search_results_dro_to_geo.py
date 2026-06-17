@@ -41,6 +41,7 @@ from tod.plot.transfer.common import (
     load_search_results,
     feasible_alpha_and_departure_dv,
     feasible_transfer_time_and_dv,
+    feasible_time_dv_total,
     plot_alpha_delta_v,
     plot_transfer_time_delta_v,
     select_feasible_indices,
@@ -52,7 +53,8 @@ from tod.plot.transfer.common import (
 project_root = find_project_root(Path(__file__))
 
 try:
-    matplotlib.use("TkAgg")
+    if not os.environ.get("MPLBACKEND"):
+        matplotlib.use("TkAgg")
 except ImportError:
     pass
 import matplotlib.pyplot as plt  # noqa: E402
@@ -409,6 +411,22 @@ def _save_or_show(fig, args):
     plt.close(fig)
 
 
+def _resolve_figsize_cm(arg: str | None) -> tuple[float, float] | None:
+    """将 '--figsize' 参数（厘米）转为 matplotlib 英寸尺寸。
+
+    支持 '宽,高' 或单值（正方形）。返回 None 表示用默认 10x6 英寸。
+    """
+    if not arg:
+        return None
+    parts = [float(x) for x in arg.replace("，", ",").split(",")]
+    if len(parts) == 1:
+        parts = [parts[0], parts[0]]
+    if len(parts) != 2:
+        raise ValueError(f"--figsize 需 '宽,高'（厘米），收到 {arg!r}")
+    w, h = parts
+    return (w / 2.54, h / 2.54)
+
+
 def main() -> None:
     """执行脚本主流程。
     
@@ -433,6 +451,22 @@ def main() -> None:
     parser.add_argument("--time-dv", action="store_true", help="绘制转移时间 vs Δv 散点图")
     parser.add_argument("--interactive", action="store_true", help="交互式逐条浏览")
     parser.add_argument("--no-show", action="store_true", help="生成图像后不弹窗显示（GUI 后台运行）")
+    parser.add_argument(
+        "--figsize",
+        type=str,
+        default=None,
+        help="图尺寸（厘米），格式 '宽,高'，如 '8.5,6'；不传则使用默认 10x6 英寸。",
+    )
+    parser.add_argument(
+        "--color-by",
+        type=str,
+        default="transfer_time",
+        choices=["transfer_time", "total_dv"],
+        help="散点着色量：transfer_time（默认，转移时间）或 total_dv（总 Δv）。",
+    )
+    parser.add_argument("--scatter-size", type=float, default=10.0, help="散点大小，默认 10。")
+    parser.add_argument("--scatter-alpha", type=float, default=0.7, help="散点透明度，默认 0.7。")
+    parser.add_argument("--no-title", action="store_true", help="不显示图标题（论文配图用）。")
     args = parser.parse_args()
 
     path = Path(args.file).expanduser().resolve() if args.file else Path(RESULTS_JSON).expanduser().resolve()
@@ -574,19 +608,38 @@ def main() -> None:
 
         _save_or_show(fig, args)
     else:
+        figsize = _resolve_figsize_cm(args.figsize) or (10, 6)
+        title = "" if args.no_title else None
         if args.time_dv:
-            times_all, dvs_all = feasible_transfer_time_and_dv(rows)
+            if args.color_by == "total_dv":
+                times_all, dvs_all, totals_all = feasible_time_dv_total(rows)
+                color_all = totals_all * VU / 1000
+                colorbar_label = "总 Δv (km/s)"
+            else:
+                times_all, dvs_all = feasible_transfer_time_and_dv(rows)
+                color_all = None
+                colorbar_label = "转移时间 (天)"
             n_feas = len(times_all)
             idx = subsample_indices(n_feas, args.max_points, args.seed)
-            fig, ax = plt.subplots(figsize=(10, 6))
-            plot_transfer_time_delta_v(ax, times_all[idx], dvs_all[idx], "DRO→GEO:")
+            fig, ax = plt.subplots(figsize=figsize)
+            plot_transfer_time_delta_v(
+                ax,
+                times_all[idx],
+                dvs_all[idx],
+                "DRO→GEO:",
+                scatter_size=args.scatter_size,
+                scatter_alpha=args.scatter_alpha,
+                color=(color_all[idx] if color_all is not None else None),
+                colorbar_label=colorbar_label,
+                title=title,
+            )
             fig.tight_layout()
             _save_or_show(fig, args)
         else:
             alpha_all, dv_all = feasible_alpha_and_departure_dv(rows)
             n_feas = len(alpha_all)
             idx = subsample_indices(n_feas, args.max_points, args.seed)
-            fig, ax = plt.subplots(figsize=(10, 6))
+            fig, ax = plt.subplots(figsize=figsize)
             plot_alpha_delta_v(ax, alpha_all[idx], dv_all[idx], "DRO→GEO:")
             fig.tight_layout()
             _save_or_show(fig, args)
