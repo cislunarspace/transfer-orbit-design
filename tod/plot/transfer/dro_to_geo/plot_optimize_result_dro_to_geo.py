@@ -34,6 +34,16 @@ from tod.cli.input_file import (
     InputResolutionError,
     resolve_input_file,
 )
+from e2m2e.transfer import load_orbit_from_json
+from tod.plot.transfer.common import (
+    compute_departure_velocity,
+    reintegrate_transfer,
+    plot_single_transfer_orbit_2d,
+    plot_celestial_bodies,
+    set_equal_aspect_3d,
+    geo_circle_points,
+    build_transfer_dynamics,
+)
 
 project_root = find_project_root(Path(__file__))
 
@@ -46,7 +56,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 # 配置 matplotlib 以正确显示 CJK 字符（beamer 中消除方块字）
 from tod.plot.config import apply_standard_plot_config  # noqa: E402
 
-apply_standard_plot_config()
+PLOT_CONFIG = apply_standard_plot_config()
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +105,31 @@ def _resolve_opt_input(args) -> Path:
         parser.error(str(exc))
 
 
+def _resolve_dro_input(args) -> Path:
+    """按 issue #183 契约解析 DRO 轨道文件。"""
+    try:
+        return resolve_input_file(
+            InputFileRequest(
+                explicit_path=Path(args.dro_file) if args.dro_file else None,
+                auto_latest=bool(args.auto_latest_dro),
+                search_root=project_root / "output/dro",
+                pattern="dro_*.json",
+                flag="--dro-file",
+                auto_latest_flag="--auto-latest-dro",
+            )
+        )
+    except InputResolutionError as exc:
+        parser = argparse.ArgumentParser(
+            prog="plot_optimize_result_dro_to_geo",
+            description="可视化 DRO→GEO 优化结果",
+        )
+        if exc.candidates or exc.remaining:
+            parser.error(
+                f"{exc}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+            )
+        parser.error(str(exc))
+
+
 def _successful_records(results: list[dict]) -> list[dict]:
     return [r for r in results if r.get("nlp", {}).get("success", False)]
 
@@ -119,6 +154,19 @@ def _select_records(records: list[dict], idx_arg: str, seed: int, max_points: in
         return [records[int(rng.integers(0, len(records)))]] if records else []
     idx = int(idx_arg)
     return [records[idx]] if 0 <= idx < len(records) else []
+
+
+def _resolve_figsize_cm(arg: str | None) -> tuple[float, float] | None:
+    """将 '--figsize' 参数（厘米）转为 matplotlib 英寸尺寸。"""
+    if not arg:
+        return None
+    parts = [float(x) for x in arg.replace("，", ",").split(",")]
+    if len(parts) == 1:
+        parts = [parts[0], parts[0]]
+    if len(parts) != 2:
+        raise ValueError(f"--figsize 需 '宽,高'（厘米），收到 {arg!r}")
+    w, h = parts
+    return (w / 2.54, h / 2.54)
 
 
 def _plot_time_dv(records: list[dict], ax) -> None:
@@ -150,6 +198,52 @@ def _plot_orbit_selection(records: list[dict], ax) -> None:
     ax.grid(True, alpha=0.3)
 
 
+def _plot_orbit_2d(
+    departure_orbit,
+    transfer_states: np.ndarray,
+    departure_state: np.ndarray,
+    dv_departure: float,
+    dv_insertion: float,
+    transfer_time: float,
+    alpha: float,
+    system,
+    save_path: str | None = None,
+    dpi: int = 300,
+    figsize: tuple[float, float] | None = None,
+    title: str | None = None,
+    caption: str | None = None,
+) -> None:
+    """在 XY 平面绘制单条转移轨道（论文版图）。"""
+    fig_size = figsize or (8.5 / 2.54, 8.5 / 2.54)
+    fig, ax = plt.subplots(figsize=fig_size)
+    plot_single_transfer_orbit_2d(
+        departure_orbit=departure_orbit,
+        transfer_states=transfer_states,
+        departure_state=departure_state,
+        dv_departure=dv_departure,
+        dv_insertion=dv_insertion,
+        transfer_time=transfer_time,
+        alpha=alpha,
+        system=system,
+        config=PLOT_CONFIG,
+        fig=fig,
+        ax=ax,
+        title=title,
+    )
+    fig.tight_layout()
+    if caption:
+        fig.text(0.5, -0.02, caption, ha="center", va="top",
+                 fontsize=PLOT_CONFIG.tick)
+    if save_path:
+        png = Path(save_path)
+        png.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(png, dpi=dpi, bbox_inches="tight")
+        logger.info("Saved: %s", png)
+    else:
+        plt.show()
+    plt.close(fig)
+
+
 def main() -> None:
     """执行脚本主流程。
     
@@ -170,6 +264,13 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=0, help="随机种子")
     parser.add_argument("--dpi", type=int, default=150, help="图片 DPI")
     parser.add_argument("--no-show", action="store_true", help="生成图像后不弹窗显示（GUI 后台运行）")
+    parser.add_argument("--orbit-2d", action="store_true", help="绘制 XY 平面转移轨道图（论文用）")
+    parser.add_argument("--paper", action="store_true", help="论文模式：DPI=300、单栏尺寸、无标题")
+    parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 路径")
+    parser.add_argument("--auto-latest-dro", action="store_true", help="显式 opt-in：按 mtime 选最新 dro_*.json")
+    parser.add_argument("--figsize", type=str, default=None, help="图尺寸（厘米），格式 '宽,高'，如 '8.5,8.5'")
+    parser.add_argument("--no-title", action="store_true", help="不显示图标题（论文配图用）")
+    parser.add_argument("--caption", type=str, default=None, help="图注文字，置于图下方")
     args = parser.parse_args()
 
     opt_path = _resolve_opt_input(args)
@@ -183,21 +284,142 @@ def main() -> None:
 
     if args.orbit:
         selected = _select_records(success, args.idx, args.seed, args.max_points)
-        fig = plt.figure(figsize=(10, 7))
-        ax = fig.add_subplot(111, projection="3d")
-        _plot_orbit_selection(selected, ax)
+        dpi = 300 if args.paper else args.dpi
+        figsize_cm = _resolve_figsize_cm(args.figsize)
+        figsize = figsize_cm or (
+            (12 / 2.54, 8 / 2.54) if args.paper else (10, 7)
+        )
+
+        if len(selected) == 1:
+            rec = selected[0]
+            nlp = rec.get("nlp", {})
+            alpha = float(nlp.get("alpha", rec.get("alpha", 0)))
+            transfer_time = float(nlp.get("transfer_time", rec.get("transfer_time", 0)))
+            dv1 = float(nlp.get("delta_v1", rec.get("dv_departure", 0)))
+            dv2 = float(nlp.get("delta_v2", 0))
+            dep_state = np.asarray(rec["departure_state"], dtype=np.float64)
+
+            dro_path = _resolve_dro_input(args)
+            dro_orbit = load_orbit_from_json(str(dro_path))
+
+            system, dynamics = build_transfer_dynamics()
+            transfer_states, _ = reintegrate_transfer(
+                dynamics, dep_state, alpha, transfer_time
+            )
+
+            fig = plt.figure(figsize=figsize)
+            ax = fig.add_subplot(111, projection="3d")
+
+            gx, gy = geo_circle_points()
+            ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--",
+                    lw=0.8, label="GEO")
+            ax.plot(dro_orbit.states[:, 0], dro_orbit.states[:, 1],
+                    dro_orbit.states[:, 2], color="royalblue", lw=0.8,
+                    label="DRO")
+            ax.plot(transfer_states[:, 0], transfer_states[:, 1],
+                    transfer_states[:, 2], color="crimson", lw=1.2,
+                    label="转移轨道")
+            ax.scatter(*dep_state[:3], color="green", s=40, zorder=5,
+                       label="出发点")
+            ax.scatter(*transfer_states[-1, :3], color="orange", s=40,
+                       marker="s", zorder=5, label="到达点")
+            plot_celestial_bodies(ax, system, PLOT_CONFIG)
+
+            ax.set_xlabel("x (DU)")
+            ax.set_ylabel("y (DU)")
+            ax.set_zlabel("z (DU)")
+
+            if not (args.paper or args.no_title):
+                dv1_km = dv1 * VU / 1000
+                dv2_km = dv2 * VU / 1000
+                title_str = (
+                    f"DRO→GEO  α={alpha:.4f}  "
+                    f"T={transfer_time:.2f} TU "
+                    f"({transfer_time * TU:.1f}天)\n"
+                    f"Δv₁={dv1_km:.4f} km/s  "
+                    f"Δv₂={dv2_km:.4f} km/s  "
+                    f"Δv总={dv1_km + dv2_km:.4f} km/s"
+                )
+                ax.set_title(title_str, fontsize=PLOT_CONFIG.title)
+
+            ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
+            all_pts = np.concatenate(
+                [transfer_states[:, :3], dro_orbit.states[:, :3]]
+            )
+            set_equal_aspect_3d(ax, all_pts)
+            fig.tight_layout()
+
+            if args.caption:
+                fig.text(0.5, -0.02, args.caption, ha="center", va="top",
+                         fontsize=PLOT_CONFIG.tick)
+        else:
+            fig = plt.figure(figsize=figsize)
+            ax = fig.add_subplot(111, projection="3d")
+            _plot_orbit_selection(selected, ax)
+
+        if args.save:
+            Path(args.save).parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(args.save, dpi=dpi, bbox_inches="tight")
+            logger.info(f"Saved: {args.save}")
+        elif not args.no_show:
+            plt.show()
+        plt.close(fig)
+    elif args.orbit_2d:
+        selected = _select_records(success, args.idx, args.seed, args.max_points)
+        if not selected:
+            logger.warning("无选中记录，跳过 2D 绘图")
+            return
+
+        rec = selected[0]
+        nlp = rec.get("nlp", {})
+        alpha = float(nlp.get("alpha", rec.get("alpha", 0)))
+        transfer_time = float(nlp.get("transfer_time", rec.get("transfer_time", 0)))
+        dv1 = float(nlp.get("delta_v1", rec.get("dv_departure", 0)))
+        dv2 = float(nlp.get("delta_v2", 0))
+        dep_state = np.asarray(rec["departure_state"], dtype=np.float64)
+
+        dro_path = _resolve_dro_input(args)
+        dro_orbit = load_orbit_from_json(str(dro_path))
+
+        system, dynamics = build_transfer_dynamics()
+        transfer_states, _ = reintegrate_transfer(
+            dynamics, dep_state, alpha, transfer_time
+        )
+
+        figsize_cm = _resolve_figsize_cm(args.figsize)
+        figsize = figsize_cm or (
+            (12 / 2.54, 8 / 2.54) if args.paper else None
+        )
+        title = "" if (args.paper or args.no_title) else None
+        dpi = 300 if args.paper else args.dpi
+
+        _plot_orbit_2d(
+            departure_orbit=dro_orbit,
+            transfer_states=transfer_states,
+            departure_state=dep_state,
+            dv_departure=dv1,
+            dv_insertion=dv2,
+            transfer_time=transfer_time,
+            alpha=alpha,
+            system=system,
+            save_path=args.save,
+            dpi=dpi,
+            figsize=figsize,
+            title=title,
+            caption=args.caption,
+        )
     else:
         fig, ax = plt.subplots(figsize=(10, 6))
         _plot_time_dv(success, ax)
-    fig.tight_layout()
+        fig.tight_layout()
 
-    if args.save:
-        Path(args.save).parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(args.save, dpi=args.dpi, bbox_inches="tight")
-        logger.info(f"Saved: {args.save}")
-    elif not args.no_show:
-        plt.show()
-    plt.close(fig)
+        if args.save:
+            Path(args.save).parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(args.save, dpi=args.dpi, bbox_inches="tight")
+            logger.info(f"Saved: {args.save}")
+        elif not args.no_show:
+            plt.show()
+        plt.close(fig)
 
 
 if __name__ == "__main__":
@@ -221,9 +443,16 @@ SCRIPT_ENTRY = ScriptEntry(
         CliParam('--file', '优化结果文件', 'str', '', help='优化结果 JSON 文件路径。', file_category='transfer'),
         CliParam('--auto-latest', '按 mtime 选最新（显式 opt-in）', 'bool', '', help='显式 opt-in：按 mtime 选最新 optimization_dro_geo_*.json；与 --file 互斥。', advanced=True),
         CliParam('--orbit', '转移轨道图（3D）', 'bool', '', help='重新积分并绘制转移轨道 3D 示意图，勾选后启用。'),
+        CliParam('--orbit-2d', 'XY 平面轨道图', 'bool', '', help='在地月旋转系 XY 平面绘制转移轨道，勾选后启用。'),
+        CliParam('--paper', '论文模式', 'bool', '', help='DPI=300、单栏尺寸、无标题。'),
         CliParam('--time-dv', '转移时间-Δv 散点图', 'bool', '', help='转移时间 vs Δv 散点图，勾选后启用。'),
         CliParam('--idx', '选中轨道（--orbit 模式）', 'str', 'best', help='整数索引 / best / best:N / random / all，默认 best。'),
         CliParam('--save', '保存图片路径', 'str', '', help='不填则弹窗显示。'),
+        CliParam('--dro-file', 'DRO 文件', 'str', '', help='DRO 轨道 JSON 文件路径。', file_category='dro', name_pattern='dro_[0-9]*.json'),
+        CliParam('--auto-latest-dro', '按 mtime 选最新 DRO（显式 opt-in）', 'bool', '', help='显式 opt-in：按 mtime 选最新 dro_*.json。', advanced=True),
+        CliParam('--figsize', '图尺寸(厘米)', 'str', '', help="图尺寸，格式 '宽,高'（厘米）。", advanced=True),
+        CliParam('--no-title', '隐藏标题', 'bool', '', help='勾选后不显示图标题。', advanced=True),
+        CliParam('--caption', '图注', 'str', '', help='图片下方图注文字。', advanced=True),
         CliParam('--max-points', '最大绘制轨道数', 'int', '500', help='--idx all 时最多绘制条数，默认 500。', advanced=True),
         CliParam('--seed', '随机种子', 'int', '0', help='子采样随机种子，默认 0。', advanced=True),
         CliParam('--dpi', '图片 DPI', 'int', '150', help='保存图片的分辨率，默认 150。', advanced=True),
