@@ -1,7 +1,10 @@
 # pyright: reportArgumentType=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false, reportInvalidTypeForm=false, reportCallIssue=false, reportPrivateImportUsage=false
-"""_registry 的 GUI 参数注册。
+"""脚本注册表扫描器。
 
-本模块声明 ScriptEntry、CliParam 和文件选择规则，供 GUI 生成参数控件并调用对应底层脚本。description 按“目的、输入、输出”描述脚本，help 文本说明默认值与单位。
+扫描实现目录（tod/generates/、tod/plot/、tod/transfers/），从每个实现脚本
+底部加载 SCRIPT_ENTRY 声明，按分类分组后返回供 GUI 使用。本模块只声明
+_ScanEntry（扫描器视角下的轻量条目），ScriptEntry、CliParam 等数据类
+定义在 tod.gui.script_registry 中。
 """
 
 
@@ -141,8 +144,8 @@ def _default_scan_dirs() -> list[Path]:
 
     扫描顺序决定优先级：同名 script_path 的条目以先扫到的为准。
     """
-    gui_scripts = Path(__file__).parent
-    repo_root = gui_scripts.parent.parent.parent  # tod/gui/scripts/ → repo root
+    registry_dir = Path(__file__).parent
+    repo_root = registry_dir.parent.parent.parent  # tod/gui/scripts/ → repo root
     return [
         repo_root / "tod" / "generates",
         repo_root / "tod" / "plot",
