@@ -36,20 +36,9 @@ def load_search_results(path: Path) -> list[dict]:
 
 
 def departure_delta_v_norm(state6: np.ndarray, alpha: float) -> float:
-    """计算速度扰动后的 Δv 模：‖v'−v‖（无量纲速度）。
-
-    在位置径向方向保持速度分量不变，切向方向乘以 α。
-    """
-    pos = np.asarray(state6[:3], dtype=np.float64)
+    """计算速度扰动后的 Δv 模：‖v'−v‖（无量纲速度）。"""
     vel = np.asarray(state6[3:6], dtype=np.float64)
-    r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
-    if r_xy < 1e-10:
-        return float("nan")
-    tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
-    radial = pos / np.linalg.norm(pos)
-    v_radial_comp = float(np.dot(vel, radial))
-    v_tangential_comp = float(np.dot(vel, tangential))
-    new_vel = v_radial_comp * radial + alpha * v_tangential_comp * tangential
+    new_vel = compute_departure_velocity(state6, alpha)
     return float(np.linalg.norm(new_vel - vel))
 
 
@@ -375,6 +364,27 @@ def reintegrate_transfer(
     return result["states"], result["time"]
 
 
+def _annotate_bodies_2d(ax, system, config) -> None:
+    """在 2D axes 上标注地球、月球和平动点。"""
+    from tod.commons.constants import MU
+    from e2m2e.orbits.geo import EARTH_CENTER
+
+    ax.scatter(*EARTH_CENTER[:2], color="blue", s=60, zorder=5)
+    ax.scatter(1.0 - MU, 0, color="gray", s=30, zorder=5)
+    ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, "地球",
+            fontsize=config.lp_label, ha="center")
+    ax.text(1.0 - MU, 0.03, "月球",
+            fontsize=config.lp_label, ha="center")
+
+    system.compute_libration_points()
+    if system.L1 is None or system.L2 is None:
+        return
+    for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
+        ax.scatter(lp_x, 0, color="red", marker="+", s=30, zorder=5)
+        ax.text(lp_x, 0.02, lp_name, fontsize=config.lp_label,
+                ha="center", color="red")
+
+
 def plot_single_transfer_orbit_2d(
     departure_orbit,
     transfer_states: np.ndarray,
@@ -389,14 +399,12 @@ def plot_single_transfer_orbit_2d(
     fig=None,
     ax=None,
     title: str | None = None,
-) -> "plt.Axes":
+) -> Axes:
     """在 XY 平面（旋转系）绘制单条转移轨道的论文版图。
 
     绘制 DRO 轨道、转移轨道、GEO 圆、地球、月球、出发点、到达点。
     """
-    import matplotlib.pyplot as plt
-    from tod.commons.constants import MU, TU, VU
-    from e2m2e.orbits.geo import EARTH_CENTER
+    from tod.commons.constants import TU, VU
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(8.5 / 2.54, 8.5 / 2.54))
@@ -414,18 +422,7 @@ def plot_single_transfer_orbit_2d(
     gx, gy = geo_circle_points()
     ax.plot(gx, gy, color="gray", ls="--", lw=0.8, label="GEO")
 
-    ax.scatter(*EARTH_CENTER[:2], color="blue", s=60, zorder=5)
-    ax.scatter(1.0 - MU, 0, color="gray", s=30, zorder=5)
-    ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, "地球",
-            fontsize=config.lp_label, ha="center")
-    ax.text(1.0 - MU, 0.03, "月球",
-            fontsize=config.lp_label, ha="center")
-
-    system.compute_libration_points()
-    for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
-        ax.scatter(lp_x, 0, color="red", marker="+", s=30, zorder=5)
-        ax.text(lp_x, 0.02, lp_name, fontsize=config.lp_label,
-                ha="center", color="red")
+    _annotate_bodies_2d(ax, system, config)
 
     ax.set_xlabel("x (DU)", fontsize=config.label)
     ax.set_ylabel("y (DU)", fontsize=config.label)
