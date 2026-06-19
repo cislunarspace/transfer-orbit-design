@@ -326,50 +326,54 @@ def main() -> None:
              dro_orbit, system, dynamics, transfer_states) = _prepare_transfer_data(args, rec)
 
             fig = plt.figure(figsize=figsize)
-            ax = fig.add_subplot(111, projection="3d")
+            try:
+                ax = fig.add_subplot(111, projection="3d")
 
-            gx, gy = geo_circle_points()
-            ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--",
-                    lw=0.8, label="GEO")
-            ax.plot(dro_orbit.states[:, 0], dro_orbit.states[:, 1],
-                    dro_orbit.states[:, 2], color="royalblue", lw=0.8,
-                    label="DRO")
-            ax.plot(transfer_states[:, 0], transfer_states[:, 1],
-                    transfer_states[:, 2], color="crimson", lw=1.2,
-                    label="转移轨道")
-            ax.scatter(*dep_state[:3], color="green", s=40, zorder=5,
-                       label="出发点")
-            ax.scatter(*transfer_states[-1, :3], color="orange", s=40,
-                       marker="s", zorder=5, label="到达点")
-            plot_celestial_bodies(ax, system, PLOT_CONFIG)
+                gx, gy = geo_circle_points()
+                ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--",
+                        lw=0.8, label="GEO")
+                ax.plot(dro_orbit.states[:, 0], dro_orbit.states[:, 1],
+                        dro_orbit.states[:, 2], color="royalblue", lw=0.8,
+                        label="DRO")
+                ax.plot(transfer_states[:, 0], transfer_states[:, 1],
+                        transfer_states[:, 2], color="crimson", lw=1.2,
+                        label="转移轨道")
+                ax.scatter(*dep_state[:3], color="green", s=40, zorder=5,
+                           label="出发点")
+                ax.scatter(*transfer_states[-1, :3], color="orange", s=40,
+                           marker="s", zorder=5, label="到达点")
+                plot_celestial_bodies(ax, system, PLOT_CONFIG)
 
-            ax.set_xlabel("x (DU)")
-            ax.set_ylabel("y (DU)")
-            ax.set_zlabel("z (DU)")
+                ax.set_xlabel("x (DU)")
+                ax.set_ylabel("y (DU)")
+                ax.set_zlabel("z (DU)")
 
-            if not (args.paper or args.no_title):
-                dv1_km = dv1 * VU / 1000
-                dv2_km = dv2 * VU / 1000
-                title_str = (
-                    f"DRO→GEO  α={alpha:.4f}  "
-                    f"T={transfer_time:.2f} TU "
-                    f"({transfer_time * TU:.1f}天)\n"
-                    f"Δv₁={dv1_km:.4f} km/s  "
-                    f"Δv₂={dv2_km:.4f} km/s  "
-                    f"Δv总={dv1_km + dv2_km:.4f} km/s"
+                if not (args.paper or args.no_title):
+                    dv1_km = dv1 * VU / 1000
+                    dv2_km = dv2 * VU / 1000
+                    title_str = (
+                        f"DRO→GEO  α={alpha:.4f}  "
+                        f"T={transfer_time:.2f} TU "
+                        f"({transfer_time * TU:.1f}天)\n"
+                        f"Δv₁={dv1_km:.4f} km/s  "
+                        f"Δv₂={dv2_km:.4f} km/s  "
+                        f"Δv总={dv1_km + dv2_km:.4f} km/s"
+                    )
+                    ax.set_title(title_str, fontsize=PLOT_CONFIG.title)
+
+                ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
+                all_pts = np.concatenate(
+                    [transfer_states[:, :3], dro_orbit.states[:, :3]]
                 )
-                ax.set_title(title_str, fontsize=PLOT_CONFIG.title)
+                set_equal_aspect_3d(ax, all_pts)
+                fig.tight_layout()
 
-            ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
-            all_pts = np.concatenate(
-                [transfer_states[:, :3], dro_orbit.states[:, :3]]
-            )
-            set_equal_aspect_3d(ax, all_pts)
-            fig.tight_layout()
-
-            if args.caption:
-                fig.text(0.5, -0.02, args.caption, ha="center", va="top",
-                         fontsize=PLOT_CONFIG.tick)
+                if args.caption:
+                    fig.text(0.5, -0.02, args.caption, ha="center", va="top",
+                             fontsize=PLOT_CONFIG.tick)
+            except Exception:
+                plt.close(fig)
+                raise
         else:
             fig = plt.figure(figsize=figsize)
             ax = fig.add_subplot(111, projection="3d")
