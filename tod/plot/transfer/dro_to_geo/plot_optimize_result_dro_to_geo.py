@@ -35,6 +35,7 @@ from tod.cli.input_file import (
     resolve_input_file,
 )
 from e2m2e.transfer import load_orbit_from_json
+from tod.generates.artifacts import find_latest_single_dro
 from tod.plot.transfer.common import (
     reintegrate_transfer,
     plot_single_transfer_orbit_2d,
@@ -105,28 +106,23 @@ def _resolve_opt_input(args) -> Path:
 
 
 def _resolve_dro_input(args) -> Path:
-    """按 issue #183 契约解析 DRO 轨道文件。"""
+    """DRO 文件解析优先级: CLI --dro-file > --auto-latest-dro > env DRO_FILE > find_latest_single_dro。"""
+    if args.dro_file:
+        return Path(args.dro_file).expanduser().resolve()
+    if args.auto_latest_dro:
+        try:
+            return find_latest_single_dro(project_root)
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(str(exc)) from exc
+    # 默认行为：尝试自动发现最新单轨道 DRO 文件
     try:
-        return resolve_input_file(
-            InputFileRequest(
-                explicit_path=Path(args.dro_file) if args.dro_file else None,
-                auto_latest=bool(args.auto_latest_dro),
-                search_root=project_root / "output/dro",
-                pattern="dro_*.json",
-                flag="--dro-file",
-                auto_latest_flag="--auto-latest-dro",
-            )
-        )
-    except InputResolutionError as exc:
+        return find_latest_single_dro(project_root)
+    except FileNotFoundError:
         parser = argparse.ArgumentParser(
             prog="plot_optimize_result_dro_to_geo",
             description="可视化 DRO→GEO 优化结果",
         )
-        if exc.candidates or exc.remaining:
-            parser.error(
-                f"{exc}\n候选 (mtime new→old):\n{exc.format_candidates()}"
-            )
-        parser.error(str(exc))
+        parser.error("未找到 DRO 轨道文件，请用 --dro-file 指定")
 
 
 def _successful_records(results: list[dict]) -> list[dict]:
