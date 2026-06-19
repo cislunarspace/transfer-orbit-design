@@ -1,11 +1,13 @@
 """Tests for the unified plot_orbits GUI ScriptEntry."""
 
 import importlib.util
+import sys
 from pathlib import Path
 
 import pytest
 
 from tod.gui.script_registry import SCRIPTS
+from tod.gui.scripts._registry import _make_module_name
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
@@ -13,11 +15,10 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 def _load_raw_entry():
     """Load the raw ScriptEntry from the implementation script."""
     params_file = _PROJECT_ROOT / "tod" / "plot" / "plot_orbits.py"
-    module_name = "_tod_test_plot_orbits"
+    module_name = _make_module_name(params_file, "_tod_test")
     spec = importlib.util.spec_from_file_location(module_name, str(params_file))
     assert spec is not None
     module = importlib.util.module_from_spec(spec)
-    import sys
     sys.modules[module_name] = module
     try:
         spec.loader.exec_module(module)  # type: ignore[union-attr]

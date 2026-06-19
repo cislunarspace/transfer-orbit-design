@@ -78,6 +78,27 @@ def test_get_scripts_warns_on_load_failure(tmp_path: Path, caplog) -> None:
     )
 
 
+def test_make_module_name_unique_for_same_stem_different_paths(tmp_path: Path) -> None:
+    """不同目录下同名脚本应产生不同的临时模块名，避免 sys.modules 冲突。"""
+    from tod.gui.scripts._registry import _make_module_name
+
+    dir_a = tmp_path / "a"
+    dir_b = tmp_path / "b"
+    dir_a.mkdir()
+    dir_b.mkdir()
+    file_a = dir_a / "run.py"
+    file_b = dir_b / "run.py"
+    file_a.touch()
+    file_b.touch()
+
+    name_a = _make_module_name(file_a, "_tod_test")
+    name_b = _make_module_name(file_b, "_tod_test")
+
+    assert name_a != name_b, (
+        f"同名不同路径的模块名应不同，但都是 {name_a}"
+    )
+
+
 def test_iter_script_files_yields_only_python_files(toy_scripts_dir: Path) -> None:
     """iter_script_files 只 yield .py 文件。"""
     from tod.gui.scripts._registry import iter_script_files

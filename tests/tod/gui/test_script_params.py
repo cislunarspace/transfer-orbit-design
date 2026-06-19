@@ -77,7 +77,9 @@ PARAMS_FILES = [
 
 def _load_impl_module(impl_path: Path):
     """用 importlib 加载实现脚本，注册到 sys.modules 避免 @dataclass 问题。"""
-    module_name = f"_tod_test_{impl_path.stem}"
+    from tod.gui.scripts._registry import _make_module_name
+
+    module_name = _make_module_name(impl_path, "_tod_test")
     spec = importlib.util.spec_from_file_location(module_name, str(impl_path))
     if spec is None or spec.loader is None:
         raise RuntimeError(f"无法加载文件: {impl_path}")

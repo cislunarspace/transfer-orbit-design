@@ -60,11 +60,22 @@ def iter_script_files(base: Path) -> Iterator[Path]:
         yield path
 
 
+def _make_module_name(file_path: Path, prefix: str) -> str:
+    """生成唯一的临时模块名，避免同名 stem 冲突。
+
+    扫描器用 importlib 动态加载实现脚本时，临时模块名需保证唯一性。
+    仅用 file_path.stem 会在不同目录存在同名脚本时冲突（如
+    generates/foo/run.py 与 plot/foo/run.py）。这里加入路径哈希。
+    """
+    h = abs(hash(str(file_path.resolve()))) & 0xFFFFFFFF
+    return f"{prefix}_{file_path.stem}_{h:08x}"
+
+
 def _load_script_entry(file_path: Path) -> _ScanEntry:
     """从单个 .py 文件加载 SCRIPT_ENTRY，不存在则抛异常。"""
     import sys as _sys
 
-    module_name = f"_tod_scan_{file_path.stem}"
+    module_name = _make_module_name(file_path, "_tod_scan")
     spec = importlib.util.spec_from_file_location(module_name, file_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"无法加载文件: {file_path}")
