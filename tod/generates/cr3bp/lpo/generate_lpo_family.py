@@ -114,3 +114,27 @@ if __name__ == "__main__":
         ],
     )
     main()
+
+
+# ------------------------------------------------------------------
+# GUI 注册
+# ------------------------------------------------------------------
+
+from tod.gui.script_registry import CliParam, ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    module='lpo',
+    name='generate_lpo_family',
+    description='生成轨道族',
+    script_path='tod/generates/cr3bp/lpo/generate_lpo_family.py',
+    output_dir='output/lpo',
+    group_label='生成',
+    cli_params=[
+        CliParam('--libration-point', '平动点', 'select', 'L4', choices=('L4', 'L5'), help='平动点选择（L4/L5），默认 L4。'),
+        CliParam('--method', '延拓方法', 'select', 'natural', choices=('natural', 'pseudo_arclength'), help='延拓方法（natural/pseudo_arclength），默认 natural。'),
+        CliParam('--amplitude-min', '最小振幅', 'float', '0.01', help='延拓振幅下限（无量纲），默认 0.01。'),
+        CliParam('--amplitude-max', '最大振幅', 'float', '0.5', help='延拓振幅上限（无量纲），默认 0.5。'),
+        CliParam('--step-size', '步长', 'float', '0.01', help='延拓步长（无量纲），默认 0.01。'),
+        CliParam('--n-orbits', '生成轨道数量', 'int', '50', help='目标生成轨道数，默认 50。'),
+    ],
+)

@@ -98,3 +98,25 @@ if __name__ == "__main__":
         ],
     )
     main()
+
+
+# ------------------------------------------------------------------
+# GUI 注册
+# ------------------------------------------------------------------
+
+from tod.gui.script_registry import CliParam, ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    module='horseshoe',
+    name='generate_horseshoe_family',
+    description='生成轨道族',
+    script_path='tod/generates/cr3bp/horseshoe/generate_horseshoe_family.py',
+    output_dir='output/horseshoe',
+    group_label='生成',
+    cli_params=[
+        CliParam('--amplitude-min', '最小振幅', 'float', '0.01', help='延拓振幅下限（无量纲），默认 0.01。'),
+        CliParam('--amplitude-max', '最大振幅', 'float', '0.5', help='延拓振幅上限（无量纲），默认 0.5。'),
+        CliParam('--step-size', '步长', 'float', '0.01', help='延拓步长（无量纲），默认 0.01。'),
+        CliParam('--n-orbits', '生成轨道数量', 'int', '50', help='目标生成轨道数，默认 50。'),
+    ],
+)

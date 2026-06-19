@@ -11,12 +11,18 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _load_raw_entry():
-    """Load the raw ScriptEntry from the GUI params file."""
-    params_file = _PROJECT_ROOT / "tod" / "gui" / "scripts" / "plot" / "plot_orbits.py"
-    spec = importlib.util.spec_from_file_location("_plot_orbits_params", params_file)
+    """Load the raw ScriptEntry from the implementation script."""
+    params_file = _PROJECT_ROOT / "tod" / "plot" / "plot_orbits.py"
+    module_name = "_tod_test_plot_orbits"
+    spec = importlib.util.spec_from_file_location(module_name, str(params_file))
     assert spec is not None
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)  # type: ignore[union-attr]
+    import sys
+    sys.modules[module_name] = module
+    try:
+        spec.loader.exec_module(module)  # type: ignore[union-attr]
+    finally:
+        sys.modules.pop(module_name, None)
     return module.SCRIPT_ENTRY
 
 

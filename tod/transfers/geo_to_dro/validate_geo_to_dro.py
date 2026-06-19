@@ -310,3 +310,19 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ------------------------------------------------------------------
+# GUI 注册
+# ------------------------------------------------------------------
+
+from tod.gui.script_registry import ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    module='transfer',
+    name='validate_geo_to_dro',
+    description='验证',
+    script_path='tod/transfers/geo_to_dro/validate_geo_to_dro.py',
+    output_dir='output/transfer',
+    group_label='GEO→DRO',
+)

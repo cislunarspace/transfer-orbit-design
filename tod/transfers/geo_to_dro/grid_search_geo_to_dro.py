@@ -321,3 +321,32 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
+
+
+# ------------------------------------------------------------------
+# GUI 注册
+# ------------------------------------------------------------------
+
+from tod.gui.script_registry import CliParam, ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    module='transfer',
+    name='grid_search_geo_to_dro',
+    description='网格搜索',
+    script_path='tod/transfers/geo_to_dro/grid_search_geo_to_dro.py',
+    output_dir='output/transfer',
+    group_label='GEO→DRO',
+    cli_params=[
+        CliParam('--dro-file', 'DRO 文件', 'str', '', help='DRO 轨道 JSON 文件路径。', file_category='dro'),
+        CliParam('--n-departure', 'GEO 出发点数', 'int', '10', help='GEO 出发点数量，默认 10。'),
+        CliParam('--n-alpha', 'alpha 密度', 'int', '200', help='alpha 网格密度，默认 200。'),
+        CliParam('--alpha-min', 'alpha 下界', 'float', '1.0', help='alpha 搜索下界，默认 1.0。'),
+        CliParam('--alpha-max', 'alpha 上界', 'float', '1.5', help='alpha 搜索上界，默认 1.5。'),
+        CliParam('--max-transfer-time', '最大转移时间', 'float', '28.719127', help='最大转移时间（无量纲），默认 28.719127。', unit_group='time', default_unit='days'),
+        CliParam('--intersection-threshold', '相交阈值', 'float', '0.00026', help='相交判定距离阈值，默认 0.00026，单位 km。', unit_group='distance', default_unit='km'),
+        CliParam('--min-distance', '最小距离阈值', 'float', '0.00026', help='候选解最小距离阈值，默认 0.00026，单位 km。', unit_group='distance', default_unit='km'),
+        CliParam('--earth-radius', '地球半径', 'float', '0.00052', help='地球碰撞检测半径，默认 0.00052，单位 km。', unit_group='distance', default_unit='km'),
+        CliParam('--moon-radius', '月球半径', 'float', '0.00026', help='月球碰撞检测半径，默认 0.00026，单位 km。', unit_group='distance', default_unit='km'),
+        CliParam('--geo-n-points', 'GEO 采样点数', 'int', '1000', help='GEO 轨道采样点数，默认 1000。'),
+    ],
+)

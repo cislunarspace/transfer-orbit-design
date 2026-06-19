@@ -116,7 +116,7 @@ def _classify(entry: _ScanEntry) -> str:
 
 
 def _default_scan_dirs() -> list[Path]:
-    """返回默认扫描目录列表：实现目录优先，镜像目录兜底。
+    """返回默认扫描目录列表。
 
     扫描顺序决定优先级：同名 script_path 的条目以先扫到的为准。
     """
@@ -126,7 +126,6 @@ def _default_scan_dirs() -> list[Path]:
         repo_root / "tod" / "generates",
         repo_root / "tod" / "plot",
         repo_root / "tod" / "transfers",
-        gui_scripts,  # 镜像目录兜底（尚未迁移的脚本）
     ]
 
 
@@ -141,7 +140,7 @@ def get_scripts(
         scripts_dir: 已废弃，保留向后兼容。优先使用 scan_dirs。
         translations: 脚本翻译表（按脚本名结构化），非空时应用于每个 ScriptEntry
         scan_dirs: 扫描目录列表，按优先级排列。同名 script_path 以先扫到的为准。
-                   默认为实现目录（generates/plot/transfers）+ 镜像目录。
+                   默认为实现目录（generates/plot/transfers）。
 
     Returns:
         dict[str, list[_ScanEntry]]: 按分类键分组的 _ScanEntry 列表

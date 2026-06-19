@@ -58,3 +58,24 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
+
+
+# ------------------------------------------------------------------
+# GUI 注册
+# ------------------------------------------------------------------
+
+from tod.gui.script_registry import CliParam, ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    module='vertical',
+    name='generate_vertical_orbit',
+    description='生成轨道',
+    script_path='tod/generates/cr3bp/vertical/generate_vertical_orbit.py',
+    output_dir='output/vertical',
+    group_label='生成',
+    cli_params=[
+        CliParam('--libration-point', '平动点', 'select', 'L1', choices=('L1', 'L2', 'L3'), help='平动点选择（L1/L2/L3），默认 L1。'),
+        CliParam('--amplitude-y', 'y 方向振幅', 'float', '0.1', help='种子轨道 y 方向振幅（无量纲），默认 0.1。'),
+        CliParam('--period-guess', '周期猜测值', 'float', '3.0', help='初始周期猜测（无量纲 TU），默认 3.0。'),
+    ],
+)

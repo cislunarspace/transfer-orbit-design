@@ -202,3 +202,30 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# ------------------------------------------------------------------
+# GUI 注册
+# ------------------------------------------------------------------
+
+from tod.gui.script_registry import CliParam, ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    module='transfer',
+    name='plot_optimize_result_dro_to_geo',
+    description='绘制优化结果',
+    script_path='tod/plot/transfer/dro_to_geo/plot_optimize_result_dro_to_geo.py',
+    output_dir='output/transfer',
+    group_label='DRO→GEO',
+    cli_params=[
+        CliParam('--file', '优化结果文件', 'str', '', help='优化结果 JSON 文件路径。', file_category='transfer'),
+        CliParam('--auto-latest', '按 mtime 选最新（显式 opt-in）', 'bool', '', help='显式 opt-in：按 mtime 选最新 optimization_dro_geo_*.json；与 --file 互斥。', advanced=True),
+        CliParam('--orbit', '转移轨道图（3D）', 'bool', '', help='重新积分并绘制转移轨道 3D 示意图，勾选后启用。'),
+        CliParam('--time-dv', '转移时间-Δv 散点图', 'bool', '', help='转移时间 vs Δv 散点图，勾选后启用。'),
+        CliParam('--idx', '选中轨道（--orbit 模式）', 'str', 'best', help='整数索引 / best / best:N / random / all，默认 best。'),
+        CliParam('--save', '保存图片路径', 'str', '', help='不填则弹窗显示。'),
+        CliParam('--max-points', '最大绘制轨道数', 'int', '500', help='--idx all 时最多绘制条数，默认 500。', advanced=True),
+        CliParam('--seed', '随机种子', 'int', '0', help='子采样随机种子，默认 0。', advanced=True),
+        CliParam('--dpi', '图片 DPI', 'int', '150', help='保存图片的分辨率，默认 150。', advanced=True),
+    ],
+)

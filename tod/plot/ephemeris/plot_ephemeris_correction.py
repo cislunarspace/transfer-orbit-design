@@ -333,3 +333,25 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         logger.debug("使用代码内置调试参数")
     main()
+
+
+# ------------------------------------------------------------------
+# GUI 注册
+# ------------------------------------------------------------------
+
+from tod.gui.script_registry import CliParam, ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    module='ephemeris',
+    name='plot_ephemeris_correction',
+    description='绘制修正结果',
+    script_path='tod/plot/ephemeris/plot_ephemeris_correction.py',
+    output_dir='output/ephemeris',
+    needs_spice=True,
+    group_label='绘图',
+    cli_params=[
+        CliParam('--dro-file', 'DRO 文件', 'str', '', help='DRO 轨道 JSON 文件路径。', file_category='dro'),
+        CliParam('--ephemeris-file', '星历修正文件', 'str', '', help='星历修正 JSON 文件路径。', file_category='ephemeris'),
+        CliParam('--reference-epoch', '参考历元', 'str', '', help='可选；未填时使用星历修正 JSON 中的 reference_epoch。若填写，必须与 JSON 一致。'),
+    ],
+)
