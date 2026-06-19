@@ -1,14 +1,14 @@
 """Unit tests for tod.transfers._pipeline shared module."""
 
 import json
-from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
 
+from e2m2e.mbse.data import TransferType
+from e2m2e.transfer import TransferOptimizationResult
 from tod.transfers import _pipeline
 
 
@@ -108,31 +108,19 @@ class TestJsonSafe:
 # =============================================================================
 
 
-class _FakeTransferType(Enum):
-    DIRECT = "DIRECT"
-    EXTERNAL = "EXTERNAL"
-    LGA = "LGA"
-
-
-@dataclass
-class _FakeNLPOptimizationResult:
-    success: bool = True
-    alpha: float = 1.5
-    transfer_time: float = 10.0
-    t_ins: float = 2.0
-    objective_value: float = 0.5
-    delta_v1: float = 0.3
-    delta_v2: float = 0.2
-    message: str = "OK"
-    constraints_violation: dict | None = None
-    transfer_type: _FakeTransferType | None = None
-
-
 class TestSerializeNlpResult:
     def test_basic_serialization(self):
-        res = _FakeNLPOptimizationResult(
-            constraints_violation={"position": 1e-6},
-            transfer_type=_FakeTransferType.DIRECT,
+        res = TransferOptimizationResult(
+            success=True,
+            departure_alpha=1.5,
+            transfer_time=10.0,
+            t_ins=2.0,
+            total_delta_v=0.5,
+            delta_v1=0.3,
+            delta_v2=0.2,
+            message="OK",
+            constraints_violation=1e-6,
+            transfer_type=TransferType.DIRECT,
         )
         result = _pipeline.serialize_nlp_result(res)
         assert result["success"] is True
@@ -143,36 +131,35 @@ class TestSerializeNlpResult:
         assert result["delta_v1"] == 0.3
         assert result["delta_v2"] == 0.2
         assert result["message"] == "OK"
-        assert result["transfer_type"] == "DIRECT"
+        assert result["transfer_type"] == "direct"
 
-    def test_constraints_violation_floats(self):
-        res = _FakeNLPOptimizationResult(
-            constraints_violation={"position": np.float64(1e-6)}
-        )
+    def test_constraints_violation_is_float(self):
+        res = TransferOptimizationResult(constraints_violation=np.float64(1e-6))
         result = _pipeline.serialize_nlp_result(res)
-        assert isinstance(result["constraints_violation"]["position"], float)
+        assert isinstance(result["constraints_violation"], float)
+        assert result["constraints_violation"] == 1e-6
 
-    def test_none_constraints(self):
-        res = _FakeNLPOptimizationResult(constraints_violation=None)
+    def test_default_constraints_violation(self):
+        res = TransferOptimizationResult()
         result = _pipeline.serialize_nlp_result(res)
-        assert result["constraints_violation"] == {}
+        assert result["constraints_violation"] == 0.0
 
     def test_none_transfer_type(self):
-        res = _FakeNLPOptimizationResult(transfer_type=None)
+        res = TransferOptimizationResult(transfer_type=None)
         result = _pipeline.serialize_nlp_result(res)
         assert result["transfer_type"] is None
 
     def test_no_t_ins_attribute(self):
-        """Handle NLPOptimizationResult without t_ins (older e2m2e versions)."""
+        """兼容缺少 t_ins 属性的结果对象（hasattr 回退分支）。"""
         res = MagicMock()
         res.success = False
-        res.alpha = 0.0
+        res.departure_alpha = 0.0
         res.transfer_time = 0.0
-        res.objective_value = 0.0
+        res.total_delta_v = 0.0
         res.delta_v1 = 0.0
         res.delta_v2 = 0.0
         res.message = "failed"
-        res.constraints_violation = None
+        res.constraints_violation = 0.0
         res.transfer_type = None
         del res.t_ins  # simulate missing attribute
 
@@ -180,9 +167,12 @@ class TestSerializeNlpResult:
         assert result["t_ins"] is None
 
     def test_json_serializable(self):
-        res = _FakeNLPOptimizationResult(
-            constraints_violation={"position": 1e-6, "velocity": 1e-8},
-            transfer_type=_FakeTransferType.EXTERNAL,
+        res = TransferOptimizationResult(
+            total_delta_v=0.4,
+            delta_v1=0.3,
+            delta_v2=0.1,
+            constraints_violation=1e-6,
+            transfer_type=TransferType.EXTERNAL,
         )
         result = _pipeline.serialize_nlp_result(res)
         json.dumps(result)  # should not raise

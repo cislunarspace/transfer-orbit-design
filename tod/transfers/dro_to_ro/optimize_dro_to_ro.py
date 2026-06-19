@@ -31,11 +31,11 @@ from tqdm.auto import tqdm
 
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 from e2m2e.core.orbit import Orbit
+from e2m2e.mbse.data import TransferType
 from e2m2e.transfer import (
     DROTRONLPOptimizer,
-    NLPOptimizationResult,
     NLPOptimizationVariables,
-    TransferType,
+    TransferOptimizationResult,
     load_orbit_from_json,
     optimize_with_copt,
 )
@@ -166,16 +166,14 @@ def serialize_nlp_result(res) -> Dict[str, Any]:
     """
     return {
         "success": res.success,
-        "alpha": float(res.alpha),
+        "alpha": float(res.departure_alpha),
         "transfer_time": float(res.transfer_time),
         "t_ins": float(res.t_ins),
-        "objective_value": float(res.objective_value),
+        "objective_value": float(res.total_delta_v),
         "delta_v1": float(res.delta_v1),
         "delta_v2": float(res.delta_v2),
         "message": res.message,
-        "constraints_violation": {
-            k: float(v) for k, v in (res.constraints_violation or {}).items()
-        },
+        "constraints_violation": float(res.constraints_violation),
         "transfer_type": res.transfer_type.value if res.transfer_type else None,
     }
 
@@ -398,26 +396,26 @@ def optimize_one_case(
             else:
                 transfer_type = TransferType.LGA
 
-        return NLPOptimizationResult(
-            alpha=float(final_y[0]),
+        return TransferOptimizationResult(
+            departure_alpha=float(final_y[0]),
             transfer_time=float(final_y[1]),
             t_ins=float(final_y[2]),
-            objective_value=dv1 + dv2,
+            total_delta_v=dv1 + dv2,
             delta_v1=dv1,
             delta_v2=dv2,
             transfer_trajectory=states,
-            transfer_times=times,
+            transfer_trajectory_times=times,
             departure_state=departure_state.copy(),
             insertion_state=insertion_state,
             final_state=final_state,
             success=bool(result.success),
             message=str(result.message),
             transfer_type=transfer_type,
-            constraints_violation=violation,
+            constraints_violation=max(violation.values()) if violation else 0.0,
         )
     except Exception as e:
-        return NLPOptimizationResult(
-            alpha=float(y0[0]),
+        return TransferOptimizationResult(
+            departure_alpha=float(y0[0]),
             transfer_time=float(y0[1]),
             t_ins=float(y0[2]),
             success=False,
@@ -797,7 +795,7 @@ def main() -> None:
                     progress_callback=cb,
                 )
                 row["nlp"] = serialize_nlp_result(res)
-                global_progress.finish_case(res.success, res.objective_value)
+                global_progress.finish_case(res.success, res.total_delta_v)
                 snap = global_progress.get_snapshot()
                 elapsed = (
                     time.perf_counter() - global_progress.start_time
@@ -808,7 +806,7 @@ def main() -> None:
                     f"  ✓ case {k + 1}/{n_total} done "
                     f"(search_idx={global_idx}) | "
                     f"iter={snap['iter']} | "
-                    f"success={res.success} ΔV={res.objective_value:.6f} | "
+                    f"success={res.success} ΔV={res.total_delta_v:.6f} | "
                     f"elapsed={elapsed:.1f}s"
                 )
             except Exception:

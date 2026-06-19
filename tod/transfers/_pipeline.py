@@ -184,28 +184,26 @@ def json_safe(x: Any) -> Any:
 
 
 def serialize_nlp_result(res: Any) -> Dict[str, Any]:
-    """将 NLPOptimizationResult 序列化为 JSON 安全的字典。
+    """将 TransferOptimizationResult 序列化为 JSON 安全的字典。
 
     所有 optimize 脚本中此函数完全相同。集中在此处避免 4 份副本漂移。
 
     Args:
-        res: e2m2e.transfer.NLPOptimizationResult 实例。
+        res: e2m2e.transfer.TransferOptimizationResult 实例。
 
     Returns:
         JSON 可序列化的字典。
     """
     return {
         "success": res.success,
-        "alpha": float(res.alpha),
+        "alpha": float(res.departure_alpha),
         "transfer_time": float(res.transfer_time),
         "t_ins": float(res.t_ins) if hasattr(res, "t_ins") else None,
-        "objective_value": float(res.objective_value),
+        "objective_value": float(res.total_delta_v),
         "delta_v1": float(res.delta_v1),
         "delta_v2": float(res.delta_v2),
         "message": res.message,
-        "constraints_violation": {
-            k: float(v) for k, v in (res.constraints_violation or {}).items()
-        },
+        "constraints_violation": float(res.constraints_violation),
         "transfer_type": res.transfer_type.value if res.transfer_type else None,
     }
 
