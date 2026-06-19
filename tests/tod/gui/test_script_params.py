@@ -19,7 +19,28 @@ import pytest
 
 import tod
 
-PROJECT_ROOT = Path(tod.__file__).resolve().parent.parent
+SCRIPTS_DIR = Path(__file__).resolve().parents[3] / "tod" / "gui" / "scripts"
+GENERATES_DIR = Path(__file__).resolve().parents[3] / "tod" / "generates"
+PLOT_DIR = Path(__file__).resolve().parents[3] / "tod" / "plot"
+TRANSFERS_DIR = Path(__file__).resolve().parents[3] / "tod" / "transfers"
+PROJECT_ROOT = Path(__file__).resolve().parents[3]  # repo root
+
+# 已迁移到实现脚本的文件（SCRIPT_ENTRY 在实现脚本底部，镜像文件已删除）。
+# 随着迁移推进，此列表逐步扩大，PARAMS_FILES 逐步缩小。
+_MIGRATED = {
+    "generates/cr3bp/dro/generate_dro_orbit.py",
+    "generates/cr3bp/dro/generate_dro_family.py",
+}
+
+
+def _resolve_params_file(rel_path: str) -> Path | None:
+    """解析参数文件路径：已迁移的从实现目录找，其余从镜像目录找。"""
+    if rel_path in _MIGRATED:
+        # 映射 "generates/cr3bp/dro/x.py" → "<repo>/tod/generates/cr3bp/dro/x.py"
+        impl = PROJECT_ROOT / "tod" / rel_path
+        return impl if impl.is_file() else None
+    mirror = SCRIPTS_DIR / rel_path
+    return mirror if mirror.is_file() else None
 
 # All expected params files (relative to tod/gui/scripts/)
 PARAMS_FILES = [
@@ -62,21 +83,39 @@ PARAMS_FILES = [
 @pytest.fixture(params=PARAMS_FILES)
 def params_file(request) -> Path:
     """Yield each expected params file path."""
-    scripts_dir = Path(__file__).resolve().parents[3] / "tod" / "gui" / "scripts"
-    return scripts_dir / request.param
+    resolved = _resolve_params_file(request.param)
+    assert resolved is not None, f"Params file not found: {request.param}"
+    return resolved
 
 
 @pytest.fixture(params=PARAMS_FILES)
 def params_module(request, monkeypatch) -> object:
     """Import the params module with proper package context for relative imports."""
-    scripts_dir = Path(__file__).resolve().parents[3] / "tod" / "gui" / "scripts"
-    file_path = scripts_dir / request.param
+    file_path = _resolve_params_file(request.param)
+    assert file_path is not None, f"Params file not found: {request.param}"
 
-    # Compute the package name from the directory structure under scripts_dir.
-    # e.g. "generates/ephemeris/dro/x.py" → "tod.gui.scripts.generates.ephemeris.dro"
+    if request.param in _MIGRATED:
+        # 已迁移的脚本：用 importlib 直接加载，注册到 sys.modules 避免 @dataclass 问题
+        module_name = f"_tod_test_{file_path.stem}"
+        spec = importlib.util.spec_from_file_location(module_name, str(file_path))
+        if spec is None or spec.loader is None:
+            raise RuntimeError(f"无法加载文件: {file_path}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception as e:
+            raise RuntimeError(f"加载 {file_path} 时出错: {e}") from e
+        finally:
+            sys.modules.pop(module_name, None)
+        if not hasattr(module, "SCRIPT_ENTRY"):
+            raise RuntimeError(f"文件 {file_path} 缺少 SCRIPT_ENTRY 导出。")
+        return module
+
+    # 未迁移的脚本：从镜像目录加载（原有逻辑）
+    scripts_dir = SCRIPTS_DIR
     rel = file_path.relative_to(scripts_dir)
-    pkg_parts = list(rel.parts[:-1])  # drop the filename
-    # Prefix with tod.gui.scripts so relative imports resolve against the real package.
+    pkg_parts = list(rel.parts[:-1])
     pkg_name = "tod.gui.scripts." + ".".join(pkg_parts)
 
     # Ensure tod.gui.scripts (root of scripts package tree) is in sys.modules.
@@ -208,14 +247,29 @@ def _script_path_from_file(file_path: Path) -> str:
 
 def test_scanner_discovers_all_expected_files() -> None:
     """The scanner must discover every file listed in PARAMS_FILES."""
-    from tod.gui.scripts._registry import iter_script_files
+    from tod.gui.scripts._registry import get_scripts
 
-    scripts_dir = PROJECT_ROOT / "tod" / "gui" / "scripts"
-    # Normalize to forward slashes for cross-platform comparison
-    scanned_paths = {str(p.relative_to(scripts_dir)).replace("\\", "/") for p in iter_script_files(scripts_dir)}
-    expected_paths = {p.replace("\\", "/") for p in PARAMS_FILES}
-    missing = expected_paths - scanned_paths
-    assert not missing, "Scanner missed these params files:\n" + "\n".join(sorted(missing))
+    # 扫描器返回分类后的 _ScanEntry 列表，提取所有 script_path
+    scripts = get_scripts()
+    scanned_paths = {e.script_path for entries in scripts.values() for e in entries}
+
+    for rel_path in PARAMS_FILES:
+        if rel_path in _MIGRATED:
+            # 已迁移的脚本：script_path 是实现脚本路径
+            expected = f"tod/{rel_path}"
+        else:
+            # 未迁移的脚本：script_path 是镜像文件中的声明
+            # 从镜像文件读取 script_path
+            mirror = SCRIPTS_DIR / rel_path
+            if not mirror.is_file():
+                continue  # 镜像文件不存在（已被删除但未加入 _MIGRATED）
+            import importlib.util as _ilu
+
+            spec = _ilu.spec_from_file_location("_check", str(mirror))
+            mod = _ilu.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            expected = mod.SCRIPT_ENTRY.script_path
+        assert expected in scanned_paths, f"Scanner missed: {expected} (from {rel_path})"
 
 
 # ─── Targeted: plot_ephemeris_correction has --reference-epoch ──────────────────

@@ -849,7 +849,7 @@ class TestDroGuiTerminologySnapshot:
     """
 
     def test_dro_gui_has_no_forbidden_user_terms(self, qapp_fixture, tmp_path):
-        from tod.gui.scripts.generates.cr3bp.dro.generate_dro_orbit import SCRIPT_ENTRY
+        from tod.generates.cr3bp.dro.generate_dro_orbit import SCRIPT_ENTRY
         from tod.gui.script_tab_widget import ScriptTabWidget
 
         widget = ScriptTabWidget(

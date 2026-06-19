@@ -51,16 +51,22 @@ def iter_script_files(base: Path) -> Iterator[Path]:
 
 def _load_script_entry(file_path: Path) -> _ScanEntry:
     """从单个 .py 文件加载 SCRIPT_ENTRY，不存在则抛异常。"""
-    spec = importlib.util.spec_from_file_location("_script_module", file_path)
+    import sys as _sys
+
+    module_name = f"_tod_scan_{file_path.stem}"
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"无法加载文件: {file_path}")
 
     module = importlib.util.module_from_spec(spec)
+    _sys.modules[module_name] = module  # @dataclass 需要模块在 sys.modules 中
 
     try:
         spec.loader.exec_module(module)
     except Exception as e:
         raise RuntimeError(f"加载 {file_path} 时出错: {e}") from e
+    finally:
+        _sys.modules.pop(module_name, None)  # 清理临时模块
 
     if not hasattr(module, "SCRIPT_ENTRY"):
         raise RuntimeError(
@@ -109,28 +115,62 @@ def _classify(entry: _ScanEntry) -> str:
     return "misc"
 
 
-def get_scripts(scripts_dir: Path | None = None, translations: dict | None = None) -> dict[str, list[_ScanEntry]]:
-    """扫描 scripts_dir，返回分类后的脚本注册表。
+def _default_scan_dirs() -> list[Path]:
+    """返回默认扫描目录列表：实现目录优先，镜像目录兜底。
+
+    扫描顺序决定优先级：同名 script_path 的条目以先扫到的为准。
+    """
+    gui_scripts = Path(__file__).parent
+    repo_root = gui_scripts.parent.parent.parent  # tod/gui/scripts/ → repo root
+    return [
+        repo_root / "tod" / "generates",
+        repo_root / "tod" / "plot",
+        repo_root / "tod" / "transfers",
+        gui_scripts,  # 镜像目录兜底（尚未迁移的脚本）
+    ]
+
+
+def get_scripts(
+    scripts_dir: Path | None = None,
+    translations: dict | None = None,
+    scan_dirs: list[Path] | None = None,
+) -> dict[str, list[_ScanEntry]]:
+    """扫描实现目录，返回分类后的脚本注册表。
 
     Args:
-        scripts_dir: scripts/ 目录路径，默认为 tod/gui/scripts/
+        scripts_dir: 已废弃，保留向后兼容。优先使用 scan_dirs。
         translations: 脚本翻译表（按脚本名结构化），非空时应用于每个 ScriptEntry
+        scan_dirs: 扫描目录列表，按优先级排列。同名 script_path 以先扫到的为准。
+                   默认为实现目录（generates/plot/transfers）+ 镜像目录。
 
     Returns:
         dict[str, list[_ScanEntry]]: 按分类键分组的 _ScanEntry 列表
     """
-    if scripts_dir is None:
-        scripts_dir = Path(__file__).parent
+    if scan_dirs is None:
+        if scripts_dir is not None:
+            scan_dirs = [scripts_dir]
+        else:
+            scan_dirs = _default_scan_dirs()
 
+    seen_paths: set[str] = set()
     SCRIPTS: dict[str, list[_ScanEntry]] = {}
 
-    for file_path in iter_script_files(scripts_dir):
-        entry = _load_script_entry(file_path)
-        if translations:
-            from tod.gui.i18n import translate_script_entry
+    for scan_dir in scan_dirs:
+        if not scan_dir.is_dir():
+            continue
+        for file_path in iter_script_files(scan_dir):
+            try:
+                entry = _load_script_entry(file_path)
+            except RuntimeError:
+                continue  # 跳过没有 SCRIPT_ENTRY 的实现脚本
+            if entry.script_path in seen_paths:
+                continue  # 已由更高优先级目录注册
+            seen_paths.add(entry.script_path)
+            if translations:
+                from tod.gui.i18n import translate_script_entry
 
-            entry = translate_script_entry(entry, translations)
-        category = _classify(entry)
-        SCRIPTS.setdefault(category, []).append(entry)
+                entry = translate_script_entry(entry, translations)
+            category = _classify(entry)
+            SCRIPTS.setdefault(category, []).append(entry)
 
     return SCRIPTS

@@ -46,11 +46,12 @@ def test_get_scripts_scans_nested_subdirectories(toy_scripts_dir: Path) -> None:
 
 
 def test_get_scripts_missing_script_entry_raises(invalid_scripts_dir: Path) -> None:
-    """扫描到缺 SCRIPT_ENTRY 的 .py 文件时抛出异常。"""
+    """扫描到缺 SCRIPT_ENTRY 的 .py 文件时跳过该文件（不抛异常）。"""
     from tod.gui.scripts._registry import get_scripts
 
-    with pytest.raises(RuntimeError, match="缺少 SCRIPT_ENTRY"):
-        get_scripts(invalid_scripts_dir)
+    # 新行为：没有 SCRIPT_ENTRY 的文件被静默跳过，不会抛异常
+    SCRIPTS = get_scripts(invalid_scripts_dir)
+    assert isinstance(SCRIPTS, dict)
 
 
 def test_iter_script_files_yields_only_python_files(toy_scripts_dir: Path) -> None:

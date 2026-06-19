@@ -261,3 +261,28 @@ if __name__ == "__main__":
         ],
     )
     main()
+
+
+# ------------------------------------------------------------------
+# GUI 注册
+# ------------------------------------------------------------------
+
+from tod.gui.script_registry import CliParam, ScriptEntry
+
+SCRIPT_ENTRY = ScriptEntry(
+    module='dro',
+    name='generate_dro_family',
+    description='生成轨道族',
+    script_path='tod/generates/cr3bp/dro/generate_dro_family.py',
+    output_dir='output/dro',
+    group_label='生成',
+    cli_params=[
+        CliParam('--x0', '初始 x 坐标', 'float', '0.79188556619742', help='种子轨道初始 x 坐标（无量纲），默认 0.79188556619742。', unit_group='distance', default_unit='DU'),
+        CliParam('--vy0', '初始 vy 速度', 'float', '0.53682', help='种子轨道初始 vy 速度（无量纲），默认 0.53682。', unit_group='velocity'),
+        CliParam('--period', '初始周期', 'float', '3.472526005624708', help='初始周期猜测（无量纲），默认 3.472526005624708。', unit_group='time', default_unit='days'),
+        CliParam('--param-min', '延拓下限', 'float', '0.141886', help='延拓参数范围下限（x0 最小值），默认 0.141886，单位 DU。', unit_group='distance', default_unit='DU'),
+        CliParam('--param-max', '延拓上限', 'float', '0.9', help='延拓参数范围上限（x0 最大值），默认 0.9，单位 DU。', unit_group='distance', default_unit='DU'),
+        CliParam('--step-size', '延拓步长', 'float', '0.005', help='延拓步长，默认 0.005，单位 DU。', unit_group='distance', default_unit='DU'),
+        CliParam('--verbose', '详细输出', 'bool', '', help='勾选后显示详细延拓过程（每步迭代、收敛进度等）'),
+    ],
+)
