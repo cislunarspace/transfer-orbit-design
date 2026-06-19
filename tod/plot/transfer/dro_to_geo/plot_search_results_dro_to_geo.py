@@ -467,6 +467,7 @@ def main() -> None:
     parser.add_argument("--scatter-size", type=float, default=10.0, help="散点大小，默认 10。")
     parser.add_argument("--scatter-alpha", type=float, default=0.7, help="散点透明度，默认 0.7。")
     parser.add_argument("--no-title", action="store_true", help="不显示图标题（论文配图用）。")
+    parser.add_argument("--caption", type=str, default=None, help="图注文字，置于图下方")
     args = parser.parse_args()
 
     path = Path(args.file).expanduser().resolve() if args.file else Path(RESULTS_JSON).expanduser().resolve()
@@ -634,6 +635,8 @@ def main() -> None:
                 title=title,
             )
             fig.tight_layout()
+            if args.caption:
+                fig.text(0.5, -0.02, args.caption, ha="center", va="top", fontsize=PLOT_CONFIG.tick)
             _save_or_show(fig, args)
         else:
             alpha_all, dv_all = feasible_alpha_and_departure_dv(rows)
@@ -642,6 +645,8 @@ def main() -> None:
             fig, ax = plt.subplots(figsize=figsize)
             plot_alpha_delta_v(ax, alpha_all[idx], dv_all[idx], "DRO→GEO:")
             fig.tight_layout()
+            if args.caption:
+                fig.text(0.5, -0.02, args.caption, ha="center", va="top", fontsize=PLOT_CONFIG.tick)
             _save_or_show(fig, args)
 
 

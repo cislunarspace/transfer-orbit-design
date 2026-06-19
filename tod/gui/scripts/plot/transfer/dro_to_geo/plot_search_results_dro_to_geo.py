@@ -30,5 +30,6 @@ SCRIPT_ENTRY = ScriptEntry(
         CliParam('--scatter-size', '散点大小', 'float', '10', help='散点大小，默认 10。', advanced=True),
         CliParam('--scatter-alpha', '散点透明度', 'float', '0.7', help='散点透明度，默认 0.7。', advanced=True),
         CliParam('--no-title', '隐藏标题', 'bool', '', help='勾选后不显示图标题，适合论文配图（图注在论文正文中撰写）。', advanced=True),
+        CliParam('--caption', '图注', 'str', '', help='图片下方图注文字，如“Δv_departure 由切向速度比 α 计算得到”。', advanced=True),
     ],
 )
