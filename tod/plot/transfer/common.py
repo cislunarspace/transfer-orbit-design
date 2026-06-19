@@ -338,6 +338,8 @@ def compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
     vel = np.asarray(state6[3:6], dtype=np.float64)
     r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
     if r_xy < 1e-10:
+        # r_xy ≈ 0 时切向向量 [-y, x, 0]/r_xy 无定义，径向/切向分解无法计算；
+        # 返回原始速度作为安全默认值。
         return vel.copy()
     tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
     radial = pos / np.linalg.norm(pos)
