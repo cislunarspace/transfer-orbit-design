@@ -37,6 +37,10 @@ def load_search_results(path: Path) -> list[dict]:
 
 def departure_delta_v_norm(state6: np.ndarray, alpha: float) -> float:
     """计算速度扰动后的 Δv 模：‖v'−v‖（无量纲速度）。"""
+    pos = np.asarray(state6[:3], dtype=np.float64)
+    r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
+    if r_xy < 1e-10:
+        return float("nan")
     vel = np.asarray(state6[3:6], dtype=np.float64)
     new_vel = compute_departure_velocity(state6, alpha)
     return float(np.linalg.norm(new_vel - vel))
