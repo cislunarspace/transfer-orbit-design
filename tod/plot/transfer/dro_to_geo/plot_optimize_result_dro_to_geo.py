@@ -207,6 +207,7 @@ def _plot_orbit_2d(
     figsize: tuple[float, float] | None = None,
     title: str | None = None,
     caption: str | None = None,
+    no_show: bool = False,
 ) -> None:
     """在 XY 平面绘制单条转移轨道（论文版图）。"""
     fig_size = figsize or (8.5 / 2.54, 8.5 / 2.54)
@@ -234,7 +235,7 @@ def _plot_orbit_2d(
         png.parent.mkdir(parents=True, exist_ok=True)
         fig.savefig(png, dpi=dpi, bbox_inches="tight")
         logger.info("Saved: %s", png)
-    else:
+    elif not no_show:
         plt.show()
     plt.close(fig)
 
@@ -406,6 +407,7 @@ def main() -> None:
             figsize=figsize,
             title=title,
             caption=args.caption,
+            no_show=args.no_show,
         )
     else:
         fig, ax = plt.subplots(figsize=(10, 6))
