@@ -334,3 +334,124 @@ def build_transfer_dynamics(mu: float | None = None, dt: float | None = None):
     dynamics.atol = 1e-12
     dynamics.max_step = _dt
     return system, dynamics
+
+
+def compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
+    """根据切向速度比 α 计算出发速度。
+
+    径向分量不变，切向分量乘以 α。
+    """
+    pos = np.asarray(state6[:3], dtype=np.float64)
+    vel = np.asarray(state6[3:6], dtype=np.float64)
+    r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
+    if r_xy < 1e-10:
+        return vel.copy()
+    tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
+    radial = pos / np.linalg.norm(pos)
+    v_radial_comp = float(np.dot(vel, radial))
+    v_tangential_comp = float(np.dot(vel, tangential))
+    return v_radial_comp * radial + alpha * v_tangential_comp * tangential
+
+
+def reintegrate_transfer(
+    dynamics,
+    departure_state: np.ndarray,
+    alpha: float,
+    max_transfer_time: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """用指定动力学对象重新积分转移轨道。"""
+    new_vel = compute_departure_velocity(departure_state, alpha)
+    initial_state = np.concatenate([departure_state[:3], new_vel])
+    step = max(0.01, dynamics.max_step)
+    n_steps = int(max_transfer_time / step) + 1
+    t_eval = np.linspace(0.0, max_transfer_time, n_steps)
+    result = dynamics.propagate(
+        initial_state=initial_state,
+        t_span=(0.0, max_transfer_time),
+        t_eval=t_eval,
+        with_stm=False,
+        with_jacobi=False,
+    )
+    return result["states"], result["time"]
+
+
+def plot_single_transfer_orbit_2d(
+    departure_orbit,
+    transfer_states: np.ndarray,
+    departure_state: np.ndarray,
+    dv_departure: float,
+    dv_insertion: float,
+    transfer_time: float,
+    alpha: float,
+    system,
+    config,
+    *,
+    fig=None,
+    ax=None,
+    title: str | None = None,
+) -> "plt.Axes":
+    """在 XY 平面（旋转系）绘制单条转移轨道的论文版图。
+
+    绘制 DRO 轨道、转移轨道、GEO 圆、地球、月球、出发点、到达点。
+    """
+    import matplotlib.pyplot as plt
+    from tod.commons.constants import MU, TU, VU
+    from e2m2e.orbits.geo import EARTH_CENTER
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(8.5 / 2.54, 8.5 / 2.54))
+
+    ax.plot(departure_orbit.states[:, 0], departure_orbit.states[:, 1],
+            color="royalblue", lw=0.8, label="DRO")
+    ax.plot(transfer_states[:, 0], transfer_states[:, 1],
+            color="crimson", lw=1.2, label="转移轨道")
+
+    dep_pos = np.asarray(departure_state, dtype=float)[:3]
+    ax.scatter(dep_pos[0], dep_pos[1], color="green", s=40, zorder=5, label="出发点")
+    ax.scatter(transfer_states[-1, 0], transfer_states[-1, 1],
+               color="orange", s=40, marker="s", zorder=5, label="到达点")
+
+    gx, gy = geo_circle_points()
+    ax.plot(gx, gy, color="gray", ls="--", lw=0.8, label="GEO")
+
+    ax.scatter(*EARTH_CENTER[:2], color="blue", s=60, zorder=5)
+    ax.scatter(1.0 - MU, 0, color="gray", s=30, zorder=5)
+    ax.text(EARTH_CENTER[0], EARTH_CENTER[1] + 0.03, "地球",
+            fontsize=config.lp_label, ha="center")
+    ax.text(1.0 - MU, 0.03, "月球",
+            fontsize=config.lp_label, ha="center")
+
+    system.compute_libration_points()
+    for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
+        ax.scatter(lp_x, 0, color="red", marker="+", s=30, zorder=5)
+        ax.text(lp_x, 0.02, lp_name, fontsize=config.lp_label,
+                ha="center", color="red")
+
+    ax.set_xlabel("x (DU)", fontsize=config.label)
+    ax.set_ylabel("y (DU)", fontsize=config.label)
+    ax.set_aspect("equal", adjustable="datalim")
+
+    if title is None:
+        dv1_km = dv_departure * VU / 1000
+        dv2_km = dv_insertion * VU / 1000
+        title = (
+            f"DRO→GEO  α={alpha:.4f}  T={transfer_time:.2f} TU "
+            f"({transfer_time * TU:.1f}天)\n"
+            f"Δv₁={dv1_km:.4f} km/s  Δv₂={dv2_km:.4f} km/s  "
+            f"Δv总={dv1_km + dv2_km:.4f} km/s"
+        )
+    if title:
+        ax.set_title(title, fontsize=config.title)
+
+    ax.legend(fontsize=config.legend, loc="upper left")
+    ax.grid(True, alpha=0.3)
+
+    # Equal aspect ratio
+    all_pts = np.concatenate([transfer_states[:, :2], departure_orbit.states[:, :2]])
+    mid = all_pts.mean(axis=0)
+    ptp = np.ptp(all_pts, axis=0)
+    half = ptp.max() / 2.0 + 0.1
+    ax.set_xlim(mid[0] - half, mid[0] + half)
+    ax.set_ylim(mid[1] - half, mid[1] + half)
+
+    return ax
