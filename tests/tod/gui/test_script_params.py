@@ -111,8 +111,9 @@ def params_module(request) -> object:
     try:
         return _load_impl_module(impl)
     except RuntimeError as e:
-        if "cannot import name" in str(e) or "出错" in str(e):
-            pytest.skip(f"依赖缺失，跳过: {e}")
+        # 仅当根因是 ImportError/ModuleNotFoundError（依赖缺失）时跳过
+        if isinstance(e.__cause__, (ImportError, ModuleNotFoundError)):
+            pytest.skip(f"依赖缺失，跳过: {e.__cause__}")
         raise
 
 
@@ -208,12 +209,14 @@ def test_scanner_discovers_all_expected_files() -> None:
         impl = PROJECT_ROOT / "tod" / rel_path
         if not impl.is_file():
             pytest.fail(f"文件不存在: {impl}")
-        # 尝试加载，如果失败则跳过
+        # 尝试加载，如果失败则判断是否为依赖缺失（合法跳过）
         try:
             _load_impl_module(impl)
             pytest.fail(f"Scanner missed loadable script: {expected}")
-        except RuntimeError:
-            pytest.skip(f"导入失败，扫描器正确跳过: {expected}")
+        except RuntimeError as e:
+            if isinstance(e.__cause__, (ImportError, ModuleNotFoundError)):
+                pytest.skip(f"依赖缺失，扫描器正确跳过: {expected}")
+            raise
 
 
 # ─── Targeted: plot_ephemeris_correction has --reference-epoch ──────────────────
@@ -225,3 +228,31 @@ def test_plot_ephemeris_correction_exposes_reference_epoch_param() -> None:
     module = _load_impl_module(file_path)
     flags = [p.flag for p in module.SCRIPT_ENTRY.cli_params]
     assert "--reference-epoch" in flags
+
+
+def test_load_impl_module_does_not_swallow_code_bugs(tmp_path: Path) -> None:
+    """非 ImportError 的异常（如 TypeError）不应被 params_module 逻辑掩盖。
+
+    回归测试：旧实现用字符串匹配 '出错' 判断是否 skip，会把任何 RuntimeError
+    都当依赖缺失跳过。新实现检查 __cause__ 是否为 ImportError/ModuleNotFoundError，
+    其他异常应正常传播。
+    """
+    broken = tmp_path / "broken_script.py"
+    broken.write_text(
+        "from dataclasses import dataclass\n"
+        "@dataclass(frozen=True)\n"
+        "class ScriptEntry:\n"
+        "    module: str\n"
+        "    name: str\n"
+        "    description: str\n"
+        "    script_path: str\n"
+        "# 故意触发 TypeError：调用不存在的方法\n"
+        "SCRIPT_ENTRY = object.nonexistent_method()  # type: ignore[attr-defined]\n",
+        encoding="utf-8",
+    )
+    # _load_impl_module 应抛出 RuntimeError，且 __cause__ 不是 ImportError
+    with pytest.raises(RuntimeError) as exc_info:
+        _load_impl_module(broken)
+    assert not isinstance(exc_info.value.__cause__, (ImportError, ModuleNotFoundError)), (
+        "非 ImportError 异常不应被当作依赖缺失"
+    )
