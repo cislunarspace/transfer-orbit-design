@@ -14,6 +14,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import sys
 from pathlib import Path
 
@@ -106,23 +107,30 @@ def _resolve_opt_input(args) -> Path:
 
 
 def _resolve_dro_input(args) -> Path:
-    """DRO 文件解析优先级: CLI --dro-file > --auto-latest-dro > env DRO_FILE > find_latest_single_dro。"""
+    """DRO 文件解析优先级: CLI --dro-file > --auto-latest-dro > env DRO_FILE > 报错。"""
     if args.dro_file:
-        return Path(args.dro_file).expanduser().resolve()
+        p = Path(args.dro_file).expanduser().resolve()
+        if not p.is_file():
+            raise FileNotFoundError(f"DRO 文件不存在: {p}")
+        return p
     if args.auto_latest_dro:
         try:
             return find_latest_single_dro(project_root)
         except FileNotFoundError as exc:
             raise FileNotFoundError(str(exc)) from exc
-    # 默认行为：尝试自动发现最新单轨道 DRO 文件
-    try:
-        return find_latest_single_dro(project_root)
-    except FileNotFoundError:
-        parser = argparse.ArgumentParser(
-            prog="plot_optimize_result_dro_to_geo",
-            description="可视化 DRO→GEO 优化结果",
-        )
-        parser.error("未找到 DRO 轨道文件，请用 --dro-file 指定")
+    # 环境变量回退
+    env_dro = os.environ.get("DRO_FILE")
+    if env_dro:
+        p = Path(env_dro).expanduser().resolve()
+        if not p.is_file():
+            raise FileNotFoundError(f"env DRO_FILE 指向的文件不存在: {p}")
+        return p
+    # 无任何输入，报错
+    parser = argparse.ArgumentParser(
+        prog="plot_optimize_result_dro_to_geo",
+        description="可视化 DRO→GEO 优化结果",
+    )
+    parser.error("未找到 DRO 轨道文件，请用 --dro-file 指定或设置环境变量 DRO_FILE")
 
 
 def _successful_records(results: list[dict]) -> list[dict]:
@@ -251,7 +259,10 @@ def _prepare_transfer_data(args, rec: dict):
     transfer_time = float(nlp.get("transfer_time", rec.get("transfer_time", 0)))
     dv1 = float(nlp.get("delta_v1", rec.get("dv_departure", 0)))
     dv2 = float(nlp.get("delta_v2", 0))
-    dep_state = np.asarray(rec["departure_state"], dtype=np.float64)
+    dep_state_raw = rec.get("departure_state")
+    if dep_state_raw is None:
+        raise KeyError("优化结果记录缺少 'departure_state' 字段")
+    dep_state = np.asarray(dep_state_raw, dtype=np.float64)
 
     dro_path = _resolve_dro_input(args)
     dro_orbit = load_orbit_from_json(str(dro_path))
