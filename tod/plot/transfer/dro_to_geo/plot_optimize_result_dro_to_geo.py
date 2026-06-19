@@ -36,7 +36,6 @@ from tod.cli.input_file import (
 )
 from e2m2e.transfer import load_orbit_from_json
 from tod.plot.transfer.common import (
-    compute_departure_velocity,
     reintegrate_transfer,
     plot_single_transfer_orbit_2d,
     plot_celestial_bodies,
@@ -244,6 +243,40 @@ def _plot_orbit_2d(
     plt.close(fig)
 
 
+def _prepare_transfer_data(args, rec: dict):
+    """从优化结果记录中提取转移参数，加载 DRO 并重积分转移轨道。
+
+    Returns:
+        (dep_state, alpha, transfer_time, dv1, dv2, dro_orbit, system, dynamics, transfer_states)
+    """
+    nlp = rec.get("nlp", {})
+    alpha = float(nlp.get("alpha", rec.get("alpha", 0)))
+    transfer_time = float(nlp.get("transfer_time", rec.get("transfer_time", 0)))
+    dv1 = float(nlp.get("delta_v1", rec.get("dv_departure", 0)))
+    dv2 = float(nlp.get("delta_v2", 0))
+    dep_state = np.asarray(rec["departure_state"], dtype=np.float64)
+
+    dro_path = _resolve_dro_input(args)
+    dro_orbit = load_orbit_from_json(str(dro_path))
+
+    system, dynamics = build_transfer_dynamics()
+    transfer_states, _ = reintegrate_transfer(dynamics, dep_state, alpha, transfer_time)
+
+    return dep_state, alpha, transfer_time, dv1, dv2, dro_orbit, system, dynamics, transfer_states
+
+
+def _save_or_show(fig, args, dpi: int | None = None) -> None:
+    """保存或显示图片。"""
+    if args.save:
+        png = Path(args.save).expanduser().resolve()
+        png.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(png, dpi=dpi or args.dpi, bbox_inches="tight")
+        logger.info("Saved: %s", png)
+    elif not args.no_show:
+        plt.show()
+    plt.close(fig)
+
+
 def main() -> None:
     """执行脚本主流程。
     
@@ -292,20 +325,8 @@ def main() -> None:
 
         if len(selected) == 1:
             rec = selected[0]
-            nlp = rec.get("nlp", {})
-            alpha = float(nlp.get("alpha", rec.get("alpha", 0)))
-            transfer_time = float(nlp.get("transfer_time", rec.get("transfer_time", 0)))
-            dv1 = float(nlp.get("delta_v1", rec.get("dv_departure", 0)))
-            dv2 = float(nlp.get("delta_v2", 0))
-            dep_state = np.asarray(rec["departure_state"], dtype=np.float64)
-
-            dro_path = _resolve_dro_input(args)
-            dro_orbit = load_orbit_from_json(str(dro_path))
-
-            system, dynamics = build_transfer_dynamics()
-            transfer_states, _ = reintegrate_transfer(
-                dynamics, dep_state, alpha, transfer_time
-            )
+            (dep_state, alpha, transfer_time, dv1, dv2,
+             dro_orbit, system, dynamics, transfer_states) = _prepare_transfer_data(args, rec)
 
             fig = plt.figure(figsize=figsize)
             ax = fig.add_subplot(111, projection="3d")
@@ -357,13 +378,7 @@ def main() -> None:
             ax = fig.add_subplot(111, projection="3d")
             _plot_orbit_selection(selected, ax)
 
-        if args.save:
-            Path(args.save).parent.mkdir(parents=True, exist_ok=True)
-            fig.savefig(args.save, dpi=dpi, bbox_inches="tight")
-            logger.info(f"Saved: {args.save}")
-        elif not args.no_show:
-            plt.show()
-        plt.close(fig)
+        _save_or_show(fig, args, dpi)
     elif args.orbit_2d:
         selected = _select_records(success, args.idx, args.seed, args.max_points)
         if not selected:
@@ -371,20 +386,8 @@ def main() -> None:
             return
 
         rec = selected[0]
-        nlp = rec.get("nlp", {})
-        alpha = float(nlp.get("alpha", rec.get("alpha", 0)))
-        transfer_time = float(nlp.get("transfer_time", rec.get("transfer_time", 0)))
-        dv1 = float(nlp.get("delta_v1", rec.get("dv_departure", 0)))
-        dv2 = float(nlp.get("delta_v2", 0))
-        dep_state = np.asarray(rec["departure_state"], dtype=np.float64)
-
-        dro_path = _resolve_dro_input(args)
-        dro_orbit = load_orbit_from_json(str(dro_path))
-
-        system, dynamics = build_transfer_dynamics()
-        transfer_states, _ = reintegrate_transfer(
-            dynamics, dep_state, alpha, transfer_time
-        )
+        (dep_state, alpha, transfer_time, dv1, dv2,
+         dro_orbit, system, dynamics, transfer_states) = _prepare_transfer_data(args, rec)
 
         figsize_cm = _resolve_figsize_cm(args.figsize)
         figsize = figsize_cm or (
@@ -413,13 +416,7 @@ def main() -> None:
         _plot_time_dv(success, ax)
         fig.tight_layout()
 
-        if args.save:
-            Path(args.save).parent.mkdir(parents=True, exist_ok=True)
-            fig.savefig(args.save, dpi=args.dpi, bbox_inches="tight")
-            logger.info(f"Saved: {args.save}")
-        elif not args.no_show:
-            plt.show()
-        plt.close(fig)
+        _save_or_show(fig, args)
 
 
 if __name__ == "__main__":
