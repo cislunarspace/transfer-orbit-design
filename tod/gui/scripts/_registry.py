@@ -8,12 +8,23 @@
 from __future__ import annotations
 
 import importlib.util
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterator
 
 if TYPE_CHECKING:
     pass
+
+logger = logging.getLogger(__name__)
+
+
+class _NoScriptEntryError(RuntimeError):
+    """文件加载成功但缺少 SCRIPT_ENTRY 导出。
+
+    这是预期情况（实现目录中存在非注册文件），扫描器静默跳过。
+    与加载失败（SyntaxError、ImportError 等真实 bug）区分。
+    """
 
 # 自包含的最小类型，避免在导入时触发 sciPy 等重型依赖。
 # params 文件从 tod.gui.script_registry 导入真实的 ScriptEntry，
@@ -69,9 +80,8 @@ def _load_script_entry(file_path: Path) -> _ScanEntry:
         _sys.modules.pop(module_name, None)  # 清理临时模块
 
     if not hasattr(module, "SCRIPT_ENTRY"):
-        raise RuntimeError(
-            f"文件 {file_path} 缺少 SCRIPT_ENTRY 导出。\n"
-            "每个 params 定义文件必须导出 SCRIPT_ENTRY = ScriptEntry(...)。"
+        raise _NoScriptEntryError(
+            f"文件 {file_path} 缺少 SCRIPT_ENTRY 导出。"
         )
 
     raw = module.SCRIPT_ENTRY
@@ -160,8 +170,11 @@ def get_scripts(
         for file_path in iter_script_files(scan_dir):
             try:
                 entry = _load_script_entry(file_path)
+            except _NoScriptEntryError:
+                continue  # 文件加载成功但无 SCRIPT_ENTRY（非注册文件），静默跳过
             except RuntimeError:
-                continue  # 跳过没有 SCRIPT_ENTRY 的实现脚本
+                logger.warning("扫描器跳过加载失败的脚本: %s", file_path, exc_info=True)
+                continue
             if entry.script_path in seen_paths:
                 continue  # 已由更高优先级目录注册
             seen_paths.add(entry.script_path)

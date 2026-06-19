@@ -54,6 +54,30 @@ def test_get_scripts_missing_script_entry_raises(invalid_scripts_dir: Path) -> N
     assert isinstance(SCRIPTS, dict)
 
 
+def test_get_scripts_warns_on_load_failure(tmp_path: Path, caplog) -> None:
+    """加载失败的脚本（SyntaxError/ImportError）应记录 WARNING 日志后跳过。"""
+    from tod.gui.scripts._registry import get_scripts
+
+    scripts_dir = tmp_path / "scripts"
+    (scripts_dir / "plot").mkdir(parents=True)
+    # 故意写一个有 ImportError 的脚本
+    (scripts_dir / "plot" / "broken.py").write_text(
+        "import nonexistent_xyz_module\n",
+        encoding="utf-8",
+    )
+
+    import logging
+    with caplog.at_level(logging.WARNING, logger="tod.gui.scripts._registry"):
+        SCRIPTS = get_scripts(scripts_dir)
+
+    # 扫描器不应崩溃
+    assert isinstance(SCRIPTS, dict)
+    # 应记录 WARNING 日志，包含文件路径
+    assert any("broken.py" in record.getMessage() for record in caplog.records), (
+        f"期望 WARNING 日志包含 broken.py，实际记录: {[r.getMessage() for r in caplog.records]}"
+    )
+
+
 def test_iter_script_files_yields_only_python_files(toy_scripts_dir: Path) -> None:
     """iter_script_files 只 yield .py 文件。"""
     from tod.gui.scripts._registry import iter_script_files
