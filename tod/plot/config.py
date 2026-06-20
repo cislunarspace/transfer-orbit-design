@@ -32,7 +32,7 @@ STANDARD_PLOT_FONT_SIZES: dict[str, float] = {
     "title": 16,
     "label": 14,
     "tick": 13,
-    "legend": 14,
+    "legend": 8,
     "colorbar": 13,
     "suptitle": 18,
     "lp_label": 16,
