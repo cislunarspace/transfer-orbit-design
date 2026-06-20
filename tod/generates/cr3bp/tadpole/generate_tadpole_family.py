@@ -39,14 +39,14 @@ class TadpoleFamilyGenerator(FamilyGenerator):
             type=str,
             default="L4",
             choices=["L4", "L5"],
-            help="平动点选择，默认 L4",
+            help="平动点选择",
         )
         parser.add_argument(
             "--leading-trailing",
             type=str,
             default="leading",
             choices=["leading", "trailing"],
-            help="构型选择，默认 leading",
+            help="构型选择",
         )
         parser.add_argument(
             "--amplitude-min",
@@ -130,11 +130,11 @@ SCRIPT_ENTRY = ScriptEntry(
     output_dir='output/tadpole',
     group_label='生成',
     cli_params=[
-        CliParam('--libration-point', '平动点', 'select', 'L4', choices=('L4', 'L5'), help='平动点选择（L4/L5），默认 L4。'),
-        CliParam('--leading-trailing', '领先/滞后', 'select', 'leading', choices=('leading', 'trailing'), help='构型选择（leading/trailing），默认 leading。'),
-        CliParam('--amplitude-min', '最小振幅', 'float', '0.01', help='延拓振幅下限（无量纲），默认 0.01。'),
-        CliParam('--amplitude-max', '最大振幅', 'float', '0.5', help='延拓振幅上限（无量纲），默认 0.5。'),
-        CliParam('--step-size', '步长', 'float', '0.01', help='延拓步长（无量纲），默认 0.01。'),
-        CliParam('--n-orbits', '生成轨道数量', 'int', '50', help='目标生成轨道数，默认 50。'),
+        CliParam('--libration-point', '平动点', 'select', 'L4', choices=('L4', 'L5'), help='平动点选择（L4/L5）。'),
+        CliParam('--leading-trailing', '领先/滞后', 'select', 'leading', choices=('leading', 'trailing'), help='构型选择（leading/trailing）。'),
+        CliParam('--amplitude-min', '最小振幅', 'float', '0.01', help='延拓振幅下限（无量纲）。'),
+        CliParam('--amplitude-max', '最大振幅', 'float', '0.5', help='延拓振幅上限（无量纲）。'),
+        CliParam('--step-size', '步长', 'float', '0.01', help='延拓步长（无量纲）。'),
+        CliParam('--n-orbits', '生成轨道数量', 'int', '50', help='目标生成轨道数。'),
     ],
 )

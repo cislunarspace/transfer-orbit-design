@@ -100,9 +100,9 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description="GEO→DRO 转移 NLP 优化", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--search-file", type=str, default=None, help="网格搜索结果 JSON 文件路径")
-    parser.add_argument("--auto-latest", action="store_true", help="显式 opt-in：按 mtime 选最新搜索结果 JSON")
+    parser.add_argument("--auto-latest", action="store_true", help="选最新的搜索结果 JSON")
     parser.add_argument("--dro-file", type=str, default=None, help="DRO 轨道 JSON 文件路径")
-    parser.add_argument("--auto-latest-dro", action="store_true", help="显式 opt-in：按 mtime 选最新 dro_<digits>.json")
+    parser.add_argument("--auto-latest-dro", action="store_true", help="选最新的 dro_<digits>.json")
     parser.add_argument("--alpha-min", type=float, default=ALPHA_MIN, help="alpha 搜索下界")
     parser.add_argument("--alpha-max", type=float, default=ALPHA_MAX, help="alpha 搜索上界")
     parser.add_argument("--t-min", type=float, default=T_MIN, help="转移时间下界（无量纲）")
@@ -605,7 +605,7 @@ def main() -> None:
     except InputResolutionError as exc:
         msg = str(exc)
         if exc.candidates or exc.remaining:
-            msg = f"{msg}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+            msg = f"{msg}\n候选（修改时间新→旧）：\n{exc.format_candidates()}"
         parser_obj.error(msg)
         return
 
@@ -623,7 +623,7 @@ def main() -> None:
     except InputResolutionError as exc:
         msg = str(exc)
         if exc.candidates or exc.remaining:
-            msg = f"{msg}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+            msg = f"{msg}\n候选（修改时间新→旧）：\n{exc.format_candidates()}"
         parser_obj.error(msg)
         return
 
@@ -847,15 +847,15 @@ SCRIPT_ENTRY = ScriptEntry(
     cli_params=[
         CliParam('--search-file', '搜索结果文件', 'str', '', help='网格搜索结果 JSON 文件路径。', file_category='transfer'),
         CliParam('--dro-file', 'DRO 文件', 'str', '', help='DRO 轨道 JSON 文件路径。', file_category='dro'),
-        CliParam('--alpha-min', 'alpha 下界', 'float', '1.0', help='alpha 搜索下界，默认 1.0。'),
-        CliParam('--alpha-max', 'alpha 上界', 'float', '1.5', help='alpha 搜索上界，默认 1.5。'),
-        CliParam('--t-min', '转移时间下界', 'float', '5.0', help='转移时间下界（无量纲），默认 5.0。', unit_group='time', default_unit='days'),
-        CliParam('--t-max', '转移时间上界', 'float', '60.0', help='转移时间上界（无量纲），默认 60.0。', unit_group='time', default_unit='days'),
-        CliParam('--t-ins-min', '插入时间下界', 'float', '0.0', help='DRO 插入时间下界，默认 0.0，单位 days。', unit_group='time', default_unit='days'),
-        CliParam('--t-ins-max', '插入时间上界', 'float', '10.0', help='DRO 插入时间上界，默认 10.0，单位 days。', unit_group='time', default_unit='days'),
+        CliParam('--alpha-min', 'alpha 下界', 'float', '1.0', help='alpha 搜索下界。'),
+        CliParam('--alpha-max', 'alpha 上界', 'float', '1.5', help='alpha 搜索上界。'),
+        CliParam('--t-min', '转移时间下界', 'float', '5.0', help='转移时间下界（无量纲）。', unit_group='time', default_unit='days'),
+        CliParam('--t-max', '转移时间上界', 'float', '60.0', help='转移时间上界（无量纲）。', unit_group='time', default_unit='days'),
+        CliParam('--t-ins-min', '插入时间下界', 'float', '0.0', help='DRO 插入时间下界。', unit_group='time', default_unit='days'),
+        CliParam('--t-ins-max', '插入时间上界', 'float', '10.0', help='DRO 插入时间上界。', unit_group='time', default_unit='days'),
         CliParam('--velocity-angle-tol', '速度平行性容差', 'float', '', help='速度平行性容差（度）', unit_group='angle'),
-        CliParam('--nlp-maxiter', 'NLP 最大迭代', 'int', '100', help='NLP 最大迭代次数，默认 100。'),
-        CliParam('--nlp-ftol', 'NLP 函数容差', 'float', '1e-8', help='NLP 函数容差，默认 1e-8。'),
+        CliParam('--nlp-maxiter', 'NLP 最大迭代', 'int', '100', help='NLP 最大迭代次数。'),
+        CliParam('--nlp-ftol', 'NLP 函数容差', 'float', '1e-8', help='NLP 函数容差。'),
         CliParam('--top-k', '前 K 个可行解', 'int', '', help='取前 K 个可行解优化。'),
         CliParam('--max-cases', '最大案例数', 'int', '', help='最大优化案例数。'),
         CliParam('--n-workers', '并行 worker 数', 'int', '', help='并行 worker 数。'),

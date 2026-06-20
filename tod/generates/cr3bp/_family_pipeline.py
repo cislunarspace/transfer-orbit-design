@@ -364,7 +364,7 @@ def build_family_argparser(description: str) -> argparse.ArgumentParser:
         "--output-dir",
         type=str,
         default=None,
-        help="输出目录（默认 output/<family_type>）",
+        help="输出目录（output/<family_type>）",
     )
     parser.add_argument(
         "--log-level",

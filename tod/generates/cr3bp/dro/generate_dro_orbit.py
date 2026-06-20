@@ -398,9 +398,9 @@ SCRIPT_ENTRY = ScriptEntry(
         ),
     ],
     cli_params=[
-        CliParam('--x0', '初始 x 坐标', 'float', '1.1202', help='manual 路径初始 x 坐标（无量纲），默认 1.1202。', unit_group='distance', default_unit='DU'),
-        CliParam('--vy0', '初始 vy 速度', 'float', '-0.4618', help='manual 路径初始 y 方向速度（无量纲），默认 -0.4618。', unit_group='velocity'),
-        CliParam('--period', '目标周期', 'float', '2.095', help='manual 路径目标周期（无量纲），默认 2.095。', unit_group='time', default_unit='days'),
+        CliParam('--x0', '初始 x 坐标', 'float', '1.1202', help='manual 路径初始 x 坐标（无量纲）。', unit_group='distance', default_unit='DU'),
+        CliParam('--vy0', '初始 vy 速度', 'float', '-0.4618', help='manual 路径初始 y 方向速度（无量纲）。', unit_group='velocity'),
+        CliParam('--period', '目标周期', 'float', '2.095', help='manual 路径目标周期（无量纲）。', unit_group='time', default_unit='days'),
         CliParam('--jacobi', '目标 Jacobi', 'float', '', help='参考初值路径：按目标 Jacobi 值从参考数据集中匹配参考初值。', advanced=True),
         CliParam('--seed-id', '参考记录编号', 'str', '', help='参考初值路径：按参考记录编号从参考数据集中选择参考初值。', advanced=True),
         CliParam('--jacobi-tolerance', 'Jacobi 容差', 'float', '', help='按 Jacobi 常数匹配模式的硬容差；留空表示不启用硬容差。', advanced=True),
@@ -409,6 +409,6 @@ SCRIPT_ENTRY = ScriptEntry(
         CliParam('--catalog-dir', '参考数据集目录', 'str', 'data/cr3bp_data/normalized', help='normalized 参考数据集目录。', advanced=True),
         CliParam('--raw-data-dir', '原始数据目录', 'str', 'data/cr3bp_data/raw', help='normalized 参考数据集缺失时用于自动导入的 raw XLSX 数据目录。', advanced=True),
         CliParam('--no-auto-build-catalog', '禁用自动导入参考数据集', 'bool', '', help='normalized 参考数据集缺失时不自动从 raw 数据生成。', advanced=True),
-        CliParam('--verbose', '详细输出', 'bool', '', help='勾选后显示详细迭代过程（残差、收敛进度等）'),
+        CliParam('--verbose', '详细输出', 'bool', '', help='显示详细迭代过程（残差、收敛进度等）'),
     ],
 )

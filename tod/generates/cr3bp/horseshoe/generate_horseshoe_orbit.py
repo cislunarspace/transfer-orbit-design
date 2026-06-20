@@ -32,8 +32,8 @@ def parse_args():
         解析后的命令行参数命名空间。
     """
     parser = argparse.ArgumentParser(description="在地月 CR3BP 中生成 Horseshoe 轨道。轨道呈马蹄形跨越两个三角平动点（L4 和 L5），在地月空间中形成大范围顺行环绕结构。（跨越两个三角平动点的马蹄形轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--amplitude", type=float, default=0.1, help="种子轨道振幅（无量纲），默认 0.1。")
-    parser.add_argument("--libration-point", type=str, default="L4", choices=["L4", "L5"], help="平动点选择（L4/L5），默认 L4。")
+    parser.add_argument("--amplitude", type=float, default=0.1, help="种子轨道振幅（无量纲）。")
+    parser.add_argument("--libration-point", type=str, default="L4", choices=["L4", "L5"], help="平动点选择（L4/L5）。")
     return parser.parse_args()
 
 
@@ -72,7 +72,7 @@ SCRIPT_ENTRY = ScriptEntry(
     output_dir='output/horseshoe',
     group_label='生成',
     cli_params=[
-        CliParam('--amplitude', '振幅', 'float', '0.1', help='种子轨道振幅（无量纲），默认 0.1。'),
-        CliParam('--libration-point', '平动点', 'select', 'L4', choices=('L1', 'L2', 'L3', 'L4', 'L5'), help='平动点选择（L4/L5），默认 L4。'),
+        CliParam('--amplitude', '振幅', 'float', '0.1', help='种子轨道振幅（无量纲）。'),
+        CliParam('--libration-point', '平动点', 'select', 'L4', choices=('L1', 'L2', 'L3', 'L4', 'L5'), help='平动点选择（L4/L5）。'),
     ],
 )

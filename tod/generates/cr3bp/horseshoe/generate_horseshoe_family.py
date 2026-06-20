@@ -114,9 +114,9 @@ SCRIPT_ENTRY = ScriptEntry(
     output_dir='output/horseshoe',
     group_label='生成',
     cli_params=[
-        CliParam('--amplitude-min', '最小振幅', 'float', '0.01', help='延拓振幅下限（无量纲），默认 0.01。'),
-        CliParam('--amplitude-max', '最大振幅', 'float', '0.5', help='延拓振幅上限（无量纲），默认 0.5。'),
-        CliParam('--step-size', '步长', 'float', '0.01', help='延拓步长（无量纲），默认 0.01。'),
-        CliParam('--n-orbits', '生成轨道数量', 'int', '50', help='目标生成轨道数，默认 50。'),
+        CliParam('--amplitude-min', '最小振幅', 'float', '0.01', help='延拓振幅下限（无量纲）。'),
+        CliParam('--amplitude-max', '最大振幅', 'float', '0.5', help='延拓振幅上限（无量纲）。'),
+        CliParam('--step-size', '步长', 'float', '0.01', help='延拓步长（无量纲）。'),
+        CliParam('--n-orbits', '生成轨道数量', 'int', '50', help='目标生成轨道数。'),
     ],
 )

@@ -56,7 +56,7 @@ def parse_args():
     )
     parser.add_argument(
         "--auto-latest", action="store_true",
-        help="显式 opt-in：按 mtime 选最新 ro_*.json 或 dro_*.json",
+        help="选最新的 ro_*.json 或 dro_*.json",
     )
     parser.add_argument(
         "--plane", type=str, default="xy", choices=["xy", "xz", "yz"], help="投影平面"
@@ -71,7 +71,7 @@ def parse_args():
 
 
 # 旧的 ``DEFAULT_FAMILY_NAME`` 硬编码默认文件被 issue #183 移除：
-# - ``--json-file`` 必填或显式 opt-in ``--auto-latest``
+# - ``--json-file`` 必填或使用 ``--auto-latest`` 自动选最新
 # - 直跑 ``python -m tod.plot.inspection.plot_interactive_orbit_inspector``
 #   不再自动注入默认参数（见 ``__main__`` 块注释）
 
@@ -172,7 +172,7 @@ def main():
     except InputResolutionError as exc:
         msg = str(exc)
         if exc.candidates or exc.remaining:
-            msg = f"{msg}\n候选 (mtime new→old):\n{exc.format_candidates()}"
+            msg = f"{msg}\n候选 (修改时间新→旧):\n{exc.format_candidates()}"
         parser_obj.error(msg)
         return  # unreachable; parser.error exits 2
 
@@ -377,9 +377,9 @@ SCRIPT_ENTRY = ScriptEntry(
     group_label='交互式检查',
     cli_params=[
         CliParam('--json-file', '轨道族文件', 'str', '', help='轨道族 JSON 文件路径。'),
-        CliParam('--auto-latest', '按 mtime 选最新（显式 opt-in）', 'bool', '', help='显式 opt-in：按 mtime 选最新 ro_*.json 或 dro_*.json；与 --json-file 互斥。', advanced=True),
-        CliParam('--plane', '投影平面', 'str', 'xy', help='投影平面: xy, xz, yz，默认 xy。'),
-        CliParam('--show-3d', '显示 3D 视图', 'bool', '', help='同时显示 3D 视图，勾选后启用。'),
-        CliParam('--fig-size', '图形大小', 'str', '10 8', help='图形大小 (宽 高)，默认 10 8。'),
+        CliParam('--auto-latest', '自动选最新', 'bool', '', help='选最新的 ro_*.json 或 dro_*.json；与 --json-file 互斥。', advanced=True),
+        CliParam('--plane', '投影平面', 'str', 'xy', help='投影平面: xy, xz, yz。'),
+        CliParam('--show-3d', '显示 3D 视图', 'bool', '', help='同时显示 3D 视图。'),
+        CliParam('--fig-size', '图形大小', 'str', '10 8', help='图形大小 (宽 高)。'),
     ],
 )

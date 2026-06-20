@@ -55,7 +55,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=str,
         default="3:1",
         choices=["3:1", "3:2"],
-        help="共振比例，默认 3:1",
+        help="共振比例",
     )
     parser.add_argument(
         "--x0",
@@ -150,7 +150,7 @@ SCRIPT_ENTRY = ScriptEntry(
     output_dir='output/ro',
     group_label='生成',
     cli_params=[
-        CliParam('--ratio', '共振比例', 'select', '3:1', choices=('3:1', '3:2'), help='共振比例（3:1/3:2），默认 3:1。'),
+        CliParam('--ratio', '共振比例', 'select', '3:1', choices=('3:1', '3:2'), help='共振比例（3:1/3:2）。'),
         CliParam('--x0', '初始 x 坐标', 'float', '', help='初始 x 坐标（无量纲），默认值由共振比例决定。', unit_group='distance', default_unit='DU'),
         CliParam('--vy0', '初始 vy 速度', 'float', '', help='初始 y 方向速度（无量纲），默认值由共振比例决定。', unit_group='velocity'),
         CliParam('--period', '目标周期', 'float', '', help='目标周期（天），默认值由共振比例决定。', unit_group='time', default_unit='days'),

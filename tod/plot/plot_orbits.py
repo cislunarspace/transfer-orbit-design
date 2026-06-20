@@ -194,11 +194,11 @@ SCRIPT_ENTRY = ScriptEntry(
     ],
     cli_params=[
         CliParam('--plane', '投影平面', 'str', '', help='覆盖自动检测的投影平面（留空=自动）', advanced=True),
-        CliParam('--view-2d', '2D 视图', 'bool', '', help='绘制轨道在选定平面的 2D 视图，勾选后启用。'),
-        CliParam('--view-3d', '3D 视图', 'bool', '', help='绘制轨道的 3D 示意图，勾选后启用。'),
+        CliParam('--view-2d', '2D 视图', 'bool', '', help='绘制轨道在选定平面的 2D 视图。'),
+        CliParam('--view-3d', '3D 视图', 'bool', '', help='绘制轨道的 3D 示意图。'),
         CliParam('--plot-center', '绘图中心', 'str', 'moon', help='3D 视图的绘图中心', choices=('月球', '地球', '地月质心'), choice_values={'月球': 'moon', '地球': 'earth', '地月质心': 'emb'}),
         CliParam('--plot-elev', '仰角（度）', 'float', '20', help='3D 视图仰角（度）'),
         CliParam('--plot-azim', '方位角（度）', 'float', '-60', help='3D 视图方位角（度）'),
-        CliParam('--jacobi-period-stability', 'Jacobi-周期-稳定性图', 'bool', '', help='绘制 Jacobi 常数-周期-稳定性联合图，勾选后启用。'),
+        CliParam('--jacobi-period-stability', 'Jacobi-周期-稳定性图', 'bool', '', help='绘制 Jacobi 常数-周期-稳定性联合图。'),
     ],
 )

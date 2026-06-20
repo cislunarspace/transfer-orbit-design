@@ -32,9 +32,9 @@ def parse_args():
         解析后的命令行参数命名空间。
     """
     parser = argparse.ArgumentParser(description="生成 LPO（Long Period Orbit，三角平动点附近长周期轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--libration-point", type=str, default="L4", choices=["L4", "L5"], help="平动点选择（L4/L5），默认 L4。")
-    parser.add_argument("--amplitude", type=float, default=0.1, help="种子轨道振幅（无量纲），默认 0.1。")
-    parser.add_argument("--period-guess", type=float, default=3.0, help="初始周期猜测（无量纲 TU），默认 3.0。")
+    parser.add_argument("--libration-point", type=str, default="L4", choices=["L4", "L5"], help="平动点选择（L4/L5）。")
+    parser.add_argument("--amplitude", type=float, default=0.1, help="种子轨道振幅（无量纲）。")
+    parser.add_argument("--period-guess", type=float, default=3.0, help="初始周期猜测（无量纲 TU）。")
     return parser.parse_args()
 
 
@@ -74,8 +74,8 @@ SCRIPT_ENTRY = ScriptEntry(
     output_dir='output/lpo',
     group_label='生成',
     cli_params=[
-        CliParam('--libration-point', '平动点', 'select', 'L4', choices=('L4', 'L5'), help='平动点选择（L4/L5），默认 L4。'),
-        CliParam('--amplitude', '振幅', 'float', '0.1', help='种子轨道振幅（无量纲），默认 0.1。'),
-        CliParam('--period-guess', '周期猜测值', 'float', '3.0', help='初始周期猜测（无量纲 TU），默认 3.0。'),
+        CliParam('--libration-point', '平动点', 'select', 'L4', choices=('L4', 'L5'), help='平动点选择（L4/L5）。'),
+        CliParam('--amplitude', '振幅', 'float', '0.1', help='种子轨道振幅（无量纲）。'),
+        CliParam('--period-guess', '周期猜测值', 'float', '3.0', help='初始周期猜测（无量纲 TU）。'),
     ],
 )

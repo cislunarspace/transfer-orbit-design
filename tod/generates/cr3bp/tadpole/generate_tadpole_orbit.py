@@ -32,9 +32,9 @@ def parse_args():
         解析后的命令行参数命名空间。
     """
     parser = argparse.ArgumentParser(description="在地月 CR3BP 中生成 Tadpole 轨道。轨道呈蝌蚪状环绕单个三角平动点（L4 或 L5），分为领先（leading）和滞后（trailing）两种构型。（围绕单个三角平动点的蝌蚪形轨道）", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--libration-point", type=str, default="L4", choices=["L4", "L5"], help="平动点选择（L4/L5），默认 L4。")
-    parser.add_argument("--amplitude", type=float, default=0.1, help="种子轨道振幅（无量纲），默认 0.1。")
-    parser.add_argument("--leading-trailing", type=str, default="leading", choices=["leading", "trailing"], help="构型选择（leading/trailing），默认 leading。")
+    parser.add_argument("--libration-point", type=str, default="L4", choices=["L4", "L5"], help="平动点选择（L4/L5）。")
+    parser.add_argument("--amplitude", type=float, default=0.1, help="种子轨道振幅（无量纲）。")
+    parser.add_argument("--leading-trailing", type=str, default="leading", choices=["leading", "trailing"], help="构型选择（leading/trailing）。")
     return parser.parse_args()
 
 
@@ -74,8 +74,8 @@ SCRIPT_ENTRY = ScriptEntry(
     output_dir='output/tadpole',
     group_label='生成',
     cli_params=[
-        CliParam('--libration-point', '平动点', 'select', 'L4', choices=('L4', 'L5'), help='平动点选择（L4/L5），默认 L4。'),
-        CliParam('--amplitude', '振幅', 'float', '0.1', help='种子轨道振幅（无量纲），默认 0.1。'),
-        CliParam('--leading-trailing', '领先/滞后', 'select', 'leading', choices=('leading', 'trailing'), help='构型选择（leading/trailing），默认 leading。'),
+        CliParam('--libration-point', '平动点', 'select', 'L4', choices=('L4', 'L5'), help='平动点选择（L4/L5）。'),
+        CliParam('--amplitude', '振幅', 'float', '0.1', help='种子轨道振幅（无量纲）。'),
+        CliParam('--leading-trailing', '领先/滞后', 'select', 'leading', choices=('leading', 'trailing'), help='构型选择（leading/trailing）。'),
     ],
 )

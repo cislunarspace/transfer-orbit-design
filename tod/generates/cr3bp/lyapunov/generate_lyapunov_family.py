@@ -39,14 +39,14 @@ class LyapunovFamilyGenerator(FamilyGenerator):
             type=str,
             default="L1",
             choices=["L1", "L2", "L3"],
-            help="共线平动点选择（L1/L2/L3），默认 L1",
+            help="共线平动点选择（L1/L2/L3）",
         )
         parser.add_argument(
             "--method",
             type=str,
             default="natural",
             choices=["natural", "pseudo_arclength"],
-            help="延拓方法，默认 natural",
+            help="延拓方法",
         )
         parser.add_argument(
             "--amplitude-x-min",
@@ -130,11 +130,11 @@ SCRIPT_ENTRY = ScriptEntry(
     output_dir='output/lyapunov',
     group_label='生成',
     cli_params=[
-        CliParam('--libration-point', '平动点', 'select', 'L1', choices=('L1', 'L2', 'L3'), help='平动点选择（L1/L2/L3），默认 L1。'),
-        CliParam('--method', '延拓方法', 'select', 'natural', choices=('natural', 'pseudo_arclength'), help='延拓方法（natural/pseudo_arclength），默认 natural。'),
-        CliParam('--amplitude-x-min', 'x 方向最小振幅', 'float', '0.01', help='延拓 x 方向振幅下限（无量纲），默认 0.01。'),
-        CliParam('--amplitude-x-max', 'x 方向最大振幅', 'float', '0.5', help='延拓 x 方向振幅上限（无量纲），默认 0.5。'),
-        CliParam('--step-size', '步长', 'float', '0.01', help='延拓步长（无量纲），默认 0.01。'),
-        CliParam('--n-orbits', '生成轨道数量', 'int', '50', help='目标生成轨道数，默认 50。'),
+        CliParam('--libration-point', '平动点', 'select', 'L1', choices=('L1', 'L2', 'L3'), help='平动点选择（L1/L2/L3）。'),
+        CliParam('--method', '延拓方法', 'select', 'natural', choices=('natural', 'pseudo_arclength'), help='延拓方法（natural/pseudo_arclength）。'),
+        CliParam('--amplitude-x-min', 'x 方向最小振幅', 'float', '0.01', help='延拓 x 方向振幅下限（无量纲）。'),
+        CliParam('--amplitude-x-max', 'x 方向最大振幅', 'float', '0.5', help='延拓 x 方向振幅上限（无量纲）。'),
+        CliParam('--step-size', '步长', 'float', '0.01', help='延拓步长（无量纲）。'),
+        CliParam('--n-orbits', '生成轨道数量', 'int', '50', help='目标生成轨道数。'),
     ],
 )
