@@ -19,6 +19,7 @@ from e2m2e.core import Orbit, CR3BP_System, SynodicJ2000Transformation
 from e2m2e.core.spice import SPICEManager
 from e2m2e.core.ephemeris_system import EphemerisSystem
 from e2m2e.core.ephemeris_dynamics import EphemerisDynamics
+from e2m2e.mbse.data.enums import ReferenceFrame
 
 from tod.commons.constants import DU, MU, TU
 from tod.commons.common import find_project_root
@@ -143,7 +144,7 @@ def main(argv=None):
         bodies=["EARTH", "MOON", "SUN"],
         spice=spice,
         origin="EARTH",
-        frame="J2000",
+        frame=ReferenceFrame.J2000,
     )
     eph_dynamics = EphemerisDynamics(system=eph_system)
 
@@ -187,79 +188,76 @@ def main(argv=None):
     print(f"修正后平均月距: {mean_moon_dist:.2e} km")
 
     # ---------- 绘图 ----------
-    fig = plt.figure(figsize=(16, 6))
-    gs = fig.add_gridspec(1, 3, width_ratios=[1, 1, 1])
+    # 单栏纵向三子图：J2000 惯性系 XY、会合坐标系 XY、地心距随时间变化
+    fig = plt.figure(figsize=(8.5 / 2.54, 17 / 2.54))
+    gs = fig.add_gridspec(3, 1, height_ratios=[1.1, 1.1, 0.7], hspace=0.5)
 
-    # --- 左: J2000 XY ---
-    ax1 = fig.add_subplot(gs[0, 0])
+    # --- 上: J2000 惯性系 XY ---
+    ax1 = fig.add_subplot(gs[0])
     ax1.plot(
         dro_j2000[:, 0] / 1e3, dro_j2000[:, 1] / 1e3,
         "-", color=COLOR_CR3BP, lw=1.0, alpha=0.6, label="CR3BP DRO",
     )
     ax1.plot(
         eph_full_j2000[:, 0] / 1e3, eph_full_j2000[:, 1] / 1e3,
-        "-", color=COLOR_EPH, lw=1.5, label="Ephemeris corrected",
+        "-", color=COLOR_EPH, lw=1.5, label="星历修正",
     )
     ax1.scatter(
         corrected_states[:, 0] / 1e3, corrected_states[:, 1] / 1e3,
-        c=COLOR_PATCH, s=25, zorder=5, marker="o",
+        c=COLOR_PATCH, s=18, zorder=5, marker="o",
         edgecolors="white", linewidths=0.5,
     )
-    ax1.scatter(0, 0, color="green", s=60, zorder=5, marker="*", label="Earth")
-    ax1.set_xlabel(r"$X$ ($\times 10^3$ km)", fontsize=12)
-    ax1.set_ylabel(r"$Y$ ($\times 10^3$ km)", fontsize=12)
-    ax1.set_title("J2000 Inertial Frame", fontsize=PLOT_CONFIG.title)
-    ax1.legend(fontsize=8, loc="best")
+    ax1.scatter(0, 0, color="green", s=40, zorder=5, marker="*", label="地球")
+    ax1.set_xlabel(r"$X$（$\times 10^3$ km）", fontsize=PLOT_CONFIG.label)
+    ax1.set_ylabel(r"$Y$（$\times 10^3$ km）", fontsize=PLOT_CONFIG.label)
+    ax1.set_title("J2000 惯性系", fontsize=PLOT_CONFIG.title)
+    ax1.tick_params(labelsize=PLOT_CONFIG.tick)
+    ax1.legend(fontsize=PLOT_CONFIG.legend, loc="best")
     ax1.set_aspect("equal")
     ax1.grid(True, alpha=0.3)
 
-    # --- 中: Synodic XY ---
-    ax2 = fig.add_subplot(gs[0, 1])
+    # --- 中: 会合坐标系 XY ---
+    ax2 = fig.add_subplot(gs[1])
     ax2.plot(
         dro_syn[:, 0], dro_syn[:, 1],
         "-", color=COLOR_CR3BP, lw=1.0, alpha=0.6, label="CR3BP DRO",
     )
     ax2.plot(
         eph_full_syn[:, 0], eph_full_syn[:, 1],
-        "-", color=COLOR_EPH, lw=1.5, label="Ephemeris corrected",
+        "-", color=COLOR_EPH, lw=1.5, label="星历修正",
     )
     ax2.scatter(
         syn_patch[:, 0], syn_patch[:, 1],
-        c=COLOR_PATCH, s=25, zorder=5, marker="o",
+        c=COLOR_PATCH, s=18, zorder=5, marker="o",
         edgecolors="white", linewidths=0.5,
     )
-    ax2.scatter(1 - MU, 0, color=COLOR_MOON, s=40, zorder=5, label="Moon")
-    ax2.scatter(-MU, 0, color=COLOR_EARTH, s=80, zorder=5, label="Earth")
-    ax2.set_xlabel("$X$ (n.d.)", fontsize=12)
-    ax2.set_ylabel("$Y$ (n.d.)", fontsize=12)
-    ax2.set_title("Synodic Rotating Frame", fontsize=PLOT_CONFIG.title)
-    ax2.legend(fontsize=8, loc="best")
+    ax2.scatter(1 - MU, 0, color=COLOR_MOON, s=30, zorder=5, label="月球")
+    ax2.scatter(-MU, 0, color=COLOR_EARTH, s=60, zorder=5, label="地球")
+    ax2.set_xlabel(r"$X$（DU）", fontsize=PLOT_CONFIG.label)
+    ax2.set_ylabel(r"$Y$（DU）", fontsize=PLOT_CONFIG.label)
+    ax2.set_title("会合坐标系", fontsize=PLOT_CONFIG.title)
+    ax2.tick_params(labelsize=PLOT_CONFIG.tick)
+    ax2.legend(fontsize=PLOT_CONFIG.legend, loc="best")
     ax2.set_aspect("equal")
     ax2.grid(True, alpha=0.3)
 
-    # --- 右: 距离 vs 时间 ---
-    ax3 = fig.add_subplot(gs[0, 2])
+    # --- 下: 地心距随时间变化 ---
+    ax3 = fig.add_subplot(gs[2])
     t_days = (eph_full_times - ref_et) / 86400
     ax3.plot(
         t_days, r_earth_j2000 / 1e3,
-        "-", color=COLOR_EPH, lw=1.5, label="Geocentric dist.",
+        "-", color=COLOR_EPH, lw=1.5, label="地心距",
     )
     ax3.axhline(
         y=mean_dist / 1e3, color="gray", ls="--", alpha=0.5,
-        label=f"Mean: {mean_dist/1e3:.0f} km",
+        label=f"平均 {mean_dist/1e3:.0f} km",
     )
-    ax3.set_xlabel("Time (days)", fontsize=12)
-    ax3.set_ylabel("Distance ($\times 10^3$ km)", fontsize=12)
-    ax3.set_title("Geocentric Distance Variation", fontsize=PLOT_CONFIG.title)
-    ax3.legend(fontsize=8, loc="best")
+    ax3.set_xlabel("时间（天）", fontsize=PLOT_CONFIG.label)
+    ax3.set_ylabel(r"地心距（$\times 10^3$ km）", fontsize=PLOT_CONFIG.label)
+    ax3.set_title("地心距随时间变化", fontsize=PLOT_CONFIG.title)
+    ax3.tick_params(labelsize=PLOT_CONFIG.tick)
+    ax3.legend(fontsize=PLOT_CONFIG.legend, loc="best")
     ax3.grid(True, alpha=0.3)
-
-    fig.suptitle(
-        f"3:1 DRO  |  8 Patch Points  |  Earth–Moon–Sun Ephemeris  |  "
-        f"Converged in {result['iterations']} iterations  |  "
-        f"Max residual: ${result['max_residual']:.2e}$ km",
-        fontsize=PLOT_CONFIG.suptitle,
-    )
 
     out_path = Path(args.out_file)
     out_path.parent.mkdir(parents=True, exist_ok=True)
