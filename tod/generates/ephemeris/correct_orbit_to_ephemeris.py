@@ -308,10 +308,10 @@ SCRIPT_ENTRY = ScriptEntry(
             '星历转换方法',
             options={
                 '标准法': 'standard',
-                '双重': 'two_level',
+                '两阶段法': 'two_level',
                 '同伦法': 'homotopy',
             },
-            default='标准法,双重,同伦法',
+            default='标准法,两阶段法,同伦法',
             help='选择要运行的星历转换方法（可多选）',
         ),
         CliChipParam(
