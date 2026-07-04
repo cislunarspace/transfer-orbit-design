@@ -162,7 +162,7 @@ def test_ephemeris_unified_entry_exposes_chip_params() -> None:
     method_chip = next(c for c in entry.cli_chip_params if c.flag == "--method")
     assert method_chip.options == {
         "标准法": "standard",
-        "双重": "two_level",
+        "两阶段法": "two_level",
         "同伦法": "homotopy",
     }
 
