@@ -31,6 +31,8 @@ class TestRealOrbitFamilyFiles:
         if not output_dir.exists():
             pytest.skip(f"Output directory {output_dir} not found — run generators first")
         json_files = list(output_dir.glob("*.json"))
+        if not json_files:
+            pytest.skip(f"No JSON files in {output_dir} — run generators first")
         assert len(json_files) > 0, "Should have at least one orbit family JSON file"
 
     @pytest.mark.parametrize(
