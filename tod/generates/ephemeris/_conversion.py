@@ -773,66 +773,44 @@ def _family_entry_from_conversion(index: int, conversion_result: dict[str, Any])
     return _family_success_entry(index, conversion_result)
 
 
-def _validate_continuity(
-    dynamics: Any,
-    corrected_times: list[float],
-    corrected_states: list[list[float]],
-    include_full_trajectory: bool,
-) -> dict[str, Any]:
-    position_errors = []
-    full_states = []
-    full_times = []
-    for index in range(max(0, len(corrected_states) - 1)):
-        propagation = dynamics.propagate(
-            corrected_states[index],
-            (corrected_times[index], corrected_times[index + 1]),
-        )
-        propagated_states = _to_nested_list(propagation["states"])
-        propagated_times = _to_list(propagation["time"])
-        position_errors.append(
-            _position_error(propagated_states[-1], corrected_states[index + 1])
-        )
-        if include_full_trajectory:
-            if index > 0:
-                propagated_states = propagated_states[1:]
-                propagated_times = propagated_times[1:]
-            full_states.extend(propagated_states)
-            full_times.extend(propagated_times)
-    return {
-        "position_errors_km": position_errors,
-        "full_trajectory_states": full_states,
-        "full_trajectory_times_et": full_times,
-    }
+from tod.generates.ephemeris.validate import (
+    optional_float,
+    optional_float_list,
+    position_error,
+    to_list,
+    to_nested_list,
+    validate_continuity,
+)
 
 
-def _position_error(left_state: list[float], right_state: list[float]) -> float:
-    return sum(
-        (float(left_state[index]) - float(right_state[index])) ** 2 for index in range(3)
-    ) ** 0.5
+def _validate_continuity(*args, **kwargs):
+    """向后兼容包装：内部调用 validate_continuity。"""
+    return validate_continuity(*args, **kwargs)
 
 
-def _to_list(values: Any) -> list[float]:
-    if hasattr(values, "tolist"):
-        values = values.tolist()
-    return [float(value) for value in values]
+def _position_error(*args, **kwargs):
+    """向后兼容包装。"""
+    return position_error(*args, **kwargs)
 
 
-def _to_nested_list(values: Any) -> list[list[float]]:
-    if hasattr(values, "tolist"):
-        values = values.tolist()
-    return [[float(item) for item in row] for row in values]
+def _to_list(*args, **kwargs):
+    """向后兼容包装。"""
+    return to_list(*args, **kwargs)
 
 
-def _optional_float(value: Any) -> float | None:
-    if value is None:
-        return None
-    return float(value)
+def _to_nested_list(*args, **kwargs):
+    """向后兼容包装。"""
+    return to_nested_list(*args, **kwargs)
 
 
-def _optional_float_list(values: Any) -> list[float] | None:
-    if values is None:
-        return None
-    return [float(value) for value in values]
+def _optional_float(*args, **kwargs):
+    """向后兼容包装。"""
+    return optional_float(*args, **kwargs)
+
+
+def _optional_float_list(*args, **kwargs):
+    """向后兼容包装。"""
+    return optional_float_list(*args, **kwargs)
 
 
 def _single_metadata(
