@@ -80,7 +80,7 @@ class TestArgParsing:
         assert args.velocity_tol is None  # follows position_tol
         assert args.patch_points == 10
         assert args.max_iter == 50
-        assert args.output_prefix.endswith("output/ephemeris/orbit_ephemeris")
+        assert args.output_prefix.replace("\\", "/").endswith("output/ephemeris/orbit_ephemeris")
         assert args.orbit_index is None
         assert args.include_full_trajectory is True
 

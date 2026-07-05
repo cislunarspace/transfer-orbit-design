@@ -19,14 +19,20 @@ from tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo import (
 
 
 def test_resolve_dro_file_discovers_new_single_dro_name(monkeypatch, tmp_path: Path) -> None:
+    import os
+
     dro_dir = tmp_path / "output" / "dro"
     dro_dir.mkdir(parents=True)
     old_name = dro_dir / "dro_31_300.json"
     family = dro_dir / "dro_31_family_999.json"
     newest = dro_dir / "dro_200.json"
     older = dro_dir / "dro_100.json"
-    for path in (old_name, family, newest, older):
+    for path in (old_name, family, older, newest):
         path.write_text("{}", encoding="utf-8")
+
+    # find_latest_single_dro 按 mtime 判定最新；用 os.utime 确保 newest 排最后
+    os.utime(older, (1000, 1000))
+    os.utime(newest, (2000, 2000))
 
     monkeypatch.setattr(
         "tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo.project_root",

@@ -463,7 +463,7 @@ def test_parser_exposes_catalog_seed_arguments() -> None:
     assert args.jacobi == 2.95
     assert args.seed_id is None
     assert args.jacobi_tolerance is None
-    assert str(args.catalog_dir) == "data/cr3bp_data/normalized"
+    assert str(args.catalog_dir).replace("\\", "/") == "data/cr3bp_data/normalized"
 
 
 def test_parser_exposes_manual_defaults() -> None:
