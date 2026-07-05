@@ -44,6 +44,7 @@ from tod.plot.transfer.common import (
     set_equal_aspect_3d,
     geo_circle_points,
     build_transfer_dynamics,
+    save_or_show,
 )
 
 project_root = find_project_root(Path(__file__))
@@ -273,17 +274,6 @@ def _prepare_transfer_data(args, rec: dict):
     return dep_state, alpha, transfer_time, dv1, dv2, dro_orbit, system, dynamics, transfer_states
 
 
-def _save_or_show(fig, args, dpi: int | None = None) -> None:
-    """保存或显示图片。"""
-    if args.save:
-        png = Path(args.save).expanduser().resolve()
-        png.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(png, dpi=dpi or args.dpi, bbox_inches="tight")
-        logger.info("Saved: %s", png)
-    elif not args.no_show:
-        plt.show()
-    plt.close(fig)
-
 
 def main() -> None:
     """执行脚本主流程。
@@ -390,7 +380,7 @@ def main() -> None:
             ax = fig.add_subplot(111, projection="3d")
             _plot_orbit_selection(selected, ax)
 
-        _save_or_show(fig, args, dpi)
+        save_or_show(fig, args, dpi)
     elif args.orbit_2d:
         selected = _select_records(success, args.idx, args.seed, args.max_points)
         if not selected:
@@ -429,7 +419,7 @@ def main() -> None:
         _plot_time_dv(success, ax)
         fig.tight_layout()
 
-        _save_or_show(fig, args)
+        save_or_show(fig, args)
 
 
 if __name__ == "__main__":

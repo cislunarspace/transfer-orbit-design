@@ -12,7 +12,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import sys
 from pathlib import Path
@@ -37,6 +36,7 @@ from tod.commons.common import find_project_root
 from tod.plot.transfer.common import (
     feasible_alpha_and_departure_dv,
     feasible_transfer_time_and_dv,
+    load_search_results,
     select_feasible_indices,
 )
 
@@ -49,19 +49,6 @@ except ImportError:
 import matplotlib.pyplot as plt  # noqa: E402
 
 logger = logging.getLogger(__name__)
-
-
-def load_search_results(path: Path) -> dict:
-    """读取转移搜索结果 JSON 文件。
-    
-    Args:
-        path: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
 
 
 def _latest_search_json() -> Path | None:
@@ -196,8 +183,7 @@ def main() -> None:
     if not search_path.is_file():
         raise FileNotFoundError("未找到 LEO→DRO 搜索结果 JSON")
     logger.info(f"读取: {search_path}")
-    data = load_search_results(search_path)
-    results = data.get("results", [])
+    results = load_search_results(search_path)
     feasible = [r for r in results if r.get("is_feasible")]
     logger.info(f"总候选解: {len(results)}, 可行解: {len(feasible)}")
 

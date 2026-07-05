@@ -44,6 +44,7 @@ from tod.plot.transfer.common import (
     feasible_time_dv_total,
     plot_alpha_delta_v,
     plot_transfer_time_delta_v,
+    save_or_show,
     select_feasible_indices,
     geo_circle_points,
     plot_celestial_bodies,
@@ -398,18 +399,6 @@ def interactive_browse_by_time(
     logger.info("浏览完成，共查看了 %d 条轨道", current_idx + 1)
 
 
-def _save_or_show(fig, args):
-    if args.save:
-        png = Path(args.save).expanduser().resolve()
-        if png.suffix.lower() != ".png":
-            png = png.with_suffix(".png")
-        png.parent.mkdir(parents=True, exist_ok=True)
-        fig.savefig(png, dpi=args.dpi, bbox_inches="tight")
-        logger.info("Saved: %s", png)
-    elif not getattr(args, "no_show", False):
-        plt.show()
-    plt.close(fig)
-
 
 def _resolve_figsize_cm(arg: str | None) -> tuple[float, float] | None:
     """将 '--figsize' 参数（厘米）转为 matplotlib 英寸尺寸。
@@ -607,7 +596,7 @@ def main() -> None:
             ax.legend(fontsize=PLOT_CONFIG.legend, loc="upper left")
             set_equal_aspect_3d(ax, dro_orbit.states[:, :3])
 
-        _save_or_show(fig, args)
+        save_or_show(fig, args)
     else:
         figsize = _resolve_figsize_cm(args.figsize) or (10, 6)
         title = "" if args.no_title else None
@@ -637,7 +626,7 @@ def main() -> None:
             fig.tight_layout()
             if args.caption:
                 fig.text(0.5, -0.02, args.caption, ha="center", va="top", fontsize=PLOT_CONFIG.tick)
-            _save_or_show(fig, args)
+            save_or_show(fig, args)
         else:
             alpha_all, dv_all = feasible_alpha_and_departure_dv(rows)
             n_feas = len(alpha_all)
@@ -647,7 +636,7 @@ def main() -> None:
             fig.tight_layout()
             if args.caption:
                 fig.text(0.5, -0.02, args.caption, ha="center", va="top", fontsize=PLOT_CONFIG.tick)
-            _save_or_show(fig, args)
+            save_or_show(fig, args)
 
 
 if __name__ == "__main__":

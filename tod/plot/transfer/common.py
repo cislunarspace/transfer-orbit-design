@@ -8,28 +8,34 @@
 
 from __future__ import annotations
 
-import json
+import logging
 from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
+from tod.transfers.io_utils import load_search_results  # noqa: F401 — 重导出供各 plot 脚本统一使用
 
-def load_search_results(path: Path) -> list[dict]:
-    """加载 grid_search 输出的搜索结果 JSON。
+logger = logging.getLogger(__name__)
 
-    支持两种格式：
-    - list[dict]（直接列表）
-    - dict 含 "results" key（自动提取 results 字段）
+
+def save_or_show(fig, args, dpi: int | None = None) -> None:
+    """将 fig 保存为 PNG 或弹窗显示，随后关闭。
+
+    ``dpi`` 为 None 时取 ``args.dpi``。无 ``args.save`` 时弹窗显示
+    （``args.no_show`` 为真则跳过）。
     """
-    with open(path, encoding="utf-8") as f:
-        data = json.load(f)
-    if isinstance(data, dict) and "results" in data:
-        return list(data["results"])
-    if not isinstance(data, list):
-        raise TypeError(f"期望 list 或含 'results' key 的 dict, 实际 {type(data)}")
-    return data
+    if args.save:
+        png = Path(args.save).expanduser().resolve()
+        if png.suffix.lower() != ".png":
+            png = png.with_suffix(".png")
+        png.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(png, dpi=dpi or args.dpi, bbox_inches="tight")
+        logger.info("Saved: %s", png)
+    elif not getattr(args, "no_show", False):
+        plt.show()
+    plt.close(fig)
 
 
 def departure_delta_v_norm(state6: np.ndarray, alpha: float) -> float:
