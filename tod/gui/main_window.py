@@ -34,7 +34,7 @@ from tod.gui.job_manager import JobManager
 from tod.gui.job_panel_mixin import JobPanelMixin
 from tod.gui.output_panel import JobCard, StructuredOutputWidget
 from tod.gui.run_orchestrator import RunOrchestrator
-from tod.gui.script_registry import ScriptEntry
+from tod.scripting import ScriptEntry
 from tod.gui.script_tab_bar import ScriptTabBar
 from tod.gui.script_tab_widget import ScriptTabWidget
 from tod.gui.settings_schema import SETTINGS_SCHEMA
@@ -86,7 +86,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
 
         # 国际化 — 必须在 UI 构建前加载，使 self.tr() 生效
         from tod.gui.i18n import TranslationLoader
-        from tod.gui.script_registry import set_script_translations
+        from tod.scripting import set_script_translations
 
         i18n_dir = Path(__file__).parent / "i18n"
         app = QApplication.instance()

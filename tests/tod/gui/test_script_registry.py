@@ -1,10 +1,10 @@
-"""Tests for tod.gui.script_registry."""
+"""Tests for tod.scripting registry."""
 
 from pathlib import Path
 import json
 
 import tod
-from tod.gui.script_registry import CatalogSeedSelectorParam, SCRIPTS, UNIT_GROUPS
+from tod.scripting import CatalogSeedSelectorParam, SCRIPTS, UNIT_GROUPS
 
 # Project root: parent of the `tod/` package directory.
 PROJECT_ROOT = Path(tod.__file__).resolve().parent.parent

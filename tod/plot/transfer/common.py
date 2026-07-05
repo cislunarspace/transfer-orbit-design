@@ -1,11 +1,8 @@
-"""common 可视化脚本。
+"""转移轨道绘图的共享 helper 模块。
 
-本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
-
-运行示例:
-    .. code-block:: bash
-
-       uv run python -m tod.plot.transfer.common --help
+提供加载搜索结果、可行性筛选、α/Δv 与转移时间散点绘图、3D/2D 天体标注、
+重积分转移轨道与构建 CR3BP 动力学等工具函数，供各 transfer-plot 脚本 import，
+本身不可作为脚本运行。
 """
 
 

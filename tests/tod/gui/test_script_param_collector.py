@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import (
 
 from tod.gui.cli_widget_factory import CliWidgetFactory
 from tod.gui.script_param_collector import ScriptParamCollector
-from tod.gui.script_registry import CliChipParam, CliParam, ScriptEntry
+from tod.scripting import CliChipParam, CliParam, ScriptEntry
 
 
 def _make_entry(**overrides: Any) -> ScriptEntry:
@@ -211,7 +211,7 @@ class TestCollectRunArgs:
 
 class TestCollectEnvOverrides:
     def test_env_widgets_file_path_mapped(self, qapp_fixture):
-        from tod.gui.script_registry import EnvParam
+        from tod.scripting import EnvParam
 
         entry = _make_entry(
             env_params={
@@ -229,7 +229,7 @@ class TestCollectEnvOverrides:
         assert overrides == {"DRO_FILE": "/abs/path/to/dro.json"}
 
     def test_env_widgets_no_selection_omits(self, qapp_fixture):
-        from tod.gui.script_registry import EnvParam
+        from tod.scripting import EnvParam
 
         entry = _make_entry(
             env_params={
@@ -345,7 +345,7 @@ class TestCollectMultiFileConfigs:
         assert result == {}
 
     def test_row_with_spinbox_and_lineedit_cells(self, qapp_fixture):
-        from tod.gui.script_registry import PerFileField
+        from tod.scripting import PerFileField
 
         table = QTableWidget(0, 4)
         per_fields = [

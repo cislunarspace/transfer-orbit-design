@@ -85,7 +85,8 @@ def compute_orbit_jacobi(orbit, system):
     dynamics = e2m2e.core.CR3BP_Dynamics(system=system)
     try:
         return dynamics.compute_jacobi_constant(orbit.states[0])
-    except Exception:
+    # compute_jacobi_constant 是纯 numpy 计算，只在数值溢出/非法值时失败
+    except (FloatingPointError, ValueError):
         return None
 
 
@@ -367,7 +368,7 @@ if __name__ == "__main__":
 # GUI 注册
 # ------------------------------------------------------------------
 
-from tod.gui.script_registry import CliParam, ScriptEntry
+from tod.scripting import CliParam, ScriptEntry
 
 SCRIPT_ENTRY = ScriptEntry(
     module='inspection',

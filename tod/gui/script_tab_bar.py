@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
 )
 
 from tod.gui.file_discovery import FileInfo
-from tod.gui.script_registry import ScriptEntry
+from tod.scripting import ScriptEntry
 from tod.gui.script_tab_widget import ScriptTabWidget
 
 if TYPE_CHECKING:

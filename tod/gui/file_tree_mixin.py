@@ -35,7 +35,7 @@ from tod.gui.file_operations import (
 )
 
 if TYPE_CHECKING:
-    from tod.gui.script_registry import ScriptEntry
+    from tod.scripting import ScriptEntry
 
 
 class FileTreeMixin:

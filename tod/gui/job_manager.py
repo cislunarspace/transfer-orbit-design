@@ -17,7 +17,7 @@ from PyQt6.QtCore import QProcessEnvironment, QObject, QProcess, QTimer, pyqtSig
 
 from tod.gui.i18n import qt_format
 from tod.gui.job_status import JobFinishResult, JobStatus
-from tod.gui.script_registry import ScriptEntry
+from tod.scripting import ScriptEntry
 
 _KILL_TIMEOUT_MS = 3000
 _MAX_COMPLETED = 20

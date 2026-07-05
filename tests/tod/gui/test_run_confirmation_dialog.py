@@ -22,7 +22,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QPushButton, QTableWidget, QWidget
 
 from tod.gui.run_orchestrator import RunPlan, RunSpec
-from tod.gui.script_registry import (
+from tod.scripting import (
     CliChipParam,
     CliParam,
     ScriptEntry,

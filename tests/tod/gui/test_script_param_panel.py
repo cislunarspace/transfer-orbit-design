@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import QApplication, QComboBox, QLineEdit
 
 from tod.gui.param_value_store import ParamValueStore
 from tod.gui.script_param_panel import ScriptParamPanel
-from tod.gui.script_registry import CatalogSeedSelectorParam, ScriptEntry
+from tod.scripting import CatalogSeedSelectorParam, ScriptEntry
 
 
 @pytest.fixture

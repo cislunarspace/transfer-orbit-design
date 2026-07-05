@@ -14,7 +14,8 @@ import tempfile
 
 from tod.commons.constants import MU, TU, DU, VU, T_MOON, FAMILY_FILENAME
 from tod.commons.constants import M_SUN, OMEGA_SUN, RHO
-from tod.commons.common import ensure_output_dir, find_project_root, get_latest_family_file, safe_resolve_within, save_family_to_file
+from tod.commons.common import ensure_output_dir, find_project_root, safe_resolve_within
+from tod.generates.family_io import get_latest_family_file, save_family_to_file
 
 
 class TestConstants:

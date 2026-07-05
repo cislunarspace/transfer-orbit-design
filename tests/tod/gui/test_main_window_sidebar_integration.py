@@ -29,7 +29,7 @@ class TestMainWindowSidebarIntegration:
         app = QApplication.instance() or QApplication([])
         assert app is not None
         from tod.gui.main_window import MainWindow
-        from tod.gui.script_registry import ScriptEntry
+        from tod.scripting import ScriptEntry
         from tod.gui.script_tree import TreeNode
 
         window = MainWindow(repo_root=".")
@@ -78,7 +78,7 @@ class TestMainWindowSidebarIntegration:
         app = QApplication.instance() or QApplication([])
         assert app is not None
         from tod.gui.main_window import MainWindow
-        from tod.gui.script_registry import ScriptEntry
+        from tod.scripting import ScriptEntry
 
         window = MainWindow(repo_root=str(tmp_path))
         tabs = window._right_tabs

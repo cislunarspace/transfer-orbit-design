@@ -1,4 +1,4 @@
-"""Tests for tod.gui.scripts._registry scanner."""
+"""Tests for tod.scripting.scanner scanner."""
 
 import pytest
 from pathlib import Path
@@ -6,7 +6,7 @@ from pathlib import Path
 
 def test_get_scripts_returns_dict_with_expected_categories(toy_scripts_dir: Path) -> None:
     """get_scripts() 返回的 dict 包含预期的分类键。"""
-    from tod.gui.scripts._registry import get_scripts
+    from tod.scripting import get_scripts
 
     SCRIPTS = get_scripts(toy_scripts_dir)
 
@@ -16,7 +16,7 @@ def test_get_scripts_returns_dict_with_expected_categories(toy_scripts_dir: Path
 
 def test_get_scripts_returns_list_of_script_entries(toy_scripts_dir: Path) -> None:
     """get_scripts() 返回的每个分类值是 _ScanEntry 列表。"""
-    from tod.gui.scripts._registry import _ScanEntry, get_scripts
+    from tod.scripting import _ScanEntry, get_scripts
 
     SCRIPTS = get_scripts(toy_scripts_dir)
 
@@ -36,7 +36,7 @@ def test_get_scripts_returns_list_of_script_entries(toy_scripts_dir: Path) -> No
 
 def test_get_scripts_scans_nested_subdirectories(toy_scripts_dir: Path) -> None:
     """扫描器能发现嵌套子目录下的 params 文件。"""
-    from tod.gui.scripts._registry import get_scripts
+    from tod.scripting import get_scripts
 
     SCRIPTS = get_scripts(toy_scripts_dir)
 
@@ -47,7 +47,7 @@ def test_get_scripts_scans_nested_subdirectories(toy_scripts_dir: Path) -> None:
 
 def test_get_scripts_missing_script_entry_raises(invalid_scripts_dir: Path) -> None:
     """扫描到缺 SCRIPT_ENTRY 的 .py 文件时跳过该文件（不抛异常）。"""
-    from tod.gui.scripts._registry import get_scripts
+    from tod.scripting import get_scripts
 
     # 新行为：没有 SCRIPT_ENTRY 的文件被静默跳过，不会抛异常
     SCRIPTS = get_scripts(invalid_scripts_dir)
@@ -56,7 +56,7 @@ def test_get_scripts_missing_script_entry_raises(invalid_scripts_dir: Path) -> N
 
 def test_get_scripts_warns_on_load_failure(tmp_path: Path, caplog) -> None:
     """加载失败的脚本（SyntaxError/ImportError）应记录 WARNING 日志后跳过。"""
-    from tod.gui.scripts._registry import get_scripts
+    from tod.scripting import get_scripts
 
     scripts_dir = tmp_path / "scripts"
     (scripts_dir / "plot").mkdir(parents=True)
@@ -67,7 +67,7 @@ def test_get_scripts_warns_on_load_failure(tmp_path: Path, caplog) -> None:
     )
 
     import logging
-    with caplog.at_level(logging.WARNING, logger="tod.gui.scripts._registry"):
+    with caplog.at_level(logging.WARNING, logger="tod.scripting.scanner"):
         SCRIPTS = get_scripts(scripts_dir)
 
     # 扫描器不应崩溃
@@ -80,7 +80,7 @@ def test_get_scripts_warns_on_load_failure(tmp_path: Path, caplog) -> None:
 
 def test_make_module_name_unique_for_same_stem_different_paths(tmp_path: Path) -> None:
     """不同目录下同名脚本应产生不同的临时模块名，避免 sys.modules 冲突。"""
-    from tod.gui.scripts._registry import _make_module_name
+    from tod.scripting import _make_module_name
 
     dir_a = tmp_path / "a"
     dir_b = tmp_path / "b"
@@ -101,7 +101,7 @@ def test_make_module_name_unique_for_same_stem_different_paths(tmp_path: Path) -
 
 def test_iter_script_files_yields_only_python_files(toy_scripts_dir: Path) -> None:
     """iter_script_files 只 yield .py 文件。"""
-    from tod.gui.scripts._registry import iter_script_files
+    from tod.scripting import iter_script_files
 
     py_files = list(iter_script_files(toy_scripts_dir))
 
@@ -110,7 +110,7 @@ def test_iter_script_files_yields_only_python_files(toy_scripts_dir: Path) -> No
 
 def test_iter_script_files_skips_init_and_private(toy_scripts_dir: Path) -> None:
     """iter_script_files 跳过 __init__.py 和以 _ 开头的私有文件。"""
-    from tod.gui.scripts._registry import iter_script_files
+    from tod.scripting import iter_script_files
 
     py_files = list(iter_script_files(toy_scripts_dir))
     names = [p.name for p in py_files]
@@ -159,7 +159,7 @@ def test_get_scripts_carries_catalog_seed_selector_without_loading_catalog(tmp_p
 
     monkeypatch.setattr(builtins, "__import__", guard_import)
 
-    from tod.gui.scripts._registry import get_scripts
+    from tod.scripting import get_scripts
 
     entry = get_scripts(scripts_dir)["generates"][0]
     assert entry.catalog_seed_selectors == [{"key": "dro_catalog_seed", "orbit_type": "dro"}]
@@ -170,7 +170,7 @@ def toy_scripts_dir(tmp_path: Path, monkeypatch) -> Path:
     """在临时目录创建玩具 scripts 结构用于测试扫描器。
 
     使用 local mock ScriptEntry 而非真实导入，
-    因为 tod.gui.script_registry → tod.commons.constants → e2m2e → scipy
+    因为 tod.scripting → tod.commons.constants → e2m2e → scipy
     的依赖链在测试环境中可能不可用。
     """
     scripts_dir = tmp_path / "scripts"

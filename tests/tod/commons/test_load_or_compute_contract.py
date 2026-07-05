@@ -14,8 +14,10 @@ from unittest.mock import MagicMock
 import pytest
 
 from tod.commons.common import (
-    FAMILY_FILENAME,
     LoadInputContractError,
+)
+from tod.commons.constants import FAMILY_FILENAME
+from tod.generates.family_io import (
     get_latest_family_file,
     load_or_compute,
 )

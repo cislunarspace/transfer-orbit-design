@@ -413,7 +413,8 @@ def optimize_one_case(
             transfer_type=transfer_type,
             constraints_violation=max(violation.values()) if violation else 0.0,
         )
-    except Exception as e:
+    # 仅捕获数值意义上的失败（积分发散/SLSQP 内部数值异常）；编程错误应向上抛
+    except (FloatingPointError, ValueError, RuntimeError, np.linalg.LinAlgError) as e:
         return TransferOptimizationResult(
             departure_alpha=float(y0[0]),
             transfer_time=float(y0[1]),
@@ -574,7 +575,8 @@ def nlp_worker_packed(payload):
             fallback_to_scipy=cfg.fallback_to_scipy,
         )
         row["nlp"] = serialize_nlp_result(res)
-    except Exception:
+    # 仅捕获数值意义上的失败（积分发散/优化器数值异常）；编程错误应向上抛
+    except (FloatingPointError, ValueError, RuntimeError, np.linalg.LinAlgError):
         row["error"] = traceback.format_exc()
     return row
 
@@ -608,7 +610,8 @@ def worker_run_thread(args):
             fallback_to_scipy=params.fallback_to_scipy,
         )
         row["nlp"] = serialize_nlp_result(res)
-    except Exception:
+    # 仅捕获数值意义上的失败（积分发散/优化器数值异常）；编程错误应向上抛
+    except (FloatingPointError, ValueError, RuntimeError, np.linalg.LinAlgError):
         row["error"] = traceback.format_exc()
     return row
 
@@ -809,7 +812,8 @@ def main() -> None:
                     f"success={res.success} ΔV={res.total_delta_v:.6f} | "
                     f"elapsed={elapsed:.1f}s"
                 )
-            except Exception:
+            except (FloatingPointError, ValueError, RuntimeError, np.linalg.LinAlgError):
+                # 主循环逐 case 捕获数值失败；编程错误让它抛
                 row["error"] = traceback.format_exc()
                 global_progress.finish_case(False, float("inf"))
                 logger.info(
@@ -925,7 +929,7 @@ if __name__ == "__main__":
 # GUI 注册
 # ------------------------------------------------------------------
 
-from tod.gui.script_registry import CliParam, ScriptEntry
+from tod.scripting import CliParam, ScriptEntry
 
 SCRIPT_ENTRY = ScriptEntry(
     module='transfer',

@@ -12,7 +12,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QSizePolicy, QStackedLayout, QVBoxLayout, QWidget
 
-from tod.gui.script_registry import SCRIPTS
+from tod.scripting import SCRIPTS
 from tod.gui.script_tree import build_tree_from_scripts
 from tod.gui.sidebar_tree import SidebarTreeWidget
 

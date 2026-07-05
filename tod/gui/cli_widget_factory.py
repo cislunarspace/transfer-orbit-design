@@ -31,10 +31,10 @@ from PyQt6.QtWidgets import (
 )
 
 if TYPE_CHECKING:
-    from tod.gui.script_registry import CliChipParam, CliParam
+    from tod.scripting import CliChipParam, CliParam
 
 from tod.gui.file_discovery import FileInfo, filter_files
-from tod.gui.script_registry import UNIT_GROUPS
+from tod.scripting import UNIT_GROUPS
 
 
 class CliWidgetFactory:

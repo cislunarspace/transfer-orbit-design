@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 
 from tod.gui.cli_widget_factory import CliWidgetFactory
 from tod.gui.file_discovery import filter_files
-from tod.gui.script_registry import UNIT_GROUPS, CliParam, ScriptEntry
+from tod.scripting import UNIT_GROUPS, CliParam, ScriptEntry
 
 if TYPE_CHECKING:
     pass

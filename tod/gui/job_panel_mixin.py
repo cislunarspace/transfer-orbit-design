@@ -32,7 +32,7 @@ from tod.gui.output_panel import JobCard, StructuredOutputWidget
 if TYPE_CHECKING:
     from tod.gui.batch_manager import BatchManager
     from tod.gui.batch import BatchRun
-    from tod.gui.script_registry import ScriptEntry
+    from tod.scripting import ScriptEntry
 
 
 class JobPanelMixin:

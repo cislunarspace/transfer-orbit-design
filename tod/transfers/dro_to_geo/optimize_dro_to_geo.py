@@ -173,7 +173,8 @@ def _nlp_eval(y, departure_state, dynamics, mu, earth_radius, moon_radius):
 
     try:
         states, times = forward_integrate_nlp(dynamics, state0, T)
-    except Exception:
+    except (FloatingPointError, ValueError, RuntimeError, np.linalg.LinAlgError):
+        # 数值积分发散时返回哨兵；编程错误（TypeError 等）让它抛
         return {"empty": True, "residual": np.array([1e6, 1e6])}
 
     if len(states) == 0:
@@ -280,7 +281,8 @@ def optimize_one_case(
             in_box = alpha_min <= a_sol <= alpha_max and t_min <= T_sol <= t_max
             ok = sol.success and res_norm_sq < 1e-8 and in_box
             return a_sol, T_sol, ok
-        except Exception:
+        # 仅捕获数值意义上的失败（积分发散/线性代数奇异）；编程错误应向上抛
+        except (FloatingPointError, ValueError, RuntimeError, np.linalg.LinAlgError):
             return a_init, T_init, False
 
     a_lo = max(alpha_min, alpha_0 - 0.05)
@@ -335,7 +337,8 @@ def optimize_one_case(
             c = _eval([float(nm_res.x[0]), float(nm_res.x[1])])
             if not c["empty"] and not c["collided"] and c["pos_violation"] < 1e-6:
                 best = {"alpha": float(nm_res.x[0]), "T": float(nm_res.x[1]), "c": c}
-        except Exception:
+        except (FloatingPointError, ValueError, RuntimeError, np.linalg.LinAlgError):
+            # Nelder-Mead 兜底只在数值失败时跳过；编程错误让它抛
             if verbose:
                 logger.info(f"    Nelder-Mead 兜底失败 idx={rec.get('departure_time_index', '?')}")
 
@@ -549,7 +552,8 @@ def main() -> None:
                     f"  case {k + 1}/{n_total} (idx={global_idx}) | "
                     f"success={nlp.get('success')} ΔV={nlp.get('objective_value', 'N/A')}"
                 )
-            except Exception:
+            except (FloatingPointError, ValueError, RuntimeError, np.linalg.LinAlgError):
+                # 主循环逐 case 捕获数值失败；编程错误让它抛
                 records.append({"search_index": global_idx, "error": traceback.format_exc()})
     else:
         n_pool = min(n_workers_req, n_total)
@@ -641,7 +645,7 @@ if __name__ == "__main__":
 # GUI 注册
 # ------------------------------------------------------------------
 
-from tod.gui.script_registry import CliParam, ScriptEntry
+from tod.scripting import CliParam, ScriptEntry
 
 SCRIPT_ENTRY = ScriptEntry(
     module='transfer',

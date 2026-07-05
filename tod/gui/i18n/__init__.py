@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from PyQt6.QtCore import QCoreApplication, QTranslator
 
 if TYPE_CHECKING:
-    from tod.gui.script_registry import ScriptEntry
+    from tod.scripting import ScriptEntry
 
 
 def qt_format(s: str, *args: object) -> str:

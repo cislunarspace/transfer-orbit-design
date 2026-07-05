@@ -31,7 +31,7 @@ from tod.gui.doc_link_mixin import make_doc_link_label
 from tod.gui.file_discovery import FileInfo, filter_files
 from tod.gui.i18n import qt_format
 from tod.gui.param_value_store import CatalogSeedSelectorState, ParamValueStore
-from tod.gui.script_registry import CliParam, MultiCliParam, ScriptEntry
+from tod.scripting import CliParam, MultiCliParam, ScriptEntry
 from tod.gui.theme_utils import resolve_theme as _resolve_theme
 
 if TYPE_CHECKING:

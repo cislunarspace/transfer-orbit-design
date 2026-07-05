@@ -225,7 +225,8 @@ def _find_closest_approach(departure_state, alpha, max_time, dro_orbit, dynamics
         )
         states = result["states"]
         times = result["time"]
-    except Exception:
+    # 仅捕获数值意义上的失败（积分发散/线性代数奇异）；编程错误应向上抛
+    except (FloatingPointError, ValueError, RuntimeError, np.linalg.LinAlgError):
         return max_time * 0.5, 0.0, 1e10
 
     if len(states) == 0:
@@ -281,7 +282,8 @@ def _nlp_eval(y, departure_state, dro_orbit, dynamics):
 
     try:
         states, times = forward_integrate(dynamics, state0, T)
-    except Exception:
+    # 仅捕获数值意义上的失败（积分发散/线性代数奇异）；编程错误应向上抛
+    except (FloatingPointError, ValueError, RuntimeError, np.linalg.LinAlgError):
         return {"empty": True, "objective": 1e10}
 
     if len(states) == 0:
@@ -404,7 +406,8 @@ def optimize_one_case(
                 if t_min <= T_sol <= t_max and t_ins_min <= tins_sol <= t_ins_max:
                     return T_sol, tins_sol, True
             return T_init, tins_init, False
-        except Exception:
+        # 仅捕获数值意义上的失败（残差积分发散/线性代数奇异）；编程错误应向上抛
+        except (FloatingPointError, ValueError, RuntimeError, np.linalg.LinAlgError):
             return T_init, tins_init, False
 
     # 在 alpha_0 附近扫描，找最优 Δv
@@ -462,7 +465,8 @@ def optimize_one_case(
                     "t_ins": nm_res.x[2],
                     "c": c,
                 }
-        except Exception:
+        # 仅捕获数值意义上的失败（目标函数积分发散）；编程错误应向上抛
+        except (FloatingPointError, ValueError, RuntimeError, np.linalg.LinAlgError):
             logger.info(f"    警告: Nelder-Mead 精修失败 (departure_idx={rec.get('departure_time_index', '?')})")
 
     if best_result is None:
@@ -730,7 +734,8 @@ def main() -> None:
                     f"dv={ov*VU:.0f} m/s pos={pos_km:.0f} km "
                     f"a={nlp.get('alpha', 0):.4f} T={nlp.get('transfer_time', 0):.1f}"
                 )
-            except Exception:
+            # 仅捕获数值意义上的失败（积分发散/优化器数值异常）；编程错误应向上抛
+            except (FloatingPointError, ValueError, RuntimeError, np.linalg.LinAlgError):
                 records.append({"search_index": global_idx, "error": traceback.format_exc()})
     else:
         n_pool = min(n_workers_req, n_total)
@@ -835,7 +840,7 @@ if __name__ == "__main__":
 # GUI 注册
 # ------------------------------------------------------------------
 
-from tod.gui.script_registry import CliParam, ScriptEntry
+from tod.scripting import CliParam, ScriptEntry
 
 SCRIPT_ENTRY = ScriptEntry(
     module='transfer',

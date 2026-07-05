@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from tod.gui.script_registry import ScriptEntry
+from tod.scripting import ScriptEntry
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 

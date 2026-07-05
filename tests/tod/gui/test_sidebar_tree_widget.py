@@ -1,7 +1,7 @@
 # pyright: reportArgumentType=false, reportOptionalMemberAccess=false, reportAttributeAccessIssue=false, reportGeneralTypeIssues=false, reportCallIssue=false, reportOperatorIssue=false, reportReturnType=false, reportAssignmentType=false
 from PyQt6.QtWidgets import QApplication
 
-from tod.gui.script_registry import ScriptEntry
+from tod.scripting import ScriptEntry
 from tod.gui.script_tree import EMPTY_FOLDER_COLOR, TreeNode
 
 _APP: QApplication | None = None

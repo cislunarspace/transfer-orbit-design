@@ -323,7 +323,7 @@ class TestHaloGuiRegistry:
 
     def test_seed_file_pattern_excludes_halo_family_outputs(self):
         """Seed file picker should not offer generated family JSON by default."""
-        from tod.gui.script_registry import SCRIPTS
+        from tod.scripting import SCRIPTS
 
         entry = next(e for e in SCRIPTS["Halo"] if e.name == "generate_halo_family")
         seed_param = next(p for p in entry.cli_params if p.flag == "--seed-file")

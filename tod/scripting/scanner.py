@@ -4,7 +4,7 @@
 扫描实现目录（tod/generates/、tod/plot/、tod/transfers/），从每个实现脚本
 底部加载 SCRIPT_ENTRY 声明，按分类分组后返回供 GUI 使用。本模块只声明
 _ScanEntry（扫描器视角下的轻量条目），ScriptEntry、CliParam 等数据类
-定义在 tod.gui.script_registry 中。
+定义在 tod.scripting.types 中。
 """
 
 
@@ -30,7 +30,7 @@ class _NoScriptEntryError(RuntimeError):
     """
 
 # 自包含的最小类型，避免在导入时触发 sciPy 等重型依赖。
-# params 文件从 tod.gui.script_registry 导入真实的 ScriptEntry，
+# params 文件从 tod.scripting 导入真实的 ScriptEntry，
 # 扫描器只读属性，不参与类型转换。
 
 
@@ -144,8 +144,8 @@ def _default_scan_dirs() -> list[Path]:
 
     扫描顺序决定优先级：同名 script_path 的条目以先扫到的为准。
     """
-    registry_dir = Path(__file__).parent
-    repo_root = registry_dir.parent.parent.parent  # tod/gui/scripts/ → repo root
+    scripting_dir = Path(__file__).parent  # tod/scripting/ → repo root
+    repo_root = scripting_dir.parent.parent
     return [
         repo_root / "tod" / "generates",
         repo_root / "tod" / "plot",

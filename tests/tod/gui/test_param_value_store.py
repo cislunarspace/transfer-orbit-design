@@ -10,7 +10,7 @@ import pytest
 from PyQt6.QtWidgets import QApplication, QCheckBox, QComboBox, QLineEdit, QSpinBox, QWidget
 
 from tod.gui.param_value_store import ParamValueStore
-from tod.gui.script_registry import CliParam, ScriptEntry
+from tod.scripting import CliParam, ScriptEntry
 
 
 def _make_entry(**overrides: Any) -> ScriptEntry:

@@ -149,7 +149,7 @@ if __name__ == "__main__":
 # GUI 注册
 # ------------------------------------------------------------------
 
-from tod.gui.script_registry import CliParam, MultiCliParam, PerFileField, ScriptEntry
+from tod.scripting import CliParam, MultiCliParam, PerFileField, ScriptEntry
 
 SCRIPT_ENTRY = ScriptEntry(
     module='plot',

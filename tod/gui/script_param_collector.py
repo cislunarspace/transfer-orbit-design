@@ -13,7 +13,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QCheckBox, QComboBox, QLineEdit, QMessageBox, QSpinBox, QTableWidget, QWidget
 
 from tod.gui.i18n import qt_format
-from tod.gui.script_registry import CliParam, ScriptEntry
+from tod.scripting import CliParam, ScriptEntry
 
 
 class ScriptParamCollector:

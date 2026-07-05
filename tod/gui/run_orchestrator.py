@@ -10,7 +10,7 @@
 设计原则：
 - **不可变**：``RunSpec``、``RunPlan``、``OverwriteTarget``、``ChipGroup`` 均为 frozen dataclass，避免调用方意外修改。
 - **纯函数**：`build_run_specs` / `build_run_plan` 不持有 Qt 状态，只接受已经收集好的数据。
-- **不绑死 MainWindow**：``dispatch`` 接受任意 ``JobManager``-like 对象（duck-typed `start_job`）。
+- **不绑死 MainWindow**：``dispatch`` 接受 ``JobManager`` 实例并调用其 ``start_job``。
 """
 
 from __future__ import annotations
@@ -19,22 +19,12 @@ import json
 from dataclasses import dataclass, field
 from itertools import product
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tod.gui.script_registry import ScriptEntry
+    from tod.gui.job_manager import JobManager
+    from tod.scripting import ScriptEntry
     from tod.gui.script_tab_widget import ScriptTabWidget
-
-
-class _SupportsStartJob(Protocol):
-    """duck-typed 协议：仅需 ``start_job(entry, args, env)`` 方法。"""
-
-    def start_job(
-        self,
-        script_entry: "ScriptEntry",
-        extra_args: list[str] | None = None,
-        env_overrides: dict[str, str] | None = None,
-    ) -> str: ...
 
 
 @dataclass(frozen=True)
@@ -224,7 +214,7 @@ class RunOrchestrator:
     def dispatch(
         specs: list[RunSpec],
         entry: "ScriptEntry",
-        job_manager: _SupportsStartJob,
+        job_manager: "JobManager",
     ) -> DispatchResult:
         """为每个 RunSpec 启动一个 Job，返回 DispatchResult。"""
         created: list[str] = []

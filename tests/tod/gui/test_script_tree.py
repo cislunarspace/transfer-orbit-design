@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from tod.gui.script_registry import ScriptEntry
+from tod.scripting import ScriptEntry
 from tod.gui.script_tree import EMPTY_FOLDER_COLOR, TreeNode, build_tree_from_scripts
 
 

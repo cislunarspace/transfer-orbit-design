@@ -9,7 +9,7 @@ from typing import Any, cast
 
 from PyQt6.QtWidgets import QApplication, QCheckBox, QComboBox, QLineEdit, QSpinBox, QWidget
 
-from tod.gui.script_registry import CatalogSeedSelectorParam, CliParam, ScriptEntry
+from tod.scripting import CatalogSeedSelectorParam, CliParam, ScriptEntry
 
 
 def _make_entry(**overrides: Any) -> ScriptEntry:
@@ -82,7 +82,7 @@ class TestScriptTabWidgetConstruction:
         assert "tolerance" in widget._cli_widgets
 
     def test_builds_env_widgets(self, qapp_fixture, tmp_path):
-        from tod.gui.script_registry import EnvParam
+        from tod.scripting import EnvParam
         from tod.gui.script_tab_widget import ScriptTabWidget
 
         entry = _make_entry(
@@ -349,7 +349,7 @@ class TestScriptTabWidgetCollectRunArgs:
 
 class TestScriptTabWidgetCollectEnvOverrides:
     def test_collects_env_from_env_widgets(self, qapp_fixture, tmp_path):
-        from tod.gui.script_registry import EnvParam
+        from tod.scripting import EnvParam
         from tod.gui.script_tab_widget import ScriptTabWidget
 
         entry = _make_entry(

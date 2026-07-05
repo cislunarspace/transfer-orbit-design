@@ -13,7 +13,7 @@ from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import QApplication, QStyle, QTreeWidget, QTreeWidgetItem
 
-from tod.gui.script_registry import ScriptEntry
+from tod.scripting import ScriptEntry
 from tod.gui.script_tree import TreeNode
 
 

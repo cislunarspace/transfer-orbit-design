@@ -77,7 +77,7 @@ PARAMS_FILES = [
 
 def _load_impl_module(impl_path: Path):
     """用 importlib 加载实现脚本，注册到 sys.modules 避免 @dataclass 问题。"""
-    from tod.gui.scripts._registry import _make_module_name
+    from tod.scripting import _make_module_name
 
     module_name = _make_module_name(impl_path, "_tod_test")
     spec = importlib.util.spec_from_file_location(module_name, str(impl_path))
@@ -157,7 +157,7 @@ def test_script_path_points_to_real_file(params_module: object) -> None:
 
 def test_cli_params_unit_groups_are_registered(params_module: object) -> None:
     """All cli_params with unit_group must reference a key in UNIT_GROUPS."""
-    from tod.gui.script_registry import UNIT_GROUPS
+    from tod.scripting import UNIT_GROUPS
 
     entry = params_module.SCRIPT_ENTRY
     unknown: list[str] = []
@@ -171,7 +171,7 @@ def test_cli_params_unit_groups_are_registered(params_module: object) -> None:
 
 def test_cli_params_default_units_are_in_group(params_module: object) -> None:
     """All cli_params with default_unit must have that unit in their unit_group."""
-    from tod.gui.script_registry import UNIT_GROUPS
+    from tod.scripting import UNIT_GROUPS
 
     entry = params_module.SCRIPT_ENTRY
     invalid: list[str] = []
@@ -197,7 +197,7 @@ def test_cli_params_default_units_are_in_group(params_module: object) -> None:
 
 def test_scanner_discovers_all_expected_files() -> None:
     """The scanner must discover every loadable file listed in PARAMS_FILES."""
-    from tod.gui.scripts._registry import get_scripts
+    from tod.scripting import get_scripts
 
     scripts = get_scripts()
     scanned_paths = {e.script_path for entries in scripts.values() for e in entries}

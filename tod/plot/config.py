@@ -1,11 +1,8 @@
-"""config 可视化脚本。
+"""Matplotlib 绘图样式配置与辅助函数。
 
-本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
-
-运行示例:
-    .. code-block:: bash
-
-       uv run python -m tod.plot.config --help
+本模块 orbit-agnostic，集中定义各绘图脚本共用的标准字号、布局、天体图标缩放、
+colorbar 样式与轨道采样等配置，供 ``tod.plot`` 下的可视化脚本 import 使用，
+本身不可作为脚本运行。
 """
 
 

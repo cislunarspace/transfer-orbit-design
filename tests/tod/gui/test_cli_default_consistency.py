@@ -17,7 +17,7 @@ import inspect
 import pytest
 
 from tod.generates.cr3bp._family_pipeline import FamilyGenerator
-from tod.gui.script_registry import SCRIPTS, CliParam, ScriptEntry
+from tod.scripting import SCRIPTS, CliParam, ScriptEntry
 
 
 def _family_entries() -> list[ScriptEntry]:

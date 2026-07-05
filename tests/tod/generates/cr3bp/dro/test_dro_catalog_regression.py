@@ -21,7 +21,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import pytest
 from PyQt6.QtWidgets import QApplication, QComboBox, QLineEdit
 
-from tod.gui.script_registry import CatalogSeedSelectorParam, CliParam, ScriptEntry
+from tod.scripting import CatalogSeedSelectorParam, CliParam, ScriptEntry
 
 
 def _write_dro_catalog(catalog_dir: Path) -> None:

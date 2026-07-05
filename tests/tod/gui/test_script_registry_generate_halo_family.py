@@ -8,7 +8,7 @@ Halo family generator uses method-based parameter visibility:
 
 import pytest
 
-from tod.gui.script_registry import SCRIPTS, ScriptEntry
+from tod.scripting import SCRIPTS, ScriptEntry
 
 
 def _find_halo_family_entry() -> ScriptEntry:

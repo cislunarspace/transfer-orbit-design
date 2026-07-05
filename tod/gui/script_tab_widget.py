@@ -17,7 +17,7 @@ from tod.gui.file_discovery import FileInfo
 from tod.gui.param_value_store import ParamValueStore
 from tod.gui.script_param_collector import ScriptParamCollector
 from tod.gui.script_param_panel import ScriptParamPanel
-from tod.gui.script_registry import CliParam, ScriptEntry
+from tod.scripting import CliParam, ScriptEntry
 
 
 class ScriptTabWidget(QWidget):

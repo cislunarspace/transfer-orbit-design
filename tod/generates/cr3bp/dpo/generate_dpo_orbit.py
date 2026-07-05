@@ -373,7 +373,7 @@ if __name__ == "__main__":
 # GUI 注册
 # ------------------------------------------------------------------
 
-from tod.gui.script_registry import CatalogSeedSelectorParam, CliParam, ScriptEntry
+from tod.scripting import CatalogSeedSelectorParam, CliParam, ScriptEntry
 
 SCRIPT_ENTRY = ScriptEntry(
     module='dpo',

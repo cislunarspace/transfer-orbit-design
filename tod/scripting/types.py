@@ -1,8 +1,11 @@
-"""PyQt6 图形界面组件。
+"""脚本注册表的纯数据类型定义。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+本模块定义计算脚本（tod/generates/、tod/plot/、tod/transfers/）与 GUI 共享的
+声明式数据类：CliParam、ScriptEntry、MultiCliParam 等。这些类型不依赖 GUI
+表现层，放在中性层 tod.scripting 中以避免 gui ↔ computes 循环依赖。
+
+唯一外部依赖为 tod.commons.constants（UNIT_GROUPS 单位换算用）。
 """
-
 
 import math
 from dataclasses import dataclass, field
@@ -212,98 +215,3 @@ def _ephemeris_conversion_cli_params(orbit_type: str, mode: str) -> list[CliPara
             ]
         )
     return params
-
-
-# 由扫描器在首次访问时填充
-_SCRIPTS: dict[str, list] | None = None
-
-# 脚本翻译表 — 由 MainWindow 在启动时通过 set_script_translations() 设置。
-# 在首次 SCRIPTS 访问前设置，语言切换（重启生效）无需缓存失效。
-_TRANSLATIONS: dict | None = None
-
-
-def set_script_translations(translations: dict) -> None:
-    """设置脚本翻译表（应在首次访问 SCRIPTS 之前调用）。"""
-    global _TRANSLATIONS
-    _TRANSLATIONS = translations
-
-
-def _get_scripts() -> dict[str, list]:
-    """Lazily load and cache SCRIPTS from the scanner."""
-    global _SCRIPTS
-    if _SCRIPTS is None:
-        from tod.gui.scripts._registry import get_scripts
-        _SCRIPTS = get_scripts(translations=_TRANSLATIONS)
-    return _SCRIPTS
-
-
-def _scripts_getter() -> dict[str, list[ScriptEntry]]:
-    return _get_scripts()
-
-
-# Legacy category key aliases (old → new) for backward compatibility.
-_LEGACY_ALIASES: dict[str, str] = {
-    "Halo": "generates",
-    "Transfer": "transfer",
-    "Ephemeris": "ephemeris",
-    "Inspection": "inspection",
-}
-
-
-# 代理对象：首次访问时延迟解析 SCRIPTS。
-class _SCRIPTSProxy:
-    """SCRIPTS 的延迟代理 — 首次访问时从扫描器解析。"""
-
-    def __getitem__(self, key: str) -> list:
-        _key = _LEGACY_ALIASES.get(key, key)
-        return _get_scripts()[_key]
-
-    def get(self, key: str, default=None):
-        """执行 get 对应的处理逻辑。
-        
-        Args:
-            key: 调用方传入的参数值。
-            default: 调用方传入的参数值。
-        
-        Returns:
-            函数执行结果。
-        """
-        _key = _LEGACY_ALIASES.get(key, key)
-        return _get_scripts().get(_key, default)
-
-    def keys(self):
-        """执行 keys 对应的处理逻辑。
-        
-        Returns:
-            函数执行结果。
-        """
-        return _get_scripts().keys()
-
-    def values(self):
-        """执行 values 对应的处理逻辑。
-        
-        Returns:
-            函数执行结果。
-        """
-        return _get_scripts().values()
-
-    def items(self):
-        """执行 items 对应的处理逻辑。
-        
-        Returns:
-            函数执行结果。
-        """
-        return _get_scripts().items()
-
-    def __iter__(self):
-        return iter(_get_scripts())
-
-    def __len__(self) -> int:
-        return len(_get_scripts())
-
-    def __repr__(self) -> str:
-        return repr(_get_scripts())
-
-
-# SCRIPTS 是懒加载的代理对象 — GUI 侧边栏等处的 `SCRIPTS.keys()` 等调用会触发扫描
-SCRIPTS: dict = _SCRIPTSProxy()  # type: ignore[assignment]

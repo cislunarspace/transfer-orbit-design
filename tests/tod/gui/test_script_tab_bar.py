@@ -2,7 +2,7 @@
 
 import pytest
 
-from tod.gui.script_registry import ScriptEntry
+from tod.scripting import ScriptEntry
 
 
 def _make_entry(name: str = "Test Script", script_path: str = "tod/test/script.py") -> ScriptEntry:

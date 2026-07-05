@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from tod.gui.script_registry import SCRIPTS
-from tod.gui.scripts._registry import _make_module_name
+from tod.scripting import SCRIPTS
+from tod.scripting import _make_module_name
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
