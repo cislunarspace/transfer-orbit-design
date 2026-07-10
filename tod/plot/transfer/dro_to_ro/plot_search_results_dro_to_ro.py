@@ -43,6 +43,7 @@ from tod.plot.transfer.common import (
     select_feasible_indices,
     plot_celestial_bodies,
     set_equal_aspect_3d,
+    compute_departure_velocity as _compute_departure_velocity,
 )
 
 project_root = find_project_root(Path(__file__))
@@ -115,21 +116,6 @@ def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndar
                 times.append(actual_time)
                 dvs.append(dv)
     return np.asarray(times, dtype=np.float64), np.asarray(dvs, dtype=np.float64)
-
-
-def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
-    """与 e2m2e TransferSearch._compute_departure_velocity 一致，计算速度扰动后的速度向量。"""
-    pos = np.asarray(state6[:3], dtype=np.float64)
-    vel = np.asarray(state6[3:6], dtype=np.float64)
-    r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
-    if r_xy < 1e-10:
-        return vel.copy()
-    tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
-    radial = pos / np.linalg.norm(pos)
-    v_radial_comp = float(np.dot(vel, radial))
-    v_tangential_comp = float(np.dot(vel, tangential))
-    new_vel = v_radial_comp * radial + alpha * v_tangential_comp * tangential
-    return new_vel
 
 
 def _build_transfer_search() -> TransferSearch:

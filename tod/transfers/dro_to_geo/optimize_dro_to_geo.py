@@ -30,7 +30,7 @@ from tqdm.auto import tqdm
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 from tod.commons.constants import DU, MU, TU, VU
 from tod.transfers.optimize_config import apply_blas_env_for_child_processes, blas_threads_per_worker
-from e2m2e.orbits.geo import (
+from tod.commons.orbits import (
     R_GEO,
     EARTH_CENTER,
     check_collision,

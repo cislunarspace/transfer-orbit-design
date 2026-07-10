@@ -26,7 +26,7 @@ if not logging.getLogger().handlers:
 
 import matplotlib
 import numpy as np
-from e2m2e.orbits.geo import compute_departure_velocity
+from tod.commons.orbits import compute_departure_velocity
 from e2m2e.transfer import load_orbit_from_json
 from matplotlib.colors import Normalize
 from tod.commons.constants import DU, TU, VU

@@ -23,7 +23,7 @@ from e2m2e.core.orbit import Orbit
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
 from tod.commons.constants import DU, MU, TU, VU
 from tod.transfers.optimize_config import apply_blas_env_for_child_processes, blas_threads_per_worker
-from e2m2e.orbits.leo import (
+from tod.commons.orbits import (
     R_LEO,
     V_CIRCULAR_LEO,
     T_LEO,

@@ -36,7 +36,7 @@ from tod.cli.input_file import (
     resolve_input_file,
 )
 from tod.transfers.optimize_config import apply_blas_env_for_child_processes, blas_threads_per_worker
-from e2m2e.orbits.geo import (
+from tod.commons.orbits import (
     compute_departure_velocity,
 )
 import logging

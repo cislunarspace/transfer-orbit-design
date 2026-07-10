@@ -28,7 +28,7 @@ if not logging.getLogger().handlers:
 import matplotlib
 import numpy as np
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
-from e2m2e.orbits.geo import (
+from tod.commons.orbits import (
     R_GEO,
     EARTH_CENTER,
     geo_circular_velocity_rotating,

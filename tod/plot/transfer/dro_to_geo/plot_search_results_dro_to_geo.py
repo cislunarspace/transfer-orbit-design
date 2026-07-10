@@ -31,7 +31,7 @@ import e2m2e
 import matplotlib
 import numpy as np
 from e2m2e.core import CR3BP_System, Orbit
-from e2m2e.orbits.geo import R_GEO
+from tod.commons.orbits import R_GEO
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
 from tod.commons.constants import MU, TU, VU
 from tod.commons.common import find_project_root, safe_resolve_within
@@ -49,6 +49,7 @@ from tod.plot.transfer.common import (
     geo_circle_points,
     plot_celestial_bodies,
     set_equal_aspect_3d,
+    compute_departure_velocity as _compute_departure_velocity,
 )
 
 project_root = find_project_root(Path(__file__))
@@ -93,20 +94,6 @@ def _resolve_and_load_dro(cli_path: str | None) -> Orbit:
         raise FileNotFoundError(f"DRO 轨道文件不存在: {dro_path}")
     logger.info("加载 DRO: %s", dro_path)
     return load_orbit_from_json(str(dro_path))
-
-
-def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
-    pos = np.asarray(state6[:3], dtype=np.float64)
-    vel = np.asarray(state6[3:6], dtype=np.float64)
-    r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
-    if r_xy < 1e-10:
-        return vel.copy()
-    tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
-    radial = pos / np.linalg.norm(pos)
-    v_radial_comp = float(np.dot(vel, radial))
-    v_tangential_comp = float(np.dot(vel, tangential))
-    new_vel = v_radial_comp * radial + alpha * v_tangential_comp * tangential
-    return new_vel
 
 
 def _resolve_truncation(row: dict) -> tuple[int | None, float]:

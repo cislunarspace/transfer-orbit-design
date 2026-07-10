@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
 from tod.transfers.io_utils import load_search_results  # noqa: F401 — 重导出供各 plot 脚本统一使用
+from tod.commons.orbits import compute_departure_velocity  # noqa: F401 — 重导出供各 plot 脚本统一使用
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +270,7 @@ def plot_transfer_time_delta_v(
 
 def geo_circle_points(n_pts: int = 200) -> tuple[np.ndarray, np.ndarray]:
     """GEO 球面在 x-y 平面上的投影圆。"""
-    from e2m2e.orbits.geo import R_GEO, EARTH_CENTER
+    from tod.commons.orbits import R_GEO, EARTH_CENTER
 
     th = np.linspace(0, 2 * np.pi, n_pts)
     return EARTH_CENTER[0] + R_GEO * np.cos(th), R_GEO * np.sin(th)
@@ -278,7 +279,7 @@ def geo_circle_points(n_pts: int = 200) -> tuple[np.ndarray, np.ndarray]:
 def plot_celestial_bodies(ax, system, config) -> None:
     """在 3D axes 上绘制地球、月球和平动点。"""
     from tod.commons.constants import MU
-    from e2m2e.orbits.geo import EARTH_CENTER
+    from tod.commons.orbits import EARTH_CENTER
 
     ax.scatter(*EARTH_CENTER, color="blue", s=60, zorder=5)
     ax.scatter(1.0 - MU, 0, 0, color="gray", s=30, zorder=5)
@@ -332,25 +333,6 @@ def build_transfer_dynamics(mu: float | None = None, dt: float | None = None):
     return system, dynamics
 
 
-def compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
-    """根据切向速度比 α 计算出发速度。
-
-    径向分量不变，切向分量乘以 α。
-    """
-    pos = np.asarray(state6[:3], dtype=np.float64)
-    vel = np.asarray(state6[3:6], dtype=np.float64)
-    r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
-    if r_xy < 1e-10:
-        # r_xy ≈ 0 时切向向量 [-y, x, 0]/r_xy 无定义，径向/切向分解无法计算；
-        # 返回原始速度作为安全默认值。
-        return vel.copy()
-    tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
-    radial = pos / np.linalg.norm(pos)
-    v_radial_comp = float(np.dot(vel, radial))
-    v_tangential_comp = float(np.dot(vel, tangential))
-    return v_radial_comp * radial + alpha * v_tangential_comp * tangential
-
-
 def reintegrate_transfer(
     dynamics,
     departure_state: np.ndarray,
@@ -376,7 +358,7 @@ def reintegrate_transfer(
 def _annotate_bodies_2d(ax, system, config) -> None:
     """在 2D axes 上标注地球、月球和平动点。"""
     from tod.commons.constants import MU
-    from e2m2e.orbits.geo import EARTH_CENTER
+    from tod.commons.orbits import EARTH_CENTER
 
     ax.scatter(*EARTH_CENTER[:2], color="blue", s=60, zorder=5)
     ax.scatter(1.0 - MU, 0, color="gray", s=30, zorder=5)

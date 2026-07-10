@@ -9,7 +9,7 @@ import numpy as np
 
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 from e2m2e.core.orbit import Orbit
-from e2m2e.orbits.geo import compute_departure_velocity
+from tod.commons.orbits import compute_departure_velocity
 from tod.commons.constants import MU
 
 # 积分器配置（与 optimize_geo_to_dro.py 保持一致）

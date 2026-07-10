@@ -253,7 +253,7 @@ def main():
     # 构建 CR3BP 动力学
     print(f"\n1. CR3BP 传播...")
     from e2m2e.core import CR3BP_System, CR3BP_Dynamics
-    from e2m2e.orbits.geo import compute_departure_velocity
+    from tod.commons.orbits import compute_departure_velocity
     import tod.commons.constants as _tod_constants
 
     system = CR3BP_System(mu=_tod_constants.MU, primary="earth", secondary="moon")

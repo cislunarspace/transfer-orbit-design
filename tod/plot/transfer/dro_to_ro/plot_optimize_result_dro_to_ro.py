@@ -30,7 +30,7 @@ import matplotlib
 import numpy as np
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from e2m2e.core.orbit import Orbit
-from e2m2e.orbits.geo import EARTH_CENTER
+from tod.commons.orbits import EARTH_CENTER, compute_departure_velocity as _compute_departure_velocity
 from e2m2e.transfer import load_orbit_from_json
 from matplotlib.axes import Axes
 from matplotlib.colors import Normalize
@@ -112,19 +112,6 @@ def _build_dynamics() -> Tuple[CR3BP_System, CR3BP_Dynamics]:
     dynamics.atol = 1e-12
     dynamics.max_step = DT
     return system, dynamics
-
-
-def _compute_departure_velocity(state6: np.ndarray, alpha: float) -> np.ndarray:
-    pos = np.asarray(state6[:3], dtype=np.float64)
-    vel = np.asarray(state6[3:6], dtype=np.float64)
-    r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
-    if r_xy < 1e-10:
-        return vel.copy()
-    tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
-    radial = pos / np.linalg.norm(pos)
-    v_radial_comp = float(np.dot(vel, radial))
-    v_tangential_comp = float(np.dot(vel, tangential))
-    return v_radial_comp * radial + alpha * v_tangential_comp * tangential
 
 
 def _integrate_transfer(
