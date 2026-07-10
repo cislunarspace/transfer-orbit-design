@@ -1,7 +1,7 @@
 """transfer_to_ephemeris 脚本。
 
 将 DRO→GEO 优化后的转移轨迹从 CR3BP synodic 坐标系转换到星历模型（J2000），
-使用 e2m2e 的 SynodicJ2000Transformation 进行坐标转换，
+使用 e2m2e 的 SynodicJ2000System 进行坐标转换，
 在星历模型中前向传播并与 CR3BP 解对比。
 
 注意：本脚本目前只做坐标转换和星历模型传播展示，
@@ -116,9 +116,9 @@ def synodic_to_j2000_states(
     spice,
 ) -> np.ndarray:
     """将 synodic 状态序列批量转换到 J2000。"""
-    from e2m2e.core import SynodicJ2000Transformation
+    from e2m2e.core import SynodicJ2000System
 
-    transform = SynodicJ2000Transformation(cr3bp_system=cr3bp_system, spice=spice)
+    transform = SynodicJ2000System(cr3bp_system=cr3bp_system, spice=spice)
 
     # 转换所有时间点到 ET
     from tod.commons.constants import TU

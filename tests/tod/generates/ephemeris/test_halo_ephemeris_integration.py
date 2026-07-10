@@ -90,7 +90,7 @@ def _setup_pipeline(halo_json: Path, tmp_path: Path):
     from e2m2e.core.spice import SPICEManager
     from e2m2e.core.ephemeris_system import EphemerisSystem
     from e2m2e.core.ephemeris_dynamics import EphemerisDynamics
-    from e2m2e.core import CR3BP_System, Orbit, SynodicJ2000Transformation
+    from e2m2e.core import CR3BP_System, Orbit, SynodicJ2000System
 
     mod = _import_module()
 
@@ -120,7 +120,7 @@ def _setup_pipeline(halo_json: Path, tmp_path: Path):
             halo_orbit, mod.N_PATCH_POINTS
         )
 
-        syn_j2000 = SynodicJ2000Transformation(
+        syn_j2000 = SynodicJ2000System(
             cr3bp_system=cr3bp_system, spice=spice
         )
         t_patch_j2000, states_j2000 = convert_to_j2000(

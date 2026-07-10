@@ -24,7 +24,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-from e2m2e.core import Orbit, CR3BP_System, SynodicJ2000Transformation
+from e2m2e.core import Orbit, CR3BP_System, SynodicJ2000System
 from e2m2e.core.spice import SPICEManager
 from e2m2e.core.ephemeris_system import EphemerisSystem
 from e2m2e.core.ephemeris_dynamics import EphemerisDynamics
@@ -184,7 +184,7 @@ def main(argv=None):
 
     try:
         # ---------- 坐标转换 ----------
-        syn_j2000 = SynodicJ2000Transformation(
+        syn_j2000 = SynodicJ2000System(
             cr3bp_system=cr3bp_system, spice=spice
         )
 

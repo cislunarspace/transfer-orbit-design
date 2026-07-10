@@ -19,10 +19,11 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from e2m2e.core import Orbit, CR3BP_System, SynodicJ2000Transformation
+from e2m2e.core import Orbit, CR3BP_System, SynodicJ2000System
 
 try:
-    from e2m2e.core import SPICEManager, EphemerisSystem, EphemerisDynamics
+    from e2m2e.core import SPICEManager, EphemerisSystem
+    from e2m2e.core.ephemeris_dynamics import EphemerisDynamics
 except ImportError:
     class _MissingEphemerisApi:
         """延迟报告当前 e2m2e 版本缺少星历绘图所需 API。"""
@@ -189,7 +190,7 @@ def main():
     try:
         reference_et = spice.utc_to_et(reference_epoch)
         cr3bp_system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
-        syn_j2000 = SynodicJ2000Transformation(
+        syn_j2000 = SynodicJ2000System(
             cr3bp_system=cr3bp_system,
             spice=spice,
         )

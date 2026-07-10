@@ -395,7 +395,7 @@ def default_conversion_dependencies() -> ConversionDependencies:
     from e2m2e.core import (
         CR3BP_System,
         Orbit,
-        SynodicJ2000Transformation,
+        SynodicJ2000System,
     )
     from e2m2e.core.spice import SPICEManager
     from e2m2e.core.ephemeris_system import EphemerisSystem
@@ -470,7 +470,7 @@ def default_conversion_dependencies() -> ConversionDependencies:
         Returns:
             函数执行结果。
         """
-        transform = SynodicJ2000Transformation(cr3bp_system=cr3bp_system, spice=spice)
+        transform = SynodicJ2000System(cr3bp_system=cr3bp_system, spice=spice)
         return convert_to_j2000(t_patch_syn, states_syn, transform, reference_et_value, _tod_constants.TU)
 
     def correct(

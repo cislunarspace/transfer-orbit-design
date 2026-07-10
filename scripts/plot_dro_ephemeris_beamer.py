@@ -15,7 +15,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from e2m2e.core import Orbit, CR3BP_System, SynodicJ2000Transformation
+from e2m2e.core import Orbit, CR3BP_System, SynodicJ2000System
 from e2m2e.core.spice import SPICEManager
 from e2m2e.core.ephemeris_system import EphemerisSystem
 from e2m2e.core.ephemeris_dynamics import EphemerisDynamics
@@ -100,7 +100,7 @@ def main(argv=None):
     spice.load_kernel(kernel_path)
     ref_et = spice.utc_to_et(reference_epoch)
 
-    syn_j2000 = SynodicJ2000Transformation(cr3bp_system=cr3bp_system, spice=spice)
+    syn_j2000 = SynodicJ2000System(cr3bp_system=cr3bp_system, spice=spice)
 
     dro_syn = np.array(dro_orbit.states)
     t_cr3bp = np.linspace(0, period_tu, len(dro_syn))
