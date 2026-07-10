@@ -3,6 +3,8 @@
 from pathlib import Path
 import json
 
+import pytest
+
 import tod
 from tod.scripting import CatalogSeedSelectorParam, SCRIPTS, UNIT_GROUPS
 
