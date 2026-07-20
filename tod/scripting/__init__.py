@@ -1,6 +1,6 @@
 """脚本注册表中性层：计算脚本与 GUI 共享的数据类型、扫描器与 SCRIPTS 代理。
 
-本包从 tod.gui 解耦出来，消除「48 个计算脚本反向依赖 tod.gui.script_registry」
+本包从 tod.gui 解耦出来，消除「48 个计算脚本反向依赖 tod.scripting.scanner」
 造成的 gui ↔ computes 循环。计算脚本应从 ``tod.scripting`` 导入 CliParam、
 ScriptEntry 等声明类型；GUI 与扫描器内部从本包消费同一套类型。
 

@@ -33,8 +33,7 @@ class ScriptTabBar(QWidget):
     - 全部关闭时显示空白占位
     """
 
-    # NOTE: 运行时实际传入 _ScanEntry（_registry.py 的 ScriptEntry 代理），
-    # 用 object 避免 PyQt6 的 isinstance 类型检查。
+    # NOTE: 用 object 避免 PyQt6 的 isinstance 类型检查。
     tab_switched = pyqtSignal(object)
     tab_cleared = pyqtSignal()  # 所有 tab 关闭
     run_requested = pyqtSignal(ScriptTabWidget)
