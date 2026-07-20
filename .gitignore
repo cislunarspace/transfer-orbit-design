@@ -280,3 +280,8 @@ test_results/
 
 # Git worktrees
 .worktrees/
+
+# MagicMock 测试残留
+MagicMock/
+# ZCode IDE 本地会话计划产物
+.zcode/
