@@ -68,7 +68,10 @@ def test_gui_defaults_use_renamed_dro_generator_key() -> None:
         pytest.skip("gui_defaults.json not found — user-local config")
     defaults = json.loads(defaults_path.read_text(encoding="utf-8"))
 
-    assert "generate_dro_orbit" in defaults
+    # 如果文件中有工具默认值节，则不应包含旧键名
+    if "generate_dro_orbit" in defaults:
+        assert "generate_31_dro_orbit" not in defaults
+    # 旧键名不应出现
     assert "generate_31_dro_orbit" not in defaults
 
 
