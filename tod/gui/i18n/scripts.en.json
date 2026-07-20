@@ -39,7 +39,21 @@
   },
   "generate_halo_family": {
     "description": "Generate Orbit Family",
-    "group_label": "Generate"
+    "group_label": "Generate",
+    "cli_chip_params": {
+      "--libration-point": {
+        "label": "Libration Point",
+        "help": "Libration point selection; multi-select to batch generate orbit families for multiple points."
+      },
+      "--halo-class": {
+        "label": "Halo Class",
+        "options": {
+          "北族 (Class I)": "North (Class I)",
+          "南族 (Class II)": "South (Class II)"
+        },
+        "help": "Halo orbit family type: north or south. Multi-select to generate each branch independently."
+      }
+    }
   },
 
   "generate_axial_orbit": { "description": "Generate Orbit", "group_label": "Generate" },
@@ -104,7 +118,29 @@
   "correct_dro_family_to_ephemeris": { "description": "Correct Orbit Family", "group_label": "Ephemeris Conversion" },
   "correct_halo_to_ephemeris": { "description": "Correct Single Orbit", "group_label": "Ephemeris Conversion" },
   "correct_halo_family_to_ephemeris": { "description": "Correct Orbit Family", "group_label": "Ephemeris Conversion" },
-  "correct_orbit_to_ephemeris": { "description": "Correct Single Orbit", "group_label": "Ephemeris Conversion" },
+  "correct_orbit_to_ephemeris": {
+    "description": "Correct Single Orbit",
+    "group_label": "Ephemeris Conversion",
+    "cli_chip_params": {
+      "--method": {
+        "label": "Correction Method",
+        "options": {
+          "标准法": "Standard",
+          "两阶段法": "Two-Level",
+          "同伦法": "Homotopy"
+        },
+        "help": "Ephemeris correction method; multi-select to run multiple methods."
+      },
+      "--position-tol": {
+        "label": "Position Tolerance",
+        "options": {
+          "标准 (1e-3 km)": "Standard (1e-3 km)",
+          "严格 (1e-6 km)": "Strict (1e-6 km)"
+        },
+        "help": "Position continuity tolerance; multi-select to run with multiple tolerances."
+      }
+    }
+  },
 
   "grid_search_dro_to_geo": {
     "description": "Grid Search",

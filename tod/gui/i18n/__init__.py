@@ -91,18 +91,25 @@ def translate_script_entry(entry: ScriptEntry, translations: dict) -> ScriptEntr
         _translate_cli_param(p, cli_t) for p in entry.cli_params
     ]
 
+    chip_t = t.get("cli_chip_params", {})
+    new_chip = [
+        _translate_cli_chip_param(p, chip_t) for p in getattr(entry, "cli_chip_params", [])
+    ]
+
     env_t = t.get("env_params", {})
     new_env = {
         k: _translate_env_param(v, env_t) for k, v in entry.env_params.items()
     }
 
-    return replace(
-        entry,
-        description=desc,
-        group_label=group_label,
-        cli_params=new_cli,
-        env_params=new_env,
-    )
+    updates = {
+        "description": desc,
+        "group_label": group_label,
+        "cli_params": new_cli,
+        "env_params": new_env,
+    }
+    if new_chip:
+        updates["cli_chip_params"] = new_chip
+    return replace(entry, **updates)
 
 def _translate_cli_param(param, cli_t: dict):
     """对单个 CliParam 应用翻译。"""
@@ -114,6 +121,32 @@ def _translate_cli_param(param, cli_t: dict):
         updates["label"] = p["label"]
     if "help" in p:
         updates["help"] = p["help"]
+    return replace(param, **updates) if updates else param
+
+def _translate_cli_chip_param(param, chip_t: dict):
+    """对单个 CliChipParam 应用翻译。
+
+    chip_t 格式: {"label": "...", "help": "...", "options": {"中文键": "English Key"}}
+    """
+    p = chip_t.get(param.flag, {})
+    if not p:
+        return param
+    updates = {}
+    if "label" in p:
+        updates["label"] = p["label"]
+    if "help" in p:
+        updates["help"] = p["help"]
+    if "options" in p:
+        opt_map = p["options"]
+        new_options = {}
+        for k, v in param.options.items():
+            new_key = opt_map.get(k, k)
+            new_options[new_key] = v
+        updates["options"] = new_options
+        if param.default:
+            parts = [s.strip() for s in param.default.split(",")]
+            new_parts = [opt_map.get(s, s) for s in parts]
+            updates["default"] = ",".join(new_parts)
     return replace(param, **updates) if updates else param
 
 def _translate_env_param(param, env_t: dict):
