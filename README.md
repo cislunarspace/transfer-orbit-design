@@ -16,7 +16,7 @@ Transfer Orbit Design 是一组面向地月空间轨道设计的脚本和 GUI �
 
 | 类别 | 能力 | 典型输出 |
 |------|------|----------|
-| CR3BP 轨道生成 | 12 类周期轨道族：DRO、DPO、Halo、Lyapunov、Vertical、Axial、Butterfly、SPO、LPO、Tadpole、Horseshoe、Resonant（3:1/3:2/2:1） | `output/<orbit-type>/` 下的 JSON/CSV |
+| CR3BP 轨道生成 | 4 类周期轨道族：DRO、DPO、Halo、RO | `output/<orbit-type>/` 下的 JSON/CSV |
 | 转移搜索 | DRO→RO、DRO→GEO、GEO→DRO、LEO→DRO 网格搜索 | `search_results_*.json` |
 | 转移优化 | 基于网格搜索结果执行 NLP 优化，最小化两脉冲或插入代价 | `optimization_results_*.json` |
 | 星历转换 | 将 CR3BP DRO/Halo 轨道或轨道族修正到真实星历模型 | `output/ephemeris/` 下的修正结果 JSON |
@@ -62,7 +62,7 @@ export SPICE_KERNEL_DIR=../e2m2e/kernels
 uv run python -m tod.gui.main
 ```
 
-GUI 会按“生成 / 星历转换 / 转移 / 绘图”组织脚本，并根据 `tod/gui/scripts/` 中的注册信息展示参数、帮助文本和输出目录。
+GUI 会按“生成 / 星历转换 / 转移 / 绘图”组织脚本，并根据 `tod/scripting/` 中的注册信息展示参数、帮助文本和输出目录。
 
 **语言切换**：GUI 支持 `zh`（中文，默认）和 `en`（英文）两种界面语言。修改 `gui_defaults.json` 中的 `"language"` 配置项后重启生效；缺失的翻译条目自动回退到中文。
 
@@ -71,7 +71,7 @@ GUI 会按“生成 / 星历转换 / 转移 / 绘图”组织脚本，并根据 
 先生成基准轨道，再运行转移或绘图脚本。命令都在仓库根目录执行。
 
 ```bash
-# DRO / DPO / Halo
+# DRO / DPO / Halo / RO
 uv run python -m tod.generates.cr3bp.dro.generate_dro_orbit
 uv run python -m tod.generates.cr3bp.dro.generate_dro_orbit --jacobi 3.1
 uv run python -m tod.generates.cr3bp.dro.generate_dro_orbit --seed-id earth-moon_dro:000001
@@ -79,21 +79,7 @@ uv run python -m tod.generates.cr3bp.dro.generate_dro_family
 uv run python -m tod.generates.cr3bp.dpo.generate_dpo_orbit
 uv run python -m tod.generates.cr3bp.dpo.generate_dpo_family
 uv run python -m tod.generates.cr3bp.halo.generate_halo_family
-
-# 平动点轨道族
-uv run python -m tod.generates.cr3bp.lyapunov.generate_lyapunov_family
-uv run python -m tod.generates.cr3bp.vertical.generate_vertical_family
-uv run python -m tod.generates.cr3bp.axial.generate_axial_family
-
-# 三角平动点轨道族
-uv run python -m tod.generates.cr3bp.spo.generate_spo_family
-uv run python -m tod.generates.cr3bp.lpo.generate_lpo_family
-uv run python -m tod.generates.cr3bp.tadpole.generate_tadpole_family
-uv run python -m tod.generates.cr3bp.horseshoe.generate_horseshoe_family
-
-# 特殊拓扑轨道族
-uv run python -m tod.generates.cr3bp.butterfly.generate_butterfly_family
-uv run python -m tod.generates.cr3bp.resonant.generate_resonant_family --ratio 3:1
+uv run python -m tod.generates.cr3bp.ro.generate_ro_family
 
 # 转移：先网格搜索，再 NLP 优化
 uv run python -m tod.transfers.dro_to_ro.grid_search_dro_to_ro
@@ -126,15 +112,7 @@ DRO 单轨生成入口已从旧的 3:1 专用脚本改名为 `generate_dro_orbit
 | DRO | `tod.generates.cr3bp.dro.generate_dro_orbit` | `tod.generates.cr3bp.dro.generate_dro_family` | 次天体逆行轨道 |
 | DPO | `tod.generates.cr3bp.dpo.generate_dpo_orbit` | `tod.generates.cr3bp.dpo.generate_dpo_family` | 次天体顺行轨道 |
 | Halo | `tod.generates.cr3bp.halo.generate_halo_orbit` | `tod.generates.cr3bp.halo.generate_halo_family` | 三维周期轨道，支持自然/伪弧长延拓 |
-| Lyapunov | `tod.generates.cr3bp.lyapunov.generate_lyapunov_orbit` | `tod.generates.cr3bp.lyapunov.generate_lyapunov_family` | 平面周期轨道，沿共线平动点主轴振荡 |
-| Vertical | `tod.generates.cr3bp.vertical.generate_vertical_orbit` | `tod.generates.cr3bp.vertical.generate_vertical_family` | 垂直方向振荡的周期轨道 |
-| Axial | `tod.generates.cr3bp.axial.generate_axial_orbit` | `tod.generates.cr3bp.axial.generate_axial_family` | 沿平动点轴向的周期轨道 |
-| Butterfly | `tod.generates.cr3bp.butterfly.generate_butterfly_orbit` | `tod.generates.cr3bp.butterfly.generate_butterfly_family` | 连接两个共线平动点的对称轨道 |
-| SPO | `tod.generates.cr3bp.spo.generate_spo_orbit` | `tod.generates.cr3bp.spo.generate_spo_family` | 三角平动点短周期轨道 |
-| LPO | `tod.generates.cr3bp.lpo.generate_lpo_orbit` | `tod.generates.cr3bp.lpo.generate_lpo_family` | 三角平动点长周期轨道 |
-| Tadpole | `tod.generates.cr3bp.tadpole.generate_tadpole_orbit` | `tod.generates.cr3bp.tadpole.generate_tadpole_family` | 围绕单个三角平动点的蝌蚪形轨道 |
-| Horseshoe | `tod.generates.cr3bp.horseshoe.generate_horseshoe_orbit` | `tod.generates.cr3bp.horseshoe.generate_horseshoe_family` | 跨越两个三角平动点的马蹄形轨道 |
-| Resonant | `tod.generates.cr3bp.resonant.generate_resonant_orbit` | `tod.generates.cr3bp.resonant.generate_resonant_family` | m:n 共振周期轨道，通过 `--ratio` 选择 3:1 / 3:2 / 2:1 |
+| RO | `tod.generates.cr3bp.ro.generate_ro_orbit` | `tod.generates.cr3bp.ro.generate_ro_family` | 共振轨道 |
 
 ### 转移搜索与优化
 
@@ -180,7 +158,7 @@ DRO 单轨生成入口已从旧的 3:1 专用脚本改名为 `generate_dro_orbit
 - `states`：状态历史，CR3BP 中通常为无量纲 `[x, y, z, vx, vy, vz]`。
 - `times`：与状态对应的时间数组。
 - `period`：轨道周期或传播时长。
-- `orbit_type`：轨道类型标识，如 `DRO`、`DPO`、`Halo`、`Lyapunov`、`Vertical`、`Axial`、`Butterfly`、`SPO`、`LPO`、`Tadpole`、`Horseshoe`、`Resonant`。
+- `orbit_type`：轨道类型标识，如 `DRO`、`DPO`、`Halo`、`RO`。
 - `metadata`：脚本配置、延拓步数、误差统计等辅助信息。
 
 `output/*/family.json` 是最近一次生成的快捷副本，会被覆盖；长期引用请使用带时间戳的文件名。
@@ -191,11 +169,9 @@ DRO 单轨生成入口已从旧的 3:1 专用脚本改名为 `generate_dro_orbit
 tod/
   commons/        常量、路径和通用工具
   generates/      CR3BP 轨道生成与 CR3BP→星历转换脚本
-    cr3bp/          各轨道族生成（dro, dpo, halo, lyapunov, vertical,
-                    axial, butterfly, spo, lpo, tadpole, horseshoe,
-                    resonant, ...）
+    cr3bp/          各轨道族生成（dro, dpo, halo, ro）
     ephemeris/      DRO/Halo 星历转换（单轨道与轨道族）
-  transfers/      DRO/Resonant/GEO/LEO 转移搜索和优化脚本
+  transfers/      DRO/RO/GEO/LEO 转移搜索和优化脚本
   plot/           轨道、轨道族、搜索结果和优化结果绘图脚本
   gui/            PyQt6 GUI、脚本注册、参数面板、运行管理、主题与国际化
 docs/
@@ -220,7 +196,7 @@ Transfer Orbit Design 面向地月空间发展需求，围绕三个技术方向�
 
 当前已实现的能力对应到本仓库的脚本：
 
-- **周期轨道族生成**：12 类 CR3BP 周期轨道族（DRO、DPO、Halo、Lyapunov、Vertical、Axial、Butterfly、SPO、LPO、Tadpole、Horseshoe、Resonant），可作为转移设计的出发/目标轨道。见[轨道生成（CR3BP）](#轨道生成cr3bp)。
+- **周期轨道族生成**：4 类 CR3BP 周期轨道族（DRO、DPO、Halo、RO），可作为转移设计的出发/目标轨道。见[轨道生成（CR3BP）](#轨道生成cr3bp)。
 - **转移搜索与优化**：DRO→RO、DRO→GEO、GEO→DRO、LEO→DRO 的两脉冲网格搜索与 NLP 优化，最小化 Δv 或插入代价，为低能耗转移设计提供候选解。见[转移搜索与优化](#转移搜索与优化)。
 - **星历修正**：将 CR3BP 设计结果多重打靶修正到真实星历模型，缩小设计与工程实现的差距。见[星历转换](#星历转换)。
 

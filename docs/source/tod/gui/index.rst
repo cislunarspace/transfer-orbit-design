@@ -18,9 +18,7 @@ API: tod.gui
    params_panel
    params_panel_mixin
    run_mixin
-   script_registry
    script_tree
-   scripts/index
    settings_dialog
    settings_schema
    sidebar_tree

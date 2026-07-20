@@ -14,7 +14,7 @@ Transfer Orbit Design 是一个轨道设计工具，提供 CR3BP 轨道生成、
 
 ## 架构要点
 
-- 每个可运行脚本底部声明 `SCRIPT_ENTRY = ScriptEntry(...)`，描述该脚本在 GUI 中的元数据。`tod/gui/scripts/_registry.py` 中的扫描器从实现目录（`tod/generates/`、`tod/plot/`、`tod/transfers/`）发现并加载这些注册信息。`_ScanEntry` 是 `ScriptEntry` 的运行时代理；PyQt6 信号类型声明为 `ScriptEntry`，但运行时实际传入 `_ScanEntry`，需注意类型兼容性。
+- 每个可运行脚本底部声明 `SCRIPT_ENTRY = ScriptEntry(...)`，描述该脚本在 GUI 中的元数据。`tod/scripting/scanner.py` 中的扫描器从实现目录（`tod/generates/`、`tod/plot/`、`tod/transfers/`）发现并加载这些注册信息。`_ScanEntry` 是 `ScriptEntry` 的运行时代理；PyQt6 信号类型声明为 `ScriptEntry`，但运行时实际传入 `_ScanEntry`，需注意类型兼容性。
 
 ## 交流语言
 
