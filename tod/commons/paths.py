@@ -1,28 +1,17 @@
-"""脚本共享的常量、路径与工具。
+"""路径与目录辅助工具。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
+本模块为 Transfer Orbit Design 的脚本化工作流提供路径解析与输出目录工具。
 """
-
 
 import logging
 import os
 from pathlib import Path
 
 __all__ = [
-    "LoadInputContractError",
     "ensure_output_dir",
     "find_project_root",
     "safe_resolve_within",
 ]
-
-
-class LoadInputContractError(ValueError):
-    """``load_or_compute`` 输入契约违反时抛出的领域错误。
-
-    触发条件：``args.load`` 为真但既不是字符串路径，也没有同时传
-    ``args.auto_latest=True``。此约束来自 issue #183：公共层不再允许
-    隐式选择最新族文件。
-    """
 
 logger = logging.getLogger(__name__)
 

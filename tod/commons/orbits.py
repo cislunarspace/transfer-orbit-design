@@ -45,7 +45,7 @@ def geo_circular_velocity_rotating(position: npt.NDArray[np.floating]) -> npt.ND
     tangential = np.array([-r_rel[1], r_rel[0], 0.0]) / r_rel_xy
     v_inertial = V_CIRCULAR_GEO * tangential
 
-    omega_cross_r = np.array([-r_rel[1], r_rel[0], 0.0])
+    omega_cross_r = np.array([-position[1], position[0], 0.0])
     return v_inertial - omega_cross_r
 
 
@@ -192,3 +192,42 @@ def check_collision(
     if len(m_col) > 0:
         return True, "moon", int(m_col[0])
     return False, None, -1
+
+
+# =============================================================================
+# GEO 轨道生成
+# =============================================================================
+
+
+def generate_geo_orbit(n_points: int = 500) -> "Orbit":
+    """在 CR3BP 旋转系中生成 GEO 近似圆轨道。
+
+    GEO 被建模为以地心为圆心、半径为 R_GEO 的圆轨道。
+    速度通过 geo_circular_velocity_rotating 计算（包含 Coriolis 修正）。
+
+    Args:
+        n_points: 采样点数。
+
+    Returns:
+        ``Orbit`` 对象，包含 states、times 和 period。
+    """
+    from e2m2e.core.orbit import Orbit
+
+    theta = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
+    states = np.zeros((n_points, 6))
+
+    for i, th in enumerate(theta):
+        x = EARTH_CENTER[0] + R_GEO * np.cos(th)
+        y = R_GEO * np.sin(th)
+        z = 0.0
+
+        pos = np.array([x, y, z])
+        vel = geo_circular_velocity_rotating(pos)
+
+        states[i] = [x, y, z, vel[0], vel[1], vel[2]]
+
+    times = np.linspace(0, T_GEO, n_points, endpoint=False)
+
+    orbit = Orbit(states, times)
+    orbit.period = T_GEO
+    return orbit

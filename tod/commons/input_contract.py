@@ -1,4 +1,4 @@
-"""CLI 输入文件选择契约。
+"""输入文件选择契约。
 
 本模块实现 issue #183 落地后的「输入文件」领域契约：关键输入路径必须由用户
 显式指定；只有显式 opt-in（``--auto-latest``）才允许工具按 mtime 选最新
@@ -23,13 +23,24 @@ from pathlib import Path
 __all__ = [
     "InputFileRequest",
     "InputResolutionError",
+    "LoadInputContractError",
     "MAX_CANDIDATES_DISPLAYED",
     "resolve_input_file",
 ]
 
 
+# ------------------------------------------------------------------
 # 候选提示最多显示条数（grill-me 决策 12）
 MAX_CANDIDATES_DISPLAYED = 10
+
+
+class LoadInputContractError(ValueError):
+    """``load_or_compute`` 输入契约违反时抛出的领域错误。
+
+    触发条件：``args.load`` 为真但既不是字符串路径，也没有同时传
+    ``args.auto_latest=True``。此约束来自 issue #183：公共层不再允许
+    隐式选择最新族文件。
+    """
 
 
 class InputResolutionError(ValueError):

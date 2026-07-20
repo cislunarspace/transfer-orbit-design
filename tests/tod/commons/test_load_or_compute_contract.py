@@ -13,7 +13,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from tod.commons.common import (
+from tod.commons.input_contract import (
     LoadInputContractError,
 )
 from tod.commons.constants import FAMILY_FILENAME

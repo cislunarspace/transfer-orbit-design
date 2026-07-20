@@ -15,8 +15,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
+from tod.commons.paths import find_project_root
 from tod.transfers.io_utils import load_search_results  # noqa: F401 — 重导出供各 plot 脚本统一使用
 from tod.commons.orbits import compute_departure_velocity  # noqa: F401 — 重导出供各 plot 脚本统一使用
+
+project_root = find_project_root(Path(__file__))
 
 logger = logging.getLogger(__name__)
 
@@ -443,3 +446,29 @@ def plot_single_transfer_orbit_2d(
     ax.set_ylim(mid[1] - half, mid[1] + half)
 
     return ax
+
+
+def resolve_opt_input(args, pattern: str, prog: str) -> Path:
+    """按 issue #183 契约解析 optimization JSON（通用版本）。
+
+    各 plot_optimize_result_* 脚本此前各有一份实现，仅 pattern 和 prog 不同。
+    """
+    from tod.commons.input_contract import InputFileRequest, InputResolutionError, resolve_input_file
+
+    try:
+        return resolve_input_file(
+            InputFileRequest(
+                explicit_path=Path(args.file) if args.file else None,
+                auto_latest=bool(args.auto_latest),
+                search_root=project_root / "output/transfer",
+                pattern=pattern,
+                flag="--file",
+                auto_latest_flag="--auto-latest",
+            )
+        )
+    except InputResolutionError as exc:
+        import argparse
+        parser = argparse.ArgumentParser(prog=prog)
+        if exc.candidates or exc.remaining:
+            parser.error(f"{exc}\n候选 (mtime new→old):\n{exc.format_candidates()}")
+        parser.error(str(exc))
