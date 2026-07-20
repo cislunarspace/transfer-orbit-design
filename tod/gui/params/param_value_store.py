@@ -2,6 +2,13 @@
 
 将 ``ScriptTabWidget`` 中"作用于控件字典"的方法抽离到独立的 store 类，
 让 ``ScriptParamPanel`` 仅负责 UI 构建、``ScriptParamCollector`` 仅负责收集。
+
+拆分为三个职责清晰的类：
+- ``UnitStore`` — 单位转换
+- ``VisibilityStore`` — 条件可见性 + 参数高亮
+- ``ParamStore`` — 值存储 + 参数收集 + 默认值持久化
+
+``ParamValueStore`` 作为 Facade 组合三者，保持原有 GUI 接口不变。
 """
 
 from __future__ import annotations
@@ -37,57 +44,17 @@ class CatalogSeedSelectorState:
     tolerance_widget: QWidget
     manual_keys: tuple[str, ...]
 
-class ParamValueStore:
-    """参数值存储：持有控件字典、默认值、单位/路径/可见性/高亮/默认值持久化逻辑。
 
-    ``_find_cli_param`` 通过构造时注入（lambda）以避免反向依赖 widget。
-    """
+# ── UnitStore：单位转换 ────────────────────────────────────────
 
-    _PARAM_BORDER_MODIFIED = "border: 1px solid #0078d4;"
+class UnitStore:
+    """单位转换逻辑。"""
 
-    def __init__(
-        self,
-        files: list,
-        find_cli_param: Callable[[str], "CliParam | None"],
-        on_path_mode_changed: Callable[[QComboBox, QComboBox], None] | None = None,
-        on_unit_changed: Callable[[QLineEdit, QComboBox, str], None] | None = None,
-    ) -> None:
-        self._find_cli_param = find_cli_param
-
-        # 控件字典
-        self._cli_widgets: dict[str, QWidget] = {}
-        self._env_widgets: dict[str, QComboBox] = {}
-        self._chip_widgets: dict[str, QWidget] = {}
-        self._multi_file_widgets: dict[str, QWidget] = {}
-        self._catalog_seed_selectors: dict[str, CatalogSeedSelectorState] = {}
-
-        # 默认值字典
-        self._param_defaults: dict[QWidget, str] = {}
-        self._factory_defaults: dict[QWidget, str] = {}
-
-        # 条件可见性用的 row 容器和 label
-        self._row_containers: dict[str, QWidget] = {}
-        self._row_labels: dict[str, QWidget] = {}
-
-        # 文件列表（用于路径模式过滤等）
-        self._files = files
-
-        # 工厂必须最后创建——它需要 on_path_mode_changed / on_unit_changed 回调
-        self._widget_factory = CliWidgetFactory(
-            files=self._files,
-            on_path_mode_changed=on_path_mode_changed or self.on_path_mode_changed,
-            on_unit_changed=on_unit_changed or self.on_unit_changed,
-        )
-
-    # ── 工厂引用 ───────────────────────────────────────────────
-
-    @property
-    def widget_factory(self) -> CliWidgetFactory:
-        return self._widget_factory
-
-    # ── 公共方法：单位转换 / 值写入 / 路径模式 ─────────────────
+    def __init__(self, widget_factory: CliWidgetFactory) -> None:
+        self._widget_factory = widget_factory
 
     def to_standard_unit(self, line_edit: QLineEdit) -> str:
+        """把 LineEdit 的显示值换算回标准单位。"""
         text = line_edit.text().strip()
         if not text:
             return text
@@ -107,6 +74,7 @@ class ParamValueStore:
         return f"{value * factor:.10g}"
 
     def on_unit_changed(self, line_edit: QLineEdit, combo: QComboBox, group_name: str) -> None:
+        """单位下拉框变更时，换算 LineEdit 的显示值。"""
         text = line_edit.text().strip()
         if not text:
             combo.setProperty("prev_idx", combo.currentIndex())
@@ -125,74 +93,33 @@ class ParamValueStore:
         line_edit.setText(f"{new_value:.10g}")
         combo.setProperty("prev_idx", new_idx)
 
-    def set_widget_std_value(self, widget: QWidget, std_val_str: str) -> None:
-        if isinstance(widget, QCheckBox):
-            widget.setChecked(std_val_str.lower() == "true")
-        elif isinstance(widget, QSpinBox):
-            if std_val_str:
-                widget.setValue(int(float(std_val_str)))
-        elif isinstance(widget, QLineEdit):
-            if widget in self._widget_factory.unit_combos and std_val_str:
-                combo = self._widget_factory.unit_combos[widget]
-                group = UNIT_GROUPS[self._widget_factory.unit_groups[widget]]
-                units = list(group.keys())
-                try:
-                    std_val = float(std_val_str)
-                    display_val = std_val / group[units[combo.currentIndex()]]
-                    widget.setText(f"{display_val:.10g}")
-                except (ValueError, ZeroDivisionError):
-                    widget.setText(std_val_str)
-            else:
-                widget.setText(std_val_str)
-        elif isinstance(widget, QComboBox):
-            cli_param = None
-            for k, w in self._cli_widgets.items():
-                if w is widget:
-                    cli_param = self._find_cli_param(k)
-                    break
-            if widget in self._widget_factory.path_mode_toggles and std_val_str.startswith("{"):
-                try:
-                    data = json.loads(std_val_str)
-                    mode_combo = self._widget_factory.path_mode_toggles[widget]
-                    mode_combo.blockSignals(True)
-                    mode_combo.setCurrentIndex(1 if data.get("mode") == "relative" else 0)
-                    mode_combo.blockSignals(False)
-                    self.on_path_mode_changed(widget, mode_combo)
-                    widget.setCurrentText(data.get("path", ""))
-                    return
-                except (json.JSONDecodeError, KeyError):
-                    pass
-            if cli_param and cli_param.choice_values:
-                reverse = {v: k for k, v in cli_param.choice_values.items()}
-                if std_val_str in reverse:
-                    std_val_str = reverse[std_val_str]
-            widget.setCurrentText(std_val_str)
 
-    def on_path_mode_changed(self, file_combo: QComboBox, mode_combo: QComboBox) -> None:
-        file_category = mode_combo.property("file_category") or ""
-        name_pattern = mode_combo.property("name_pattern") or None
-        is_relative = mode_combo.currentIndex() == 1
-        current_text = file_combo.currentText()
-        file_combo.blockSignals(True)
-        file_combo.clear()
-        file_combo.addItem("")
-        matching = filter_files(
-            self._files,
-            category=file_category,
-            file_type="json",
-            name_pattern=name_pattern,
-        )
-        for fi in matching:
-            file_combo.addItem(fi.path if is_relative else fi.abs_path)
-        if current_text:
-            idx = file_combo.findText(current_text)
-            if idx >= 0:
-                file_combo.setCurrentIndex(idx)
-            else:
-                file_combo.setEditText(current_text)
-        file_combo.blockSignals(False)
+# ── VisibilityStore：条件可见性 + 参数高亮 ─────────────────────
 
-    # ── 条件可见性 ─────────────────────────────────────────────
+class VisibilityStore:
+    """条件可见性联动 + 参数修改高亮。"""
+
+    _PARAM_BORDER_MODIFIED = "border: 1px solid #0078d4;"
+
+    def __init__(
+        self,
+        find_cli_param: Callable[[str], "CliParam | None"],
+        cli_widgets: dict[str, QWidget],
+        unit_store: UnitStore,
+        widget_factory: CliWidgetFactory,
+    ) -> None:
+        self._find_cli_param = find_cli_param
+        # 与 ParamStore 共享同一个 dict 引用，构造顺序无关（issue #329 方案 B）
+        self._cli_widgets = cli_widgets
+        self._unit_store = unit_store
+        self._widget_factory = widget_factory
+
+        # 条件可见性用的 row 容器和 label
+        self._row_containers: dict[str, QWidget] = {}
+        self._row_labels: dict[str, QWidget] = {}
+
+        # 默认值（用于高亮比对）
+        self._param_defaults: dict[QWidget, str] = {}
 
     def setup_conditional_visibility(
         self,
@@ -273,9 +200,8 @@ class ParamValueStore:
 
             update_visibility()
 
-    # ── 参数高亮 ───────────────────────────────────────────────
-
     def connect_param_highlight(self, widget: QWidget) -> None:
+        """为控件挂上值变更时的高亮信号。"""
         if isinstance(widget, QLineEdit):
             widget.textChanged.connect(lambda _, w=widget: self._update_param_highlight(w))
         elif isinstance(widget, QComboBox):
@@ -284,6 +210,37 @@ class ParamValueStore:
             )
         elif isinstance(widget, QSpinBox):
             widget.valueChanged.connect(lambda _, w=widget: self._update_param_highlight(w))
+
+    # ── 公共接口：默认值 / 可见性查询 ─────────────────────────
+
+    def get_param_default(self, widget: QWidget) -> str:
+        """读取控件对应的高亮比对默认值，未登记时返回空字符串。"""
+        return self._param_defaults.get(widget, "")
+
+    def set_param_default(self, widget: QWidget, value: str) -> None:
+        """登记控件的高亮比对默认值，并立即刷新高亮样式。"""
+        self._param_defaults[widget] = value
+        self._update_param_highlight(widget)
+
+    def is_row_hidden(self, key: str) -> bool:
+        """判断 key 对应的参数行是否被条件可见性规则隐藏。
+
+        key 不在 ``_row_containers`` 中（无联动）返回 False；
+        否则返回容器的 ``isHidden()``。
+        """
+        container = self._row_containers.get(key)
+        if container is None:
+            return False
+        return container.isHidden()
+
+    def clear_defaults(self) -> None:
+        """清空默认值字典（高亮比对基准）。"""
+        self._param_defaults.clear()
+
+    def clear_visibility(self) -> None:
+        """清空条件可见性的 row 容器与 label 字典。"""
+        self._row_containers.clear()
+        self._row_labels.clear()
 
     def _update_param_highlight(self, widget: QWidget) -> None:
         default = self._param_defaults.get(widget, "")
@@ -297,7 +254,7 @@ class ParamValueStore:
             return
 
         if isinstance(widget, QLineEdit) and widget in self._widget_factory.unit_groups:
-            current = self.to_standard_unit(widget)
+            current = self._unit_store.to_standard_unit(widget)
 
         base_ss = widget.styleSheet().replace(self._PARAM_BORDER_MODIFIED, "")
         if current and current != default:
@@ -308,6 +265,130 @@ class ParamValueStore:
     def update_param_highlight(self, widget: QWidget) -> None:
         """公开别名（与旧 widget 接口对齐）。"""
         self._update_param_highlight(widget)
+
+
+# ── ParamStore：值存储 + 参数收集 + 默认值持久化 ───────────────
+
+class ParamStore:
+    """参数值存储：持有控件字典、参数收集、默认值持久化。"""
+
+    def __init__(
+        self,
+        files: list,
+        find_cli_param: Callable[[str], "CliParam | None"],
+        unit_store: UnitStore,
+        visibility_store: VisibilityStore,
+        widget_factory: CliWidgetFactory,
+        cli_widgets: dict[str, QWidget] | None = None,
+    ) -> None:
+        self._find_cli_param = find_cli_param
+        self._unit_store = unit_store
+        self._visibility_store = visibility_store
+        self._widget_factory = widget_factory
+
+        # 控件字典：与 VisibilityStore 共享同一个 dict 引用（issue #329 方案 B）。
+        # 默认创建一个新 dict；Facade 会显式传入共享 dict 以让两个 store 同步可见。
+        self._cli_widgets: dict[str, QWidget] = cli_widgets if cli_widgets is not None else {}
+        self._env_widgets: dict[str, QComboBox] = {}
+        self._chip_widgets: dict[str, QWidget] = {}
+        self._multi_file_widgets: dict[str, QWidget] = {}
+        self._catalog_seed_selectors: dict[str, CatalogSeedSelectorState] = {}
+
+        # 默认值字典
+        self._factory_defaults: dict[QWidget, str] = {}
+
+        # 文件列表
+        self._files = files
+
+    # ── 公共方法：值写入 / 路径模式 ────────────────────────────
+
+    def set_widget_std_value(self, widget: QWidget, std_val_str: str) -> None:
+        """按标准单位值设置控件的显示内容。"""
+        if isinstance(widget, QCheckBox):
+            widget.setChecked(std_val_str.lower() == "true")
+        elif isinstance(widget, QSpinBox):
+            if std_val_str:
+                widget.setValue(int(float(std_val_str)))
+        elif isinstance(widget, QLineEdit):
+            if widget in self._widget_factory.unit_combos and std_val_str:
+                combo = self._widget_factory.unit_combos[widget]
+                group = UNIT_GROUPS[self._widget_factory.unit_groups[widget]]
+                units = list(group.keys())
+                try:
+                    std_val = float(std_val_str)
+                    display_val = std_val / group[units[combo.currentIndex()]]
+                    widget.setText(f"{display_val:.10g}")
+                except (ValueError, ZeroDivisionError):
+                    widget.setText(std_val_str)
+            else:
+                widget.setText(std_val_str)
+        elif isinstance(widget, QComboBox):
+            cli_param = None
+            for k, w in self._cli_widgets.items():
+                if w is widget:
+                    cli_param = self._find_cli_param(k)
+                    break
+            if widget in self._widget_factory.path_mode_toggles and std_val_str.startswith("{"):
+                try:
+                    data = json.loads(std_val_str)
+                    mode_combo = self._widget_factory.path_mode_toggles[widget]
+                    mode_combo.blockSignals(True)
+                    mode_combo.setCurrentIndex(1 if data.get("mode") == "relative" else 0)
+                    mode_combo.blockSignals(False)
+                    self.on_path_mode_changed(widget, mode_combo)
+                    widget.setCurrentText(data.get("path", ""))
+                    return
+                except (json.JSONDecodeError, KeyError):
+                    pass
+            if cli_param and cli_param.choice_values:
+                reverse = {v: k for k, v in cli_param.choice_values.items()}
+                if std_val_str in reverse:
+                    std_val_str = reverse[std_val_str]
+            widget.setCurrentText(std_val_str)
+
+    def on_path_mode_changed(self, file_combo: QComboBox, mode_combo: QComboBox) -> None:
+        """路径模式切换时刷新文件下拉框。"""
+        file_category = mode_combo.property("file_category") or ""
+        name_pattern = mode_combo.property("name_pattern") or None
+        is_relative = mode_combo.currentIndex() == 1
+        current_text = file_combo.currentText()
+        file_combo.blockSignals(True)
+        file_combo.clear()
+        file_combo.addItem("")
+        matching = filter_files(
+            self._files,
+            category=file_category,
+            file_type="json",
+            name_pattern=name_pattern,
+        )
+        for fi in matching:
+            file_combo.addItem(fi.path if is_relative else fi.abs_path)
+        if current_text:
+            idx = file_combo.findText(current_text)
+            if idx >= 0:
+                file_combo.setCurrentIndex(idx)
+            else:
+                file_combo.setEditText(current_text)
+        file_combo.blockSignals(False)
+
+    # ── 主题刷新 / 重置 ────────────────────────────────────────
+
+    def clear(self) -> None:
+        """清空所有 dict（用于主题切换时重建 UI）。"""
+        self._cli_widgets.clear()
+        self._env_widgets.clear()
+        self._chip_widgets.clear()
+        self._multi_file_widgets.clear()
+        self._visibility_store.clear_defaults()
+        self._factory_defaults.clear()
+        self._visibility_store.clear_visibility()
+        self._widget_factory.reset()
+        self._widget_factory._files = self._files
+
+    def set_files(self, files: list) -> None:
+        """更新文件列表（用于 refresh_files）。"""
+        self._files = files
+        self._widget_factory._files = files
 
     # ── 默认值持久化 ───────────────────────────────────────────
 
@@ -323,7 +404,7 @@ class ParamValueStore:
                 saved[cli_param.flag] = str(widget.value())
             elif isinstance(widget, QLineEdit):
                 if widget in self._widget_factory.unit_combos:
-                    saved[cli_param.flag] = self.to_standard_unit(widget)
+                    saved[cli_param.flag] = self._unit_store.to_standard_unit(widget)
                 else:
                     saved[cli_param.flag] = widget.text().strip()
             elif isinstance(widget, QComboBox):
@@ -344,8 +425,7 @@ class ParamValueStore:
             if cli_param is None:
                 continue
             if cli_param.flag in saved:
-                self._param_defaults[widget] = saved[cli_param.flag]
-                self._update_param_highlight(widget)
+                self._visibility_store.set_param_default(widget, saved[cli_param.flag])
 
     def reset_defaults(self, entry: ScriptEntry, gui_defaults: dict[str, Any]) -> None:
         gui_defaults.pop(entry.name, None)
@@ -360,30 +440,9 @@ class ParamValueStore:
                 if factory_default in reverse:
                     factory_default = reverse[factory_default]
             self.set_widget_std_value(widget, factory_default)
-            self._param_defaults[widget] = factory_default
-            self._update_param_highlight(widget)
+            self._visibility_store.set_param_default(widget, factory_default)
 
-    # ── 主题刷新 / 重置 ────────────────────────────────────────
-
-    def clear(self) -> None:
-        """清空所有 dict（用于主题切换时重建 UI）。"""
-        self._cli_widgets.clear()
-        self._env_widgets.clear()
-        self._chip_widgets.clear()
-        self._multi_file_widgets.clear()
-        self._param_defaults.clear()
-        self._factory_defaults.clear()
-        self._row_containers.clear()
-        self._row_labels.clear()
-        self._widget_factory.reset()
-        self._widget_factory._files = self._files
-
-    def set_files(self, files: list) -> None:
-        """更新文件列表（用于 refresh_files）。"""
-        self._files = files
-        self._widget_factory._files = files
-
-    # ── 参数收集（原 ScriptParamCollector） ─────────────────────
+    # ── 参数收集 ───────────────────────────────────────────────
 
     def collect_run_args(
         self,
@@ -410,8 +469,7 @@ class ParamValueStore:
             cli_param = self._find_cli_param(key)
             if cli_param is None or cli_param.flag in skip_flags:
                 continue
-            container = self._row_containers.get(key)
-            if container is not None and container.isHidden():
+            if self._visibility_store.is_row_hidden(key):
                 continue
 
             if isinstance(widget, QCheckBox):
@@ -427,16 +485,16 @@ class ParamValueStore:
                     extra_args.extend([cli_param.flag, str(val)])
             elif isinstance(widget, QLineEdit):
                 text = widget.text().strip()
-                default = self._param_defaults.get(widget, "")
+                default = self._visibility_store.get_param_default(widget)
                 if widget in self._widget_factory.unit_combos:
-                    std_text = self.to_standard_unit(widget)
+                    std_text = self._unit_store.to_standard_unit(widget)
                     if std_text and std_text != default:
                         extra_args.extend([cli_param.flag, std_text])
                 elif text and text != default:
                     extra_args.extend([cli_param.flag, text])
             elif isinstance(widget, QComboBox):
                 text = widget.currentText().strip()
-                default = self._param_defaults.get(widget, "")
+                default = self._visibility_store.get_param_default(widget)
                 if text and text != default:
                     if cli_param.choice_values and text in cli_param.choice_values:
                         text = cli_param.choice_values[text]
@@ -488,7 +546,7 @@ class ParamValueStore:
                 continue
             if isinstance(widget, QComboBox):
                 text = widget.currentText().strip()
-                default = self._param_defaults.get(widget, "")
+                default = self._visibility_store.get_param_default(widget)
                 if text and text != default:
                     env_var = _CLI_TO_ENV.get(cli_param.flag)
                     if env_var:
@@ -581,8 +639,7 @@ class ParamValueStore:
             if cli_param is None:
                 continue
 
-            container = self._row_containers.get(key)
-            if container is not None and container.isHidden():
+            if self._visibility_store.is_row_hidden(key):
                 continue
 
             required = (
@@ -639,3 +696,175 @@ class ParamValueStore:
                         return False
 
         return True
+
+
+# ── ParamValueStore：Facade ─────────────────────────────────────
+
+class ParamValueStore:
+    """参数值存储 Facade：组合 UnitStore / VisibilityStore / ParamStore。
+
+    保持原有 GUI 接口不变，所有调用委托到对应的子 store。
+    """
+
+    def __init__(
+        self,
+        files: list,
+        find_cli_param: Callable[[str], "CliParam | None"],
+        on_path_mode_changed: Callable[[QComboBox, QComboBox], None] | None = None,
+        on_unit_changed: Callable[[QLineEdit, QComboBox, str], None] | None = None,
+    ) -> None:
+        self._find_cli_param = find_cli_param
+
+        # 先创建 widget_factory
+        self._widget_factory = CliWidgetFactory(
+            files=files,
+            on_path_mode_changed=on_path_mode_changed or self.on_path_mode_changed,
+            on_unit_changed=on_unit_changed or self.on_unit_changed,
+        )
+
+        # 创建三个子 store
+        self._unit_store = UnitStore(widget_factory=self._widget_factory)
+        # 共享 cli_widgets dict：让 VisibilityStore 和 ParamStore 都引用同一个 dict，
+        # 不再需要回调或构造顺序约束（issue #329 方案 B）。
+        self._shared_cli_widgets: dict[str, QWidget] = {}
+        self._visibility_store = VisibilityStore(
+            find_cli_param=find_cli_param,
+            cli_widgets=self._shared_cli_widgets,
+            unit_store=self._unit_store,
+            widget_factory=self._widget_factory,
+        )
+        self._param_store = ParamStore(
+            files=files,
+            find_cli_param=find_cli_param,
+            unit_store=self._unit_store,
+            visibility_store=self._visibility_store,
+            widget_factory=self._widget_factory,
+            cli_widgets=self._shared_cli_widgets,
+        )
+
+    # ── 向后兼容的属性别名 ─────────────────────────────────────
+
+    @property
+    def _cli_widgets(self) -> dict[str, QWidget]:
+        return self._param_store._cli_widgets
+
+    @_cli_widgets.setter
+    def _cli_widgets(self, value: dict[str, QWidget]) -> None:
+        self._param_store._cli_widgets.clear()
+        self._param_store._cli_widgets.update(value)
+
+    @property
+    def _env_widgets(self) -> dict[str, QComboBox]:
+        return self._param_store._env_widgets
+
+    @property
+    def _chip_widgets(self) -> dict[str, QWidget]:
+        return self._param_store._chip_widgets
+
+    @property
+    def _multi_file_widgets(self) -> dict[str, QWidget]:
+        return self._param_store._multi_file_widgets
+
+    @property
+    def _catalog_seed_selectors(self) -> dict[str, CatalogSeedSelectorState]:
+        return self._param_store._catalog_seed_selectors
+
+    @property
+    def _param_defaults(self) -> dict[QWidget, str]:
+        return self._visibility_store._param_defaults
+
+    @property
+    def _factory_defaults(self) -> dict[QWidget, str]:
+        return self._param_store._factory_defaults
+
+    @property
+    def _row_containers(self) -> dict[str, QWidget]:
+        return self._visibility_store._row_containers
+
+    @_row_containers.setter
+    def _row_containers(self, value: dict[str, QWidget]) -> None:
+        self._visibility_store._row_containers.clear()
+        self._visibility_store._row_containers.update(value)
+
+    @property
+    def _row_labels(self) -> dict[str, QWidget]:
+        return self._visibility_store._row_labels
+
+    @_row_labels.setter
+    def _row_labels(self, value: dict[str, QWidget]) -> None:
+        self._visibility_store._row_labels.clear()
+        self._visibility_store._row_labels.update(value)
+
+    @property
+    def _files(self) -> list:
+        return self._param_store._files
+
+    @property
+    def widget_factory(self) -> CliWidgetFactory:
+        return self._widget_factory
+
+    # ── 委托方法 ───────────────────────────────────────────────
+
+    def to_standard_unit(self, line_edit: QLineEdit) -> str:
+        return self._unit_store.to_standard_unit(line_edit)
+
+    def on_unit_changed(self, line_edit: QLineEdit, combo: QComboBox, group_name: str) -> None:
+        self._unit_store.on_unit_changed(line_edit, combo, group_name)
+
+    def set_widget_std_value(self, widget: QWidget, std_val_str: str) -> None:
+        self._param_store.set_widget_std_value(widget, std_val_str)
+
+    def on_path_mode_changed(self, file_combo: QComboBox, mode_combo: QComboBox) -> None:
+        self._param_store.on_path_mode_changed(file_combo, mode_combo)
+
+    def setup_conditional_visibility(
+        self,
+        entry: ScriptEntry,
+        cli_widgets: Mapping[str, QWidget] | None = None,
+        row_containers: Mapping[str, QWidget] | None = None,
+        row_labels: Mapping[str, QWidget] | None = None,
+    ) -> None:
+        self._visibility_store.setup_conditional_visibility(
+            entry, cli_widgets, row_containers, row_labels
+        )
+
+    def connect_param_highlight(self, widget: QWidget) -> None:
+        self._visibility_store.connect_param_highlight(widget)
+
+    def _update_param_highlight(self, widget: QWidget) -> None:
+        self._visibility_store._update_param_highlight(widget)
+
+    def update_param_highlight(self, widget: QWidget) -> None:
+        self._visibility_store.update_param_highlight(widget)
+
+    def save_defaults(self, entry: ScriptEntry, gui_defaults: dict[str, Any]) -> None:
+        self._param_store.save_defaults(entry, gui_defaults)
+
+    def reset_defaults(self, entry: ScriptEntry, gui_defaults: dict[str, Any]) -> None:
+        self._param_store.reset_defaults(entry, gui_defaults)
+
+    def clear(self) -> None:
+        self._param_store.clear()
+
+    def set_files(self, files: list) -> None:
+        self._param_store.set_files(files)
+
+    def collect_run_args(self, entry: "ScriptEntry") -> list[str]:
+        return self._param_store.collect_run_args(entry)
+
+    def collect_env_overrides(self, entry: "ScriptEntry") -> dict[str, str]:
+        return self._param_store.collect_env_overrides(entry)
+
+    def collect_chip_selections(self, entry: "ScriptEntry") -> dict[str, list[str]]:
+        return self._param_store.collect_chip_selections(entry)
+
+    def collect_multi_file_configs(self) -> dict[str, list[dict]]:
+        return self._param_store.collect_multi_file_configs()
+
+    def validate_params(
+        self,
+        parent: QWidget,
+        entry: "ScriptEntry",
+        tr: Callable[[str], str] = lambda s: s,
+    ) -> bool:
+        return self._param_store.validate_params(parent, entry, tr)
