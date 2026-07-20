@@ -20,10 +20,11 @@ def main(argv: list[str] | None = None):
 
 
 def _make_family_script_entry(family: str) -> ScriptEntry:
+    family_label = {"dro": "DRO", "halo": "Halo"}[family]
     return ScriptEntry(
         module="ephemeris",
         name=f"correct_{family}_family_to_ephemeris",
-        description="修正轨道族",
+        description=f"{family_label} 族星历转换",
         script_path="tod/generates/ephemeris/family_correction.py",
         output_dir="output/ephemeris",
         needs_spice=True,
