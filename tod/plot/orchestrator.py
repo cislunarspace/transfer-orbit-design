@@ -1,19 +1,14 @@
-"""family_plot_orchestrator 可视化脚本。
+"""轨道族绘制的编排逻辑（底层库，非入口脚本）。
 
-本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。
+本模块是 `FamilyPlotOrchestrator` 及其配置 dataclass 的实现，被 `tod.plot.plot_orbits`
+等入口脚本导入使用，自身不可直接 ``python -m`` 运行。读取轨道、转移或星历修正 JSON
+结果（通常来自 output/ 下的生成、搜索或优化结果），生成用于检查几何形态、稳定性或
+优化质量的图形，输出为 Matplotlib 窗口或保存图片。
 
-运行示例:
+运行示例（通过入口脚本调用）:
     .. code-block:: bash
 
-       uv run python -m tod.plot.family_plot_orchestrator --help
-
-多文件模式示例:
-
-    .. code-block:: bash
-
-       uv run python -m tod.plot.plot_orbits \\
-         --json-file '[{"path": "a.json", "start": 0, "end": 10, "step": 1}, {"path": "b.json", "start": 5, "end": -1, "step": 2}]' \\
-         --view-2d
+       uv run python -m tod.plot.plot_orbits --help
 """
 
 from __future__ import annotations
@@ -22,7 +17,6 @@ import argparse
 import json as _json
 import logging
 import warnings
-from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -34,209 +28,24 @@ try:
 except (ImportError, ValueError):
     pass  # Backend unavailable or already finalized
 
-from e2m2e.algorithms.stability import StabilityAnalysis
 from e2m2e.core import CR3BP_System, Orbit, OrbitFamily
 from e2m2e.visualization import FamilyPlotter
 
 from tod.commons.constants import MU
 from tod.commons.paths import find_project_root
+from tod.plot._argparse import build_argparser  # noqa: F401
+from tod.plot._argparse import resolve_plot_range
+from tod.plot._plot_2d import _plot_bodies_and_libration, _project_2d  # noqa: F401
+from tod.plot._plot_3d import (  # noqa: F401
+    _get_center_coordinates,
+    _resolve_3d_center_radius,
+    compute_view_bounds,
+)
+from tod.plot._stability import compute_stability_indices
 from tod.plot.config import apply_standard_plot_config
 
 logger = logging.getLogger(__name__)
 
-def build_argparser(description: str) -> argparse.ArgumentParser:
-    """创建统一的轨道族绘图参数解析器。"""
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument(
-        "--json-file",
-        type=str,
-        default=None,
-        help="轨道族 JSON 文件路径。支持两种格式：\n"
-        "1. 单文件：直接传入文件路径，如 'output/halo/family.json'\n"
-        "2. 多文件：传入 JSON 字符串数组，如 '[{\"path\": \"a.json\", \"start\": 0, \"end\": 10, \"step\": 1}]'",
-    )
-    parser.add_argument("--start", type=int, default=-1, help="起始轨道索引，-1 表示从第一条（仅单文件模式有效）")
-    parser.add_argument("--end", type=int, default=-1, help="结束轨道索引（含），-1 表示到最后一条（仅单文件模式有效）")
-    parser.add_argument("--plot-global-2d", "--view-2d", dest="plot_global_2d", action="store_true", help="绘制全局 2D 视图")
-    parser.add_argument("--plot-global-3d", "--view-3d", dest="plot_global_3d", action="store_true", help="绘制全局 3D 视图")
-    parser.add_argument(
-        "--plot-jacobi-stability", "--jacobi-period-stability", dest="plot_jacobi_stability", action="store_true",
-        help="绘制 Jacobi 常数与周期、稳定性的关系曲线",
-    )
-    parser.add_argument(
-        "--plot-center", type=str, default="moon", choices=["moon", "earth", "emb"],
-        help="3D 视图的绘图中心（仅 DRO 有效）",
-    )
-    parser.add_argument("--plot-elev", type=float, default=20.0, help="3D 视图仰角（度）")
-    parser.add_argument("--plot-azim", type=float, default=-60.0, help="3D 视图方位角（度）")
-    parser.add_argument("--step", type=int, default=1, help="绘制轨道的间隔步长，1 表示绘制全部（仅单文件模式有效）")
-    parser.add_argument("--no-show", action="store_true", help="只保存图片，不弹窗显示")
-    return parser
-
-def resolve_plot_range(start: int, end: int, n_orbits: int) -> tuple[int, int]:
-    """解析 --start/--end 参数，返回 (plot_start, plot_end) 索引。"""
-    last = n_orbits - 1
-    s = min(start, last) if start >= 0 else 0
-    e = min(end, last) if end >= 0 else last
-    return (s, max(s, e))
-
-def compute_stability_indices(family: OrbitFamily) -> list[float]:
-    """计算轨道族的 Broucke 稳定性指数。"""
-    values: list[float] = []
-    for i in range(len(family)):
-        orbit = family[i]
-        analysis = StabilityAnalysis(orbit=orbit)
-        indices = analysis.compute_stability_index()
-        values.append(indices.get("broucke") or 0.0)
-    return values
-
-def compute_view_bounds(
-    all_states: np.ndarray,
-    plane: str = "xz",
-) -> tuple:
-    """根据轨道状态数组计算 2D 与 3D 视图的边界参数。
-
-    Args:
-        all_states: Nx6 状态数组
-        plane: 2D 投影平面 ("xy", "xz", "yz")
-
-    Returns:
-        (xlim_2d, ylim_2d, center_3d, radius_3d)
-    """
-    if all_states.size == 0:
-        return (0.8, 1.2), (-0.3, 0.3), (1.0, 0.0, 0.0), 0.4
-
-    x_min, x_max = all_states[:, 0].min(), all_states[:, 0].max()
-    y_min, y_max = all_states[:, 1].min(), all_states[:, 1].max()
-    z_min, z_max = all_states[:, 2].min(), all_states[:, 2].max()
-
-    # 根据 plane 选择 2D 轴
-    plane_lower = plane.lower()
-    if plane_lower == "yz":
-        h_min, h_max = y_min, y_max
-        v_min, v_max = z_min, z_max
-    elif plane_lower == "xy":
-        h_min, h_max = x_min, x_max
-        v_min, v_max = y_min, y_max
-    else:  # default: xz
-        h_min, h_max = x_min, x_max
-        v_min, v_max = z_min, z_max
-
-    h_pad = max(0.05, (h_max - h_min) * 0.1)
-    v_pad = max(0.05, (v_max - v_min) * 0.1)
-
-    xlim_2d = (float(h_min - h_pad), float(h_max + h_pad))
-    ylim_2d = (float(v_min - v_pad), float(v_max + v_pad))
-
-    center_3d = (
-        float((x_min + x_max) / 2),
-        float((y_min + y_max) / 2),
-        float((z_min + z_max) / 2),
-    )
-    radius_3d = float(
-        max(x_max - x_min, y_max - y_min, z_max - z_min) / 2 + max(h_pad, v_pad)
-    )
-    return xlim_2d, ylim_2d, center_3d, radius_3d
-
-def _get_center_coordinates(center_type: str, mu: float) -> tuple[float, float, float]:
-    if center_type == "moon":
-        return (1.0 - mu, 0.0, 0.0)
-    elif center_type == "earth":
-        return (0.0, 0.0, 0.0)
-    elif center_type == "emb":
-        return (mu, 0.0, 0.0)
-    raise ValueError(f"Unknown center type: {center_type}")
-
-def _resolve_3d_center_radius(
-    cfg: FamilyPlotConfig,
-    args: argparse.Namespace,
-    bounds: tuple | None,
-) -> tuple[tuple[float, float, float], float]:
-    """根据用户 --plot-center 选择和配置计算 3D 视图的中心与半径。
-
-    始终使用 args.plot_center 确定视图中心（moon/earth/emb）。
-    半径优先使用 dynamic_bounds 计算，回退到配置默认值。
-
-    Args:
-        cfg: 轨道族绘图配置
-        args: 命令行参数（需包含 plot_center）
-        bounds: compute_view_bounds 的返回值，可为 None
-
-    Returns:
-        (center, radius) 元组
-    """
-    center = _get_center_coordinates(args.plot_center, MU)
-
-    if cfg.dynamic_bounds and bounds is not None:
-        data_center = bounds[2]
-        data_radius = bounds[3]
-        offset = float(np.sqrt(sum((c - d) ** 2 for c, d in zip(center, data_center))))
-        radius = offset + data_radius
-    elif cfg.radius_3d is not None:
-        radius = cfg.radius_3d
-    else:
-        radius = 1.0
-
-    return center, radius
-
-def _project_2d(xyz: Sequence[float] | np.ndarray, plane: str) -> tuple[float, float]:
-    """将 3D 坐标投影到指定平面。"""
-    if plane == "yz":
-        return (xyz[1], xyz[2])
-    elif plane == "xy":
-        return (xyz[0], xyz[1])
-    else:  # xz
-        return (xyz[0], xyz[2])
-
-def _plot_bodies_and_libration(
-    ax,
-    plotter: FamilyPlotter,
-    plane: str,
-) -> None:
-    """在 2D 坐标轴上绘制天体和 libration 点（支持任意投影平面）。"""
-    plane_lower = plane.lower()
-
-    # xy 平面：e2m2e helper 原生支持
-    if plane_lower == "xy":
-        plotter.plot_primary_bodies(ax=ax)
-        plotter.plot_libration_points(ax=ax)
-        return
-
-    # xz / yz 平面：手动投影坐标
-    mu = plotter.mu
-    if mu is None:
-        return
-
-    # 天体位置（旋转坐标系）
-    bodies = [
-        ((-mu, 0.0, 0.0), "#2E86AB", "Earth", plotter.primary_body_size),
-        ((1.0 - mu, 0.0, 0.0), "#95A5A6", "Moon", plotter.secondary_body_size),
-    ]
-    for pos_3d, color, name, size in bodies:
-        h, v = _project_2d(pos_3d, plane_lower)
-        ax.scatter(h, v, color=color, s=size, edgecolors="black", linewidth=1, zorder=10, label=name)
-
-    # Libration 点
-    system = plotter.system
-    if system is not None and hasattr(system, "has_L_points"):
-        if not system.has_L_points:
-            system.compute_libration_points()
-        if system.L_points is not None:
-            from e2m2e.core import LibrationPoint
-            for i, lp in enumerate(LibrationPoint):
-                coord = system.L_points[lp]
-                h, v = _project_2d(coord, plane_lower)
-                color = plotter.libration_point_colors[i]
-                marker = plotter.libration_point_markers[i]
-                size = plotter.libration_point_sizes[i]
-                label_text = plotter.libration_point_labels[i]
-                ax.scatter(h, v, color=color, marker=marker, s=size, zorder=5)
-                ax.annotate(
-                    label_text, (h, v),
-                    textcoords="offset points",
-                    xytext=(5, 5),
-                    fontsize=8,
-                )
 
 @dataclass(frozen=True)
 class MultiFileConfig:
@@ -245,6 +54,7 @@ class MultiFileConfig:
     start: int = -1
     end: int = -1
     step: int = 1
+
 
 @dataclass(frozen=True)
 class FamilyPlotConfig:
@@ -274,6 +84,7 @@ class FamilyPlotConfig:
         if self.ratio:
             return f"{self.family_type} ({self.ratio})"
         return self.family_type
+
 
 def _parse_json_file_arg(arg_value: str | None) -> tuple[Path | None, list[MultiFileConfig]]:
     """解析 --json-file 参数。
@@ -310,6 +121,7 @@ def _parse_json_file_arg(arg_value: str | None) -> tuple[Path | None, list[Multi
 
     # 作为文件路径处理
     return Path(arg_value), []
+
 
 class FamilyPlotOrchestrator:
 
@@ -571,16 +383,10 @@ class FamilyPlotOrchestrator:
             kwargs["xlim"] = bounds[0]
             kwargs["ylim"] = bounds[1]
 
-        if cfg.show_seed_overlay:
-            kwargs["title"] = (
-                f"{cfg.display_name.upper()} Orbit Family ({cfg.plane.upper()} Plane) - {n_orbits} orbits\n"
-                f"C = [{jmin:.4f}, {jmax:.4f}]"
-            )
-        else:
-            kwargs["title"] = (
-                f"{cfg.display_name.upper()} Orbit Family ({cfg.plane.upper()} Plane) - {n_orbits} orbits\n"
-                f"C = [{jmin:.4f}, {jmax:.4f}]"
-            )
+        kwargs["title"] = (
+            f"{cfg.display_name.upper()} Orbit Family ({cfg.plane.upper()} Plane) - {n_orbits} orbits\n"
+            f"C = [{jmin:.4f}, {jmax:.4f}]"
+        )
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=".*Tight layout.*")

@@ -240,7 +240,7 @@ class TestCatalogOutputPlotCompatibility:
     def test_seed_id_and_jacobi_outputs_are_loaded_by_plot_consumer(self, tmp_path):
         # Both catalog output variants must be consumable by the plot
         # consumer (`FamilyPlotOrchestrator._load_orbit_data`).
-        from tod.plot.family_plot_orchestrator import FamilyPlotOrchestrator, FamilyPlotConfig
+        from tod.plot.orchestrator import FamilyPlotOrchestrator, FamilyPlotConfig
         import argparse
 
         for selection_mode, seed_label in (("seed_id", "earth-moon_dro:000001"),

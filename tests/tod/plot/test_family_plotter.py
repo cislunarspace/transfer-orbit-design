@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from tod.plot.family_plot_orchestrator import (
+from tod.plot.orchestrator import (
     FamilyPlotConfig,
     FamilyPlotOrchestrator,
     compute_stability_indices,
@@ -155,7 +155,7 @@ class TestComputeStabilityIndices:
         mock_family.__len__ = MagicMock(return_value=2)
         mock_family.__getitem__ = MagicMock(side_effect=[mock_orbit, mock_orbit])
 
-        with patch("tod.plot.family_plot_orchestrator.StabilityAnalysis") as MockSA:
+        with patch("tod.plot._stability.StabilityAnalysis") as MockSA:
             mock_instance = MockSA.return_value
             mock_instance.compute_stability_index.return_value = {"broucke": 1.5}
 
@@ -175,7 +175,7 @@ class TestOrchestratorRunNoPlots:
         args = _make_args()
         orchestrator = FamilyPlotOrchestrator(config, args)
 
-        with patch("tod.plot.family_plot_orchestrator.logger") as mock_logger:
+        with patch("tod.plot.orchestrator.logger") as mock_logger:
             orchestrator.run()
             mock_logger.warning.assert_called_once_with("未选择任何图表，跳过绘制")
 
@@ -190,10 +190,10 @@ class TestOrchestratorStabilityOnDemand:
 
         with patch.object(orchestrator, "_load_single_family", return_value=(family, "test")):
             with patch.object(orchestrator, "_render_2d"):
-                with patch("tod.plot.family_plot_orchestrator.compute_stability_indices") as mock_stab:
-                    with patch("tod.plot.family_plot_orchestrator.FamilyPlotter"):
-                        with patch("tod.plot.family_plot_orchestrator.apply_standard_plot_config"):
-                            with patch("tod.plot.family_plot_orchestrator.CR3BP_System"):
+                with patch("tod.plot.orchestrator.compute_stability_indices") as mock_stab:
+                    with patch("tod.plot.orchestrator.FamilyPlotter"):
+                        with patch("tod.plot.orchestrator.apply_standard_plot_config"):
+                            with patch("tod.plot.orchestrator.CR3BP_System"):
                                 orchestrator.run()
 
         mock_stab.assert_not_called()
@@ -207,10 +207,10 @@ class TestOrchestratorStabilityOnDemand:
 
         with patch.object(orchestrator, "_load_single_family", return_value=(family, "test")):
             with patch.object(orchestrator, "_render_jacobi_stability"):
-                with patch("tod.plot.family_plot_orchestrator.compute_stability_indices", return_value=[1.0] * 3) as mock_stab:
-                    with patch("tod.plot.family_plot_orchestrator.FamilyPlotter"):
-                        with patch("tod.plot.family_plot_orchestrator.apply_standard_plot_config"):
-                            with patch("tod.plot.family_plot_orchestrator.CR3BP_System"):
+                with patch("tod.plot.orchestrator.compute_stability_indices", return_value=[1.0] * 3) as mock_stab:
+                    with patch("tod.plot.orchestrator.FamilyPlotter"):
+                        with patch("tod.plot.orchestrator.apply_standard_plot_config"):
+                            with patch("tod.plot.orchestrator.CR3BP_System"):
                                 orchestrator.run()
 
         mock_stab.assert_called_once()
@@ -229,10 +229,10 @@ class TestOrchestratorRouting:
             with patch.object(orchestrator, "_render_2d") as mock_2d:
                 with patch.object(orchestrator, "_render_3d") as mock_3d:
                     with patch.object(orchestrator, "_render_jacobi_stability") as mock_stab:
-                        with patch("tod.plot.family_plot_orchestrator.compute_stability_indices", return_value=[1.0] * 3):
-                            with patch("tod.plot.family_plot_orchestrator.FamilyPlotter"):
-                                with patch("tod.plot.family_plot_orchestrator.apply_standard_plot_config"):
-                                    with patch("tod.plot.family_plot_orchestrator.CR3BP_System"):
+                        with patch("tod.plot.orchestrator.compute_stability_indices", return_value=[1.0] * 3):
+                            with patch("tod.plot.orchestrator.FamilyPlotter"):
+                                with patch("tod.plot.orchestrator.apply_standard_plot_config"):
+                                    with patch("tod.plot.orchestrator.CR3BP_System"):
                                         orchestrator.run()
         return orchestrator, mock_2d, mock_3d, mock_stab
 
@@ -270,7 +270,7 @@ class TestBuildSubset:
         args = _make_args()
         orchestrator = FamilyPlotOrchestrator(config, args)
 
-        with patch("tod.plot.family_plot_orchestrator.OrbitFamily", return_value=MagicMock()):
+        with patch("tod.plot.orchestrator.OrbitFamily", return_value=MagicMock()):
             orchestrator._build_subset(family, 1, 3)
 
         assert family.__getitem__.call_count == 3
@@ -292,7 +292,7 @@ class TestLoadFamily:
         args = _make_args(json_file=str(json_file))
         orchestrator = FamilyPlotOrchestrator(config, args)
 
-        with patch("tod.plot.family_plot_orchestrator.OrbitFamily.load_from_file") as mock_load:
+        with patch("tod.plot.orchestrator.OrbitFamily.load_from_file") as mock_load:
             mock_load.return_value = _make_mock_family()
             family, name = orchestrator._load_single_family(MagicMock(), Path(str(json_file)), tmp_path)
 
@@ -319,13 +319,13 @@ class TestElevAzimFromArgs:
         orchestrator = FamilyPlotOrchestrator(config, args)
 
         with patch.object(orchestrator, "_load_single_family", return_value=(family, "test")):
-            with patch("tod.plot.family_plot_orchestrator.FamilyPlotter") as MockFP:
+            with patch("tod.plot.orchestrator.FamilyPlotter") as MockFP:
                 mock_plotter = MockFP.return_value
                 mock_fig = MagicMock()
                 mock_plotter.plot_family_3d.return_value = (mock_fig, MagicMock())
-                with patch("tod.plot.family_plot_orchestrator.apply_standard_plot_config"):
-                    with patch("tod.plot.family_plot_orchestrator.CR3BP_System"):
-                        with patch("tod.plot.family_plot_orchestrator.warnings"):
+                with patch("tod.plot.orchestrator.apply_standard_plot_config"):
+                    with patch("tod.plot.orchestrator.CR3BP_System"):
+                        with patch("tod.plot.orchestrator.warnings"):
                             with patch("matplotlib.pyplot.savefig"):
                                 with patch("matplotlib.pyplot.close"):
                                     orchestrator.run()
@@ -346,7 +346,7 @@ class TestSingleOrbitLoad:
         args = _make_args(json_file=str(json_file))
         orchestrator = FamilyPlotOrchestrator(config, args)
 
-        with patch("tod.plot.family_plot_orchestrator.OrbitFamily.load_from_file") as mock_load:
+        with patch("tod.plot.orchestrator.OrbitFamily.load_from_file") as mock_load:
             mock_load.return_value = _make_mock_family()
             orchestrator._load_single_family(MagicMock(), Path(str(json_file)), tmp_path)
 
@@ -360,10 +360,10 @@ class TestSingleOrbitLoad:
         args = _make_args(json_file=str(json_file))
         orchestrator = FamilyPlotOrchestrator(config, args)
 
-        with patch("tod.plot.family_plot_orchestrator.Orbit.load_from_file") as mock_orbit_load:
+        with patch("tod.plot.orchestrator.Orbit.load_from_file") as mock_orbit_load:
             mock_orbit = MagicMock()
             mock_orbit_load.return_value = mock_orbit
-            with patch("tod.plot.family_plot_orchestrator.OrbitFamily") as MockOF:
+            with patch("tod.plot.orchestrator.OrbitFamily") as MockOF:
                 mock_family = MagicMock()
                 MockOF.return_value = mock_family
                 orchestrator._load_single_family(MagicMock(), Path(str(json_file)), tmp_path)
@@ -379,7 +379,7 @@ class TestUnifiedFlags:
         assert config.step == 5
 
     def test_build_argparser_accepts_unified_flags(self) -> None:
-        from tod.plot.family_plot_orchestrator import build_argparser
+        from tod.plot.orchestrator import build_argparser
         import sys
 
         parser = build_argparser("test")

@@ -28,7 +28,7 @@ if not logging.getLogger().handlers:
         stream=sys.stdout,
     )
 
-from tod.plot.family_plot_orchestrator import (
+from tod.plot.orchestrator import (
     FamilyPlotConfig,
     FamilyPlotOrchestrator,
     _parse_json_file_arg,

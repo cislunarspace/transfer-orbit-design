@@ -12,7 +12,7 @@ import pytest
 import numpy as np
 
 from tod.plot.plot_orbits import build_argparser, _resolve_config
-from tod.plot.family_plot_orchestrator import (
+from tod.plot.orchestrator import (
     FamilyPlotConfig,
     FamilyPlotOrchestrator,
     _get_center_coordinates,

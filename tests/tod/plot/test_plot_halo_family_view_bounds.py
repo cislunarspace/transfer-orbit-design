@@ -7,7 +7,7 @@ regardless of whether it is an L1 or L2 family.
 import numpy as np
 import pytest
 
-from tod.plot.family_plot_orchestrator import compute_view_bounds
+from tod.plot.orchestrator import compute_view_bounds
 
 
 def _make_fake_orbit_states(x_center: float, y_center: float, z_center: float) -> np.ndarray:

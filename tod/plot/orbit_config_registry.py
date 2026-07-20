@@ -11,7 +11,7 @@ from typing import Callable
 
 import numpy as np
 
-from tod.plot.family_plot_orchestrator import FamilyPlotConfig
+from tod.plot.orchestrator import FamilyPlotConfig
 
 def _halo_config() -> FamilyPlotConfig:
     return FamilyPlotConfig(

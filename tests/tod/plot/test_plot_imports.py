@@ -6,7 +6,7 @@ import pytest
 
 PLOT_MODULES = [
     "tod.plot",
-    "tod.plot.family_plot_orchestrator",
+    "tod.plot.orchestrator",
     "tod.plot.orbit_config_registry",
     "tod.plot.plot_orbits",
     "tod.plot.transfer.dro_to_ro.plot_search_results_dro_to_ro",
