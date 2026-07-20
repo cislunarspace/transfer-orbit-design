@@ -2,21 +2,19 @@
 """脚本注册表扫描器。
 
 扫描实现目录（tod/generates/、tod/plot/、tod/transfers/），从每个实现脚本
-底部加载 SCRIPT_ENTRY 声明，按分类分组后返回供 GUI 使用。本模块只声明
-_ScanEntry（扫描器视角下的轻量条目），ScriptEntry、CliParam 等数据类
-定义在 tod.scripting.types 中。
+底部加载 SCRIPT_ENTRY 声明，按分类分组后返回供 GUI 使用。ScriptEntry、
+CliParam 等数据类定义在 tod.scripting.types 中。
 """
 
 from __future__ import annotations
 
 import importlib.util
 import logging
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterator
 
 if TYPE_CHECKING:
-    pass
+    from tod.scripting.types import ScriptEntry
 
 logger = logging.getLogger(__name__)
 
@@ -26,28 +24,6 @@ class _NoScriptEntryError(RuntimeError):
     这是预期情况（实现目录中存在非注册文件），扫描器静默跳过。
     与加载失败（SyntaxError、ImportError 等真实 bug）区分。
     """
-
-# 自包含的最小类型，避免在导入时触发 sciPy 等重型依赖。
-# params 文件从 tod.scripting 导入真实的 ScriptEntry，
-# 扫描器只读属性，不参与类型转换。
-
-@dataclass(frozen=True)
-class _ScanEntry:
-    """扫描器视角下的 ScriptEntry，只包含分类所需的字段。"""
-
-    module: str
-    name: str
-    description: str
-    script_path: str
-    output_dir: str | None = None
-    accepts_file_arg: bool = False
-    needs_spice: bool = False
-    cli_chip_params: list = field(default_factory=list)
-    multi_cli_params: list = field(default_factory=list)
-    catalog_seed_selectors: list = field(default_factory=list)
-    env_params: dict = field(default_factory=dict)
-    cli_params: list = field(default_factory=list)
-    group_label: str = ""
 
 def iter_script_files(base: Path) -> Iterator[Path]:
     """Yield base 下所有含 SCRIPT_ENTRY 的 .py 文件（跳过私有目录和私有文件）。"""
@@ -68,8 +44,9 @@ def _make_module_name(file_path: Path, prefix: str) -> str:
     h = abs(hash(str(file_path.resolve()))) & 0xFFFFFFFF
     return f"{prefix}_{file_path.stem}_{h:08x}"
 
-def _load_script_entry(file_path: Path) -> _ScanEntry:
+def _load_script_entry(file_path: Path) -> list[ScriptEntry]:
     """从单个 .py 文件加载 SCRIPT_ENTRY，不存在则抛异常。"""
+    from tod.scripting.types import ScriptEntry
     import sys as _sys
 
     module_name = _make_module_name(file_path, "_tod_scan")
@@ -98,7 +75,7 @@ def _load_script_entry(file_path: Path) -> _ScanEntry:
 
     results = []
     for raw in raw_entries:
-        results.append(_ScanEntry(
+        results.append(ScriptEntry(
             module=raw.module,
             name=raw.name,
             description=raw.description,
@@ -115,7 +92,7 @@ def _load_script_entry(file_path: Path) -> _ScanEntry:
         ))
     return results
 
-def _classify(entry: _ScanEntry) -> str:
+def _classify(entry: ScriptEntry) -> str:
     """根据 script_path 的目录结构推断分类键。
 
     例如: "tod/generates/ephemeris/dro/x.py" → "ephemeris"
@@ -154,7 +131,7 @@ def get_scripts(
     scripts_dir: Path | None = None,
     translations: dict | None = None,
     scan_dirs: list[Path] | None = None,
-) -> dict[str, list[_ScanEntry]]:
+) -> dict[str, list[ScriptEntry]]:
     """扫描实现目录，返回分类后的脚本注册表。
 
     Args:
@@ -164,7 +141,7 @@ def get_scripts(
                    默认为实现目录（generates/plot/transfers）。
 
     Returns:
-        dict[str, list[_ScanEntry]]: 按分类键分组的 _ScanEntry 列表
+        dict[str, list[ScriptEntry]]: 按分类键分组的 ScriptEntry 列表
     """
     if scan_dirs is None:
         if scripts_dir is not None:
@@ -173,7 +150,7 @@ def get_scripts(
             scan_dirs = _default_scan_dirs()
 
     seen_paths: set[str] = set()
-    SCRIPTS: dict[str, list[_ScanEntry]] = {}
+    SCRIPTS: dict[str, list[ScriptEntry]] = {}
 
     for scan_dir in scan_dirs:
         if not scan_dir.is_dir():

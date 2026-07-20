@@ -7,14 +7,12 @@ ScriptEntry 等声明类型；GUI 与扫描器内部从本包消费同一套类�
 公开 API：
 - 数据类型：ScriptEntry、CliParam、MultiCliParam、CliChipParam、
   CatalogSeedSelectorParam、PerFileField、EnvParam、MultiFileConfig、UNIT_GROUPS
-- 扫描器：get_scripts、iter_script_files、_ScanEntry、_make_module_name、
-  _NoScriptEntryError
+- 扫描器：get_scripts、iter_script_files、_make_module_name、_NoScriptEntryError
 - 注册表单例：SCRIPTS（懒加载代理）、set_script_translations
 """
 
 from tod.scripting.scanner import (
     _NoScriptEntryError,
-    _ScanEntry,
     _make_module_name,
     get_scripts,
     iter_script_files,
@@ -43,7 +41,6 @@ __all__ = [
     "SCRIPTS",
     "ScriptEntry",
     "_NoScriptEntryError",
-    "_ScanEntry",
     "_make_module_name",
     "get_scripts",
     "iter_script_files",

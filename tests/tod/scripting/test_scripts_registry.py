@@ -15,8 +15,8 @@ def test_get_scripts_returns_dict_with_expected_categories(toy_scripts_dir: Path
 
 
 def test_get_scripts_returns_list_of_script_entries(toy_scripts_dir: Path) -> None:
-    """get_scripts() 返回的每个分类值是 _ScanEntry 列表。"""
-    from tod.scripting import _ScanEntry, get_scripts
+    """get_scripts() 返回的每个分类值是 ScriptEntry 列表。"""
+    from tod.scripting import ScriptEntry, get_scripts
 
     SCRIPTS = get_scripts(toy_scripts_dir)
 
@@ -24,10 +24,9 @@ def test_get_scripts_returns_list_of_script_entries(toy_scripts_dir: Path) -> No
     for category, entries in SCRIPTS.items():
         assert isinstance(entries, list), f"{category} value is not a list"
         for entry in entries:
-            assert isinstance(entry, _ScanEntry), (
-                f"Entry {entry.name!r} is not a _ScanEntry"
+            assert isinstance(entry, ScriptEntry), (
+                f"Entry {entry.name!r} is not a ScriptEntry"
             )
-            # Duck typing: 验证 entry 有 ScriptEntry 所需的属性
             for field_name in required_fields:
                 assert hasattr(entry, field_name), (
                     f"Entry {entry.name!r} missing {field_name}"
