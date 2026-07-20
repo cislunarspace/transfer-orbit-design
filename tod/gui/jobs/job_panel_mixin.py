@@ -157,7 +157,7 @@ class JobPanelMixin:
         jobs: list[BatchJobRow] = []
         stopped_count = 0
         for i, jid in enumerate(batch.job_ids):
-            status = self._batch_manager._get_job_status(jid)
+            status = self._batch_manager.get_job_status(jid)
             if status is None:
                 continue
             jobs.append(BatchJobRow(job_id=jid, index=i + 1, status=status))

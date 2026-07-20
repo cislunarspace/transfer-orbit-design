@@ -47,7 +47,7 @@ class TestEphemerisCorrectionMethodSelection:
     """Test TOD correction compatibility wrapper delegates to e2m2e."""
 
     def test_corrector_delegates_to_e2m2e_dispatch(self):
-        from tod.generates.ephemeris._corrector import correct_ephemeris_patch_points
+        from tod.generates.ephemeris._conversion import correct_ephemeris_patch_points
 
         dynamics = object()
         t_patch = np.array([0.0, 1.0, 2.0])
@@ -55,7 +55,7 @@ class TestEphemerisCorrectionMethodSelection:
         expected = SimpleNamespace(converged=True)
 
         with patch(
-            "tod.generates.ephemeris._corrector._e2m2e_correct_ephemeris_patch_points",
+            "tod.generates.ephemeris._conversion._e2m2e_correct_ephemeris_patch_points",
             return_value=expected,
         ) as dispatch:
             result = correct_ephemeris_patch_points(

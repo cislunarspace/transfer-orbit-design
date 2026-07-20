@@ -29,6 +29,25 @@ DEFAULT_SPICE_KERNEL_DIR = Path(
 )
 DEFAULT_BODIES = ("EARTH", "MOON", "SUN")
 
+try:
+    from e2m2e.algorithms.ephemeris_correction import (
+        EphemerisCorrectionResult,
+        correct_ephemeris_patch_points as _e2m2e_correct_ephemeris_patch_points,
+    )
+except ModuleNotFoundError:
+    from typing import Any as EphemerisCorrectionResult
+
+    def _e2m2e_correct_ephemeris_patch_points(*args, **kwargs):
+        """报告当前 e2m2e 版本缺少星历修正分发函数。"""
+        raise RuntimeError(
+            "当前 e2m2e 安装缺少 e2m2e.algorithms.ephemeris_correction；"
+            "请更新 e2m2e 或在测试中 patch _e2m2e_correct_ephemeris_patch_points。"
+        )
+
+def correct_ephemeris_patch_points(*args, **kwargs) -> EphemerisCorrectionResult:
+    """执行 correct_ephemeris_patch_points 对应的处理逻辑。"""
+    return _e2m2e_correct_ephemeris_patch_points(*args, **kwargs)
+
 @dataclass(frozen=True)
 class ConversionDependencies:
 
@@ -379,8 +398,6 @@ def default_conversion_dependencies() -> ConversionDependencies:
     import spiceypy
 
     import tod.commons.constants as _tod_constants
-
-    from tod.generates.ephemeris._corrector import correct_ephemeris_patch_points
 
     spice = SPICEManager()
     cr3bp_system = CR3BP_System(mu=_tod_constants.MU, primary="earth", secondary="moon")
