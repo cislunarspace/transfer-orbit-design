@@ -15,7 +15,6 @@ from PyQt6.QtWidgets import QComboBox, QVBoxLayout, QWidget
 
 from tod.gui.files.file_discovery import FileInfo
 from tod.gui.params.param_value_store import ParamValueStore
-from tod.gui.params.script_param_collector import ScriptParamCollector
 from tod.gui.params.script_param_panel import ScriptParamPanel
 from tod.scripting import CliParam, ScriptEntry
 
@@ -94,48 +93,24 @@ class ScriptTabWidget(QWidget):
     def _on_reset_defaults(self) -> None:
         self._panel._on_reset_defaults()
 
-    # ── 公开接口：参数收集（委托到 ScriptParamCollector） ──────
+    # ── 公开接口：参数收集（委托到 ParamValueStore） ──────
 
     def collect_run_args(self) -> list[str]:
-        return ScriptParamCollector.collect_run_args(
-            entry=self.entry,
-            cli_widgets=self._store._cli_widgets,
-            cli_row_containers=self._store._row_containers,
-            param_defaults=self._store._param_defaults,
-            factory_defaults=self._store._factory_defaults,
-            to_standard_unit=self._store.to_standard_unit,
-            unit_combos=self._store._widget_factory.unit_combos,
-            find_cli_param=self._find_cli_param,
-            catalog_seed_selectors=self._store._catalog_seed_selectors,
-        )
+        return self._store.collect_run_args(entry=self.entry)
 
     def collect_env_overrides(self) -> dict[str, str]:
-        return ScriptParamCollector.collect_env_overrides(
-            entry=self.entry,
-            env_widgets=self._store._env_widgets,
-            cli_widgets=self._store._cli_widgets,
-            param_defaults=self._store._param_defaults,
-            find_cli_param=self._find_cli_param,
-        )
+        return self._store.collect_env_overrides(entry=self.entry)
 
     def collect_chip_selections(self) -> dict[str, list[str]]:
-        return ScriptParamCollector.collect_chip_selections(
-            entry=self.entry,
-            chip_widgets=self._store._chip_widgets,
-        )
+        return self._store.collect_chip_selections(entry=self.entry)
 
     def collect_multi_file_configs(self) -> dict[str, list[dict]]:
-        return ScriptParamCollector.collect_multi_file_configs(
-            multi_file_widgets=self._store._multi_file_widgets,
-        )
+        return self._store.collect_multi_file_configs()
 
     def validate_params(self) -> bool:
-        return ScriptParamCollector.validate_params(
+        return self._store.validate_params(
             parent=self,
             entry=self.entry,
-            cli_widgets=self._store._cli_widgets,
-            cli_row_containers=self._store._row_containers,
-            find_cli_param=self._find_cli_param,
             tr=self.tr,
         )
 

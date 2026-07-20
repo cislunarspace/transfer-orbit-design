@@ -382,3 +382,260 @@ class ParamValueStore:
         """更新文件列表（用于 refresh_files）。"""
         self._files = files
         self._widget_factory._files = files
+
+    # ── 参数收集（原 ScriptParamCollector） ─────────────────────
+
+    def collect_run_args(
+        self,
+        entry: "ScriptEntry",
+    ) -> list[str]:
+        """收集 CLI 参数（不含芯片参数展开，由调用方处理）。"""
+        from tod.scripting import CliParam
+
+        extra_args: list[str] = []
+        skip_flags: set[str] = set()
+        for selector in entry.catalog_seed_selectors:
+            state = self._catalog_seed_selectors.get(selector.key)
+            if state is not None and not state.enabled_checkbox.isChecked():
+                skip_flags.update(
+                    {
+                        selector.seed_id_flag,
+                        selector.jacobi_flag,
+                        selector.jacobi_tolerance_flag,
+                        selector.period_multiplier_flag,
+                        selector.num_points_flag,
+                    }
+                )
+        for key, widget in self._cli_widgets.items():
+            cli_param = self._find_cli_param(key)
+            if cli_param is None or cli_param.flag in skip_flags:
+                continue
+            container = self._row_containers.get(key)
+            if container is not None and container.isHidden():
+                continue
+
+            if isinstance(widget, QCheckBox):
+                if widget.isChecked():
+                    extra_args.append(cli_param.flag)
+            elif isinstance(widget, QSpinBox):
+                val = widget.value()
+                factory_default = self._factory_defaults.get(widget, "")
+                if factory_default:
+                    if abs(val - float(factory_default)) > 1e-9:
+                        extra_args.extend([cli_param.flag, str(val)])
+                elif val != 0:
+                    extra_args.extend([cli_param.flag, str(val)])
+            elif isinstance(widget, QLineEdit):
+                text = widget.text().strip()
+                default = self._param_defaults.get(widget, "")
+                if widget in self._widget_factory.unit_combos:
+                    std_text = self.to_standard_unit(widget)
+                    if std_text and std_text != default:
+                        extra_args.extend([cli_param.flag, std_text])
+                elif text and text != default:
+                    extra_args.extend([cli_param.flag, text])
+            elif isinstance(widget, QComboBox):
+                text = widget.currentText().strip()
+                default = self._param_defaults.get(widget, "")
+                if text and text != default:
+                    if cli_param.choice_values and text in cli_param.choice_values:
+                        text = cli_param.choice_values[text]
+                    extra_args.extend([cli_param.flag, text])
+
+        for selector in entry.catalog_seed_selectors:
+            state = self._catalog_seed_selectors.get(selector.key)
+            if state is None or not state.enabled_checkbox.isChecked():
+                continue
+            mode_widget = getattr(state, "mode_widget", None)
+            if (
+                isinstance(mode_widget, QComboBox)
+                and mode_widget.currentData() == selector.mode_jacobi_key
+            ):
+                jacobi_widget = getattr(state, "jacobi_widget", None)
+                tolerance_widget = getattr(state, "tolerance_widget", None)
+                if isinstance(jacobi_widget, QLineEdit) and jacobi_widget.text().strip():
+                    extra_args.extend([selector.jacobi_flag, jacobi_widget.text().strip()])
+                if isinstance(tolerance_widget, QLineEdit) and tolerance_widget.text().strip():
+                    extra_args.extend([selector.jacobi_tolerance_flag, tolerance_widget.text().strip()])
+                continue
+            if isinstance(state.selector_widget, QComboBox):
+                seed_id = state.selector_widget.currentData()
+                if seed_id:
+                    extra_args.extend([selector.seed_id_flag, str(seed_id)])
+
+        return extra_args
+
+    def collect_env_overrides(
+        self,
+        entry: "ScriptEntry",
+    ) -> dict[str, str]:
+        """收集环境变量覆盖。"""
+        env_overrides: dict[str, str] = {}
+        for key, combo in self._env_widgets.items():
+            abs_path = combo.currentData()
+            if abs_path and key in entry.env_params:
+                env_param = entry.env_params[key]
+                env_overrides[env_param.env_var] = abs_path
+
+        _CLI_TO_ENV: dict[str, str] = {
+            "--dro-file": "DRO_FILE",
+            "--ro-file": "RO_FILE",
+            "--search-file": "SEARCH_RESULTS_FILE",
+        }
+        for key, widget in self._cli_widgets.items():
+            cli_param = self._find_cli_param(key)
+            if cli_param is None or not cli_param.file_category:
+                continue
+            if isinstance(widget, QComboBox):
+                text = widget.currentText().strip()
+                default = self._param_defaults.get(widget, "")
+                if text and text != default:
+                    env_var = _CLI_TO_ENV.get(cli_param.flag)
+                    if env_var:
+                        env_overrides[env_var] = text
+
+        return env_overrides
+
+    def collect_chip_selections(
+        self,
+        entry: "ScriptEntry",
+    ) -> dict[str, list[str]]:
+        """收集芯片参数选择。"""
+        selections: dict[str, list[str]] = {}
+        for key, container in self._chip_widgets.items():
+            if not hasattr(container, "_chip_buttons"):
+                continue
+            selected: list[str] = []
+            chip_buttons: dict[str, QWidget] = container._chip_buttons  # type: ignore[assignment]
+            for label, btn in chip_buttons.items():
+                if btn.property("_selected"):
+                    selected.append(label)
+            if selected:
+                for chip_param in entry.cli_chip_params:
+                    chip_key = chip_param.flag.lstrip("-").replace("-", "_")
+                    if chip_key == key:
+                        cli_values = []
+                        for sel in selected:
+                            if sel in chip_param.options:
+                                cli_values.append(chip_param.options[sel])
+                        selections[key] = cli_values
+                        break
+        return selections
+
+    def collect_multi_file_configs(self) -> dict[str, list[dict]]:
+        """从表格控件收集多文件参数配置。"""
+        from PyQt6.QtWidgets import QTableWidget
+
+        configs: dict[str, list[dict]] = {}
+        for key, widget in self._multi_file_widgets.items():
+            table = widget.findChild(QTableWidget)
+            if table is None:
+                continue
+            per_fields = getattr(table, "_per_file_fields", [])
+            file_configs: list[dict] = []
+            for row in range(table.rowCount()):
+                name_item = table.item(row, 0)
+                if name_item is None:
+                    continue
+                from PyQt6.QtCore import Qt
+
+                path = name_item.data(Qt.ItemDataRole.UserRole)
+                if not path:
+                    continue
+                config: dict = {"path": path}
+                for col, field_def in enumerate(per_fields, start=1):
+                    cell_widget = table.cellWidget(row, col)
+                    if cell_widget is None:
+                        continue
+                    if isinstance(cell_widget, QSpinBox):
+                        config[field_def.key] = cell_widget.value()
+                    elif isinstance(cell_widget, QLineEdit):
+                        text = cell_widget.text().strip()
+                        if field_def.field_type == "float" and text:
+                            try:
+                                config[field_def.key] = float(text)
+                            except ValueError:
+                                config[field_def.key] = text
+                        else:
+                            config[field_def.key] = text if text else field_def.default
+                file_configs.append(config)
+            if file_configs:
+                configs[key] = file_configs
+        return configs
+
+    def validate_params(
+        self,
+        parent: QWidget,
+        entry: "ScriptEntry",
+        tr: Callable[[str], str] = lambda s: s,
+    ) -> bool:
+        """验证参数，返回 True 表示通过。"""
+        from pathlib import Path
+
+        from PyQt6.QtWidgets import QMessageBox
+
+        from tod.gui.i18n import qt_format
+
+        for key, widget in self._cli_widgets.items():
+            cli_param = self._find_cli_param(key)
+            if cli_param is None:
+                continue
+
+            container = self._row_containers.get(key)
+            if container is not None and container.isHidden():
+                continue
+
+            required = (
+                cli_param.required
+                if cli_param.required is not None
+                else bool(cli_param.file_category and not cli_param.default)
+            )
+            if required:
+                if isinstance(widget, QComboBox):
+                    text = widget.currentText().strip()
+                elif isinstance(widget, QLineEdit):
+                    text = widget.text().strip()
+                else:
+                    text = ""
+                if not text:
+                    QMessageBox.warning(
+                        parent,
+                        tr("参数缺失"),
+                        qt_format(tr("工具需要参数 '%1'，但未填写。"), cli_param.label),
+                    )
+                    widget.setFocus()
+                    return False
+
+            if cli_param.param_type == "float" and isinstance(widget, QLineEdit):
+                text = widget.text().strip()
+                if text:
+                    try:
+                        float(text)
+                    except ValueError:
+                        QMessageBox.warning(
+                            parent,
+                            tr("参数无效"),
+                            qt_format(tr("参数 '%1' 需要数值，当前输入 '%2' 无效。"), cli_param.label, text),
+                        )
+                        widget.setFocus()
+                        return False
+
+            if cli_param.file_category:
+                if isinstance(widget, QComboBox):
+                    text = widget.currentText().strip()
+                elif isinstance(widget, QLineEdit):
+                    text = widget.text().strip()
+                else:
+                    continue
+                if text and not Path(text).is_file():
+                    reply = QMessageBox.question(
+                        parent,
+                        tr("文件不存在"),
+                        qt_format(tr("参数 '%1' 引用的文件不存在：\n%2\n\n仍然继续？"), cli_param.label, text),
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.No,
+                    )
+                    if reply != QMessageBox.StandardButton.Yes:
+                        return False
+
+        return True
