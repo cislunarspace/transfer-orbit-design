@@ -47,7 +47,7 @@ class SidebarWidget(QWidget):
 
         self._empty_label = QLabel(self.tr("无匹配结果"))
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._empty_label.setStyleSheet("background-color: rgba(255,255,255,0.95); color: gray; padding: 20px;")
+        self._empty_label.setObjectName("sidebarEmptyLabel")
         self._empty_label.setVisible(False)
         stacked.addWidget(self._empty_label)
 

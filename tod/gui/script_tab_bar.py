@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from tod.gui.file_discovery import FileInfo
+from tod.gui.files.file_discovery import FileInfo
 from tod.scripting import ScriptEntry
 from tod.gui.script_tab_widget import ScriptTabWidget
 

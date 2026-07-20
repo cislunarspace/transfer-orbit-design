@@ -11,12 +11,12 @@ from pathlib import Path
 from typing import Any, Callable, cast
 
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QComboBox, QLineEdit, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QComboBox, QVBoxLayout, QWidget
 
-from tod.gui.file_discovery import FileInfo
-from tod.gui.param_value_store import ParamValueStore
-from tod.gui.script_param_collector import ScriptParamCollector
-from tod.gui.script_param_panel import ScriptParamPanel
+from tod.gui.files.file_discovery import FileInfo
+from tod.gui.params.param_value_store import ParamValueStore
+from tod.gui.params.script_param_collector import ScriptParamCollector
+from tod.gui.params.script_param_panel import ScriptParamPanel
 from tod.scripting import CliParam, ScriptEntry
 
 
@@ -106,20 +106,8 @@ class ScriptTabWidget(QWidget):
         return self._store._catalog_seed_selectors
 
     @property
-    def _param_defaults(self) -> dict[QWidget, str]:
-        return self._store._param_defaults
-
-    @property
-    def _factory_defaults(self) -> dict[QWidget, str]:
-        return self._store._factory_defaults
-
-    @property
     def _cli_row_containers(self) -> dict[str, QWidget]:
         return self._store._row_containers
-
-    @property
-    def _cli_row_labels(self) -> dict[str, QWidget]:
-        return self._store._row_labels
 
     @property
     def _widget_factory(self):
@@ -149,29 +137,11 @@ class ScriptTabWidget(QWidget):
             row_labels=getattr(self, "_cli_row_labels", {}),
         )
 
-    def _set_widget_std_value(self, widget: QWidget, std_val_str: str) -> None:
-        self._store.set_widget_std_value(widget, std_val_str)
-
-    def _to_standard_unit(self, line_edit: QLineEdit) -> str:
-        return self._store.to_standard_unit(line_edit)
-
-    def _on_path_mode_changed(self, file_combo, mode_combo) -> None:
-        self._store.on_path_mode_changed(file_combo, mode_combo)
-
-    def _on_unit_changed(self, line_edit, combo, group_name) -> None:
-        self._store.on_unit_changed(line_edit, combo, group_name)
-
     def _find_cli_param(self, key: str) -> CliParam | None:
         for p in self.entry.cli_params:
             if p.flag.lstrip("-").replace("-", "_") == key:
                 return p
         return None
-
-    def _connect_param_highlight(self, widget: QWidget) -> None:
-        self._store.connect_param_highlight(widget)
-
-    def _update_param_highlight(self, widget: QWidget) -> None:
-        self._store.update_param_highlight(widget)
 
     def _on_save_defaults(self) -> None:
         self._panel._on_save_defaults()

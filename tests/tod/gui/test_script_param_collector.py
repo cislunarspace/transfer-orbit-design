@@ -22,8 +22,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from tod.gui.cli_widget_factory import CliWidgetFactory
-from tod.gui.script_param_collector import ScriptParamCollector
+from tod.gui.params.cli_widget_factory import CliWidgetFactory
+from tod.gui.params.script_param_collector import ScriptParamCollector
 from tod.scripting import CliChipParam, CliParam, ScriptEntry
 
 

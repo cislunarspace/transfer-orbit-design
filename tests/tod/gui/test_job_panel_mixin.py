@@ -9,9 +9,9 @@ from unittest.mock import MagicMock
 
 from PyQt6.QtWidgets import QApplication, QLabel, QPushButton, QStatusBar, QTabWidget, QWidget
 
-from tod.gui.job_panel_mixin import JobPanelMixin
-from tod.gui.job_status import JobFinishResult, JobStatus
-from tod.gui.output_panel import JobCard, StructuredOutputWidget
+from tod.gui.jobs.job_panel_mixin import JobPanelMixin
+from tod.gui.jobs.job_status import JobFinishResult, JobStatus
+from tod.gui.jobs.output_panel import JobCard, StructuredOutputWidget
 
 
 @pytest.fixture(scope="module")
@@ -270,7 +270,7 @@ def _make_mock_batch_manager(
 
 class TestOnBatchCreated:
     def test_creates_and_inserts_card(self, qapp):
-        from tod.gui.batch_summary_card import BatchSummaryCard
+        from tod.gui.batch.batch_summary_card import BatchSummaryCard
 
         mixin, ctx = _make_mixin(qapp)
         mixin._batch_manager = _make_mock_batch_manager(
@@ -301,7 +301,7 @@ class TestOnBatchCreated:
 class TestOnBatchAggregateChanged:
     def test_updates_card_view_model(self, qapp):
         from tod.gui.batch import BatchAggregate
-        from tod.gui.batch_summary_card import BatchSummaryCard
+        from tod.gui.batch.batch_summary_card import BatchSummaryCard
 
         mixin, ctx = _make_mixin(qapp)
         card = MagicMock(spec=BatchSummaryCard)
@@ -326,7 +326,7 @@ class TestOnBatchAggregateChanged:
 
 class TestOnBatchRemoved:
     def test_removes_card_and_hides_container_when_empty(self, qapp):
-        from tod.gui.batch_summary_card import BatchSummaryCard
+        from tod.gui.batch.batch_summary_card import BatchSummaryCard
 
         mixin, ctx = _make_mixin(qapp)
         card = MagicMock(spec=BatchSummaryCard)
@@ -360,7 +360,7 @@ class TestMainWindowDispatchBatch:
     def test_multi_task_dispatch_creates_batch(self, qapp):
         """多任务 dispatch（>= 2 job）时 batch_manager.create_batch 被调用。"""
         from unittest.mock import patch
-        from tod.gui.run_orchestrator import DispatchResult, RunOrchestrator
+        from tod.gui.run.run_orchestrator import DispatchResult, RunOrchestrator
         from tod.gui.main_window import MainWindow
 
         window = _make_main_window_stub(qapp)
@@ -396,7 +396,7 @@ class TestMainWindowDispatchBatch:
     def test_single_task_dispatch_skips_batch(self, qapp):
         """单任务 dispatch（len < 2）时 batch_manager.create_batch 不被调用。"""
         from unittest.mock import patch
-        from tod.gui.run_orchestrator import DispatchResult, RunOrchestrator
+        from tod.gui.run.run_orchestrator import DispatchResult, RunOrchestrator
         from tod.gui.main_window import MainWindow
 
         window = _make_main_window_stub(qapp)
@@ -429,7 +429,7 @@ class TestMainWindowDispatchBatch:
     def test_cancelled_dispatch_skips_batch(self, qapp):
         """取消运行时不调用 dispatch，不创建 batch。"""
         from unittest.mock import patch
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
         from tod.gui.main_window import MainWindow
 
         window = _make_main_window_stub(qapp)

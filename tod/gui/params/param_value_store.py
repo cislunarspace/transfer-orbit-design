@@ -18,8 +18,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from tod.gui.cli_widget_factory import CliWidgetFactory
-from tod.gui.file_discovery import filter_files
+from tod.gui.params.cli_widget_factory import CliWidgetFactory
+from tod.gui.files.file_discovery import filter_files
 from tod.scripting import UNIT_GROUPS, CliParam, ScriptEntry
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ class ParamValueStore:
     ``_find_cli_param`` 通过构造时注入（lambda）以避免反向依赖 widget。
     """
 
-    _PARAM_BORDER_MODIFIED = "border: 1px solid #4da6ff;"
+    _PARAM_BORDER_MODIFIED = "border: 1px solid #0078d4;"
 
     def __init__(
         self,
@@ -86,43 +86,6 @@ class ParamValueStore:
     @property
     def widget_factory(self) -> CliWidgetFactory:
         return self._widget_factory
-
-    # ── getter 属性（保持与原 widget 一致的访问接口） ──────────
-
-    @property
-    def cli_widgets(self) -> dict[str, QWidget]:
-        return self._cli_widgets
-
-    @property
-    def env_widgets(self) -> dict[str, QComboBox]:
-        return self._env_widgets
-
-    @property
-    def chip_widgets(self) -> dict[str, QWidget]:
-        return self._chip_widgets
-
-    @property
-    def multi_file_widgets(self) -> dict[str, QWidget]:
-        return self._multi_file_widgets
-
-    @property
-    def param_defaults(self) -> dict[QWidget, str]:
-        return self._param_defaults
-
-    @property
-    def factory_defaults(self) -> dict[QWidget, str]:
-        return self._factory_defaults
-
-    @property
-    def row_containers(self) -> dict[str, QWidget]:
-        return self._row_containers
-
-    @property
-    def row_labels(self) -> dict[str, QWidget]:
-        return self._row_labels
-
-    def cli_params(self, entry: ScriptEntry) -> list[CliParam]:
-        return list(entry.cli_params)
 
     # ── 公共方法：单位转换 / 值写入 / 路径模式 ─────────────────
 

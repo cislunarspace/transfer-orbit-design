@@ -28,7 +28,7 @@ from PyQt6.QtWidgets import (
 from tod.gui.i18n import qt_format
 
 if TYPE_CHECKING:
-    from tod.gui.run_orchestrator import OverwriteTarget, RunPlan
+    from tod.gui.run.run_orchestrator import OverwriteTarget, RunPlan
 
 
 class RunConfirmationDialog(QDialog):

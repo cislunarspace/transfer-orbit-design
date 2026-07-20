@@ -25,7 +25,7 @@ from PyQt6.QtWidgets import (
 )
 
 from tod.gui.i18n import qt_format
-from tod.gui.job_status import JOB_STATUS_DISPLAY, JobStatus
+from tod.gui.jobs.job_status import JOB_STATUS_DISPLAY, JobStatus
 
 # ANSI 转义序列匹配
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[a-zA-Z]")
@@ -100,20 +100,12 @@ class StructuredOutputWidget(QWidget):
 
         layout.addLayout(toolbar)
 
-        # 进度条
+        # 进度条（颜色由主题 QSS 统一提供）
         self._progress_bar = QProgressBar()
         self._progress_bar.setRange(0, 100)
         self._progress_bar.setValue(0)
         self._progress_bar.setFixedHeight(6)
         self._progress_bar.setTextVisible(False)
-        self._progress_bar.setStyleSheet(
-            "QProgressBar {"
-            "  background-color: #333; border: none; border-radius: 3px;"
-            "}"
-            "QProgressBar::chunk {"
-            "  background-color: #0e639c; border-radius: 3px;"
-            "}"
-        )
         self._progress_bar.hide()
         layout.addWidget(self._progress_bar)
 
@@ -319,16 +311,17 @@ class StructuredOutputWidget(QWidget):
 
 
 # 状态徽章颜色表（按 JobStatus 枚举键索引，集中维护，不接 i18n）
+# 取双主题可读的中饱和色，亮/暗卡片背景上均有足够对比度。
 _STATUS_COLORS: dict[JobStatus, str] = {
-    JobStatus.PENDING: "#9cdcfe",
-    JobStatus.RUNNING: "#4ec9b0",
-    JobStatus.SUCCESS: "#808080",
-    JobStatus.FAILURE: "#f44747",
-    JobStatus.STOPPED: "#ce9178",
+    JobStatus.PENDING: "#888888",
+    JobStatus.RUNNING: "#0078d4",
+    JobStatus.SUCCESS: "#107c10",
+    JobStatus.FAILURE: "#d13438",
+    JobStatus.STOPPED: "#ca5010",
 }
 
 # 运行中脉动时使用的低饱和基色
-_PULSE_DIM_COLOR = "#2a7a6a"
+_PULSE_DIM_COLOR = "#0e639c"
 
 
 class JobCard(QWidget):
@@ -339,6 +332,8 @@ class JobCard(QWidget):
 
     def __init__(self, job_id: str, script_name: str, parent=None):
         super().__init__(parent)
+        # plain QWidget 默认不绘制样式表背景，开启后主题 QSS 的卡片外壳才生效
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         self.job_id = job_id
         self._script_name = script_name
         self._is_running = True
@@ -378,36 +373,14 @@ class JobCard(QWidget):
         self._elapsed_label.setMinimumWidth(50)
         layout.addWidget(self._elapsed_label)
 
-        # 停止按钮
+        # 停止按钮（颜色由主题 QSS 的 JobCard QToolButton 规则统一提供）
         self._stop_btn = QToolButton()
         self._stop_btn.setText("✕")
         self._stop_btn.setToolTip(self.tr("停止此任务"))
-        self._stop_btn.setStyleSheet(
-            "QToolButton {"
-            "  color: #f44747;"
-            "  border: none;"
-            "  padding: 2px 6px;"
-            "  font-size: 12px;"
-            "}"
-            "QToolButton:hover {"
-            "  background-color: #3c1f1f;"
-            "  border-radius: 3px;"
-            "}"
-        )
         self._stop_btn.clicked.connect(lambda: self.stop_requested.emit(self.job_id))
         layout.addWidget(self._stop_btn)
 
-        # 卡片样式
-        self.setStyleSheet(
-            "JobCard {"
-            "  background-color: #252526;"
-            "  border: 1px solid #3c3c3c;"
-            "  border-radius: 4px;"
-            "}"
-            "JobCard:hover {"
-            "  border-color: #555;"
-            "}"
-        )
+        # 卡片外壳样式由主题 QSS 的 JobCard 类选择器提供
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         # 定时器更新运行时间

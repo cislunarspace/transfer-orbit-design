@@ -21,7 +21,7 @@ from typing import Any
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QPushButton, QTableWidget, QWidget
 
-from tod.gui.run_orchestrator import RunPlan, RunSpec
+from tod.gui.run.run_orchestrator import RunPlan, RunSpec
 from tod.scripting import (
     CliChipParam,
     CliParam,
@@ -99,7 +99,7 @@ def _all_widget_texts(widget: QWidget) -> list[str]:
 
 
 def _make_plan(qapp_fixture, tmp_path, entry: ScriptEntry) -> Any:
-    from tod.gui.run_orchestrator import RunOrchestrator
+    from tod.gui.run.run_orchestrator import RunOrchestrator
 
     tab = _make_tab(qapp_fixture, tmp_path, entry)
     return RunOrchestrator.build_run_plan(
@@ -112,7 +112,7 @@ def _make_plan(qapp_fixture, tmp_path, entry: ScriptEntry) -> Any:
 
 class TestFileInputRendering:
     def test_file_input_renders_in_dialog(self, qapp_fixture, tmp_path):
-        from tod.gui.run_confirmation_dialog import RunConfirmationDialog
+        from tod.gui.run.run_confirmation_dialog import RunConfirmationDialog
 
         existing = tmp_path / "input.json"
         existing.write_text("{}")
@@ -120,7 +120,7 @@ class TestFileInputRendering:
         plan, _ = _make_plan(qapp_fixture, tmp_path, entry)
 
         # 手动构造带 file_input 的 plan（避免依赖完整 GUI 文件树）
-        from tod.gui.run_orchestrator import RunPlan
+        from tod.gui.run.run_orchestrator import RunPlan
 
         plan = RunPlan(
             specs=plan.specs,
@@ -138,8 +138,8 @@ class TestFileInputRendering:
         assert any(str(existing) in t for t in texts), f"未找到当前选择文件路径: {texts}"
 
     def test_no_file_input_renders_none_marker(self, qapp_fixture, tmp_path):
-        from tod.gui.run_confirmation_dialog import RunConfirmationDialog
-        from tod.gui.run_orchestrator import RunPlan
+        from tod.gui.run.run_confirmation_dialog import RunConfirmationDialog
+        from tod.gui.run.run_orchestrator import RunPlan
 
         entry = _make_entry()
         plan, _ = _make_plan(qapp_fixture, tmp_path, entry)
@@ -166,7 +166,7 @@ class TestFileInputRendering:
 
 class TestBatchRunRendering:
     def test_single_task_renders_single_line(self, qapp_fixture, tmp_path):
-        from tod.gui.run_confirmation_dialog import RunConfirmationDialog
+        from tod.gui.run.run_confirmation_dialog import RunConfirmationDialog
 
         entry = _make_entry()  # 无 chip
         plan, _ = _make_plan(qapp_fixture, tmp_path, entry)
@@ -177,8 +177,8 @@ class TestBatchRunRendering:
         assert any("将运行 1 个任务" in t for t in texts), f"未找到单任务文案: {texts}"
 
     def test_batch_renders_chip_groups(self, qapp_fixture, tmp_path):
-        from tod.gui.run_confirmation_dialog import RunConfirmationDialog
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_confirmation_dialog import RunConfirmationDialog
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_chip_params=[
@@ -211,8 +211,8 @@ class TestBatchRunRendering:
 
 class TestOverwriteRendering:
     def test_overwrite_renders_path_and_shared_count(self, qapp_fixture, tmp_path):
-        from tod.gui.run_confirmation_dialog import RunConfirmationDialog
-        from tod.gui.run_orchestrator import (
+        from tod.gui.run.run_confirmation_dialog import RunConfirmationDialog
+        from tod.gui.run.run_orchestrator import (
             OverwriteTarget,
             RunOrchestrator,
             RunPlan,
@@ -258,8 +258,8 @@ class TestOverwriteRendering:
         )
 
     def test_no_overwrite_renders_missing_message(self, qapp_fixture, tmp_path):
-        from tod.gui.run_confirmation_dialog import RunConfirmationDialog
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_confirmation_dialog import RunConfirmationDialog
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_params=[
@@ -313,7 +313,7 @@ class TestCancelDoesNotCreateJobs:
     ):
         """_confirm_run 返回 False 时，MainWindow 不应调用 JobManager.start_job。"""
         from tod.gui.main_window import MainWindow
-        from tod.gui.run_orchestrator import RunOrchestrator, RunSpec
+        from tod.gui.run.run_orchestrator import RunOrchestrator, RunSpec
 
         # 直接构造一个最小的 MainWindow 状态：使用 monkeypatch 屏蔽复杂初始化
         # 通过 _run_from_tab 的核心路径构造场景
@@ -332,8 +332,8 @@ class TestCancelDoesNotCreateJobs:
         self, qapp_fixture, tmp_path
     ):
         """集成：注入 _confirm_run_provider 返回 False，dispatch 不应被调用。"""
-        from tod.gui.run_orchestrator import RunPlan
-        from tod.gui.run_confirmation_dialog import RunConfirmationDialog
+        from tod.gui.run.run_orchestrator import RunPlan
+        from tod.gui.run.run_confirmation_dialog import RunConfirmationDialog
 
         # 这里我们只断言 dispatch 不被调用：手工模拟 _run_from_tab 逻辑
         entry = _make_entry()
@@ -367,7 +367,7 @@ class TestCancelDoesNotCreateJobs:
 
 
 def RunPlan_dummy_specs(entry: ScriptEntry) -> Any:
-    from tod.gui.run_orchestrator import RunPlan, RunSpec
+    from tod.gui.run.run_orchestrator import RunPlan, RunSpec
 
     return RunPlan(
         specs=(RunSpec(args=("--orbit-index", "5"), env=()),),

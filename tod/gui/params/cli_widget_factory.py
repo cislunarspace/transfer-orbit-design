@@ -33,7 +33,7 @@ from PyQt6.QtWidgets import (
 if TYPE_CHECKING:
     from tod.scripting import CliChipParam, CliParam
 
-from tod.gui.file_discovery import FileInfo, filter_files
+from tod.gui.files.file_discovery import FileInfo, filter_files
 from tod.scripting import UNIT_GROUPS
 
 
@@ -262,22 +262,10 @@ class CliWidgetFactory:
             return {opt for opt, btn in chip_buttons.items() if btn.property("_selected")}
 
         def _update_button_style(btn: QPushButton, is_selected: bool) -> None:
-            if is_selected:
-                btn.setStyleSheet(
-                    "QPushButton { "
-                    "background-color: #4da6ff; color: white; border: 1px solid #4da6ff; "
-                    "border-radius: 4px; padding: 4px 12px; font-weight: bold; "
-                    "} "
-                    "QPushButton:hover { background-color: #3d8fd9; }"
-                )
-            else:
-                btn.setStyleSheet(
-                    "QPushButton { "
-                    "background-color: transparent; color: #666666; border: 1px solid #cccccc; "
-                    "border-radius: 4px; padding: 4px 12px; "
-                    "} "
-                    "QPushButton:hover { background-color: #f0f0f0; border-color: #999999; }"
-                )
+            # 颜色由主题 QSS 按 chipSelected 属性着色，此处只维护属性并触发重绘
+            btn.setProperty("chipSelected", is_selected)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
 
         def _on_chip_clicked(option_label: str) -> None:
             btn = chip_buttons[option_label]
@@ -285,8 +273,6 @@ class CliWidgetFactory:
             new_state = not current
             btn.setProperty("_selected", new_state)
             _update_button_style(btn, new_state)
-            btn.style().unpolish(btn)
-            btn.style().polish(btn)
 
         for option_label, option_value in chip_param.options.items():
             btn = QPushButton(option_label)

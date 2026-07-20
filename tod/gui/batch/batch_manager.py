@@ -23,7 +23,7 @@ from typing import Callable
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from tod.gui.batch import BatchAggregate, BatchRun, aggregate_status
-from tod.gui.job_status import JobStatus
+from tod.gui.jobs.job_status import JobStatus
 
 
 class BatchManager(QObject):

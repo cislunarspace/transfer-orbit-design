@@ -25,8 +25,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from tod.gui.file_discovery import FileInfo, discover_files, format_size
-from tod.gui.file_operations import (
+from tod.gui.files.file_discovery import FileInfo, discover_files, format_size
+from tod.gui.files.file_operations import (
     FILE_PATH_ROLE,
     format_delete_confirmation,
     get_selected_paths,
@@ -92,7 +92,12 @@ class FileTreeMixin:
 
         self._file_tree = QTreeWidget()
         self._file_tree.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)
-        self._file_tree.setHeaderLabels(["Filename", "Size", "Modified", "Type"])
+        self._file_tree.setHeaderLabels([
+            QCoreApplication.translate("FileTreeMixin", "Filename"),
+            QCoreApplication.translate("FileTreeMixin", "Size"),
+            QCoreApplication.translate("FileTreeMixin", "Modified"),
+            QCoreApplication.translate("FileTreeMixin", "Type"),
+        ])
         self._file_tree.setAlternatingRowColors(True)
         self._file_tree.setRootIsDecorated(True)
         self._file_tree.itemDoubleClicked.connect(self._on_file_double_clicked)
@@ -102,14 +107,14 @@ class FileTreeMixin:
         QShortcut(QKeySequence("Delete"), self._file_tree, self._on_delete_files)
         files_layout.addWidget(self._file_tree, stretch=1)
 
-        tabs.addTab(files_widget, "Files")
+        tabs.addTab(files_widget, QCoreApplication.translate("FileTreeMixin", "Files"))
 
     # ── 文件树操作 ───────────────────────────────────
 
     def _on_file_double_clicked(self, item: QTreeWidgetItem, _column: int) -> None:
         abs_path = item.data(0, FILE_PATH_ROLE)
         if abs_path:
-            self._status_bar.showMessage(f"Selected: {abs_path}")
+            self._status_bar.showMessage(QCoreApplication.translate("FileTreeMixin", "已选择：{}").format(abs_path))
 
     def _on_copy_abs(self) -> None:
         paths = get_selected_paths(self._file_tree)

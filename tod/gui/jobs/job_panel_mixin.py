@@ -23,14 +23,15 @@ from PyQt6.QtWidgets import (
 )
 
 from tod.gui.batch import BATCH_AGGREGATE_DISPLAY, BatchAggregate
-from tod.gui.batch_summary_card import BatchJobRow, BatchSummaryCard, BatchSummaryViewModel
+from tod.gui.batch.batch_summary_card import BatchJobRow, BatchSummaryCard, BatchSummaryViewModel
 from tod.gui.i18n import qt_format
-from tod.gui.job_manager import JobManager
-from tod.gui.job_status import JobFinishResult, JobStatus
-from tod.gui.output_panel import JobCard, StructuredOutputWidget
+from tod.gui.jobs.job_manager import JobManager
+from tod.gui.jobs.job_status import JobFinishResult, JobStatus
+from tod.gui.jobs.output_panel import JobCard, StructuredOutputWidget
+from tod.gui.theme_utils import RUN_BTN_STYLE_FULL, RUN_BTN_STYLE_READY
 
 if TYPE_CHECKING:
-    from tod.gui.batch_manager import BatchManager
+    from tod.gui.batch.batch_manager import BatchManager
     from tod.gui.batch import BatchRun
     from tod.scripting import ScriptEntry
 
@@ -44,7 +45,6 @@ class JobPanelMixin:
     _job_manager: JobManager
     _has_jobs: bool
     _current_script: ScriptEntry | None
-    _run_btn: QPushButton
     _batch_manager: BatchManager
     _batch_cards: dict[str, BatchSummaryCard]
 
@@ -98,7 +98,7 @@ class JobPanelMixin:
         # 空状态占位
         self._empty_label = QLabel(QCoreApplication.translate("JobPanelMixin", "没有活跃任务。\n请从左侧选择工具并点击运行。"))
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._empty_label.setStyleSheet("color: #666; font-size: 12px; padding: 40px;")
+        self._empty_label.setStyleSheet("color: #888; font-size: 12px; padding: 40px;")
         self._output_tabs.addTab(self._empty_label, "(empty)")
 
         layout.addWidget(self._output_tabs, stretch=1)
@@ -285,6 +285,7 @@ class JobPanelMixin:
             output.set_finished()
 
         self._update_job_count()
+        self._batch_manager.refresh()
 
     def _on_job_error(self, result: JobFinishResult) -> None:
         if not result.job_id:
@@ -301,6 +302,7 @@ class JobPanelMixin:
             output.append_output(f"\n[ERROR] {result.error_message}\n", "stderr")
 
         self._update_job_count()
+        self._batch_manager.refresh()
 
     def _on_job_card_clicked(self, job_id: str) -> None:
         """双击 JobCard 切换到对应输出 tab。"""
@@ -400,30 +402,8 @@ class JobPanelMixin:
 
         self._update_job_count()
 
-    _RUN_STYLE_READY = (
-        "QPushButton {"
-        "  padding: 8px 24px;"
-        "  font-weight: bold;"
-        "  background-color: #0e639c;"
-        "  color: white;"
-        "  border: none;"
-        "  border-radius: 4px;"
-        "}"
-        "QPushButton:hover { background-color: #1177bb; }"
-        "QPushButton:disabled { background-color: #3c3c3c; color: #888; }"
-    )
-    _RUN_STYLE_FULL = (
-        "QPushButton {"
-        "  padding: 8px 24px;"
-        "  font-weight: bold;"
-        "  background-color: #b8860b;"
-        "  color: white;"
-        "  border: none;"
-        "  border-radius: 4px;"
-        "}"
-        "QPushButton:hover { background-color: #cc9a1a; }"
-        "QPushButton:disabled { background-color: #3c3c3c; color: #888; }"
-    )
+    _RUN_STYLE_READY = RUN_BTN_STYLE_READY
+    _RUN_STYLE_FULL = RUN_BTN_STYLE_FULL
 
     def _update_job_count(self) -> None:
         running = sum(1 for c in self._job_cards.values() if c.is_running)
@@ -438,14 +418,3 @@ class JobPanelMixin:
             if running > 0
             else QCoreApplication.translate("JobPanelMixin", "就绪")
         )
-
-        # 更新运行按钮状态
-        if self._current_script is not None:
-            if running >= JobManager.MAX_CONCURRENT:
-                self._run_btn.setText(qt_format(QCoreApplication.translate("JobPanelMixin", "已达上限（%1）"), JobManager.MAX_CONCURRENT))
-                self._run_btn.setStyleSheet(self._RUN_STYLE_FULL)
-                self._run_btn.setEnabled(True)  # 仍可点击以显示错误
-            else:
-                self._run_btn.setText(QCoreApplication.translate("JobPanelMixin", "运行"))
-                self._run_btn.setStyleSheet(self._RUN_STYLE_READY)
-                self._run_btn.setEnabled(True)

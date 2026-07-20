@@ -10,8 +10,8 @@ import pytest
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication, QComboBox, QLineEdit
 
-from tod.gui.param_value_store import ParamValueStore
-from tod.gui.script_param_panel import ScriptParamPanel
+from tod.gui.params.param_value_store import ParamValueStore
+from tod.gui.params.script_param_panel import ScriptParamPanel
 from tod.scripting import CatalogSeedSelectorParam, ScriptEntry
 
 
@@ -102,7 +102,7 @@ def test_default_catalog_seed_loader_auto_builds_missing_normalized_catalog(qapp
         (families_dir / "dro.csv").write_text("", encoding="utf-8")
 
     import tod.generates.cr3bp.importer as importer
-    import tod.gui.script_param_panel as panel_mod
+    import tod.gui.params.script_param_panel as panel_mod
     monkeypatch.setattr(importer, "import_cr3bp_xlsx_catalog", fake_import)
     monkeypatch.setattr(importer, "load_cr3bp_catalog", lambda data_dir: FakeCatalog())
     monkeypatch.setattr(panel_mod, "import_cr3bp_xlsx_catalog", fake_import, raising=False)

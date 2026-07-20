@@ -82,14 +82,14 @@ def make_doc_link_label(title: str, url: str | None, parent=None) -> ClickableLa
     if url:
         style = """
            QLabel {
-                color: #0066cc;
+                color: #0078d4;
                 text-decoration: underline;
                 font-size: 15px;
                 font-weight: bold;
                 padding: 4px 0;
             }
             ClickableLabel:hover {
-                color: #004499;
+                color: #106ebe;
             }
         """
     else:

@@ -2,7 +2,7 @@
 
 import pytest
 
-from tod.gui.job_status import JOB_STATUS_DISPLAY, JobStatus
+from tod.gui.jobs.job_status import JOB_STATUS_DISPLAY, JobStatus
 
 
 class TestJobStatusEnum:

@@ -28,10 +28,11 @@ from PyQt6.QtWidgets import (
 )
 
 from tod.gui.doc_link_mixin import make_doc_link_label
-from tod.gui.file_discovery import FileInfo, filter_files
+from tod.gui.files.file_discovery import FileInfo, filter_files
 from tod.gui.i18n import qt_format
-from tod.gui.param_value_store import CatalogSeedSelectorState, ParamValueStore
+from tod.gui.params.param_value_store import CatalogSeedSelectorState, ParamValueStore
 from tod.scripting import CliParam, MultiCliParam, ScriptEntry
+from tod.gui.theme_utils import RUN_BTN_STYLE_READY
 from tod.gui.theme_utils import resolve_theme as _resolve_theme
 
 if TYPE_CHECKING:
@@ -51,18 +52,7 @@ class ScriptParamPanel(QWidget):
     copy_path_requested = pyqtSignal(str, QWidget)
     defaults_changed = pyqtSignal()
 
-    _RUN_STYLE_READY = (
-        "QPushButton {"
-        "  padding: 8px 24px;"
-        "  font-weight: bold;"
-        "  background-color: #0e639c;"
-        "  color: white;"
-        "  border: none;"
-        "  border-radius: 4px;"
-        "}"
-        "QPushButton:hover { background-color: #1177bb; }"
-        "QPushButton:disabled { background-color: #3c3c3c; color: #888; }"
-    )
+    _RUN_STYLE_READY = RUN_BTN_STYLE_READY
 
     def __init__(
         self,
@@ -130,19 +120,10 @@ class ScriptParamPanel(QWidget):
         title.clicked.connect(lambda du=doc_url: self._on_doc_link_clicked(du))
         self._params_layout.addRow(title)
 
-        # 描述
+        # 描述（配色由主题 QSS 的 #scriptDescLabel 规则提供）
         if entry.description:
             desc_label = QLabel(entry.description)
-            if _resolve_theme(self._theme_mode) == "dark":
-                desc_label.setStyleSheet(
-                    "font-size: 12px; padding: 6px 10px; border-radius: 4px; "
-                    "color: #aaaaaa; background-color: #252525;"
-                )
-            else:
-                desc_label.setStyleSheet(
-                    "font-size: 12px; padding: 6px 10px; border-radius: 4px; "
-                    "color: #444444; background-color: #f0f0f0;"
-                )
+            desc_label.setObjectName("scriptDescLabel")
             desc_label.setWordWrap(True)
             self._params_layout.addRow(desc_label)
 
@@ -374,13 +355,13 @@ class ScriptParamPanel(QWidget):
         selector_widget.addItem(self.tr("（启用后加载参考数据集）"))
         selector_widget.setEnabled(selector.default_enabled)
         mode_widget = QComboBox()
-        mode_widget.addItem("按参考记录编号选择", selector.mode_record_id_key)
-        mode_widget.addItem("按 Jacobi 常数匹配", selector.mode_jacobi_key)
+        mode_widget.addItem(self.tr("按参考记录编号选择"), selector.mode_record_id_key)
+        mode_widget.addItem(self.tr("按 Jacobi 常数匹配"), selector.mode_jacobi_key)
         mode_widget.setEnabled(selector.default_enabled)
         jacobi_widget = QLineEdit()
-        jacobi_widget.setPlaceholderText("Jacobi")
+        jacobi_widget.setPlaceholderText(self.tr("Jacobi"))
         tolerance_widget = QLineEdit()
-        tolerance_widget.setPlaceholderText("Jacobi tolerance（可选）")
+        tolerance_widget.setPlaceholderText(self.tr("Jacobi tolerance（可选）"))
         jacobi_widget.setEnabled(False)
         tolerance_widget.setEnabled(False)
         preview_label = QLabel(self.tr("未选择参考初值"))

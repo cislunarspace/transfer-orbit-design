@@ -16,7 +16,7 @@ from __future__ import annotations
 import pytest
 
 from tod.gui.batch import BatchAggregate
-from tod.gui.job_status import JobStatus
+from tod.gui.jobs.job_status import JobStatus
 
 from tests.tod.gui.fakes import FakeJobStatusProvider, FAKE_SCRIPT_NAME, make_batch_manager
 

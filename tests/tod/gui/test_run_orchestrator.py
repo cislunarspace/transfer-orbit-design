@@ -107,7 +107,7 @@ class TestBuildRunSpecsBasic:
     def test_no_chips_returns_single_spec_with_all_non_default_args(
         self, qapp_fixture, tmp_path
     ):
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_params=[
@@ -140,7 +140,7 @@ class TestBuildRunSpecsBasic:
 
     def test_no_chips_omits_default_int_value(self, qapp_fixture, tmp_path):
         """int 参数保持出厂默认时不应出现在 args 中。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_params=[
@@ -163,7 +163,7 @@ class TestBuildRunSpecsChipExpansion:
     def test_l1_and_l2_selected_yields_two_specs(
         self, qapp_fixture, tmp_path
     ):
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_chip_params=[
@@ -198,7 +198,7 @@ class TestBuildRunSpecsChipExpansion:
     def test_no_chip_selected_returns_single_spec(
         self, qapp_fixture, tmp_path
     ):
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_chip_params=[
@@ -221,7 +221,7 @@ class TestBuildRunSpecsChipExpansion:
 
 class TestBuildRunSpecsFileArgAndEnv:
     def test_file_arg_prepended_to_every_spec(self, qapp_fixture, tmp_path):
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_chip_params=[
@@ -248,7 +248,7 @@ class TestBuildRunSpecsFileArgAndEnv:
             assert args[1] == "/abs/path/orbit.json"
 
     def test_file_arg_with_single_chip(self, qapp_fixture, tmp_path):
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_chip_params=[
@@ -272,7 +272,7 @@ class TestBuildRunSpecsFileArgAndEnv:
         assert args[:2] == ["--file", "/data/x.json"]
 
     def test_plot_env_merged_into_every_spec(self, qapp_fixture, tmp_path):
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_chip_params=[
@@ -302,7 +302,7 @@ class TestBuildRunSpecsMultiCli:
     def test_multi_file_row_injects_json_into_args(
         self, qapp_fixture, tmp_path
     ):
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             multi_cli_params=[
@@ -336,7 +336,7 @@ class TestDispatch:
     def test_each_spec_triggers_exactly_one_start_job(
         self, qapp_fixture, tmp_path
     ):
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_chip_params=[
@@ -366,7 +366,7 @@ class TestDispatch:
     def test_dispatch_passes_entry_args_and_env(
         self, qapp_fixture, tmp_path
     ):
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_chip_params=[
@@ -401,7 +401,7 @@ class TestDispatch:
         self, qapp_fixture, tmp_path
     ):
         """dispatch 后的 args/env 不应再与 spec 共享同一对象。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_chip_params=[

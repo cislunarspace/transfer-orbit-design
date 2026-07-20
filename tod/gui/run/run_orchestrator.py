@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from tod.gui.job_manager import JobManager
+    from tod.gui.jobs.job_manager import JobManager
     from tod.scripting import ScriptEntry
     from tod.gui.script_tab_widget import ScriptTabWidget
 

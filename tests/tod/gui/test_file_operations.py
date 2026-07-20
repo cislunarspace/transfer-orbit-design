@@ -1,10 +1,10 @@
-"""Tests for tod.gui.file_operations."""
+"""Tests for tod.gui.files.file_operations."""
 
 from pathlib import Path
 from unittest.mock import MagicMock
 
 
-from tod.gui.file_operations import (
+from tod.gui.files.file_operations import (
     FILE_PATH_ROLE,
     format_delete_confirmation,
     get_selected_paths,
@@ -100,7 +100,7 @@ class TestRevealInFileManager:
         """Windows 下调用 explorer /select,<path> 高亮文件。"""
         calls = []
         monkeypatch.setattr(
-            "tod.gui.file_operations.subprocess.run",
+            "tod.gui.files.file_operations.subprocess.run",
             lambda cmd, **kw: calls.append(cmd),
         )
 
@@ -112,7 +112,7 @@ class TestRevealInFileManager:
         """macOS 下调用 open -R <path>。"""
         calls = []
         monkeypatch.setattr(
-            "tod.gui.file_operations.subprocess.run",
+            "tod.gui.files.file_operations.subprocess.run",
             lambda cmd, **kw: calls.append(cmd),
         )
 
@@ -124,7 +124,7 @@ class TestRevealInFileManager:
         """Linux 下调用 xdg-open 打开文件所在目录。"""
         calls = []
         monkeypatch.setattr(
-            "tod.gui.file_operations.subprocess.run",
+            "tod.gui.files.file_operations.subprocess.run",
             lambda cmd, **kw: calls.append(cmd),
         )
 
