@@ -180,14 +180,7 @@ class FamilyConversionConfig:
     max_iter: int = 50
 
 def build_single_parser(orbit_type: str) -> argparse.ArgumentParser:
-    """构建运行所需对象。
-    
-    Args:
-        orbit_type: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+    """构建单轨道转换的命令行参数解析器。"""
     parser = argparse.ArgumentParser(
         description=f"Convert one {orbit_type.upper()} orbit from CR3BP to ephemeris model."
     )
@@ -201,14 +194,7 @@ def build_single_parser(orbit_type: str) -> argparse.ArgumentParser:
     return parser
 
 def build_family_parser(orbit_type: str) -> argparse.ArgumentParser:
-    """构建运行所需对象。
-    
-    Args:
-        orbit_type: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+    """构建轨道族转换的命令行参数解析器。"""
     parser = argparse.ArgumentParser(
         description=f"Convert a {orbit_type.upper()} orbit family from CR3BP to ephemeris model."
     )
@@ -234,15 +220,7 @@ def build_family_parser(orbit_type: str) -> argparse.ArgumentParser:
 def single_config_from_args(
     args: argparse.Namespace, orbit_type: str
 ) -> SingleConversionConfig:
-    """执行 single_config_from_args 对应的处理逻辑。
-    
-    Args:
-        args: 调用方传入的参数值。
-        orbit_type: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+    """从命令行参数构造单轨道转换配置。"""
     return SingleConversionConfig(
         orbit_type=orbit_type,
         input_file=Path(args.input_file),
@@ -262,15 +240,7 @@ def single_config_from_args(
 def family_config_from_args(
     args: argparse.Namespace, orbit_type: str
 ) -> FamilyConversionConfig:
-    """执行 family_config_from_args 对应的处理逻辑。
-    
-    Args:
-        args: 调用方传入的参数值。
-        orbit_type: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+    """从命令行参数构造轨道族转换配置。"""
     return FamilyConversionConfig(
         orbit_type=orbit_type,
         input_file=Path(args.input_file),
@@ -290,18 +260,7 @@ def family_config_from_args(
     )
 
 def load_single_orbit_payload(input_file: Path, orbit_index: int | None) -> LoadedOrbitPayload:
-    """读取单条轨道或轨道族中的轨道载荷。
-    
-    Args:
-        input_file: 调用方传入的参数值。
-        orbit_index: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    
-    Raises:
-        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
-    """
+    """读取单条轨道或轨道族中的指定轨道载荷。"""
     data = _load_json_object(input_file)
     if "orbits" not in data:
         return LoadedOrbitPayload(payload=data, orbit_index=None)
@@ -322,15 +281,7 @@ def load_single_orbit_payload(input_file: Path, orbit_index: int | None) -> Load
 def run_single_conversion(
     config: SingleConversionConfig, adapter: EphemerisConversionAdapter | None = None
 ) -> dict[str, Any]:
-    """运行对应计算流程。
-    
-    Args:
-        config: 调用方传入的参数值。
-        adapter: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+    """运行单轨道星历转换并写入输出文件。"""
     loaded = load_single_orbit_payload(config.input_file, config.orbit_index)
     effective_adapter = adapter or default_adapter()
     conversion_result = convert_orbit(
@@ -350,15 +301,7 @@ def run_single_conversion(
 def run_family_conversion(
     config: FamilyConversionConfig, adapter: EphemerisConversionAdapter | None = None
 ) -> dict[str, Any]:
-    """运行对应计算流程。
-    
-    Args:
-        config: 调用方传入的参数值。
-        adapter: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+    """运行轨道族星历转换并写入输出文件。"""
     payloads = load_family_payloads(config.input_file)
     effective_adapter = adapter
     if effective_adapter is None and (config.family_workers <= 1 or config.fail_fast):
@@ -373,16 +316,7 @@ def run_family_conversion(
         )
     else:
         def convert(payload: dict[str, Any], index: int, include_full_trajectory: bool) -> dict[str, Any]:
-            """执行 convert 对应的处理逻辑。
-            
-            Args:
-                payload: 调用方传入的参数值。
-                index: 调用方传入的参数值。
-                include_full_trajectory: 调用方传入的参数值。
-            
-            Returns:
-                函数执行结果。
-            """
+            """转换单条轨道载荷。"""
             return convert_orbit(payload, config, effective_adapter, include_full_trajectory)
 
         entries = run_family_payload_conversion(
@@ -407,20 +341,7 @@ def convert_orbit(
     adapter: EphemerisConversionAdapter,
     include_full_trajectory: bool,
 ) -> dict[str, Any]:
-    """执行单条轨道的星历转换。
-    
-    Args:
-        payload: 调用方传入的参数值。
-        config: 调用方传入的参数值。
-        adapter: 调用方传入的参数值。
-        include_full_trajectory: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    
-    Raises:
-        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
-    """
+    """执行单条轨道的 CR3BP→星历转换流水线。"""
     orbit = adapter.build_orbit(payload)
     if getattr(orbit, "period", None) is None:
         raise ValueError(f"unable to determine {config.orbit_type} orbit period")
@@ -463,28 +384,12 @@ def default_adapter() -> EphemerisConversionAdapter:
     return EphemerisConversionAdapter(spice=spice, cr3bp_system=cr3bp_system)
 
 def main_single(orbit_type: str, argv: list[str] | None = None) -> dict[str, Any]:
-    """执行 main_single 对应的处理逻辑。
-    
-    Args:
-        orbit_type: 调用方传入的参数值。
-        argv: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+    """单轨道转换的 CLI 入口。"""
     parser = build_single_parser(orbit_type)
     return run_single_conversion(single_config_from_args(parser.parse_args(argv), orbit_type))
 
 def main_family(orbit_type: str, argv: list[str] | None = None) -> dict[str, Any]:
-    """执行 main_family 对应的处理逻辑。
-    
-    Args:
-        orbit_type: 调用方传入的参数值。
-        argv: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+    """轨道族转换的 CLI 入口。"""
     parser = build_family_parser(orbit_type)
     return run_family_conversion(family_config_from_args(parser.parse_args(argv), orbit_type))
 
@@ -516,17 +421,7 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 def load_family_payloads(input_file: Path) -> list[dict[str, Any]]:
-    """读取轨道族文件中的全部轨道载荷。
-    
-    Args:
-        input_file: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    
-    Raises:
-        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
-    """
+    """读取轨道族文件中的全部轨道载荷。"""
     data = _load_json_object(input_file)
     orbits = data.get("orbits")
     if not isinstance(orbits, list):
@@ -543,17 +438,7 @@ def run_default_family_payload_conversion_parallel(
     include_full_trajectory: bool,
     family_workers: int,
 ) -> list[dict[str, Any]]:
-    """运行对应计算流程。
-    
-    Args:
-        payloads: 调用方传入的参数值。
-        config: 调用方传入的参数值。
-        include_full_trajectory: 调用方传入的参数值。
-        family_workers: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+    """使用默认适配器并行转换轨道族。"""
     entries: list[dict[str, Any] | None] = [None] * len(payloads)
     with ProcessPoolExecutor(max_workers=family_workers) as executor:
         futures = {
@@ -596,18 +481,7 @@ def run_family_payload_conversion(
     include_full_trajectory: bool,
     family_workers: int = 1,
 ) -> list[dict[str, Any]]:
-    """运行对应计算流程。
-    
-    Args:
-        payloads: 调用方传入的参数值。
-        convert: 调用方传入的参数值。
-        fail_fast: 调用方传入的参数值。
-        include_full_trajectory: 调用方传入的参数值。
-        family_workers: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+    """使用给定转换函数处理轨道族载荷。"""
     if family_workers <= 1 or fail_fast:
         return _run_family_payload_conversion_serial(
             payloads,

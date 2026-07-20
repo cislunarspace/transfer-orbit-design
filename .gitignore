@@ -158,6 +158,9 @@ cython_debug/
 # Claude Code
 .claude/
 
+# MiMoCode
+.mimocode/
+
 # Reasonix — track config/hooks/skills, ignore runtime artifacts
 .reasonix/.session-marker
 .reasonix/session-files.log
