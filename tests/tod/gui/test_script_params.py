@@ -23,8 +23,6 @@ PROJECT_ROOT = Path(__file__).resolve().parents[3]
 PARAMS_FILES = [
     # Ephemeris — generates/ephemeris/
     "generates/ephemeris/correct_orbit_to_ephemeris.py",
-    "generates/ephemeris/correct_dro_family_to_ephemeris.py",
-    "generates/ephemeris/correct_halo_family_to_ephemeris.py",
     # generates/cr3bp/
     "generates/cr3bp/dro/generate_dro_orbit.py",
     "generates/cr3bp/dro/generate_dro_family.py",

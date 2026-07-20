@@ -18,7 +18,7 @@ from tod.generates.ephemeris import correct_orbit_to_ephemeris
 
 @pytest.fixture
 def fake_deps():
-    """Return a ConversionDependencies with fully mocked heavy deps."""
+    """Return a mock EphemerisConversionAdapter with fully mocked heavy deps."""
     orbit = SimpleNamespace(period=1.0, states=[[1, 2, 3, 4, 5, 6]])
     result = SimpleNamespace(
         converged=True,
@@ -35,14 +35,14 @@ def fake_deps():
         "states": [[1, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0]],
         "time": [10, 20],
     }
-    return _conversion.ConversionDependencies(
-        build_orbit=lambda payload: orbit,
-        build_dynamics=lambda cfg: dynamics,
-        reference_et=lambda cfg: 123.0,
-        sample_patch_points=MagicMock(return_value=([0.0, 1.0], [[1], [2]])),
-        convert_to_j2000=MagicMock(return_value=([10.0, 20.0], [[10], [20]])),
-        correct_patch_points=MagicMock(return_value=result),
-    )
+    adapter = MagicMock(spec=_conversion.EphemerisConversionAdapter)
+    adapter.build_orbit.return_value = orbit
+    adapter.build_dynamics.return_value = dynamics
+    adapter.reference_et.return_value = 123.0
+    adapter.sample_patch_points.return_value = ([0.0, 1.0], [[1], [2]])
+    adapter.convert_states.return_value = ([10.0, 20.0], [[10], [20]])
+    adapter.correct.return_value = result
+    return adapter
 
 
 def _make_minimal_input(tmp_path: Path) -> Path:

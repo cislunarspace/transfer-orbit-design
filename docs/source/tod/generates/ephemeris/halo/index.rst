@@ -5,5 +5,4 @@ API: tod.generates.ephemeris.halo
    :maxdepth: 2
    :titlesonly:
 
-   correct_halo_family_to_ephemeris
    correct_halo_to_ephemeris

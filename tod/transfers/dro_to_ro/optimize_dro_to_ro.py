@@ -547,16 +547,7 @@ def main() -> None:
         use_copt=bool(USE_COPT),
         fallback_to_scipy=bool(FALLBACK_TO_SCIPY),
     )
-    thread_nlp = ThreadNlpParams(
-        alpha_min=float(alpha_min),
-        alpha_max=float(alpha_max),
-        earth_radius=float(EARTH_RADIUS),
-        moon_radius=float(MOON_RADIUS),
-        use_relaxed_velocity=bool(USE_RELAXED_VELOCITY),
-        velocity_angle_tol=float(velocity_angle_tol),
-        use_copt=bool(USE_COPT),
-        fallback_to_scipy=bool(FALLBACK_TO_SCIPY),
-    )
+    thread_nlp = ThreadNlpParams(pack_config=pack_cfg)
 
     output_dir = project_root / "output/transfer"
     output_dir.mkdir(parents=True, exist_ok=True)

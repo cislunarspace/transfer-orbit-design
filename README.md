@@ -129,8 +129,8 @@ DRO 单轨生成入口已从旧的 3:1 专用脚本改名为 `generate_dro_orbit
 | 目标 | 单轨道 | 轨道族 | 说明 |
 |------|--------|--------|------|
 | 通用 | `tod.generates.ephemeris.correct_orbit_to_ephemeris` | — | 统一入口，支持 DRO/Halo 及多方法选择 |
-| DRO | — | `tod.generates.ephemeris.dro.correct_dro_family_to_ephemeris` | 轨道族多重打靶修正到星历模型 |
-| Halo | — | `tod.generates.ephemeris.halo.correct_halo_family_to_ephemeris` | 轨道族多重打靶修正到星历模型 |
+| DRO | — | `tod.generates.ephemeris.family_correction` (SCRIPT_ENTRIES[0]) | 轨道族多重打靶修正到星历模型 |
+| Halo | — | `tod.generates.ephemeris.family_correction` (SCRIPT_ENTRIES[1]) | 轨道族多重打靶修正到星历模型 |
 
 > `correct_orbit_to_ephemeris` 通过 `--orbit-type`（`dro`/`halo`）和 `--method`（`standard`/`two_level`/`homotopy`）选择轨道类型与修正方法。`--output-prefix` 自动生成 `{prefix}_{method}_tol{tol}.json`。输出包含计时与地心距统计。所有转换方法通过 `--method` 参数选择，默认 `two_level`。
 

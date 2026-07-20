@@ -7,7 +7,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from PyQt6.QtCore import QCoreApplication, Qt
+from PyQt6.QtCore import QCoreApplication, Qt, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QApplication,
@@ -37,6 +37,8 @@ if TYPE_CHECKING:
 
 class FileTreeMixin:
     """提供文件浏览器 Tab 的构建和操作方法，由 MainWindow 通过多重继承混入。"""
+
+    files_refreshed = pyqtSignal()
 
     _repo_root: Path
     _files: list[FileInfo]
@@ -242,10 +244,7 @@ class FileTreeMixin:
     def _refresh_files(self) -> None:
         self._files = discover_files(self._repo_root)
         self._rebuild_file_tree()
-        self._on_files_refreshed()
-
-    def _on_files_refreshed(self) -> None:
-        """文件刷新后的回调钩子，子类可覆盖。"""
+        self.files_refreshed.emit()
 
     def _highlight_category(self, category: str) -> None:
         """展开并滚动到指定类别。"""

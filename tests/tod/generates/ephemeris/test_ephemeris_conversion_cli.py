@@ -10,7 +10,7 @@ import pytest
 from tod.generates.ephemeris import _conversion
 
 
-def _fake_conversion_dependencies(finalize=None):
+def _fake_adapter(finalize=None):
     orbit = SimpleNamespace(period=1.0, states=[[1, 2, 3, 4, 5, 6]])
     result = SimpleNamespace(
         converged=True,
@@ -27,15 +27,16 @@ def _fake_conversion_dependencies(finalize=None):
         "states": [[1, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0]],
         "time": [10, 20],
     }
-    return _conversion.ConversionDependencies(
-        build_orbit=lambda orbit_payload: orbit,
-        build_dynamics=lambda conversion_config: dynamics,
-        reference_et=lambda conversion_config: 123.0,
-        sample_patch_points=MagicMock(return_value=([0.0, 1.0], [[1], [2]])),
-        convert_to_j2000=MagicMock(return_value=([10.0, 20.0], [[10], [20]])),
-        correct_patch_points=MagicMock(return_value=result),
-        finalize=finalize,
-    )
+    adapter = MagicMock(spec=_conversion.EphemerisConversionAdapter)
+    adapter.build_orbit.return_value = orbit
+    adapter.build_dynamics.return_value = dynamics
+    adapter.reference_et.return_value = 123.0
+    adapter.sample_patch_points.return_value = ([0.0, 1.0], [[1], [2]])
+    adapter.convert_states.return_value = ([10.0, 20.0], [[10], [20]])
+    adapter.correct.return_value = result
+    if finalize is not None:
+        adapter.finalize = finalize
+    return adapter
 
 
 def test_single_parser_requires_input_file_and_reference_epoch():
@@ -411,18 +412,11 @@ def test_unified_entry_script_delegates_to_single_conversion():
 
 
 def test_family_entry_scripts_delegate_to_family_conversion():
-    from tod.generates.ephemeris import correct_dro_family_to_ephemeris
-    from tod.generates.ephemeris import correct_halo_family_to_ephemeris
+    from tod.generates.ephemeris.family_correction import SCRIPT_ENTRIES
 
-    argv = ["--input-file", "family.json", "--reference-epoch", "2025-06-21T11:00:06"]
-
-    with patch.object(_conversion, "run_family_conversion", return_value={"ok": "dro"}) as run:
-        assert correct_dro_family_to_ephemeris.main(argv) == {"ok": "dro"}
-        assert run.call_args.args[0].orbit_type == "dro"
-
-    with patch.object(_conversion, "run_family_conversion", return_value={"ok": "halo"}) as run:
-        assert correct_halo_family_to_ephemeris.main(argv) == {"ok": "halo"}
-        assert run.call_args.args[0].orbit_type == "halo"
+    assert len(SCRIPT_ENTRIES) == 2
+    assert SCRIPT_ENTRIES[0].name == "correct_dro_family_to_ephemeris"
+    assert SCRIPT_ENTRIES[1].name == "correct_halo_family_to_ephemeris"
 
 
 def test_run_single_conversion_writes_output_file(tmp_path):
@@ -447,7 +441,7 @@ def test_run_single_conversion_writes_output_file(tmp_path):
         orbit_index=None,
     )
 
-    result = _conversion.run_single_conversion(config, deps=_fake_conversion_dependencies())
+    result = _conversion.run_single_conversion(config, adapter=_fake_adapter())
     saved = json.loads(output_file.read_text(encoding="utf-8"))
 
     assert result == saved
@@ -480,7 +474,7 @@ def test_run_family_conversion_writes_lightweight_output_by_default(tmp_path):
         include_full_trajectory=False,
     )
 
-    result = _conversion.run_family_conversion(config, deps=_fake_conversion_dependencies())
+    result = _conversion.run_family_conversion(config, adapter=_fake_adapter())
     saved = json.loads(output_file.read_text(encoding="utf-8"))
 
     assert result == saved
@@ -542,8 +536,8 @@ def test_run_family_conversion_uses_process_workers_for_parallel_default(tmp_pat
     result = _conversion.run_family_conversion(config)
 
     assert [call[0] for call in submitted] == [
-        _conversion._convert_family_payload_with_default_dependencies,
-        _conversion._convert_family_payload_with_default_dependencies,
+        _conversion._convert_family_payload_with_default_adapter,
+        _conversion._convert_family_payload_with_default_adapter,
     ]
     assert {call[5] for call in submitted} == {2}
     assert [entry["result"]["index"] for entry in result["results"]] == [0, 1]
@@ -585,20 +579,19 @@ def test_convert_orbit_runs_shared_pipeline_with_injected_dependencies(tmp_path)
         {"states": [[1, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0]], "time": [10, 20]},
         {"states": [[2, 0, 0, 0, 0, 0], [3, 0, 0, 0, 0, 0]], "time": [20, 30]},
     ]
-    deps = _conversion.ConversionDependencies(
-        build_orbit=lambda orbit_payload: orbit,
-        build_dynamics=lambda conversion_config: dynamics,
-        reference_et=lambda conversion_config: 123.0,
-        sample_patch_points=MagicMock(return_value=([0.0, 0.5, 1.0], [[1], [2], [3]])),
-        convert_to_j2000=MagicMock(return_value=([10.0, 20.0, 30.0], [[10], [20], [30]])),
-        correct_patch_points=MagicMock(return_value=result),
-    )
+    adapter = MagicMock(spec=_conversion.EphemerisConversionAdapter)
+    adapter.build_orbit.return_value = orbit
+    adapter.build_dynamics.return_value = dynamics
+    adapter.reference_et.return_value = 123.0
+    adapter.sample_patch_points.return_value = ([0.0, 0.5, 1.0], [[1], [2], [3]])
+    adapter.convert_states.return_value = ([10.0, 20.0, 30.0], [[10], [20], [30]])
+    adapter.correct.return_value = result
 
-    output = _conversion.convert_orbit(payload, config, deps, include_full_trajectory=True)
+    output = _conversion.convert_orbit(payload, config, adapter, include_full_trajectory=True)
 
-    deps.sample_patch_points.assert_called_once_with(orbit, 3)
-    deps.convert_to_j2000.assert_called_once()
-    deps.correct_patch_points.assert_called_once()
+    adapter.sample_patch_points.assert_called_once_with(orbit, 3)
+    adapter.convert_states.assert_called_once()
+    adapter.correct.assert_called_once()
     assert dynamics.propagate.call_count == 2
     assert output["status"] == "success"
     assert output["converged"] is True
@@ -639,16 +632,15 @@ def test_convert_orbit_omits_full_trajectory_when_not_requested(tmp_path):
         "states": [[1, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0]],
         "time": [10, 20],
     }
-    deps = _conversion.ConversionDependencies(
-        build_orbit=lambda orbit_payload: orbit,
-        build_dynamics=lambda conversion_config: dynamics,
-        reference_et=lambda conversion_config: 123.0,
-        sample_patch_points=MagicMock(return_value=([0.0, 1.0], [[1], [2]])),
-        convert_to_j2000=MagicMock(return_value=([10.0, 20.0], [[10], [20]])),
-        correct_patch_points=MagicMock(return_value=result),
-    )
+    adapter = MagicMock(spec=_conversion.EphemerisConversionAdapter)
+    adapter.build_orbit.return_value = orbit
+    adapter.build_dynamics.return_value = dynamics
+    adapter.reference_et.return_value = 123.0
+    adapter.sample_patch_points.return_value = ([0.0, 1.0], [[1], [2]])
+    adapter.convert_states.return_value = ([10.0, 20.0], [[10], [20]])
+    adapter.correct.return_value = result
 
-    output = _conversion.convert_orbit(payload, config, deps, include_full_trajectory=False)
+    output = _conversion.convert_orbit(payload, config, adapter, include_full_trajectory=False)
 
     assert output["velocity_residual"] is None
     assert "full_trajectory_states" not in output
@@ -687,16 +679,15 @@ def test_convert_orbit_marks_not_converged_when_corrector_does_not_converge(tmp_
         "states": [[1, 0, 0, 0, 0, 0], [2, 0, 0, 0, 0, 0]],
         "time": [10, 20],
     }
-    deps = _conversion.ConversionDependencies(
-        build_orbit=lambda orbit_payload: orbit,
-        build_dynamics=lambda conversion_config: dynamics,
-        reference_et=lambda conversion_config: 123.0,
-        sample_patch_points=MagicMock(return_value=([0.0, 1.0], [[1], [2]])),
-        convert_to_j2000=MagicMock(return_value=([10.0, 20.0], [[10], [20]])),
-        correct_patch_points=MagicMock(return_value=result),
-    )
+    adapter = MagicMock(spec=_conversion.EphemerisConversionAdapter)
+    adapter.build_orbit.return_value = orbit
+    adapter.build_dynamics.return_value = dynamics
+    adapter.reference_et.return_value = 123.0
+    adapter.sample_patch_points.return_value = ([0.0, 1.0], [[1], [2]])
+    adapter.convert_states.return_value = ([10.0, 20.0], [[10], [20]])
+    adapter.correct.return_value = result
 
-    output = _conversion.convert_orbit(payload, config, deps, include_full_trajectory=False)
+    output = _conversion.convert_orbit(payload, config, adapter, include_full_trajectory=False)
 
     assert output["status"] == "not_converged"
     assert output["converged"] is False

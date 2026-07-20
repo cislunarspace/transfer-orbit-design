@@ -7,6 +7,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import pytest
 from unittest.mock import MagicMock
 
+from PyQt6.QtCore import QObject
 from PyQt6.QtWidgets import QApplication, QLabel, QPushButton, QStatusBar, QTabWidget, QWidget
 
 from tod.gui.jobs.job_panel_mixin import JobPanelMixin
@@ -54,10 +55,11 @@ class TestMainWindowInheritsJobPanelMixin:
 def _make_mixin(qapp) -> tuple[JobPanelMixin, dict]:
     """构造最小可用 JobPanelMixin 实例，注入所有必需的 stub 属性。"""
 
-    class _StubMixin(JobPanelMixin):
-        """继承 JobPanelMixin，绕过 QObject 多继承限制。"""
+    class _StubMixin(QObject, JobPanelMixin):
+        """继承 JobPanelMixin + QObject，支持 pyqtSignal.emit()。"""
 
         def __init__(self):
+            super().__init__()
             self._status_bar = MagicMock(spec=QStatusBar)
             self._job_outputs: dict[str, StructuredOutputWidget] = {}
             self._job_cards: dict[str, JobCard] = {}

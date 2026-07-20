@@ -187,9 +187,10 @@ def get_scripts(
                 logger.warning("扫描器跳过加载失败的脚本: %s", file_path, exc_info=True)
                 continue
             for entry in entries:
-                if entry.script_path in seen_paths:
+                key = (entry.script_path, entry.name)
+                if key in seen_paths:
                     continue  # 已由更高优先级目录注册
-                seen_paths.add(entry.script_path)
+                seen_paths.add(key)
                 if translations:
                     from tod.gui.i18n import translate_script_entry
 

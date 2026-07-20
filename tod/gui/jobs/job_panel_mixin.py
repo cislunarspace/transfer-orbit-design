@@ -7,7 +7,7 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, cast
 
-from PyQt6.QtCore import QCoreApplication, Qt
+from PyQt6.QtCore import QCoreApplication, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -35,6 +35,8 @@ if TYPE_CHECKING:
 
 class JobPanelMixin:
     """提供 Job 面板构建和生命周期管理方法，由 MainWindow 通过多重继承混入。"""
+
+    job_count_changed = pyqtSignal()
 
     _status_bar: QStatusBar
     _job_outputs: dict[str, StructuredOutputWidget]
@@ -415,7 +417,4 @@ class JobPanelMixin:
             if running > 0
             else QCoreApplication.translate("JobPanelMixin", "就绪")
         )
-        self._on_job_count_changed()
-
-    def _on_job_count_changed(self) -> None:
-        """任务计数变化后的回调钩子，子类可覆盖。"""
+        self.job_count_changed.emit()

@@ -127,10 +127,6 @@ from tod.transfers.geo_to_dro.integrate import (
     get_dro_state_at_time,
 )
 
-def _find_closest_approach(*args, **kwargs):
-    """向后兼容包装。"""
-    return find_closest_approach(*args, **kwargs)
-
 # =====================================================================
 # 非线性规划问题
 # =====================================================================
@@ -231,7 +227,7 @@ def optimize_one_case(
 
     # 用动力学对象重新积分找最接近 DRO 的时刻
     _, dynamics = build_dynamics(1e-10, 1e-10, NLP_MAX_STEP)
-    t_closest, t_dro_closest, reinit_min_dist = _find_closest_approach(
+    t_closest, t_dro_closest, reinit_min_dist = find_closest_approach(
         departure_state, alpha_0, T_search, dro_orbit, dynamics,
     )
 

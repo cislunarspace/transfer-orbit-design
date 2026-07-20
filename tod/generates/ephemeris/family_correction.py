@@ -24,7 +24,7 @@ def _make_family_script_entry(family: str) -> ScriptEntry:
         module="ephemeris",
         name=f"correct_{family}_family_to_ephemeris",
         description="修正轨道族",
-        script_path=f"tod/generates/ephemeris/correct_{family}_family_to_ephemeris.py",
+        script_path="tod/generates/ephemeris/family_correction.py",
         output_dir="output/ephemeris",
         needs_spice=True,
         group_label="星历转换",

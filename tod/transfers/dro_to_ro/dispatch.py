@@ -17,28 +17,10 @@ from tod.transfers._common import NlpPackConfig
 @dataclass
 class ThreadNlpParams:
 
-    alpha_min: float
-    alpha_max: float
-    earth_radius: float
-    moon_radius: float
-    use_relaxed_velocity: bool
-    velocity_angle_tol: float
-    use_copt: bool
-    fallback_to_scipy: bool
+    pack_config: NlpPackConfig
 
 def pack_nlp_task(idx, rec, dro_orbit, ro_orbit, cfg: NlpPackConfig):
-    """执行 pack_nlp_task 对应的处理逻辑。
-    
-    Args:
-        idx: 调用方传入的参数值。
-        rec: 调用方传入的参数值。
-        dro_orbit: 调用方传入的参数值。
-        ro_orbit: 调用方传入的参数值。
-        cfg: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+    """将轨道数据和配置打包为可序列化的字典，供进程池 worker 使用。"""
     return {
         "idx": idx,
         "rec": rec,
@@ -122,14 +104,14 @@ def worker_run_thread(args):
             system,
             dynamics,
             verbose=False,
-            alpha_min=params.alpha_min,
-            alpha_max=params.alpha_max,
-            earth_radius=params.earth_radius,
-            moon_radius=params.moon_radius,
-            use_relaxed_velocity=params.use_relaxed_velocity,
-            velocity_angle_tol=params.velocity_angle_tol,
-            use_copt=params.use_copt,
-            fallback_to_scipy=params.fallback_to_scipy,
+            alpha_min=params.pack_config.alpha_min,
+            alpha_max=params.pack_config.alpha_max,
+            earth_radius=params.pack_config.earth_radius,
+            moon_radius=params.pack_config.moon_radius,
+            use_relaxed_velocity=params.pack_config.use_relaxed_velocity,
+            velocity_angle_tol=params.pack_config.velocity_angle_tol,
+            use_copt=params.pack_config.use_copt,
+            fallback_to_scipy=params.pack_config.fallback_to_scipy,
         )
         row["nlp"] = serialize_nlp_result(res)
     # 仅捕获数值意义上的失败（积分发散/优化器数值异常）；编程错误应向上抛

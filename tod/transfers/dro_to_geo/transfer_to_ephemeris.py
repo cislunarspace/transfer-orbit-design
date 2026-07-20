@@ -27,6 +27,8 @@ from typing import Any
 
 import numpy as np
 
+from tod.transfers._common import forward_integrate
+
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 DEFAULT_SPICE_KERNEL_DIR = Path(
     project_root.parent / "e2m2e" / "kernels"
@@ -87,21 +89,6 @@ def select_best_result(data: dict, select_by: str) -> dict:
     else:
         best = min(success, key=lambda r: r["nlp"]["objective_value"])
     return best
-
-def cr3bp_propagate(state0: np.ndarray, transfer_time: float, dynamics) -> tuple[np.ndarray, np.ndarray]:
-    """在 CR3BP synodic 坐标系中传播转移轨迹。"""
-    step = max(0.01, dynamics.max_step)
-    n_steps = int(transfer_time / step) + 1
-    t_eval = np.linspace(0.0, transfer_time, n_steps)
-
-    result = dynamics.propagate(
-        initial_state=state0,
-        t_span=(0.0, transfer_time),
-        t_eval=t_eval,
-        with_stm=False,
-        with_jacobi=False,
-    )
-    return result["states"], result["time"]
 
 def synodic_to_j2000_states(
     states_syn: np.ndarray,
@@ -264,7 +251,7 @@ def main():
 
     transfer_time = nlp["transfer_time"]
 
-    cr3bp_states, cr3bp_times = cr3bp_propagate(state0, transfer_time, dynamics)
+    cr3bp_states, cr3bp_times = forward_integrate(dynamics, state0, transfer_time)
     print(f"  CR3BP 积分点数: {len(cr3bp_states)}")
     print(f"  终点位置 (synodic DU): [{cr3bp_states[-1, 0]:.6f}, {cr3bp_states[-1, 1]:.6f}, {cr3bp_states[-1, 2]:.6f}]")
 

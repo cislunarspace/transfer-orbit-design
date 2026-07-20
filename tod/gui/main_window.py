@@ -117,6 +117,10 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         )
         self._batch_manager.batch_removed.connect(self._on_batch_removed)
 
+        # 连接 mixin 信号
+        self.files_refreshed.connect(self._on_files_refreshed)
+        self.job_count_changed.connect(self._on_job_count_changed)
+
         # 连接文档链接信号
         self.doc_link_clicked.connect(self._open_doc_window)
 
@@ -359,7 +363,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         from tod.gui.run.run_confirmation_dialog import RunConfirmationDialog
         return RunConfirmationDialog.show_and_confirm(plan, self)
 
-    # ── 文件刷新后回调（通过 _on_files_refreshed 钩子触发） ─────
+    # ── 文件刷新后槽（files_refreshed 信号触发） ─────────────
 
     def _on_files_refreshed(self) -> None:
         """文件刷新后同步 ScriptTabBar 并显示状态消息。"""
@@ -375,7 +379,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         else:
             self._status_bar.showMessage(self.tr("未找到输出文件。运行工具以生成数据。"), 5000)
 
-    # ── Job 计数变化后回调（通过 _on_job_count_changed 钩子触发） ──
+    # ── Job 计数变化后槽（job_count_changed 信号触发） ────────
 
     def _on_job_count_changed(self) -> None:
         """任务计数变化后更新当前 tab 的运行按钮。"""

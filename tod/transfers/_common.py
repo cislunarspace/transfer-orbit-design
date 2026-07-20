@@ -40,6 +40,7 @@ class NlpPackConfig:
     use_copt: bool = False
     fallback_to_scipy: bool = False
 
+
 def build_dynamics(
     rtol: float,
     atol: float,
@@ -67,6 +68,7 @@ def build_dynamics(
     dynamics.atol = atol
     dynamics.max_step = max_step
     return system, dynamics
+
 
 def forward_integrate(
     dynamics: "CR3BP_Dynamics",

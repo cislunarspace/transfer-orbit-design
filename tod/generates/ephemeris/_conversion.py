@@ -48,20 +48,6 @@ def correct_ephemeris_patch_points(*args, **kwargs) -> EphemerisCorrectionResult
     """执行 correct_ephemeris_patch_points 对应的处理逻辑。"""
     return _e2m2e_correct_ephemeris_patch_points(*args, **kwargs)
 
-@dataclass(frozen=True)
-class ConversionDependencies:
-
-    build_orbit: Callable[[dict[str, Any]], Any]
-    build_dynamics: Callable[[SingleConversionConfig | FamilyConversionConfig], Any]
-    reference_et: Callable[[SingleConversionConfig | FamilyConversionConfig], float]
-    sample_patch_points: Callable[[Any, int], tuple[Any, Any]]
-    convert_to_j2000: Callable[[Any, Any, float], tuple[Any, Any]]
-    correct_patch_points: Callable[
-        [SingleConversionConfig | FamilyConversionConfig, Any, Any, Any], Any
-    ]
-    finalize: Callable[[], None] | None = None
-
-
 class EphemerisConversionAdapter:
     """封装星历转换的外部依赖（SPICE、CR3BP 系统），替代闭包工厂。"""
 
@@ -135,23 +121,14 @@ class EphemerisConversionAdapter:
             **kwargs,
         )
 
+    def sample_patch_points(self, orbit: Any, n_points: int) -> tuple[Any, Any]:
+        from e2m2e.algorithms import sample_patch_points
+
+        return sample_patch_points(orbit, n_points)
+
     def finalize(self) -> None:
         import spiceypy
         spiceypy.kclear()
-
-    def to_deps(self) -> ConversionDependencies:
-        """转换为 ConversionDependencies（向后兼容）。"""
-        from e2m2e.algorithms import sample_patch_points
-
-        return ConversionDependencies(
-            build_orbit=self.build_orbit,
-            build_dynamics=self.build_dynamics,
-            reference_et=self.reference_et,
-            sample_patch_points=sample_patch_points,
-            convert_to_j2000=self.convert_states,
-            correct_patch_points=self.correct,
-            finalize=self.finalize,
-        )
 
 @dataclass(frozen=True)
 class LoadedOrbitPayload:
@@ -343,23 +320,23 @@ def load_single_orbit_payload(input_file: Path, orbit_index: int | None) -> Load
     return LoadedOrbitPayload(payload=orbit_payload, orbit_index=orbit_index)
 
 def run_single_conversion(
-    config: SingleConversionConfig, deps: ConversionDependencies | None = None
+    config: SingleConversionConfig, adapter: EphemerisConversionAdapter | None = None
 ) -> dict[str, Any]:
     """运行对应计算流程。
     
     Args:
         config: 调用方传入的参数值。
-        deps: 调用方传入的参数值。
+        adapter: 调用方传入的参数值。
     
     Returns:
         函数执行结果。
     """
     loaded = load_single_orbit_payload(config.input_file, config.orbit_index)
-    dependencies = deps or default_conversion_dependencies()
+    effective_adapter = adapter or default_adapter()
     conversion_result = convert_orbit(
         loaded.payload,
         config,
-        dependencies,
+        effective_adapter,
         include_full_trajectory=config.include_full_trajectory,
     )
     payload = {
@@ -367,28 +344,27 @@ def run_single_conversion(
         "result": conversion_result,
     }
     _write_output(payload, _resolve_output_file(config.output_file, "single", config.orbit_type))
-    if dependencies.finalize is not None:
-        dependencies.finalize()
+    effective_adapter.finalize()
     return payload
 
 def run_family_conversion(
-    config: FamilyConversionConfig, deps: ConversionDependencies | None = None
+    config: FamilyConversionConfig, adapter: EphemerisConversionAdapter | None = None
 ) -> dict[str, Any]:
     """运行对应计算流程。
     
     Args:
         config: 调用方传入的参数值。
-        deps: 调用方传入的参数值。
+        adapter: 调用方传入的参数值。
     
     Returns:
         函数执行结果。
     """
     payloads = load_family_payloads(config.input_file)
-    dependencies = deps
-    if dependencies is None and (config.family_workers <= 1 or config.fail_fast):
-        dependencies = default_conversion_dependencies()
+    effective_adapter = adapter
+    if effective_adapter is None and (config.family_workers <= 1 or config.fail_fast):
+        effective_adapter = default_adapter()
 
-    if deps is None and config.family_workers > 1 and not config.fail_fast:
+    if adapter is None and config.family_workers > 1 and not config.fail_fast:
         entries = run_default_family_payload_conversion_parallel(
             payloads,
             config,
@@ -407,7 +383,7 @@ def run_family_conversion(
             Returns:
                 函数执行结果。
             """
-            return convert_orbit(payload, config, dependencies, include_full_trajectory)
+            return convert_orbit(payload, config, effective_adapter, include_full_trajectory)
 
         entries = run_family_payload_conversion(
             payloads,
@@ -421,14 +397,14 @@ def run_family_conversion(
         "results": entries,
     }
     _write_output(payload, _resolve_output_file(config.output_file, "family", config.orbit_type))
-    if dependencies is not None and dependencies.finalize is not None:
-        dependencies.finalize()
+    if effective_adapter is not None:
+        effective_adapter.finalize()
     return payload
 
 def convert_orbit(
     payload: dict[str, Any],
     config: SingleConversionConfig | FamilyConversionConfig,
-    deps: ConversionDependencies,
+    adapter: EphemerisConversionAdapter,
     include_full_trajectory: bool,
 ) -> dict[str, Any]:
     """执行单条轨道的星历转换。
@@ -436,7 +412,7 @@ def convert_orbit(
     Args:
         payload: 调用方传入的参数值。
         config: 调用方传入的参数值。
-        deps: 调用方传入的参数值。
+        adapter: 调用方传入的参数值。
         include_full_trajectory: 调用方传入的参数值。
     
     Returns:
@@ -445,16 +421,16 @@ def convert_orbit(
     Raises:
         Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
     """
-    orbit = deps.build_orbit(payload)
+    orbit = adapter.build_orbit(payload)
     if getattr(orbit, "period", None) is None:
         raise ValueError(f"unable to determine {config.orbit_type} orbit period")
-    dynamics = deps.build_dynamics(config)
-    reference_et = deps.reference_et(config)
-    t_patch_syn, states_syn = deps.sample_patch_points(orbit, config.patch_points)
-    t_patch_j2000, states_j2000 = deps.convert_to_j2000(
-        t_patch_syn, states_syn, reference_et
+    dynamics = adapter.build_dynamics(config)
+    reference_et_value = adapter.reference_et(config)
+    t_patch_syn, states_syn = adapter.sample_patch_points(orbit, config.patch_points)
+    t_patch_j2000, states_j2000 = adapter.convert_states(
+        t_patch_syn, states_syn, reference_et_value
     )
-    correction = deps.correct_patch_points(config, dynamics, t_patch_j2000, states_j2000)
+    correction = adapter.correct(config, dynamics, t_patch_j2000, states_j2000)
     continuity = _validate_continuity(
         dynamics,
         _to_list(correction.t_patch),
@@ -475,8 +451,8 @@ def convert_orbit(
         )
     return result
 
-def default_conversion_dependencies() -> ConversionDependencies:
-    """构造默认的星历转换依赖（通过 EphemerisConversionAdapter）。"""
+def default_adapter() -> EphemerisConversionAdapter:
+    """构造默认的星历转换适配器。"""
     from e2m2e.core import CR3BP_System
     from e2m2e.core.spice import SPICEManager
 
@@ -484,8 +460,7 @@ def default_conversion_dependencies() -> ConversionDependencies:
 
     spice = SPICEManager()
     cr3bp_system = CR3BP_System(mu=_tod_constants.MU, primary="earth", secondary="moon")
-    adapter = EphemerisConversionAdapter(spice=spice, cr3bp_system=cr3bp_system)
-    return adapter.to_deps()
+    return EphemerisConversionAdapter(spice=spice, cr3bp_system=cr3bp_system)
 
 def main_single(orbit_type: str, argv: list[str] | None = None) -> dict[str, Any]:
     """执行 main_single 对应的处理逻辑。
@@ -583,7 +558,7 @@ def run_default_family_payload_conversion_parallel(
     with ProcessPoolExecutor(max_workers=family_workers) as executor:
         futures = {
             executor.submit(
-                _convert_family_payload_with_default_dependencies,
+                _convert_family_payload_with_default_adapter,
                 payload,
                 index,
                 config,
@@ -601,18 +576,17 @@ def run_default_family_payload_conversion_parallel(
                 entries[index] = _family_entry_from_conversion(index, conversion_result)
     return [entry for entry in entries if entry is not None]
 
-def _convert_family_payload_with_default_dependencies(
+def _convert_family_payload_with_default_adapter(
     payload: dict[str, Any],
     index: int,
     config: FamilyConversionConfig,
     include_full_trajectory: bool,
 ) -> dict[str, Any]:
-    deps = default_conversion_dependencies()
+    adapter = default_adapter()
     try:
-        return convert_orbit(payload, config, deps, include_full_trajectory)
+        return convert_orbit(payload, config, adapter, include_full_trajectory)
     finally:
-        if deps.finalize is not None:
-            deps.finalize()
+        adapter.finalize()
 
 def run_family_payload_conversion(
     payloads: list[dict[str, Any]],

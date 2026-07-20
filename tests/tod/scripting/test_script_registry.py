@@ -132,8 +132,7 @@ def test_ephemeris_conversion_entries_are_grouped_by_orbit_type() -> None:
 
     expected_paths = {
         "tod/generates/ephemeris/correct_orbit_to_ephemeris.py",
-        "tod/generates/ephemeris/correct_dro_family_to_ephemeris.py",
-        "tod/generates/ephemeris/correct_halo_family_to_ephemeris.py",
+        "tod/generates/ephemeris/family_correction.py",
     }
 
     assert expected_paths <= entries_by_path.keys()
