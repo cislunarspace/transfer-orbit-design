@@ -87,27 +87,33 @@ def _load_script_entry(file_path: Path) -> _ScanEntry:
     finally:
         _sys.modules.pop(module_name, None)  # 清理临时模块
 
-    if not hasattr(module, "SCRIPT_ENTRY"):
+    if hasattr(module, "SCRIPT_ENTRIES"):
+        raw_entries = module.SCRIPT_ENTRIES
+    elif hasattr(module, "SCRIPT_ENTRY"):
+        raw_entries = [module.SCRIPT_ENTRY]
+    else:
         raise _NoScriptEntryError(
             f"文件 {file_path} 缺少 SCRIPT_ENTRY 导出。"
         )
 
-    raw = module.SCRIPT_ENTRY
-    return _ScanEntry(
-        module=raw.module,
-        name=raw.name,
-        description=raw.description,
-        script_path=raw.script_path,
-        output_dir=raw.output_dir,
-        accepts_file_arg=raw.accepts_file_arg,
-        needs_spice=raw.needs_spice,
-        cli_chip_params=raw.cli_chip_params,
-        multi_cli_params=raw.multi_cli_params,
-        catalog_seed_selectors=getattr(raw, "catalog_seed_selectors", []),
-        env_params=raw.env_params,
-        cli_params=raw.cli_params,
-        group_label=raw.group_label,
-    )
+    results = []
+    for raw in raw_entries:
+        results.append(_ScanEntry(
+            module=raw.module,
+            name=raw.name,
+            description=raw.description,
+            script_path=raw.script_path,
+            output_dir=raw.output_dir,
+            accepts_file_arg=raw.accepts_file_arg,
+            needs_spice=raw.needs_spice,
+            cli_chip_params=raw.cli_chip_params,
+            multi_cli_params=raw.multi_cli_params,
+            catalog_seed_selectors=getattr(raw, "catalog_seed_selectors", []),
+            env_params=raw.env_params,
+            cli_params=raw.cli_params,
+            group_label=raw.group_label,
+        ))
+    return results
 
 def _classify(entry: _ScanEntry) -> str:
     """根据 script_path 的目录结构推断分类键。
@@ -174,20 +180,21 @@ def get_scripts(
             continue
         for file_path in iter_script_files(scan_dir):
             try:
-                entry = _load_script_entry(file_path)
+                entries = _load_script_entry(file_path)
             except _NoScriptEntryError:
                 continue  # 文件加载成功但无 SCRIPT_ENTRY（非注册文件），静默跳过
             except RuntimeError:
                 logger.warning("扫描器跳过加载失败的脚本: %s", file_path, exc_info=True)
                 continue
-            if entry.script_path in seen_paths:
-                continue  # 已由更高优先级目录注册
-            seen_paths.add(entry.script_path)
-            if translations:
-                from tod.gui.i18n import translate_script_entry
+            for entry in entries:
+                if entry.script_path in seen_paths:
+                    continue  # 已由更高优先级目录注册
+                seen_paths.add(entry.script_path)
+                if translations:
+                    from tod.gui.i18n import translate_script_entry
 
-                entry = translate_script_entry(entry, translations)
-            category = _classify(entry)
-            SCRIPTS.setdefault(category, []).append(entry)
+                    entry = translate_script_entry(entry, translations)
+                category = _classify(entry)
+                SCRIPTS.setdefault(category, []).append(entry)
 
     return SCRIPTS
