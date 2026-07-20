@@ -61,7 +61,7 @@ def _make_tab(qapp_fixture, tmp_path, entry: ScriptEntry) -> QWidget:
 
 
 def _select_chip(tab: QWidget, chip_key: str, labels: list[str]) -> None:
-    container = tab._chip_widgets[chip_key]
+    container = tab._store._chip_widgets[chip_key]
     chip_buttons: dict[str, QPushButton] = container._chip_buttons  # type: ignore[attr-defined]
     for label, btn in chip_buttons.items():
         target_state = label in labels
@@ -242,7 +242,7 @@ class TestOverwriteRendering:
         )
         tab = _make_tab(qapp_fixture, tmp_path, entry)
         _select_chip(tab, "libration_point", ["L1", "L2"])
-        tab._cli_widgets["output_file"].setText(str(existing))  # type: ignore[attr-defined]
+        tab._store._cli_widgets["output_file"].setText(str(existing))  # type: ignore[attr-defined]
         plan = RunOrchestrator.build_run_plan(
             tab=tab, file_arg=None, plot_env={}, repo_root=tmp_path
         )
@@ -274,7 +274,7 @@ class TestOverwriteRendering:
         )
         tab = _make_tab(qapp_fixture, tmp_path, entry)
         # 用户填了路径但文件不存在
-        tab._cli_widgets["output_file"].setText("never_exists.json")  # type: ignore[attr-defined]
+        tab._store._cli_widgets["output_file"].setText("never_exists.json")  # type: ignore[attr-defined]
         plan = RunOrchestrator.build_run_plan(
             tab=tab, file_arg=None, plot_env={}, repo_root=tmp_path
         )

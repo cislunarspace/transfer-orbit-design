@@ -102,7 +102,7 @@ class TestGuiJacobiDrivesCliRegression:
             entry=_make_dro_entry(), files=[], repo_root=tmp_path,
             gui_defaults={}, theme_mode="system",
         )
-        state = widget._catalog_seed_selectors["dro_catalog_seed"]
+        state = widget._store._catalog_seed_selectors["dro_catalog_seed"]
         state.enabled_checkbox.setChecked(True)
         state.mode_widget.setCurrentIndex(state.mode_widget.findData("jacobi_match"))
         state.jacobi_widget.setText("3.10005")
@@ -155,7 +155,7 @@ class TestGuiJacobiDrivesCliRegression:
             entry=_make_dro_entry(), files=[], repo_root=tmp_path,
             gui_defaults={}, theme_mode="system",
         )
-        state = widget._catalog_seed_selectors["dro_catalog_seed"]
+        state = widget._store._catalog_seed_selectors["dro_catalog_seed"]
         state.enabled_checkbox.setChecked(True)
         state.mode_widget.setCurrentIndex(state.mode_widget.findData("jacobi_match"))
         state.jacobi_widget.setText("0.0")
@@ -186,7 +186,7 @@ class TestGuiSeedIdDrivesCliRegression:
             entry=_make_dro_entry(), files=[], repo_root=tmp_path,
             gui_defaults={}, theme_mode="system",
         )
-        state = widget._catalog_seed_selectors["dro_catalog_seed"]
+        state = widget._store._catalog_seed_selectors["dro_catalog_seed"]
         cast(QComboBox, state.selector_widget).addItem(
             "earth-moon_dro:000001 | C=3.1 | T=7.0",
             "earth-moon_dro:000001",

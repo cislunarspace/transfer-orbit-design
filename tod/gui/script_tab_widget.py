@@ -83,60 +83,6 @@ class ScriptTabWidget(QWidget):
     def _find_cli_param_for_store(self, key: str) -> CliParam | None:
         return self._find_cli_param(key)
 
-    # ── 旧接口属性 shim（兼容 test_script_tab_widget 的访问） ──
-
-    @property
-    def _cli_widgets(self) -> dict[str, QWidget]:
-        return self._store._cli_widgets
-
-    @property
-    def _env_widgets(self) -> dict[str, QComboBox]:
-        return self._store._env_widgets
-
-    @property
-    def _chip_widgets(self) -> dict[str, QWidget]:
-        return self._store._chip_widgets
-
-    @property
-    def _multi_file_widgets(self) -> dict[str, QWidget]:
-        return self._store._multi_file_widgets
-
-    @property
-    def _catalog_seed_selectors(self):
-        return self._store._catalog_seed_selectors
-
-    @property
-    def _cli_row_containers(self) -> dict[str, QWidget]:
-        return self._store._row_containers
-
-    @property
-    def _widget_factory(self):
-        return self._store._widget_factory
-
-    # ── 旧接口方法 shim（兼容 test_script_tab_widget 的调用） ──
-
-    def _setup_conditional_visibility(self, entry: ScriptEntry) -> None:
-        """兼容旧测试的 bound-method 调用形式。
-
-        既支持 ``tab._setup_conditional_visibility(entry)``（普通 widget 实例），
-        也支持 ``ScriptTabWidget._setup_conditional_visibility(harness, entry)``
-        （把方法当作 unbound 函数绑定到 _Harness 等外部对象上）。后者没有
-        ``_store``，所以直接用 self 上的 dict 走 store 逻辑。
-        """
-        store = getattr(self, "_store", None)
-        if isinstance(store, ParamValueStore):
-            store.setup_conditional_visibility(entry)
-            return
-
-        find_cli_param = cast(Callable[[str], CliParam | None], getattr(self, "_find_cli_param"))
-        harness_store = ParamValueStore(files=[], find_cli_param=find_cli_param)
-        harness_store.setup_conditional_visibility(
-            entry,
-            cli_widgets=getattr(self, "_cli_widgets", {}),
-            row_containers=getattr(self, "_cli_row_containers", {}),
-            row_labels=getattr(self, "_cli_row_labels", {}),
-        )
-
     def _find_cli_param(self, key: str) -> CliParam | None:
         for p in self.entry.cli_params:
             if p.flag.lstrip("-").replace("-", "_") == key:

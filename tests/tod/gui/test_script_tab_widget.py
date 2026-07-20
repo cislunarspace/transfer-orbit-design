@@ -9,6 +9,7 @@ from typing import Any, cast
 
 from PyQt6.QtWidgets import QApplication, QCheckBox, QComboBox, QLineEdit, QSpinBox, QWidget
 
+from tod.gui.params.param_value_store import ParamValueStore
 from tod.scripting import CatalogSeedSelectorParam, CliParam, ScriptEntry
 
 
@@ -76,10 +77,10 @@ class TestScriptTabWidgetConstruction:
             gui_defaults={},
             theme_mode="system",
         )
-        assert "orbit" in widget._cli_widgets
-        assert "iterations" in widget._cli_widgets
-        assert "verbose" in widget._cli_widgets
-        assert "tolerance" in widget._cli_widgets
+        assert "orbit" in widget._store._cli_widgets
+        assert "iterations" in widget._store._cli_widgets
+        assert "verbose" in widget._store._cli_widgets
+        assert "tolerance" in widget._store._cli_widgets
 
     def test_builds_env_widgets(self, qapp_fixture, tmp_path):
         from tod.scripting import EnvParam
@@ -97,7 +98,7 @@ class TestScriptTabWidgetConstruction:
             gui_defaults={},
             theme_mode="system",
         )
-        assert "dro_file" in widget._env_widgets
+        assert "dro_file" in widget._store._env_widgets
 
 
 class TestCatalogSeedSelectorDefaults:
@@ -122,13 +123,13 @@ class TestCatalogSeedSelectorDefaults:
         )
         widget = ScriptTabWidget(entry=entry, files=[], repo_root=tmp_path, gui_defaults={}, theme_mode="system")
 
-        state = widget._catalog_seed_selectors["dro_catalog_seed"]
+        state = widget._store._catalog_seed_selectors["dro_catalog_seed"]
         assert not state.enabled_checkbox.isChecked()
         assert not state.selector_widget.isEnabled()
         for key in ("x0", "vy0", "period"):
-            manual_widget = widget._cli_widgets[key]
+            manual_widget = widget._store._cli_widgets[key]
             assert manual_widget.isEnabled()
-            assert widget._widget_factory.display_widget(manual_widget).isEnabled()
+            assert widget._store._widget_factory.display_widget(manual_widget).isEnabled()
 
         args = widget.collect_run_args()
         assert "--seed-id" not in args
@@ -157,9 +158,9 @@ class TestCatalogSeedSelectorDefaults:
         )
         widget = ScriptTabWidget(entry=entry, files=[], repo_root=tmp_path, gui_defaults={}, theme_mode="system")
 
-        cast(QLineEdit, widget._cli_widgets["seed_id"]).setText("earth-moon_dro:000001")
-        cast(QLineEdit, widget._cli_widgets["jacobi"]).setText("3.1")
-        cast(QLineEdit, widget._cli_widgets["jacobi_tolerance"]).setText("1e-4")
+        cast(QLineEdit, widget._store._cli_widgets["seed_id"]).setText("earth-moon_dro:000001")
+        cast(QLineEdit, widget._store._cli_widgets["jacobi"]).setText("3.1")
+        cast(QLineEdit, widget._store._cli_widgets["jacobi_tolerance"]).setText("1e-4")
 
         args = widget.collect_run_args()
 
@@ -188,23 +189,23 @@ class TestCatalogSeedSelectorDefaults:
             ],
         )
         widget = ScriptTabWidget(entry=entry, files=[], repo_root=tmp_path, gui_defaults={}, theme_mode="system")
-        state = widget._catalog_seed_selectors["dro_catalog_seed"]
+        state = widget._store._catalog_seed_selectors["dro_catalog_seed"]
 
         state.enabled_checkbox.setChecked(True)
 
         assert state.selector_widget.isEnabled()
         for key in ("x0", "vy0", "period"):
-            manual_widget = widget._cli_widgets[key]
+            manual_widget = widget._store._cli_widgets[key]
             assert not manual_widget.isEnabled()
-            assert not widget._widget_factory.display_widget(manual_widget).isEnabled()
+            assert not widget._store._widget_factory.display_widget(manual_widget).isEnabled()
 
         state.enabled_checkbox.setChecked(False)
 
         assert not state.selector_widget.isEnabled()
         for key in ("x0", "vy0", "period"):
-            manual_widget = widget._cli_widgets[key]
+            manual_widget = widget._store._cli_widgets[key]
             assert manual_widget.isEnabled()
-            assert widget._widget_factory.display_widget(manual_widget).isEnabled()
+            assert widget._store._widget_factory.display_widget(manual_widget).isEnabled()
 
 
     def test_catalog_selector_enabled_collects_selected_seed_id_arg(self, qapp_fixture, tmp_path):
@@ -227,7 +228,7 @@ class TestCatalogSeedSelectorDefaults:
             ],
         )
         widget = ScriptTabWidget(entry=entry, files=[], repo_root=tmp_path, gui_defaults={}, theme_mode="system")
-        state = widget._catalog_seed_selectors["dro_catalog_seed"]
+        state = widget._store._catalog_seed_selectors["dro_catalog_seed"]
         cast(QComboBox, state.selector_widget).addItem(
             "earth-moon_dro:000001 | C=3.1 | T=7.0",
             "earth-moon_dro:000001",
@@ -255,7 +256,7 @@ class TestCatalogSeedSelectorDefaults:
             ],
         )
         widget = ScriptTabWidget(entry=entry, files=[], repo_root=tmp_path, gui_defaults={}, theme_mode="system")
-        state = widget._catalog_seed_selectors["dro_catalog_seed"]
+        state = widget._store._catalog_seed_selectors["dro_catalog_seed"]
 
         state.mode_widget.setCurrentIndex(state.mode_widget.findData("jacobi_match"))
         state.enabled_checkbox.setChecked(True)
@@ -284,7 +285,7 @@ class TestScriptTabWidgetCollectRunArgs:
         assert "--orbit" not in args
 
         # 修改后收集
-        cast(QLineEdit, widget._cli_widgets["orbit"]).setText("dro")
+        cast(QLineEdit, widget._store._cli_widgets["orbit"]).setText("dro")
         args = widget.collect_run_args()
         assert "--orbit" in args
         assert "dro" in args
@@ -302,7 +303,7 @@ class TestScriptTabWidgetCollectRunArgs:
             gui_defaults={}, theme_mode="system",
         )
         # 出厂默认值 100，改为 200
-        cast(QSpinBox, widget._cli_widgets["iterations"]).setValue(200)
+        cast(QSpinBox, widget._store._cli_widgets["iterations"]).setValue(200)
         args = widget.collect_run_args()
         assert "--iterations" in args
         assert "200" in args
@@ -324,7 +325,7 @@ class TestScriptTabWidgetCollectRunArgs:
         assert "--verbose" not in args
 
         # 选中后收集 flag（无值）
-        cast(QCheckBox, widget._cli_widgets["verbose"]).setChecked(True)
+        cast(QCheckBox, widget._store._cli_widgets["verbose"]).setChecked(True)
         args = widget.collect_run_args()
         assert "--verbose" in args
 
@@ -380,7 +381,7 @@ class TestScriptTabWidgetDefaults:
             entry=entry, files=[], repo_root=tmp_path,
             gui_defaults=gui_defaults, theme_mode="system",
         )
-        cast(QLineEdit, widget._cli_widgets["orbit"]).setText("dro")
+        cast(QLineEdit, widget._store._cli_widgets["orbit"]).setText("dro")
         widget._on_save_defaults()
 
         assert "Test Script" in gui_defaults
@@ -455,8 +456,8 @@ class TestScriptTabWidgetSignals:
 class _Harness:
     """Minimal harness exposing the attributes _setup_conditional_visibility needs.
 
-    Calls the real ScriptTabWidget._setup_conditional_visibility as a bound method
-    to drive the production code path without spinning up a full ScriptTabWidget.
+    Calls the real ParamValueStore.setup_conditional_visibility to drive the
+    production code path without spinning up a full ScriptTabWidget.
     """
 
     def __init__(self):
@@ -464,10 +465,18 @@ class _Harness:
         self._cli_row_containers: dict[str, QWidget] = {}
         self._cli_row_labels: dict[str, QWidget] = {}
         self._current_script: ScriptEntry | None = None
+        self._store = ParamValueStore(
+            files=[],
+            find_cli_param=self._find_cli_param,
+        )
 
     def _setup_conditional_visibility(self, entry: ScriptEntry) -> None:
-        from tod.gui.script_tab_widget import ScriptTabWidget
-        return ScriptTabWidget._setup_conditional_visibility(self, entry)
+        self._store.setup_conditional_visibility(
+            entry,
+            cli_widgets=self._cli_widgets,
+            row_containers=self._cli_row_containers,
+            row_labels=self._cli_row_labels,
+        )
 
     def _find_cli_param(self, key: str) -> CliParam | None:
         if self._current_script is None:
@@ -491,13 +500,12 @@ def _make_entry_with_params(params: list[CliParam]) -> ScriptEntry:
 class TestHiddenWhenValueCondition:
     """Test hidden_when ==value syntax for conditional visibility (issue #123).
 
-    Drives the real ScriptTabWidget._setup_conditional_visibility via either a
+    Drives the real ParamValueStore.setup_conditional_visibility via either a
     lightweight _Harness (unit-style) or a full ScriptTabWidget (end-to-end).
     """
 
     def test_combobox_matching_value_hides_target(self, qapp_fixture):
         """When trigger QComboBox currentText matches ==value, target is hidden."""
-        from tod.gui.script_tab_widget import ScriptTabWidget
 
         trigger = QComboBox()
         trigger.addItems(["natural", "pseudo_arclength"])
@@ -520,14 +528,13 @@ class TestHiddenWhenValueCondition:
                      hidden_when="--method==natural"),
         ])
         harness._current_script = entry
-        ScriptTabWidget._setup_conditional_visibility(harness, entry)
+        harness._setup_conditional_visibility(entry)
 
         assert not target_container.isVisible()
         assert not target_label.isVisible()
 
     def test_combobox_non_matching_value_shows_target(self, qapp_fixture):
         """When trigger QComboBox currentText does NOT match ==value, target is visible."""
-        from tod.gui.script_tab_widget import ScriptTabWidget
 
         trigger = QComboBox()
         trigger.addItems(["natural", "pseudo_arclength"])
@@ -550,14 +557,13 @@ class TestHiddenWhenValueCondition:
                      hidden_when="--method==natural"),
         ])
         harness._current_script = entry
-        ScriptTabWidget._setup_conditional_visibility(harness, entry)
+        harness._setup_conditional_visibility(entry)
 
         assert target_container.isVisible()
         assert target_label.isVisible()
 
     def test_combobox_signal_toggles_visibility(self, qapp_fixture):
         """Changing trigger QComboBox value toggles target visibility."""
-        from tod.gui.script_tab_widget import ScriptTabWidget
 
         trigger = QComboBox()
         trigger.addItems(["natural", "pseudo_arclength"])
@@ -578,7 +584,7 @@ class TestHiddenWhenValueCondition:
                      hidden_when="--method==natural"),
         ])
         harness._current_script = entry
-        ScriptTabWidget._setup_conditional_visibility(harness, entry)
+        harness._setup_conditional_visibility(entry)
 
         assert not target_container.isVisible()
 
@@ -590,7 +596,6 @@ class TestHiddenWhenValueCondition:
 
     def test_backward_compat_presence_check_still_works(self, qapp_fixture):
         """Old-style hidden_when (no ==value) still works as presence check."""
-        from tod.gui.script_tab_widget import ScriptTabWidget
 
         trigger = QComboBox()
         trigger.addItem("")
@@ -613,7 +618,7 @@ class TestHiddenWhenValueCondition:
                      hidden_when="--seed-file"),
         ])
         harness._current_script = entry
-        ScriptTabWidget._setup_conditional_visibility(harness, entry)
+        harness._setup_conditional_visibility(entry)
 
         assert target_container.isVisible()
 
@@ -622,7 +627,6 @@ class TestHiddenWhenValueCondition:
 
     def test_multiple_targets_share_one_trigger(self, qapp_fixture):
         """Multiple params with hidden_when referencing the same trigger."""
-        from tod.gui.script_tab_widget import ScriptTabWidget
 
         trigger = QComboBox()
         trigger.addItems(["natural", "pseudo_arclength"])
@@ -651,7 +655,7 @@ class TestHiddenWhenValueCondition:
                      hidden_when="--method==pseudo_arclength"),
         ])
         harness._current_script = entry
-        ScriptTabWidget._setup_conditional_visibility(harness, entry)
+        harness._setup_conditional_visibility(entry)
 
         assert not container_a.isVisible()
         assert not container_b.isVisible()
@@ -662,7 +666,6 @@ class TestHiddenWhenValueCondition:
 
     def test_checkbox_boolean_comparison(self, qapp_fixture):
         """hidden_when with ==True/==False works for QCheckBox trigger."""
-        from tod.gui.script_tab_widget import ScriptTabWidget
 
         trigger = QCheckBox()
         trigger.setChecked(True)
@@ -680,7 +683,7 @@ class TestHiddenWhenValueCondition:
             CliParam("--extra", "Extra", "str", hidden_when="--verbose==True"),
         ])
         harness._current_script = entry
-        ScriptTabWidget._setup_conditional_visibility(harness, entry)
+        harness._setup_conditional_visibility(entry)
 
         assert not target_container.isVisible()
 
@@ -689,7 +692,6 @@ class TestHiddenWhenValueCondition:
 
     def test_lineedit_value_comparison(self, qapp_fixture):
         """hidden_when with ==value works for QLineEdit trigger."""
-        from tod.gui.script_tab_widget import ScriptTabWidget
 
         trigger = QLineEdit("auto")
 
@@ -707,7 +709,7 @@ class TestHiddenWhenValueCondition:
                      hidden_when="--mode==auto"),
         ])
         harness._current_script = entry
-        ScriptTabWidget._setup_conditional_visibility(harness, entry)
+        harness._setup_conditional_visibility(entry)
 
         assert not target_container.isVisible()
 
@@ -716,7 +718,6 @@ class TestHiddenWhenValueCondition:
 
     def test_choice_values_reverse_mapping_in_condition(self, qapp_fixture):
         """When trigger QComboBox uses choice_values, ==value compares CLI value, not display text."""
-        from tod.gui.script_tab_widget import ScriptTabWidget
 
         trigger = QComboBox()
         trigger.addItems(["北族", "南族"])
@@ -737,7 +738,7 @@ class TestHiddenWhenValueCondition:
             CliParam("--extra", "Extra", "str", hidden_when="--halo-class==0"),
         ])
         harness._current_script = entry
-        ScriptTabWidget._setup_conditional_visibility(harness, entry)
+        harness._setup_conditional_visibility(entry)
 
         assert not target_container.isVisible()
 
@@ -767,21 +768,21 @@ class TestHiddenWhenValueCondition:
 
         # Initially: method="natural" hides --step-size-negative,
         # seed-file="" shows --amplitude-z.
-        assert "step_size_negative" in widget._cli_row_containers
-        assert "amplitude_z" in widget._cli_row_containers
-        step_container = widget._cli_row_containers["step_size_negative"]
-        amp_container = widget._cli_row_containers["amplitude_z"]
+        assert "step_size_negative" in widget._store._row_containers
+        assert "amplitude_z" in widget._store._row_containers
+        step_container = widget._store._row_containers["step_size_negative"]
+        amp_container = widget._store._row_containers["amplitude_z"]
         # isHidden() reflects the explicit setVisible state independent of
         # whether the top-level window is shown.
         assert step_container.isHidden()
         assert not amp_container.isHidden()
 
         # Flip method → step container becomes visible again.
-        cast(QComboBox, widget._cli_widgets["method"]).setCurrentText("pseudo_arclength")
+        cast(QComboBox, widget._store._cli_widgets["method"]).setCurrentText("pseudo_arclength")
         assert not step_container.isHidden()
 
         # Fill seed-file → amplitude_z becomes hidden.
-        cast(QLineEdit, widget._cli_widgets["seed_file"]).setText("seed.json")
+        cast(QLineEdit, widget._store._cli_widgets["seed_file"]).setText("seed.json")
         assert amp_container.isHidden()
 
 

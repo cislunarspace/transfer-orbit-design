@@ -54,8 +54,8 @@ def _make_tab(qapp_fixture, tmp_path, entry: ScriptEntry) -> QWidget:
 
 
 def _select_chip(tab: QWidget, chip_key: str, labels: list[str]) -> None:
-    """在 ScriptTabWidget._chip_widgets 中切换 chip 按钮状态。"""
-    container = tab._chip_widgets[chip_key]
+    """在 ScriptTabWidget._store._chip_widgets 中切换 chip 按钮状态。"""
+    container = tab._store._chip_widgets[chip_key]
     chip_buttons: dict[str, QPushButton] = container._chip_buttons  # type: ignore[attr-defined]
     for label, btn in chip_buttons.items():
         target_state = label in labels
@@ -65,7 +65,7 @@ def _select_chip(tab: QWidget, chip_key: str, labels: list[str]) -> None:
 
 def _add_multi_file_row(tab: QWidget, multi_key: str, path: str) -> None:
     """向 ScriptTabWidget 的多文件表格注入一行（path, start, end, step）。"""
-    widget = tab._multi_file_widgets[multi_key]
+    widget = tab._store._multi_file_widgets[multi_key]
     table = widget.findChild(QTableWidget)
     assert table is not None, "multi-file widget 未生成 QTableWidget"
 
@@ -118,10 +118,10 @@ class TestBuildRunSpecsBasic:
         tab = _make_tab(qapp_fixture, tmp_path, entry)
 
         # verbose=True 触发 flag；--orbit-index 改为 5（非默认 3）。
-        assert isinstance(tab._cli_widgets["verbose"], QCheckBox)
-        assert isinstance(tab._cli_widgets["orbit_index"], QSpinBox)
-        tab._cli_widgets["verbose"].setChecked(True)  # type: ignore[attr-defined]
-        tab._cli_widgets["orbit_index"].setValue(5)  # type: ignore[attr-defined]
+        assert isinstance(tab._store._cli_widgets["verbose"], QCheckBox)
+        assert isinstance(tab._store._cli_widgets["orbit_index"], QSpinBox)
+        tab._store._cli_widgets["verbose"].setChecked(True)  # type: ignore[attr-defined]
+        tab._store._cli_widgets["orbit_index"].setValue(5)  # type: ignore[attr-defined]
 
         specs = RunOrchestrator.build_run_specs(
             tab=tab, file_arg=None, plot_env={}

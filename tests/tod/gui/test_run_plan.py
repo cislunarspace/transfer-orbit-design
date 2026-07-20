@@ -63,7 +63,7 @@ def _make_tab(qapp_fixture, tmp_path, entry: ScriptEntry) -> QWidget:
 
 
 def _select_chip(tab: QWidget, chip_key: str, labels: list[str]) -> None:
-    container = tab._chip_widgets[chip_key]
+    container = tab._store._chip_widgets[chip_key]
     chip_buttons: dict[str, QPushButton] = container._chip_buttons  # type: ignore[attr-defined]
     for label, btn in chip_buttons.items():
         target_state = label in labels
@@ -72,7 +72,7 @@ def _select_chip(tab: QWidget, chip_key: str, labels: list[str]) -> None:
 
 
 def _add_multi_file_row(tab: QWidget, multi_key: str, path: str) -> None:
-    widget = tab._multi_file_widgets[multi_key]
+    widget = tab._store._multi_file_widgets[multi_key]
     table = widget.findChild(QTableWidget)
     assert table is not None, "multi-file widget 未生成 QTableWidget"
 
@@ -299,7 +299,7 @@ class TestOverwriteDetection:
         )
         tab = _make_tab(qapp_fixture, tmp_path, entry)
         # 用户在 QLineEdit 里填入已存在文件路径（与 default 不同，触发 collect）
-        tab._cli_widgets["output_file"].setText(str(existing))  # type: ignore[attr-defined]
+        tab._store._cli_widgets["output_file"].setText(str(existing))  # type: ignore[attr-defined]
 
         plan = RunOrchestrator.build_run_plan(
             tab=tab, file_arg=None, plot_env={}, repo_root=tmp_path
@@ -331,7 +331,7 @@ class TestOverwriteDetection:
             ]
         )
         tab = _make_tab(qapp_fixture, tmp_path, entry)
-        tab._cli_widgets["output_file"].setText(str(missing))  # type: ignore[attr-defined]
+        tab._store._cli_widgets["output_file"].setText(str(missing))  # type: ignore[attr-defined]
 
         plan = RunOrchestrator.build_run_plan(
             tab=tab, file_arg=None, plot_env={}, repo_root=tmp_path
@@ -387,7 +387,7 @@ class TestOverwriteDetection:
             ]
         )
         tab = _make_tab(qapp_fixture, tmp_path, entry)
-        tab._cli_widgets["output_file"].setText("rel_existing.json")  # type: ignore[attr-defined]
+        tab._store._cli_widgets["output_file"].setText("rel_existing.json")  # type: ignore[attr-defined]
 
         plan = RunOrchestrator.build_run_plan(
             tab=tab, file_arg=None, plot_env={}, repo_root=tmp_path
@@ -423,7 +423,7 @@ class TestOverwriteDetection:
         )
         tab = _make_tab(qapp_fixture, tmp_path, entry)
         _select_chip(tab, "libration_point", ["L1", "L2"])
-        tab._cli_widgets["output_file"].setText(str(existing))  # type: ignore[attr-defined]
+        tab._store._cli_widgets["output_file"].setText(str(existing))  # type: ignore[attr-defined]
 
         plan = RunOrchestrator.build_run_plan(
             tab=tab, file_arg=None, plot_env={}, repo_root=tmp_path
@@ -449,7 +449,7 @@ class TestNoRegressionForSimpleRun:
             ],
         )
         tab = _make_tab(qapp_fixture, tmp_path, entry)
-        tab._cli_widgets["orbit_index"].setValue(5)  # type: ignore[attr-defined]
+        tab._store._cli_widgets["orbit_index"].setValue(5)  # type: ignore[attr-defined]
 
         plan = RunOrchestrator.build_run_plan(
             tab=tab,
@@ -477,7 +477,7 @@ class TestNoRegressionForSimpleRun:
             ]
         )
         tab = _make_tab(qapp_fixture, tmp_path, entry)
-        tab._cli_widgets["verbose"].setChecked(True)  # type: ignore[attr-defined]
+        tab._store._cli_widgets["verbose"].setChecked(True)  # type: ignore[attr-defined]
 
         specs = RunOrchestrator.build_run_specs(
             tab=tab, file_arg=None, plot_env={}
