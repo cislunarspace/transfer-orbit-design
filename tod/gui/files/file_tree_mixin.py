@@ -242,6 +242,10 @@ class FileTreeMixin:
     def _refresh_files(self) -> None:
         self._files = discover_files(self._repo_root)
         self._rebuild_file_tree()
+        self._on_files_refreshed()
+
+    def _on_files_refreshed(self) -> None:
+        """文件刷新后的回调钩子，子类可覆盖。"""
 
     def _highlight_category(self, category: str) -> None:
         """展开并滚动到指定类别。"""

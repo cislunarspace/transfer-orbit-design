@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from tod.gui.files.file_discovery import FileInfo, discover_files
+from tod.gui.files.file_discovery import FileInfo
 from tod.gui.files.file_tree_mixin import FileTreeMixin
 from tod.gui.i18n import qt_format
 from tod.gui.batch.batch_manager import BatchManager
@@ -359,15 +359,10 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         from tod.gui.run.run_confirmation_dialog import RunConfirmationDialog
         return RunConfirmationDialog.show_and_confirm(plan, self)
 
-    # ── 文件刷新（完全覆盖 FileTreeMixin._refresh_files） ─────
+    # ── 文件刷新后回调（通过 _on_files_refreshed 钩子触发） ─────
 
-    def _refresh_files(self) -> None:
-        """刷新文件列表，同步到文件树和所有 tab。"""
-        self._files = discover_files(self._repo_root)
-
-        if hasattr(self, "_file_tree"):
-            self._rebuild_file_tree()
-
+    def _on_files_refreshed(self) -> None:
+        """文件刷新后同步 ScriptTabBar 并显示状态消息。"""
         # 同步文件列表到 ScriptTabBar
         if hasattr(self, "_script_tab_bar") and self._script_tab_bar is not None:
             self._script_tab_bar.refresh_files(self._files)
@@ -380,15 +375,12 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         else:
             self._status_bar.showMessage(self.tr("未找到输出文件。运行工具以生成数据。"), 5000)
 
-    # ── Job panel run-button 更新（覆盖 JobPanelMixin） ───────
+    # ── Job 计数变化后回调（通过 _on_job_count_changed 钩子触发） ──
 
-    def _update_job_count(self) -> None:
-        """扩展 JobPanelMixin._update_job_count，额外更新当前 tab 的运行按钮。"""
-        super()._update_job_count()
-
+    def _on_job_count_changed(self) -> None:
+        """任务计数变化后更新当前 tab 的运行按钮。"""
         running = sum(1 for c in self._job_cards.values() if c.is_running)
 
-        # 更新当前 tab 的运行按钮
         if self._script_tab_bar is not None:
             tab = self._script_tab_bar.current_widget()
             if tab is not None:

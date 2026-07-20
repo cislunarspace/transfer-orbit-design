@@ -415,3 +415,7 @@ class JobPanelMixin:
             if running > 0
             else QCoreApplication.translate("JobPanelMixin", "就绪")
         )
+        self._on_job_count_changed()
+
+    def _on_job_count_changed(self) -> None:
+        """任务计数变化后的回调钩子，子类可覆盖。"""
