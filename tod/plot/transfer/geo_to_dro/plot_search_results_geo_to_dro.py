@@ -30,6 +30,7 @@ import numpy as np
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from tod.commons.orbits import (
     compute_departure_velocity,
+    generate_geo_orbit,
 )
 from e2m2e.transfer import load_orbit_from_json
 from tod.commons.constants import MU, TU, VU
@@ -130,12 +131,6 @@ def feasible_transfer_time_and_dv(rows):
 # =====================================================================
 
 
-def generate_geo_orbit(n_points=500):
-    """生成 GEO 近似圆轨道状态（仅位置用于绘图）。"""
-    from tod.commons.orbits import generate_geo_orbit as _generate_geo_orbit
-    return _generate_geo_orbit(n_points=n_points).states
-
-
 # =====================================================================
 # 3D 轨道图
 # =====================================================================
@@ -182,11 +177,12 @@ def _reintegrate_transfer(dynamics, departure_state, alpha, max_transfer_time, d
 
 
 def _plot_single_transfer_orbit(
-    geo_states, dro_orbit, transfer_states, departure_state,
+    geo_orbit, dro_orbit, transfer_states, departure_state,
     dv_departure, alpha, transfer_time, system, fig, ax,
     actual_transfer_time=None,
 ):
     """绘制单条 GEO→DRO 转移轨道（截断到最近 DRO 的点）。"""
+    geo_states = geo_orbit.states if hasattr(geo_orbit, 'states') else geo_orbit
     # GEO 圆
     gx, gy = geo_circle_points()
     ax.plot(gx, gy, np.zeros_like(gx), color="gray", ls="--", lw=0.8, label="GEO")
