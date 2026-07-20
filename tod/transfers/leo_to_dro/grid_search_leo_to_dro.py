@@ -28,7 +28,7 @@ from tod.commons.orbits import (
     V_CIRCULAR_LEO,
     T_LEO,
     LEO_ALT_KM,
-    generate_leo_orbit_states,
+    generate_leo_orbit,
 )
 import logging
 
@@ -37,14 +37,7 @@ logger = logging.getLogger(__name__)
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 
-def generate_leo_orbit(n_points: int = 500) -> Orbit:
-    """在 CR3BP 旋转系中生成 LEO 近似圆轨道。"""
-    states = generate_leo_orbit_states(n_points)
-    times = np.linspace(0, T_LEO, n_points, endpoint=False)
 
-    orbit = Orbit(states, times)
-    orbit.period = T_LEO
-    return orbit
 
 
 # =====================================================================

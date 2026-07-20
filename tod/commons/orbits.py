@@ -100,18 +100,23 @@ def leo_circular_velocity_rotating(
     return v_inertial - omega_cross_r
 
 
-def generate_leo_orbit_states(
+def generate_leo_orbit(
     n_points: int = 500, r_leo: float = R_LEO
-) -> npt.NDArray[np.floating]:
-    """生成 LEO 近似圆轨道状态数组。
+) -> "Orbit":
+    """在 CR3BP 旋转系中生成 LEO 近似圆轨道。
+
+    LEO 被建模为以地心为圆心、半径为 R_LEO 的圆轨道。
+    速度通过 leo_circular_velocity_rotating 计算（包含 Coriolis 修正）。
 
     Args:
         n_points: 采样点数。
         r_leo: LEO 归一化半径，默认 400 km 高度。
 
     Returns:
-        ``(n_points, 6)`` 状态数组。
+        ``Orbit`` 对象，包含 states、times 和 period。
     """
+    from e2m2e.core.orbit import Orbit
+
     theta = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
     states = np.zeros((n_points, 6))
 
@@ -125,7 +130,12 @@ def generate_leo_orbit_states(
 
         states[i] = [x, y, z, vel[0], vel[1], vel[2]]
 
-    return states
+    t_leo = float(2.0 * np.pi * r_leo / np.sqrt((1.0 - MU) / r_leo))
+    times = np.linspace(0, t_leo, n_points, endpoint=False)
+
+    orbit = Orbit(states, times)
+    orbit.period = t_leo
+    return orbit
 
 
 # =============================================================================
