@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 import numpy as np
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 
 class TestEphemerisScriptImports:

@@ -9,7 +9,7 @@ import pytest
 import json
 from pathlib import Path
 
-project_root = Path(__file__).resolve().parent.parent.parent
+project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 
 
 class TestRealOrbitFamilyFiles:
