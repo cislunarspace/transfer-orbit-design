@@ -33,7 +33,7 @@ except ImportError:
 
     SPICEManager = EphemerisSystem = EphemerisDynamics = _MissingEphemerisApi
 from tod.commons.constants import DU, MU, TU
-from tod.commons.common import find_project_root
+from tod.commons.paths import find_project_root
 from tod.plot.config import apply_standard_plot_config
 
 logger = logging.getLogger(__name__)

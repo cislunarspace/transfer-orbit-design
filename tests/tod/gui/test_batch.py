@@ -18,7 +18,7 @@ from tod.gui.batch import (
     BatchRun,
     aggregate_status,
 )
-from tod.gui.job_status import JobStatus
+from tod.gui.jobs.job_status import JobStatus
 
 
 # -- BatchAggregate 枚举 --

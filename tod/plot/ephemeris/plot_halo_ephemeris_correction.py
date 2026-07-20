@@ -366,7 +366,7 @@ def main() -> None:
     )
     args = parse_args()
 
-    from tod.commons.common import find_project_root
+    from tod.commons.paths import find_project_root
 
     project_root = find_project_root(Path(__file__))
     if args.ephemeris_file:

@@ -14,7 +14,7 @@ class TestImportDoesNotPolluteBackend:
     """导入 plot_dro_ephemeris_paper 不应改变进程的 matplotlib 后端。
 
     GUI 启动时在进程内导入所有注册脚本来读取 SCRIPT_ENTRY（通过
-    tod/gui/scripts/_registry.py 的 _load_script_entry）。模块级
+    tod/scripting/scanner.py 的 _load_script_entry）。模块级
     matplotlib.use() 调用会改变 GUI 进程的全局后端，破坏交互式显示。
 
     本测试用子进程隔离 matplotlib 状态，避免受 conftest.py 的 Agg 干扰。

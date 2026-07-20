@@ -35,13 +35,9 @@ from e2m2e.transfer import load_orbit_from_json
 from matplotlib.axes import Axes
 from matplotlib.colors import Normalize
 from tod.commons.constants import MU, TU, VU
-from tod.commons.common import find_project_root
-from tod.cli.input_file import (
-    InputFileRequest,
-    InputResolutionError,
-    resolve_input_file,
-)
+from tod.commons.paths import find_project_root
 from tod.plot.config import apply_standard_plot_config, style_colorbar
+from tod.plot.transfer.common import resolve_opt_input
 
 project_root = find_project_root(Path(__file__))
 
@@ -66,29 +62,7 @@ def _latest_optimization_json() -> Optional[Path]:
     return candidates[-1] if candidates else None
 
 
-def _resolve_opt_input(args) -> Path:
-    """按 issue #183 契约解析 optimization_results_*.json。"""
-    try:
-        return resolve_input_file(
-            InputFileRequest(
-                explicit_path=Path(args.file) if args.file else None,
-                auto_latest=bool(args.auto_latest),
-                search_root=project_root / "output/transfer",
-                pattern="optimization_results_*.json",
-                flag="--file",
-                auto_latest_flag="--auto-latest",
-            )
-        )
-    except InputResolutionError as exc:
-        parser = argparse.ArgumentParser(
-            prog="plot_optimize_result_dro_to_ro",
-            description="可视化 DRO→RO 优化结果",
-        )
-        if exc.candidates or exc.remaining:
-            parser.error(
-                f"{exc}\n候选 (mtime new→old):\n{exc.format_candidates()}"
-            )
-        parser.error(str(exc))
+
 
 
 def load_optimization_results(path: Path) -> Dict[str, Any]:
@@ -515,7 +489,7 @@ def main() -> None:
     parser.add_argument("--max-points", type=int, default=500, help="--orbit --idx all 时最多绘制条数")
     args = parser.parse_args()
 
-    opt_path = _resolve_opt_input(args)
+    opt_path = resolve_opt_input(args, pattern="optimization_results_*.json", prog="plot_optimize_result_dro_to_ro")
     if not opt_path.is_file():
         raise FileNotFoundError("未找到 optimization_results_*.json")
     logger.info(f"读取: {opt_path}")

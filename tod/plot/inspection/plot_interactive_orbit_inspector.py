@@ -27,7 +27,7 @@ from e2m2e.core import OrbitFamily, CR3BP_System
 from e2m2e.visualization.base import OrbitVisualizer
 from tod.commons.constants import MU, TU
 from tod.plot.config import apply_standard_plot_config, style_colorbar
-from tod.cli.input_file import (
+from tod.commons.input_contract import (
     InputFileRequest,
     InputResolutionError,
     resolve_input_file,
@@ -36,7 +36,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 from matplotlib.colors import Normalize
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from tod.commons.common import find_project_root
+from tod.commons.paths import find_project_root
 
 logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))

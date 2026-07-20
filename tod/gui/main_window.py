@@ -25,19 +25,19 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from tod.gui.file_discovery import FileInfo, discover_files
-from tod.gui.file_tree_mixin import FileTreeMixin
+from tod.gui.files.file_discovery import FileInfo, discover_files
+from tod.gui.files.file_tree_mixin import FileTreeMixin
 from tod.gui.i18n import qt_format
-from tod.gui.batch_manager import BatchManager
-from tod.gui.batch_summary_card import BatchSummaryCard
-from tod.gui.job_manager import JobManager
-from tod.gui.job_panel_mixin import JobPanelMixin
-from tod.gui.output_panel import JobCard, StructuredOutputWidget
-from tod.gui.run_orchestrator import RunOrchestrator
+from tod.gui.batch.batch_manager import BatchManager
+from tod.gui.batch.batch_summary_card import BatchSummaryCard
+from tod.gui.jobs.job_manager import JobManager
+from tod.gui.jobs.job_panel_mixin import JobPanelMixin
+from tod.gui.jobs.output_panel import JobCard, StructuredOutputWidget
+from tod.gui.run.run_orchestrator import RunOrchestrator
 from tod.scripting import ScriptEntry
 from tod.gui.script_tab_bar import ScriptTabBar
 from tod.gui.script_tab_widget import ScriptTabWidget
-from tod.gui.settings_schema import SETTINGS_SCHEMA
+from tod.gui.settings.settings_schema import SETTINGS_SCHEMA
 from tod.gui.sidebar_widget import SidebarWidget
 from tod.gui.theme_utils import get_theme_stylesheet as _get_theme_stylesheet
 
@@ -119,9 +119,6 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
             self._on_batch_aggregate_changed
         )
         self._batch_manager.batch_removed.connect(self._on_batch_removed)
-        self._batch_manager.batch_jobs_changed.connect(
-            lambda _bid: None  # 保留信号契约，暂无刷新逻辑（PR2 后续 commit 接入定时器时使用）
-        )
 
         # 连接文档链接信号
         self.doc_link_clicked.connect(self._open_doc_window)
@@ -135,7 +132,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
     # ── 设置 ───────────────────────────────────────────────
 
     def _on_settings(self) -> None:
-        from tod.gui.settings_dialog import SettingsDialog
+        from tod.gui.settings.settings_dialog import SettingsDialog
         current = dict(self._gui_defaults.get("settings", {}))
         old_language = current.get("language", "zh")
         dialog = SettingsDialog(current, SETTINGS_SCHEMA, self)
@@ -330,7 +327,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         if entry.accepts_file_arg:
             selected = self._file_tree.currentItem()
             if selected:
-                from tod.gui.file_operations import FILE_PATH_ROLE
+                from tod.gui.files.file_operations import FILE_PATH_ROLE
                 abs_path = selected.data(0, FILE_PATH_ROLE)
                 if abs_path:
                     file_arg = ["--file", abs_path]
@@ -362,7 +359,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         provider = getattr(self, "_confirm_run_provider", None)
         if provider is not None:
             return provider(plan)
-        from tod.gui.run_confirmation_dialog import RunConfirmationDialog
+        from tod.gui.run.run_confirmation_dialog import RunConfirmationDialog
         return RunConfirmationDialog.show_and_confirm(plan, self)
 
     # ── 文件刷新（完全覆盖 FileTreeMixin._refresh_files） ─────
@@ -389,19 +386,10 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
     # ── Job panel run-button 更新（覆盖 JobPanelMixin） ───────
 
     def _update_job_count(self) -> None:
-        """覆盖 JobPanelMixin._update_job_count，改为更新当前 tab 的运行按钮。"""
-        running = sum(1 for c in self._job_cards.values() if c.is_running)
-        total = len(self._job_cards)
-        if total == 0:
-            self._job_count_label.setText(self.tr("任务"))
-        else:
-            self._job_count_label.setText(qt_format(self.tr("任务（%1 运行中，共 %2）"), running, total))
+        """扩展 JobPanelMixin._update_job_count，额外更新当前 tab 的运行按钮。"""
+        super()._update_job_count()
 
-        self._status_bar.showMessage(
-            qt_format(self.tr("%1 运行中，共 %2"), running, total)
-            if running > 0
-            else self.tr("就绪")
-        )
+        running = sum(1 for c in self._job_cards.values() if c.is_running)
 
         # 更新当前 tab 的运行按钮
         if self._script_tab_bar is not None:

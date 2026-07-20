@@ -26,13 +26,13 @@ if not logging.getLogger().handlers:
 
 import matplotlib  # noqa: E402
 import numpy as np
-from tod.cli.input_file import (
+from tod.commons.input_contract import (
     InputFileRequest,
     InputResolutionError,
     resolve_input_file,
 )
 from tod.commons.constants import TU, VU
-from tod.commons.common import find_project_root
+from tod.commons.paths import find_project_root
 from tod.plot.transfer.common import (
     feasible_alpha_and_departure_dv,
     feasible_transfer_time_and_dv,

@@ -7,57 +7,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from e2m2e.core import CR3BP_Dynamics, CR3BP_System
+from e2m2e.core import CR3BP_Dynamics
 from e2m2e.core.orbit import Orbit
 from tod.commons.orbits import compute_departure_velocity
-from tod.commons.constants import MU
-
-# 积分器配置（与 optimize_geo_to_dro.py 保持一致）
-INTEGRATOR = "DOP853"
-
-
-def build_dynamics(rtol, atol, max_step):
-    """构建脚本所需的动力学模型。
-    
-    Args:
-        rtol: 相对容差。
-        atol: 绝对容差。
-        max_step: 最大步长。
-    
-    Returns:
-        (system, dynamics) 元组。
-    """
-    system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
-    dynamics = CR3BP_Dynamics(system=system)
-    dynamics.integrator = INTEGRATOR
-    dynamics.rtol = rtol
-    dynamics.atol = atol
-    dynamics.max_step = max_step
-    return system, dynamics
-
-
-def forward_integrate(dynamics, initial_state, transfer_time):
-    """前向积分。
-    
-    Args:
-        dynamics: 动力学对象。
-        initial_state: 初始状态。
-        transfer_time: 转移时间。
-    
-    Returns:
-        (states, times) 元组。
-    """
-    step = max(0.01, dynamics.max_step)
-    n_steps = int(transfer_time / step) + 1
-    t_eval = np.linspace(0.0, transfer_time, n_steps)
-    result = dynamics.propagate(
-        initial_state=initial_state,
-        t_span=(0.0, transfer_time),
-        t_eval=t_eval,
-        with_stm=False,
-        with_jacobi=False,
-    )
-    return result["states"], result["time"]
+from tod.transfers._common import build_dynamics, forward_integrate
 
 
 def get_dro_state_at_time(dro_orbit: Orbit, t_ins: float) -> np.ndarray:

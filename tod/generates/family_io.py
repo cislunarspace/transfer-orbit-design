@@ -9,7 +9,8 @@ import logging
 import os
 from pathlib import Path
 
-from tod.commons.common import LoadInputContractError, ensure_output_dir
+from tod.commons.input_contract import LoadInputContractError
+from tod.commons.paths import ensure_output_dir
 from tod.commons.constants import FAMILY_FILENAME
 
 __all__ = [

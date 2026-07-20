@@ -92,8 +92,8 @@ def _add_multi_file_row(tab: QWidget, multi_key: str, path: str) -> None:
 
 class TestRunPlanTypes:
     def test_run_plan_module_exports_plan_types(self):
-        """RunPlan / OverwriteTarget / ChipGroup 应当从 tod.gui.run_orchestrator 可导入。"""
-        from tod.gui.run_orchestrator import (
+        """RunPlan / OverwriteTarget / ChipGroup 应当从 tod.gui.run.run_orchestrator 可导入。"""
+        from tod.gui.run.run_orchestrator import (
             ChipGroup,
             OverwriteTarget,
             RunPlan,
@@ -105,7 +105,7 @@ class TestRunPlanTypes:
 
     def test_run_plan_is_frozen_dataclass(self):
         from dataclasses import FrozenInstanceError, fields
-        from tod.gui.run_orchestrator import RunPlan
+        from tod.gui.run.run_orchestrator import RunPlan
 
         # frozen=True 应当保证字段不可写
         plan = RunPlan(
@@ -122,7 +122,7 @@ class TestRunPlanTypes:
 
     def test_overwrite_target_is_frozen(self):
         from dataclasses import FrozenInstanceError
-        from tod.gui.run_orchestrator import OverwriteTarget
+        from tod.gui.run.run_orchestrator import OverwriteTarget
 
         target = OverwriteTarget(path="/abs/x.json", shared_count=2)
         with pytest.raises(FrozenInstanceError):
@@ -130,7 +130,7 @@ class TestRunPlanTypes:
 
     def test_chip_group_is_frozen(self):
         from dataclasses import FrozenInstanceError
-        from tod.gui.run_orchestrator import ChipGroup, RunSpec
+        from tod.gui.run.run_orchestrator import ChipGroup, RunSpec
 
         group = ChipGroup(
             group_key="--libration-point",
@@ -147,7 +147,7 @@ class TestRunPlanTypes:
 class TestFileInputInjection:
     def test_file_input_none_when_no_arg(self, qapp_fixture, tmp_path):
         """entry.accepts_file_arg=False 或 file_arg=None 时，plan.file_input 应为 None。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry()  # accepts_file_arg=False (default)
         tab = _make_tab(qapp_fixture, tmp_path, entry)
@@ -161,7 +161,7 @@ class TestFileInputInjection:
 
     def test_file_input_recorded_when_provided(self, qapp_fixture, tmp_path):
         """file_arg 非空时，plan.file_input 应记录绝对路径字符串。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(accepts_file_arg=True)
         tab = _make_tab(qapp_fixture, tmp_path, entry)
@@ -183,7 +183,7 @@ class TestFileInputInjection:
 class TestBatchRunGrouping:
     def test_single_task_no_grouping(self, qapp_fixture, tmp_path):
         """单任务时 chip_groups 应为空元组（无分组）。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry()  # 无 chip
         tab = _make_tab(qapp_fixture, tmp_path, entry)
@@ -197,7 +197,7 @@ class TestBatchRunGrouping:
 
     def test_two_chips_l1_l2_yield_two_groups(self, qapp_fixture, tmp_path):
         """选 L1 + L2 时，chip_groups 应有 2 个 ChipGroup（按第一个 chip 分组）。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_chip_params=[
@@ -228,7 +228,7 @@ class TestBatchRunGrouping:
         self, qapp_fixture, tmp_path
     ):
         """当第一个 chip 用户未选、第二个 chip 选了一个时，chip_groups 应降级为空。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_chip_params=[
@@ -265,7 +265,7 @@ class TestOverwriteDetection:
         self, qapp_fixture, tmp_path
     ):
         """无 kind=file_output 的 CliParam 时，overwrites 应为空。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry()  # 无 output file param
         tab = _make_tab(qapp_fixture, tmp_path, entry)
@@ -281,7 +281,7 @@ class TestOverwriteDetection:
         self, qapp_fixture, tmp_path
     ):
         """--output-file 指向 repo_root 下的已存在文件时，overwrites 应记录该路径。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         existing = tmp_path / "existing.json"
         existing.write_text("{}")
@@ -314,7 +314,7 @@ class TestOverwriteDetection:
         self, qapp_fixture, tmp_path
     ):
         """--output-file 指向不存在文件时，overwrites 应为空（这是"将创建"不是"将覆盖"）。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         missing = tmp_path / "missing.json"
         assert not missing.exists()
@@ -344,7 +344,7 @@ class TestOverwriteDetection:
         self, qapp_fixture, tmp_path
     ):
         """--output-file 用户清空时（空字符串），应视为"未指定输出文件"。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_params=[
@@ -370,7 +370,7 @@ class TestOverwriteDetection:
         self, qapp_fixture, tmp_path
     ):
         """--output-file 相对路径应相对于 repo_root 解析（与子进程 cwd 行为对齐）。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         existing_rel = tmp_path / "rel_existing.json"
         existing_rel.write_text("{}")
@@ -398,7 +398,7 @@ class TestOverwriteDetection:
 
     def test_shared_overwrite_count_aggregated(self, qapp_fixture, tmp_path):
         """多个 spec 共享同一输出文件时，shared_count 应汇总。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         existing = tmp_path / "shared.json"
         existing.write_text("{}")
@@ -440,7 +440,7 @@ class TestOverwriteDetection:
 class TestNoRegressionForSimpleRun:
     def test_simple_run_with_only_file_arg(self, qapp_fixture, tmp_path):
         """无 chip、无 multi-file 的普通 run 应产出 1 个 spec，args 与 build_run_specs 一致。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             accepts_file_arg=True,
@@ -469,7 +469,7 @@ class TestNoRegressionForSimpleRun:
 
     def test_build_run_specs_still_works_unchanged(self, qapp_fixture, tmp_path):
         """build_run_specs 应当继续工作（不影响现有 11 个测试）。"""
-        from tod.gui.run_orchestrator import RunOrchestrator
+        from tod.gui.run.run_orchestrator import RunOrchestrator
 
         entry = _make_entry(
             cli_params=[

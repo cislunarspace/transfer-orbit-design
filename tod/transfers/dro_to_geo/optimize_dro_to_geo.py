@@ -29,6 +29,7 @@ from tqdm.auto import tqdm
 
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 from tod.commons.constants import DU, MU, TU, VU
+from tod.transfers._common import build_dynamics, forward_integrate as forward_integrate_nlp
 from tod.transfers.optimize_config import apply_blas_env_for_child_processes, blas_threads_per_worker
 from tod.commons.orbits import (
     R_GEO,
@@ -105,54 +106,6 @@ def parse_args():
 # =====================================================================
 # 辅助函数
 # =====================================================================
-
-
-def build_dynamics(
-    integrator: str, rtol: float, atol: float, max_step: float, mu: float
-):
-    """构建脚本所需的动力学模型。
-    
-    Args:
-        integrator: 积分器类型。
-        rtol: 相对容差。
-        atol: 绝对容差。
-        max_step: 最大步长。
-        mu: 质量比。
-    
-    Returns:
-        (system, dynamics) 元组。
-    """
-    system = CR3BP_System(mu=mu, primary="earth", secondary="moon")
-    dynamics = CR3BP_Dynamics(system=system)
-    dynamics.integrator = integrator
-    dynamics.rtol = rtol
-    dynamics.atol = atol
-    dynamics.max_step = max_step
-    return system, dynamics
-
-
-def forward_integrate_nlp(dynamics, initial_state, transfer_time):
-    """对 NLP 优化过程进行前向积分。
-    
-    Args:
-        dynamics: 动力学对象。
-        initial_state: 初始状态。
-        transfer_time: 转移时间。
-    
-    Returns:
-        (states, times) 元组。
-    """
-    step = max(0.01, dynamics.max_step)
-    n_steps = int(transfer_time / step) + 1
-    t_eval = np.linspace(0.0, transfer_time, n_steps)
-    result = dynamics.propagate(
-        initial_state=initial_state,
-        t_span=(0.0, transfer_time),
-        t_eval=t_eval,
-        with_stm=False,
-        with_jacobi=False,
-    )
-    return result["states"], result["time"]
 
 
 # =====================================================================
@@ -416,7 +369,7 @@ def nlp_worker_packed(payload):
     cfg = payload["cfg"]
 
     _, dynamics = build_dynamics(
-        cfg.integrator, cfg.integrator_rtol, cfg.integrator_atol, DT, cfg.mu
+        cfg.integrator_rtol, cfg.integrator_atol, DT, integrator=cfg.integrator, mu=cfg.mu
     )
     return optimize_one_case(
         rec,
@@ -503,7 +456,7 @@ def main() -> None:
         logger.info("没有可行解，退出。")
         return
 
-    _, dynamics = build_dynamics(INTEGRATOR, INTEGRATOR_RTOL, INTEGRATOR_ATOL, DT, MU)
+    _, dynamics = build_dynamics(INTEGRATOR_RTOL, INTEGRATOR_ATOL, DT, integrator=INTEGRATOR, mu=MU)
     logger.info(f"\n动力学就绪: μ={dynamics.system.mu:.6e}, integrator={dynamics.integrator}")
 
     pack_cfg = NlpPackConfig(

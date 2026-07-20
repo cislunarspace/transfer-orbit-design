@@ -15,13 +15,13 @@ from pathlib import Path
 
 import numpy as np
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
-from e2m2e.core.orbit import Orbit
 from tod.commons.orbits import (
     R_GEO,
     V_CIRCULAR_GEO,
     T_GEO,
     EARTH_CENTER,
     geo_circular_velocity_rotating,
+    generate_geo_orbit,
 )
 from e2m2e.transfer import TransferSearch, load_orbit_from_json
 from tod.commons.constants import DU, MU, TU, VU
@@ -29,36 +29,6 @@ from tod.commons.constants import DU, MU, TU, VU
 logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
-
-
-def generate_geo_orbit(n_points: int = 500) -> Orbit:
-    """在 CR3BP 旋转系中生成 GEO 近似圆轨道。
-
-    GEO 被建模为以地心为圆心、半径为 R_GEO 的圆轨道。
-    速度通过 geo_circular_velocity_rotating 计算（包含 Coriolis 修正）。
-
-    注意：这不是 CR3BP 精确周期轨道，而是两体近似。对于搜索阶段的粗筛足够。
-    """
-    theta = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
-    states = np.zeros((n_points, 6))
-
-    for i, th in enumerate(theta):
-        # 位置：以地心为圆心
-        x = EARTH_CENTER[0] + R_GEO * np.cos(th)
-        y = R_GEO * np.sin(th)
-        z = 0.0
-
-        # 速度：旋转系下的圆轨道速度
-        pos = np.array([x, y, z])
-        vel = geo_circular_velocity_rotating(pos)
-
-        states[i] = [x, y, z, vel[0], vel[1], vel[2]]
-
-    times = np.linspace(0, T_GEO, n_points, endpoint=False)
-
-    orbit = Orbit(states, times)
-    orbit.period = T_GEO
-    return orbit
 
 
 def test_velocity_model():

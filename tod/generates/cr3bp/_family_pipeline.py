@@ -23,7 +23,7 @@ from typing import Any, Callable
 from e2m2e.core import CR3BP_Dynamics as _CR3BP_Dynamics
 from e2m2e.core import CR3BP_System as _CR3BP_System
 from e2m2e.core import Orbit, OrbitFamily
-from tod.commons.common import find_project_root
+from tod.commons.paths import find_project_root
 from tod.commons.constants import MU
 
 logger = logging.getLogger(__name__)

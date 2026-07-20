@@ -26,12 +26,11 @@ if not logging.getLogger().handlers:
 
 import matplotlib
 import numpy as np
-from tod.commons.orbits import compute_departure_velocity
 from e2m2e.transfer import load_orbit_from_json
 from matplotlib.colors import Normalize
 from tod.commons.constants import DU, TU, VU
-from tod.commons.common import find_project_root
-from tod.cli.input_file import (
+from tod.commons.paths import find_project_root
+from tod.commons.input_contract import (
     InputFileRequest,
     InputResolutionError,
     resolve_input_file,
@@ -41,7 +40,9 @@ from tod.plot.transfer.common import (
     geo_circle_points,
     build_transfer_dynamics,
     plot_celestial_bodies,
+    reintegrate_transfer,
     set_equal_aspect_3d,
+    resolve_opt_input,
 )
 
 project_root = find_project_root(Path(__file__))
@@ -73,29 +74,7 @@ def _latest_optimization_json():
     return candidates[-1] if candidates else None
 
 
-def _resolve_opt_input(args) -> Path:
-    """按 issue #183 契约解析 optimization JSON。"""
-    try:
-        return resolve_input_file(
-            InputFileRequest(
-                explicit_path=Path(args.file) if args.file else None,
-                auto_latest=bool(args.auto_latest),
-                search_root=project_root / "output/transfer",
-                pattern="optimization_geo_dro_*.json",
-                flag="--file",
-                auto_latest_flag="--auto-latest",
-            )
-        )
-    except InputResolutionError as exc:
-        parser = argparse.ArgumentParser(
-            prog="plot_optimize_result_geo_to_dro",
-            description="可视化 GEO→DRO 优化结果",
-        )
-        if exc.candidates or exc.remaining:
-            parser.error(
-                f"{exc}\n候选 (mtime new→old):\n{exc.format_candidates()}"
-            )
-        parser.error(str(exc))
+
 
 
 def _resolve_dro_input(args) -> Path:
@@ -164,20 +143,6 @@ def _collect_nlp_records(data: Dict) -> List[Dict]:
 # =====================================================================
 # 动力学与积分
 # =====================================================================
-
-
-def _integrate_transfer(departure_state, alpha, transfer_time, dynamics):
-    state = np.asarray(departure_state, dtype=float)
-    v_new = compute_departure_velocity(state, alpha)
-    s0 = np.concatenate([state[:3], v_new])
-    step = max(0.01, dynamics.max_step)
-    n_steps = int(transfer_time / step) + 1
-    t_eval = np.linspace(0.0, transfer_time, n_steps)
-    result = dynamics.propagate(
-        initial_state=s0, t_span=(0.0, transfer_time),
-        t_eval=t_eval, with_stm=False, with_jacobi=False,
-    )
-    return result["states"], result["time"]
 
 
 # =====================================================================
@@ -365,7 +330,7 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         tt = rec["transfer_time"]
 
         logger.info(f"积分转移轨道: a={alpha:.6f}, T={tt:.4f} TU ({tt * TU:.1f} d) ...")
-        states, times = _integrate_transfer(dep_state, alpha, tt, dynamics)
+        states, times = reintegrate_transfer(dynamics, dep_state, alpha, tt)
 
         fig = plt.figure(figsize=(12, 8))
         ax = fig.add_subplot(111, projection="3d")
@@ -425,7 +390,7 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         for rec in sel_records:
             dep_state = rec["departure_state"]
             alpha = rec["alpha"]
-            states, _ = _integrate_transfer(dep_state, alpha, rec["transfer_time"], dynamics)
+            states, _ = reintegrate_transfer(dynamics, dep_state, alpha, rec["transfer_time"])
             norm_val = (rec["objective_value"] - obj_min) / obj_range
             color = cmap(norm_val)
             ax.plot(states[:, 0], states[:, 1], states[:, 2], color=color, lw=1.2, alpha=0.7)
@@ -524,7 +489,7 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
             continue
 
         try:
-            states, times = _integrate_transfer(dep_state, alpha, tt, dynamics)
+            states, times = reintegrate_transfer(dynamics, dep_state, alpha, tt)
         except Exception as e:
             logger.info(f"  integration failed: {e}")
             current += 1
@@ -622,7 +587,7 @@ def main():
     parser.add_argument("--dpi", type=int, default=150)
     args = parser.parse_args()
 
-    opt_path = _resolve_opt_input(args)
+    opt_path = resolve_opt_input(args, pattern="optimization_geo_dro_*.json", prog="plot_optimize_result_geo_to_dro")
     if not opt_path.exists():
         parser.error(f"optimization result JSON not found: {opt_path}")
     logger.info(f"Loading: {opt_path}")

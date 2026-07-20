@@ -21,7 +21,7 @@ from e2m2e.core.ephemeris_system import EphemerisSystem
 from e2m2e.core.ephemeris_dynamics import EphemerisDynamics
 
 from tod.commons.constants import DU, MU, TU
-from tod.commons.common import find_project_root
+from tod.commons.paths import find_project_root
 
 project_root = find_project_root(Path(__file__))
 

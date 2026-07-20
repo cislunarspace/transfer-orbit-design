@@ -40,6 +40,7 @@ from e2m2e.transfer import (
     optimize_with_copt,
 )
 from tod.commons.constants import DU, MU, TU
+from tod.transfers._common import build_dynamics
 from tod.transfers.io_utils import load_search_results
 from tod.transfers.optimize_config import (
     OptimizationProgress,
@@ -164,28 +165,6 @@ def serialize_nlp_result(res) -> Dict[str, Any]:
         "constraints_violation": float(res.constraints_violation),
         "transfer_type": res.transfer_type.value if res.transfer_type else None,
     }
-
-
-def build_dynamics(integrator: str, rtol: float, atol: float, max_step: float, mu: float):
-    """构建脚本所需的动力学模型。
-    
-    Args:
-        integrator: 调用方传入的参数值。
-        rtol: 调用方传入的参数值。
-        atol: 调用方传入的参数值。
-        max_step: 调用方传入的参数值。
-        mu: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
-    system = CR3BP_System(mu=mu, primary="earth", secondary="moon")
-    dynamics = CR3BP_Dynamics(system=system)
-    dynamics.integrator = integrator
-    dynamics.rtol = rtol
-    dynamics.atol = atol
-    dynamics.max_step = max_step
-    return system, dynamics
 
 
 def _compute_initial_t_ins(
@@ -553,10 +532,10 @@ def main() -> None:
     logger.info(f"  RO 周期: {ro_orbit.period:.4f} TU, 状态数: {len(ro_orbit.states)}")
 
     system, dynamics = build_dynamics(
-        integrator=INTEGRATOR,
         rtol=INTEGRATOR_RTOL,
         atol=INTEGRATOR_ATOL,
         max_step=DT,
+        integrator=INTEGRATOR,
         mu=MU,
     )
     logger.info("\ne2m2e 动力学已就绪")

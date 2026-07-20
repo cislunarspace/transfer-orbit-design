@@ -13,8 +13,7 @@ from __future__ import annotations
 
 import logging
 
-# 复用 GEO→DRO 优化脚本的全部逻辑
-# 仅覆盖默认参数
+# 复用 GEO→DRO 优化脚本的全部逻辑，通过 main() 的显式参数覆盖默认范围。
 import tod.transfers.geo_to_dro.optimize_geo_to_dro as base_opt
 from pathlib import Path
 
@@ -22,12 +21,13 @@ logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 
-# 覆盖默认参数（在 import 后修改）
-base_opt.ALPHA_MIN = 1.2
-base_opt.ALPHA_MAX = 2.0
-base_opt.T_MIN = 5.0
-base_opt.T_MAX = 80.0
-base_opt.T_INS_MAX = 10.0
+# LEO→DRO 与 GEO→DRO 的搜索范围差异：
+#   alpha: [1.2, 2.0]  vs  [1.0, 1.5]
+#   T:     [5.0, 80.0] vs  [5.0, 60.0]
+# 这些差异通过 main() 的关键字参数显式传递，不再修改模块常量。
+_LEO_ALPHA_MIN = 1.2
+_LEO_ALPHA_MAX = 2.0
+_LEO_T_MAX = 80.0
 
 # 旧版 ``search_leo_dro_UPDATE_ME.json`` 占位默认路径已被 issue #183 移除：
 # LEO→DRO 优化器现在要求用户显式传 ``--search-file`` 或 ``--auto-latest``。
@@ -49,7 +49,11 @@ def main() -> None:
     logger.info("=" * 70)
     logger.info("LEO → DRO 转移 NLP 优化")
     logger.info("=" * 70)
-    base_opt.main()
+    base_opt.main(
+        alpha_min=_LEO_ALPHA_MIN,
+        alpha_max=_LEO_ALPHA_MAX,
+        t_max=_LEO_T_MAX,
+    )
 
 
 if __name__ == "__main__":

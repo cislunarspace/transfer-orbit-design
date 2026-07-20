@@ -28,12 +28,8 @@ if not logging.getLogger().handlers:
 import matplotlib  # noqa: E402
 import numpy as np
 from tod.commons.constants import DU, TU, VU
-from tod.commons.common import find_project_root
-from tod.cli.input_file import (
-    InputFileRequest,
-    InputResolutionError,
-    resolve_input_file,
-)
+from tod.commons.paths import find_project_root
+from tod.plot.transfer.common import resolve_opt_input
 
 project_root = find_project_root(Path(__file__))
 
@@ -65,29 +61,7 @@ def _latest_optimization_json() -> Path | None:
     return candidates[-1] if candidates else None
 
 
-def _resolve_opt_input(args) -> Path:
-    """按 issue #183 契约解析优化结果文件（修正原 GEO→DRO pattern 错配）。"""
-    try:
-        return resolve_input_file(
-            InputFileRequest(
-                explicit_path=Path(args.file) if args.file else None,
-                auto_latest=bool(args.auto_latest),
-                search_root=project_root / "output/transfer",
-                pattern="optimization_leo_dro_*.json",
-                flag="--file",
-                auto_latest_flag="--auto-latest",
-            )
-        )
-    except InputResolutionError as exc:
-        parser = argparse.ArgumentParser(
-            prog="plot_optimize_result_leo_to_dro",
-            description="可视化 LEO→DRO NLP 优化结果",
-        )
-        if exc.candidates or exc.remaining:
-            parser.error(
-                f"{exc}\n候选 (mtime new→old):\n{exc.format_candidates()}"
-            )
-        parser.error(str(exc))
+
 
 
 def _successful_records(results: list[dict], max_pos_err_km: float) -> list[dict]:
@@ -198,7 +172,7 @@ def main() -> None:
     parser.add_argument("--no-show", action="store_true", help="生成图像后不弹窗显示（GUI 后台运行）")
     args = parser.parse_args()
 
-    opt_path = _resolve_opt_input(args)
+    opt_path = resolve_opt_input(args, pattern="optimization_leo_dro_*.json", prog="plot_optimize_result_leo_to_dro")
     if not opt_path.is_file():
         raise FileNotFoundError("未找到优化结果 JSON")
     logger.info(f"读取: {opt_path}")

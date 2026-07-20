@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from tod.gui.job_status import JobStatus
+from tod.gui.jobs.job_status import JobStatus
 
 
 class BatchAggregate(StrEnum):

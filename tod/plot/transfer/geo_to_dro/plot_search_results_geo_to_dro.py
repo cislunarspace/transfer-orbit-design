@@ -29,15 +29,12 @@ import matplotlib
 import numpy as np
 from e2m2e.core import CR3BP_System, CR3BP_Dynamics
 from tod.commons.orbits import (
-    R_GEO,
-    EARTH_CENTER,
-    geo_circular_velocity_rotating,
     compute_departure_velocity,
 )
 from e2m2e.transfer import load_orbit_from_json
 from tod.commons.constants import MU, TU, VU
-from tod.commons.common import find_project_root
-from tod.cli.input_file import (
+from tod.commons.paths import find_project_root
+from tod.commons.input_contract import (
     InputFileRequest,
     InputResolutionError,
     resolve_input_file,
@@ -135,15 +132,8 @@ def feasible_transfer_time_and_dv(rows):
 
 def generate_geo_orbit(n_points=500):
     """生成 GEO 近似圆轨道状态（仅位置用于绘图）。"""
-    theta = np.linspace(0, 2 * np.pi, n_points, endpoint=False)
-    states = np.zeros((n_points, 6))
-    for i, th in enumerate(theta):
-        x = EARTH_CENTER[0] + R_GEO * np.cos(th)
-        y = R_GEO * np.sin(th)
-        pos = np.array([x, y, 0.0])
-        vel = geo_circular_velocity_rotating(pos)
-        states[i] = [x, y, 0.0, vel[0], vel[1], vel[2]]
-    return states
+    from tod.commons.orbits import generate_geo_orbit as _generate_geo_orbit
+    return _generate_geo_orbit(n_points=n_points).states
 
 
 # =====================================================================

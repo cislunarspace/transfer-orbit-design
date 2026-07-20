@@ -29,12 +29,7 @@ if not logging.getLogger().handlers:
 import matplotlib  # noqa: E402
 import numpy as np
 from tod.commons.constants import TU, VU
-from tod.commons.common import find_project_root
-from tod.cli.input_file import (
-    InputFileRequest,
-    InputResolutionError,
-    resolve_input_file,
-)
+from tod.commons.paths import find_project_root
 from e2m2e.transfer import load_orbit_from_json
 from tod.generates.artifacts import find_latest_single_dro
 from tod.plot.transfer.common import (
@@ -45,6 +40,7 @@ from tod.plot.transfer.common import (
     geo_circle_points,
     build_transfer_dynamics,
     save_or_show,
+    resolve_opt_input,
 )
 
 project_root = find_project_root(Path(__file__))
@@ -82,29 +78,7 @@ def _latest_optimization_json() -> Path | None:
     return candidates[-1] if candidates else None
 
 
-def _resolve_opt_input(args) -> Path:
-    """按 issue #183 契约解析 optimization_dro_geo_*.json。"""
-    try:
-        return resolve_input_file(
-            InputFileRequest(
-                explicit_path=Path(args.file) if args.file else None,
-                auto_latest=bool(args.auto_latest),
-                search_root=project_root / "output/transfer",
-                pattern="optimization_dro_geo_*.json",
-                flag="--file",
-                auto_latest_flag="--auto-latest",
-            )
-        )
-    except InputResolutionError as exc:
-        parser = argparse.ArgumentParser(
-            prog="plot_optimize_result_dro_to_geo",
-            description="可视化 DRO→GEO 优化结果",
-        )
-        if exc.candidates or exc.remaining:
-            parser.error(
-                f"{exc}\n候选 (mtime new→old):\n{exc.format_candidates()}"
-            )
-        parser.error(str(exc))
+
 
 
 def _resolve_dro_input(args) -> Path:
@@ -304,7 +278,7 @@ def main() -> None:
     parser.add_argument("--caption", type=str, default=None, help="图注文字，置于图下方")
     args = parser.parse_args()
 
-    opt_path = _resolve_opt_input(args)
+    opt_path = resolve_opt_input(args, pattern="optimization_dro_geo_*.json", prog="plot_optimize_result_dro_to_geo")
     if not opt_path.is_file():
         raise FileNotFoundError("未找到优化结果 JSON")
     logger.info(f"读取: {opt_path}")

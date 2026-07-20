@@ -30,7 +30,7 @@ from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 from e2m2e.core.orbit import Orbit
 from e2m2e.transfer import load_orbit_from_json
 from tod.commons.constants import DU, MU, TU, VU
-from tod.cli.input_file import (
+from tod.commons.input_contract import (
     InputFileRequest,
     InputResolutionError,
     resolve_input_file,
@@ -449,16 +449,47 @@ def nlp_worker_packed(payload):
 # =====================================================================
 
 
-def main() -> None:
+def main(
+    *,
+    alpha_min: Optional[float] = None,
+    alpha_max: Optional[float] = None,
+    t_min: Optional[float] = None,
+    t_max: Optional[float] = None,
+    t_ins_min: Optional[float] = None,
+    t_ins_max: Optional[float] = None,
+) -> None:
     """执行脚本主流程。
-    
+
+    Args:
+        alpha_min: 显式覆盖 ``--alpha-min`` 的 CLI 默认值。
+        alpha_max: 显式覆盖 ``--alpha-max`` 的 CLI 默认值。
+        t_min: 显式覆盖 ``--t-min`` 的 CLI 默认值。
+        t_max: 显式覆盖 ``--t-max`` 的 CLI 默认值。
+        t_ins_min: 显式覆盖 ``--t-ins-min`` 的 CLI 默认值。
+        t_ins_max: 显式覆盖 ``--t-ins-max`` 的 CLI 默认值。
+
     Returns:
         None。
-    
+
     Raises:
         Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
     """
     parser_obj, args = parse_args()
+
+    # 允许调用方（如 leo_to_dro）显式覆盖默认参数范围，
+    # 而非依赖 monkey-patch 模块常量。
+    if alpha_min is not None:
+        args.alpha_min = alpha_min
+    if alpha_max is not None:
+        args.alpha_max = alpha_max
+    if t_min is not None:
+        args.t_min = t_min
+    if t_max is not None:
+        args.t_max = t_max
+    if t_ins_min is not None:
+        args.t_ins_min = t_ins_min
+    if t_ins_max is not None:
+        args.t_ins_max = t_ins_max
 
     # 限制 BLAS 线程，避免过量订阅（保留已有环境变量，不覆盖）——原用 setdefault
     apply_blas_env_for_child_processes(blas_threads_per_worker(), overwrite=False)
@@ -592,7 +623,19 @@ def main() -> None:
     if n_workers_req == 1:
         for k, (global_idx, rec) in enumerate(feasible_indexed):
             try:
-                row = optimize_one_case(rec, dro_orbit)
+                row = optimize_one_case(
+                    rec,
+                    dro_orbit,
+                    alpha_min=pack_cfg.alpha_min,
+                    alpha_max=pack_cfg.alpha_max,
+                    t_min=pack_cfg.t_min,
+                    t_max=pack_cfg.t_max,
+                    t_ins_min=pack_cfg.t_ins_min,
+                    t_ins_max=pack_cfg.t_ins_max,
+                    earth_radius=pack_cfg.earth_radius,
+                    moon_radius=pack_cfg.moon_radius,
+                    angle_tolerance=pack_cfg.angle_tolerance,
+                )
                 records.append(row)
                 nlp = row.get("nlp", {})
                 pv = nlp.get("pos_violation", 1e10)

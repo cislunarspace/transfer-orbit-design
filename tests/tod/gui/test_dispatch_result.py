@@ -11,7 +11,7 @@
 
 import pytest
 
-from tod.gui.job_status import JobFinishResult, JobStatus
+from tod.gui.jobs.job_status import JobFinishResult, JobStatus
 from tests.tod.gui.fakes import FAKE_SCRIPT_NAME, FakeJob, make_fake_job, make_result
 
 

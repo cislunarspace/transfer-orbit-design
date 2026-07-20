@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from tod.gui.job_status import JobFinishResult, JobStatus
+from tod.gui.jobs.job_status import JobFinishResult, JobStatus
 
 FAKE_SCRIPT_NAME = "test_script"
 
@@ -137,7 +137,7 @@ def make_batch_manager(
     Returns:
         已配置好 ``get_job_status`` 注入的 ``BatchManager`` 实例。
     """
-    from tod.gui.batch_manager import BatchManager
+    from tod.gui.batch.batch_manager import BatchManager
 
     if provider is None:
         provider = FakeJobStatusProvider()
