@@ -12,26 +12,7 @@ from typing import Any, Dict
 import numpy as np
 
 from e2m2e.core.orbit import Orbit
-
-@dataclass
-class NlpPackConfig:
-    """保存 NlpPackConfig 的配置字段。
-    
-    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
-    """
-    mu: float
-    alpha_min: float
-    alpha_max: float
-    earth_radius: float
-    moon_radius: float
-    dt: float
-    integrator: str
-    integrator_rtol: float
-    integrator_atol: float
-    use_relaxed_velocity: bool
-    velocity_angle_tol: float
-    use_copt: bool
-    fallback_to_scipy: bool
+from tod.transfers._common import NlpPackConfig
 
 @dataclass
 class ThreadNlpParams:

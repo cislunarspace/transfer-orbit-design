@@ -6,10 +6,39 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 from tod.commons.constants import MU
+
+
+@dataclass
+class NlpPackConfig:
+    """NLP 打包配置（各管线共享）。
+
+    核心字段对所有管线通用；管线特有字段给默认值，不传即可。
+    """
+
+    alpha_min: float
+    alpha_max: float
+    earth_radius: float
+    moon_radius: float
+    mu: float = MU
+    t_min: float = 0.0
+    t_max: float = 0.0
+    dt: float = 0.0
+    t_ins_min: float = 0.0
+    t_ins_max: float = 0.0
+    integrator: str = "DOP853"
+    integrator_rtol: float = 1e-12
+    integrator_atol: float = 1e-12
+    angle_tolerance: float = 0.0
+    use_relaxed_velocity: bool = False
+    velocity_angle_tol: float = 0.0
+    use_copt: bool = False
+    fallback_to_scipy: bool = False
 
 def build_dynamics(
     rtol: float,

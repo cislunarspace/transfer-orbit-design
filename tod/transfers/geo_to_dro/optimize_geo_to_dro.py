@@ -34,6 +34,7 @@ from tod.commons.input_contract import (
     InputResolutionError,
     resolve_input_file,
 )
+from tod.transfers._common import NlpPackConfig
 from tod.transfers.optimize_config import apply_blas_env_for_child_processes, blas_threads_per_worker
 from tod.commons.orbits import (
     compute_departure_velocity,
@@ -388,22 +389,6 @@ def optimize_one_case(
 # =====================================================================
 # 并行工作器
 # =====================================================================
-
-@dataclass
-class NlpPackConfig:
-    """NLP 打包配置。
-    
-    包含优化所需的全部配置参数。
-    """
-    alpha_min: float
-    alpha_max: float
-    t_min: float
-    t_max: float
-    t_ins_min: float
-    t_ins_max: float
-    earth_radius: float
-    moon_radius: float
-    angle_tolerance: float
 
 def nlp_worker_packed(payload):
     """打包后的 NLP worker 函数。

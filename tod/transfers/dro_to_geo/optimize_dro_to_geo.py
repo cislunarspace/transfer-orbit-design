@@ -28,7 +28,7 @@ from tqdm.auto import tqdm
 
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 from tod.commons.constants import DU, MU, TU, VU
-from tod.transfers._common import build_dynamics, forward_integrate as forward_integrate_nlp
+from tod.transfers._common import NlpPackConfig, build_dynamics, forward_integrate as forward_integrate_nlp
 from tod.transfers.optimize_config import apply_blas_env_for_child_processes, blas_threads_per_worker
 from tod.commons.orbits import (
     R_GEO,
@@ -326,23 +326,6 @@ def optimize_one_case(
 # =====================================================================
 # 并行工作器
 # =====================================================================
-
-@dataclass
-class NlpPackConfig:
-    """保存 NlpPackConfig 的配置字段。
-    
-    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
-    """
-    mu: float
-    alpha_min: float
-    alpha_max: float
-    t_min: float
-    t_max: float
-    earth_radius: float
-    moon_radius: float
-    integrator: str
-    integrator_rtol: float
-    integrator_atol: float
 
 def nlp_worker_packed(payload):
     """打包后的 NLP worker 函数。
