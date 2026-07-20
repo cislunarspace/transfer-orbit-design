@@ -15,6 +15,7 @@ Transfer Orbit Design 提供地月 CR3BP 轨道生成、DRO/RO/GEO/LEO 转移设
    narrative/development
    narrative/context
    narrative/domain
+   narrative/parameters
 
 .. toctree::
    :maxdepth: 2
