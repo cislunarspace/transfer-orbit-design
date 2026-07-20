@@ -3,9 +3,9 @@
 """翻译文件更新脚本。
 
 用法：
-    python scripts/update_i18n.py          # 提取 + 编译
-    python scripts/update_i18n.py --extract # 仅提取
-    python scripts/update_i18n.py --compile # 仅编译
+    python tools/update_i18n.py          # 提取 + 编译
+    python tools/update_i18n.py --extract # 仅提取
+    python tools/update_i18n.py --compile # 仅编译
 """
 
 from __future__ import annotations

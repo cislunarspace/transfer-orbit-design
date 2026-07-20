@@ -83,6 +83,23 @@ ScriptEntry(
 )
 ```
 
+### 国际化工具
+
+`tools/update_i18n.py` 用于维护 GUI 的翻译文件：
+
+```bash
+python tools/update_i18n.py          # 提取 + 编译
+python tools/update_i18n.py --extract # 仅提取待翻译字符串
+python tools/update_i18n.py --compile # 仅编译 .ts → .qm
+```
+
+脚本执行三个步骤：
+1. 用 `pylupdate6` 从 `tod/gui/` 提取待翻译字符串到 `tod/gui/i18n/gui.en.ts`
+2. 用 `lrelease6` 编译所有 `.ts` 文件为 `.qm` 二进制格式
+3. 校验 `tod/gui/i18n/scripts.*.json` 的 JSON 格式
+
+依赖：`pylupdate6` 和 `lrelease6`（来自 PyQt6 或 PySide6 工具包）。新增 GUI 文本后应运行此脚本更新翻译文件。
+
 ### Sphinx 文档
 
 Sphinx 源文件位于 `docs/source/`。API 页面使用 `automodule`，叙事文档通过 MyST Markdown 接入。
