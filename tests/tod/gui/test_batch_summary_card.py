@@ -20,12 +20,12 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QApplication
 
 from tod.gui.batch import BATCH_AGGREGATE_DISPLAY, BatchAggregate
-from tod.gui.batch_summary_card import (
+from tod.gui.batch.batch_summary_card import (
     BatchJobRow,
     BatchSummaryCard,
     BatchSummaryViewModel,
 )
-from tod.gui.job_status import JOB_STATUS_DISPLAY, JobStatus
+from tod.gui.jobs.job_status import JOB_STATUS_DISPLAY, JobStatus
 
 
 @pytest.fixture(scope="module")

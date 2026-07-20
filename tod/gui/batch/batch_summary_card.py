@@ -29,16 +29,17 @@ from PyQt6.QtWidgets import (
 )
 
 from tod.gui.batch import BATCH_AGGREGATE_DISPLAY, BatchAggregate
-from tod.gui.job_status import JOB_STATUS_DISPLAY, JobStatus
+from tod.gui.jobs.job_status import JOB_STATUS_DISPLAY, JobStatus
 
 # 聚合状态徽章颜色（集中维护，不在 widget 内硬编码）
+# 与 output_panel._STATUS_COLORS 同一套双主题可读色板。
 _AGGREGATE_BADGE_COLORS: dict[BatchAggregate, str] = {
-    BatchAggregate.RUNNING: "#4ec9b0",
-    BatchAggregate.SUCCESS: "#808080",
-    BatchAggregate.FAILURE: "#f44747",
-    BatchAggregate.PARTIAL: "#dcdcaa",
-    BatchAggregate.PARTIAL_WITH_STOPS: "#ce9178",
-    BatchAggregate.STOPPED: "#ce9178",
+    BatchAggregate.RUNNING: "#0078d4",
+    BatchAggregate.SUCCESS: "#107c10",
+    BatchAggregate.FAILURE: "#d13438",
+    BatchAggregate.PARTIAL: "#ca5010",
+    BatchAggregate.PARTIAL_WITH_STOPS: "#ca5010",
+    BatchAggregate.STOPPED: "#ca5010",
 }
 
 
@@ -96,6 +97,8 @@ class BatchSummaryCard(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        # plain QWidget 默认不绘制样式表背景，开启后主题 QSS 的卡片外壳才生效
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         self._current_vm: BatchSummaryViewModel | None = None
 
@@ -121,7 +124,7 @@ class BatchSummaryCard(QWidget):
 
         self._subtitle_label = QLabel()
         self._subtitle_label.setStyleSheet(
-            "color: #ce9178; font-size: 10px;"
+            "color: #ca5010; font-size: 10px;"
         )
         self._subtitle_label.setVisible(False)
         header_layout.addWidget(self._subtitle_label)
@@ -140,17 +143,7 @@ class BatchSummaryCard(QWidget):
 
         main_layout.addWidget(self._details_widget)
 
-        # -- 外壳样式 --
-        self.setStyleSheet(
-            "BatchSummaryCard {"
-            "  background-color: #252526;"
-            "  border: 1px solid #3c3c3c;"
-            "  border-radius: 4px;"
-            "}"
-            "BatchSummaryCard:hover {"
-            "  border-color: #555;"
-            "}"
-        )
+        # 外壳样式由主题 QSS 的 BatchSummaryCard 类选择器提供
 
     def update_view_model(self, vm: BatchSummaryViewModel) -> None:
         """根据 view model 更新卡片显示。"""
@@ -195,7 +188,7 @@ class BatchSummaryCard(QWidget):
             status_display = JOB_STATUS_DISPLAY.get(row.status, str(row.status))
             short_id = row.job_id[:6]
             label = QLabel(f"#{row.index} {status_display} {short_id}")
-            label.setStyleSheet("font-size: 10px; color: #cccccc;")
+            label.setStyleSheet("font-size: 10px;")
             label.setCursor(Qt.CursorShape.PointingHandCursor)
 
             # 捕获 job_id 供信号转发

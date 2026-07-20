@@ -40,3 +40,34 @@ def resolve_theme(mode: str = "system") -> str:
 def get_theme_stylesheet(mode: str = "system") -> str:
     """返回当前主题对应的样式表。"""
     return load_stylesheet(resolve_theme(mode))
+
+
+# ── 运行按钮样式（集中维护，ScriptParamPanel / JobPanelMixin 共用） ──
+# 颜色取双主题可读的中性值：按钮实底白字在亮/暗背景下均成立，
+# disabled 用半透明灰，避免暗色专属硬编码。
+RUN_BTN_STYLE_READY = (
+    "QPushButton {"
+    "  padding: 8px 24px;"
+    "  font-weight: bold;"
+    "  background-color: #0078d4;"
+    "  color: white;"
+    "  border: none;"
+    "  border-radius: 4px;"
+    "}"
+    "QPushButton:hover { background-color: #106ebe; }"
+    "QPushButton:pressed { background-color: #005a9e; }"
+    "QPushButton:disabled { background-color: rgba(128,128,128,0.5); color: white; }"
+)
+RUN_BTN_STYLE_FULL = (
+    "QPushButton {"
+    "  padding: 8px 24px;"
+    "  font-weight: bold;"
+    "  background-color: #ca5010;"
+    "  color: white;"
+    "  border: none;"
+    "  border-radius: 4px;"
+    "}"
+    "QPushButton:hover { background-color: #da6210; }"
+    "QPushButton:pressed { background-color: #a8420c; }"
+    "QPushButton:disabled { background-color: rgba(128,128,128,0.5); color: white; }"
+)
