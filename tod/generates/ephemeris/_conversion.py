@@ -61,6 +61,98 @@ class ConversionDependencies:
     ]
     finalize: Callable[[], None] | None = None
 
+
+class EphemerisConversionAdapter:
+    """封装星历转换的外部依赖（SPICE、CR3BP 系统），替代闭包工厂。"""
+
+    def __init__(self, spice: Any, cr3bp_system: Any) -> None:
+        self._spice = spice
+        self._cr3bp_system = cr3bp_system
+
+    def build_orbit(self, payload: dict[str, Any]) -> Any:
+        from e2m2e.core import Orbit
+
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".json", delete=False) as file:
+            json.dump(payload, file)
+            temp_path = Path(file.name)
+        try:
+            return Orbit.load_from_file(filename=temp_path, system=self._cr3bp_system)
+        finally:
+            temp_path.unlink(missing_ok=True)
+
+    def build_dynamics(self, config: SingleConversionConfig | FamilyConversionConfig) -> Any:
+        import spiceypy
+        from e2m2e.core.ephemeris_dynamics import EphemerisDynamics
+        from e2m2e.core.ephemeris_system import EphemerisSystem
+        from e2m2e.mbse.data.enums import ReferenceFrame
+
+        kernel_path = self._spice.find_ephemeris_kernel(str(config.spice_kernel_dir))
+        leapseconds_path = config.spice_kernel_dir / "naif0012.tls"
+        spiceypy.furnsh(str(leapseconds_path))
+        self._spice.load_kernel(kernel_path)
+        eph_system = EphemerisSystem(
+            bodies=list(config.bodies),
+            spice=self._spice,
+            origin="EARTH",
+            frame=ReferenceFrame.J2000,
+        )
+        return EphemerisDynamics(system=eph_system)
+
+    def reference_et(self, config: SingleConversionConfig | FamilyConversionConfig) -> float:
+        return float(self._spice.utc_to_et(config.reference_epoch))
+
+    def convert_states(self, t_patch_syn: Any, states_syn: Any, reference_et_value: float) -> tuple[Any, Any]:
+        from e2m2e.algorithms import convert_to_j2000
+        from e2m2e.core import SynodicJ2000System
+
+        import tod.commons.constants as _tod_constants
+
+        transform = SynodicJ2000System(cr3bp_system=self._cr3bp_system, spice=self._spice)
+        return convert_to_j2000(t_patch_syn, states_syn, transform, reference_et_value, _tod_constants.TU)
+
+    def correct(
+        self,
+        config: SingleConversionConfig | FamilyConversionConfig,
+        dynamics: Any,
+        t_patch_j2000: Any,
+        states_j2000: Any,
+    ) -> Any:
+        kwargs: dict[str, Any] = {
+            "tolerance": config.position_tol,
+            "max_iter": config.max_iter,
+            "verbose": True,
+            "n_workers": config.per_orbit_workers,
+            "kernel_dir": str(config.spice_kernel_dir),
+            "velocity_tolerance": config.velocity_tol,
+        }
+        if config.method == "homotopy":
+            kwargs["base_bodies"] = ["EARTH", "MOON"]
+        return correct_ephemeris_patch_points(
+            config.method,
+            dynamics,
+            t_patch_j2000,
+            states_j2000,
+            **kwargs,
+        )
+
+    def finalize(self) -> None:
+        import spiceypy
+        spiceypy.kclear()
+
+    def to_deps(self) -> ConversionDependencies:
+        """转换为 ConversionDependencies（向后兼容）。"""
+        from e2m2e.algorithms import sample_patch_points
+
+        return ConversionDependencies(
+            build_orbit=self.build_orbit,
+            build_dynamics=self.build_dynamics,
+            reference_et=self.reference_et,
+            sample_patch_points=sample_patch_points,
+            convert_to_j2000=self.convert_states,
+            correct_patch_points=self.correct,
+            finalize=self.finalize,
+        )
+
 @dataclass(frozen=True)
 class LoadedOrbitPayload:
 
@@ -384,125 +476,16 @@ def convert_orbit(
     return result
 
 def default_conversion_dependencies() -> ConversionDependencies:
-    
-    from e2m2e.algorithms import convert_to_j2000, sample_patch_points
-    from e2m2e.core import (
-        CR3BP_System,
-        Orbit,
-        SynodicJ2000System,
-    )
+    """构造默认的星历转换依赖（通过 EphemerisConversionAdapter）。"""
+    from e2m2e.core import CR3BP_System
     from e2m2e.core.spice import SPICEManager
-    from e2m2e.core.ephemeris_system import EphemerisSystem
-    from e2m2e.core.ephemeris_dynamics import EphemerisDynamics
-    from e2m2e.mbse.data.enums import ReferenceFrame
-    import spiceypy
 
     import tod.commons.constants as _tod_constants
 
     spice = SPICEManager()
     cr3bp_system = CR3BP_System(mu=_tod_constants.MU, primary="earth", secondary="moon")
-
-    def build_orbit(payload: dict[str, Any]) -> Any:
-        """构建运行所需对象。
-        
-        Args:
-            payload: 调用方传入的参数值。
-        
-        Returns:
-            函数执行结果。
-        """
-        with tempfile.NamedTemporaryFile("w", encoding="utf-8", suffix=".json", delete=False) as file:
-            json.dump(payload, file)
-            temp_path = Path(file.name)
-        try:
-            return Orbit.load_from_file(filename=temp_path, system=cr3bp_system)
-        finally:
-            temp_path.unlink(missing_ok=True)
-
-    def build_dynamics(config: SingleConversionConfig | FamilyConversionConfig) -> Any:
-        """构建脚本所需的动力学模型。
-        
-        Args:
-            config: 调用方传入的参数值。
-        
-        Returns:
-            函数执行结果。
-        """
-        kernel_path = spice.find_ephemeris_kernel(str(config.spice_kernel_dir))
-        leapseconds_path = config.spice_kernel_dir / "naif0012.tls"
-        spiceypy.furnsh(str(leapseconds_path))
-        spice.load_kernel(kernel_path)
-        eph_system = EphemerisSystem(
-            bodies=list(config.bodies),
-            spice=spice,
-            origin="EARTH",
-            frame=ReferenceFrame.J2000,
-        )
-        return EphemerisDynamics(system=eph_system)
-
-    def reference_et(config: SingleConversionConfig | FamilyConversionConfig) -> float:
-    
-        return float(spice.utc_to_et(config.reference_epoch))
-
-    def convert_states(t_patch_syn: Any, states_syn: Any, reference_et_value: float) -> tuple[Any, Any]:
-        """执行 convert_states 对应的处理逻辑。
-        
-        Args:
-            t_patch_syn: 调用方传入的参数值。
-            states_syn: 调用方传入的参数值。
-            reference_et_value: 调用方传入的参数值。
-        
-        Returns:
-            函数执行结果。
-        """
-        transform = SynodicJ2000System(cr3bp_system=cr3bp_system, spice=spice)
-        return convert_to_j2000(t_patch_syn, states_syn, transform, reference_et_value, _tod_constants.TU)
-
-    def correct(
-        config: SingleConversionConfig | FamilyConversionConfig,
-        dynamics: Any,
-        t_patch_j2000: Any,
-        states_j2000: Any,
-    ) -> Any:
-        """执行 correct 对应的处理逻辑。
-        
-        Args:
-            config: 调用方传入的参数值。
-            dynamics: 调用方传入的参数值。
-            t_patch_j2000: 调用方传入的参数值。
-            states_j2000: 调用方传入的参数值。
-        
-        Returns:
-            函数执行结果。
-        """
-        kwargs: dict[str, Any] = {
-            "tolerance": config.position_tol,
-            "max_iter": config.max_iter,
-            "verbose": True,
-            "n_workers": config.per_orbit_workers,
-            "kernel_dir": str(config.spice_kernel_dir),
-            "velocity_tolerance": config.velocity_tol,
-        }
-        if config.method == "homotopy":
-            # 同伦过渡默认以地月二体为基准模型，逐步引入太阳摄动
-            kwargs["base_bodies"] = ["EARTH", "MOON"]
-        return correct_ephemeris_patch_points(
-            config.method,
-            dynamics,
-            t_patch_j2000,
-            states_j2000,
-            **kwargs,
-        )
-
-    return ConversionDependencies(
-        build_orbit=build_orbit,
-        build_dynamics=build_dynamics,
-        reference_et=reference_et,
-        sample_patch_points=sample_patch_points,
-        convert_to_j2000=convert_states,
-        correct_patch_points=correct,
-        finalize=spiceypy.kclear,
-    )
+    adapter = EphemerisConversionAdapter(spice=spice, cr3bp_system=cr3bp_system)
+    return adapter.to_deps()
 
 def main_single(orbit_type: str, argv: list[str] | None = None) -> dict[str, Any]:
     """执行 main_single 对应的处理逻辑。
