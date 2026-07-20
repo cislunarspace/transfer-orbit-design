@@ -9,7 +9,6 @@
        uv run python -m tod.generates.ephemeris._corrector --help
 """
 
-
 from __future__ import annotations
 
 try:
@@ -28,7 +27,6 @@ except ModuleNotFoundError:
             "当前 e2m2e 安装缺少 e2m2e.algorithms.ephemeris_correction；"
             "请更新 e2m2e 或在测试中 patch _e2m2e_correct_ephemeris_patch_points。"
         )
-
 
 def correct_ephemeris_patch_points(*args, **kwargs) -> EphemerisCorrectionResult:
     """执行 correct_ephemeris_patch_points 对应的处理逻辑。

@@ -25,7 +25,6 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from tod.gui.batch import BatchAggregate, BatchRun, aggregate_status
 from tod.gui.jobs.job_status import JobStatus
 
-
 class BatchManager(QObject):
     """批量运行的生命周期管理器。
 

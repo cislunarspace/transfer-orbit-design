@@ -5,7 +5,6 @@
 本身不可作为脚本运行。
 """
 
-
 from __future__ import annotations
 
 import logging
@@ -22,7 +21,6 @@ from tod.commons.orbits import compute_departure_velocity  # noqa: F401 — 重�
 project_root = find_project_root(Path(__file__))
 
 logger = logging.getLogger(__name__)
-
 
 def save_or_show(fig, args, dpi: int | None = None) -> None:
     """将 fig 保存为 PNG 或弹窗显示，随后关闭。
@@ -41,7 +39,6 @@ def save_or_show(fig, args, dpi: int | None = None) -> None:
         plt.show()
     plt.close(fig)
 
-
 def departure_delta_v_norm(state6: np.ndarray, alpha: float) -> float:
     """计算速度扰动后的 Δv 模：‖v'−v‖（无量纲速度）。"""
     pos = np.asarray(state6[:3], dtype=np.float64)
@@ -51,7 +48,6 @@ def departure_delta_v_norm(state6: np.ndarray, alpha: float) -> float:
     vel = np.asarray(state6[3:6], dtype=np.float64)
     new_vel = compute_departure_velocity(state6, alpha)
     return float(np.linalg.norm(new_vel - vel))
-
 
 def _extract_dv_from_row(r: dict) -> float | None:
     """从搜索结果行中提取 dv_departure 标量。"""
@@ -64,7 +60,6 @@ def _extract_dv_from_row(r: dict) -> float | None:
     if ds is not None and alpha is not None:
         return departure_delta_v_norm(np.asarray(ds, dtype=np.float64), float(alpha))
     return None
-
 
 def feasible_alpha_and_departure_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndarray]:
     """提取可行解的 (alphas, dv_departure)。"""
@@ -82,7 +77,6 @@ def feasible_alpha_and_departure_dv(rows: list[dict]) -> tuple[np.ndarray, np.nd
             dvs.append(dv)
     return np.asarray(alphas, dtype=np.float64), np.asarray(dvs, dtype=np.float64)
 
-
 def _first_feasible_time(r: dict) -> float | None:
     """可行解首次满足约束的时间（TU）。
 
@@ -97,7 +91,6 @@ def _first_feasible_time(r: dict) -> float | None:
         tt = r.get("transfer_time")
     return None if tt is None else float(tt)
 
-
 def _arrival_dv_scalar(r: dict) -> float:
     """从行中提取入轨/到达 Δv 标量（无量纲），缺失则为 0。"""
     for key in ("dv_arrival", "dv_insertion"):
@@ -108,7 +101,6 @@ def _arrival_dv_scalar(r: dict) -> float:
         if arr.size:
             return float(arr[0])
     return 0.0
-
 
 def feasible_time_dv_total(
     rows: list[dict],
@@ -140,7 +132,6 @@ def feasible_time_dv_total(
         np.asarray(totals, dtype=np.float64),
     )
 
-
 def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndarray]:
     """提取可行解的 (transfer_times, dv_departure)。
 
@@ -149,7 +140,6 @@ def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndar
     """
     times, dvs, _ = feasible_time_dv_total(rows)
     return times, dvs
-
 
 def _dv_total_from_row(r: dict) -> float:
     """计算行的总 Δv（dv_departure + dv_insertion），用于排序。"""
@@ -160,7 +150,6 @@ def _dv_total_from_row(r: dict) -> float:
     if dv_dep is not None:
         return float(dv_dep)
     return float("inf")
-
 
 def select_feasible_indices(
     rows: list[dict],
@@ -201,14 +190,12 @@ def select_feasible_indices(
             raise ValueError(f"索引 {i} 超出范围（可行解总数={n}）")
         return [i]
 
-
 def _apply_title(ax: Axes, title: str | None, auto: str) -> None:
     """设置标题：``None`` 用自动标题，``""`` 不设标题，其它字符串原样使用。"""
     if title is None:
         ax.set_title(auto)
     elif title != "":
         ax.set_title(title)
-
 
 def plot_alpha_delta_v(ax: Axes, alpha: np.ndarray, delta_v: np.ndarray, title_prefix: str, *, config=None) -> None:
     """绘制 α vs Δv_departure 散点图。"""
@@ -223,7 +210,6 @@ def plot_alpha_delta_v(ax: Axes, alpha: np.ndarray, delta_v: np.ndarray, title_p
     ax.set_ylabel("Δv_departure (km/s)")
     ax.set_title(f"{title_prefix} α vs Δv_departure")
     ax.grid(True, alpha=0.3)
-
 
 def plot_transfer_time_delta_v(
     ax: Axes,
@@ -270,14 +256,12 @@ def plot_transfer_time_delta_v(
     _apply_title(ax, title, f"{title_prefix} 转移时间 vs Δv_departure")
     ax.grid(True, alpha=0.3)
 
-
 def geo_circle_points(n_pts: int = 200) -> tuple[np.ndarray, np.ndarray]:
     """GEO 球面在 x-y 平面上的投影圆。"""
     from tod.commons.orbits import R_GEO, EARTH_CENTER
 
     th = np.linspace(0, 2 * np.pi, n_pts)
     return EARTH_CENTER[0] + R_GEO * np.cos(th), R_GEO * np.sin(th)
-
 
 def plot_celestial_bodies(ax, system, config) -> None:
     """在 3D axes 上绘制地球、月球和平动点。"""
@@ -295,7 +279,6 @@ def plot_celestial_bodies(ax, system, config) -> None:
     for lp_name, lp_x in [("L1", system.L1[0]), ("L2", system.L2[0])]:
         ax.scatter(lp_x, 0, 0, color="red", marker="+", s=30, zorder=5)
         ax.text(lp_x, 0.02, 0, lp_name, fontsize=config.lp_label, ha="center", color="red")
-
 
 def set_equal_aspect_3d(ax, points: np.ndarray) -> None:
     """设置 3D axes 等比例显示。
@@ -318,7 +301,6 @@ def set_equal_aspect_3d(ax, points: np.ndarray) -> None:
 
     ax.set_box_aspect([1, 1, 1])
 
-
 def build_transfer_dynamics(mu: float | None = None, dt: float | None = None):
     """构建 CR3BP 动力学实例（积分器参数与 grid_search 一致）。"""
     from tod.commons.constants import MU, TU
@@ -334,7 +316,6 @@ def build_transfer_dynamics(mu: float | None = None, dt: float | None = None):
     dynamics.atol = 1e-12
     dynamics.max_step = _dt
     return system, dynamics
-
 
 def reintegrate_transfer(
     dynamics,
@@ -357,7 +338,6 @@ def reintegrate_transfer(
     )
     return result["states"], result["time"]
 
-
 def _annotate_bodies_2d(ax, system, config) -> None:
     """在 2D axes 上标注地球、月球和平动点。"""
     from tod.commons.constants import MU
@@ -377,7 +357,6 @@ def _annotate_bodies_2d(ax, system, config) -> None:
         ax.scatter(lp_x, 0, color="red", marker="+", s=30, zorder=5)
         ax.text(lp_x, 0.02, lp_name, fontsize=config.lp_label,
                 ha="center", color="red")
-
 
 def plot_single_transfer_orbit_2d(
     departure_orbit,
@@ -446,7 +425,6 @@ def plot_single_transfer_orbit_2d(
     ax.set_ylim(mid[1] - half, mid[1] + half)
 
     return ax
-
 
 def resolve_opt_input(args, pattern: str, prog: str) -> Path:
     """按 issue #183 契约解析 optimization JSON（通用版本）。

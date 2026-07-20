@@ -1,8 +1,6 @@
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 from __future__ import annotations
 
@@ -11,7 +9,6 @@ from pathlib import Path
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QMouseEvent
 from PyQt6.QtWidgets import QLabel
-
 
 class ClickableLabel(QLabel):
     """一个在鼠标按下时发出 clicked 信号的 QLabel。"""
@@ -34,7 +31,6 @@ class ClickableLabel(QLabel):
         if ev and ev.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
         super().mousePressEvent(ev)
-
 
 class DocLinkMixin:
     """用于处理可点击文档链接的 Mixin。
@@ -66,7 +62,6 @@ class DocLinkMixin:
             return doc_path.absolute().as_uri()
 
         return None
-
 
 def make_doc_link_label(title: str, url: str | None, parent=None) -> ClickableLabel:
     """创建一个样式化为超链接的可点击标签。

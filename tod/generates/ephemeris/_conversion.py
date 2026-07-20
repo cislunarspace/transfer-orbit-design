@@ -9,7 +9,6 @@
        uv run python -m tod.generates.ephemeris._conversion --help
 """
 
-
 from __future__ import annotations
 
 import argparse
@@ -23,7 +22,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 DEFAULT_OUTPUT_DIR = project_root / "output" / "ephemeris"
 DEFAULT_SPICE_KERNEL_DIR = Path(
@@ -31,13 +29,9 @@ DEFAULT_SPICE_KERNEL_DIR = Path(
 )
 DEFAULT_BODIES = ("EARTH", "MOON", "SUN")
 
-
 @dataclass(frozen=True)
 class ConversionDependencies:
-    """表示 ConversionDependencies 相关的数据结构或行为。
-    
-    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
-    """
+
     build_orbit: Callable[[dict[str, Any]], Any]
     build_dynamics: Callable[[SingleConversionConfig | FamilyConversionConfig], Any]
     reference_et: Callable[[SingleConversionConfig | FamilyConversionConfig], float]
@@ -48,16 +42,11 @@ class ConversionDependencies:
     ]
     finalize: Callable[[], None] | None = None
 
-
 @dataclass(frozen=True)
 class LoadedOrbitPayload:
-    """表示 LoadedOrbitPayload 相关的数据结构或行为。
-    
-    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
-    """
+
     payload: dict[str, Any]
     orbit_index: int | None
-
 
 @dataclass(frozen=True)
 class SingleConversionConfig:
@@ -79,7 +68,6 @@ class SingleConversionConfig:
     orbit_index: int | None
     include_full_trajectory: bool = True
     max_iter: int = 50
-
 
 @dataclass(frozen=True)
 class FamilyConversionConfig:
@@ -103,7 +91,6 @@ class FamilyConversionConfig:
     include_full_trajectory: bool
     max_iter: int = 50
 
-
 def build_single_parser(orbit_type: str) -> argparse.ArgumentParser:
     """构建运行所需对象。
     
@@ -124,7 +111,6 @@ def build_single_parser(orbit_type: str) -> argparse.ArgumentParser:
         help="Select one orbit from a family JSON input.",
     )
     return parser
-
 
 def build_family_parser(orbit_type: str) -> argparse.ArgumentParser:
     """构建运行所需对象。
@@ -157,7 +143,6 @@ def build_family_parser(orbit_type: str) -> argparse.ArgumentParser:
     )
     return parser
 
-
 def single_config_from_args(
     args: argparse.Namespace, orbit_type: str
 ) -> SingleConversionConfig:
@@ -185,7 +170,6 @@ def single_config_from_args(
         orbit_index=args.orbit_index,
         max_iter=args.max_iter,
     )
-
 
 def family_config_from_args(
     args: argparse.Namespace, orbit_type: str
@@ -217,7 +201,6 @@ def family_config_from_args(
         max_iter=args.max_iter,
     )
 
-
 def load_single_orbit_payload(input_file: Path, orbit_index: int | None) -> LoadedOrbitPayload:
     """读取单条轨道或轨道族中的轨道载荷。
     
@@ -248,7 +231,6 @@ def load_single_orbit_payload(input_file: Path, orbit_index: int | None) -> Load
         raise ValueError("family orbit entry must be a JSON object")
     return LoadedOrbitPayload(payload=orbit_payload, orbit_index=orbit_index)
 
-
 def run_single_conversion(
     config: SingleConversionConfig, deps: ConversionDependencies | None = None
 ) -> dict[str, Any]:
@@ -277,7 +259,6 @@ def run_single_conversion(
     if dependencies.finalize is not None:
         dependencies.finalize()
     return payload
-
 
 def run_family_conversion(
     config: FamilyConversionConfig, deps: ConversionDependencies | None = None
@@ -333,7 +314,6 @@ def run_family_conversion(
         dependencies.finalize()
     return payload
 
-
 def convert_orbit(
     payload: dict[str, Any],
     config: SingleConversionConfig | FamilyConversionConfig,
@@ -384,13 +364,8 @@ def convert_orbit(
         )
     return result
 
-
 def default_conversion_dependencies() -> ConversionDependencies:
-    """执行 default_conversion_dependencies 对应的处理逻辑。
     
-    Returns:
-        函数执行结果。
-    """
     from e2m2e.algorithms import convert_to_j2000, sample_patch_points
     from e2m2e.core import (
         CR3BP_System,
@@ -449,14 +424,7 @@ def default_conversion_dependencies() -> ConversionDependencies:
         return EphemerisDynamics(system=eph_system)
 
     def reference_et(config: SingleConversionConfig | FamilyConversionConfig) -> float:
-        """执行 reference_et 对应的处理逻辑。
-        
-        Args:
-            config: 调用方传入的参数值。
-        
-        Returns:
-            函数执行结果。
-        """
+    
         return float(spice.utc_to_et(config.reference_epoch))
 
     def convert_states(t_patch_syn: Any, states_syn: Any, reference_et_value: float) -> tuple[Any, Any]:
@@ -519,7 +487,6 @@ def default_conversion_dependencies() -> ConversionDependencies:
         finalize=spiceypy.kclear,
     )
 
-
 def main_single(orbit_type: str, argv: list[str] | None = None) -> dict[str, Any]:
     """执行 main_single 对应的处理逻辑。
     
@@ -533,7 +500,6 @@ def main_single(orbit_type: str, argv: list[str] | None = None) -> dict[str, Any
     parser = build_single_parser(orbit_type)
     return run_single_conversion(single_config_from_args(parser.parse_args(argv), orbit_type))
 
-
 def main_family(orbit_type: str, argv: list[str] | None = None) -> dict[str, Any]:
     """执行 main_family 对应的处理逻辑。
     
@@ -546,7 +512,6 @@ def main_family(orbit_type: str, argv: list[str] | None = None) -> dict[str, Any
     """
     parser = build_family_parser(orbit_type)
     return run_family_conversion(family_config_from_args(parser.parse_args(argv), orbit_type))
-
 
 def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--input-file", required=True, help="Ephemeris conversion input JSON file.")
@@ -575,7 +540,6 @@ def _add_common_arguments(parser: argparse.ArgumentParser) -> None:
         help="Maximum correction iterations per run.",
     )
 
-
 def load_family_payloads(input_file: Path) -> list[dict[str, Any]]:
     """读取轨道族文件中的全部轨道载荷。
     
@@ -596,7 +560,6 @@ def load_family_payloads(input_file: Path) -> list[dict[str, Any]]:
         if not isinstance(orbit, dict):
             raise ValueError("family orbit entries must be JSON objects")
     return list(orbits)
-
 
 def run_default_family_payload_conversion_parallel(
     payloads: list[dict[str, Any]],
@@ -638,7 +601,6 @@ def run_default_family_payload_conversion_parallel(
                 entries[index] = _family_entry_from_conversion(index, conversion_result)
     return [entry for entry in entries if entry is not None]
 
-
 def _convert_family_payload_with_default_dependencies(
     payload: dict[str, Any],
     index: int,
@@ -651,7 +613,6 @@ def _convert_family_payload_with_default_dependencies(
     finally:
         if deps.finalize is not None:
             deps.finalize()
-
 
 def run_family_payload_conversion(
     payloads: list[dict[str, Any]],
@@ -697,7 +658,6 @@ def run_family_payload_conversion(
                 entries[index] = _family_entry_from_conversion(index, conversion_result)
     return [entry for entry in entries if entry is not None]
 
-
 def _run_family_payload_conversion_serial(
     payloads: list[dict[str, Any]],
     convert: Callable[[dict[str, Any], int, bool], dict[str, Any]],
@@ -720,10 +680,8 @@ def _run_family_payload_conversion_serial(
                 break
     return entries
 
-
 def _conversion_status(converged: bool) -> str:
     return "success" if converged else "not_converged"
-
 
 def _conversion_result_fields(correction: Any) -> dict[str, Any]:
     converged = bool(correction.converged)
@@ -741,7 +699,6 @@ def _conversion_result_fields(correction: Any) -> dict[str, Any]:
         "corrected_times_et": _to_list(correction.t_patch),
     }
 
-
 def _family_success_entry(index: int, conversion_result: dict[str, Any]) -> dict[str, Any]:
     return {
         "orbit_index": index,
@@ -749,14 +706,12 @@ def _family_success_entry(index: int, conversion_result: dict[str, Any]) -> dict
         "result": conversion_result,
     }
 
-
 def _family_not_converged_entry(index: int, conversion_result: dict[str, Any]) -> dict[str, Any]:
     return {
         "orbit_index": index,
         "status": "not_converged",
         "result": conversion_result,
     }
-
 
 def _family_failure_entry(index: int, payload: dict[str, Any], exc: Exception) -> dict[str, Any]:
     return {
@@ -766,12 +721,10 @@ def _family_failure_entry(index: int, payload: dict[str, Any], exc: Exception) -
         "source_summary": _orbit_source_summary(payload),
     }
 
-
 def _family_entry_from_conversion(index: int, conversion_result: dict[str, Any]) -> dict[str, Any]:
     if conversion_result.get("status") == "not_converged":
         return _family_not_converged_entry(index, conversion_result)
     return _family_success_entry(index, conversion_result)
-
 
 from tod.generates.ephemeris.validate import (
     optional_float,
@@ -782,36 +735,29 @@ from tod.generates.ephemeris.validate import (
     validate_continuity,
 )
 
-
 def _validate_continuity(*args, **kwargs):
     """向后兼容包装：内部调用 validate_continuity。"""
     return validate_continuity(*args, **kwargs)
-
 
 def _position_error(*args, **kwargs):
     """向后兼容包装。"""
     return position_error(*args, **kwargs)
 
-
 def _to_list(*args, **kwargs):
     """向后兼容包装。"""
     return to_list(*args, **kwargs)
-
 
 def _to_nested_list(*args, **kwargs):
     """向后兼容包装。"""
     return to_nested_list(*args, **kwargs)
 
-
 def _optional_float(*args, **kwargs):
     """向后兼容包装。"""
     return optional_float(*args, **kwargs)
 
-
 def _optional_float_list(*args, **kwargs):
     """向后兼容包装。"""
     return optional_float_list(*args, **kwargs)
-
 
 def _single_metadata(
     config: SingleConversionConfig, selected_orbit_index: int | None
@@ -826,7 +772,6 @@ def _single_metadata(
     )
     return metadata
 
-
 def _family_metadata(config: FamilyConversionConfig) -> dict[str, Any]:
     metadata = _base_metadata(config)
     metadata.update(
@@ -838,7 +783,6 @@ def _family_metadata(config: FamilyConversionConfig) -> dict[str, Any]:
         }
     )
     return metadata
-
 
 def _base_metadata(config: SingleConversionConfig | FamilyConversionConfig) -> dict[str, Any]:
     return {
@@ -855,7 +799,6 @@ def _base_metadata(config: SingleConversionConfig | FamilyConversionConfig) -> d
         "generated_at": datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z"),
     }
 
-
 def _resolve_output_file(
     output_file: Path | None, mode: str, orbit_type: str
 ) -> Path:
@@ -864,12 +807,10 @@ def _resolve_output_file(
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     return DEFAULT_OUTPUT_DIR / f"{orbit_type}_{mode}_ephemeris_conversion_{timestamp}.json"
 
-
 def _write_output(payload: dict[str, Any], output_file: Path) -> None:
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with output_file.open("w", encoding="utf-8") as file:
         json.dump(payload, file, indent=2, ensure_ascii=False)
-
 
 def _summarize_family_orbit(
     payload: dict[str, Any], index: int, include_full_trajectory: bool
@@ -881,14 +822,12 @@ def _summarize_family_orbit(
         "include_full_trajectory": include_full_trajectory,
     }
 
-
 def _orbit_source_summary(payload: dict[str, Any]) -> dict[str, Any]:
     return {
         key: payload[key]
         for key in ("period", "x0", "vy0", "z0")
         if key in payload
     }
-
 
 def _load_json_object(input_file: Path) -> dict[str, Any]:
     with input_file.open("r", encoding="utf-8") as file:
@@ -897,20 +836,17 @@ def _load_json_object(input_file: Path) -> dict[str, Any]:
         raise ValueError("ephemeris conversion input must be a JSON object")
     return data
 
-
 def _parse_bodies(value: str) -> tuple[str, ...]:
     bodies = tuple(body.strip().upper() for body in value.split(",") if body.strip())
     if not bodies:
         raise ValueError("--bodies must contain at least one body")
     return bodies
 
-
 def _positive_int(value: str) -> int:
     parsed = int(value)
     if parsed < 1:
         raise argparse.ArgumentTypeError("value must be at least 1")
     return parsed
-
 
 def _optional_path(value: str | None) -> Path | None:
     if value is None:

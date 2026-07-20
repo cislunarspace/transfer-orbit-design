@@ -1,8 +1,6 @@
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 from __future__ import annotations
 
@@ -36,7 +34,6 @@ from tod.gui.files.file_operations import (
 
 if TYPE_CHECKING:
     from tod.scripting import ScriptEntry
-
 
 class FileTreeMixin:
     """提供文件浏览器 Tab 的构建和操作方法，由 MainWindow 通过多重继承混入。"""

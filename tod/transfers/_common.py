@@ -11,7 +11,6 @@ import numpy as np
 from e2m2e.core import CR3BP_Dynamics, CR3BP_System
 from tod.commons.constants import MU
 
-
 def build_dynamics(
     rtol: float,
     atol: float,
@@ -39,7 +38,6 @@ def build_dynamics(
     dynamics.atol = atol
     dynamics.max_step = max_step
     return system, dynamics
-
 
 def forward_integrate(
     dynamics: "CR3BP_Dynamics",

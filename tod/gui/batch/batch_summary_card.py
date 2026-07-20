@@ -42,7 +42,6 @@ _AGGREGATE_BADGE_COLORS: dict[BatchAggregate, str] = {
     BatchAggregate.STOPPED: "#ca5010",
 }
 
-
 @dataclass(frozen=True)
 class BatchJobRow:
     """单行 job 的不可变数据。
@@ -56,7 +55,6 @@ class BatchJobRow:
     job_id: str
     index: int
     status: JobStatus
-
 
 @dataclass(frozen=True)
 class BatchSummaryViewModel:
@@ -77,7 +75,6 @@ class BatchSummaryViewModel:
     aggregate_status: BatchAggregate
     jobs: tuple[BatchJobRow, ...]
     stopped_count: int = 0
-
 
 class BatchSummaryCard(QWidget):
     """批量运行摘要卡片，dumb view，仅 ``update_view_model(vm)`` 渲染。

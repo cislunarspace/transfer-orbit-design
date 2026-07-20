@@ -1,8 +1,6 @@
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 from __future__ import annotations
 
@@ -10,7 +8,6 @@ from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtWidgets import QApplication
 
 from tod.gui.themes import load_stylesheet
-
 
 def _get_palette_window_color():
     """获取当前应用调色板的 Window 颜色。"""
@@ -20,7 +17,6 @@ def _get_palette_window_color():
     palette = app.palette()
     return palette.color(palette.ColorRole.Window)
 
-
 def is_system_dark() -> bool:
     """检测系统是否使用暗色模式。"""
     color = _get_palette_window_color()
@@ -29,18 +25,15 @@ def is_system_dark() -> bool:
     luminance = 0.299 * color.red() + 0.587 * color.green() + 0.114 * color.blue()
     return luminance < 128
 
-
 def resolve_theme(mode: str = "system") -> str:
     """根据模式返回实际主题名：light / dark。"""
     if mode == "system":
         return "dark" if is_system_dark() else "light"
     return mode
 
-
 def get_theme_stylesheet(mode: str = "system") -> str:
     """返回当前主题对应的样式表。"""
     return load_stylesheet(resolve_theme(mode))
-
 
 # ── 运行按钮样式（集中维护，ScriptParamPanel / JobPanelMixin 共用） ──
 # 颜色取双主题可读的中性值：按钮实底白字在亮/暗背景下均成立，

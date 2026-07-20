@@ -12,7 +12,6 @@ from e2m2e.core.orbit import Orbit
 from tod.commons.orbits import compute_departure_velocity
 from tod.transfers._common import build_dynamics, forward_integrate
 
-
 def get_dro_state_at_time(dro_orbit: Orbit, t_ins: float) -> np.ndarray:
     """获取 DRO 轨道上在 t_ins 时刻的状态。
 
@@ -41,7 +40,6 @@ def get_dro_state_at_time(dro_orbit: Orbit, t_ins: float) -> np.ndarray:
 
     frac = (t_mod - t0) / (t1 - t0)
     return s0 + frac * (s1 - s0)
-
 
 def find_closest_approach(departure_state, alpha, max_time, dro_orbit, dynamics):
     """重新积分转移轨迹，找到最接近 DRO 轨道的时刻。

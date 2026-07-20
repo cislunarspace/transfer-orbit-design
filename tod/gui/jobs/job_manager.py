@@ -1,8 +1,6 @@
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 from __future__ import annotations
 
@@ -22,7 +20,6 @@ from tod.scripting import ScriptEntry
 _KILL_TIMEOUT_MS = 3000
 _MAX_COMPLETED = 20
 
-
 @dataclass
 class Job:
     """单个脚本任务的运行时状态。"""
@@ -34,7 +31,6 @@ class Job:
     started_at: float | None = None
     status: JobStatus = JobStatus.RUNNING
     exit_code: int | None = None
-
 
 class JobManager(QObject):
     """管理多个并发脚本进程，每个进程通过 job_id 唯一标识。"""
@@ -181,11 +177,7 @@ class JobManager(QObject):
         return [j for j in self._jobs.values() if j.status == JobStatus.RUNNING]
 
     def all_jobs(self) -> list[Job]:
-        """执行 all_jobs 对应的处理逻辑。
-
-        Returns:
-            函数执行结果。
-        """
+        
         return list(self._jobs.values())
 
     # -- 私有处理器 --

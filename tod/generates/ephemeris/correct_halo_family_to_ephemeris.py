@@ -8,27 +8,16 @@
        uv run python -m tod.generates.ephemeris.correct_halo_family_to_ephemeris --help
 """
 
-
 from __future__ import annotations
 
 from tod.generates.ephemeris import _conversion
 
-
 def main(argv: list[str] | None = None):
-    """执行脚本主流程。
-    
-    Args:
-        argv: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
-    return _conversion.main_family("halo", argv)
 
+    return _conversion.main_family("halo", argv)
 
 if __name__ == "__main__":
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

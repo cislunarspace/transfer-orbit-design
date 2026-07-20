@@ -38,7 +38,6 @@ from tod.gui.theme_utils import resolve_theme as _resolve_theme
 if TYPE_CHECKING:
     pass
 
-
 class ScriptParamPanel(QWidget):
     """脚本参数面板 UI：标题/描述/控件 dicts/默认值/运行按钮。
 

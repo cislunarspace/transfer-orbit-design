@@ -8,7 +8,6 @@
        uv run python -m tod.plot.transfer.leo_to_dro.plot_search_results_leo_to_dro --help
 """
 
-
 from __future__ import annotations
 
 import argparse
@@ -50,12 +49,10 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
-
 def _latest_search_json() -> Path | None:
     transfer_dir = project_root / "output/transfer"
     candidates = sorted(transfer_dir.glob("search_leo_dro_*.json"))
     return candidates[-1] if candidates else None
-
 
 def _resolve_search_input(args) -> Path:
     """按 issue #183 契约解析搜索结果文件。"""
@@ -81,11 +78,9 @@ def _resolve_search_input(args) -> Path:
             )
         parser.error(str(exc))
 
-
 def _selected_feasible(feasible: list[dict], idx_arg: str, seed: int, max_points: int) -> list[dict]:
     indices = select_feasible_indices(feasible, idx_arg, seed=seed, max_indices=max_points)
     return [feasible[i] for i in indices]
-
 
 def _plot_alpha_dv(feasible: list[dict], ax, max_points: int, seed: int) -> None:
     alphas, dvs = feasible_alpha_and_departure_dv(feasible)
@@ -103,7 +98,6 @@ def _plot_alpha_dv(feasible: list[dict], ax, max_points: int, seed: int) -> None
     ax.set_title("LEO→DRO: α vs Δv (可行解)")
     ax.grid(True, alpha=0.3)
 
-
 def _plot_time_dv(feasible: list[dict], ax, max_points: int, seed: int) -> None:
     times, dvs = feasible_transfer_time_and_dv(feasible)
     if len(times) == 0:
@@ -120,7 +114,6 @@ def _plot_time_dv(feasible: list[dict], ax, max_points: int, seed: int) -> None:
     ax.set_title("LEO→DRO: 转移时间 vs Δv (可行解)")
     ax.grid(True, alpha=0.3)
 
-
 def _plot_orbit_selection(records: list[dict], ax) -> None:
     if not records:
         ax.text2D(0.5, 0.5, "无选中结果", ha="center", va="center", transform=ax.transAxes)
@@ -135,7 +128,6 @@ def _plot_orbit_selection(records: list[dict], ax) -> None:
     ax.set_zlabel("z (DU)")
     ax.set_title(f"LEO→DRO: {len(records)} 条选中可行解出发点")
     ax.grid(True, alpha=0.3)
-
 
 def _interactive_browse(records: list[dict]) -> None:
     selected = sorted(records, key=lambda r: float(r.get("dv_departure", float("inf"))))
@@ -155,16 +147,8 @@ def _interactive_browse(records: list[dict]) -> None:
         except (EOFError, KeyboardInterrupt):
             break
 
-
 def main() -> None:
-    """执行脚本主流程。
-    
-    Returns:
-        None。
-    
-    Raises:
-        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
-    """
+
     parser = argparse.ArgumentParser(description="可视化 LEO→DRO 网格搜索结果", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--file", type=str, default=None, help="搜索结果 JSON 路径")
     parser.add_argument("--auto-latest", action="store_true", help="显式 opt-in：按 mtime 选最新搜索结果 JSON")
@@ -216,10 +200,8 @@ def main() -> None:
         plt.show()
     plt.close(fig)
 
-
 if __name__ == "__main__":
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

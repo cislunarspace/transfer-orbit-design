@@ -8,7 +8,6 @@
        uv run python -m tod.transfers.leo_to_dro.grid_search_leo_to_dro --help
 """
 
-
 import argparse
 import json
 import os
@@ -38,8 +37,6 @@ project_root = Path(__file__).resolve().parent.parent.parent.parent
 
 
 
-
-
 # =====================================================================
 # 配置
 # =====================================================================
@@ -62,7 +59,6 @@ MOON_RADIUS = 100.0 / DU
 INTEGRATION_DT = 1.0 / (24.0 * TU)
 LEO_N_POINTS = 500
 
-
 def parse_args():
     """解析命令行参数。
     
@@ -83,13 +79,8 @@ def parse_args():
     parser.add_argument("--leo-n-points", type=int, default=LEO_N_POINTS, help="LEO 轨道采样点数")
     return parser.parse_args()
 
-
 def main() -> None:
-    """执行脚本主流程。
     
-    Returns:
-        None。
-    """
     args = parse_args()
 
     # =========================================================================
@@ -278,7 +269,6 @@ def main() -> None:
                 logger.info(f"  最小距离: {min(dists):.6f} DU = {min(dists) * DU:.0f} km")
                 logger.info("  建议: 调整 alpha 范围或增加积分时间")
 
-
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
@@ -298,7 +288,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

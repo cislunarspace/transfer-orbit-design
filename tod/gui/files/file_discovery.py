@@ -1,21 +1,15 @@
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 from dataclasses import dataclass
 from datetime import datetime
 from fnmatch import fnmatch
 from pathlib import Path
 
-
 @dataclass
 class FileInfo:
-    """表示 FileInfo 相关的数据结构或行为。
-    
-    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
-    """
+
     name: str
     path: str           # 相对于仓库根目录
     abs_path: str       # 绝对路径
@@ -23,7 +17,6 @@ class FileInfo:
     modified: datetime  # 修改时间
     file_type: str      # "json", "png" 等
     category: str       # "dro", "ro", "transfer", "ephemeris", "halo"
-
 
 def format_size(size: int) -> str:
     """将字节数格式化为人类可读的字符串。"""
@@ -33,7 +26,6 @@ def format_size(size: int) -> str:
         return f"{size / 1024:.1f} KB"
     else:
         return f"{size / (1024 * 1024):.1f} MB"
-
 
 def discover_files(repo_root: Path) -> list[FileInfo]:
     """扫描 output/ 子目录，返回所有文件的列表（按修改时间倒序）。"""
@@ -49,7 +41,6 @@ def discover_files(repo_root: Path) -> list[FileInfo]:
         _scan_directory(subdir, category, repo_root, results)
 
     return results
-
 
 def _scan_directory(
     directory: Path,
@@ -77,7 +68,6 @@ def _scan_directory(
                 ))
         except OSError:
             continue  # 跳过无法访问的文件/目录
-
 
 def filter_files(
     files: list[FileInfo],

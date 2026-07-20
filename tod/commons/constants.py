@@ -1,12 +1,9 @@
 """脚本共享的常量、路径与工具。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
-
 硬编码常量（M_SUN / OMEGA_SUN / RHO / FAMILY_FILENAME）在模块导入时即可用，不依赖 e2m2e。
 CR3BP 派生常量（MU / DU / TU / VU / T_MOON）通过 __getattr__ 惰性计算——首次访问时才
 导入 e2m2e 并调用 CR3BP_System.from_known_system("earth_moon")。
 """
-
 
 import math
 from typing import TYPE_CHECKING
@@ -37,7 +34,6 @@ FAMILY_FILENAME: str = "family.json"
 
 _cr3bp_initialized: bool = False
 
-
 def _init_cr3bp() -> None:
     """惰性初始化地月 CR3BP 系统常量。
 
@@ -56,7 +52,6 @@ def _init_cr3bp() -> None:
     VU = _em.VU  # 1.024551 km/s
     T_MOON = 2.0 * math.pi  # 月球轨道周期（无量纲）
     _cr3bp_initialized = True
-
 
 def __getattr__(name: str) -> float:
     """模块级惰性属性访问——仅在 name 不在 globals() 中时触发。"""

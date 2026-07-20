@@ -1,8 +1,6 @@
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 from __future__ import annotations
 
@@ -34,7 +32,6 @@ if TYPE_CHECKING:
     from tod.gui.batch.batch_manager import BatchManager
     from tod.gui.batch import BatchRun
     from tod.scripting import ScriptEntry
-
 
 class JobPanelMixin:
     """提供 Job 面板构建和生命周期管理方法，由 MainWindow 通过多重继承混入。"""

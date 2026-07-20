@@ -24,7 +24,6 @@ from tod.gui.script_tab_widget import ScriptTabWidget
 if TYPE_CHECKING:
     pass
 
-
 class ScriptTabBar(QWidget):
     """管理多脚本 Tab 的容器：顶部 QTabBar + 内容区 QStackedWidget。
 

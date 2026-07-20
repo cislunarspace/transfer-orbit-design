@@ -16,7 +16,6 @@
          --view-2d
 """
 
-
 from __future__ import annotations
 
 import argparse
@@ -44,7 +43,6 @@ from tod.commons.paths import find_project_root
 from tod.plot.config import apply_standard_plot_config
 
 logger = logging.getLogger(__name__)
-
 
 def build_argparser(description: str) -> argparse.ArgumentParser:
     """创建统一的轨道族绘图参数解析器。"""
@@ -75,14 +73,12 @@ def build_argparser(description: str) -> argparse.ArgumentParser:
     parser.add_argument("--no-show", action="store_true", help="只保存图片，不弹窗显示")
     return parser
 
-
 def resolve_plot_range(start: int, end: int, n_orbits: int) -> tuple[int, int]:
     """解析 --start/--end 参数，返回 (plot_start, plot_end) 索引。"""
     last = n_orbits - 1
     s = min(start, last) if start >= 0 else 0
     e = min(end, last) if end >= 0 else last
     return (s, max(s, e))
-
 
 def compute_stability_indices(family: OrbitFamily) -> list[float]:
     """计算轨道族的 Broucke 稳定性指数。"""
@@ -93,7 +89,6 @@ def compute_stability_indices(family: OrbitFamily) -> list[float]:
         indices = analysis.compute_stability_index()
         values.append(indices.get("broucke") or 0.0)
     return values
-
 
 def compute_view_bounds(
     all_states: np.ndarray,
@@ -143,7 +138,6 @@ def compute_view_bounds(
     )
     return xlim_2d, ylim_2d, center_3d, radius_3d
 
-
 def _get_center_coordinates(center_type: str, mu: float) -> tuple[float, float, float]:
     if center_type == "moon":
         return (1.0 - mu, 0.0, 0.0)
@@ -152,7 +146,6 @@ def _get_center_coordinates(center_type: str, mu: float) -> tuple[float, float, 
     elif center_type == "emb":
         return (mu, 0.0, 0.0)
     raise ValueError(f"Unknown center type: {center_type}")
-
 
 def _resolve_3d_center_radius(
     cfg: FamilyPlotConfig,
@@ -186,7 +179,6 @@ def _resolve_3d_center_radius(
 
     return center, radius
 
-
 def _project_2d(xyz: Sequence[float] | np.ndarray, plane: str) -> tuple[float, float]:
     """将 3D 坐标投影到指定平面。"""
     if plane == "yz":
@@ -195,7 +187,6 @@ def _project_2d(xyz: Sequence[float] | np.ndarray, plane: str) -> tuple[float, f
         return (xyz[0], xyz[1])
     else:  # xz
         return (xyz[0], xyz[2])
-
 
 def _plot_bodies_and_libration(
     ax,
@@ -247,7 +238,6 @@ def _plot_bodies_and_libration(
                     fontsize=8,
                 )
 
-
 @dataclass(frozen=True)
 class MultiFileConfig:
     """多文件绘制配置项。"""
@@ -255,7 +245,6 @@ class MultiFileConfig:
     start: int = -1
     end: int = -1
     step: int = 1
-
 
 @dataclass(frozen=True)
 class FamilyPlotConfig:
@@ -285,7 +274,6 @@ class FamilyPlotConfig:
         if self.ratio:
             return f"{self.family_type} ({self.ratio})"
         return self.family_type
-
 
 def _parse_json_file_arg(arg_value: str | None) -> tuple[Path | None, list[MultiFileConfig]]:
     """解析 --json-file 参数。
@@ -323,12 +311,8 @@ def _parse_json_file_arg(arg_value: str | None) -> tuple[Path | None, list[Multi
     # 作为文件路径处理
     return Path(arg_value), []
 
-
 class FamilyPlotOrchestrator:
-    """表示 FamilyPlotOrchestrator 相关的数据结构或行为。
 
-    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
-    """
     def __init__(self, config: FamilyPlotConfig, args: argparse.Namespace) -> None:
         self.config = config
         self.args = args

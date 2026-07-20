@@ -13,7 +13,6 @@ import numpy as np
 
 from e2m2e.core.orbit import Orbit
 
-
 @dataclass
 class NlpPackConfig:
     """保存 NlpPackConfig 的配置字段。
@@ -34,13 +33,9 @@ class NlpPackConfig:
     use_copt: bool
     fallback_to_scipy: bool
 
-
 @dataclass
 class ThreadNlpParams:
-    """表示 ThreadNlpParams 相关的数据结构或行为。
-    
-    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
-    """
+
     alpha_min: float
     alpha_max: float
     earth_radius: float
@@ -49,7 +44,6 @@ class ThreadNlpParams:
     velocity_angle_tol: float
     use_copt: bool
     fallback_to_scipy: bool
-
 
 def pack_nlp_task(idx, rec, dro_orbit, ro_orbit, cfg: NlpPackConfig):
     """执行 pack_nlp_task 对应的处理逻辑。
@@ -76,16 +70,8 @@ def pack_nlp_task(idx, rec, dro_orbit, ro_orbit, cfg: NlpPackConfig):
         "cfg": cfg,
     }
 
-
 def nlp_worker_packed(payload):
-    """执行 nlp_worker_packed 对应的处理逻辑。
-    
-    Args:
-        payload: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+
     # 延迟 import 避免循环依赖
     from tod.transfers.dro_to_ro.optimize_dro_to_ro import (
         build_dynamics,
@@ -136,16 +122,8 @@ def nlp_worker_packed(payload):
         row["error"] = traceback.format_exc()
     return row
 
-
 def worker_run_thread(args):
-    """执行 worker_run_thread 对应的处理逻辑。
-    
-    Args:
-        args: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+
     # 延迟 import 避免循环依赖
     from tod.transfers.dro_to_ro.optimize_dro_to_ro import (
         optimize_one_case,

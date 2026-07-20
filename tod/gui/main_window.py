@@ -1,8 +1,6 @@
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 from __future__ import annotations
 
@@ -43,7 +41,6 @@ from tod.gui.theme_utils import get_theme_stylesheet as _get_theme_stylesheet
 
 if TYPE_CHECKING:
     from tod.gui.doc_window import DocWindow
-
 
 class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
     """提供 MainWindow 对应的 GUI 组件。

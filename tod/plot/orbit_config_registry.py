@@ -13,7 +13,6 @@ import numpy as np
 
 from tod.plot.family_plot_orchestrator import FamilyPlotConfig
 
-
 def _halo_config() -> FamilyPlotConfig:
     return FamilyPlotConfig(
         family_type="Halo",
@@ -23,7 +22,6 @@ def _halo_config() -> FamilyPlotConfig:
         dynamic_bounds=True,
         libration_point_sizes=[20, 20, 20, 20, 20],
     )
-
 
 def _dro_config() -> FamilyPlotConfig:
     return FamilyPlotConfig(
@@ -36,12 +34,10 @@ def _dro_config() -> FamilyPlotConfig:
         step=5,
     )
 
-
 _RATIO_PLOT_OVERRIDES: dict[str, dict[str, object]] = {
     "3:1": {"center_3d": (-0.85, 0, 0), "target_period": 2 * np.pi},
     "3:2": {"center_3d": (-0.9, 0, 0), "target_period": 4 * np.pi},
 }
-
 
 def _resonant_config(ratio: str) -> FamilyPlotConfig:
     """构建 Resonant 族绘图配置，按共振比应用差异参数。"""
@@ -60,7 +56,6 @@ def _resonant_config(ratio: str) -> FamilyPlotConfig:
         **overrides,
     )
 
-
 _CONFIG_REGISTRY: list[tuple[str, Callable[[], FamilyPlotConfig]]] = [
     ("halo_", _halo_config),
     ("dro_", _dro_config),
@@ -78,7 +73,6 @@ FALLBACK_CONFIG = FamilyPlotConfig(
     dynamic_bounds=True,
     step=5,
 )
-
 
 def detect_orbit_config(file_path: Path) -> FamilyPlotConfig:
     """根据文件名自动检测轨道族类型并返回对应的默认配置。

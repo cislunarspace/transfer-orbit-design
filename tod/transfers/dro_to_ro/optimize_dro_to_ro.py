@@ -8,7 +8,6 @@
        uv run python -m tod.transfers.dro_to_ro.optimize_dro_to_ro --help
 """
 
-
 from __future__ import annotations
 
 import argparse
@@ -97,7 +96,6 @@ DEBUG_DEPARTURE_POINT: Optional[Tuple[float, float, float]] = None
 
 COMPUTE_T_INS_FROM_TRAJECTORY = True
 
-
 def parse_args():
     """解析命令行参数。
     
@@ -118,11 +116,9 @@ def parse_args():
     parser.add_argument("--velocity-angle-tol", type=float, default=VELOCITY_ANGLE_TOL, help="速度方向容差（弧度）")
     return parser.parse_args()
 
-
 # ---------------------------------------------------------------------------
 # 内联辅助函数（替代缺失的 optimize_io / optimize_progress 等）
 # ---------------------------------------------------------------------------
-
 
 def row_template(rec: Dict[str, Any], global_idx: int) -> Dict[str, Any]:
     """执行 row_template 对应的处理逻辑。
@@ -142,7 +138,6 @@ def row_template(rec: Dict[str, Any], global_idx: int) -> Dict[str, Any]:
         "is_feasible": rec.get("is_feasible"),
         "dv_departure": rec.get("dv_departure"),
     }
-
 
 def serialize_nlp_result(res) -> Dict[str, Any]:
     """将结果对象转换为可写入 JSON 的结构。
@@ -165,7 +160,6 @@ def serialize_nlp_result(res) -> Dict[str, Any]:
         "constraints_violation": float(res.constraints_violation),
         "transfer_type": res.transfer_type.value if res.transfer_type else None,
     }
-
 
 def _compute_initial_t_ins(
     departure_state: np.ndarray,
@@ -204,7 +198,6 @@ def _compute_initial_t_ins(
     flat_idx = np.argmin(dists)
     i, j = np.unravel_index(flat_idx, dists.shape)
     return float(times[i]), float(ro_times[j])
-
 
 def optimize_one_case(
     rec,
@@ -390,7 +383,6 @@ def optimize_one_case(
             message=f"优化失败: {e}",
         )
 
-
 def make_progress_callback(prog: OptimizationProgress, k, n_total, global_idx):
     """执行 make_progress_callback 对应的处理逻辑。
     
@@ -407,7 +399,6 @@ def make_progress_callback(prog: OptimizationProgress, k, n_total, global_idx):
         prog._iter = iteration
 
     return _cb
-
 
 def monitor_loop_serial_nlp(prog: OptimizationProgress):
     """执行 monitor_loop_serial_nlp 对应的处理逻辑。
@@ -432,7 +423,6 @@ def monitor_loop_serial_nlp(prog: OptimizationProgress):
                 f"best_dV={snap['best_obj']:.6f}"
             )
 
-
 from tod.transfers.dro_to_ro.dispatch import (
     NlpPackConfig,
     ThreadNlpParams,
@@ -441,11 +431,9 @@ from tod.transfers.dro_to_ro.dispatch import (
     worker_run_thread,
 )
 
-
 # ---------------------------------------------------------------------------
 # 主流程
 # ---------------------------------------------------------------------------
-
 
 def main() -> None:
     """加载网格与轨道、筛选可行解、按并行设置跑 NLP，并写出 ``optimization_results_*.json``。"""
@@ -734,7 +722,6 @@ def main() -> None:
     logger.info(f"\n优化完成，共写入 {len(records)} 条记录")
     logger.info(f"结果已保存到: {out_path}")
 
-
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
@@ -749,7 +736,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

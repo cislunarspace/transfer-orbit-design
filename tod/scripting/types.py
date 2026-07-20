@@ -21,7 +21,6 @@ UNIT_GROUPS: dict[str, dict[str, float]] = {
     "angle": {"rad": 1.0, "deg": math.pi / 180.0},
 }
 
-
 @dataclass(frozen=True)
 class EnvParam:
     """环境变量参数：GUI 通过下拉框选择文件，以环境变量传给子进程。"""
@@ -31,7 +30,6 @@ class EnvParam:
     file_category: str     # 文件类别过滤，如 "dro", "ro", "transfer"
     file_type: str = "json"  # 文件类型过滤
     name_pattern: str | None = None  # 文件名过滤模式，如 "*_family_*.json"
-
 
 @dataclass(frozen=True)
 class CliParam:
@@ -54,7 +52,6 @@ class CliParam:
     required: bool | None = None     # None 保持旧逻辑；False 声明为可选文件参数
     kind: str = ""                   # ""=普通参数；"file_output"=输出文件(覆盖目标)，供 RunPlan 检测
 
-
 @dataclass(frozen=True)
 class CliChipParam:
     """多选芯片参数：GUI 渲染为一组可多选的标签按钮。
@@ -70,7 +67,6 @@ class CliChipParam:
     default: str = ""  # 默认选中的选项（单选时有效），为空表示全不选
     help: str = ""  # 参数说明
 
-
 @dataclass(frozen=True)
 class PerFileField:
     """多文件参数中每个文件的声明式字段定义。
@@ -85,7 +81,6 @@ class PerFileField:
     help: str = ""  # tooltip
     min_value: int | float | None = None  # SpinBox 最小值（仅 int/float 有效）
     max_value: int | float | None = None  # SpinBox 最大值（仅 int/float 有效）
-
 
 @dataclass(frozen=True)
 class MultiFileConfig:
@@ -110,7 +105,6 @@ class MultiFileConfig:
             step=data.get("step", 1),
         )
 
-
 @dataclass(frozen=True)
 class MultiCliParam:
     """多文件参数：GUI 渲染为表格控件，每行显示文件名 + per-file 字段。
@@ -127,7 +121,6 @@ class MultiCliParam:
     help: str = ""  # 帮助文本
     default: str = ""  # 默认值，JSON 字符串格式的 MultiFileConfig 列表
     per_file_fields: list[PerFileField] = field(default_factory=list)  # 每个文件的可配置字段
-
 
 @dataclass(frozen=True)
 class CatalogSeedSelectorParam:
@@ -147,13 +140,8 @@ class CatalogSeedSelectorParam:
     manual_flags: tuple[str, ...] = ("--x0", "--vy0", "--period")
     default_enabled: bool = False
 
-
 @dataclass(frozen=True)
 class ScriptEntry:
-    """表示 ScriptEntry 相关的数据结构或行为。
-
-    该类由脚本或 GUI 工作流内部使用，字段含义与调用处的参数保持一致。
-    """
 
     module: str  # 类别: "dro", "ro", "halo", "transfer", "ephemeris", "inspection"
     name: str  # 文件名（不含 .py）
@@ -168,7 +156,6 @@ class ScriptEntry:
     env_params: dict[str, EnvParam] = field(default_factory=dict)
     cli_params: list[CliParam] = field(default_factory=list)
     group_label: str = ""  # GUI 分组标签，如 "生成"、"绘图"；空表示不分组
-
 
 def _ephemeris_conversion_cli_params(orbit_type: str, mode: str) -> list[CliParam]:
     file_category = "dro" if orbit_type == "dro" else "halo"

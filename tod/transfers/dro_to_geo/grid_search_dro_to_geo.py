@@ -8,7 +8,6 @@
        uv run python -m tod.transfers.dro_to_geo.grid_search_dro_to_geo --help
 """
 
-
 import argparse
 import json
 import os
@@ -39,7 +38,6 @@ logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 
-
 # =====================================================================
 # 配置默认值
 # =====================================================================
@@ -63,7 +61,6 @@ INTEGRATION_DT = 1.0 / (24.0 * TU)
 # GEO 轨道采样点数
 GEO_N_POINTS = 1000
 
-
 def _json_safe(x):
     """递归将 numpy 标量/数组、嵌套 dict/list 转换为可 JSON 序列化的 Python 原生类型。"""
     if x is None:
@@ -77,7 +74,6 @@ def _json_safe(x):
     if isinstance(x, (list, tuple)):
         return [_json_safe(i) for i in x]
     return x
-
 
 def serialize_result(r: dict, *, is_feasible: bool) -> dict:
     """将单条 TransferSearch 结果字典序列化为 JSON 安全的字段子集。
@@ -127,7 +123,6 @@ def serialize_result(r: dict, *, is_feasible: bool) -> dict:
     if departure_state is not None:
         serialized["departure_state"] = _json_safe(departure_state)
     return serialized
-
 
 def parse_args() -> argparse.Namespace:
     """解析命令行参数。
@@ -189,13 +184,8 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-
 def main() -> None:
-    """执行脚本主流程。
     
-    Returns:
-        None。
-    """
     args = parse_args()
 
     # =========================================================================
@@ -366,7 +356,6 @@ def main() -> None:
                 r.get("intersection_found", False),
             )
 
-
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
@@ -385,7 +374,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

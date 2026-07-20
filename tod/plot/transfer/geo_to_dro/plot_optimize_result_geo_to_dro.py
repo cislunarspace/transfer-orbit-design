@@ -8,7 +8,6 @@
        uv run python -m tod.plot.transfer.geo_to_dro.plot_optimize_result_geo_to_dro --help
 """
 
-
 import argparse
 import json
 import logging
@@ -63,17 +62,13 @@ logger = logging.getLogger(__name__)
 # 旧的 hardcoded ``DRO_FILE`` 已被 issue #183 移除：现在 DRO 轨道必须通过
 # ``--dro-file`` 或显式 opt-in ``--auto-latest-dro`` 提供。
 
-
 # =====================================================================
 # 数据加载
 # =====================================================================
 
-
 def _latest_optimization_json():
     candidates = sorted((project_root / "output/transfer").glob("optimization_geo_dro_*.json"))
     return candidates[-1] if candidates else None
-
-
 
 
 
@@ -101,7 +96,6 @@ def _resolve_dro_input(args) -> Path:
             )
         parser.error(str(exc))
 
-
 def load_optimization_results(path: Path) -> Dict[str, Any]:
     """读取转移优化结果 JSON 文件。
     
@@ -113,7 +107,6 @@ def load_optimization_results(path: Path) -> Dict[str, Any]:
     """
     with open(path, encoding="utf-8") as f:
         return json.load(f)
-
 
 def _collect_nlp_records(data: Dict) -> List[Dict]:
     results = data.get("results", [])
@@ -139,16 +132,13 @@ def _collect_nlp_records(data: Dict) -> List[Dict]:
         records.append(rec)
     return records
 
-
 # =====================================================================
 # 动力学与积分
 # =====================================================================
 
-
 # =====================================================================
 # 图表
 # =====================================================================
-
 
 def plot_dv_summary(records, ax):
     """绘制指定结果图形。
@@ -186,7 +176,6 @@ def plot_dv_summary(records, ax):
     ax.legend(fontsize=PLOT_CONFIG.legend)
     ax.set_xticks(x)
 
-
 def plot_dv_scatter(records, ax):
     """绘制指定结果图形。
     
@@ -223,7 +212,6 @@ def plot_dv_scatter(records, ax):
     ax.set_title("GEO→DRO: Δv₁ vs Δv₂")
     ax.grid(True, alpha=0.3)
 
-
 def plot_transfer_time_vs_dv(records, ax):
     """绘制指定结果图形。
     
@@ -259,11 +247,9 @@ def plot_transfer_time_vs_dv(records, ax):
     ax.set_title("GEO→DRO: 转移时间 vs 总 Δv")
     ax.grid(True, alpha=0.3)
 
-
 # =====================================================================
 # 3D 轨道
 # =====================================================================
-
 
 def _select_indices(records, idx_arg, seed=42, max_points=200, max_pos_err_km=100.0):
     # 过滤: 成功且位置误差 < max_pos_err_km
@@ -300,7 +286,6 @@ def _select_indices(records, idx_arg, seed=42, max_points=200, max_pos_err_km=10
     else:
         i = int(idx_arg)
         return [i] if 0 <= i < len(records) and records[i]["success"] else []
-
 
 def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=None, dpi=150):
     """绘制指定结果图形。
@@ -424,11 +409,9 @@ def plot_orbit_3d(records, sel_indices, dro_orbit, system, dynamics, save_path=N
         plt.show()
     plt.close(fig)
 
-
 # =====================================================================
 # 交互式浏览
 # =====================================================================
-
 
 def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.0):
     """按 Δv 排序，交互式逐条浏览 GEO→DRO 优化结果。同一窗口内重绘。"""
@@ -552,18 +535,12 @@ def interactive_browse(records, dro_orbit, system, dynamics, max_pos_err_km=100.
     plt.close(fig)
     logger.info("Exit browse")
 
-
 # =====================================================================
 # main
 # =====================================================================
 
-
 def main():
-    """执行脚本主流程。
     
-    Returns:
-        None。
-    """
     parser = argparse.ArgumentParser(
         description="GEO -> DRO optimization result visualization",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -659,7 +636,6 @@ def main():
             plt.show()
         plt.close(fig)
 
-
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
@@ -674,7 +650,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

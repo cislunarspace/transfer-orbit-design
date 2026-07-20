@@ -1,8 +1,6 @@
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 from __future__ import annotations
 
@@ -21,7 +19,6 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-
 @dataclass
 class SettingItem:
     """单个设置项的定义。"""
@@ -36,7 +33,6 @@ class SettingItem:
     decimals: int = 2  # 仅 float 类型生效
     step: float = 0.05  # 仅 float 类型生效
     on_changed: Callable[[str], None] | None = None
-
 
 class SettingsDialog(QDialog):
     """设置对话框。

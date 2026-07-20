@@ -27,7 +27,6 @@ V_CIRCULAR_GEO: float = float(np.sqrt((1.0 - MU) / R_GEO))
 T_GEO: float = float(2.0 * np.pi * R_GEO / V_CIRCULAR_GEO)
 EARTH_CENTER: npt.NDArray[np.floating] = np.array([-MU, 0.0, 0.0])
 
-
 def geo_circular_velocity_rotating(position: npt.NDArray[np.floating]) -> npt.NDArray[np.floating]:
     """计算旋转系下 GEO 圆轨道速度。
 
@@ -48,7 +47,6 @@ def geo_circular_velocity_rotating(position: npt.NDArray[np.floating]) -> npt.ND
     omega_cross_r = np.array([-position[1], position[0], 0.0])
     return v_inertial - omega_cross_r
 
-
 def compute_geo_dv2(trajectory_state: npt.NDArray[np.floating]) -> float:
     """计算 GEO 插入 delta-v。
 
@@ -61,7 +59,6 @@ def compute_geo_dv2(trajectory_state: npt.NDArray[np.floating]) -> float:
     v_geo = geo_circular_velocity_rotating(trajectory_state[:3])
     return float(np.linalg.norm(trajectory_state[3:] - v_geo))
 
-
 # =============================================================================
 # LEO（低地球轨道）参数
 # =============================================================================
@@ -72,7 +69,6 @@ LEO_ALT_KM: float = 400.0
 R_LEO: float = (R_EARTH_KM + LEO_ALT_KM) / DU
 V_CIRCULAR_LEO: float = float(np.sqrt((1.0 - MU) / R_LEO))
 T_LEO: float = float(2.0 * np.pi * R_LEO / V_CIRCULAR_LEO)
-
 
 def leo_circular_velocity_rotating(
     position: npt.NDArray[np.floating], r_leo: float = R_LEO
@@ -98,7 +94,6 @@ def leo_circular_velocity_rotating(
 
     omega_cross_r = np.array([-position[1], position[0], 0.0])
     return v_inertial - omega_cross_r
-
 
 def generate_leo_orbit(
     n_points: int = 500, r_leo: float = R_LEO
@@ -137,11 +132,9 @@ def generate_leo_orbit(
     orbit.period = t_leo
     return orbit
 
-
 # =============================================================================
 # 共享：出发速度分解 + 碰撞检测
 # =============================================================================
-
 
 def compute_departure_velocity(
     state: npt.ArrayLike, alpha: float
@@ -169,7 +162,6 @@ def compute_departure_velocity(
     v_radial_comp = float(np.dot(vel, radial))
     v_tangential_comp = float(np.dot(vel, tangential))
     return v_radial_comp * radial + alpha * v_tangential_comp * tangential
-
 
 def check_collision(
     states: npt.NDArray[np.floating],
@@ -203,11 +195,9 @@ def check_collision(
         return True, "moon", int(m_col[0])
     return False, None, -1
 
-
 # =============================================================================
 # GEO 轨道生成
 # =============================================================================
-
 
 def generate_geo_orbit(n_points: int = 500) -> "Orbit":
     """在 CR3BP 旋转系中生成 GEO 近似圆轨道。

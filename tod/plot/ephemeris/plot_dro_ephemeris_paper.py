@@ -10,7 +10,6 @@ J2000 惯性系 XY、会合坐标系 XY、地心距随时间变化。中文标�
        uv run python -m tod.plot.ephemeris.plot_dro_ephemeris_paper --help
 """
 
-
 from __future__ import annotations
 
 import argparse
@@ -60,7 +59,6 @@ EPHEMERIS_JSON_DEFAULT = (
     / "dro_single_ephemeris_conversion_20260609_105936.json"
 )
 
-
 def parse_args(argv=None):
     """解析命令行参数。
 
@@ -80,7 +78,6 @@ def parse_args(argv=None):
     parser.add_argument("--dpi", type=int, default=300, help="输出图片 DPI")
     return parser.parse_args(argv)
 
-
 def load_ephemeris_result(json_file: Path) -> dict:
     """加载星历修正 JSON 结果。
 
@@ -92,7 +89,6 @@ def load_ephemeris_result(json_file: Path) -> dict:
     """
     with open(json_file, encoding="utf-8") as f:
         return json.load(f)
-
 
 def propagate_corrected_segments(
     corrected_states: np.ndarray,
@@ -132,20 +128,8 @@ def propagate_corrected_segments(
 
     return np.vstack(full_states), np.concatenate(full_times)
 
-
 def main(argv=None):
-    """执行脚本主流程。
 
-    Args:
-        argv: 命令行参数列表，None 时使用 sys.argv。
-
-    Returns:
-        None。
-
-    Raises:
-        FileNotFoundError: 当输入文件不存在时。
-        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
-    """
     args = parse_args(argv)
 
     dro_file = Path(args.dro_file) if args.dro_file else DRO_JSON_DEFAULT
@@ -319,12 +303,10 @@ def main(argv=None):
     finally:
         spice.unload_kernel(kernel_path)
 
-
 if __name__ == "__main__":
     if len(sys.argv) == 1:
         logger.debug("无命令行参数，使用默认值运行")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

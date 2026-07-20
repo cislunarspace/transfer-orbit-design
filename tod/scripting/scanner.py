@@ -7,7 +7,6 @@ _ScanEntry（扫描器视角下的轻量条目），ScriptEntry、CliParam 等�
 定义在 tod.scripting.types 中。
 """
 
-
 from __future__ import annotations
 
 import importlib.util
@@ -21,7 +20,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-
 class _NoScriptEntryError(RuntimeError):
     """文件加载成功但缺少 SCRIPT_ENTRY 导出。
 
@@ -32,7 +30,6 @@ class _NoScriptEntryError(RuntimeError):
 # 自包含的最小类型，避免在导入时触发 sciPy 等重型依赖。
 # params 文件从 tod.scripting 导入真实的 ScriptEntry，
 # 扫描器只读属性，不参与类型转换。
-
 
 @dataclass(frozen=True)
 class _ScanEntry:
@@ -52,7 +49,6 @@ class _ScanEntry:
     cli_params: list = field(default_factory=list)
     group_label: str = ""
 
-
 def iter_script_files(base: Path) -> Iterator[Path]:
     """Yield base 下所有含 SCRIPT_ENTRY 的 .py 文件（跳过私有目录和私有文件）。"""
     for path in base.rglob("*.py"):
@@ -61,7 +57,6 @@ def iter_script_files(base: Path) -> Iterator[Path]:
         if path.name.startswith("_") or path.name == "__init__.py":
             continue
         yield path
-
 
 def _make_module_name(file_path: Path, prefix: str) -> str:
     """生成唯一的临时模块名，避免同名 stem 冲突。
@@ -72,7 +67,6 @@ def _make_module_name(file_path: Path, prefix: str) -> str:
     """
     h = abs(hash(str(file_path.resolve()))) & 0xFFFFFFFF
     return f"{prefix}_{file_path.stem}_{h:08x}"
-
 
 def _load_script_entry(file_path: Path) -> _ScanEntry:
     """从单个 .py 文件加载 SCRIPT_ENTRY，不存在则抛异常。"""
@@ -115,7 +109,6 @@ def _load_script_entry(file_path: Path) -> _ScanEntry:
         group_label=raw.group_label,
     )
 
-
 def _classify(entry: _ScanEntry) -> str:
     """根据 script_path 的目录结构推断分类键。
 
@@ -138,7 +131,6 @@ def _classify(entry: _ScanEntry) -> str:
         return "inspection"
     return "misc"
 
-
 def _default_scan_dirs() -> list[Path]:
     """返回默认扫描目录列表。
 
@@ -151,7 +143,6 @@ def _default_scan_dirs() -> list[Path]:
         repo_root / "tod" / "plot",
         repo_root / "tod" / "transfers",
     ]
-
 
 def get_scripts(
     scripts_dir: Path | None = None,

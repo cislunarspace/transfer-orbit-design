@@ -15,7 +15,6 @@ from PyQt6.QtWidgets import QCheckBox, QComboBox, QLineEdit, QMessageBox, QSpinB
 from tod.gui.i18n import qt_format
 from tod.scripting import CliParam, ScriptEntry
 
-
 class ScriptParamCollector:
     """从控件字典中收集参数。"""
 

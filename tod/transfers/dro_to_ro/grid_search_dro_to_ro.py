@@ -8,7 +8,6 @@
        uv run python -m tod.transfers.dro_to_ro.grid_search_dro_to_ro --help
 """
 
-
 import argparse
 import sys
 import json
@@ -23,7 +22,6 @@ from tod.transfers.optimize_config import apply_blas_env_for_child_processes, bl
 import logging
 
 logger = logging.getLogger(__name__)
-
 
 def parse_args():
     """解析命令行参数。
@@ -45,13 +43,8 @@ def parse_args():
     parser.add_argument("--moon-radius", type=float, default=100.0 / DU, help="月球碰撞检测半径")
     return parser.parse_args()
 
-
 def main() -> None:
-    """执行脚本主流程。
     
-    Returns:
-        None。
-    """
     args = parse_args()
 
     # =========================================================================
@@ -193,7 +186,6 @@ def main() -> None:
     logger.info(f"  总候选解: {len(results_data)}")
     logger.info(f"  可行解: {len(feasible_results)}")
 
-
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
@@ -212,7 +204,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

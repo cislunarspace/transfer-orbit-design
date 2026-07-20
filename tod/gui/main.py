@@ -1,14 +1,11 @@
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 import os
 import platform
 import sys
 from pathlib import Path
-
 
 # ---------------------------------------------------------------------------
 # Qt 环境变量设置（在 frozen 模式检查之前，确保子进程也能获取）
@@ -24,7 +21,6 @@ if platform.system() == "Linux":
     # Wayland + GNOME 默认使用 CSD (客户端装饰)，Qt 需要 X11 获得原生装饰
     if os.environ.get("XDG_SESSION_TYPE") == "wayland" and "QT_QPA_PLATFORM" not in os.environ:
         os.environ["QT_QPA_PLATFORM"] = "xcb"
-
 
 # ---------------------------------------------------------------------------
 # PyInstaller 子进程解释器模式
@@ -66,13 +62,8 @@ from PyQt6.QtWidgets import QApplication  # noqa: E402
 
 from tod.gui.main_window import MainWindow  # noqa: E402
 
-
 def main() -> None:
-    """执行脚本主流程。
-
-    Returns:
-        None。
-    """
+    
     # QtWebEngine 需要共享 OpenGL 上下文；必须在 QApplication 实例化之前设置
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
 
@@ -108,7 +99,6 @@ def main() -> None:
     window.show()
     app.aboutToQuit.connect(window._job_manager.stop_all)
     sys.exit(app.exec())
-
 
 if __name__ == "__main__":
     main()

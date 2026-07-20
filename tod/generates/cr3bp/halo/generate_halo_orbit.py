@@ -8,7 +8,6 @@
        uv run python -m tod.generates.cr3bp.halo.generate_halo_orbit --help
 """
 
-
 import argparse
 import logging
 import sys
@@ -38,7 +37,6 @@ OUTPUT_DIR = project_root / "output" / "halo"
 # x0, vy0 对应 z=0.23 附近的轨道参数，可作为相近振幅的初始猜测。
 _L1_NORTH_REF = {"x0": 0.930528, "vy0": 0.104313, "T_half": 1.839729}
 
-
 def parse_args():
     """解析命令行参数。
     
@@ -62,7 +60,6 @@ def parse_args():
                         help="目标周期（覆盖自动计算，单位 TU）")
     return parser.parse_args()
 
-
 def _halo_residuals(vars, dynamics, z0):
     """Halo 轨道半周期约束残差：[y(T/2), vx(T/2), vz(T/2)] → 0
 
@@ -78,7 +75,6 @@ def _halo_residuals(vars, dynamics, z0):
     )
     final = res.y[:, -1]
     return np.array([final[1], final[3], final[5]])
-
 
 def _solve_halo(dynamics, z0, x0_guess, vy0_guess, t_half_guess, tol=1e-10, max_iterations=500):
     """用 scipy.optimize.least_squares 求解 Halo 轨道
@@ -105,7 +101,6 @@ def _solve_halo(dynamics, z0, x0_guess, vy0_guess, t_half_guess, tol=1e-10, max_
         return None
     return tuple(result.x)
 
-
 def _propagate_full_orbit(dynamics, x0, z0, vy0, t_half, n_points=1000):
     """传播完整周期轨道并构造 Orbit 对象"""
     T = 2 * t_half
@@ -118,7 +113,6 @@ def _propagate_full_orbit(dynamics, x0, z0, vy0, t_half, n_points=1000):
     orbit = Orbit(states=res.y.T.tolist(), times=res.t.tolist())
     orbit.period = T
     return orbit
-
 
 def _compute_richardson_period(mu, Au, Aw, libration_point):
     """计算 Richardson 三阶近似的周期估计
@@ -149,7 +143,6 @@ def _compute_richardson_period(mu, Au, Aw, libration_point):
 
     return T_linear, T_richardson, omega_p, freq_correction
 
-
 def _extract_seed_from_approximation(SV_xyz, z_amplitude):
     """从 Richardson 近似轨道提取种子参数
 
@@ -171,7 +164,6 @@ def _extract_seed_from_approximation(SV_xyz, z_amplitude):
     x0 = float(SV_xyz[idx_z_max, 0])
     vy0 = float(SV_xyz[idx_z_max, 4])
     return x0, vy0, z_amplitude
-
 
 def _select_vy0_sign(x0, z0, vy0_raw, T, mu):
     """通过半周期传播选择正确的 vy0 符号
@@ -204,7 +196,6 @@ def _select_vy0_sign(x0, z0, vy0_raw, T, mu):
     x_final = res.y[0, -1]
     sign = 1.0 if x_final > x0 else -1.0
     return sign * abs(vy0_raw)
-
 
 def richardson_initial_guess(mu, z_amplitude, libration_point, halo_class):
     """用 Richardson 三阶近似生成 Halo 轨道初始猜测
@@ -252,7 +243,6 @@ def richardson_initial_guess(mu, z_amplitude, libration_point, halo_class):
         "period": period,
     }
 
-
 def _get_initial_guess(mu, amplitude_z, libration_point, halo_class):
     """获取最优初始猜测
 
@@ -292,13 +282,8 @@ def _get_initial_guess(mu, amplitude_z, libration_point, halo_class):
     guess["ref_z"] = None
     return guess
 
-
 def main():
-    """执行脚本主流程。
     
-    Returns:
-        None。
-    """
     args = parse_args()
 
     # =============================================================================
@@ -408,7 +393,6 @@ def main():
     orbit_result.save_to_file(filename=str(output_file))
     logger.info("  保存至: %s", output_file)
 
-
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用 `python -m tod.generates.cr3bp.halo.generate_halo_orbit ...` 时不受影响。
@@ -422,7 +406,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

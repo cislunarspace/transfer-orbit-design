@@ -19,7 +19,6 @@ from tod.gui.params.script_param_collector import ScriptParamCollector
 from tod.gui.params.script_param_panel import ScriptParamPanel
 from tod.scripting import CliParam, ScriptEntry
 
-
 class ScriptTabWidget(QWidget):
     """单个脚本的完整参数面板：标题、描述、参数控件、运行按钮。
 

@@ -37,7 +37,6 @@ from tod.plot.orbit_config_registry import FALLBACK_CONFIG, detect_orbit_config
 
 logger = logging.getLogger(__name__)
 
-
 def build_argparser() -> argparse.ArgumentParser:
     """创建统一的轨道族绘图参数解析器。"""
     parser = argparse.ArgumentParser(
@@ -78,7 +77,6 @@ def build_argparser() -> argparse.ArgumentParser:
     parser.add_argument("--no-show", action="store_true", help="只保存图片，不弹窗显示")
     return parser
 
-
 def _detect_first_file(args: argparse.Namespace) -> Path | None:
     """从参数中提取第一个文件路径用于类型检测。"""
     single_path, multi_configs = _parse_json_file_arg(args.json_file)
@@ -87,7 +85,6 @@ def _detect_first_file(args: argparse.Namespace) -> Path | None:
     if multi_configs:
         return Path(multi_configs[0].path)
     return None
-
 
 def _resolve_config(args: argparse.Namespace) -> FamilyPlotConfig:
     """合并自动检测配置与 CLI 覆盖。"""
@@ -109,22 +106,12 @@ def _resolve_config(args: argparse.Namespace) -> FamilyPlotConfig:
 
     return dataclasses.replace(base_config, **overrides)
 
-
 def main(
     plot1: bool | None = None,
     plot2: bool | None = None,
     plot3: bool | None = None,
 ) -> None:
-    """执行脚本主流程。
 
-    Args:
-        plot1: 覆盖 2D 视图开关。
-        plot2: 覆盖 3D 视图开关。
-        plot3: 覆盖 Jacobi-稳定性图开关。
-
-    Returns:
-        None。
-    """
     parser = build_argparser()
     args = parser.parse_args()
 
@@ -140,10 +127,8 @@ def main(
 
     FamilyPlotOrchestrator(config, args).run()
 
-
 if __name__ == "__main__":
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

@@ -9,7 +9,6 @@
        uv run python -m tod.plot.ephemeris.plot_ephemeris_correction --help
 """
 
-
 import argparse
 import json
 import logging
@@ -45,7 +44,6 @@ PLOT_CONFIG = apply_standard_plot_config()
 DRO_JSON_DEFAULT = project_root / "output" / "dro" / "dro_31_3857864736.json"
 EPHEMERIS_JSON_DEFAULT = output_dir / "dro_ephemeris_correction_20260406_120419.json"
 
-
 def parse_args():
     """解析命令行参数。
     
@@ -72,7 +70,6 @@ BODIES = ["EARTH", "MOON", "SUN"]
 TU_SECONDS = TU * 86400
 N_PERIODS = 3
 J2000_AXIS_LABELS = ("X (DU)", "Y (DU)", "Z (DU)")
-
 
 def resolve_reference_epoch(
     eph_data: dict,
@@ -108,7 +105,6 @@ def resolve_reference_epoch(
         )
     return json_reference_epoch
 
-
 def set_axes_equal(ax):
     """将三维坐标轴设置为等比例显示。
     
@@ -128,7 +124,6 @@ def set_axes_equal(ax):
     ax.set_xlim(mid_x - max_range, mid_x + max_range)
     ax.set_ylim(mid_y - max_range, mid_y + max_range)
     ax.set_zlim(mid_z - max_range, mid_z + max_range)
-
 
 def tile_orbit_n_periods(orbit, n):
     """执行 tile_orbit_n_periods 对应的处理逻辑。
@@ -157,16 +152,8 @@ def tile_orbit_n_periods(orbit, n):
 
     return np.vstack(states_list), np.concatenate(times_list)
 
-
 def main():
-    """执行脚本主流程。
-    
-    Returns:
-        None。
-    
-    Raises:
-        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
-    """
+
     args = parse_args()
 
     dro_json_file = Path(args.dro_file) if args.dro_file else DRO_JSON_DEFAULT
@@ -326,7 +313,6 @@ def main():
     finally:
         spice.unload_kernel(kernel_path)
 
-
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
@@ -334,7 +320,6 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

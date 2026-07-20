@@ -30,7 +30,6 @@ from tod.gui.i18n import qt_format
 if TYPE_CHECKING:
     from tod.gui.run.run_orchestrator import OverwriteTarget, RunPlan
 
-
 class RunConfirmationDialog(QDialog):
     """展示 RunPlan 并等待用户确认的对话框。
 

@@ -36,7 +36,6 @@ _RATIO_DEFAULTS: dict[str, dict[str, float]] = {
     "3:2": {"x0": -1.1453, "vy0": 0.4633, "period": 54.64},
 }
 
-
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """解析命令行参数。
 
@@ -77,9 +76,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     return parser.parse_args(argv)
 
-
 def main(argv: list[str] | None = None) -> None:
-    """执行脚本主流程。"""
     args = parse_args(argv)
     defaults = _RATIO_DEFAULTS[args.ratio]
 
@@ -123,7 +120,6 @@ def main(argv: list[str] | None = None) -> None:
     else:
         logger.error("修正失败: %s", corrector.termination_reason)
 
-
 if __name__ == "__main__":
     if len(sys.argv) == 1:
         sys.argv += [
@@ -134,7 +130,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

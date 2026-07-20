@@ -21,7 +21,6 @@ from enum import StrEnum
 
 from tod.gui.jobs.job_status import JobStatus
 
-
 class BatchAggregate(StrEnum):
     """批量运行的聚合状态。"""
 
@@ -32,7 +31,6 @@ class BatchAggregate(StrEnum):
     PARTIAL_WITH_STOPS = "partial_with_stops"
     STOPPED = "stopped"
 
-
 BATCH_AGGREGATE_DISPLAY: dict[BatchAggregate, str] = {
     BatchAggregate.RUNNING: "运行中",
     BatchAggregate.SUCCESS: "全部完成",
@@ -41,7 +39,6 @@ BATCH_AGGREGATE_DISPLAY: dict[BatchAggregate, str] = {
     BatchAggregate.PARTIAL_WITH_STOPS: "部分完成（含已停止）",
     BatchAggregate.STOPPED: "已停止",
 }
-
 
 def aggregate_status(statuses: tuple[JobStatus, ...] | list[JobStatus]) -> BatchAggregate:
     """从一组 JobStatus 推导出 BatchAggregate 的纯函数。
@@ -100,11 +97,9 @@ def aggregate_status(statuses: tuple[JobStatus, ...] | list[JobStatus]) -> Batch
     # 理论上不会走到这里（所有组合已覆盖）
     return BatchAggregate.RUNNING
 
-
 _ACTIVE_STATUSES: frozenset[JobStatus] = frozenset(
     {JobStatus.PENDING, JobStatus.RUNNING}
 )
-
 
 @dataclass(frozen=True)
 class BatchRun:

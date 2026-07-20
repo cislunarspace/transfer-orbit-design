@@ -35,7 +35,6 @@ _RATIO_DEFAULTS: dict[str, dict[str, float]] = {
     "3:2": {"x0": -1.1453, "vy0": 0.4633, "period": 54.64},
 }
 
-
 class RoFamilyGenerator(FamilyGenerator):
     """RO（共振轨道）族生成器。"""
 
@@ -137,7 +136,6 @@ class RoFamilyGenerator(FamilyGenerator):
         ratio_tag = args.ratio.replace(":", "")
         return f"ro_{ratio_tag}_family_{param_min}-{param_max}-{step_size}_{ts}"
 
-
 def main() -> None:
     """RO 轨道族生成入口。"""
     config = FamilyGeneratorConfig(
@@ -152,7 +150,6 @@ def main() -> None:
     setup_logging(args.log_level)
     gen.run(args)
 
-
 if __name__ == "__main__":
     inject_debug_args(
         sys.argv,
@@ -164,7 +161,6 @@ if __name__ == "__main__":
         ],
     )
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

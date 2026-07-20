@@ -1,9 +1,7 @@
 # pyright: reportOptionalMemberAccess=false, reportArgumentType=false
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 from __future__ import annotations
 
@@ -15,7 +13,6 @@ from PyQt6.QtWidgets import QApplication, QStyle, QTreeWidget, QTreeWidgetItem
 
 from tod.scripting import ScriptEntry
 from tod.gui.script_tree import TreeNode
-
 
 class SidebarTreeWidget(QTreeWidget):
     """Tree widget for selecting registered scripts from sidebar nodes."""

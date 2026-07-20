@@ -3,12 +3,10 @@
 本包用于组织相关模块的导入边界，不在导入时执行数值计算。
 """
 
-
 from pathlib import Path
 
 _THEMES_DIR = Path(__file__).resolve().parent
 _CACHE: dict[str, str] = {}
-
 
 def load_stylesheet(theme: str) -> str:
     """加载指定主题的 QSS 样式表，结果缓存于内存。"""

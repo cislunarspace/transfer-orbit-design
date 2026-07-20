@@ -27,14 +27,12 @@ from typing import Any
 
 from tod.generates.ephemeris import _conversion
 
-
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 DEFAULT_OUTPUT_DIR = project_root / "output" / "ephemeris"
 DEFAULT_SPICE_KERNEL_DIR = Path(
     os.environ.get("SPICE_KERNEL_DIR", str(project_root.parent / "e2m2e" / "kernels"))
 )
 DEFAULT_BODIES = ("EARTH", "MOON", "SUN")
-
 
 def build_parser() -> argparse.ArgumentParser:
     """构建统一 CLI 参数解析器。"""
@@ -122,7 +120,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     return parser
 
-
 def config_from_args(args: argparse.Namespace) -> _conversion.SingleConversionConfig:
     """从 CLI 参数构造 SingleConversionConfig。"""
     position_tol = args.position_tol
@@ -151,13 +148,11 @@ def config_from_args(args: argparse.Namespace) -> _conversion.SingleConversionCo
         max_iter=args.max_iter,
     )
 
-
 def _resolve_output_file(prefix: str, method: str, position_tol: float) -> Path:
     """根据前缀、方法名和容差生成输出文件路径。"""
     safe_tol = _format_tol(position_tol)
     filename = f"{prefix}_{method}_tol{safe_tol}.json"
     return Path(filename)
-
 
 def _format_tol(value: float) -> str:
     """将容差值格式化为文件名友好的字符串。"""
@@ -169,7 +164,6 @@ def _format_tol(value: float) -> str:
     if "e-0" in s:
         s = s.replace("e-0", "e-")
     return s
-
 
 def _compute_geocentric_distance_stats(states: list[list[float]]) -> dict[str, float] | None:
     """从轨迹状态计算平均地心距（km）和标准差。
@@ -195,12 +189,10 @@ def _compute_geocentric_distance_stats(states: list[list[float]]) -> dict[str, f
 
     return {"mean": mean, "std": std}
 
-
 def _write_output(payload: dict[str, Any], output_file: Path) -> None:
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with output_file.open("w", encoding="utf-8") as file:
         json.dump(payload, file, indent=2, ensure_ascii=False)
-
 
 def run(argv: list[str] | None = None) -> dict[str, Any]:
     """执行单组星历转换并输出诊断数据。
@@ -264,11 +256,9 @@ def run(argv: list[str] | None = None) -> dict[str, Any]:
     _write_output(output_payload, output_file)
     return output_payload
 
-
 def main(argv: list[str] | None = None) -> dict[str, Any]:
     """CLI 入口。"""
     return run(argv)
-
 
 def _parse_bodies(value: str) -> tuple[str, ...]:
     bodies = tuple(body.strip().upper() for body in value.split(",") if body.strip())
@@ -276,17 +266,14 @@ def _parse_bodies(value: str) -> tuple[str, ...]:
         raise ValueError("--bodies must contain at least one body")
     return bodies
 
-
 def _positive_int(value: str) -> int:
     parsed = int(value)
     if parsed < 1:
         raise argparse.ArgumentTypeError("value must be at least 1")
     return parsed
 
-
 if __name__ == "__main__":
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

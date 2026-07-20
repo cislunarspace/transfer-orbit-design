@@ -32,7 +32,6 @@ DEFAULT_SPICE_KERNEL_DIR = Path(
     project_root.parent / "e2m2e" / "kernels"
 )
 
-
 def parse_args():
     parser = argparse.ArgumentParser(
         description="将 DRO→GEO 优化转移轨迹转换到星历模型",
@@ -72,11 +71,9 @@ def parse_args():
     )
     return parser.parse_args()
 
-
 def load_optimization_results(path: Path) -> dict:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
-
 
 def select_best_result(data: dict, select_by: str) -> dict:
     """选取最优结果（最短转移时间或最优目标函数）。"""
@@ -90,7 +87,6 @@ def select_best_result(data: dict, select_by: str) -> dict:
     else:
         best = min(success, key=lambda r: r["nlp"]["objective_value"])
     return best
-
 
 def cr3bp_propagate(state0: np.ndarray, transfer_time: float, dynamics) -> tuple[np.ndarray, np.ndarray]:
     """在 CR3BP synodic 坐标系中传播转移轨迹。"""
@@ -106,7 +102,6 @@ def cr3bp_propagate(state0: np.ndarray, transfer_time: float, dynamics) -> tuple
         with_jacobi=False,
     )
     return result["states"], result["time"]
-
 
 def synodic_to_j2000_states(
     states_syn: np.ndarray,
@@ -133,7 +128,6 @@ def synodic_to_j2000_states(
     )
     return states_j2000
 
-
 def propagate_ephemeris(
     state0_j2000: np.ndarray,
     t_start_et: float,
@@ -156,7 +150,6 @@ def propagate_ephemeris(
         states.append(result["states"][-1])
 
     return np.array(states), times_et
-
 
 def plot_comparison(
     cr3bp_states_km: np.ndarray,
@@ -221,7 +214,6 @@ def plot_comparison(
     else:
         plt.show()
     plt.close(fig)
-
 
 def main():
     args = parse_args()
@@ -392,7 +384,6 @@ def main():
         plot_comparison(cr3bp_states_km, eph_states, args.plot_save)
 
     print("\n完成。")
-
 
 if __name__ == "__main__":
     main()

@@ -1,8 +1,6 @@
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 from __future__ import annotations
 
@@ -39,11 +37,9 @@ _PROGRESS_RE = re.compile(r"(\d+)%")
 # 最大输出字符数
 _MAX_BUFFER = 100_000
 
-
 def _strip_ansi(text: str) -> str:
     """移除 ANSI 转义序列。"""
     return _ANSI_RE.sub("", text)
-
 
 def _html_escape(text: str) -> str:
     """转义 HTML 特殊字符。"""
@@ -52,7 +48,6 @@ def _html_escape(text: str) -> str:
         .replace("<", "&lt;")
         .replace(">", "&gt;")
     )
-
 
 class StructuredOutputWidget(QWidget):
     """单个 Job 的结构化输出面板：时间戳、着色、自动滚动。"""
@@ -252,11 +247,7 @@ class StructuredOutputWidget(QWidget):
         self._browser.setTextCursor(cursor)
 
     def clear(self) -> None:
-        """执行 clear 对应的处理逻辑。
         
-        Returns:
-            None。
-        """
         self._browser.clear()
         self._raw_lines.clear()
 
@@ -309,7 +300,6 @@ class StructuredOutputWidget(QWidget):
         self._elapsed_label.setText(qt_format(self.tr("完成 %1"), f"{h:02d}:{m:02d}:{s:02d}"))
         self._progress_bar.hide()
 
-
 # 状态徽章颜色表（按 JobStatus 枚举键索引，集中维护，不接 i18n）
 # 取双主题可读的中饱和色，亮/暗卡片背景上均有足够对比度。
 _STATUS_COLORS: dict[JobStatus, str] = {
@@ -322,7 +312,6 @@ _STATUS_COLORS: dict[JobStatus, str] = {
 
 # 运行中脉动时使用的低饱和基色
 _PULSE_DIM_COLOR = "#0e639c"
-
 
 class JobCard(QWidget):
     """Job 列表中的单个卡片：显示脚本名、状态、运行时间、停止按钮。"""
@@ -406,11 +395,7 @@ class JobCard(QWidget):
 
     @property
     def is_running(self) -> bool:
-        """执行 is_running 对应的处理逻辑。
-
-        Returns:
-            函数执行结果。
-        """
+        
         return self._is_running
 
     def set_status(self, status: JobStatus) -> None:

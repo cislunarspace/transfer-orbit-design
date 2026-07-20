@@ -8,7 +8,6 @@
        uv run python -m tod.plot.transfer.leo_to_dro.plot_optimize_result_leo_to_dro --help
 """
 
-
 from __future__ import annotations
 
 import argparse
@@ -41,7 +40,6 @@ import matplotlib.pyplot as plt  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
-
 def load_optimization_results(path: Path) -> dict:
     """读取转移优化结果 JSON 文件。
     
@@ -54,13 +52,10 @@ def load_optimization_results(path: Path) -> dict:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
-
 def _latest_optimization_json() -> Path | None:
     transfer_dir = project_root / "output/transfer"
     candidates = sorted(transfer_dir.glob("optimization_leo_dro_*.json"))
     return candidates[-1] if candidates else None
-
-
 
 
 
@@ -76,10 +71,8 @@ def _successful_records(results: list[dict], max_pos_err_km: float) -> list[dict
         success.append(row)
     return success
 
-
 def _record_objective(record: dict) -> float:
     return float(record.get("nlp", {}).get("objective_value", float("inf")))
-
 
 def _select_records(records: list[dict], idx_arg: str, seed: int, max_points: int) -> list[dict]:
     if idx_arg == "all":
@@ -98,7 +91,6 @@ def _select_records(records: list[dict], idx_arg: str, seed: int, max_points: in
     idx = int(idx_arg)
     return [records[idx]] if 0 <= idx < len(records) else []
 
-
 def _plot_time_dv(records: list[dict], ax) -> None:
     if not records:
         ax.text(0.5, 0.5, "无成功结果", ha="center", va="center", transform=ax.transAxes)
@@ -110,7 +102,6 @@ def _plot_time_dv(records: list[dict], ax) -> None:
     ax.set_ylabel("总 Δv (km/s)")
     ax.set_title("LEO→DRO: 转移时间 vs Δv")
     ax.grid(True, alpha=0.3)
-
 
 def _plot_orbit_selection(records: list[dict], ax) -> None:
     if not records:
@@ -126,7 +117,6 @@ def _plot_orbit_selection(records: list[dict], ax) -> None:
     ax.set_zlabel("z (DU)")
     ax.set_title(f"LEO→DRO: {len(records)} 条选中优化结果出发点")
     ax.grid(True, alpha=0.3)
-
 
 def _interactive_browse(records: list[dict]) -> None:
     selected = sorted(records, key=_record_objective)
@@ -147,16 +137,8 @@ def _interactive_browse(records: list[dict]) -> None:
         except (EOFError, KeyboardInterrupt):
             break
 
-
 def main() -> None:
-    """执行脚本主流程。
-    
-    Returns:
-        None。
-    
-    Raises:
-        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
-    """
+
     parser = argparse.ArgumentParser(description="可视化 LEO→DRO 优化结果", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--file", type=str, default=None, help="优化结果 JSON 路径")
     parser.add_argument("--auto-latest", action="store_true", help="显式 opt-in：按 mtime 选最新 optimization_leo_dro_*.json")
@@ -203,10 +185,8 @@ def main() -> None:
         plt.show()
     plt.close(fig)
 
-
 if __name__ == "__main__":
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

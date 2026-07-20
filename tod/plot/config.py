@@ -5,7 +5,6 @@ colorbar 样式与轨道采样等配置，供 ``tod.plot`` 下的可视化脚本
 本身不可作为脚本运行。
 """
 
-
 from __future__ import annotations
 
 import os
@@ -13,7 +12,6 @@ from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
-
 
 PLOT_FONT_KEYS = (
     "title",
@@ -58,7 +56,6 @@ PLOT_FONT_SETTING_KEYS: dict[str, str] = {
     key: f"plot_font_{key}" for key in PLOT_FONT_KEYS
 }
 
-
 def _coerce_font_size(value: Any) -> float | None:
     try:
         size = float(value)
@@ -67,7 +64,6 @@ def _coerce_font_size(value: Any) -> float | None:
     if size <= 0:
         return None
     return size
-
 
 def get_plot_font_sizes_from_env(
     env: Mapping[str, str] | None = None,
@@ -83,7 +79,6 @@ def get_plot_font_sizes_from_env(
             overrides[key] = size
     return overrides
 
-
 def plot_font_env_from_settings(settings: Mapping[str, str]) -> dict[str, str]:
     """将 GUI 持久化设置转换为子进程环境变量。"""
     env: dict[str, str] = {}
@@ -94,7 +89,6 @@ def plot_font_env_from_settings(settings: Mapping[str, str]) -> dict[str, str]:
         if size is not None:
             env[PLOT_FONT_ENV_VARS[key]] = f"{size:g}"
     return env
-
 
 def body_icon_env_from_settings(settings: Mapping[str, str]) -> dict[str, str]:
     """将 GUI 的 plot_body_icon_scale 设置转换为子进程环境变量。
@@ -111,7 +105,6 @@ def body_icon_env_from_settings(settings: Mapping[str, str]) -> dict[str, str]:
     if value <= 0:
         return {}
     return {BODY_ICON_SCALE_ENV: f"{value:g}"}
-
 
 def get_standard_plot_config(
     font_sizes: Mapping[str, float] | None = None,
@@ -141,7 +134,6 @@ def get_standard_plot_config(
         kwargs["secondary_body_icon_scale"] = PROJECT_DEFAULT_BODY_ICON_SCALE
 
     return PlotConfig.from_env(**kwargs)  # pyright: ignore[reportArgumentType]
-
 
 def apply_standard_plot_config(
     font_sizes: Mapping[str, float] | None = None,
@@ -191,7 +183,6 @@ def apply_standard_plot_config(
     matplotlib.rcParams["axes.unicode_minus"] = False
     return config
 
-
 def style_colorbar(colorbar, config, label: str | None = None):
     """统一色标标签和刻度字号。"""
     if label is not None:
@@ -200,7 +191,6 @@ def style_colorbar(colorbar, config, label: str | None = None):
         colorbar.set_label(colorbar.ax.get_ylabel() or colorbar.ax.get_xlabel(), fontsize=config.colorbar)
     colorbar.ax.tick_params(labelsize=config.colorbar)
     return colorbar
-
 
 def subsample_indices(n: int, max_points: int | None, seed: int) -> np.ndarray:
     """对轨道索引进行亚采样（当轨道数超过最大点数时）。

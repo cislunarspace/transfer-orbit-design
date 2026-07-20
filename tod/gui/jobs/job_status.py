@@ -19,7 +19,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-
 class JobStatus(StrEnum):
     """Job 生命周期状态。"""
 
@@ -58,7 +57,6 @@ class JobStatus(StrEnum):
             return JobStatus.SUCCESS
         return JobStatus.FAILURE
 
-
 _ACTIVE_STATUSES: frozenset[JobStatus] = frozenset(
     {JobStatus.PENDING, JobStatus.RUNNING}
 )
@@ -74,7 +72,6 @@ JOB_STATUS_DISPLAY: dict[JobStatus, str] = {
     JobStatus.FAILURE: "失败",
     JobStatus.STOPPED: "已停止",
 }
-
 
 @dataclass(frozen=True)
 class JobFinishResult:

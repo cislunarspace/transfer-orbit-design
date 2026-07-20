@@ -25,7 +25,6 @@ from tod.scripting import UNIT_GROUPS, CliParam, ScriptEntry
 if TYPE_CHECKING:
     pass
 
-
 @dataclass(frozen=True)
 class CatalogSeedSelectorState:
     """Catalog seed selector 的轻量 UI 状态。"""
@@ -37,7 +36,6 @@ class CatalogSeedSelectorState:
     jacobi_widget: QWidget
     tolerance_widget: QWidget
     manual_keys: tuple[str, ...]
-
 
 class ParamValueStore:
     """参数值存储：持有控件字典、默认值、单位/路径/可见性/高亮/默认值持久化逻辑。

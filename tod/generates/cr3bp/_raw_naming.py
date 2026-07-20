@@ -5,10 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-
 class RawDatasetNameError(ValueError):
     """原始数据文件名无法解析。"""
-
 
 @dataclass(frozen=True)
 class RawDatasetName:
@@ -24,13 +22,11 @@ class RawDatasetName:
     resonance: str
     source_file: str
 
-
 SOURCE_ORBIT_TYPE_MAP = {
     "short": "spo",
     "longp": "lpo",
     "lpo": "lpo_directional",
 }
-
 
 def parse_raw_xlsx_name(path: Path) -> RawDatasetName:
     """解析形如 ``earth-moon_halo_L1_N.xlsx`` 的原始数据文件名。"""

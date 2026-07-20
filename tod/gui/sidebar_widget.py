@@ -1,8 +1,6 @@
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 from __future__ import annotations
 
@@ -15,7 +13,6 @@ from PyQt6.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QSizePolicy, QStacke
 from tod.scripting import SCRIPTS
 from tod.gui.script_tree import build_tree_from_scripts
 from tod.gui.sidebar_tree import SidebarTreeWidget
-
 
 class SidebarWidget(QWidget):
     """Container widget with search bar and sidebar tree."""

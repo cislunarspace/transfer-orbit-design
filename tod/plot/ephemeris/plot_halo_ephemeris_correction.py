@@ -9,7 +9,6 @@
        uv run python -m tod.plot.ephemeris.plot_halo_ephemeris_correction --help
 """
 
-
 from __future__ import annotations
 
 import argparse
@@ -45,7 +44,6 @@ _REQUIRED_KEYS = frozenset({
     "full_trajectory_times_et",
 })
 
-
 def load_halo_correction_data(json_path: Path) -> dict:
     """加载并验证 Halo 星历修正 JSON 文件。
 
@@ -69,7 +67,6 @@ def load_halo_correction_data(json_path: Path) -> dict:
     data["full_trajectory_times_et"] = np.array(data["full_trajectory_times_et"])
 
     return data
-
 
 def plot_residual_convergence(
     fig: Figure,
@@ -138,7 +135,6 @@ def plot_residual_convergence(
     else:
         ax_vel.set_visible(False)
 
-
 def plot_xy_projection_comparison(
     fig: Figure,
     pre_xy: np.ndarray,
@@ -189,7 +185,6 @@ def plot_xy_projection_comparison(
     ax_post.legend()
     ax_post.set_aspect("equal")
     ax_post.grid(True, alpha=0.3)
-
 
 def plot_3d_trajectory_comparison(
     fig: Figure,
@@ -252,7 +247,6 @@ def plot_3d_trajectory_comparison(
     ax.set_title("Halo CR3BP vs Ephemeris Correction")
     ax.legend(loc="upper left")
     ax.view_init(elev=25, azim=-60)
-
 
 def generate_plots(
     json_path: Path,
@@ -330,7 +324,6 @@ def generate_plots(
 
     return saved
 
-
 def parse_args() -> argparse.Namespace:
     """解析命令行参数。
     
@@ -352,13 +345,8 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-
 def main() -> None:
-    """执行脚本主流程。
     
-    Returns:
-        None。
-    """
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
@@ -387,7 +375,6 @@ def main() -> None:
     logger.info("输入: %s", json_path)
 
     generate_plots(json_path, output_dir=output_dir)
-
 
 if __name__ == "__main__":
     main()

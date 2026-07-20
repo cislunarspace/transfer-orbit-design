@@ -8,7 +8,6 @@
        uv run python -m tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro --help
 """
 
-
 from __future__ import annotations
 
 import argparse
@@ -55,13 +54,10 @@ RO_FILE = project_root / "output/ro/ro_31_3857864753.json"
 
 DT = 1.0 / (24.0 * TU)
 
-
 def _latest_optimization_json() -> Optional[Path]:
     transfer_dir = project_root / "output/transfer"
     candidates = sorted(transfer_dir.glob("optimization_results_*.json"))
     return candidates[-1] if candidates else None
-
-
 
 
 
@@ -77,7 +73,6 @@ def load_optimization_results(path: Path) -> Dict[str, Any]:
     with open(path, encoding="utf-8") as f:
         return json.load(f)
 
-
 def _build_dynamics() -> Tuple[CR3BP_System, CR3BP_Dynamics]:
     system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
     dynamics = CR3BP_Dynamics(system=system)
@@ -86,7 +81,6 @@ def _build_dynamics() -> Tuple[CR3BP_System, CR3BP_Dynamics]:
     dynamics.atol = 1e-12
     dynamics.max_step = DT
     return system, dynamics
-
 
 def _integrate_transfer(
     departure_state: np.ndarray, alpha: float, transfer_time: float, dynamics: CR3BP_Dynamics
@@ -100,7 +94,6 @@ def _integrate_transfer(
         with_jacobi=False,
     )
     return result["time"], result["states"]
-
 
 def _collect_nlp_records(data: Dict[str, Any]) -> List[Dict[str, Any]]:
     records = []
@@ -127,7 +120,6 @@ def _collect_nlp_records(data: Dict[str, Any]) -> List[Dict[str, Any]]:
             }
         )
     return records
-
 
 def _select_indices(
     records: List[Dict[str, Any]], idx_arg: str, seed: int, max_points: Optional[int] = None
@@ -156,11 +148,9 @@ def _select_indices(
             raise ValueError(f"索引 {i} 超出范围（总数={n}）")
         return [i]
 
-
 # =====================================================================
 # 图表
 # =====================================================================
-
 
 def plot_dv_summary(records: List[Dict[str, Any]], ax: Axes) -> None:
     """绘制指定结果图形。
@@ -211,7 +201,6 @@ def plot_dv_summary(records: List[Dict[str, Any]], ax: Axes) -> None:
     ax.legend(fontsize=PLOT_CONFIG.legend)
     ax.grid(True, alpha=0.3)
 
-
 def plot_dv_scatter(records: List[Dict[str, Any]], ax: Axes) -> None:
     """绘制指定结果图形。
     
@@ -250,7 +239,6 @@ def plot_dv_scatter(records: List[Dict[str, Any]], ax: Axes) -> None:
         color="red",
     )
 
-
 def plot_transfer_time_vs_dv(records: List[Dict[str, Any]], ax: Axes) -> None:
     """绘制指定结果图形。
     
@@ -287,11 +275,9 @@ def plot_transfer_time_vs_dv(records: List[Dict[str, Any]], ax: Axes) -> None:
         color="red",
     )
 
-
 # =====================================================================
 # 3D 轨道
 # =====================================================================
-
 
 def plot_orbit_3d(
     records: List[Dict[str, Any]],
@@ -467,16 +453,8 @@ def plot_orbit_3d(
         plt.show()
     plt.close(fig)
 
-
 def main() -> None:
-    """执行脚本主流程。
-    
-    Returns:
-        None。
-    
-    Raises:
-        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
-    """
+
     parser = argparse.ArgumentParser(description="可视化 NLP 优化结果", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--file", type=str, default=None, help="optimization_results_*.json 路径（默认自动选最新）")
     parser.add_argument("--auto-latest", action="store_true", help="显式 opt-in：按 mtime 选最新 optimization_results_*.json")
@@ -545,7 +523,6 @@ def main() -> None:
             plt.show()
         plt.close(fig)
 
-
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
@@ -559,7 +536,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

@@ -8,7 +8,6 @@
        uv run python -m tod.plot.inspection.plot_interactive_orbit_inspector --help
 """
 
-
 import argparse
 import logging
 import sys
@@ -43,7 +42,6 @@ project_root = find_project_root(Path(__file__))
 
 PLOT_CONFIG = apply_standard_plot_config()
 
-
 def parse_args():
     """解析命令行参数。
 
@@ -69,16 +67,13 @@ def parse_args():
     )
     return parser.parse_args()
 
-
 # 旧的 ``DEFAULT_FAMILY_NAME`` 硬编码默认文件被 issue #183 移除：
 # - ``--json-file`` 必填或使用 ``--auto-latest`` 自动选最新
 # - 直跑 ``python -m tod.plot.inspection.plot_interactive_orbit_inspector``
 #   不再自动注入默认参数（见 ``__main__`` 块注释）
 
-
 # 全局图形窗口（在 main() 中初始化）
 fig = None
-
 
 def compute_orbit_jacobi(orbit, system):
     """计算单条轨道的Jacobi常数"""
@@ -88,7 +83,6 @@ def compute_orbit_jacobi(orbit, system):
     # compute_jacobi_constant 是纯 numpy 计算，只在数值溢出/非法值时失败
     except (FloatingPointError, ValueError):
         return None
-
 
 def precompute_jacobi_for_family(family, system):
     """预计算轨道族所有轨道的Jacobi常数"""
@@ -100,7 +94,6 @@ def precompute_jacobi_for_family(family, system):
         else:
             jacobi_list.append(compute_orbit_jacobi(orbit, system))
     return jacobi_list
-
 
 def compute_global_axis_limits(family, plane="xy", margin=1.15):
     """根据轨道族计算全局轴范围，确保所有轨道都能显示在同一窗口"""
@@ -135,16 +128,8 @@ def compute_global_axis_limits(family, plane="xy", margin=1.15):
     limit = max_val * margin
     return -limit, limit
 
-
 def main():
-    """执行脚本主流程。
-    
-    Returns:
-        None。
-    
-    Raises:
-        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
-    """
+
     global fig
 
     args = parse_args()
@@ -356,13 +341,11 @@ def main():
 
     logger.info(f"\n检查完成，共检查了 {current_idx + 1} 条轨道")
 
-
 if __name__ == "__main__":
     # 旧版 F5 直跑自动注入默认参数已被 issue #183 移除：
     # 直跑也会进入「需要显式输入」契约失败路径。开发者请显式传：
     #   --json-file <path> 或 --auto-latest
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

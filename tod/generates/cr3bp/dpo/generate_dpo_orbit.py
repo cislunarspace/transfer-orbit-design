@@ -48,7 +48,6 @@ logger = logging.getLogger(__name__)
 project_root = Path(__file__).resolve().parent.parent.parent.parent.parent
 OUTPUT_DIR = project_root / "output" / "dpo"
 
-
 @dataclass(frozen=True)
 class CatalogSeed:
     """DPO catalog 中选出的单条 seed。"""
@@ -66,10 +65,8 @@ class CatalogSeed:
     def period(self) -> float:
         return self.record.period
 
-
 def _parse_log_level(level_str: str) -> int:
     return getattr(logging, level_str.upper(), logging.WARNING)
-
 
 def _positive_float(value: str) -> float:
     parsed = float(value)
@@ -77,13 +74,11 @@ def _positive_float(value: str) -> float:
         raise argparse.ArgumentTypeError("must be greater than 0")
     return parsed
 
-
 def _num_points(value: str) -> int:
     parsed = int(value)
     if not 2 <= parsed <= 100000:
         raise argparse.ArgumentTypeError("must be between 2 and 100000")
     return parsed
-
 
 def build_parser() -> argparse.ArgumentParser:
     """构造单条 DPO 生成器 CLI parser。"""
@@ -117,18 +112,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     return parser
 
-
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     """解析命令行参数。"""
     return build_parser().parse_args(argv)
-
 
 def _setup_logging(level_str: str) -> None:
     logging.basicConfig(
         level=_parse_log_level(level_str),
         format="%(levelname)s: %(message)s",
     )
-
 
 def _validate_args(args: argparse.Namespace) -> None:
     """校验手动模式与 catalog 模式的互斥输入。"""
@@ -140,7 +132,6 @@ def _validate_args(args: argparse.Namespace) -> None:
             f"{', '.join(catalog_flags)} 与 {', '.join(manual_flags)} 冲突。"
         )
 
-
 def _manual_seed_metadata(initial_state: list[float], period: float) -> dict[str, object]:
     """返回 manual seed 路径写入单轨 JSON 的 provenance metadata。"""
     return {
@@ -150,7 +141,6 @@ def _manual_seed_metadata(initial_state: list[float], period: float) -> dict[str
         "is_corrected": True,
         "generation_method": "fixed_period_differential_correction",
     }
-
 
 def _catalog_seed_metadata(
     seed: CatalogSeed,
@@ -194,7 +184,6 @@ def _catalog_seed_metadata(
         )
     return metadata
 
-
 def _ensure_catalog_available(args: argparse.Namespace) -> None:
     index_file = args.catalog_dir / "index.csv"
     dpo_file = args.catalog_dir / "families" / "dpo.csv"
@@ -205,7 +194,6 @@ def _ensure_catalog_available(args: argparse.Namespace) -> None:
             "normalized CR3BP catalog 缺失；请先运行 importer，或移除 --no-auto-build-catalog 允许自动生成。"
         )
     import_cr3bp_xlsx_catalog(args.raw_data_dir, args.catalog_dir, overwrite=False)
-
 
 def _select_catalog_seed(args: argparse.Namespace) -> CatalogSeed:
     try:
@@ -240,7 +228,6 @@ def _select_catalog_seed(args: argparse.Namespace) -> CatalogSeed:
     except Cr3bpImportError as exc:
         raise SystemExit(f"DPO catalog 加载失败：catalog_dir={args.catalog_dir}: {exc}") from exc
 
-
 def _propagate_catalog_seed(
     initial_state: list[float],
     period: float,
@@ -266,10 +253,8 @@ def _propagate_catalog_seed(
     orbit.period = duration
     return orbit
 
-
 def _safe_filename_part(value: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]+", "_", value).strip("_") or "seed"
-
 
 def _save_orbit(orbit: Orbit, metadata: dict[str, object], *, seed_id: str | None = None) -> Path:
     orbit.metadata.update(metadata)
@@ -283,9 +268,7 @@ def _save_orbit(orbit: Orbit, metadata: dict[str, object], *, seed_id: str | Non
     orbit.save_to_file(filename=str(output_file))
     return output_file
 
-
 def main(argv: Sequence[str] | None = None) -> None:
-    """执行脚本主流程。"""
     args = parse_args(argv)
     _validate_args(args)
     _setup_logging(args.log_level)
@@ -357,7 +340,6 @@ def main(argv: Sequence[str] | None = None) -> None:
     else:
         print(f"[ERROR] 修正失败: {corrector.termination_reason}")
 
-
 if __name__ == "__main__":
     if len(sys.argv) == 1:
         sys.argv += [
@@ -367,7 +349,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

@@ -7,10 +7,8 @@ from zipfile import ZipFile
 import re
 import xml.etree.ElementTree as ET
 
-
 class XlsxReadError(ValueError):
     """XLSX 文件无法读取或结构不受支持。"""
-
 
 _CELL_REF_RE = re.compile(r"([A-Z]+)(\d+)")
 _NS = {
@@ -18,7 +16,6 @@ _NS = {
     "rel": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
     "pkgrel": "http://schemas.openxmlformats.org/package/2006/relationships",
 }
-
 
 def read_xlsx_sheets(path: Path) -> dict[str, list[list[str]]]:
     """读取 workbook 中所有工作表，返回 sheet 名到二维字符串表的映射。"""
@@ -34,7 +31,6 @@ def read_xlsx_sheets(path: Path) -> dict[str, list[list[str]]]:
     except KeyError as exc:
         raise XlsxReadError(f"Unsupported XLSX structure in {path}: missing {exc}") from exc
 
-
 def _read_shared_strings(archive: ZipFile) -> list[str]:
     if "xl/sharedStrings.xml" not in archive.namelist():
         return []
@@ -45,7 +41,6 @@ def _read_shared_strings(archive: ZipFile) -> list[str]:
         text_parts = [node.text or "" for node in item.findall(".//main:t", _NS)]
         strings.append("".join(text_parts))
     return strings
-
 
 def _read_sheet_paths(archive: ZipFile) -> dict[str, str]:
     workbook = ET.fromstring(archive.read("xl/workbook.xml"))
@@ -65,13 +60,11 @@ def _read_sheet_paths(archive: ZipFile) -> dict[str, str]:
         sheet_paths[name] = rel_targets[rel_id]
     return sheet_paths
 
-
 def _normalize_sheet_target(target: str) -> str:
     cleaned = target.lstrip("/")
     if cleaned.startswith("xl/"):
         return cleaned
     return f"xl/{cleaned}"
-
 
 def _read_sheet_rows(
     archive: ZipFile,
@@ -90,7 +83,6 @@ def _read_sheet_rows(
             values_by_col[column_index] = _cell_text(cell, shared_strings)
         rows.append([values_by_col.get(col, "") for col in range(1, max_col + 1)])
     return rows
-
 
 def _cell_text(cell: ET.Element, shared_strings: list[str]) -> str:
     cell_type = cell.attrib.get("t")
@@ -111,7 +103,6 @@ def _cell_text(cell: ET.Element, shared_strings: list[str]) -> str:
         return "".join(node.text or "" for node in cell.findall(".//main:t", _NS))
 
     return cell.findtext("main:v", default="", namespaces=_NS)
-
 
 def _cell_column_index(cell_ref: str) -> int:
     match = _CELL_REF_RE.fullmatch(cell_ref)

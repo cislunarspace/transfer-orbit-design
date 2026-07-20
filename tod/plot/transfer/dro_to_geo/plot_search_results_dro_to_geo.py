@@ -9,7 +9,6 @@
        uv run python -m tod.plot.transfer.dro_to_geo.plot_search_results_dro_to_geo --help
 """
 
-
 from __future__ import annotations
 
 import argparse
@@ -87,14 +86,12 @@ def _resolve_dro_file(cli_path: str | None) -> Path:
     except FileNotFoundError as exc:
         raise FileNotFoundError(str(exc)) from exc
 
-
 def _resolve_and_load_dro(cli_path: str | None) -> Orbit:
     dro_path = _resolve_dro_file(cli_path)
     if not dro_path.is_file():
         raise FileNotFoundError(f"DRO 轨道文件不存在: {dro_path}")
     logger.info("加载 DRO: %s", dro_path)
     return load_orbit_from_json(str(dro_path))
-
 
 def _resolve_truncation(row: dict) -> tuple[int | None, float]:
     """根据 row 的首次可行性字段决定绘图截断位置（F1 切片 + D1 fallback）。
@@ -126,7 +123,6 @@ def _resolve_truncation(row: dict) -> tuple[int | None, float]:
         return None, total_T
     return int(k), float(t)
 
-
 def _build_transfer_search() -> TransferSearch:
     DT = 1.0 / (24.0 * TU)
     system = e2m2e.core.CR3BP_System(mu=MU, primary="earth", secondary="moon")
@@ -138,7 +134,6 @@ def _build_transfer_search() -> TransferSearch:
     transfer_search = TransferSearch(dynamics=dynamics)
     transfer_search.integration_dt = DT
     return transfer_search
-
 
 def _integrate_single_orbit(args: tuple) -> tuple:
     import warnings
@@ -178,7 +173,6 @@ def _integrate_single_orbit(args: tuple) -> tuple:
     except Exception:
         return None, alpha, float("nan")
 
-
 def _reintegrate_transfer(
     ts: TransferSearch,
     departure_state: np.ndarray,
@@ -191,7 +185,6 @@ def _reintegrate_transfer(
     states, times = ts._forward_integrate(initial_state, max_transfer_time, dt)
     return states, times
 
-
 def _geo_sphere_points(n_pts: int = 200) -> np.ndarray:
     theta = np.linspace(0.0, 2.0 * np.pi, n_pts)
     earth_x = -MU
@@ -200,7 +193,6 @@ def _geo_sphere_points(n_pts: int = 200) -> np.ndarray:
     pts[:, 1] = R_GEO * np.sin(theta)
     pts[:, 2] = 0.0
     return pts
-
 
 def _plot_single_transfer_orbit(
     departure_orbit: Orbit,
@@ -248,7 +240,6 @@ def _plot_single_transfer_orbit(
     set_equal_aspect_3d(ax, all_pts)
 
     return ax
-
 
 def interactive_browse_by_time(
     feasible_rows: list[dict],
@@ -386,7 +377,6 @@ def interactive_browse_by_time(
     logger.info("浏览完成，共查看了 %d 条轨道", current_idx + 1)
 
 
-
 def _resolve_figsize_cm(arg: str | None) -> tuple[float, float] | None:
     """将 '--figsize' 参数（厘米）转为 matplotlib 英寸尺寸。
 
@@ -402,16 +392,8 @@ def _resolve_figsize_cm(arg: str | None) -> tuple[float, float] | None:
     w, h = parts
     return (w / 2.54, h / 2.54)
 
-
 def main() -> None:
-    """执行脚本主流程。
-    
-    Returns:
-        None。
-    
-    Raises:
-        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
-    """
+
     parser = argparse.ArgumentParser(
         description="绘制 grid_search_dro_to_geo 结果（α–Δv 散点图 / 转移轨道示意图）"
     )
@@ -625,7 +607,6 @@ def main() -> None:
                 fig.text(0.5, -0.02, args.caption, ha="center", va="top", fontsize=PLOT_CONFIG.tick)
             save_or_show(fig, args)
 
-
 if __name__ == "__main__":
     if len(sys.argv) == 1:
         sys.argv += [
@@ -636,7 +617,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

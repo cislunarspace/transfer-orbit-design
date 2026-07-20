@@ -15,7 +15,6 @@ __all__ = [
 
 logger = logging.getLogger(__name__)
 
-
 def find_project_root(start: Path | None = None) -> Path:
     """从给定起点向上遍历，直到找到项目根目录。
 
@@ -45,7 +44,6 @@ def find_project_root(start: Path | None = None) -> Path:
         f"无法从 {start or __file__} 找到项目根目录（包含 {markers} 的目录）"
     )
 
-
 def safe_resolve_within(user_path: str, allowed_root: Path) -> Path | None:
     """安全解析用户路径，验证其位于 allowed_root 内。
 
@@ -62,7 +60,6 @@ def safe_resolve_within(user_path: str, allowed_root: Path) -> Path | None:
     except ValueError:
         return None
     return resolved
-
 
 # ============================================================
 # 通用辅助函数

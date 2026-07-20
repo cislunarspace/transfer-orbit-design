@@ -8,7 +8,6 @@
        uv run python -m tod.transfers.leo_to_dro.optimize_leo_to_dro --help
 """
 
-
 from __future__ import annotations
 
 import logging
@@ -39,13 +38,8 @@ _LEO_T_MAX = 80.0
 #       --search-file output/transfer/search_leo_dro_*.json \
 #       --dro-file output/dro/dro_*.json
 
-
 def main() -> None:
-    """执行脚本主流程。
-
-    Returns:
-        None。
-    """
+    
     logger.info("=" * 70)
     logger.info("LEO → DRO 转移 NLP 优化")
     logger.info("=" * 70)
@@ -55,10 +49,8 @@ def main() -> None:
         t_max=_LEO_T_MAX,
     )
 
-
 if __name__ == "__main__":
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

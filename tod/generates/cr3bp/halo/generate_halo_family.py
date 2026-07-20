@@ -15,7 +15,6 @@ CSV 导出、摘要表打印）由基类处理。
        uv run python -m tod.generates.cr3bp.halo.generate_halo_family --help
 """
 
-
 from __future__ import annotations
 
 import json
@@ -39,11 +38,9 @@ from tod.generates.cr3bp._family_pipeline import (
 
 logger = logging.getLogger(__name__)
 
-
 # ------------------------------------------------------------------------------
 # 种子轨道辅助
 # ------------------------------------------------------------------------------
-
 
 def _load_seed_orbit(seed_file: str, system) -> Orbit:
     """从 JSON 文件加载种子轨道。
@@ -57,7 +54,6 @@ def _load_seed_orbit(seed_file: str, system) -> Orbit:
     if "orbits" in data:
         return Orbit.load_from_file(seed_path, system=system, orbit_index=0)
     return Orbit.load_from_file(seed_path, system=system)
-
 
 def _tag_halo_seed_orbit(
     seed_halo: Orbit,
@@ -81,17 +77,14 @@ def _tag_halo_seed_orbit(
     params["amplitude_z"] = abs(float(params.get("amplitude_z", amplitude_z)))
     return float(params["amplitude_z"])
 
-
 # ------------------------------------------------------------------------------
 # 参数与验证
 # ------------------------------------------------------------------------------
 
 
-
 # ------------------------------------------------------------------------------
 # Halo 族生成器
 # ------------------------------------------------------------------------------
-
 
 class HaloFamilyGenerator(FamilyGenerator):
     """Halo 轨道族生成器。
@@ -427,11 +420,9 @@ class HaloFamilyGenerator(FamilyGenerator):
             f"{float(jacobi_constant(s)):10.6f}",
         ]
 
-
 # ------------------------------------------------------------------------------
 # 入口
 # ------------------------------------------------------------------------------
-
 
 def main() -> None:
     """Halo 轨道族生成入口。"""
@@ -468,7 +459,6 @@ def main() -> None:
 
     gen.run(args)
 
-
 if __name__ == "__main__":
     inject_debug_args(
         sys.argv,
@@ -481,7 +471,6 @@ if __name__ == "__main__":
         ],
     )
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

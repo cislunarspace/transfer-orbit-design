@@ -8,7 +8,6 @@
        uv run python -m tod.transfers.geo_to_dro.grid_search_geo_to_dro --help
 """
 
-
 import argparse
 import json
 import os
@@ -34,7 +33,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
-
 
 # =====================================================================
 # 配置
@@ -62,7 +60,6 @@ INTEGRATION_DT = 1.0 / (24.0 * TU)  # 输出步长（约 10 分钟）
 # GEO 轨道采样点数
 GEO_N_POINTS = 1000
 
-
 def parse_args():
     """解析命令行参数。
     
@@ -83,13 +80,8 @@ def parse_args():
     parser.add_argument("--geo-n-points", type=int, default=GEO_N_POINTS, help="GEO 轨道采样点数")
     return parser.parse_args()
 
-
 def main() -> None:
-    """执行脚本主流程。
     
-    Returns:
-        None。
-    """
     args = parse_args()
 
     # =========================================================================
@@ -270,7 +262,6 @@ def main() -> None:
                   f"min_dist={md:.6f} DU ({md * DU:.0f} km), "
                   f"相交={r.get('intersection_found', False)}")
 
-
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
@@ -290,7 +281,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

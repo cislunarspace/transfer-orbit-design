@@ -8,7 +8,6 @@
        uv run python -m tod.plot.transfer.dro_to_ro.plot_search_results_dro_to_ro --help
 """
 
-
 from __future__ import annotations
 
 import argparse
@@ -69,7 +68,6 @@ RESULTS_JSON = (
 DRO_FILE = project_root / "output/dro/dro_31_3857693511.json"
 RO_FILE = project_root / "output/ro/ro_31_3857693516.json"
 
-
 def compute_actual_transfer_time(r: dict, dt: float = 1.0 / (24.0 * TU)) -> float:
     """
     计算实际转移时间。
@@ -86,7 +84,6 @@ def compute_actual_transfer_time(r: dict, dt: float = 1.0 / (24.0 * TU)) -> floa
         return float(min_idx) * dt
     # 如果没有 min_distance_idx，使用原始的 transfer_time（这不应该发生）
     return float(transfer_time)
-
 
 def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndarray]:
     """仅可行解；返回 (transfer_times, dv_departure)。
@@ -117,7 +114,6 @@ def feasible_transfer_time_and_dv(rows: list[dict]) -> tuple[np.ndarray, np.ndar
                 dvs.append(dv)
     return np.asarray(times, dtype=np.float64), np.asarray(dvs, dtype=np.float64)
 
-
 def _build_transfer_search() -> TransferSearch:
     """构建并配置 TransferSearch 实例（积分器参数与 grid_search_dro_to_ro.py 一致）。"""
     DT = 1.0 / (24.0 * TU)
@@ -130,7 +126,6 @@ def _build_transfer_search() -> TransferSearch:
     transfer_search = TransferSearch(dynamics=dynamics)
     transfer_search.integration_dt = DT
     return transfer_search
-
 
 def _integrate_single_orbit(args: tuple) -> tuple:
     """
@@ -176,7 +171,6 @@ def _integrate_single_orbit(args: tuple) -> tuple:
     except Exception:
         return None, alpha, float("nan")
 
-
 def _reintegrate_transfer(
     ts: TransferSearch,
     departure_state: np.ndarray,
@@ -190,7 +184,6 @@ def _reintegrate_transfer(
     states, times = ts._forward_integrate(initial_state, max_transfer_time, dt)
     return states, times
 
-
 def _find_closest_orbit_phase_idx(transfer_states: np.ndarray, orbit: Orbit) -> int:
     """找到转移轨迹终点与目标轨道最接近的点（轨道相位索引）。"""
     pos_tr = transfer_states[-1, :2]
@@ -202,7 +195,6 @@ def _find_closest_orbit_phase_idx(transfer_states: np.ndarray, orbit: Orbit) -> 
             min_dist = d
             best_idx = i
     return best_idx
-
 
 def _plot_single_transfer_orbit(
     departure_orbit: Orbit,
@@ -266,16 +258,8 @@ def _plot_single_transfer_orbit(
 
     return ax
 
-
 def main() -> None:
-    """执行脚本主流程。
-    
-    Returns:
-        None。
-    
-    Raises:
-        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
-    """
+
     parser = argparse.ArgumentParser(
         description="绘制 grid_search 结果（α–Δv 散点图 / 转移轨道示意图）"
     )
@@ -529,7 +513,6 @@ def main() -> None:
                 plt.show()
             plt.close(fig)
 
-
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
@@ -543,7 +526,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

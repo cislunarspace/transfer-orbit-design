@@ -16,7 +16,6 @@ from PyQt6.QtCore import QCoreApplication, QTranslator
 if TYPE_CHECKING:
     from tod.scripting import ScriptEntry
 
-
 def qt_format(s: str, *args: object) -> str:
     """Replace Qt ``%1``, ``%2``, … placeholders with positional arguments.
 
@@ -27,7 +26,6 @@ def qt_format(s: str, *args: object) -> str:
     for i, arg in enumerate(args, start=1):
         s = s.replace(f"%{i}", str(arg))
     return s
-
 
 class TranslationLoader:
     """加载并管理 GUI 翻译文件和脚本翻译表。"""
@@ -76,7 +74,6 @@ class TranslationLoader:
             self._script_translations = {}
         return True
 
-
 def translate_script_entry(entry: ScriptEntry, translations: dict) -> ScriptEntry:
     """对 ScriptEntry 应用翻译表，返回新副本（不可变更新）。
 
@@ -107,7 +104,6 @@ def translate_script_entry(entry: ScriptEntry, translations: dict) -> ScriptEntr
         env_params=new_env,
     )
 
-
 def _translate_cli_param(param, cli_t: dict):
     """对单个 CliParam 应用翻译。"""
     p = cli_t.get(param.flag, {})
@@ -119,7 +115,6 @@ def _translate_cli_param(param, cli_t: dict):
     if "help" in p:
         updates["help"] = p["help"]
     return replace(param, **updates) if updates else param
-
 
 def _translate_env_param(param, env_t: dict):
     """对单个 EnvParam 应用翻译。"""

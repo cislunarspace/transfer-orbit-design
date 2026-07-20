@@ -8,7 +8,6 @@
        uv run python -m tod.transfers.geo_to_dro.optimize_geo_to_dro --help
 """
 
-
 from __future__ import annotations
 
 import argparse
@@ -90,7 +89,6 @@ N_WORKERS: Optional[int] = None
 PARALLEL_BACKEND: str = "threads"
 
 
-
 def parse_args():
     """解析命令行参数。
 
@@ -117,11 +115,9 @@ def parse_args():
     parser.add_argument("--n-workers", type=int, default=None, help="并行 worker 数")
     return parser, parser.parse_args()
 
-
 # =====================================================================
 # 辅助函数
 # =====================================================================
-
 
 from tod.transfers.geo_to_dro.integrate import (
     build_dynamics,
@@ -130,16 +126,13 @@ from tod.transfers.geo_to_dro.integrate import (
     get_dro_state_at_time,
 )
 
-
 def _find_closest_approach(*args, **kwargs):
     """向后兼容包装。"""
     return find_closest_approach(*args, **kwargs)
 
-
 # =====================================================================
 # 非线性规划问题
 # =====================================================================
-
 
 def _nlp_eval(y, departure_state, dro_orbit, dynamics):
     """Evaluate objective, constraint, and cache for y = [alpha, T, t_ins]."""
@@ -196,7 +189,6 @@ def _nlp_eval(y, departure_state, dro_orbit, dynamics):
         "cos_angle": cos_angle,
         "angle_deg": float(np.degrees(np.arccos(max(-1, min(1, cos_angle))))) if cos_angle > -1 else 180.0,
     }
-
 
 def optimize_one_case(
     rec,
@@ -393,11 +385,9 @@ def optimize_one_case(
         },
     }
 
-
 # =====================================================================
 # 并行工作器
 # =====================================================================
-
 
 @dataclass
 class NlpPackConfig:
@@ -414,7 +404,6 @@ class NlpPackConfig:
     earth_radius: float
     moon_radius: float
     angle_tolerance: float
-
 
 def nlp_worker_packed(payload):
     """打包后的 NLP worker 函数。
@@ -443,11 +432,9 @@ def nlp_worker_packed(payload):
         angle_tolerance=cfg.angle_tolerance,
     )
 
-
 # =====================================================================
 # 主流程
 # =====================================================================
-
 
 def main(
     *,
@@ -458,22 +445,7 @@ def main(
     t_ins_min: Optional[float] = None,
     t_ins_max: Optional[float] = None,
 ) -> None:
-    """执行脚本主流程。
 
-    Args:
-        alpha_min: 显式覆盖 ``--alpha-min`` 的 CLI 默认值。
-        alpha_max: 显式覆盖 ``--alpha-max`` 的 CLI 默认值。
-        t_min: 显式覆盖 ``--t-min`` 的 CLI 默认值。
-        t_max: 显式覆盖 ``--t-max`` 的 CLI 默认值。
-        t_ins_min: 显式覆盖 ``--t-ins-min`` 的 CLI 默认值。
-        t_ins_max: 显式覆盖 ``--t-ins-max`` 的 CLI 默认值。
-
-    Returns:
-        None。
-
-    Raises:
-        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
-    """
     parser_obj, args = parse_args()
 
     # 允许调用方（如 leo_to_dro）显式覆盖默认参数范围，
@@ -728,7 +700,6 @@ def main(
         logger.info(f"  pos_err = {pos_km:.1f} km")
         logger.info(f"  angle = {b.get('angle_deg', 'N/A'):.4f} deg")
 
-
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
@@ -746,7 +717,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

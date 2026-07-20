@@ -8,7 +8,6 @@
        uv run python -m tod.plot.transfer.geo_to_dro.plot_search_results_geo_to_dro --help
 """
 
-
 import argparse
 import json
 import logging
@@ -67,11 +66,9 @@ logger = logging.getLogger(__name__)
 # 配置 — 默认自动发现最新文件，可用环境变量覆盖
 # =====================================================================
 
-
 # =====================================================================
 # 数据加载 — departure_delta_v_norm 使用 geo 模块的 compute_departure_velocity
 # =====================================================================
-
 
 def departure_delta_v_norm(state6, alpha):
     """从状态和 alpha 重算出发 Δv。"""
@@ -79,16 +76,8 @@ def departure_delta_v_norm(state6, alpha):
     v_new = compute_departure_velocity(state, alpha)
     return float(np.linalg.norm(v_new - state[3:]))
 
-
 def feasible_alpha_and_departure_dv(rows):
-    """执行 feasible_alpha_and_departure_dv 对应的处理逻辑。
-    
-    Args:
-        rows: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+
     alpha_list, dv_list = [], []
     for r in rows:
         if not r.get("is_feasible"):
@@ -102,16 +91,8 @@ def feasible_alpha_and_departure_dv(rows):
             dv_list.append(float(dv))
     return np.array(alpha_list), np.array(dv_list)
 
-
 def feasible_transfer_time_and_dv(rows):
-    """执行 feasible_transfer_time_and_dv 对应的处理逻辑。
-    
-    Args:
-        rows: 调用方传入的参数值。
-    
-    Returns:
-        函数执行结果。
-    """
+
     tt_list, dv_list = [], []
     for r in rows:
         if not r.get("is_feasible"):
@@ -125,16 +106,13 @@ def feasible_transfer_time_and_dv(rows):
             dv_list.append(float(dv))
     return np.array(tt_list), np.array(dv_list)
 
-
 # =====================================================================
 # GEO 轨道和辅助
 # =====================================================================
 
-
 # =====================================================================
 # 3D 轨道图
 # =====================================================================
-
 
 def _find_approach_index(transfer_states, dro_orbit):
     """找到转移轨道上最接近 DRO 轨道的点的索引。"""
@@ -155,7 +133,6 @@ def _find_approach_index(transfer_states, dro_orbit):
             best_idx = i_start + ci
     return best_idx
 
-
 def _reintegrate_transfer(dynamics, departure_state, alpha, max_transfer_time, dro_orbit=None):
     state = np.asarray(departure_state, dtype=float)
     v_new = compute_departure_velocity(state, alpha)
@@ -174,7 +151,6 @@ def _reintegrate_transfer(dynamics, departure_state, alpha, max_transfer_time, d
         idx = max(idx, 1)  # 至少保留出发后的第一个点
         return states[: idx + 1], times[: idx + 1]
     return states, times
-
 
 def _plot_single_transfer_orbit(
     geo_orbit, dro_orbit, transfer_states, departure_state,
@@ -222,11 +198,9 @@ def _plot_single_transfer_orbit(
 
     return ax
 
-
 # =====================================================================
 # 交互式浏览
 # =====================================================================
-
 
 def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
     """按转移时间排序，交互式逐条浏览 GEO→DRO 转移轨道。同一窗口内重绘。"""
@@ -340,18 +314,12 @@ def interactive_browse_by_time(feasible_rows, dro_orbit, system, dynamics):
     plt.close(fig)
     logger.info("退出浏览")
 
-
 # =====================================================================
 # main
 # =====================================================================
 
-
 def main():
-    """执行脚本主流程。
     
-    Returns:
-        None。
-    """
     parser = argparse.ArgumentParser(description="GEO → DRO 搜索结果可视化", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--file", type=str, default=None, help="搜索结果 JSON 路径")
     parser.add_argument("--auto-latest", action="store_true", help="显式 opt-in：按 mtime 选最新 search_geo_dro_*.json")
@@ -498,7 +466,6 @@ def main():
         else:
             plt.show()
 
-
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
@@ -512,7 +479,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

@@ -8,7 +8,6 @@
        uv run python -m tod.generates.artifacts --help
 """
 
-
 from __future__ import annotations
 
 import re
@@ -21,10 +20,8 @@ __all__ = [
 
 _SINGLE_DRO_RE = re.compile(r"^dro_\d+\.json$")
 
-
 class OrbitArtifactNotFoundError(FileNotFoundError):
     """未找到所需的轨道产物文件，异常信息附带可执行的修复指引。"""
-
 
 def find_latest_single_dro(project_root: Path) -> Path:
     """返回 ``project_root/output/dro`` 下最新的单条 DRO 轨道文件。

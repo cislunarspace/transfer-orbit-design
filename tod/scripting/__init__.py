@@ -50,7 +50,6 @@ __all__ = [
     "set_script_translations",
 ]
 
-
 # 由扫描器在首次访问时填充
 _SCRIPTS: dict[str, list] | None = None
 
@@ -58,12 +57,10 @@ _SCRIPTS: dict[str, list] | None = None
 # 在首次 SCRIPTS 访问前设置，语言切换（重启生效）无需缓存失效。
 _TRANSLATIONS: dict | None = None
 
-
 def set_script_translations(translations: dict) -> None:
     """设置脚本翻译表（应在首次访问 SCRIPTS 之前调用）。"""
     global _TRANSLATIONS
     _TRANSLATIONS = translations
-
 
 def _get_scripts() -> dict[str, list]:
     """Lazily load and cache SCRIPTS from the scanner."""
@@ -73,10 +70,8 @@ def _get_scripts() -> dict[str, list]:
         _SCRIPTS = get_scripts(translations=_TRANSLATIONS)
     return _SCRIPTS
 
-
 def _scripts_getter() -> dict[str, list[ScriptEntry]]:
     return _get_scripts()
-
 
 # Legacy category key aliases (old → new) for backward compatibility.
 _LEGACY_ALIASES: dict[str, str] = {
@@ -85,7 +80,6 @@ _LEGACY_ALIASES: dict[str, str] = {
     "Ephemeris": "ephemeris",
     "Inspection": "inspection",
 }
-
 
 # 代理对象：首次访问时延迟解析 SCRIPTS。
 class _SCRIPTSProxy:
@@ -109,27 +103,15 @@ class _SCRIPTSProxy:
         return _get_scripts().get(_key, default)
 
     def keys(self):
-        """执行 keys 对应的处理逻辑。
-
-        Returns:
-            函数执行结果。
-        """
+        
         return _get_scripts().keys()
 
     def values(self):
-        """执行 values 对应的处理逻辑。
-
-        Returns:
-            函数执行结果。
-        """
+        
         return _get_scripts().values()
 
     def items(self):
-        """执行 items 对应的处理逻辑。
-
-        Returns:
-            函数执行结果。
-        """
+        
         return _get_scripts().items()
 
     def __iter__(self):
@@ -140,7 +122,6 @@ class _SCRIPTSProxy:
 
     def __repr__(self) -> str:
         return repr(_get_scripts())
-
 
 # SCRIPTS 是懒加载的代理对象 — GUI 侧边栏等处的 `SCRIPTS.keys()` 等调用会触发扫描
 SCRIPTS: dict = _SCRIPTSProxy()  # type: ignore[assignment]

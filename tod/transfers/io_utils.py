@@ -11,7 +11,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-
 def load_search_results(path: Path) -> list[dict]:
     """加载 grid_search 输出的搜索结果 JSON。
 

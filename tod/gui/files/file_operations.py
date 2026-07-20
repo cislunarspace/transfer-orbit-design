@@ -1,8 +1,6 @@
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 import platform
 import subprocess
@@ -14,7 +12,6 @@ FILE_PATH_ROLE = Qt.ItemDataRole.UserRole + 1
 
 _T = QCoreApplication.translate
 
-
 def get_selected_paths(tree) -> list[str]:
     """从 QTreeWidget 获取所有选中文件的绝对路径。"""
     paths: list[str] = []
@@ -24,11 +21,9 @@ def get_selected_paths(tree) -> list[str]:
             paths.append(path)
     return paths
 
-
 def make_relative_paths(paths: list[str], repo_root: Path) -> list[str]:
     """将绝对路径列表转换为相对于 repo root 的路径列表（统一用正斜杠）。"""
     return [str(Path(p).relative_to(repo_root).as_posix()) for p in paths]
-
 
 def reveal_in_file_manager(path: str, _platform: str | None = None) -> None:
     """在系统文件管理器中显示指定文件。
@@ -44,7 +39,6 @@ def reveal_in_file_manager(path: str, _platform: str | None = None) -> None:
         subprocess.run(["open", "-R", path], check=False)
     else:
         subprocess.run(["xdg-open", Path(path).parent.as_posix()], check=False)
-
 
 def format_delete_confirmation(paths: list[str]) -> tuple[str, str]:
     """生成删除确认对话框的标题和消息。

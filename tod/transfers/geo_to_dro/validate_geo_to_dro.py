@@ -9,7 +9,6 @@
        uv run python -m tod.transfers.geo_to_dro.validate_geo_to_dro --help
 """
 
-
 import logging
 from pathlib import Path
 
@@ -29,7 +28,6 @@ from tod.commons.constants import DU, MU, TU, VU
 logger = logging.getLogger(__name__)
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
-
 
 def test_velocity_model():
     """测试 1：出发速度模型在 GEO 上的物理行为"""
@@ -75,7 +73,6 @@ def test_velocity_model():
             dv = np.linalg.norm(new_vel - vel)
             logger.info(f"    alpha={alpha:.1f}: |v_new|={new_speed:.3f} VU = {new_speed * VU:.0f} m/s, "
                   f"Δv={dv:.3f} VU = {dv * VU:.0f} m/s")
-
 
 def test_forward_integration():
     """测试 2：从 GEO 出发的正向积分"""
@@ -154,7 +151,6 @@ def test_forward_integration():
         logger.info(f"  alpha={alpha:.1f}: 月球最近={min_moon_dist:.4f} DU = {min_moon_dist * DU:.0f} km "
               f"(t={result['time'][min_moon_idx]:.2f} TU = {result['time'][min_moon_idx] * TU:.1f} 天), "
               f"x∈[{x_min:.4f}, {x_max:.4f}], 状态: {status}")
-
 
 def test_transfer_search():
     """测试 3：TransferSearch(departure=GEO, arrival=DRO) 网格搜索"""
@@ -257,13 +253,8 @@ def test_transfer_search():
                           f"min_dist={md:.6f} DU = {md * DU:.0f} km, "
                           f"碰撞={r.get('collision_found', False)}")
 
-
 def main():
-    """执行脚本主流程。
     
-    Returns:
-        None。
-    """
     logger.info("GEO → DRO 转移轨道搜索可行性验证")
     logger.info(f"GEO 参数: R={R_GEO:.6f} DU = {R_GEO * DU:.0f} km, "
           f"V_circ={V_CIRCULAR_GEO:.4f} VU = {V_CIRCULAR_GEO * VU:.1f} m/s, "
@@ -277,10 +268,8 @@ def main():
     logger.info("验证完成")
     logger.info("=" * 70)
 
-
 if __name__ == "__main__":
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

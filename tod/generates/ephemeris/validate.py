@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 def validate_continuity(
     dynamics: Any,
     corrected_times: list[float],
@@ -40,13 +39,11 @@ def validate_continuity(
         "full_trajectory_times_et": full_times,
     }
 
-
 def position_error(left_state: list[float], right_state: list[float]) -> float:
     """计算两个状态向量的位置误差（欧氏距离）。"""
     return sum(
         (float(left_state[index]) - float(right_state[index])) ** 2 for index in range(3)
     ) ** 0.5
-
 
 def to_list(values: Any) -> list[float]:
     """将数组或列表转为 float list。"""
@@ -54,20 +51,17 @@ def to_list(values: Any) -> list[float]:
         values = values.tolist()
     return [float(value) for value in values]
 
-
 def to_nested_list(values: Any) -> list[list[float]]:
     """将二维数组或列表转为 float 嵌套 list。"""
     if hasattr(values, "tolist"):
         values = values.tolist()
     return [[float(item) for item in row] for row in values]
 
-
 def optional_float(value: Any) -> float | None:
     """安全转 float，None 保持 None。"""
     if value is None:
         return None
     return float(value)
-
 
 def optional_float_list(values: Any) -> list[float] | None:
     """安全转 float list，None 保持 None。"""

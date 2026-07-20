@@ -13,7 +13,6 @@
        uv run python -m tod.generates.cr3bp.dro.generate_dro_family --help
 """
 
-
 from __future__ import annotations
 
 import logging
@@ -32,7 +31,6 @@ from tod.generates.cr3bp._family_pipeline import (
 )
 
 logger = logging.getLogger(__name__)
-
 
 class DroFamilyGenerator(FamilyGenerator):
     """DRO 轨道族生成器。
@@ -171,11 +169,9 @@ class DroFamilyGenerator(FamilyGenerator):
         """
         return [f"dro_31_family_{args.param_min}-{args.param_max}-{args.step_size}"]
 
-
 # ------------------------------------------------------------------------------
 # 配置与入口
 # ------------------------------------------------------------------------------
-
 
 def _csv_format_row(orbit: Orbit, index: int, is_milestone: bool) -> dict[str, Any]:
     """格式化单条 DRO 轨道的 CSV 行。"""
@@ -198,7 +194,6 @@ def _csv_format_row(orbit: Orbit, index: int, is_milestone: bool) -> dict[str, A
         "is_milestone": is_milestone,
     }
 
-
 def _summary_format_row(orbit: Orbit) -> list[str]:
     """格式化 DRO 摘要表的单行。"""
     assert orbit.period is not None
@@ -211,7 +206,6 @@ def _summary_format_row(orbit: Orbit) -> list[str]:
         f"{float(jacobi_constant(s)):10.6f}",
     ]
 
-
 def _summary_extra_info(args: Any) -> list[str]:
     """DRO 摘要表额外的配置行。"""
     return [
@@ -221,7 +215,6 @@ def _summary_extra_info(args: Any) -> list[str]:
         f"  延拓参数     x0 in [{args.param_min:.6f}, {args.param_max:.6f}]",
         f"  延拓步长     {args.step_size}",
     ]
-
 
 def main() -> None:
     """DRO 轨道族生成入口。"""
@@ -247,7 +240,6 @@ def main() -> None:
 
     gen.run(args)
 
-
 if __name__ == "__main__":
     inject_debug_args(
         sys.argv,
@@ -261,7 +253,6 @@ if __name__ == "__main__":
         ],
     )
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册

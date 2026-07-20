@@ -28,11 +28,9 @@ __all__ = [
     "resolve_input_file",
 ]
 
-
 # ------------------------------------------------------------------
 # 候选提示最多显示条数（grill-me 决策 12）
 MAX_CANDIDATES_DISPLAYED = 10
-
 
 class LoadInputContractError(ValueError):
     """``load_or_compute`` 输入契约违反时抛出的领域错误。
@@ -41,7 +39,6 @@ class LoadInputContractError(ValueError):
     ``args.auto_latest=True``。此约束来自 issue #183：公共层不再允许
     隐式选择最新族文件。
     """
-
 
 class InputResolutionError(ValueError):
     """输入文件解析失败时抛出的领域错误。
@@ -81,7 +78,6 @@ class InputResolutionError(ValueError):
             lines.append(f"... and {self.remaining} more")
         return "\n".join(lines)
 
-
 @dataclass(frozen=True)
 class InputFileRequest:
     """``resolve_input_file`` 的输入参数。
@@ -113,7 +109,6 @@ class InputFileRequest:
         if self.search_root is None:
             raise ValueError("InputFileRequest.search_root 不能为空")
 
-
 def _gather_candidates(search_root: Path, pattern: str) -> list[Path]:
     """在 ``search_root`` 下按 ``pattern`` 收集候选并按 mtime 从新到旧排序。"""
     if not search_root.is_dir():
@@ -122,14 +117,12 @@ def _gather_candidates(search_root: Path, pattern: str) -> list[Path]:
     candidates.sort(key=lambda p: (p.stat().st_mtime, p.name), reverse=True)
     return candidates
 
-
 def _cap_candidates(candidates: list[Path]) -> tuple[list[Path], int]:
     """截取前 ``MAX_CANDIDATES_DISPLAYED`` 条候选并返回溢出数量。"""
     if len(candidates) <= MAX_CANDIDATES_DISPLAYED:
         return list(candidates), 0
     kept = list(candidates[:MAX_CANDIDATES_DISPLAYED])
     return kept, len(candidates) - MAX_CANDIDATES_DISPLAYED
-
 
 def resolve_input_file(request: InputFileRequest) -> Path:
     """按 ``InputFileRequest`` 解析出最终输入文件路径。

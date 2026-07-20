@@ -35,11 +35,9 @@ logger = logging.getLogger(__name__)
 _LOG_LEVELS = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 _DEFAULT_LOG_LEVEL = "WARNING"
 
-
 def parse_log_level(level_str: str) -> int:
     """将日志级别字符串转为 logging 常量。"""
     return getattr(logging, level_str.upper(), logging.WARNING)
-
 
 def setup_logging(level_str: str) -> None:
     """配置标准日志格式。"""
@@ -51,11 +49,9 @@ def setup_logging(level_str: str) -> None:
 
 
 
-
 # =============================================================================
 # 共享数学/工具函数（DRO 和 Halo 中逐字节相同）
 # =============================================================================
-
 
 def jacobi_constant(state: list[float]) -> float:
     """计算 CR3BP 伪无量纲状态的 Jacobi 常数。
@@ -76,7 +72,6 @@ def jacobi_constant(state: list[float]) -> float:
     v2 = vx**2 + vy**2 + vz**2
     return 2 * Omega - v2
 
-
 def find_milestone_indices(n_orbits: int, n_milestones: int = 5) -> list[int]:
     """返回等间距里程碑轨道的索引列表。
 
@@ -91,11 +86,9 @@ def find_milestone_indices(n_orbits: int, n_milestones: int = 5) -> list[int]:
         round(i * (n_orbits - 1) / (n_milestones - 1)) for i in range(n_milestones)
     ]
 
-
 # =============================================================================
 # CR3BP 系统构建
 # =============================================================================
-
 
 def build_cr3bp_system(mu: float = MU) -> _CR3BP_System:
     """构建标准地月 CR3BP 系统对象。
@@ -107,7 +100,6 @@ def build_cr3bp_system(mu: float = MU) -> _CR3BP_System:
         CR3BP_System 实例。
     """
     return _CR3BP_System(mu=mu, primary="earth", secondary="moon")
-
 
 def build_cr3bp_dynamics(system: _CR3BP_System | None = None) -> _CR3BP_Dynamics:
     """构建标准 CR3BP 动力学对象。
@@ -122,11 +114,9 @@ def build_cr3bp_dynamics(system: _CR3BP_System | None = None) -> _CR3BP_Dynamics
         system = build_cr3bp_system()
     return _CR3BP_Dynamics(system=system)
 
-
 # =============================================================================
 # 配置数据类
 # =============================================================================
-
 
 @dataclass
 class FamilyGeneratorConfig:
@@ -153,11 +143,9 @@ class FamilyGeneratorConfig:
     summary_extra_info: Callable[[], list[str]] | None = None
     n_milestones: int = 5
 
-
 # =============================================================================
 # 共享输出辅助
 # =============================================================================
-
 
 def print_summary_table(
     orbits: OrbitFamily,
@@ -243,7 +231,6 @@ def print_summary_table(
     print("=" * 72)
     print()
 
-
 def export_csv(
     orbits: OrbitFamily,
     config: FamilyGeneratorConfig,
@@ -296,11 +283,9 @@ def export_csv(
 
     return csv_path
 
-
 # =============================================================================
 # 进度跟踪器（可选）
 # =============================================================================
-
 
 class ProgressTracker:
     """进度跟踪器：独立线程定期打印延拓进度。
@@ -338,11 +323,9 @@ class ProgressTracker:
                     print(f"\r[2/3] 延拓进度: {self.current}/{self.total} ({pct:.0f}%)", end="", flush=True)
         print()  # 换行
 
-
 # =============================================================================
 # 通用参数解析器工厂
 # =============================================================================
-
 
 def build_family_argparser(description: str) -> argparse.ArgumentParser:
     """构建共享的轨道族生成器参数解析器。
@@ -386,11 +369,9 @@ def build_family_argparser(description: str) -> argparse.ArgumentParser:
     )
     return parser
 
-
 # =============================================================================
 # 调试入口
 # =============================================================================
-
 
 def inject_debug_args(
     argv: list[str],
@@ -410,11 +391,9 @@ def inject_debug_args(
         argv += defaults
         logger.debug(description)
 
-
 # =============================================================================
 # 族生成器基类
 # =============================================================================
-
 
 class FamilyGenerator:
     """轨道族生成器基类。

@@ -12,7 +12,6 @@ import sys
 from tod.generates.cr3bp._raw_naming import RawDatasetName, RawDatasetNameError, parse_raw_xlsx_name
 from tod.generates.cr3bp._xlsx_reader import XlsxReadError, read_xlsx_sheets
 
-
 SHEET1_COLUMNS = ["x", "y", "z", "vx", "vy", "vz", "jacobi", "period", "stability"]
 SHEET2_COLUMNS = ["Mass ratio", "Length unit, LU (km)", "Time unit, TU (s)", "radius_secondary"]
 
@@ -69,18 +68,14 @@ INDEX_FIELDNAMES = [
     "script_status",
 ]
 
-
 class Cr3bpImportError(ValueError):
     """CR3BP 数据导入失败。"""
-
 
 class Cr3bpImportSchemaError(Cr3bpImportError):
     """原始 XLSX 数据结构与预期 schema 不一致。"""
 
-
 class Cr3bpCatalogLookupError(LookupError):
     """normalized catalog 中找不到满足条件的轨道。"""
-
 
 @dataclass(frozen=True)
 class OrbitRecord:
@@ -116,7 +111,6 @@ class OrbitRecord:
     def state(self) -> list[float]:
         return [self.x, self.y, self.z, self.vx, self.vy, self.vz]
 
-
 @dataclass(frozen=True)
 class DatasetRecord:
     """一个原始 workbook 规范化后的数据集。"""
@@ -133,7 +127,6 @@ class DatasetRecord:
     def dataset_id(self) -> str:
         return self.name.dataset_id
 
-
 @dataclass(frozen=True)
 class ImportReport:
     raw_dir: Path
@@ -143,7 +136,6 @@ class ImportReport:
     index_file: Path
     catalog_file: Path
     family_files: dict[str, Path]
-
 
 class Cr3bpCatalog:
     """从 normalized CSV 加载的 CR3BP 初值 catalog。"""
@@ -190,7 +182,6 @@ class Cr3bpCatalog:
             )
         return nearest
 
-
 def normalize_workbook(path: Path) -> DatasetRecord:
     """将一个原始 CR3BP XLSX workbook 规范化为内存记录。"""
 
@@ -226,7 +217,6 @@ def normalize_workbook(path: Path) -> DatasetRecord:
         radius_secondary=metadata["radius_secondary"],
         script_status=script_status,
     )
-
 
 def import_cr3bp_xlsx_catalog(raw_dir: Path, output_dir: Path, *, overwrite: bool = False) -> ImportReport:
     """导入 raw_dir 下全部 CR3BP XLSX，写出 normalized CSV 与 catalog.yaml。"""
@@ -266,7 +256,6 @@ def import_cr3bp_xlsx_catalog(raw_dir: Path, output_dir: Path, *, overwrite: boo
         family_files=family_files,
     )
 
-
 def load_cr3bp_catalog(data_dir: Path) -> Cr3bpCatalog:
     """从 normalized CSV 加载 CR3BP catalog。"""
 
@@ -288,7 +277,6 @@ def load_cr3bp_catalog(data_dir: Path) -> Cr3bpCatalog:
 
     return Cr3bpCatalog(datasets, records)
 
-
 def _family_csv_path(data_dir: Path, family_csv: str) -> Path:
     """返回 normalized catalog 中受约束的 family CSV 路径。"""
     relative_path = Path(family_csv)
@@ -300,7 +288,6 @@ def _family_csv_path(data_dir: Path, family_csv: str) -> Path:
     if families_dir not in resolved.parents:
         raise Cr3bpImportError(f"Invalid normalized catalog family_csv path outside families/: {family_csv!r}")
     return path
-
 
 def script_status_for(name: RawDatasetName) -> str:
     if name.orbit_type == "dro":
@@ -319,12 +306,10 @@ def script_status_for(name: RawDatasetName) -> str:
         return "semantic_uncertain"
     return "script_incomplete"
 
-
 def _require_sheet(sheets: dict[str, list[list[str]]], name: str, path: Path) -> list[list[str]]:
     if name not in sheets:
         raise Cr3bpImportSchemaError(f"{path.name} is missing required sheet {name}")
     return sheets[name]
-
 
 def _validate_header(rows: list[list[str]], expected: list[str], path: Path, sheet: str) -> None:
     if not rows:
@@ -335,14 +320,12 @@ def _validate_header(rows: list[list[str]], expected: list[str], path: Path, she
             f"{path.name}:{sheet} header mismatch: expected {expected}, got {header}"
         )
 
-
 def _validate_row_width(row: list[str], expected_columns: list[str], path: Path, sheet: str, row_number: int) -> None:
     if len(row) < len(expected_columns):
         raise Cr3bpImportSchemaError(
             f"{path.name}:{sheet}:{row_number} has {len(row)} cells; "
             f"expected {len(expected_columns)} columns {expected_columns}"
         )
-
 
 def _metadata_from_rows(rows: list[list[str]], path: Path) -> dict[str, float]:
     if len(rows) < 2:
@@ -355,7 +338,6 @@ def _metadata_from_rows(rows: list[list[str]], path: Path) -> dict[str, float]:
         "time_unit_s": _parse_float(values[2], path=path, sheet="Sheet2", row=2, column="Time unit, TU (s)"),
         "radius_secondary": _parse_float(values[3], path=path, sheet="Sheet2", row=2, column="radius_secondary"),
     }
-
 
 def _record_from_row(
     name: RawDatasetName,
@@ -397,7 +379,6 @@ def _record_from_row(
         script_status=script_status,
     )
 
-
 def _parse_float(value: str, *, path: Path, sheet: str, row: int, column: str) -> float:
     stripped = value.strip()
     if not stripped:
@@ -408,7 +389,6 @@ def _parse_float(value: str, *, path: Path, sheet: str, row: int, column: str) -
         raise Cr3bpImportSchemaError(
             f"{path.name}:{sheet}:{row}:{column} is not a float: {value!r}"
         ) from exc
-
 
 def _write_family_csvs(datasets: list[DatasetRecord], families_dir: Path) -> dict[str, Path]:
     by_type: dict[str, list[OrbitRecord]] = {}
@@ -426,7 +406,6 @@ def _write_family_csvs(datasets: list[DatasetRecord], families_dir: Path) -> dic
         family_files[orbit_type] = path
     return family_files
 
-
 def _write_index_csv(
     datasets: list[DatasetRecord],
     index_file: Path,
@@ -438,7 +417,6 @@ def _write_index_csv(
         writer.writeheader()
         writer.writerows(rows)
     return rows
-
 
 def _write_catalog_yaml(
     datasets: list[DatasetRecord],
@@ -467,7 +445,6 @@ def _write_catalog_yaml(
             ]
         )
     catalog_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
 
 def _index_row(dataset: DatasetRecord, family_file: Path) -> dict[str, str]:
     jacobis = [record.jacobi for record in dataset.records]
@@ -498,10 +475,8 @@ def _index_row(dataset: DatasetRecord, family_file: Path) -> dict[str, str]:
         "script_status": dataset.script_status,
     }
 
-
 def _orbit_record_to_csv_row(record: OrbitRecord) -> dict[str, str]:
     return {field: str(getattr(record, field)) for field in ORBIT_FIELDNAMES}
-
 
 def _csv_float(row: dict[str, str], field: str) -> float:
     orbit_id = row.get("orbit_id", "<unknown>")
@@ -523,7 +498,6 @@ def _csv_float(row: dict[str, str], field: str) -> float:
             f"{orbit_id} source_row={source_row}: catalog CSV field period must be > 0, got {row[field]!r}"
         )
     return value
-
 
 def _orbit_record_from_csv_row(row: dict[str, str]) -> OrbitRecord:
     return OrbitRecord(
@@ -554,7 +528,6 @@ def _orbit_record_from_csv_row(row: dict[str, str]) -> OrbitRecord:
         script_status=row["script_status"],
     )
 
-
 def main(argv: list[str] | None = None) -> int:
     """命令行入口：生成 normalized CR3BP 数据 catalog。"""
 
@@ -578,7 +551,6 @@ def main(argv: list[str] | None = None) -> int:
         f"to {report.output_dir}"
     )
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

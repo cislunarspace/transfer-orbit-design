@@ -1,9 +1,7 @@
 # pyright: reportAttributeAccessIssue=false, reportUndefinedVariable=false, reportOptionalMemberAccess=false
 """PyQt6 图形界面组件。
 
-本模块为 Transfer Orbit Design 的脚本化工作流提供辅助类型、函数或入口。
 """
-
 
 from __future__ import annotations
 
@@ -36,7 +34,6 @@ if TYPE_CHECKING:
 from tod.gui.files.file_discovery import FileInfo, filter_files
 from tod.scripting import UNIT_GROUPS
 
-
 class CliWidgetFactory:
     """根据 CliParam 规范创建 Qt 控件，管理布尔/数值/字符串/文件等类型。"""
 
@@ -56,11 +53,7 @@ class CliWidgetFactory:
         self.unit_groups: dict[QLineEdit, str] = {}
 
     def reset(self) -> None:
-        """执行 reset 对应的处理逻辑。
         
-        Returns:
-            None。
-        """
         self.wrapped_widgets.clear()
         self.path_mode_toggles.clear()
         self.unit_combos.clear()
@@ -377,7 +370,6 @@ class CliWidgetFactory:
         main_layout.addLayout(btn_layout)
 
         return key, container
-
 
 def _add_file_row(
     table: QTableWidget,

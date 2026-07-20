@@ -8,10 +8,8 @@
        uv run python -m tod.transfers.optimize_config --help
 """
 
-
 import os
 import time
-
 
 def blas_threads_per_worker(default_limit: int = 1) -> int:
     """获取每个 worker 的 BLAS 线程数。
@@ -26,7 +24,6 @@ def blas_threads_per_worker(default_limit: int = 1) -> int:
     if env_val:
         return max(1, int(env_val))
     return default_limit
-
 
 def apply_blas_env_for_child_processes(n_threads: int, *, overwrite: bool = True) -> None:
     """为子进程设置 BLAS 环境变量。
@@ -50,7 +47,6 @@ def apply_blas_env_for_child_processes(n_threads: int, *, overwrite: bool = True
             os.environ[key] = str(n_threads)
         else:
             os.environ.setdefault(key, str(n_threads))
-
 
 class OptimizationProgress:
     """优化进度跟踪器。

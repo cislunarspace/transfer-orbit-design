@@ -26,7 +26,6 @@ if TYPE_CHECKING:
     from tod.scripting import ScriptEntry
     from tod.gui.script_tab_widget import ScriptTabWidget
 
-
 @dataclass(frozen=True)
 class RunSpec:
     """单个待运行任务的不可变描述。
@@ -42,7 +41,6 @@ class RunSpec:
     def to_dispatch_kwargs(self) -> dict[str, object]:
         """转成 ``JobManager.start_job`` 的关键字参数（args list, env dict）。"""
         return {"args": list(self.args), "env": dict(self.env)}
-
 
 @dataclass(frozen=True)
 class DispatchResult:
@@ -69,7 +67,6 @@ class DispatchResult:
         """是否为多任务 batch（>= 2 个 job_id）。"""
         return len(self.created_job_ids) >= 2
 
-
 @dataclass(frozen=True)
 class OverwriteTarget:
     """被 spec 指向的、已存在并将被覆盖的输出文件。
@@ -81,7 +78,6 @@ class OverwriteTarget:
 
     path: str
     shared_count: int
-
 
 @dataclass(frozen=True)
 class ChipGroup:
@@ -96,7 +92,6 @@ class ChipGroup:
     group_key: str
     group_value: str
     specs: tuple[RunSpec, ...]
-
 
 @dataclass(frozen=True)
 class RunPlan:
@@ -119,7 +114,6 @@ class RunPlan:
     has_output_file_param: bool
     total_tasks: int
     entry: "ScriptEntry"
-
 
 class RunOrchestrator:
     """构造并派发 RunSpec / RunPlan。"""

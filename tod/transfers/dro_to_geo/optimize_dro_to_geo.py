@@ -8,7 +8,6 @@
        uv run python -m tod.transfers.dro_to_geo.optimize_dro_to_geo --help
 """
 
-
 from __future__ import annotations
 
 import argparse
@@ -78,9 +77,7 @@ MAX_CASES: Optional[int] = None
 N_WORKERS: Optional[int] = None
 PARALLEL_BACKEND: str = "processes"
 
-
 USE_TQDM = os.environ.get("OPTIMIZE_NO_TQDM", "").lower() not in ("1", "true", "yes")
-
 
 def parse_args():
     """解析命令行参数。
@@ -102,16 +99,13 @@ def parse_args():
     parser.add_argument("--n-workers", type=int, default=None, help="并行 worker 数")
     return parser.parse_args()
 
-
 # =====================================================================
 # 辅助函数
 # =====================================================================
 
-
 # =====================================================================
 # 残差评估
 # =====================================================================
-
 
 def _nlp_eval(y, departure_state, dynamics, mu, earth_radius, moon_radius):
     """计算 y = [alpha, T] 的 2D 残差与代价。
@@ -162,11 +156,9 @@ def _nlp_eval(y, departure_state, dynamics, mu, earth_radius, moon_radius):
         "z_rel": z_rel,
     }
 
-
 # =====================================================================
 # 单案例求解：α 扫描求根 + Nelder-Mead 回退
 # =====================================================================
-
 
 def optimize_one_case(
     rec,
@@ -331,11 +323,9 @@ def optimize_one_case(
     }
     return base_payload
 
-
 # =====================================================================
 # 并行工作器
 # =====================================================================
-
 
 @dataclass
 class NlpPackConfig:
@@ -353,7 +343,6 @@ class NlpPackConfig:
     integrator: str
     integrator_rtol: float
     integrator_atol: float
-
 
 def nlp_worker_packed(payload):
     """打包后的 NLP worker 函数。
@@ -383,21 +372,12 @@ def nlp_worker_packed(payload):
         moon_radius=cfg.moon_radius,
     )
 
-
 # =====================================================================
 # 主流程
 # =====================================================================
 
-
 def main() -> None:
-    """执行脚本主流程。
-    
-    Returns:
-        None。
-    
-    Raises:
-        Exception: 当输入数据、文件或数值流程不满足脚本要求时抛出。
-    """
+
     args = parse_args()
 
     # CLI 参数覆盖
@@ -576,7 +556,6 @@ def main() -> None:
         logger.info(f"  Δv_total = {b['objective_value']:.6f} VU ({b['objective_value'] * VU:.1f} m/s)")
         logger.info(f"  |r - r_earth| = {b.get('dist_from_earth', 'N/A'):.6f} DU (target: {R_GEO:.6f})")
 
-
 if __name__ == "__main__":
     # IDE 调试模式：F5 直跑（无命令行参数）时注入下列参数；
     # 命令行调用时不影响。
@@ -592,7 +571,6 @@ if __name__ == "__main__":
         ]
         logger.debug("使用代码内置调试参数")
     main()
-
 
 # ------------------------------------------------------------------
 # GUI 注册
