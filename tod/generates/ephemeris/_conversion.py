@@ -37,7 +37,7 @@ try:
 except ModuleNotFoundError:
     from typing import Any as EphemerisCorrectionResult
 
-    def _e2m2e_correct_ephemeris_patch_points(*args, **kwargs):
+    def _e2m2e_correct_ephemeris_patch_points(*args: Any, **kwargs: Any) -> EphemerisCorrectionResult:
         """报告当前 e2m2e 版本缺少星历修正分发函数。"""
         raise RuntimeError(
             "当前 e2m2e 安装缺少 e2m2e.algorithms.ephemeris_correction；"

@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from PyQt6.QtCore import QCoreApplication, Qt, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -422,4 +422,4 @@ class JobPanelMixin:
         )
         # ``JobPanelMixin`` 是 mixin，pyright 在 CI 端把 ``self`` 推断为 ``JobPanelMixin*``，
         # 而类属性 ``job_count_changed``（pyqtSignal）无法在裸 mixin 上被发现；显式 cast 兜底。
-        cast(pyqtSignal, self.job_count_changed).emit()
+        cast(Any, self.job_count_changed).emit()
