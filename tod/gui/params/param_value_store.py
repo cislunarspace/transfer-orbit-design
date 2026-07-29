@@ -504,18 +504,20 @@ class ParamStore:
             state = self._catalog_seed_selectors.get(selector.key)
             if state is None or not state.enabled_checkbox.isChecked():
                 continue
-            mode_widget = getattr(state, "mode_widget", None)
-            if (
-                isinstance(mode_widget, QComboBox)
-                and mode_widget.currentData() == selector.mode_jacobi_key
-            ):
-                jacobi_widget = getattr(state, "jacobi_widget", None)
-                tolerance_widget = getattr(state, "tolerance_widget", None)
-                if isinstance(jacobi_widget, QLineEdit) and jacobi_widget.text().strip():
-                    extra_args.extend([selector.jacobi_flag, jacobi_widget.text().strip()])
-                if isinstance(tolerance_widget, QLineEdit) and tolerance_widget.text().strip():
-                    extra_args.extend([selector.jacobi_tolerance_flag, tolerance_widget.text().strip()])
-                continue
+            mode_widget = state.mode_widget
+            if isinstance(mode_widget, QComboBox):
+                if mode_widget.currentData() == selector.mode_jacobi_key:
+                    jacobi_widget = state.jacobi_widget
+                    tolerance_widget = state.tolerance_widget
+                    if isinstance(jacobi_widget, QLineEdit):
+                        jacobi_text = jacobi_widget.text()
+                        if jacobi_text and jacobi_text.strip():
+                            extra_args.extend([selector.jacobi_flag, jacobi_text.strip()])
+                    if isinstance(tolerance_widget, QLineEdit):
+                        tolerance_text = tolerance_widget.text()
+                        if tolerance_text and tolerance_text.strip():
+                            extra_args.extend([selector.jacobi_tolerance_flag, tolerance_text.strip()])
+                    continue
             if isinstance(state.selector_widget, QComboBox):
                 seed_id = state.selector_widget.currentData()
                 if seed_id:

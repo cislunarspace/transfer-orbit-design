@@ -19,7 +19,7 @@ import traceback
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import numpy as np
 import time
@@ -484,12 +484,12 @@ def main(
         parser_obj.error(msg)
         return
 
-    alpha_min = args.alpha_min
-    alpha_max = args.alpha_max
-    t_min = args.t_min
-    t_max = args.t_max
-    t_ins_min = args.t_ins_min
-    t_ins_max = args.t_ins_max
+    alpha_min = cast(float, args.alpha_min) if args.alpha_min is not None else ALPHA_MIN
+    alpha_max = cast(float, args.alpha_max) if args.alpha_max is not None else ALPHA_MAX
+    t_min = cast(float, args.t_min) if args.t_min is not None else T_MIN
+    t_max = cast(float, args.t_max) if args.t_max is not None else T_MAX
+    t_ins_min = cast(float, args.t_ins_min) if args.t_ins_min is not None else T_INS_MIN
+    t_ins_max = cast(float, args.t_ins_max) if args.t_ins_max is not None else T_INS_MAX
     angle_tol = np.deg2rad(args.velocity_angle_tol) if args.velocity_angle_tol is not None else VELOCITY_ANGLE_TOLERANCE
     top_k = args.top_k if args.top_k is not None else TOP_K_FEASIBLE
     max_cases = args.max_cases if args.max_cases is not None else MAX_CASES

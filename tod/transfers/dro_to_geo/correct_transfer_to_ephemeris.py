@@ -290,20 +290,15 @@ def run_correction(args, t_patch_j2000, states_j2000, dynamics, spice):
 
     from e2m2e.algorithms.ephemeris_correction import correct_ephemeris_patch_points
 
-    kwargs = dict(
-        tolerance=args.position_tol,
-        max_iter=args.max_iter,
-        verbose=True,
-        n_workers=args.n_workers,
-        kernel_dir=str(args.spice_kernel_dir),
-        velocity_tolerance=args.velocity_tol,
-    )
-    if args.method == "homotopy":
-        kwargs["base_bodies"] = ["EARTH", "MOON"]
-        kwargs["inner_method"] = args.inner_method
-
+    # 显式 keyword args：CI pyright 拒绝 ``dict[str, object] -> TypedDict`` 的 ``**kwargs`` 解包。
+    is_homotopy = args.method == "homotopy"
     result = correct_ephemeris_patch_points(
-        args.method, dynamics, t_patch_j2000, states_j2000, **kwargs,
+        args.method, dynamics, t_patch_j2000, states_j2000,
+        tolerance=args.position_tol, max_iter=args.max_iter, verbose=True,
+        n_workers=args.n_workers, kernel_dir=str(args.spice_kernel_dir),
+        velocity_tolerance=args.velocity_tol,
+        base_bodies=["EARTH", "MOON"] if is_homotopy else None,
+        inner_method=args.inner_method if is_homotopy else "standard",
     )
     elapsed = time.perf_counter() - t0
     return result, elapsed
@@ -541,6 +536,6 @@ SCRIPT_ENTRY = ScriptEntry(
         CliParam('--position-tol', '位置容差', 'float', '1e-3', help='位置残差容差（km）。', unit_group='distance', default_unit='km'),
         CliParam('--velocity-tol', '速度容差', 'float', '1e-6', help='速度残差容差（km/s）。'),
         CliParam('--max-iter', '最大迭代', 'int', '50', help='最大迭代次数。'),
-        CliParam('--compare-python', '对比 SciPy', 'bool', False, help='额外跑 SciPy 路径做 wall time 对比。'),
+        CliParam('--compare-python', '对比 SciPy', 'bool', '', help='额外跑 SciPy 路径做 wall time 对比。'),
     ],
 )

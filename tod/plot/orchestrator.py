@@ -458,7 +458,7 @@ class FamilyPlotOrchestrator:
 
         # 计算 jacobi 颜色映射
         norm = mcolors.Normalize(vmin=min(all_jacobi), vmax=max(all_jacobi))
-        cmap = cm.get_cmap('viridis')
+        cmap = matplotlib.colormaps['viridis']  # 新版 matplotlib 删除了 cm.get_cmap（CI pyright 报此错）
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=".*Tight layout.*")
@@ -584,7 +584,7 @@ class FamilyPlotOrchestrator:
 
         # 计算 jacobi 颜色映射
         norm = mcolors.Normalize(vmin=min(all_jacobi), vmax=max(all_jacobi))
-        cmap = cm.get_cmap('viridis')
+        cmap = matplotlib.colormaps['viridis']  # 新版 matplotlib 删除了 cm.get_cmap（CI pyright 报此错）
 
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", message=".*Tight layout.*")

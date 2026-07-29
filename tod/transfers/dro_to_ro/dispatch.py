@@ -48,11 +48,11 @@ def nlp_worker_packed(payload):
     cfg = payload["cfg"]
 
     system, dynamics = build_dynamics(
-        cfg.integrator,
         cfg.integrator_rtol,
         cfg.integrator_atol,
         cfg.dt,
-        cfg.mu,
+        integrator=cfg.integrator,
+        mu=cfg.mu,
     )
     dro = Orbit(states=payload["dro_states"], times=payload["dro_times"])
     if payload["dro_period"] is not None:

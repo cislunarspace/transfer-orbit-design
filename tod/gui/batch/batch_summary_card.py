@@ -106,7 +106,7 @@ class BatchSummaryCard(QWidget):
         # -- 标题行（单击展开/折叠） --
         self._header_widget = QWidget()
         self._header_widget.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._header_widget.mousePressEvent = self._toggle_details
+        self._header_widget.mousePressEvent = self._toggle_details  # type: ignore[method-assign]  # pyright CI 报 QWidget 赋值不允许；运行时正确
         header_layout = QHBoxLayout(self._header_widget)
         header_layout.setContentsMargins(0, 4, 0, 4)
         header_layout.setSpacing(8)
@@ -177,6 +177,8 @@ class BatchSummaryCard(QWidget):
         # 移除旧行
         while self._details_layout.count():
             item = self._details_layout.takeAt(0)
+            if item is None:
+                continue
             w = item.widget()
             if w is not None:
                 w.deleteLater()
@@ -187,9 +189,7 @@ class BatchSummaryCard(QWidget):
             label = QLabel(f"#{row.index} {status_display} {short_id}")
             label.setStyleSheet("font-size: 10px;")
             label.setCursor(Qt.CursorShape.PointingHandCursor)
-
-            # 捕获 job_id 供信号转发
-            label.mousePressEvent = lambda _e, jid=row.job_id: (
+            label.mousePressEvent = lambda _e, jid=row.job_id: (  # type: ignore[method-assign]  # pyright CI 报 QLabel 赋值不允许；运行时正确
                 self.job_selected.emit(jid)
             )
             self._details_layout.addWidget(label)
@@ -198,3 +198,5 @@ class BatchSummaryCard(QWidget):
         """单击标题行切换展开区可见性。"""
         visible = not self._details_widget.isVisible()
         self._details_widget.setVisible(visible)
+
+

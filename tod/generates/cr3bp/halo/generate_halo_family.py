@@ -139,7 +139,9 @@ class HaloFamilyGenerator(FamilyGenerator):
         continuation = e2m2e.algorithms.Continuation(
             corrector=e2m2e.algorithms.DifferentialCorrection(dynamic=self.dynamics),
         )
-        seed_halo = continuation.generate_halo_seed_orbit(
+        # ``generate_halo_seed_orbit`` 在 ``continuation.py`` 末尾被以方法重绑定形式
+        # 挂到 ``Continuation`` 类，pyright 看不到这种动态属性；用 ``getattr`` 兜底。
+        seed_halo = getattr(continuation, "generate_halo_seed_orbit")(
             libration_point=libration_point,
             amplitude_z=amplitude_z,
             halo_class=halo_class,
@@ -234,7 +236,7 @@ class HaloFamilyGenerator(FamilyGenerator):
                 f"z0={z0_val:.4f}，T={float(orbit.period or 0.0):.2f} TU"
             )
 
-        family_result = continuation.halo_pseudo_arclength_continuation(
+        family_result = getattr(continuation, "halo_pseudo_arclength_continuation")(
             seed_orbit=seed_orbit,
             n_orbits=args.n_orbits,
             direction="both",

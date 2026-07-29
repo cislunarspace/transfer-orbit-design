@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
@@ -185,7 +185,7 @@ class ScriptTabBar(QWidget):
     def current_widget(self) -> ScriptTabWidget | None:
         idx = self._tab_bar.currentIndex()
         if 0 <= idx < len(self._widgets):
-            return self._widgets[idx]
+            return cast(ScriptTabWidget, self._widgets[idx])
         return None
 
     def current_entry(self) -> ScriptEntry | None:

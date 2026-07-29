@@ -20,7 +20,7 @@ from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_compl
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 DEFAULT_OUTPUT_DIR = project_root / "output" / "ephemeris"
@@ -37,7 +37,7 @@ try:
 except ModuleNotFoundError:
     from typing import Any as EphemerisCorrectionResult
 
-    def _e2m2e_correct_ephemeris_patch_points(*args, **kwargs):
+    def _e2m2e_correct_ephemeris_patch_points(*args: Any, **kwargs: Any) -> EphemerisCorrectionResult:
         """报告当前 e2m2e 版本缺少星历修正分发函数。"""
         raise RuntimeError(
             "当前 e2m2e 安装缺少 e2m2e.algorithms.ephemeris_correction；"
@@ -46,7 +46,7 @@ except ModuleNotFoundError:
 
 def correct_ephemeris_patch_points(*args, **kwargs) -> EphemerisCorrectionResult:
     """执行 correct_ephemeris_patch_points 对应的处理逻辑。"""
-    return _e2m2e_correct_ephemeris_patch_points(*args, **kwargs)
+    return cast(EphemerisCorrectionResult, _e2m2e_correct_ephemeris_patch_points(*args, **kwargs))
 
 class EphemerisConversionAdapter:
     """封装星历转换的外部依赖（SPICE、CR3BP 系统），替代闭包工厂。"""

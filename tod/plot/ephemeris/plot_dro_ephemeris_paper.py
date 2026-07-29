@@ -158,6 +158,8 @@ def main(argv=None):
     cr3bp_system = CR3BP_System(mu=MU, primary="earth", secondary="moon")
     dro_orbit = Orbit.load_from_file(filename=dro_file, system=cr3bp_system)
     period_tu = dro_orbit.period
+    if period_tu is None:
+        raise ValueError(f"DRO 轨道 {dro_file} 未设定周期，无法继续绘图")
     logger.info(f"DRO 周期: {period_tu * TU:.3f} days")
 
     # ---------- SPICE ----------

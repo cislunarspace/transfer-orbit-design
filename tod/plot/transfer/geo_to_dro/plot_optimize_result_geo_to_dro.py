@@ -577,6 +577,7 @@ def main():
         parser.error(f"DRO file not found: {dro_file}")
     with open(dro_file) as f:
         dro_data = json.load(f)
+    dro_orbit = load_orbit_from_json(str(dro_file))
     dro_orbit.period = dro_data.get("properties", {}).get("period")
 
     # 统计

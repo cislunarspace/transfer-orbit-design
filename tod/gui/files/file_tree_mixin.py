@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from PyQt6.QtCore import QCoreApplication, Qt, pyqtSignal
 from PyQt6.QtGui import QKeySequence, QShortcut
@@ -244,7 +244,9 @@ class FileTreeMixin:
     def _refresh_files(self) -> None:
         self._files = discover_files(self._repo_root)
         self._rebuild_file_tree()
-        self.files_refreshed.emit()
+        # ``FileTreeMixin`` 是 mixin，pyright 在 CI 端把 ``self`` 推断为 ``FileTreeMixin*``，
+        # 类属性 ``files_refreshed``（pyqtSignal）无法被发现；用 getattr 返回 Any。
+        getattr(self, "files_refreshed").emit()
 
     def _highlight_category(self, category: str) -> None:
         """展开并滚动到指定类别。"""
