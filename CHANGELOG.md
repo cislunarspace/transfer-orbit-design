@@ -1,5 +1,13 @@
 # 更新日志
 
+## 未发布
+
+### 变更
+
+- README 安装章节对照 e2m2e v5.3.0 更新：补充 PyPI 可选安装方式（`uv add e2m2e`，默认仍为本地 editable 联调）；SPICE kernels 改指 GitHub Release `kernels-v1` 打包下载，内核清单更新为 9 个；补充 e2m2e 在线文档链接。
+- Sphinx 文档删除 `narrative/context`、`narrative/domain` 两个壳页面（被 include 的 CONTEXT.md、docs/domain.md 已移出 git 跟踪）。
+- AI 工作文档移出 git 跟踪、本地保留：`AGENTS.md`、`CLAUDE.md`、`CONTEXT.md`、`docs/agents/`、`docs/domain.md`、`docs/issue-tracker.md`、`docs/triage-labels.md`、`docs/adr/decision-map-context-revision.md`、`.reasonix/`，并加入 `.gitignore`。
+
 ## 2.1.0 (2026-07-10)
 
 随 e2m2e v5.3.0 上游变更同步适配，并在项目内重建 GEO/LEO 圆轨道几何能力。
