@@ -282,7 +282,7 @@ def toy_scripts_dir(tmp_path: Path, monkeypatch) -> Path:
 
     # 将 tmp_path 加入 Python 路径
     import sys
-    monkeypatch.setattr(sys, "path", [str(tmp_path)] + sys.path[:3])
+    monkeypatch.setattr(sys, "path", [str(tmp_path)] + sys.path)
 
     return scripts_dir
 
@@ -297,6 +297,6 @@ def invalid_scripts_dir(tmp_path: Path, monkeypatch) -> Path:
     (scripts_dir / "plot" / "no_entry.py").write_text("x = 1\n", encoding="utf-8")
 
     import sys
-    monkeypatch.setattr(sys, "path", [str(tmp_path)] + sys.path[:3])
+    monkeypatch.setattr(sys, "path", [str(tmp_path)] + sys.path)
 
     return scripts_dir
