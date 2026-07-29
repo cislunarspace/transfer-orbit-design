@@ -421,5 +421,5 @@ class JobPanelMixin:
             else QCoreApplication.translate("JobPanelMixin", "就绪")
         )
         # ``JobPanelMixin`` 是 mixin，pyright 在 CI 端把 ``self`` 推断为 ``JobPanelMixin*``，
-        # 而类属性 ``job_count_changed``（pyqtSignal）无法在裸 mixin 上被发现；显式 cast 兜底。
-        cast(Any, self.job_count_changed).emit()
+        # 类属性 ``job_count_changed``（pyqtSignal）无法被发现；用 getattr 返回 Any。
+        getattr(self, "job_count_changed").emit()

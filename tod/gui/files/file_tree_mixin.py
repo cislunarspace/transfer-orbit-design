@@ -245,8 +245,8 @@ class FileTreeMixin:
         self._files = discover_files(self._repo_root)
         self._rebuild_file_tree()
         # ``FileTreeMixin`` 是 mixin，pyright 在 CI 端把 ``self`` 推断为 ``FileTreeMixin*``，
-        # 而类属性 ``files_refreshed``（pyqtSignal）无法在裸 mixin 上被发现；显式 cast 兜底。
-        cast(Any, self.files_refreshed).emit()
+        # 类属性 ``files_refreshed``（pyqtSignal）无法被发现；用 getattr 返回 Any。
+        getattr(self, "files_refreshed").emit()
 
     def _highlight_category(self, category: str) -> None:
         """展开并滚动到指定类别。"""

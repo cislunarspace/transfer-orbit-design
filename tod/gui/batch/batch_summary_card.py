@@ -177,6 +177,8 @@ class BatchSummaryCard(QWidget):
         # 移除旧行
         while self._details_layout.count():
             item = self._details_layout.takeAt(0)
+            if item is None:
+                continue
             w = item.widget()
             if w is not None:
                 w.deleteLater()
