@@ -35,7 +35,9 @@ git clone https://github.com/cislunarspace/e2m2e.git
 cd transfer-orbit-design
 ```
 
-无需在 e2m2e 目录里单独安装，下一步的 `uv sync` 会以 editable 模式装好它。
+无需在 e2m2e 目录里单独安装，下一步的 `uv sync` 会以 editable 模式装好它。e2m2e 的算法与力模型细节见其在线文档 <https://cislunarspace.github.io/e2m2e/>。
+
+如果只使用 e2m2e 而不需要联调修改它，也可以改用 PyPI 版本：删除 `pyproject.toml` 中的 `tool.uv.sources.e2m2e` 配置，再执行 `uv add e2m2e`。
 
 ### 2. 安装本项目
 
@@ -47,11 +49,13 @@ uv sync
 
 `uv sync` 会一次完成：准备 Python 3.13 解释器、创建虚拟环境、安装全部 PyPI 依赖、以 editable 模式从 `../e2m2e` 安装核心算法库，并以 editable 模式安装本项目。若两个仓库不在同级目录，请先修改 `pyproject.toml` 中的 `tool.uv.sources.e2m2e` 路径。
 
-星历转换脚本还需要 SPICE kernels：
+星历转换脚本还需要 SPICE kernels。推荐从 [cislunarspace/e2m2e Releases 的 `kernels-v1`](https://github.com/cislunarspace/e2m2e/releases) 下载打包好的全部必需内核（国内可访问），解压到 `../e2m2e/kernels`；[NAIF 官网](https://naif.jpl.nasa.gov/naif/data.html)保留为备用来源。
 
 ```bash
 export SPICE_KERNEL_DIR=../e2m2e/kernels
-# 目录中应包含 de440.bsp 和 naif0012.tls
+# 目录中应包含：de430.bsp、de440s.bsp、earth_latest_high_prec.bpc、
+# SPICEEarthPredictedKernel.bpc、SPICELunaCurrentKernel.bpc、
+# SPICELunaFrameKernel.tf、naif0011.tls、naif0012.tls、pck00010.tpc
 ```
 
 ## 快速入门
@@ -175,8 +179,7 @@ tod/
   plot/           轨道、轨道族、搜索结果和优化结果绘图脚本
   gui/            PyQt6 GUI、脚本注册、参数面板、运行管理、主题与国际化
 docs/
-  source/         Sphinx 文档源文件
-  PRD/            产品/功能设计文档
+  source/         Sphinx 文档源文件（含 narrative/ 下的 PRD 文档）
   adr/            架构决策记录
   development.md  开发与文档规范
 output/           运行脚本后按需创建的结果目录
@@ -227,7 +230,7 @@ Transfer Orbit Design 与 STK Cislunar Orbit Design (CODE)、NASA General Missio
 ## 文档与开发
 
 - 开发规范：[`docs/development.md`](docs/development.md)
-- 领域术语：[`CONTEXT.md`](CONTEXT.md) 与 [`docs/domain.md`](docs/domain.md)
+- 算法库文档：[e2m2e 在线文档](https://cislunarspace.github.io/e2m2e/)
 - 本地 HTML 文档：
 
 ```bash

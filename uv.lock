@@ -223,7 +223,14 @@ dev = [
     { name = "mypy" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-cov", specifier = ">=4.0" },
+    { name = "pytest-xdist", specifier = ">=3.0" },
     { name = "ruff", specifier = ">=0.1" },
+]
+docs = [
+    { name = "sphinx", specifier = ">=7" },
+    { name = "sphinx-copybutton", specifier = ">=0.5" },
+    { name = "sphinx-rtd-theme", specifier = ">=2" },
+    { name = "sphinxcontrib-mermaid", specifier = ">=0.9" },
 ]
 
 [[package]]

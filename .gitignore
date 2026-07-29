@@ -161,11 +161,18 @@ cython_debug/
 # MiMoCode
 .mimocode/
 
-# Reasonix — track config/hooks/skills, ignore runtime artifacts
-.reasonix/.session-marker
-.reasonix/session-files.log
-.reasonix/sessions/
-.reasonix/usage.jsonl
+# Reasonix
+.reasonix/
+
+# AI 工作文档（本地保留，不入库）
+AGENTS.md
+CLAUDE.md
+CONTEXT.md
+docs/agents/
+docs/domain.md
+docs/issue-tracker.md
+docs/triage-labels.md
+docs/adr/decision-map-context-revision.md
 
 # macOS
 .DS_Store
