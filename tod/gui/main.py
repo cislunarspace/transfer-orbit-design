@@ -2,6 +2,7 @@
 
 """
 
+import io
 import multiprocessing
 import multiprocessing.spawn
 import os
@@ -40,6 +41,14 @@ if getattr(sys, "frozen", False):
         sys.stdout = open(os.devnull, "w", encoding="utf-8")
     if sys.stderr is None:
         sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
+    # frozen 嵌入式解释器不响应 PYTHONUNBUFFERED / PYTHONIOENCODING，
+    # sys.stdout/stderr 退化为系统代码页（中文 Windows=GBK）+ 块缓冲：
+    # GUI 输出面板按 utf-8 解码得到乱码，长任务输出到进程退出才一次性冲刷。
+    # 统一改为 utf-8 + 行缓冲，与 GUI 的解码约定一致、恢复流式输出。
+    for _stream in (sys.stdout, sys.stderr):
+        if isinstance(_stream, io.TextIOWrapper):
+            _stream.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)
 
     # SPICE kernels 自动探测：exe 旁存在含 .bsp 的 kernels/ 目录时设为默认。
     # setdefault 保证用户显式设置优先；env 经 QProcessEnvironment 传给全部子进程
