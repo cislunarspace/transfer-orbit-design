@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable
+from typing import Callable, cast
 
 import numpy as np
 
@@ -35,8 +35,8 @@ def _dro_config() -> FamilyPlotConfig:
     )
 
 _RATIO_PLOT_OVERRIDES: dict[str, dict[str, object]] = {
-    "3:1": {"center_3d": (-0.85, 0, 0), "target_period": 2 * np.pi},
-    "3:2": {"center_3d": (-0.9, 0, 0), "target_period": 4 * np.pi},
+    "3:1": {"center_3d": (-0.85, 0.0, 0.0), "target_period": 2 * np.pi},
+    "3:2": {"center_3d": (-0.9, 0.0, 0.0), "target_period": 4 * np.pi},
 }
 
 def _resonant_config(ratio: str) -> FamilyPlotConfig:
@@ -53,7 +53,8 @@ def _resonant_config(ratio: str) -> FamilyPlotConfig:
         elev_3d=0,
         azim_3d=-90,
         show_seed_overlay=True,
-        **overrides,
+        center_3d=cast(tuple[float, float, float], overrides["center_3d"]),
+        target_period=cast(float, overrides["target_period"]),
     )
 
 _CONFIG_REGISTRY: list[tuple[str, Callable[[], FamilyPlotConfig]]] = [

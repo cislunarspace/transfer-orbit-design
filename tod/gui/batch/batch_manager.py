@@ -82,7 +82,7 @@ class BatchManager(QObject):
         self._batches[batch_id] = batch
 
         # 初始化聚合状态缓存
-        statuses = self._collect_job_statuses(job_ids)
+        statuses = [s for s in self._collect_job_statuses(job_ids) if s is not None]
         agg = aggregate_status(statuses)
         self._last_aggregate[batch_id] = agg
 
@@ -113,7 +113,7 @@ class BatchManager(QObject):
         batch = self._batches.get(batch_id)
         if batch is None:
             return None
-        statuses = self._collect_job_statuses(batch.job_ids)
+        statuses = [s for s in self._collect_job_statuses(batch.job_ids) if s is not None]
         if not statuses:
             return None
         return aggregate_status(statuses)

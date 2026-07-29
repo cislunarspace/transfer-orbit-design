@@ -12,10 +12,15 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import numpy.typing as npt
 
 from .constants import DU, MU
+
+if TYPE_CHECKING:
+    from e2m2e.core.orbit import Orbit
 
 # =============================================================================
 # GEO（地球静止轨道）参数

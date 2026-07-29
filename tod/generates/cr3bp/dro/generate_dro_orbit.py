@@ -224,11 +224,6 @@ def _select_catalog_seed(args: argparse.Namespace) -> CatalogSeed:
             f"matched seed=unknown, delta=abs(actual-target), tolerance={args.jacobi_tolerance}; "
             f"underlying: {exc}"
         ) from exc
-    except Cr3bpCatalogLookupError as exc:
-        raise SystemExit(
-            f"DRO catalog 查找失败：catalog_dir={args.catalog_dir}, "
-            f"seed_id={args.seed_id!r}, jacobi={args.jacobi!r}, tolerance={args.jacobi_tolerance!r}: {exc}"
-        ) from exc
     except Cr3bpImportSchemaError as exc:
         raise SystemExit(f"DRO catalog CSV 无效：catalog_dir={args.catalog_dir}: {exc}") from exc
     except Cr3bpImportError as exc:

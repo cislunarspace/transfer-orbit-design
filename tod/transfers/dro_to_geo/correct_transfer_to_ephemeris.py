@@ -290,7 +290,7 @@ def run_correction(args, t_patch_j2000, states_j2000, dynamics, spice):
 
     from e2m2e.algorithms.ephemeris_correction import correct_ephemeris_patch_points
 
-    kwargs = dict(
+    kwargs: dict[str, object] = dict(
         tolerance=args.position_tol,
         max_iter=args.max_iter,
         verbose=True,
@@ -541,6 +541,6 @@ SCRIPT_ENTRY = ScriptEntry(
         CliParam('--position-tol', '位置容差', 'float', '1e-3', help='位置残差容差（km）。', unit_group='distance', default_unit='km'),
         CliParam('--velocity-tol', '速度容差', 'float', '1e-6', help='速度残差容差（km/s）。'),
         CliParam('--max-iter', '最大迭代', 'int', '50', help='最大迭代次数。'),
-        CliParam('--compare-python', '对比 SciPy', 'bool', False, help='额外跑 SciPy 路径做 wall time 对比。'),
+        CliParam('--compare-python', '对比 SciPy', 'bool', '', help='额外跑 SciPy 路径做 wall time 对比。'),
     ],
 )

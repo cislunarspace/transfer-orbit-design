@@ -51,7 +51,7 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
     doc_link_clicked = pyqtSignal(str)
 
     def __init__(self, repo_root: str, parent=None):
-        super().__init__(parent)
+        QMainWindow.__init__(self, parent)
         self._repo_root = Path(repo_root)
         self._gui_defaults = self._load_gui_defaults()
         self._current_script: ScriptEntry | None = None

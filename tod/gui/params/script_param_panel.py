@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from collections.abc import Callable, Iterable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -34,9 +34,7 @@ from tod.gui.params.param_value_store import CatalogSeedSelectorState, ParamValu
 from tod.scripting import CliParam, MultiCliParam, ScriptEntry
 from tod.gui.theme_utils import RUN_BTN_STYLE_READY
 from tod.gui.theme_utils import resolve_theme as _resolve_theme
-
-if TYPE_CHECKING:
-    pass
+from tod.generates.cr3bp.importer import OrbitRecord
 
 class ScriptParamPanel(QWidget):
     """脚本参数面板 UI：标题/描述/控件 dicts/默认值/运行按钮。
@@ -419,19 +417,23 @@ class ScriptParamPanel(QWidget):
     def _load_catalog_seed_options(self, selector, selector_widget: QComboBox) -> None:
         if selector_widget.property("_catalog_seed_loaded"):
             return
-        loader = self._catalog_seed_loader
-        if loader is None:
-            def loader(repo_root: Path, orbit_type: str):
-                from tod.generates.cr3bp.importer import import_cr3bp_xlsx_catalog, load_cr3bp_catalog
 
-                normalized_dir = repo_root / "data" / "cr3bp_data" / "normalized"
-                raw_dir = repo_root / "data" / "cr3bp_data" / "raw"
-                index_file = normalized_dir / "index.csv"
-                family_file = normalized_dir / "families" / f"{orbit_type}.csv"
-                if not index_file.exists() or not family_file.exists():
-                    import_cr3bp_xlsx_catalog(raw_dir, normalized_dir, overwrite=False)
-                catalog = load_cr3bp_catalog(normalized_dir)
-                return catalog.records(orbit_type=orbit_type)
+        def _default_loader(repo_root: Path, orbit_type: str) -> list[OrbitRecord]:
+            from tod.generates.cr3bp.importer import import_cr3bp_xlsx_catalog, load_cr3bp_catalog
+
+            normalized_dir = repo_root / "data" / "cr3bp_data" / "normalized"
+            raw_dir = repo_root / "data" / "cr3bp_data" / "raw"
+            index_file = normalized_dir / "index.csv"
+            family_file = normalized_dir / "families" / f"{orbit_type}.csv"
+            if not index_file.exists() or not family_file.exists():
+                import_cr3bp_xlsx_catalog(raw_dir, normalized_dir, overwrite=False)
+            catalog = load_cr3bp_catalog(normalized_dir)
+            return list(catalog.records(orbit_type=orbit_type))
+
+        loader: Callable[[Path, str], list[OrbitRecord]] = cast(
+            Callable[[Path, str], list[OrbitRecord]],
+            self._catalog_seed_loader if self._catalog_seed_loader is not None else _default_loader,
+        )
 
         records = list(loader(self._repo_root, selector.orbit_type))
         selector_widget.clear()
