@@ -2,8 +2,11 @@
 
 """
 
+import multiprocessing
+import multiprocessing.spawn
 import os
 import platform
+import runpy
 import sys
 from pathlib import Path
 
@@ -26,10 +29,6 @@ if platform.system() == "Linux":
 # PyInstaller frozen 模式初始化
 # ---------------------------------------------------------------------------
 if getattr(sys, "frozen", False):
-    import multiprocessing
-    import multiprocessing.spawn
-    import runpy
-
     # multiprocessing spawn 的子进程会以 --multiprocessing-fork 参数重启本 exe，
     # freeze_support 负责接管 worker 引导，避免落入下方 GUI 分支重复弹窗
     multiprocessing.freeze_support()
