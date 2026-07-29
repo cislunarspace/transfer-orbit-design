@@ -62,7 +62,7 @@ jobs:
           pip install pyinstaller
 
       - name: Build exe
-        run: pyinstaller TransferOrbitDesign.spec
+        run: pyinstaller packaging/TransferOrbitDesign.spec
 
       - name: Package output
         shell: pwsh

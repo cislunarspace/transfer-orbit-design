@@ -75,7 +75,7 @@
   pip install .
   pip install pyinstaller
   ```
-- 使用 `pyinstaller TransferOrbitDesign.spec` 构建。
+- 使用 `pyinstaller packaging/TransferOrbitDesign.spec` 构建。
 
 ### 6. 清理 constraints-ci.txt
 
@@ -94,7 +94,7 @@
    - 确认 pyright 类型检查通过（无需 `extraPaths`）
 
 2. **本地 PyInstaller 构建验证**：
-   - 在本地 Windows 环境运行 `pyinstaller TransferOrbitDesign.spec`
+   - 在本地 Windows 环境运行 `pyinstaller packaging/TransferOrbitDesign.spec`
    - 确认 `dist/TransferOrbitDesign/` 目录生成
    - 运行生成的 exe，确认 GUI 能正常启动
    - 确认界面语言切换功能正常
