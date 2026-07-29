@@ -159,7 +159,7 @@ class JobPanelMixin:
         jobs: list[BatchJobRow] = []
         stopped_count = 0
         for i, jid in enumerate(batch.job_ids):
-            status = self._batch_manager.get_job_status(jid)
+            status = self._job_manager.get_job_status(jid)
             if status is None:
                 continue
             jobs.append(BatchJobRow(job_id=jid, index=i + 1, status=status))
@@ -328,7 +328,10 @@ class JobPanelMixin:
         job = self._job_manager.get_job(job_id)
         if job is None:
             return
-        elapsed = time.time() - job.started_at
+        started_at = job.started_at
+        if started_at is None:
+            return
+        elapsed = time.time() - started_at
         if elapsed > 60:
             reply = QMessageBox.question(
                 cast(QWidget, self),
@@ -417,4 +420,6 @@ class JobPanelMixin:
             if running > 0
             else QCoreApplication.translate("JobPanelMixin", "就绪")
         )
-        self.job_count_changed.emit()
+        # ``JobPanelMixin`` 是 mixin，pyright 在 CI 端把 ``self`` 推断为 ``JobPanelMixin*``，
+        # 而类属性 ``job_count_changed``（pyqtSignal）无法在裸 mixin 上被发现；显式 cast 兜底。
+        cast(pyqtSignal, self.job_count_changed).emit()

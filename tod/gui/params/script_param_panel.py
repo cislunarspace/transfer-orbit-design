@@ -347,8 +347,9 @@ class ScriptParamPanel(QWidget):
         selector_widget = QComboBox()
         selector_widget.setEditable(True)
         selector_widget.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
-        if selector_widget.completer() is not None:
-            selector_widget.completer().setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        completer = selector_widget.completer()
+        if completer is not None:
+            completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         selector_widget.addItem(self.tr("（启用后加载参考数据集）"))
         selector_widget.setEnabled(selector.default_enabled)
         mode_widget = QComboBox()
@@ -455,10 +456,10 @@ class ScriptParamPanel(QWidget):
 
     def _update_catalog_seed_preview(self, selector_widget: QComboBox) -> None:
         record = selector_widget.currentData(Qt.ItemDataRole.UserRole + 1)
-        preview_label = None
+        preview_label: QLabel | None = None
         for state in self._store._catalog_seed_selectors.values():
             if state.selector_widget is selector_widget:
-                preview_label = state.preview_label
+                preview_label = cast(QLabel, state.preview_label)
                 break
         if preview_label is None:
             return

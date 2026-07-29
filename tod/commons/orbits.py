@@ -156,8 +156,9 @@ def compute_departure_velocity(
     Returns:
         调整后的速度 ``(3,)``。
     """
-    pos = np.asarray(state[:3], dtype=np.float64)
-    vel = np.asarray(state[3:6], dtype=np.float64)
+    arr = np.asarray(state, dtype=np.float64)
+    pos = arr[:3]
+    vel = arr[3:6]  # CI 端 numpy stubs 把切片标成 Any-ish；运行时 ndarray 切片正确
     r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
     if r_xy < 1e-10:
         # r_xy ≈ 0 时切向向量 [-y, x, 0]/r_xy 无定义，返回原始速度。

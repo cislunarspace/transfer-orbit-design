@@ -260,6 +260,7 @@ def main():
     from e2m2e.core.spice import SPICEManager
     from e2m2e.core.ephemeris_system import EphemerisSystem
     from e2m2e.core.ephemeris_dynamics import EphemerisDynamics
+    from e2m2e.mbse.data.enums import ReferenceFrame
     import spiceypy
 
     spice = SPICEManager()
@@ -288,7 +289,7 @@ def main():
         bodies=list(bodies),
         spice=spice,
         origin="EARTH",
-        frame="J2000",
+        frame=ReferenceFrame.J2000,
     )
     eph_dynamics = EphemerisDynamics(system=eph_system)
 
