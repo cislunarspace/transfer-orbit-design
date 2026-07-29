@@ -58,6 +58,8 @@ export SPICE_KERNEL_DIR=../e2m2e/kernels
 # SPICELunaFrameKernel.tf、naif0011.tls、naif0012.tls、pck00010.tpc
 ```
 
+**打包版（PyInstaller 便携包）**：从 GitHub Releases 下载的 `TransferOrbitDesign-windows.zip` 无需配置环境变量。另从 [`spice-data-v1`](https://github.com/cislunarspace/transfer-orbit-design/releases/tag/spice-data-v1) release 下载 `spice-kernels.zip`，解压到 `TransferOrbitDesign.exe` 所在目录（得到 `kernels/` 子目录），应用启动时会自动探测；显式设置 `SPICE_KERNEL_DIR` 环境变量仍然优先。该 release 同时提供完整 MICE 工具包（`spice-mice-windows.zip` / `spice-mice-linux.zip`），供 MATLAB 等完整开发使用，运行本应用不需要。
+
 ## 快速入门
 
 ### GUI

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 import traceback
@@ -31,7 +32,7 @@ from tod.transfers._common import forward_integrate
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
 DEFAULT_SPICE_KERNEL_DIR = Path(
-    project_root.parent / "e2m2e" / "kernels"
+    os.environ.get("SPICE_KERNEL_DIR", str(project_root.parent / "e2m2e" / "kernels"))
 )
 
 def parse_args():

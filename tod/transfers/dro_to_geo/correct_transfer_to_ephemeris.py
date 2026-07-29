@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 from pathlib import Path
 
@@ -33,7 +34,9 @@ from tod.transfers.dro_to_geo.transfer_to_ephemeris import (
 )
 
 project_root = Path(__file__).resolve().parent.parent.parent.parent
-DEFAULT_SPICE_KERNEL_DIR = Path(project_root.parent / "e2m2e" / "kernels")
+DEFAULT_SPICE_KERNEL_DIR = Path(
+    os.environ.get("SPICE_KERNEL_DIR", str(project_root.parent / "e2m2e" / "kernels"))
+)
 
 
 def parse_args():

@@ -170,8 +170,13 @@ def main():
     kernel_path = spice.find_ephemeris_kernel(SPICE_KERNEL_DIR)
     import spiceypy
 
-    leapseconds_path = os.path.join(SPICE_KERNEL_DIR, "naif0012.tls")
-    spiceypy.furnsh(leapseconds_path)
+    # 闰秒 kernel 版本随发行变化（naif0011/naif0012/...），按 glob 取最新
+    leapseconds_candidates = sorted(Path(SPICE_KERNEL_DIR).glob("naif*.tls"))
+    if not leapseconds_candidates:
+        raise FileNotFoundError(
+            f"SPICE kernel 目录中找不到闰秒文件 (naif*.tls): {SPICE_KERNEL_DIR}"
+        )
+    spiceypy.furnsh(str(leapseconds_candidates[-1]))
     spice.load_kernel(kernel_path)
 
     try:

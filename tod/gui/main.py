@@ -23,10 +23,38 @@ if platform.system() == "Linux":
         os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 # ---------------------------------------------------------------------------
+# PyInstaller frozen 模式初始化
+# ---------------------------------------------------------------------------
+if getattr(sys, "frozen", False):
+    import multiprocessing
+    import multiprocessing.spawn
+    import runpy
+
+    # multiprocessing spawn 的子进程会以 --multiprocessing-fork 参数重启本 exe，
+    # freeze_support 负责接管 worker 引导，避免落入下方 GUI 分支重复弹窗
+    multiprocessing.freeze_support()
+
+    # windowed 子进程（multiprocessing spawn）没有控制台，sys.stdout/stderr 为 None，
+    # 脚本 print 或引导代码写 traceback 时直接 AttributeError；重定向到 devnull 兜底。
+    # GUI 经 QProcess 启动的脚本进程有管道，stdout/stderr 有效，不受影响。
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
+    # SPICE kernels 自动探测：exe 旁存在含 .bsp 的 kernels/ 目录时设为默认。
+    # setdefault 保证用户显式设置优先；env 经 QProcessEnvironment 传给全部子进程
+    _kernels_dir = Path(sys.executable).resolve().parent / "kernels"
+    if _kernels_dir.is_dir() and any(_kernels_dir.glob("*.bsp")):
+        os.environ.setdefault("SPICE_KERNEL_DIR", str(_kernels_dir))
+
+# ---------------------------------------------------------------------------
 # PyInstaller 子进程解释器模式
 # ---------------------------------------------------------------------------
 # GUI 的 JobManager 用 sys.executable 启动脚本；打包后 sys.executable
-# 就是本 exe。检测到传入 .py 文件时，直接 exec 该脚本。
+# 就是本 exe。检测到传入 .py 文件时，直接以 __main__ 身份运行该脚本。
+# 必须用 runpy.run_path 而非裸 exec：后者不会替换 sys.modules["__main__"]，
+# 脚本内 multiprocessing spawn 的 worker 反序列化函数时会找错模块。
 if getattr(sys, "frozen", False) and len(sys.argv) > 1:
     _maybe_script = sys.argv[1]
     if _maybe_script.endswith(".py") and Path(_maybe_script).is_file():
@@ -46,9 +74,14 @@ if getattr(sys, "frozen", False) and len(sys.argv) > 1:
         sys.argv = sys.argv[1:]
         if str(_repo_root) not in sys.path:
             sys.path.insert(0, str(_repo_root))
-        with open(_script_path, "r", encoding="utf-8") as _f:
-            _code = compile(_f.read(), str(_script_path), "exec")
-        exec(_code, {"__name__": "__main__", "__file__": str(_script_path)})
+        # multiprocessing spawn 支持：win32 下 CPython 把 frozen exe 视为 WINEXE
+        # （spawn.py 中 WINEXE = getattr(sys, "frozen", False)），于是
+        # get_preparation_data 不向子进程传 init_main_from_path，子进程的
+        # __main__ 停留在 exe 入口 main.py，脚本内定义的 worker 函数反序列化失败。
+        # 本分支里 exe 就是普通脚本解释器，__main__ 是被 runpy 执行的脚本，
+        # 与非 frozen 行为一致，因此把 WINEXE 置回 False（它仅影响该分支判断）。
+        multiprocessing.spawn.WINEXE = False
+        runpy.run_path(str(_script_path), run_name="__main__")
         sys.exit(0)
 
 # 确保 repo root 在 sys.path 中
