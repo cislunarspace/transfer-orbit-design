@@ -7,7 +7,9 @@ main.py needs access to the .py script files in the tod/ package.
 
 from pathlib import Path
 
-repo_root = Path(SPECPATH)
+# SPECPATH is the directory containing this .spec file (now packaging/),
+# so its parent is the actual project root.
+repo_root = Path(SPECPATH).resolve().parent
 
 # Collect data files
 datas = [
