@@ -8,6 +8,8 @@
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
+中文 | [English](README.en.md)
+
 Transfer Orbit Design 是一组面向地月空间轨道设计的脚本和 GUI 工具，提供 CR3BP 周期轨道族生成、DRO↔RO/GEO/LEO 转移搜索与优化、CR3BP 到星历模型的修正，以及配套的绘图与图形界面。本仓库负责脚本编排、参数管理、结果保存和可视化；动力学、修正器、延拓器和转移算法由同级目录下的 `e2m2e` 仓库提供。
 
 > 本工具服务于地月空间发展的三大技术方向：**在轨机动**、**在轨服务**、**地月技术**。当前版本聚焦“在轨机动”方向的轨道设计基础能力，并以此为基座向其余两个方向扩展。背景、能力对应关系与后续路线图见文末「[使命与路线图](#使命与路线图)」。
@@ -21,6 +23,7 @@ Transfer Orbit Design 是一组面向地月空间轨道设计的脚本和 GUI �
 | 转移优化 | 基于网格搜索结果执行 NLP 优化，最小化两脉冲或插入代价 | `optimization_results_*.json` |
 | 星历转换 | 将 CR3BP DRO/Halo 轨道或轨道族修正到真实星历模型 | `output/ephemeris/` 下的修正结果 JSON |
 | 绘图与检查 | 轨道族全局视图、稳定性图、搜索/优化结果图、单轨道检查器 | Matplotlib 窗口或保存图片 |
+| 轨迹分析 | STM 条件数、分段打靶参数敏感性、CR3BP 数据集统计 | `output/transfer/` 分析 JSON、`figures/` 图片 |
 | GUI | 图形界面组织脚本、参数、输出目录和运行日志；支持 zh/en 中英文切换 | 桌面交互界面 |
 
 ## 安装
@@ -130,6 +133,19 @@ DRO 单轨生成入口已从旧的 3:1 专用脚本改名为 `generate_dro_orbit
 | GEO → DRO | — | `tod.transfers.geo_to_dro.validate_geo_to_dro` | 验证 GEO→DRO 转移结果 |
 | LEO → DRO | `tod.transfers.leo_to_dro.grid_search_leo_to_dro` | `tod.transfers.leo_to_dro.optimize_leo_to_dro` | LEO 出发到 DRO 的搜索 + 优化 |
 
+### 转移星历修正与分析
+
+以下脚本面向 DRO→GEO 等转移轨迹的星历修正与后续数值分析，均位于 `tod/transfers/dro_to_geo/`。
+
+| 脚本 | 功能 |
+|------|------|
+| `tod.transfers.dro_to_geo.transfer_to_ephemeris` | 优化轨迹 CR3BP→J2000 坐标转换与星历传播对比（不做修正） |
+| `tod.transfers.dro_to_geo.correct_transfer_to_ephemeris` | 转移轨迹多重打靶星历修正，支持 standard/two_level/homotopy/segmented（分段打靶拼接） |
+| `tod.transfers.dro_to_geo.compare_low_thrust` | 低推力与脉冲转移的燃料消耗对比 |
+| `tod.transfers.dro_to_geo.analyze_stm_condition_number` | 沿修正轨迹逐段/累积 STM 条件数分析，评估打靶法数值稳定性 |
+| `tod.transfers.dro_to_geo.analyze_patch_point_sensitivity` | 分段打靶 `points_per_segment` 参数敏感性分析 |
+| `tod.transfers.dro_to_geo.analyze_cr3bp_dataset` | CR3BP 原始 XLSX 数据集统计与覆盖图 |
+
 ### 星历转换
 
 | 目标 | 单轨道 | 轨道族 | 说明 |
@@ -193,9 +209,7 @@ output/           运行脚本后按需创建的结果目录
 
 Transfer Orbit Design 面向地月空间发展需求，围绕三个技术方向展开：**在轨机动**、**在轨服务**、**地月技术**。它的定位是为这三个方向提供可复现、可扩展的轨道设计与分析基座。当前版本已在“在轨机动”方向落地核心能力，其余两个方向按路线图逐步推进。
 
-状态标识：✅ 已实现　🚧 开发中　📐 规划中
-
-### 一、在轨机动　✅ 已实现
+### 一、在轨机动（已实现）
 
 这一方向的目标是大幅提升轨道机动能力。软件在其中的作用，是用 CR3BP 低能量轨道与转移设计**支撑**这一目标，而不是由软件本身完成机动——后者是任务层面的工程目标。
 
@@ -205,7 +219,7 @@ Transfer Orbit Design 面向地月空间发展需求，围绕三个技术方向�
 - **转移搜索与优化**：DRO→RO、DRO→GEO、GEO→DRO、LEO→DRO 的两脉冲网格搜索与 NLP 优化，最小化 Δv 或插入代价，为低能耗转移设计提供候选解。见[转移搜索与优化](#转移搜索与优化)。
 - **星历修正**：将 CR3BP 设计结果多重打靶修正到真实星历模型，缩小设计与工程实现的差距。见[星历转换](#星历转换)。
 
-### 二、在轨服务　📐 规划中
+### 二、在轨服务（规划中）
 
 目标方向：航天器在轨加注、维修与快速替换。计划覆盖：
 
@@ -215,7 +229,7 @@ Transfer Orbit Design 面向地月空间发展需求，围绕三个技术方向�
 
 > 当前版本尚无对应实现，列入后续路线图。
 
-### 三、地月技术　📐 规划中
+### 三、地月技术（规划中）
 
 目标方向：支撑深空域感知与行动，突破地月空间态势表征、轨道编目、导航、通信与控制等技术。计划覆盖：
 

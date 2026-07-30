@@ -110,6 +110,13 @@ uv run --extra docs python -m sphinx -b html docs/source docs/build/html
 
 提交前应至少确认构建无 ERROR，并尽量清理 WARNING。若新增公开模块，请在对应 `docs/source/tod/` toctree 中加入页面。
 
+### 多语言 README
+
+- `README.md` 为中文主文档；其他语言版本命名为 `README.<lang>.md`（当前仅有 `README.en.md`）。
+- 修改任一语言版本时，应在同一提交中同步其余版本，保持章节结构一一对应。
+- 代码块、命令、路径、模块名一律不翻译；标题翻译后需同步修正文内锚点链接。
+- 各语言版本顶部均应放置语言切换链接。
+
 ## 日志与打印
 
 本项目使用 Python `logging` 模块而非 `print()` 进行输出。
