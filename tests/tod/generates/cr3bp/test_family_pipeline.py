@@ -118,7 +118,7 @@ class TestParseLogLevel:
 
 class TestBuildCr3bpSystem:
     def test_returns_cr3bp_system(self):
-        from e2m2e.core import CR3BP_System
+        from e2m2e.algorithm.dynamics import CR3BP_System
 
         system = fp.build_cr3bp_system()
         assert isinstance(system, CR3BP_System)
@@ -134,7 +134,7 @@ class TestBuildCr3bpSystem:
 
 class TestBuildCr3bpDynamics:
     def test_returns_cr3bp_dynamics(self):
-        from e2m2e.core import CR3BP_Dynamics
+        from e2m2e.algorithm.dynamics import CR3BP_Dynamics
 
         dynamics = fp.build_cr3bp_dynamics()
         assert isinstance(dynamics, CR3BP_Dynamics)

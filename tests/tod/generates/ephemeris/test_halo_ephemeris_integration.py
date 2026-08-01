@@ -95,11 +95,15 @@ def _setup_pipeline(halo_json: Path, tmp_path: Path):
 
     import spiceypy
 
-    from e2m2e.algorithms import convert_to_j2000, sample_patch_points
-    from e2m2e.core.spice import SPICEManager
-    from e2m2e.core.ephemeris_system import EphemerisSystem
-    from e2m2e.core.ephemeris_dynamics import EphemerisDynamics
-    from e2m2e.core import CR3BP_System, Orbit, SynodicJ2000System
+    from e2m2e.algorithm.solver import convert_to_j2000, sample_patch_points
+    from e2m2e.data.kernels.manager import SPICEManager
+    from e2m2e.algorithm.coordinate.synodic_j2000 import SynodicJ2000System
+    from e2m2e.algorithm.dynamics import (
+        CR3BP_System,
+        EphemerisDynamics,
+        EphemerisSystem,
+    )
+    from e2m2e.data.types.orbit import Orbit
 
     mod = _import_module()
 

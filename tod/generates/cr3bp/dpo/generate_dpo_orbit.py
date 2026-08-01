@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 """generate_dpo_orbit DPO 轨道生成脚本。
 
 本模块在地月 CR3BP 中通过手动初值 + 固定周期微分修正生成单条 DPO 轨道。

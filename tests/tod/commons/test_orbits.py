@@ -192,7 +192,7 @@ class TestGenerateGeoOrbit:
 
     def test_returns_orbit_object(self):
         """应返回 Orbit 对象。"""
-        from e2m2e.core.orbit import Orbit
+        from e2m2e.data.types.orbit import Orbit
         geo = generate_geo_orbit()
         assert isinstance(geo, Orbit)
 
@@ -220,7 +220,7 @@ class TestGenerateLeoOrbit:
 
     def test_returns_orbit_object(self):
         """应返回 Orbit 对象。"""
-        from e2m2e.core.orbit import Orbit
+        from e2m2e.data.types.orbit import Orbit
         leo = generate_leo_orbit()
         assert isinstance(leo, Orbit)
 

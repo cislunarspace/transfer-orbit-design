@@ -234,8 +234,16 @@ def run_correction(args, t_patch_j2000, states_j2000, dynamics, spice):
     t0 = time.perf_counter()
 
     if args.method == "segmented":
-        # 分段打靶拼接法：直接调用 Rust 实现
-        from e2m2e._integrators import segmented_shooting_correct_py
+        # 分段打靶拼接法：直接调用 Rust 实现。
+        # e2m2e v5.3 迁移后 _integrators 已移除 segmented_shooting_correct_py，
+        # 该能力被 e2m2e algorithm/ephemeris_correction 的 segmented 路径取代。
+        try:
+            from e2m2e._integrators import segmented_shooting_correct_py
+        except ModuleNotFoundError:
+            raise RuntimeError(
+                "当前 e2m2e 版本已移除 segmented_shooting_correct_py；"
+                "分段打靶拼接法请改用 e2m2e algorithm/ephemeris_correction。"
+            )
 
         print(f"\n分段打靶拼接法：{args.points_per_segment} 点/段，重叠 {args.overlap_points} 点")
 

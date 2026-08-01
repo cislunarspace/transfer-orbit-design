@@ -209,15 +209,34 @@ class RunOrchestrator:
         specs: list[RunSpec],
         entry: "ScriptEntry",
         job_manager: "JobManager",
+        executor=None,
     ) -> DispatchResult:
-        """为每个 RunSpec 启动一个 Job，返回 DispatchResult。"""
+        """为每个 RunSpec 启动一个 Job，返回 DispatchResult。
+
+        Args:
+            specs: 待启动的 RunSpec 列表。
+            entry: 关联的 ScriptEntry。
+            job_manager: 用于启动 job 的 JobManager。
+            executor: 可选 ToolExecutor。提供时经 ``executor.build_spec``
+                构造 ProcessSpec 后调用 ``job_manager.start_job_spec``；
+                缺省走 legacy（``start_job`` 薄包装，行为不变）。
+
+        Returns:
+            DispatchResult（created_job_ids / rejected / total_tasks / entry）。
+        """
         created: list[str] = []
         rejected: list[tuple[str, str]] = []
         for spec in specs:
             kwargs = spec.to_dispatch_kwargs()
-            job_id = job_manager.start_job(
-                entry, kwargs["args"], kwargs["env"]  # type: ignore[arg-type]
-            )
+            if executor is not None:
+                proc_spec = executor.build_spec(
+                    entry, extra_args=kwargs["args"], env=kwargs["env"]
+                )
+                job_id = job_manager.start_job_spec(proc_spec, entry)
+            else:
+                job_id = job_manager.start_job(
+                    entry, kwargs["args"], kwargs["env"]  # type: ignore[arg-type]
+                )
             if job_id:
                 created.append(job_id)
             else:

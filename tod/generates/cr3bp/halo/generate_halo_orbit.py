@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 """generate_halo_orbit 轨道生成脚本。
 
 本模块在地月 CR3BP 中构造种子轨道，调用 e2m2e 的微分修正、自然延拓或伪弧长延拓算法生成目标轨道。输入为命令行给出的初始状态、周期猜测和延拓配置；输出为 output/ 下对应轨道类别的 JSON/CSV 文件。

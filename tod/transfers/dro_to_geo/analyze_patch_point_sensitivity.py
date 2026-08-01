@@ -165,7 +165,13 @@ def main():
     # 4. 扫描 points_per_segment
     pps_list = [int(x) for x in args.pps_list.split(",") if x.strip()]
     print(f"\n4. 分段打靶参数扫描：points_per_segment ∈ {pps_list}")
-    from e2m2e._integrators import segmented_shooting_correct_py
+    try:
+        from e2m2e._integrators import segmented_shooting_correct_py
+    except ModuleNotFoundError:
+        raise RuntimeError(
+            "当前 e2m2e 版本已移除 segmented_shooting_correct_py；"
+            "分段打靶参数敏感性分析请改用 e2m2e algorithm/ephemeris_correction。"
+        )
 
     results = []
     for pps in pps_list:

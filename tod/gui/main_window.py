@@ -61,6 +61,12 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
         # 多 Tab 脚本面板
         self._script_tab_bar: ScriptTabBar | None = None
 
+        # 计算工具执行后端（Phase 1 执行缝）：默认 legacy 脚本子进程。
+        # e2m2e CLI 就绪后可切换 E2m2eCliExecutor；测试可注入。
+        from tod.gui.run.tool_executor import LegacyScriptExecutor
+
+        self._tool_executor = LegacyScriptExecutor(repo_root=self._repo_root)
+
         # 任务管理
         self._job_manager = JobManager(repo_root, self)
         self._job_cards: dict[str, JobCard] = {}
@@ -344,8 +350,10 @@ class MainWindow(FileTreeMixin, JobPanelMixin, QMainWindow):
             self._status_bar.showMessage(self.tr("运行已取消"), 3000)
             return
 
+        # 计算工具执行后端（Phase 1 执行缝）。测试可注入。
+        executor = getattr(self, "_tool_executor", None)
         result = RunOrchestrator.dispatch(
-            list(plan.specs), plan.entry, self._job_manager
+            list(plan.specs), plan.entry, self._job_manager, executor
         )
 
         # 多任务 dispatch 时自动建 batch（单任务不建，行为不变）

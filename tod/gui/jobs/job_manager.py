@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import sys
 import time
 import uuid
 from dataclasses import dataclass
@@ -15,6 +14,8 @@ from PyQt6.QtCore import QProcessEnvironment, QObject, QProcess, QTimer, pyqtSig
 
 from tod.gui.i18n import qt_format
 from tod.gui.jobs.job_status import JobFinishResult, JobStatus
+from tod.gui.jobs.process_spec import ProcessSpec
+from tod.gui.jobs.process_spec_builder import for_script
 from tod.scripting import ScriptEntry
 
 _KILL_TIMEOUT_MS = 3000
@@ -58,7 +59,29 @@ class JobManager(QObject):
         extra_args: list[str] | None = None,
         env_overrides: dict[str, str] | None = None,
     ) -> str:
-        """启动一个新的脚本进程，返回 job_id。"""
+        """启动一个新的脚本进程，返回 job_id。
+
+        legacy 薄包装：构造 ``ProcessSpec`` 后委托给 :meth:`start_job_spec`。
+        保留既有签名，调用方（``RunOrchestrator.dispatch`` 等）无需改动。
+        """
+        spec = for_script(
+            script_entry,
+            extra_args=extra_args,
+            env=env_overrides,
+            repo_root=self._repo_root,
+        )
+        return self.start_job_spec(spec, script_entry)
+
+    def start_job_spec(self, spec: ProcessSpec, script_entry: ScriptEntry) -> str:
+        """按给定的 ProcessSpec 启动脚本进程，返回 job_id。
+
+        Args:
+            spec: 进程启动描述（program / argv / working_dir / env）。
+            script_entry: 脚本注册条目（用于 job 命名与信号）。
+
+        Returns:
+            新建 job 的 8 位 uuid 短 id；达到并发上限时返回空字符串。
+        """
         running_count = sum(
             1 for j in self._jobs.values() if j.status == JobStatus.RUNNING
         )
@@ -74,14 +97,13 @@ class JobManager(QObject):
 
         job_id = uuid.uuid4().hex[:8]
         process = QProcess(self)
-        process.setWorkingDirectory(self._repo_root)
+        process.setWorkingDirectory(spec.working_dir)
 
         proc_env = QProcessEnvironment.systemEnvironment()
         proc_env.insert("PYTHONUNBUFFERED", "1")
         proc_env.insert("PYTHONIOENCODING", "utf-8")
-        if env_overrides:
-            for k, v in env_overrides.items():
-                proc_env.insert(k, v)
+        for k, v in spec.env.items():
+            proc_env.insert(k, v)
         process.setProcessEnvironment(proc_env)
 
         # 用 lambda 捕获 job_id，实现 per-job 信号路由
@@ -106,10 +128,7 @@ class JobManager(QObject):
         )
         self._jobs[job_id] = job
 
-        args = [script_entry.script_path]
-        if extra_args:
-            args.extend(extra_args)
-        process.start(sys.executable, args)
+        process.start(spec.program, list(spec.argv))
         # 进程已启动（start() 同步发起），记录 started_at
         job.started_at = time.time()
         self.job_created.emit(job_id, script_entry.name)

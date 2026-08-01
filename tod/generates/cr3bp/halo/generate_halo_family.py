@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 """generate_halo_family 轨道生成脚本。
 
 本模块在地月 CR3BP 中构造 Halo 种子轨道，调用 e2m2e 的微分修正和

@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 """plot_search_results_dro_to_ro 可视化脚本。
 
 本模块读取轨道、转移或星历修正 JSON 结果，并生成用于检查几何形态、稳定性或优化质量的图形。输入文件通常来自 output/ 下的生成、搜索或优化结果；输出为 Matplotlib 窗口或保存图片。

@@ -44,19 +44,23 @@ a = Analysis(
         "PyQt6.QtWebEngineWidgets",
         "PyQt6.QtWebEngineCore",
         "PyQt6.sip",
-        # e2m2e submodules referenced across the codebase
-        "e2m2e.core",
-        "e2m2e.core.orbit",
-        "e2m2e.algorithms",
-        "e2m2e.algorithms.ephemeris_correction",
-        "e2m2e.algorithms.stability",
-        "e2m2e.orbits.geo",
-        "e2m2e.orbits.leo",
-        "e2m2e.propagator",
-        "e2m2e.transfer",
-        "e2m2e.utils",
-        "e2m2e.visualization",
-        "e2m2e.visualization.base",
+        # e2m2e submodules referenced across the codebase（五层新路径）
+        # 旧路径（e2m2e.core/algorithms/transfer/visualization）已在 e2m2e v5.3
+        # 删除；tod/commons/e2m2e_compat.py 在运行时把旧路径别名安装到 sys.modules，
+        # 因此这里收集的是别名所指向的新路径模块。
+        "e2m2e.algorithm.dynamics",
+        "e2m2e.data.types.orbit",
+        "e2m2e.data.kernels.manager",
+        "e2m2e.data.templates.enums",
+        "e2m2e.algorithm.solver",
+        "e2m2e.algorithm.stability",
+        "e2m2e.algorithm.family",
+        "e2m2e.algorithm.ephemeris_correction",
+        "e2m2e.algorithm.transfer.transfer_search",
+        "e2m2e.algorithm.coordinate.synodic_j2000",
+        "e2m2e.tools.viz.base",
+        "e2m2e.tools.viz.config",
+        "e2m2e.tools.viz.family",
         # Matplotlib backends commonly needed
         "matplotlib.backends.backend_qtagg",
         # plot_interactive_orbit_inspector 使用，frozen 下扫描器需能加载

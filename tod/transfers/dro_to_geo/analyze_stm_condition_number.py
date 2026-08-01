@@ -109,7 +109,13 @@ def main():
     print(f"  bodies: {bodies}")
 
     # 2. 逐段传播 STM 并计算条件数
-    from e2m2e._integrators import propagate_with_stm_py
+    try:
+        from e2m2e._integrators import propagate_with_stm_py
+    except ModuleNotFoundError:
+        raise RuntimeError(
+            "当前 e2m2e 版本已移除 propagate_with_stm_py；"
+            "STM 条件数分析请改用 e2m2e algorithm/ 对应能力。"
+        )
 
     print(f"\n2. 逐段传播 STM（rtol=atol={args.rtol:.0e}）...")
     segments = []

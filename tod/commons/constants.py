@@ -8,6 +8,14 @@ CR3BP 派生常量（MU / DU / TU / VU / T_MOON）通过 __getattr__ 惰性计�
 import math
 from typing import TYPE_CHECKING
 
+# 自引导安装 e2m2e 旧路径兼容别名。几乎每个计算脚本都经 tod.commons.constants
+# 间接导入（from tod.commons.constants import DU, TU 等），因此在本模块顶部安装
+# 能保证在任何旧路径 e2m2e 符号被引用之前，虚拟旧模块已就位。install() 幂等，
+# 与 tod/__init__.py 的兜底安装重复调用安全。
+from tod.commons import e2m2e_compat as _e2m2e_compat
+
+_e2m2e_compat.install()
+
 if TYPE_CHECKING:
     # 为类型检查器声明 CR3BP 常量类型，实际值在 __getattr__ 中惰性赋值。
     MU: float

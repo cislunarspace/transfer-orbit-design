@@ -84,7 +84,7 @@ class TestLoadInputContract:
         fake_family.__len__ = lambda self: 3
         system_orbit_loader = MagicMock(return_value=fake_family)
         # 拦截 OrbitFamily.load_from_file 走我们的回环
-        from e2m2e.core import OrbitFamily
+        from e2m2e.data.types.orbit import OrbitFamily
 
         original = OrbitFamily.load_from_file
         OrbitFamily.load_from_file = staticmethod(  # type: ignore[assignment]
@@ -104,7 +104,7 @@ class TestLoadInputContract:
         args = _build_args(load=str(family_file))
         # 走安全检查需要 family_file 在 output_dir.resolve() 内
         # 因此 output_dir 设成 family_file 所在目录
-        from e2m2e.core import OrbitFamily
+        from e2m2e.data.types.orbit import OrbitFamily
         fake_family = MagicMock()
         fake_family.__len__ = lambda self: 1
         original = OrbitFamily.load_from_file

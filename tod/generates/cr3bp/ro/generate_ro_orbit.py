@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 """generate_ro_orbit RO（共振轨道）单轨生成脚本。
 
 本模块在地月 CR3BP 中通过固定周期微分修正生成单条 3:1 或 3:2 共振轨道。
