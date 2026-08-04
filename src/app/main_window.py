@@ -10,14 +10,12 @@ from pathlib import Path
 from typing import Any
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QLabel,
     QLineEdit,
     QMainWindow,
-    QPlainTextEdit,
     QPushButton,
     QSplitter,
     QStatusBar,
@@ -67,9 +65,9 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self._build_center_panel())
         splitter.addWidget(self._build_right_panel())
 
-        splitter.setStretchFactor(0, 1)   # 左侧
-        splitter.setStretchFactor(1, 3)   # 中间
-        splitter.setStretchFactor(2, 1)   # 右侧
+        splitter.setStretchFactor(0, 1)  # 左侧
+        splitter.setStretchFactor(1, 3)  # 中间
+        splitter.setStretchFactor(2, 1)  # 右侧
 
         self.setCentralWidget(splitter)
 
@@ -215,7 +213,9 @@ class MainWindow(QMainWindow):
 
         self._log.clear()
         self._log.append_log(f"开始 {orbit_type} 轨道设计")
-        self._log.append_log(f"参数: amplitude={amplitude}, duration={duration}, output_step={output_step}")
+        self._log.append_log(
+            f"参数: amplitude={amplitude}, duration={duration}, output_step={output_step}"
+        )
         self._status_bar.showMessage(f"正在设计 {orbit_type}...")
 
         self._worker = OrbitDesignWorker(
@@ -253,12 +253,8 @@ class MainWindow(QMainWindow):
         if artifact.state_data is not None:
             self._render_artifact(artifact)
 
-        self._log.append_log(
-            f"设计完成: {result.orbit_type}, C_J={result.cr3bp_jacobi:.6f}"
-        )
-        self._status_bar.showMessage(
-            f"{result.orbit_type} 设计完成", 5000
-        )
+        self._log.append_log(f"设计完成: {result.orbit_type}, C_J={result.cr3bp_jacobi:.6f}")
+        self._status_bar.showMessage(f"{result.orbit_type} 设计完成", 5000)
 
     def _on_design_error(self, error_msg: str) -> None:
         self._log.append_log(f"错误:\n{error_msg}")
@@ -292,9 +288,7 @@ class MainWindow(QMainWindow):
         }
 
         for atype, items in type_groups.items():
-            group = QTreeWidgetItem(
-                self._project_tree, [type_labels.get(atype, atype)]
-            )
+            group = QTreeWidgetItem(self._project_tree, [type_labels.get(atype, atype)])
             group.setExpanded(True)
             for artifact in items:
                 child = QTreeWidgetItem(group, [artifact.label, artifact.orbit_type])

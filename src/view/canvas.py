@@ -7,13 +7,15 @@ FigureCanvasQTAgg 嵌入 PyQt6 主窗口，支持 3D 轨道可视化和导航工
 from __future__ import annotations
 
 import matplotlib
+
 matplotlib.use("QtAgg")  # noqa: E402 -- 必须在 pyplot 导入前设置
 
 from src.commons.font_config import apply_cjk_font_fallback
+
 apply_cjk_font_fallback()
 
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT  # noqa: E402
+from matplotlib.figure import Figure  # noqa: E402
 
 
 class OrbitCanvas(FigureCanvasQTAgg):

@@ -2,9 +2,8 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import List
 
 from src.model.artifact import Artifact
 
@@ -51,7 +50,7 @@ def _load_json_or_none(path: Path) -> dict | None:
         return None
 
 
-def discover_artifacts(output_dir: Path) -> List[Artifact]:
+def discover_artifacts(output_dir: Path) -> list[Artifact]:
     """Scan an output directory and return classified Artifact instances.
 
     Subdirectory layout expected:
@@ -66,7 +65,7 @@ def discover_artifacts(output_dir: Path) -> List[Artifact]:
     if not output_dir.is_dir():
         return []
 
-    artifacts: List[Artifact] = []
+    artifacts: list[Artifact] = []
 
     for json_file in sorted(output_dir.rglob("*.json")):
         meta = _classify_file(json_file)
@@ -80,7 +79,7 @@ def discover_artifacts(output_dir: Path) -> List[Artifact]:
         # Extract orbit_type from JSON content if available
         orbit_type = data.get("orbit_type", meta["orbit_type"])
 
-        mtime = datetime.fromtimestamp(json_file.stat().st_mtime, tz=timezone.utc)
+        mtime = datetime.fromtimestamp(json_file.stat().st_mtime, tz=UTC)
 
         artifacts.append(
             Artifact(

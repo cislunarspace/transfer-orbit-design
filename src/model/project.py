@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from src.model.artifact import Artifact
 
 
@@ -29,7 +27,7 @@ class Project:
         """Return a shallow copy of the artifact list."""
         return list(self._artifacts)
 
-    def get_by_id(self, artifact_id: str) -> Optional[Artifact]:
+    def get_by_id(self, artifact_id: str) -> Artifact | None:
         """Find an artifact by its id, or None."""
         for art in self._artifacts:
             if art.artifact_id == artifact_id:
@@ -44,7 +42,7 @@ class Project:
         """Return artifacts matching the given orbit_type."""
         return [a for a in self._artifacts if a.orbit_type == orbit_type]
 
-    def find_upstream(self, artifact: Artifact) -> Optional[Artifact]:
+    def find_upstream(self, artifact: Artifact) -> Artifact | None:
         """Find the upstream artifact referenced by extra['source_artifact_id']."""
         source_id = artifact.extra.get("source_artifact_id")
         if source_id is None:

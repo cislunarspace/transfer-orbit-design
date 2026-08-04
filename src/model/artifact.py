@@ -2,11 +2,9 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
 
-import numpy as np
 from numpy import ndarray
 
 
@@ -19,11 +17,11 @@ class Artifact:
     label: str = ""
     orbit_type: str = ""  # DRO / Halo / NRHO / ...
     source_tool: str = ""
-    state_data: Optional[ndarray] = None  # (n, 6) state matrix
-    times: Optional[ndarray] = None  # (n,) time vector
-    output_path: Optional[Path] = None
+    state_data: ndarray | None = None  # (n, 6) state matrix
+    times: ndarray | None = None  # (n,) time vector
+    output_path: Path | None = None
     extra: dict = field(default_factory=dict)
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def to_summary(self) -> dict:
         """Return a summary dict excluding large array fields (state_data, times)."""

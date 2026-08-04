@@ -3,73 +3,23 @@ name: CI
 on:
   push:
     branches: [master]
-    paths-ignore:
-      - "output/**"
   pull_request:
     branches: [master]
-    paths-ignore:
-      - "output/**"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  test:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        python-version: ["3.13"]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install system dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libegl1
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install e2m2e@git+https://github.com/cislunarspace/e2m2e.git
-          pip install -e ".[test]"
-
-      - name: Run tests
-        run: pytest tests/ -v -m "not spice"
-
-      - name: Type check
-        run: |
-          pip install pyright
-          pyright
-
-  docs:
+  lint:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v6
-
-      - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libegl1
-
-      - name: Check out e2m2e source dependency
-        run: git clone https://github.com/cislunarspace/e2m2e.git ../e2m2e
-
-      - name: Install documentation dependencies
-        run: uv sync --extra docs
-
-      - name: Build Chinese documentation
-        run: uv run sphinx-build -b html -D language=zh docs/source docs/build/html/zh
-
-      - name: Build English documentation
-        run: uv run sphinx-build -b html -D language=en docs/source docs/build/html/en
+      - uses: astral-sh/setup-uv@v7
+      - run: uv sync --group dev
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pyright

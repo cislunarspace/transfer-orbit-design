@@ -11,7 +11,7 @@ from typing import Any
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from src.engine.facade_bridge import FacadeBridge, OrbitDesignResultData
+from src.engine.facade_bridge import FacadeBridge
 
 
 class OrbitDesignWorker(QThread):
