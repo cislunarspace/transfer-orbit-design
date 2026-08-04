@@ -98,9 +98,7 @@ class MainWindow(QMainWindow):
 
     def show_scan_time(self, seconds: float, count: int) -> None:
         """Display artifact scan timing in the status bar."""
-        self._status_bar.showMessage(
-            f"启动扫描: {count} 个 Artifact, 耗时 {seconds:.2f}s"
-        )
+        self._status_bar.showMessage(f"启动扫描: {count} 个 Artifact, 耗时 {seconds:.2f}s")
 
     def _build_ui(self) -> None:
         splitter = QSplitter(Qt.Orientation.Horizontal)
