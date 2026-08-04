@@ -25,6 +25,12 @@ class OrbitCanvas(FigureCanvasQTAgg):
     内部维护一个 Figure + 3D Axes。调用 plot_orbit() 更新内容。
     """
 
+    # tab10 调色板（architecture.md:405）
+    _TAB10_COLORS: list[str] = [
+        "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+        "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+    ]
+
     def __init__(self, parent=None):
         self._fig = Figure(figsize=(8, 6), dpi=100)
         super().__init__(self._fig)
@@ -106,6 +112,37 @@ class OrbitCanvas(FigureCanvasQTAgg):
         self._fig.tight_layout()
         self.draw()
 
+    def plot_multiple(
+        self,
+        orbits: list[tuple],  # list[(ndarray, str)]
+    ) -> None:
+        """叠加渲染多条轨道。
+
+        每条轨道使用 tab10 调色板中不同颜色。
+
+        Args:
+            orbits: [(states_array, label), ...] 列表。
+        """
+        self._fig.clear()
+        ax = self._fig.add_subplot(111, projection="3d")
+
+        for i, (states, label) in enumerate(orbits):
+            color = self._TAB10_COLORS[i % len(self._TAB10_COLORS)]
+            pos = states[:, :3]
+            ax.plot(pos[:, 0], pos[:, 1], pos[:, 2],
+                    linewidth=0.8, color=color, label=label)
+            ax.scatter(*pos[0], s=30, c=color, zorder=5)
+
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Z")
+        ax.set_title(f"叠加显示 ({len(orbits)} 条轨道)")
+
+        if orbits:
+            ax.legend(loc="upper left", fontsize=8)
+        self._fig.tight_layout()
+        self.draw()
+
 
 class OrbitCanvasWithToolbar:
     """画布 + 导航工具栏的组合控件。"""
@@ -128,6 +165,9 @@ class OrbitCanvasWithToolbar:
 
     def plot_family(self, **kwargs) -> None:
         self.canvas.plot_family(**kwargs)
+
+    def plot_multiple(self, **kwargs) -> None:
+        self.canvas.plot_multiple(**kwargs)
 
     def clear(self) -> None:
         self.canvas.clear()
