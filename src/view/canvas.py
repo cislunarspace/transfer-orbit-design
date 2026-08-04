@@ -27,8 +27,16 @@ class OrbitCanvas(FigureCanvasQTAgg):
 
     # tab10 调色板（architecture.md:405）
     _TAB10_COLORS: list[str] = [
-        "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
-        "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+        "#1f77b4",
+        "#ff7f0e",
+        "#2ca02c",
+        "#d62728",
+        "#9467bd",
+        "#8c564b",
+        "#e377c2",
+        "#7f7f7f",
+        "#bcbd22",
+        "#17becf",
     ]
 
     def __init__(self, parent=None):
@@ -129,8 +137,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
         for i, (states, label) in enumerate(orbits):
             color = self._TAB10_COLORS[i % len(self._TAB10_COLORS)]
             pos = states[:, :3]
-            ax.plot(pos[:, 0], pos[:, 1], pos[:, 2],
-                    linewidth=0.8, color=color, label=label)
+            ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], linewidth=0.8, color=color, label=label)
             ax.scatter(*pos[0], s=30, c=color, zorder=5)
 
         ax.set_xlabel("X")

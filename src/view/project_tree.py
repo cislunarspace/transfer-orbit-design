@@ -9,10 +9,10 @@ from src.model import Artifact, Project
 
 # 分组标签（含 Emoji 前缀，与 architecture.md:203-216 对齐）
 _TYPE_GROUP_LABELS: dict[str, str] = {
-    "orbit": "\U0001FA90 轨道",  # 🪐
-    "family": "\U0001F300 轨道族",  # 🌀
-    "transfer": "\U0001F680 转移",  # 🚀
-    "ephemeris": "\U0001F4E1 星历",  # 📡
+    "orbit": "\U0001fa90 轨道",  # 🪐
+    "family": "\U0001f300 轨道族",  # 🌀
+    "transfer": "\U0001f680 转移",  # 🚀
+    "ephemeris": "\U0001f4e1 星历",  # 📡
 }
 
 
@@ -31,9 +31,7 @@ class ProjectTreeView(QWidget):
         super().__init__(parent)
         self._tree = QTreeWidget(self)
         self._tree.setHeaderHidden(True)
-        self._tree.setSelectionMode(
-            QTreeWidget.SelectionMode.ExtendedSelection
-        )
+        self._tree.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)
         # itemClicked → 单选信号
         self._tree.itemClicked.connect(self._on_item_clicked)
 
