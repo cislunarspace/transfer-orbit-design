@@ -110,10 +110,10 @@ class TestLazyLoadArrays:
         window = MainWindow()
         window._project.add(a)
 
-        # AC #4: verify plot_orbit 被调用 (Spec S5)
-        with patch.object(window._viz, "plot_orbit") as mock_plot:
+        # AC #4: 点击触发懒加载 + CanvasState 流渲染（issue #339 迁移到 render() 单入口）
+        with patch.object(window._viz.canvas, "render") as mock_render:
             window._on_artifact_clicked(a.artifact_id)
-            mock_plot.assert_called_once()
+            mock_render.assert_called_once()
 
         assert a.state_data is not None
         assert a.state_data.shape == (50, 6)

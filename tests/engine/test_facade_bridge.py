@@ -30,7 +30,11 @@ class TestOrbitDesignResultData:
 
     def test_dto_field_count(self):
         """DTO 字段数稳定（防止意外增减）。"""
-        assert len(OrbitDesignResultData.__dataclass_fields__) == 9
+        assert len(OrbitDesignResultData.__dataclass_fields__) == 10
+
+    def test_dto_has_mu_field(self):
+        """DTO 应包含 mu 字段（issue #339 地月标注数据流）。"""
+        assert "mu" in OrbitDesignResultData.__dataclass_fields__
 
 
 class TestToolSpec:
@@ -68,6 +72,45 @@ class TestFacadeBridgeDesignOrbit:
         bridge = FacadeBridge()
         data = bridge.design_orbit(orbit_type="DRO")
         assert isinstance(data, OrbitDesignResultData)
+
+    def test_mu_extracted_from_orbit_system(self, monkeypatch):
+        """mu 应从 cr3bp_orbit.system.mu 提取（issue #339 实测路径）。"""
+        from types import SimpleNamespace
+
+        n = 10
+        orbit = SimpleNamespace(
+            states=np.random.randn(n, 6),
+            times=np.linspace(0, 1, n),
+            system=SimpleNamespace(mu=0.012153645822478),
+        )
+        correction = SimpleNamespace(converged=True, iterations=1)
+        result = SimpleNamespace(
+            orbit_type="DRO",
+            epoch_utc="2024-01-01T00:00:00",
+            duration_day=1.0,
+            initial_state=np.zeros(6),
+            cr3bp_jacobi=3.0,
+            cr3bp_orbit=orbit,
+            correction=correction,
+        )
+
+        def _fake_design_orbit(**kwargs):
+            return result
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.design.design_orbit",
+            _fake_design_orbit,
+            raising=False,
+        )
+        bridge = FacadeBridge()
+        data = bridge.design_orbit(orbit_type="DRO")
+        assert data.mu == pytest.approx(0.012153645822478)
+
+    def test_mu_is_none_when_orbit_has_no_system(self, mock_design_orbit):
+        """system 缺失（旧 fake / 无上下文）时 mu 为 None，不崩溃。"""
+        bridge = FacadeBridge()
+        data = bridge.design_orbit(orbit_type="DRO")
+        assert data.mu is None
 
     def test_states_shape(self, mock_design_orbit, fake_design_result):
         bridge = FacadeBridge()

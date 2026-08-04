@@ -17,9 +17,17 @@ class _FakeCorrection:
 class _FakeOrbit:
     """Fake Orbit（e2m2e.data.types.orbit.Orbit）。"""
 
-    def __init__(self, states: np.ndarray, times: np.ndarray) -> None:
+    def __init__(
+        self,
+        states: np.ndarray,
+        times: np.ndarray,
+        system: object | None = None,
+    ) -> None:
         self.states = states
         self.times = times
+        # design_orbit.py 构造 Orbit 时绑定 CR3BP_System，其 .mu 是普通属性。
+        # 测试可注入带 .mu 的 fake system 以覆盖 mu 提取路径。
+        self.system = system
 
 
 class _FakeDesignResult:
@@ -36,6 +44,7 @@ class _FakeDesignResult:
         times: np.ndarray | None = None,
         converged: bool = True,
         iterations: int = 3,
+        system: object | None = None,
     ) -> None:
         n = 8761 if states is None else states.shape[0]
         self.orbit_type = orbit_type
@@ -48,6 +57,7 @@ class _FakeDesignResult:
         self.cr3bp_orbit = _FakeOrbit(
             states=states if states is not None else np.random.randn(n, 6),
             times=times if times is not None else np.linspace(0, 1, n),
+            system=system,
         )
         self.correction = _FakeCorrection(converged=converged, iterations=iterations)
 

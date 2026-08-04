@@ -38,6 +38,9 @@ class OrbitDesignResultData:
     times: Any  # np.ndarray (n,)   -- 从 cr3bp_orbit.times 提取
     correction_converged: bool
     correction_iterations: int
+    mu: float | None = None  # CR3BP 质量比（从 cr3bp_orbit.system.mu 提取，缺失时 None）
+
+    # 注意：mu 带默认值放在末尾，保证旧代码按位置/关键字构造 DTO 时不传 mu 也能工作。
 
 
 # ---------------------------------------------------------------------------
@@ -138,12 +141,16 @@ class FacadeBridge:
             raise translate_exception(e) from e
 
         cr3bp_orbit = result.cr3bp_orbit
+        # mu 从 cr3bp_orbit.system.mu 提取（design_orbit.py 构造 Orbit 时绑定了
+        # CR3BP_System）；三重 getattr 防御 system 缺失或未绑定。
+        mu = getattr(getattr(cr3bp_orbit, "system", None), "mu", None)
         return OrbitDesignResultData(
             orbit_type=result.orbit_type,
             epoch_utc=result.epoch_utc,
             duration_day=result.duration_day,
             initial_state=result.initial_state,
             cr3bp_jacobi=result.cr3bp_jacobi,
+            mu=mu,
             states=np.asarray(cr3bp_orbit.states),
             times=np.asarray(cr3bp_orbit.times),
             correction_converged=result.correction.converged,
