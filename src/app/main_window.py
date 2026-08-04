@@ -22,9 +22,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.commons.paths import OUTPUT_DIR
 from src.engine.facade_bridge import TOOL_REGISTRY, OrbitDesignResultData, ToolSpec
+from src.engine.persistence import load_artifact_arrays, save_artifact
 from src.engine.workers import OrbitDesignWorker
 from src.model import Artifact, Project
+from src.model.discovery import discover_artifacts
 from src.view.canvas import OrbitCanvasWithToolbar
 from src.view.log_panel import LogPanel
 from src.view.params_panel import build_params_from_model, collect_params
@@ -32,6 +35,9 @@ from src.view.params_panel import build_params_from_model, collect_params
 # G4+G5: 工具选择器 + 灰色占位
 
 _RIGHT_PANEL_TOOL_COMBO_LABEL = "选择工具"
+
+# 状态栏消息自动消失时长（毫秒）
+_STATUS_MSG_TIMEOUT_MS = 5000
 
 
 def _get_default_tool_key() -> str | None:
@@ -90,9 +96,28 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self._status_bar)
         self._status_bar.showMessage("就绪")
 
-        # Pre-populate tree if project already has artifacts
-        if self._project.artifacts:
+# Issue #338: 启动时从 OUTPUT_DIR 恢复已有 Artifact
+        # PR #345: 也允许 caller 传入预先填充的 Project（避免重复扫描）
+        if not self._project.artifacts:
+            self._restore_artifacts_from_disk()
+        else:
             self._refresh_project_tree()
+
+    def _restore_artifacts_from_disk(self) -> None:
+        """扫描 OUTPUT_DIR 并将历史 Artifact 加入 Project。"""
+        try:
+            artifacts = discover_artifacts(OUTPUT_DIR)
+        except Exception as exc:  # noqa: BLE001
+            self._log.append_log(f"恢复历史 Artifact 失败: {exc}")
+            return
+        if not artifacts:
+            return
+        for artifact in artifacts:
+            self._project.add(artifact)
+        self._refresh_project_tree()
+        self._status_bar.showMessage(
+            f"已恢复 {len(artifacts)} 个历史 Artifact", _STATUS_MSG_TIMEOUT_MS
+        )
 
     # -- UI 构建 -----------------------------------------------------------
 
@@ -266,7 +291,16 @@ class MainWindow(QMainWindow):
 
     def _on_artifact_clicked(self, artifact_id: str) -> None:
         artifact = self._project.get_by_id(artifact_id)
-        if artifact and artifact.state_data is not None:
+        if artifact is None:
+            return
+        # Issue #338: 历史 Artifact 的 NPZ 数组懒加载（逻辑移至 persistence.load_artifact_arrays）
+        if artifact.state_data is None and artifact.output_path is not None:
+            loaded = load_artifact_arrays(artifact)
+            if not loaded:
+                self._log.append_log(
+                    f"NPZ 懒加载失败: {artifact.label}（文件缺失或元数据缺失）"
+                )
+        if artifact.state_data is not None:
             self._render_artifact(artifact)
             self._center_tabs.setCurrentIndex(0)
 
@@ -332,6 +366,18 @@ class MainWindow(QMainWindow):
         self._run_btn.setEnabled(True)
         self._run_btn.setText("运行")
 
+        # Issue #338: 计算结果落盘（JSON 元数据 + NPZ 数组）
+        json_path: Path | None = None
+        npz_name = ""
+        try:
+            json_path, npz_path = save_artifact(result, OUTPUT_DIR)
+            npz_name = npz_path.name
+            self._log.append_log(f"结果已保存: {json_path.name}")
+        except Exception as exc:  # noqa: BLE001
+            # S4: 持久化失败也要保证 in-memory Artifact 可用；明确告知用户
+            self._log.append_log(f"持久化失败: {exc}（结果仅保留在内存中）")
+            self._status_bar.showMessage("持久化失败", _STATUS_MSG_TIMEOUT_MS)
+
         artifact = Artifact(
             artifact_type="orbit",
             label=f"{result.orbit_type} (C_J={result.cr3bp_jacobi:.4f})",
@@ -339,11 +385,14 @@ class MainWindow(QMainWindow):
             source_tool="design_orbit",
             state_data=result.states,
             times=result.times,
+            output_path=json_path,
             extra={
-                "jacobi": result.cr3bp_jacobi,
-                "epoch": result.epoch_utc,
-                "converged": result.correction_converged,
-                "iterations": result.correction_iterations,
+                # 元数据键与 persistence.save_artifact 写入磁盘 JSON 的键保持一致
+                "cr3bp_jacobi": result.cr3bp_jacobi,
+                "epoch_utc": result.epoch_utc,
+                "correction_converged": result.correction_converged,
+                "correction_iterations": result.correction_iterations,
+                "arrays_file": npz_name,
             },
         )
         self._project.add(artifact)
@@ -353,7 +402,13 @@ class MainWindow(QMainWindow):
             self._render_artifact(artifact)
 
         self._log.append_log(f"设计完成: {result.orbit_type}, C_J={result.cr3bp_jacobi:.6f}")
-        self._status_bar.showMessage(f"{result.orbit_type} 设计完成", 5000)
+        # S4: 若持久化失败，最终状态栏提示优先告知错误（避免被"完成"覆盖）
+        if json_path is None:
+            self._status_bar.showMessage("设计完成但持久化失败", _STATUS_MSG_TIMEOUT_MS)
+        else:
+            self._status_bar.showMessage(
+                f"{result.orbit_type} 设计完成", _STATUS_MSG_TIMEOUT_MS
+            )
 
     def _on_design_error(self, error_msg: str) -> None:
         # G1: 恢复按钮状态
@@ -361,7 +416,7 @@ class MainWindow(QMainWindow):
         self._run_btn.setText("运行")
 
         self._log.append_log(f"错误:\n{error_msg}")
-        self._status_bar.showMessage("设计失败", 5000)
+        self._status_bar.showMessage("设计失败", _STATUS_MSG_TIMEOUT_MS)
 
     # -- 渲染 ---------------------------------------------------------------
 

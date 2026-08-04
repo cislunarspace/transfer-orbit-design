@@ -10,7 +10,13 @@ from numpy import ndarray
 
 @dataclass
 class Artifact:
-    """Represents a computed orbital artifact (orbit, family, transfer, ephemeris)."""
+    """Represents a computed orbital artifact (orbit, family, transfer, ephemeris).
+
+    Mutable for in-place lazy-load performance -- ``state_data`` / ``times``
+    may be populated after construction by ``persistence.load_artifact_arrays``,
+    because Qt-bound UI models trigger expensive refreshes on full object
+    replacement. Callers that need a snapshot should ``copy.deepcopy`` first.
+    """
 
     artifact_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
     artifact_type: str = ""  # "orbit" | "family" | "transfer" | "ephemeris"
