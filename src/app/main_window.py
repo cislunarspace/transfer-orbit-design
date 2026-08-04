@@ -17,8 +17,6 @@ from PyQt6.QtWidgets import (
     QSplitter,
     QStatusBar,
     QTabWidget,
-    QTreeWidget,
-    QTreeWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -74,15 +72,17 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(splitter)
 
     def _build_left_panel(self) -> QWidget:
+        from src.view.project_tree import ProjectTreeView
+
         panel = QWidget()
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(4, 4, 4, 4)
 
         layout.addWidget(QLabel("项目"))
-        self._project_tree = QTreeWidget()
-        self._project_tree.setHeaderLabels(["名称", "类型"])
-        self._project_tree.itemClicked.connect(self._on_artifact_clicked)
-        layout.addWidget(self._project_tree)
+        self._tree_view = ProjectTreeView()
+        self._tree_view.artifact_selected.connect(self._on_artifact_clicked)
+        self._tree_view.artifacts_selected.connect(self._on_artifacts_multi_selected)
+        layout.addWidget(self._tree_view)
 
         return panel
 
@@ -172,10 +172,7 @@ class MainWindow(QMainWindow):
 
     # -- 信号槽 -------------------------------------------------------------
 
-    def _on_artifact_clicked(self, item: QTreeWidgetItem, column: int) -> None:
-        artifact_id = item.data(0, Qt.ItemDataRole.UserRole)
-        if not artifact_id:
-            return
+    def _on_artifact_clicked(self, artifact_id: str) -> None:
         artifact = self._project.get_by_id(artifact_id)
         if artifact and artifact.state_data is not None:
             self._render_artifact(artifact)
@@ -251,22 +248,14 @@ class MainWindow(QMainWindow):
     # -- 项目树 -------------------------------------------------------------
 
     def _refresh_project_tree(self) -> None:
-        self._project_tree.clear()
+        self._tree_view.refresh(self._project)
 
-        type_groups: dict[str, list[Artifact]] = {}
-        for a in self._project.artifacts:
-            type_groups.setdefault(a.artifact_type, []).append(a)
-
-        type_labels = {
-            "orbit": "轨道",
-            "family": "轨道族",
-            "transfer": "转移",
-            "ephemeris": "星历",
-        }
-
-        for atype, items in type_groups.items():
-            group = QTreeWidgetItem(self._project_tree, [type_labels.get(atype, atype)])
-            group.setExpanded(True)
-            for artifact in items:
-                child = QTreeWidgetItem(group, [artifact.label, artifact.orbit_type])
-                child.setData(0, Qt.ItemDataRole.UserRole, artifact.artifact_id)
+    def _on_artifacts_multi_selected(self, artifact_ids: list[str]) -> None:
+        orbits: list[tuple] = []
+        for aid in artifact_ids:
+            artifact = self._project.get_by_id(aid)
+            if artifact and artifact.state_data is not None:
+                orbits.append((artifact.state_data, artifact.label))
+        if orbits:
+            self._viz.plot_multiple(orbits=orbits)
+            self._center_tabs.setCurrentIndex(0)
