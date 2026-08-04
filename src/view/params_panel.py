@@ -160,9 +160,7 @@ def _make_list_float_field(field: Any, meta: dict[str, Any]) -> QWidget:
     layout = QHBoxLayout(container)
     layout.setContentsMargins(0, 0, 0, 0)
 
-    defaults: list[float] = (
-        list(field.default) if field.default is not None else [0.0] * n
-    )
+    defaults: list[float] = list(field.default) if field.default is not None else [0.0] * n
 
     for i in range(n):
         sb = QDoubleSpinBox()

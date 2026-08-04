@@ -113,9 +113,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel("项目"))
         self._tree_view = ProjectTreeView()
         self._tree_view.artifact_selected.connect(self._on_artifact_clicked)
-        self._tree_view.artifacts_selected.connect(
-            self._on_artifacts_multi_selected
-        )
+        self._tree_view.artifacts_selected.connect(self._on_artifacts_multi_selected)
         layout.addWidget(self._tree_view)
 
         return panel
@@ -232,9 +230,7 @@ class MainWindow(QMainWindow):
         if "/" not in field.description:
             return
 
-        options = [
-            opt.strip() for opt in field.description.split("/") if opt.strip()
-        ]
+        options = [opt.strip() for opt in field.description.split("/") if opt.strip()]
         if not options:
             return
 
@@ -343,9 +339,7 @@ class MainWindow(QMainWindow):
         if artifact.state_data is not None:
             self._render_artifact(artifact)
 
-        self._log.append_log(
-            f"设计完成: {result.orbit_type}, C_J={result.cr3bp_jacobi:.6f}"
-        )
+        self._log.append_log(f"设计完成: {result.orbit_type}, C_J={result.cr3bp_jacobi:.6f}")
         self._status_bar.showMessage(f"{result.orbit_type} 设计完成", 5000)
 
     def _on_design_error(self, error_msg: str) -> None:
