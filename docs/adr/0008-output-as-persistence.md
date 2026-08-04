@@ -1,0 +1,51 @@
+# ADR 0008：output/ 目录作为数据持久化源
+
+**状态**：已接受
+**日期**：2026-08-04
+**关联**：`docs/architecture/architecture.md`（第1层 数据层）
+
+## 背景
+
+GUI 需要持久化计算结果，使用户关闭并重新打开应用后不丢失工作成果。
+
+方案选项：
+- A. 自定义项目文件格式（.todproj JSON/binary）
+- B. 以 output/ 目录为事实来源，GUI 启动时扫描重建
+- C. SQLite 数据库
+
+## 决策
+
+**以 `output/` 目录为事实来源**（方案 B）。每次计算结果自动写入 `output/` 对应子目录，GUI 启动时扫描并重建 Project。
+
+文件命名约定保持与现有 output/ 结构兼容：
+
+```
+output/
+├── dro/              dro_<timestamp>.json
+├── halo/             halo_<type>_<params>_<ts>.json
+├── dpo/              dpo_<params>_<ts>.json
+├── ro/               ro_<params>_<ts>.json
+├── ephemeris/        orbit_ephemeris_<ts>.json
+└── transfer/         search_*_<ts>.json, optimization_*_<ts>.json
+```
+
+## 理由
+
+1. **零额外持久化层**：e2m2e 算法层已有 `write_ephemeris()` / `save_to_file()` 方法，结果本来就要落盘。不需要再发明格式。
+2. **CLI 用户友好**：用户也可以直接用 e2m2e CLI 生成 output/ 文件，GUI 能自动发现。
+3. **无锁定**：数据以标准 JSON 格式存储，不依赖 tod 的专有格式。
+4. **现有 output/ 兼容**：用户已有的 output/ 文件自动出现在新 GUI 中。
+
+## 后果
+
+### 正面
+
+- 不需要实现项目文件读写
+- e2m2e CLI 和 GUI 共享同一数据目录
+- 用户可手动管理 output/（复制、备份、分享）
+
+### 负面
+
+- 内存中未落盘的 Artifact（正在计算中的中间结果）关窗即丢失
+- 文件命名冲突需要处理（时间戳方案已足够）
+- 没有"撤销"能力（删除是永久的）
