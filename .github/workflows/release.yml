@@ -18,6 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v7
+      - run: git clone --depth 1 https://github.com/cislunarspace/e2m2e.git ../e2m2e
       - run: uv sync --group dev
       - run: uv run ruff check .
       - run: uv run ruff format --check .
