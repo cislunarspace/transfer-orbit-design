@@ -71,7 +71,7 @@ exclude = ["tests*", "scripts*"]
 "tod.gui.i18n" = ["*.qm", "*.json"]
 
 [dependency-groups]
-dev = ["ruff>=0.1"]
+dev = ["ruff>=0.1", "pyright>=1.1"]
 
 [tool.ruff]
 line-length = 100
