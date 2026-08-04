@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-import traceback
 from typing import Any
 
 from PyQt6.QtCore import QThread, pyqtSignal
@@ -61,5 +60,7 @@ class OrbitDesignWorker(QThread):
 
         except OrbitError as e:
             self.error.emit(f"[{e.code}] {e.message}")
-        except Exception:
-            self.error.emit(f"[UNKNOWN_ERROR] {traceback.format_exc()}")
+        except Exception as e:
+            # Defensive fallback: FacadeBridge translates all exceptions to OrbitError,
+            # so this branch should theoretically never execute.
+            self.error.emit(f"[UNKNOWN_ERROR] {e}")

@@ -23,17 +23,15 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.engine.facade_bridge import OrbitDesignResultData
+from src.engine.facade_bridge import TOOL_REGISTRY, OrbitDesignResultData
 from src.engine.workers import OrbitDesignWorker
 from src.model import Artifact, Project
 from src.view.canvas import OrbitCanvasWithToolbar
 from src.view.log_panel import LogPanel
 from src.view.params_panel import build_params_from_model, collect_params
 
-try:
-    from e2m2e.api.models import DesignOrbitRequest
-except ImportError:
-    DesignOrbitRequest = None  # type: ignore[assignment,misc]
+_design_tool = TOOL_REGISTRY.get("design_orbit")
+_DesignOrbitRequest = _design_tool.request_model if _design_tool else None
 
 
 class MainWindow(QMainWindow):
@@ -115,11 +113,11 @@ class MainWindow(QMainWindow):
     # -- 参数面板 -----------------------------------------------------------
 
     def _build_design_orbit_params(self, layout: QVBoxLayout) -> None:
-        if DesignOrbitRequest is None:
+        if _DesignOrbitRequest is None:
             layout.addWidget(QLabel("e2m2e 未安装，参数面板不可用"))
             return
 
-        self._param_widgets = build_params_from_model(DesignOrbitRequest, parent=None)
+        self._param_widgets = build_params_from_model(_DesignOrbitRequest, parent=None)
 
         field_labels: dict[str, str] = {
             "orbit_type": "轨道类型",
@@ -187,7 +185,7 @@ class MainWindow(QMainWindow):
         orbit_type_widget: QComboBox = self._param_widgets["orbit_type"]  # type: ignore[assignment]
         orbit_type = orbit_type_widget.currentText()
 
-        params = collect_params(self._param_widgets, DesignOrbitRequest)  # type: ignore[reportArgumentType]
+        params = collect_params(self._param_widgets, _DesignOrbitRequest)  # type: ignore[reportArgumentType]
         params.pop("orbit_type", None)  # orbit_type 单独传给 Worker
 
         kernel_dir = self._detect_kernel_dir() or None
