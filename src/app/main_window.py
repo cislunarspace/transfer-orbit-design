@@ -441,7 +441,9 @@ class MainWindow(QMainWindow):
         self._refresh_project_tree()
 
         if artifact.state_data is not None:
-            self._render_artifact(artifact)
+            self._selected_artifact_ids = [artifact.artifact_id]
+            self._render_canvas()
+            self._center_tabs.setCurrentIndex(0)
 
         self._log.append_log(f"设计完成: {result.orbit_type}, C_J={result.cr3bp_jacobi:.6f}")
         # S4: 若持久化失败，最终状态栏提示优先告知错误（避免被"完成"覆盖）
@@ -461,15 +463,6 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage("设计失败", _STATUS_MSG_TIMEOUT_MS)
 
     # -- 渲染 ---------------------------------------------------------------
-
-    def _render_artifact(self, artifact: Artifact) -> None:
-        if artifact.state_data is None:
-            return
-        self._viz.plot_orbit(
-            states=artifact.state_data,
-            label=artifact.label,
-            orbit_type=artifact.orbit_type,
-        )
 
     # Issue #339: CanvasState 流 -- 单一状态源 + render() 单入口
 

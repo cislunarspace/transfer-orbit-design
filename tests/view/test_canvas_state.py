@@ -220,35 +220,6 @@ class TestOrbitCanvasRender:
 
         assert n_with > n_without
 
-    def test_render_reuses_in_memory_arrays(self, qapp):
-        """切换投影不触发 NPZ 重读（数据复用验收 #5）。"""
-        from unittest.mock import patch
-
-        from src.view.canvas import CanvasState, OrbitCanvas
-
-        canvas = OrbitCanvas()
-        canvas.set_artifacts_provider(
-            _make_provider(
-                {"id1": {"states": _random_orbit(), "label": "DRO", "mu": _MU}}
-            )
-        )
-
-        with patch("src.app.main_window.load_artifact_arrays") as mock_load:
-            canvas.sync_state(
-                CanvasState(projection="3d", visible_artifacts=["id1"]), ["id1"]
-            )
-            canvas.render()
-            canvas.sync_state(
-                CanvasState(projection="xy", visible_artifacts=["id1"]), ["id1"]
-            )
-            canvas.render()
-            canvas.sync_state(
-                CanvasState(projection="yz", visible_artifacts=["id1"]), ["id1"]
-            )
-            canvas.render()
-
-        mock_load.assert_not_called()
-
     def test_old_artifact_without_mu_no_crash(self, qapp):
         """extra 无 mu 时 render 不崩，无地月标注。"""
         from src.view.canvas import CanvasState, OrbitCanvas
@@ -342,3 +313,111 @@ class TestMainWindowCanvasStateFlow:
         w._project.add(a)
         w._on_artifact_clicked(a.artifact_id)
         assert "无 mu" in w._log.toPlainText()
+
+    def test_click_artifact_renders_orbit_on_canvas(self, qapp):
+        """点击 artifact 后画布上确实画出轨道（Line3D）。
+
+        回归 guard：若 sync_state 未填充 visible_artifacts（阻塞 #1），
+        render() 遍历空列表，画布上不会有轨道线。
+        """
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        from src.model import Artifact
+
+        w = _make_window()
+        a = Artifact(
+            artifact_type="orbit",
+            label="DRO",
+            state_data=_random_orbit(),
+            extra={"mu": _MU},
+        )
+        w._project.add(a)
+        w._on_artifact_clicked(a.artifact_id)
+
+        ax = w._viz.canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line3D)]
+        assert len(lines) >= 1
+
+    def test_design_finished_renders_via_canvas_state(self, qapp):
+        """_on_design_finished 走 CanvasState 流（render 单入口），不走旧 plot_orbit。
+
+        回归 guard：若 _on_design_finished 调 _render_artifact（阻塞 #2），
+        _selected_artifact_ids 不更新、画布上无轨道。
+        """
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        from src.engine.facade_bridge import OrbitDesignResultData
+
+        rng = np.random.default_rng(42)
+        result = OrbitDesignResultData(
+            orbit_type="DRO",
+            epoch_utc="2024-01-01T00:00:00",
+            duration_day=365.25,
+            initial_state=np.zeros(6),
+            cr3bp_jacobi=3.0058,
+            mu=_MU,
+            states=rng.standard_normal((50, 6)),
+            times=np.linspace(0, 365.25, 50),
+            correction_converged=True,
+            correction_iterations=3,
+        )
+
+        w = _make_window()
+        with patch("src.app.main_window.save_artifact") as mock_save:
+            mock_save.return_value = (Path("/fake/dro.json"), Path("/fake/dro.npz"))
+            w._on_design_finished(result)
+
+        # _selected_artifact_ids 已更新
+        assert len(w._selected_artifact_ids) == 1
+
+        # 画布上有轨道
+        ax = w._viz.canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line3D)]
+        assert len(lines) >= 1
+
+    def test_render_reuses_in_memory_arrays(self, qapp, tmp_path):
+        """切换投影不触发 NPZ 重读——懒加载仅一次，投影切换复用内存（验收 #5）。
+
+        走 MainWindow 集成路径：点击触发一次 load_artifact_arrays，
+        随后多次切换投影，断言调用计数仍为 1。
+        """
+        from unittest.mock import patch
+
+        from src.engine.facade_bridge import OrbitDesignResultData
+        from src.engine.persistence import load_artifact_arrays as _real_load
+        from src.engine.persistence import save_artifact
+        from src.model.discovery import discover_artifacts
+
+        rng = np.random.default_rng(42)
+        result = OrbitDesignResultData(
+            orbit_type="DRO",
+            epoch_utc="2024-01-01T00:00:00",
+            duration_day=365.25,
+            initial_state=np.zeros(6),
+            cr3bp_jacobi=3.0058,
+            mu=_MU,
+            states=rng.standard_normal((50, 6)),
+            times=np.linspace(0, 365.25, 50),
+            correction_converged=True,
+            correction_iterations=3,
+        )
+        save_artifact(result, tmp_path)
+        artifacts = discover_artifacts(tmp_path)
+        assert len(artifacts) == 1
+        a = artifacts[0]
+        assert a.state_data is None  # discovery 不加载数组
+
+        w = _make_window()
+        w._project.add(a)
+
+        with patch("src.app.main_window.load_artifact_arrays", wraps=_real_load) as mock_load:
+            w._on_artifact_clicked(a.artifact_id)
+            assert mock_load.call_count == 1  # 点击时懒加载一次
+            # 多次切换投影，不应再次读盘
+            w._on_projection_changed("xy")
+            w._on_projection_changed("yz")
+            w._on_projection_changed("3d")
+            assert mock_load.call_count == 1  # 仍为 1，数据已在内存

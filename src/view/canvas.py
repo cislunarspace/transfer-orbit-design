@@ -103,10 +103,11 @@ class OrbitCanvas(FigureCanvasQTAgg):
             ax.set_ylabel("Y")
             ax.set_zlabel("Z")
         else:
-            # 2D 投影：x 轴恒为第一个分量；y 轴标签随投影面变化
-            y_axis = {"xy": "Y", "xz": "Z", "yz": "Y"}[projection]
-            ax.set_xlabel("X")
-            ax.set_ylabel(y_axis)
+            # 2D 投影：轴标签与 _PROJECTION_PLANE_AXES 对齐
+            labels = {"xy": ("X", "Y"), "xz": ("X", "Z"), "yz": ("Y", "Z")}
+            xlabel, ylabel = labels[projection]
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabel)
         ax.set_title(title)
 
     def clear(self) -> None:
@@ -135,6 +136,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
         数组已在内存，这是验收标准 #5 的实现方式。
         """
         self._state = state
+        state.visible_artifacts = list(artifact_ids)
         self._states_by_id = {}
         self._labels_by_id = {}
         self._mu_by_id = {}
