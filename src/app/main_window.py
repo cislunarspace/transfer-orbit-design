@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import numpy as np
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel
 from PyQt6.QtWidgets import (
@@ -22,9 +23,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.commons.paths import OUTPUT_DIR
 from src.engine.facade_bridge import TOOL_REGISTRY, OrbitDesignResultData, ToolSpec
+from src.engine.persistence import save_artifact
 from src.engine.workers import OrbitDesignWorker
 from src.model import Artifact, Project
+from src.model.discovery import discover_artifacts
 from src.view.canvas import OrbitCanvasWithToolbar
 from src.view.log_panel import LogPanel
 from src.view.params_panel import build_params_from_model, collect_params
@@ -89,6 +93,23 @@ class MainWindow(QMainWindow):
         self._status_bar = QStatusBar()
         self.setStatusBar(self._status_bar)
         self._status_bar.showMessage("就绪")
+
+        # Issue #338: 启动时从 OUTPUT_DIR 恢复已有 Artifact
+        self._restore_artifacts_from_disk()
+
+    def _restore_artifacts_from_disk(self) -> None:
+        """扫描 OUTPUT_DIR 并将历史 Artifact 加入 Project。"""
+        try:
+            artifacts = discover_artifacts(OUTPUT_DIR)
+        except Exception as exc:  # noqa: BLE001
+            self._log.append_log(f"恢复历史 Artifact 失败: {exc}")
+            return
+        if not artifacts:
+            return
+        for artifact in artifacts:
+            self._project.add(artifact)
+        self._refresh_project_tree()
+        self._status_bar.showMessage(f"已恢复 {len(artifacts)} 个历史 Artifact", 5000)
 
     # -- UI 构建 -----------------------------------------------------------
 
@@ -258,9 +279,36 @@ class MainWindow(QMainWindow):
 
     def _on_artifact_clicked(self, artifact_id: str) -> None:
         artifact = self._project.get_by_id(artifact_id)
-        if artifact and artifact.state_data is not None:
+        if artifact is None:
+            return
+        # Issue #338: 历史 Artifact 的 NPZ 数组懒加载
+        if artifact.state_data is None and artifact.output_path is not None:
+            self._lazy_load_arrays(artifact)
+        if artifact.state_data is not None:
             self._render_artifact(artifact)
             self._center_tabs.setCurrentIndex(0)
+
+    def _lazy_load_arrays(self, artifact: Artifact) -> None:
+        """从伴随 NPZ 文件懒加载 states/times 数组。
+
+        失败时不抛出异常，仅记录警告。
+        """
+        if artifact.output_path is None:
+            return
+        npz_name = artifact.extra.get("arrays_file")
+        if not npz_name:
+            self._log.append_log(f"无 arrays_file 元数据，无法懒加载: {artifact.label}")
+            return
+        npz_path = artifact.output_path.parent / npz_name
+        if not npz_path.exists():
+            self._log.append_log(f"NPZ 文件不存在: {npz_path}")
+            return
+        try:
+            data = np.load(npz_path)
+            artifact.state_data = data["states"]
+            artifact.times = data["times"]
+        except Exception as exc:  # noqa: BLE001
+            self._log.append_log(f"NPZ 懒加载失败 {npz_path.name}: {exc}")
 
     def _on_run(self) -> None:
         tool_key = self._current_tool_key
@@ -324,6 +372,14 @@ class MainWindow(QMainWindow):
         self._run_btn.setEnabled(True)
         self._run_btn.setText("运行")
 
+        # Issue #338: 计算结果落盘（JSON 元数据 + NPZ 数组）
+        json_path: Path | None = None
+        try:
+            json_path = save_artifact(result, OUTPUT_DIR)
+            self._log.append_log(f"结果已保存: {json_path.name}")
+        except Exception as exc:  # noqa: BLE001
+            self._log.append_log(f"结果保存失败: {exc}")
+
         artifact = Artifact(
             artifact_type="orbit",
             label=f"{result.orbit_type} (C_J={result.cr3bp_jacobi:.4f})",
@@ -331,11 +387,15 @@ class MainWindow(QMainWindow):
             source_tool="design_orbit",
             state_data=result.states,
             times=result.times,
+            output_path=json_path,
             extra={
                 "jacobi": result.cr3bp_jacobi,
                 "epoch": result.epoch_utc,
                 "converged": result.correction_converged,
                 "iterations": result.correction_iterations,
+                "arrays_file": json_path.with_suffix(".npz").name
+                if json_path is not None
+                else "",
             },
         )
         self._project.add(artifact)

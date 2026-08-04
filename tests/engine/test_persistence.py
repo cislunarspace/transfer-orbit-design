@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -70,3 +69,20 @@ class TestSaveArtifact:
         assert a.orbit_type == "DRO"
         assert a.output_path is not None
         assert a.output_path.exists()
+
+
+class TestLazyLoadRoundtrip:
+    def test_discover_then_lazy_load(self, tmp_path):
+        """save_artifact -> discover -> 模拟懒加载 -> state_data 恢复。"""
+        dto = _make_dto()
+        save_artifact(dto, tmp_path)
+        artifacts = discover_artifacts(tmp_path)
+        assert len(artifacts) == 1
+        a = artifacts[0]
+        # Discovery 不加载数组
+        assert a.state_data is None
+        # 模拟懒加载
+        npz_path = a.output_path.parent / a.extra["arrays_file"]
+        data = np.load(npz_path)
+        np.testing.assert_array_equal(data["states"], dto.states)
+        np.testing.assert_array_equal(data["times"], dto.times)
