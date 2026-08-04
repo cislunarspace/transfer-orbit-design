@@ -26,7 +26,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.engine.workers import OrbitDesignResultData, OrbitDesignWorker
+from src.engine.facade_bridge import OrbitDesignResultData
+from src.engine.workers import OrbitDesignWorker
 from src.model import Artifact, Project
 from src.view.canvas import OrbitCanvasWithToolbar
 from src.view.log_panel import LogPanel

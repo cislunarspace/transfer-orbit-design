@@ -53,7 +53,7 @@ Repository = "https://github.com/cislunarspace/transfer-orbit-design"
 [tool.pyright]
 pythonVersion = "3.13"
 reportMissingImports = "none"
-include = ["tod", "scripts", "src"]
+include = ["src"]
 exclude = ["tests"]
 
 [tool.pytest.ini_options]

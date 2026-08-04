@@ -14,7 +14,8 @@ from src.commons.font_config import apply_cjk_font_fallback
 
 apply_cjk_font_fallback()
 
-from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT  # noqa: E402
+from matplotlib.backends.backend_qt import NavigationToolbar2QT  # noqa: E402
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg  # noqa: E402
 from matplotlib.figure import Figure  # noqa: E402
 
 
