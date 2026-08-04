@@ -49,7 +49,8 @@ class TestOnDesignFinishedPersistence:
     def test_calls_save_artifact_and_sets_output_path(self, qapp):
         from src.app.main_window import MainWindow
 
-        window = MainWindow()
+        with patch("src.app.main_window.discover_artifacts", return_value=[]):
+            window = MainWindow()
         result = _make_result_data()
 
         # S2: save_artifact 现在返回 (json_path, npz_path) 元组
@@ -73,7 +74,8 @@ class TestOnDesignFinishedPersistence:
         """S4: 持久化失败时 in-memory Artifact 仍可用，状态栏明确显示。"""
         from src.app.main_window import MainWindow
 
-        window = MainWindow()
+        with patch("src.app.main_window.discover_artifacts", return_value=[]):
+            window = MainWindow()
         result = _make_result_data()
 
         with patch("src.app.main_window.save_artifact") as mock_save:
