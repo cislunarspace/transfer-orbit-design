@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 from datetime import UTC, datetime
 from pathlib import Path
+
+import numpy as np
 
 from src.model.artifact import Artifact
 
@@ -79,6 +82,18 @@ def discover_artifacts(output_dir: Path) -> list[Artifact]:
         # Extract orbit_type from JSON content if available
         orbit_type = data.get("orbit_type", meta["orbit_type"])
 
+        # Extract state_data and times if present
+        state_data = None
+        times = None
+        states_raw = data.get("states")
+        if states_raw is not None:
+            with contextlib.suppress(ValueError, TypeError):
+                state_data = np.asarray(states_raw, dtype=np.float64)
+        times_raw = data.get("times")
+        if times_raw is not None:
+            with contextlib.suppress(ValueError, TypeError):
+                times = np.asarray(times_raw, dtype=np.float64)
+
         mtime = datetime.fromtimestamp(json_file.stat().st_mtime, tz=UTC)
 
         artifacts.append(
@@ -88,6 +103,8 @@ def discover_artifacts(output_dir: Path) -> list[Artifact]:
                 orbit_type=orbit_type or "",
                 source_tool="",
                 output_path=json_file,
+                state_data=state_data,
+                times=times,
                 extra=data if isinstance(data, dict) else {},
                 created_at=mtime,
             )
