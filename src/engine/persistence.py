@@ -18,6 +18,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from src.engine.facade_bridge import OrbitDesignResultData
+    from src.model.artifact import Artifact
 
 
 def _timestamp() -> str:
@@ -28,10 +29,15 @@ def _timestamp() -> str:
 def save_artifact(
     result_data: OrbitDesignResultData,
     output_dir: Path,
-) -> Path:
-    """将计算结果写入 output/dro/ 目录，返回 JSON 文件路径。
+) -> tuple[Path, Path]:
+    """将计算结果写入 output/dro/ 目录，返回 ``(json_path, npz_path)`` 元组。
 
     文件名格式 ``dro_<14位时间戳>``，与 discovery 正则兼容。
+    NPZ 文件名由 persistence 单一来源生成，避免调用方重复推导。
+
+    Returns:
+        ``(json_path, npz_path)`` 元组。调用方应使用 ``npz_path.name``
+        作为 ``arrays_file`` 元数据键，避免再次 ``with_suffix(".npz").name``。
     """
     output_dir = Path(output_dir)
     dro_dir = output_dir / "dro"
@@ -58,4 +64,34 @@ def save_artifact(
     }
     json_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    return json_path
+    return json_path, npz_path
+
+
+def load_artifact_arrays(artifact: Artifact) -> bool:
+    """从 ``artifact.output_path`` 伴随的 NPZ 文件加载 states/times。
+
+    使用 ``with np.load(...)`` 上下文管理器保证文件句柄关闭。
+    失败时不抛出异常，仅返回 ``False``，调用方决定如何降级。
+
+    注意：直接修改 ``artifact.state_data`` 和 ``artifact.times``，
+    这是性能取舍（Qt-bound model 不希望不可变更新触发复杂刷新）。
+    见 ``Artifact`` dataclass 注释。
+
+    Returns:
+        加载成功返回 ``True``，否则 ``False``（无 metadata / 文件缺失 / 加载失败）。
+    """
+    if artifact.output_path is None:
+        return False
+    npz_name = artifact.extra.get("arrays_file")
+    if not npz_name:
+        return False
+    npz_path = artifact.output_path.parent / npz_name
+    if not npz_path.exists():
+        return False
+    try:
+        with np.load(npz_path) as data:
+            artifact.state_data = data["states"]
+            artifact.times = data["times"]
+    except (KeyError, OSError, ValueError):
+        return False
+    return True
