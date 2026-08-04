@@ -45,6 +45,7 @@ docs = [
 
 [project.scripts]
 transfer-orbit-design = "tod.gui.main:main"
+transfer-orbit-design-v2 = "src.app.main:main"
 
 [project.urls]
 Repository = "https://github.com/cislunarspace/transfer-orbit-design"
@@ -63,7 +64,7 @@ markers = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["tod*"]
+include = ["tod*", "src*"]
 exclude = ["tests*", "scripts*"]
 
 [tool.setuptools.package-data]
