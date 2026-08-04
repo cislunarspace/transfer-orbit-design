@@ -87,6 +87,12 @@ class MainWindow(QMainWindow):
         self._param_container_layout: QVBoxLayout | None = None
         self._run_btn = QPushButton("运行")  # G1: 非 Optional，_build_right_panel 中配置
 
+        # Issue #339: 画布渲染状态（CanvasState）与当前选中 Artifact 集合
+        from src.view.canvas import CanvasState
+
+        self._canvas_state = CanvasState()
+        self._selected_artifact_ids: list[str] = []
+
         self.setWindowTitle("Transfer Orbit Design v2")
         self.resize(1400, 900)
 
@@ -158,7 +164,27 @@ class MainWindow(QMainWindow):
 
         # 可视化标签页
         self._viz = OrbitCanvasWithToolbar()
+        # Issue #339: 注入数据回调 -- main_window 提供 state_data / label / mu 查询，
+        # canvas 不自持 Project（view 只经接口与数据层交互）。
+        self._viz.canvas.set_artifacts_provider(self._artifact_for_id)
         tabs.addTab(self._viz.widget, "可视化")
+
+        # Issue #339: 投影切换 + 地月/L 点开关（纯 UI，业务逻辑在此 slot 中）
+        toolbar = self._viz.projection_toolbar
+        toolbar.projection_3d.clicked.connect(
+            lambda: self._on_projection_changed("3d")
+        )
+        toolbar.projection_xy.clicked.connect(
+            lambda: self._on_projection_changed("xy")
+        )
+        toolbar.projection_xz.clicked.connect(
+            lambda: self._on_projection_changed("xz")
+        )
+        toolbar.projection_yz.clicked.connect(
+            lambda: self._on_projection_changed("yz")
+        )
+        toolbar.show_bodies.toggled.connect(self._on_toggle_bodies)
+        toolbar.show_libration.toggled.connect(self._on_toggle_libration)
 
         # 日志标签页
         self._log = LogPanel()
@@ -301,8 +327,23 @@ class MainWindow(QMainWindow):
                     f"NPZ 懒加载失败: {artifact.label}（文件缺失或元数据缺失）"
                 )
         if artifact.state_data is not None:
-            self._render_artifact(artifact)
+            self._warn_missing_mu(artifact)
+            self._selected_artifact_ids = [artifact_id]
+            self._render_canvas()
             self._center_tabs.setCurrentIndex(0)
+
+    def _on_artifacts_multi_selected(self, artifact_ids: list[str]) -> None:
+        # Issue #339: 多选分支补上懒加载（现状缺失，见审查意见）
+        for aid in artifact_ids:
+            artifact = self._project.get_by_id(aid)
+            if artifact is None:
+                continue
+            if artifact.state_data is None and artifact.output_path is not None:
+                load_artifact_arrays(artifact)
+            self._warn_missing_mu(artifact)
+        self._selected_artifact_ids = list(artifact_ids)
+        self._render_canvas()
+        self._center_tabs.setCurrentIndex(0)
 
     def _on_run(self) -> None:
         tool_key = self._current_tool_key
@@ -389,6 +430,7 @@ class MainWindow(QMainWindow):
             extra={
                 # 元数据键与 persistence.save_artifact 写入磁盘 JSON 的键保持一致
                 "cr3bp_jacobi": result.cr3bp_jacobi,
+                "mu": result.mu,
                 "epoch_utc": result.epoch_utc,
                 "correction_converged": result.correction_converged,
                 "correction_iterations": result.correction_iterations,
@@ -429,17 +471,48 @@ class MainWindow(QMainWindow):
             orbit_type=artifact.orbit_type,
         )
 
+    # Issue #339: CanvasState 流 -- 单一状态源 + render() 单入口
+
+    def _warn_missing_mu(self, artifact: Artifact) -> None:
+        """旧 Artifact 无 mu 时提示：地月/L 点标注不可用（计划决策 3）。"""
+        if artifact.state_data is not None and artifact.extra.get("mu") is None:
+            self._log.append_log(
+                f"旧 Artifact 无 mu，跳过地月标注: {artifact.label}"
+            )
+
+    def _artifact_for_id(self, artifact_id: str) -> dict | None:
+        """返回画布渲染所需的 Artifact 数据（不含 e2m2e 类型）。
+
+        经 canvas.set_artifacts_provider() 注入；渲染前由 canvas.sync_state()
+        调用，返回内存数组，不从磁盘/NPZ 重读。
+        """
+        a = self._project.get_by_id(artifact_id)
+        if a is None or a.state_data is None:
+            return None
+        return {
+            "states": a.state_data,
+            "label": a.label,
+            "mu": a.extra.get("mu"),
+        }
+
+    def _render_canvas(self) -> None:
+        """同步 CanvasState 并触发 render()。数据在内存，不从 NPZ 重读。"""
+        self._viz.canvas.sync_state(self._canvas_state, self._selected_artifact_ids)
+        self._viz.canvas.render()
+
+    def _on_projection_changed(self, projection: str) -> None:
+        self._canvas_state.projection = projection
+        self._render_canvas()
+
+    def _on_toggle_bodies(self, checked: bool) -> None:
+        self._canvas_state.show_bodies = checked
+        self._render_canvas()
+
+    def _on_toggle_libration(self, checked: bool) -> None:
+        self._canvas_state.show_libration = checked
+        self._render_canvas()
+
     # -- 项目树 -------------------------------------------------------------
 
     def _refresh_project_tree(self) -> None:
         self._tree_view.refresh(self._project)
-
-    def _on_artifacts_multi_selected(self, artifact_ids: list[str]) -> None:
-        orbits: list[tuple] = []
-        for aid in artifact_ids:
-            artifact = self._project.get_by_id(aid)
-            if artifact and artifact.state_data is not None:
-                orbits.append((artifact.state_data, artifact.label))
-        if orbits:
-            self._viz.plot_multiple(orbits=orbits)
-            self._center_tabs.setCurrentIndex(0)

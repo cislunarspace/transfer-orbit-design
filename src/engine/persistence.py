@@ -26,6 +26,15 @@ def _timestamp() -> str:
     return datetime.now(UTC).strftime("%Y%m%d%H%M%S")
 
 
+def _extract_mu(result_data: OrbitDesignResultData) -> float | None:
+    """从结果 DTO 提取 CR3BP 质量比 mu。
+
+    兼容新旧结果数据：新版 DTO 带 ``mu`` 字段；旧版（无 mu 字段）返回 None，
+    画布据此跳过地月/L 点标注而非崩溃。
+    """
+    return getattr(result_data, "mu", None)
+
+
 def save_artifact(
     result_data: OrbitDesignResultData,
     output_dir: Path,
@@ -55,6 +64,7 @@ def save_artifact(
         "epoch_utc": result_data.epoch_utc,
         "duration_day": result_data.duration_day,
         "cr3bp_jacobi": result_data.cr3bp_jacobi,
+        "mu": _extract_mu(result_data),
         "correction_converged": result_data.correction_converged,
         "correction_iterations": result_data.correction_iterations,
         "initial_state": result_data.initial_state.tolist(),
