@@ -45,6 +45,7 @@ docs = [
 
 [project.scripts]
 transfer-orbit-design = "tod.gui.main:main"
+transfer-orbit-design-v2 = "src.app.main:main"
 
 [project.urls]
 Repository = "https://github.com/cislunarspace/transfer-orbit-design"
@@ -52,7 +53,7 @@ Repository = "https://github.com/cislunarspace/transfer-orbit-design"
 [tool.pyright]
 pythonVersion = "3.13"
 reportMissingImports = "none"
-include = ["tod", "scripts"]
+include = ["src"]
 exclude = ["tests"]
 
 [tool.pytest.ini_options]
@@ -63,8 +64,19 @@ markers = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["tod*"]
+include = ["tod*", "src*"]
 exclude = ["tests*", "scripts*"]
 
 [tool.setuptools.package-data]
 "tod.gui.i18n" = ["*.qm", "*.json"]
+
+[dependency-groups]
+dev = ["ruff>=0.1", "pyright>=1.1"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+exclude = ["tod/", "tests/", "docs/", "scripts/", "tools/"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]

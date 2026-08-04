@@ -1,0 +1,65 @@
+name: Docs
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "docs/**"
+      - "src/**"
+      - "tod/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libegl1
+
+      - name: Check out e2m2e source dependency
+        run: git clone https://github.com/cislunarspace/e2m2e.git ../e2m2e
+
+      - name: Install dependencies
+        run: uv sync --extra docs
+
+      - name: Build Chinese documentation
+        run: uv run sphinx-build -b html -D language=zh docs/source docs/build/html/zh
+
+      - name: Build English documentation
+        run: uv run sphinx-build -b html -D language=en docs/source docs/build/html/en
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/build/html
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
