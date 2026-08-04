@@ -1,0 +1,72 @@
+"""tests for src.engine.exceptions -- translate_exception 映射。"""
+
+from __future__ import annotations
+
+import pytest
+
+from src.engine.exceptions import OrbitError, translate_exception
+
+
+class TestOrbitErrorAttributes:
+    def test_code_and_message(self):
+        e = OrbitError(code="ERR", message="msg")
+        assert e.code == "ERR"
+        assert e.message == "msg"
+        assert e.cause is None
+
+    def test_str(self):
+        e = OrbitError(code="ERR", message="msg")
+        assert "msg" in str(e)
+
+    def test_cause_preserved(self):
+        cause = ValueError("root")
+        e = OrbitError(code="ERR", message="msg", cause=cause)
+        assert e.cause is cause
+
+
+class TestTranslateDesignNotConverged:
+    def test_translate_design_not_converged(self):
+        from e2m2e.algorithm.design.design_orbit import DesignNotConvergedError
+
+        raw = DesignNotConvergedError("segmented 拼接未生成任何星历点")
+        err = translate_exception(raw)
+        assert err.code == "CORRECTION_DIVERGED"
+        assert err.cause is raw
+
+
+class TestTranslateUnsupportedCorrectorMethod:
+    def test_translate_unsupported_corrector(self):
+        from e2m2e.algorithm.ephemeris_correction.types import (
+            UnsupportedCorrectorMethodError,
+        )
+
+        raw = UnsupportedCorrectorMethodError("bad_method", ["two_level", "simple"])
+        err = translate_exception(raw)
+        assert err.code == "INVALID_CORRECTION_METHOD"
+        assert err.cause is raw
+
+
+class TestTranslateBuiltins:
+    def test_translate_value_error(self):
+        raw = ValueError("orbit_type 必须为 DRO/DPO/NRHO")
+        err = translate_exception(raw)
+        assert err.code == "INVALID_PARAMS"
+        assert err.cause is raw
+
+    def test_translate_file_not_found(self):
+        raw = FileNotFoundError("/path/to/kernel.tf")
+        err = translate_exception(raw)
+        assert err.code == "KERNEL_NOT_FOUND"
+        assert err.cause is raw
+
+    def test_translate_not_implemented(self):
+        raw = NotImplementedError("Axial orbit not supported")
+        err = translate_exception(raw)
+        assert err.code == "NOT_IMPLEMENTED"
+        assert err.cause is raw
+
+    def test_translate_unknown(self):
+        raw = RuntimeError("unexpected")
+        err = translate_exception(raw)
+        assert err.code == "UNKNOWN_ERROR"
+        assert err.cause is raw

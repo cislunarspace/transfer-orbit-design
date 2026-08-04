@@ -7,14 +7,11 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QComboBox,
-    QDoubleSpinBox,
     QLabel,
-    QLineEdit,
     QMainWindow,
     QPushButton,
     QSplitter,
@@ -26,11 +23,15 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.engine.facade_bridge import OrbitDesignResultData
+from src.engine.facade_bridge import TOOL_REGISTRY, OrbitDesignResultData
 from src.engine.workers import OrbitDesignWorker
 from src.model import Artifact, Project
 from src.view.canvas import OrbitCanvasWithToolbar
 from src.view.log_panel import LogPanel
+from src.view.params_panel import build_params_from_model, collect_params
+
+_design_tool = TOOL_REGISTRY.get("design_orbit")
+_DesignOrbitRequest = _design_tool.request_model if _design_tool else None
 
 
 class MainWindow(QMainWindow):
@@ -112,51 +113,34 @@ class MainWindow(QMainWindow):
     # -- 参数面板 -----------------------------------------------------------
 
     def _build_design_orbit_params(self, layout: QVBoxLayout) -> None:
-        # 轨道类型
-        layout.addWidget(QLabel("轨道类型"))
-        combo = QComboBox()
-        combo.addItems(["DRO", "Halo", "NRHO", "Lissajous", "L4", "L5"])
-        layout.addWidget(combo)
-        self._param_widgets["orbit_type"] = combo
+        if _DesignOrbitRequest is None:
+            layout.addWidget(QLabel("e2m2e 未安装，参数面板不可用"))
+            return
 
-        # 振幅
-        layout.addWidget(QLabel("振幅 (km)"))
-        amp = QDoubleSpinBox()
-        amp.setRange(1.0, 110000.0)
-        amp.setValue(40000.0)
-        amp.setSingleStep(1000.0)
-        layout.addWidget(amp)
-        self._param_widgets["amplitude"] = amp
+        self._param_widgets = build_params_from_model(_DesignOrbitRequest, parent=None)
 
-        # 持续时间
-        layout.addWidget(QLabel("持续时间 (年)"))
-        dur = QDoubleSpinBox()
-        dur.setRange(0.01, 20.0)
-        dur.setValue(1.0)
-        dur.setSingleStep(0.1)
-        layout.addWidget(dur)
-        self._param_widgets["duration"] = dur
-
-        # 输出步长
-        layout.addWidget(QLabel("输出步长 (秒)"))
-        step = QDoubleSpinBox()
-        step.setRange(1.0, 86400.0)
-        step.setValue(3600.0)
-        step.setSingleStep(60.0)
-        layout.addWidget(step)
-        self._param_widgets["output_step"] = step
-
-        # SPICE 内核目录
-        layout.addWidget(QLabel("SPICE 内核目录"))
-        spice_edit = QLineEdit()
-        spice_edit.setText(self._detect_kernel_dir())
-        spice_edit.setPlaceholderText("留空使用 $SPICE_KERNEL_DIR")
-        layout.addWidget(spice_edit)
-        self._param_widgets["kernel_dir"] = spice_edit
+        field_labels: dict[str, str] = {
+            "orbit_type": "轨道类型",
+            "amplitude": "振幅 (km)",
+            "phase": "初始相位 (周期份额)",
+            "collinear_point": "共线平动点",
+            "north_south": "北/南 (1=北, 2=南)",
+            "perilune_height": "近月点高度 (km)",
+            "amplitude_in": "面内振幅 (km)",
+            "amplitude_out": "面外振幅 (km)",
+            "phase_in": "面内相位",
+            "phase_out": "面外相位",
+            "epoch": "历元",
+            "duration": "持续时间 (年)",
+            "output_step": "输出步长 (秒)",
+            "correction_method": "修正方法",
+        }
+        for name, widget in self._param_widgets.items():
+            layout.addWidget(QLabel(field_labels.get(name, name)))
+            layout.addWidget(widget)
 
         layout.addStretch()
 
-        # 运行按钮
         run_btn = QPushButton("运行设计")
         run_btn.setStyleSheet(
             "QPushButton { background-color: #4CAF50; color: white; "
@@ -200,23 +184,15 @@ class MainWindow(QMainWindow):
     def _on_run_design(self) -> None:
         orbit_type_widget: QComboBox = self._param_widgets["orbit_type"]  # type: ignore[assignment]
         orbit_type = orbit_type_widget.currentText()
-        amplitude: float = self._param_widgets["amplitude"].value()  # type: ignore[union-attr]
-        duration: float = self._param_widgets["duration"].value()  # type: ignore[union-attr]
-        output_step: float = self._param_widgets["output_step"].value()  # type: ignore[union-attr]
-        kernel_dir_text: str = self._param_widgets["kernel_dir"].text().strip()  # type: ignore[union-attr]
-        kernel_dir = kernel_dir_text or None
 
-        params: dict[str, Any] = {
-            "amplitude": amplitude,
-            "duration": duration,
-            "output_step": output_step,
-        }
+        params = collect_params(self._param_widgets, _DesignOrbitRequest)  # type: ignore[reportArgumentType]
+        params.pop("orbit_type", None)  # orbit_type 单独传给 Worker
+
+        kernel_dir = self._detect_kernel_dir() or None
 
         self._log.clear()
         self._log.append_log(f"开始 {orbit_type} 轨道设计")
-        self._log.append_log(
-            f"参数: amplitude={amplitude}, duration={duration}, output_step={output_step}"
-        )
+        self._log.append_log(f"参数: {params}")
         self._status_bar.showMessage(f"正在设计 {orbit_type}...")
 
         self._worker = OrbitDesignWorker(
@@ -239,8 +215,8 @@ class MainWindow(QMainWindow):
             label=f"{result.orbit_type} (C_J={result.cr3bp_jacobi:.4f})",
             orbit_type=result.orbit_type,
             source_tool="design_orbit",
-            state_data=result.cr3bp_orbit.states if result.cr3bp_orbit else None,
-            times=result.cr3bp_orbit.times if result.cr3bp_orbit else None,
+            state_data=result.states,
+            times=result.times,
             extra={
                 "jacobi": result.cr3bp_jacobi,
                 "epoch": result.epoch_utc,
