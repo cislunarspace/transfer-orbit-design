@@ -71,9 +71,9 @@ class MainWindow(QMainWindow):
         右侧 (25%): 工具选择器 + 参数面板 + 运行按钮
     """
 
-    def __init__(self, parent=None) -> None:
+    def __init__(self, parent=None, *, project: Project | None = None) -> None:
         super().__init__(parent)
-        self._project = Project(name="Transfer Orbit Design")
+        self._project = project if project is not None else Project(name="Transfer Orbit Design")
         self._worker: OrbitDesignWorker | None = None
         self._current_tool_key: str | None = None
         self._param_widgets: dict[str, QWidget] = {}
@@ -90,7 +90,17 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self._status_bar)
         self._status_bar.showMessage("就绪")
 
+        # Pre-populate tree if project already has artifacts
+        if self._project.artifacts:
+            self._refresh_project_tree()
+
     # -- UI 构建 -----------------------------------------------------------
+
+    def show_scan_time(self, seconds: float, count: int) -> None:
+        """Display artifact scan timing in the status bar."""
+        self._status_bar.showMessage(
+            f"启动扫描: {count} 个 Artifact, 耗时 {seconds:.2f}s"
+        )
 
     def _build_ui(self) -> None:
         splitter = QSplitter(Qt.Orientation.Horizontal)

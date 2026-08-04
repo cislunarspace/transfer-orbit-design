@@ -128,3 +128,38 @@ class TestDiscoverArtifacts:
 
         now = datetime.now(timezone.utc)
         assert abs((now - arts[0].created_at).total_seconds()) < 60
+
+    def test_state_data_and_times_loaded(self, tmp_path: Path) -> None:
+        """When JSON contains 'states' and 'times', they are parsed into numpy arrays."""
+        import numpy as np
+
+        dro_dir = tmp_path / "dro"
+        dro_dir.mkdir()
+        payload = {
+            "orbit_type": "DRO",
+            "states": [[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]] * 3,
+            "times": [0.0, 0.5, 1.0],
+        }
+        (dro_dir / "dro_001.json").write_text(
+            json.dumps(payload), encoding="utf-8"
+        )
+        arts = discover_artifacts(tmp_path)
+        assert len(arts) == 1
+        art = arts[0]
+        assert art.state_data is not None
+        assert art.times is not None
+        assert art.state_data.shape == (3, 6)
+        assert art.times.shape == (3,)
+        np.testing.assert_allclose(art.state_data[0], [1, 2, 3, 4, 5, 6])
+        np.testing.assert_allclose(art.times, [0.0, 0.5, 1.0])
+
+    def test_missing_states_leaves_state_data_none(self, tmp_path: Path) -> None:
+        """JSON without 'states' key results in state_data=None."""
+        dro_dir = tmp_path / "dro"
+        dro_dir.mkdir()
+        (dro_dir / "dro_001.json").write_text(
+            json.dumps({"orbit_type": "DRO"}), encoding="utf-8"
+        )
+        arts = discover_artifacts(tmp_path)
+        assert arts[0].state_data is None
+        assert arts[0].times is None
