@@ -11,6 +11,7 @@ from typing import Any
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from src.engine.exceptions import OrbitError
 from src.engine.facade_bridge import FacadeBridge
 
 
@@ -20,7 +21,7 @@ class OrbitDesignWorker(QThread):
     Signals:
         log(str):                     进度/信息日志。
         finished(OrbitDesignResultData):  成功结果。
-        error(str):                   错误消息。
+        error(str):                   错误消息（含错误码前缀）。
     """
 
     log = pyqtSignal(str)
@@ -58,5 +59,7 @@ class OrbitDesignWorker(QThread):
             )
             self.finished.emit(data)
 
+        except OrbitError as e:
+            self.error.emit(f"[{e.code}] {e.message}")
         except Exception:
-            self.error.emit(traceback.format_exc())
+            self.error.emit(f"[UNKNOWN_ERROR] {traceback.format_exc()}")
