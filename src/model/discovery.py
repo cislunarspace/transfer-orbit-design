@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 from datetime import UTC, datetime
@@ -86,16 +87,12 @@ def discover_artifacts(output_dir: Path) -> list[Artifact]:
         times = None
         states_raw = data.get("states")
         if states_raw is not None:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 state_data = np.asarray(states_raw, dtype=np.float64)
-            except (ValueError, TypeError):
-                pass
         times_raw = data.get("times")
         if times_raw is not None:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 times = np.asarray(times_raw, dtype=np.float64)
-            except (ValueError, TypeError):
-                pass
 
         mtime = datetime.fromtimestamp(json_file.stat().st_mtime, tz=UTC)
 
