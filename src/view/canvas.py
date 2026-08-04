@@ -101,7 +101,9 @@ class OrbitCanvas(FigureCanvasQTAgg):
         if projection == "3d":
             ax.set_xlabel("X")
             ax.set_ylabel("Y")
-            ax.set_zlabel("Z")
+            # projection=="3d" 时 add_subplot 返回 Axes3D，但 matplotlib
+            # stubs 按基类 Axes 推断，无法按字符串收窄，故显式忽略此属性。
+            ax.set_zlabel("Z")  # type: ignore[attr-defined]
         else:
             # 2D 投影：轴标签与 _PROJECTION_PLANE_AXES 对齐
             labels = {"xy": ("X", "Y"), "xz": ("X", "Z"), "yz": ("Y", "Z")}
