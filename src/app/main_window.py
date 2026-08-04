@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QStandardItemModel
 from PyQt6.QtWidgets import (
     QComboBox,
     QLabel,
@@ -21,15 +22,44 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.engine.facade_bridge import TOOL_REGISTRY, OrbitDesignResultData
+from src.engine.facade_bridge import TOOL_REGISTRY, OrbitDesignResultData, ToolSpec
 from src.engine.workers import OrbitDesignWorker
 from src.model import Artifact, Project
 from src.view.canvas import OrbitCanvasWithToolbar
 from src.view.log_panel import LogPanel
 from src.view.params_panel import build_params_from_model, collect_params
 
-_design_tool = TOOL_REGISTRY.get("design_orbit")
-_DesignOrbitRequest = _design_tool.request_model if _design_tool else None
+# G4+G5: 工具选择器 + 灰色占位
+
+_RIGHT_PANEL_TOOL_COMBO_LABEL = "选择工具"
+
+
+def _get_default_tool_key() -> str | None:
+    """返回第一个 enabled 工具的 key，若无则 None。"""
+    for key, spec in TOOL_REGISTRY.items():
+        if spec.enabled:
+            return key
+    return None
+
+
+# G4+G5: 字段标签（_FIELD_LABELS 已提取为模块级常量）
+
+_DESIGN_ORBIT_LABELS: dict[str, str] = {
+    "orbit_type": "轨道类型",
+    "amplitude": "振幅 (km)",
+    "phase": "初始相位 (周期份额)",
+    "collinear_point": "共线平动点",
+    "north_south": "北/南 (1=北, 2=南)",
+    "perilune_height": "近月点高度 (km)",
+    "amplitude_in": "面内振幅 (km)",
+    "amplitude_out": "面外振幅 (km)",
+    "phase_in": "面内相位",
+    "phase_out": "面外相位",
+    "epoch": "历元",
+    "duration": "持续时间 (年)",
+    "output_step": "输出步长 (秒)",
+    "correction_method": "修正方法",
+}
 
 
 class MainWindow(QMainWindow):
@@ -38,14 +68,18 @@ class MainWindow(QMainWindow):
     布局：
         左侧 (20%): 项目树 (QTreeWidget)
         中间 (55%): 可视化画布 + 日志标签页
-        右侧 (25%): design_orbit 参数面板 + 运行按钮
+        右侧 (25%): 工具选择器 + 参数面板 + 运行按钮
     """
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self._project = Project(name="Transfer Orbit Design")
         self._worker: OrbitDesignWorker | None = None
+        self._current_tool_key: str | None = None
         self._param_widgets: dict[str, QWidget] = {}
+        self._param_container: QWidget | None = None
+        self._param_container_layout: QVBoxLayout | None = None
+        self._run_btn = QPushButton("运行")  # G1: 非 Optional，_build_right_panel 中配置
 
         self.setWindowTitle("Transfer Orbit Design v2")
         self.resize(1400, 900)
@@ -106,69 +140,119 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        self._build_design_orbit_params(layout)
+        # G4: 工具选择器
+        layout.addWidget(QLabel(_RIGHT_PANEL_TOOL_COMBO_LABEL))
+        self._tool_combo = QComboBox()
+        for key, spec in TOOL_REGISTRY.items():
+            idx = self._tool_combo.count()
+            self._tool_combo.addItem(spec.label, key)
+            if not spec.enabled:
+                model = self._tool_combo.model()
+                assert isinstance(model, QStandardItemModel)
+                item = model.item(idx)
+                if item is not None:
+                    item.setEnabled(False)
+                    item.setToolTip("即将提供")
+        self._tool_combo.currentIndexChanged.connect(self._on_tool_changed)
+        layout.addWidget(self._tool_combo)
 
-        return panel
-
-    # -- 参数面板 -----------------------------------------------------------
-
-    def _build_design_orbit_params(self, layout: QVBoxLayout) -> None:
-        if _DesignOrbitRequest is None:
-            layout.addWidget(QLabel("e2m2e 未安装，参数面板不可用"))
-            return
-
-        self._param_widgets = build_params_from_model(_DesignOrbitRequest, parent=None)
-
-        field_labels: dict[str, str] = {
-            "orbit_type": "轨道类型",
-            "amplitude": "振幅 (km)",
-            "phase": "初始相位 (周期份额)",
-            "collinear_point": "共线平动点",
-            "north_south": "北/南 (1=北, 2=南)",
-            "perilune_height": "近月点高度 (km)",
-            "amplitude_in": "面内振幅 (km)",
-            "amplitude_out": "面外振幅 (km)",
-            "phase_in": "面内相位",
-            "phase_out": "面外相位",
-            "epoch": "历元",
-            "duration": "持续时间 (年)",
-            "output_step": "输出步长 (秒)",
-            "correction_method": "修正方法",
-        }
-        for name, widget in self._param_widgets.items():
-            layout.addWidget(QLabel(field_labels.get(name, name)))
-            layout.addWidget(widget)
+        # 参数容器
+        self._param_container = QWidget()
+        self._param_container_layout = QVBoxLayout(self._param_container)
+        self._param_container_layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self._param_container)
 
         layout.addStretch()
 
-        run_btn = QPushButton("运行设计")
-        run_btn.setStyleSheet(
+        # G1: 配置运行按钮（已在 __init__ 中创建）
+        self._run_btn.setStyleSheet(
             "QPushButton { background-color: #4CAF50; color: white; "
             "font-weight: bold; padding: 8px; border-radius: 4px; }"
             "QPushButton:hover { background-color: #45a049; }"
         )
-        run_btn.clicked.connect(self._on_run_design)
-        layout.addWidget(run_btn)
+        self._run_btn.clicked.connect(self._on_run)
+        layout.addWidget(self._run_btn)
 
-    @staticmethod
-    def _detect_kernel_dir() -> str:
-        """自动探测 SPICE 内核目录。
+        # 默认选中第一个 enabled 工具
+        default_key = _get_default_tool_key()
+        if default_key is not None:
+            for i in range(self._tool_combo.count()):
+                if self._tool_combo.itemData(i) == default_key:
+                    self._tool_combo.setCurrentIndex(i)
+                    break
+        self._on_tool_changed(self._tool_combo.currentIndex())
 
-        优先级：$SPICE_KERNEL_DIR 环境变量 -> ../e2m2e/kernels/。
-        """
-        env_val = os.environ.get("SPICE_KERNEL_DIR", "")
-        if env_val and Path(env_val).is_dir():
-            return env_val
+        return panel
 
-        # 从 worktree 根目录向上找 e2m2e/kernels/
-        here = Path(__file__).resolve()
-        # src/app/main_window.py -> 项目根是 here.parent.parent.parent
-        repo_root = here.parent.parent.parent
-        candidate = repo_root.parent / "e2m2e" / "kernels"
-        if candidate.is_dir():
-            return str(candidate)
+    # -- 参数面板（G4+G5 通用化）------------------------------------------
 
-        return ""
+    def _on_tool_changed(self, index: int) -> None:
+        """切换工具时动态清空并重建参数面板。"""
+        if index < 0:
+            return
+        tool_key: str | None = self._tool_combo.itemData(index)
+        if tool_key is None or tool_key == self._current_tool_key:
+            return
+        self._current_tool_key = tool_key
+        self._build_tool_params(tool_key)
+
+    def _build_tool_params(self, tool_key: str) -> None:
+        """为指定工具构建参数面板。"""
+        spec: ToolSpec | None = TOOL_REGISTRY.get(tool_key)
+        if spec is None or spec.request_model is None:
+            return
+
+        # 清空旧控件
+        self._param_widgets = {}
+        layout = self._param_container_layout
+        if layout is None:
+            return
+        while layout.count():
+            item = layout.takeAt(0)
+            if item is None:
+                continue
+            w = item.widget()
+            if w:
+                w.setParent(None)
+
+        # 生成控件
+        self._param_widgets = build_params_from_model(spec.request_model)
+
+        # G3: orbit_type -> QComboBox（若字段存在且有 description）
+        if "orbit_type" in self._param_widgets:
+            self._replace_orbit_type_with_combo(spec.request_model)
+
+        # 显示字段
+        for name, widget in self._param_widgets.items():
+            label = _DESIGN_ORBIT_LABELS.get(name, name)
+            layout.addWidget(QLabel(label))
+            layout.addWidget(widget)
+
+        layout.addStretch()
+
+    def _replace_orbit_type_with_combo(self, model_class: type) -> None:
+        """G3: 若 orbit_type 字段 description 含 '/'，替换为 QComboBox。"""
+        field = model_class.model_fields.get("orbit_type")
+        if field is None or not field.description:
+            return
+        if "/" not in field.description:
+            return
+
+        options = [opt.strip() for opt in field.description.split("/") if opt.strip()]
+        if not options:
+            return
+
+        combo = QComboBox()
+        combo.addItems(options)
+        combo.setToolTip(field.description)
+        if field.default is not None and str(field.default) in options:
+            combo.setCurrentIndex(options.index(str(field.default)))
+
+        # 替换 _param_widgets 中的条目
+        old = self._param_widgets.get("orbit_type")
+        self._param_widgets["orbit_type"] = combo
+        if old is not None:
+            old.setParent(None)
 
     # -- 信号槽 -------------------------------------------------------------
 
@@ -178,12 +262,19 @@ class MainWindow(QMainWindow):
             self._render_artifact(artifact)
             self._center_tabs.setCurrentIndex(0)
 
-    def _on_run_design(self) -> None:
-        orbit_type_widget: QComboBox = self._param_widgets["orbit_type"]  # type: ignore[assignment]
-        orbit_type = orbit_type_widget.currentText()
+    def _on_run(self) -> None:
+        tool_key = self._current_tool_key
+        spec = TOOL_REGISTRY.get(tool_key) if tool_key else None
+        if spec is None or spec.request_model is None:
+            return
 
-        params = collect_params(self._param_widgets, _DesignOrbitRequest)  # type: ignore[reportArgumentType]
-        params.pop("orbit_type", None)  # orbit_type 单独传给 Worker
+        orbit_type = ""
+        orbit_type_widget = self._param_widgets.get("orbit_type")
+        if isinstance(orbit_type_widget, QComboBox):
+            orbit_type = orbit_type_widget.currentText()
+
+        params = collect_params(self._param_widgets, spec.request_model)
+        params.pop("orbit_type", None)
 
         kernel_dir = self._detect_kernel_dir() or None
 
@@ -191,6 +282,10 @@ class MainWindow(QMainWindow):
         self._log.append_log(f"开始 {orbit_type} 轨道设计")
         self._log.append_log(f"参数: {params}")
         self._status_bar.showMessage(f"正在设计 {orbit_type}...")
+
+        # G1: 运行按钮状态管理
+        self._run_btn.setEnabled(False)
+        self._run_btn.setText("运行中...")
 
         self._worker = OrbitDesignWorker(
             orbit_type=orbit_type,
@@ -203,10 +298,32 @@ class MainWindow(QMainWindow):
         self._worker.error.connect(self._on_design_error)
         self._worker.start()
 
+    @staticmethod
+    def _detect_kernel_dir() -> str:
+        """自动探测 SPICE 内核目录。
+
+        优先级：$SPICE_KERNEL_DIR 环境变量 -> ../e2m2e/kernels/。
+        """
+        env_val = os.environ.get("SPICE_KERNEL_DIR", "")
+        if env_val and Path(env_val).is_dir():
+            return env_val
+
+        here = Path(__file__).resolve()
+        repo_root = here.parent.parent.parent
+        candidate = repo_root.parent / "e2m2e" / "kernels"
+        if candidate.is_dir():
+            return str(candidate)
+
+        return ""
+
     def _on_worker_log(self, msg: str) -> None:
         self._log.append_log(msg)
 
     def _on_design_finished(self, result: OrbitDesignResultData) -> None:
+        # G1: 恢复按钮状态
+        self._run_btn.setEnabled(True)
+        self._run_btn.setText("运行")
+
         artifact = Artifact(
             artifact_type="orbit",
             label=f"{result.orbit_type} (C_J={result.cr3bp_jacobi:.4f})",
@@ -231,6 +348,10 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage(f"{result.orbit_type} 设计完成", 5000)
 
     def _on_design_error(self, error_msg: str) -> None:
+        # G1: 恢复按钮状态
+        self._run_btn.setEnabled(True)
+        self._run_btn.setText("运行")
+
         self._log.append_log(f"错误:\n{error_msg}")
         self._status_bar.showMessage("设计失败", 5000)
 
