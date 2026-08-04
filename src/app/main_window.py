@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QStandardItemModel
 from PyQt6.QtWidgets import (
     QComboBox,
     QLabel,
@@ -77,7 +78,8 @@ class MainWindow(QMainWindow):
         self._current_tool_key: str | None = None
         self._param_widgets: dict[str, QWidget] = {}
         self._param_container: QWidget | None = None
-        self._run_btn: QPushButton | None = None  # G1
+        self._param_container_layout: QVBoxLayout | None = None
+        self._run_btn = QPushButton("运行")  # G1: 非 Optional，_build_right_panel 中配置
 
         self.setWindowTitle("Transfer Orbit Design v2")
         self.resize(1400, 900)
@@ -145,9 +147,12 @@ class MainWindow(QMainWindow):
             idx = self._tool_combo.count()
             self._tool_combo.addItem(spec.label, key)
             if not spec.enabled:
-                item = self._tool_combo.model().item(idx)
-                item.setEnabled(False)
-                item.setToolTip("即将提供")
+                model = self._tool_combo.model()
+                assert isinstance(model, QStandardItemModel)
+                item = model.item(idx)
+                if item is not None:
+                    item.setEnabled(False)
+                    item.setToolTip("即将提供")
         self._tool_combo.currentIndexChanged.connect(self._on_tool_changed)
         layout.addWidget(self._tool_combo)
 
@@ -159,8 +164,7 @@ class MainWindow(QMainWindow):
 
         layout.addStretch()
 
-        # G1: 运行按钮（提升为实例属性）
-        self._run_btn = QPushButton("运行")
+        # G1: 配置运行按钮（已在 __init__ 中创建）
         self._run_btn.setStyleSheet(
             "QPushButton { background-color: #4CAF50; color: white; "
             "font-weight: bold; padding: 8px; border-radius: 4px; }"
@@ -201,8 +205,12 @@ class MainWindow(QMainWindow):
         # 清空旧控件
         self._param_widgets = {}
         layout = self._param_container_layout
+        if layout is None:
+            return
         while layout.count():
             item = layout.takeAt(0)
+            if item is None:
+                continue
             w = item.widget()
             if w:
                 w.setParent(None)
@@ -262,11 +270,8 @@ class MainWindow(QMainWindow):
 
         orbit_type = ""
         orbit_type_widget = self._param_widgets.get("orbit_type")
-        if orbit_type_widget is not None:
-            from PyQt6.QtWidgets import QComboBox as _QCB
-
-            if isinstance(orbit_type_widget, _QCB):
-                orbit_type = orbit_type_widget.currentText()
+        if isinstance(orbit_type_widget, QComboBox):
+            orbit_type = orbit_type_widget.currentText()
 
         params = collect_params(self._param_widgets, spec.request_model)
         params.pop("orbit_type", None)
