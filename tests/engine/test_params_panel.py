@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import BaseModel, Field
 
 from e2m2e.api.models import DesignOrbitRequest
 
@@ -19,6 +20,37 @@ def qapp():
         return app
     except Exception:
         pytest.skip("QApplication 不可用（无 GUI 环境）")
+
+
+# ---------------------------------------------------------------------------
+# 测试模型
+# ---------------------------------------------------------------------------
+
+
+class _TooltipModel(BaseModel):
+    """用于 G2 测试：含 description 的字段。"""
+
+    with_desc: float = Field(42.0, description="带描述的字段")
+    without_desc: float = Field(0.0)
+
+
+class _OptionalModel(BaseModel):
+    """用于 G7 测试：Optional 字段。"""
+
+    optional_val: float | None = None
+    required_val: float = 1.0
+
+
+class _ListFloatModel(BaseModel):
+    """用于 G6 测试：list[float] 字段。"""
+
+    vec3: list[float] = Field(default=[1.0, 2.0, 3.0])
+    vec_default_empty: list[float] = Field(default=[0.0, 0.0, 0.0])
+
+
+# ---------------------------------------------------------------------------
+# 现有测试
+# ---------------------------------------------------------------------------
 
 
 class TestBuildParamsFromModel:
@@ -58,9 +90,135 @@ class TestCollectParams:
         params = collect_params(widgets, DesignOrbitRequest)
         assert isinstance(params, dict)
 
-    def test_amplitude_is_float(self, qapp):
+    def test_optional_none_default_is_none(self, qapp):
+        """G7: Optional[T] with default=None 应返回 None（checkbox 未勾选）。"""
         from src.view.params_panel import build_params_from_model, collect_params
 
         widgets = build_params_from_model(DesignOrbitRequest)
         params = collect_params(widgets, DesignOrbitRequest)
-        assert isinstance(params["amplitude"], float)
+        assert params["amplitude"] is None
+
+
+# ---------------------------------------------------------------------------
+# G2: Field.description -> tooltip
+# ---------------------------------------------------------------------------
+
+
+class TestTooltipFromDescription:
+    def test_tooltip_set_when_description_present(self, qapp):
+        """字段有 description 时，widget.setToolTip 应被调用。"""
+        from src.view.params_panel import build_params_from_model
+
+        widgets = build_params_from_model(_TooltipModel)
+        assert widgets["with_desc"].toolTip() == "带描述的字段"
+
+    def test_no_tooltip_when_no_description(self, qapp):
+        """字段无 description 时，toolTip 应为空。"""
+        from src.view.params_panel import build_params_from_model
+
+        widgets = build_params_from_model(_TooltipModel)
+        assert widgets["without_desc"].toolTip() == ""
+
+
+# ---------------------------------------------------------------------------
+# G6: list[float] -> 多个 QDoubleSpinBox
+# ---------------------------------------------------------------------------
+
+
+class TestListFloatField:
+    def test_list_float_creates_container(self, qapp):
+        """list[float] 字段应生成含 3 个 QDoubleSpinBox 的容器。"""
+        from PyQt6.QtWidgets import QDoubleSpinBox
+
+        from src.view.params_panel import build_params_from_model
+
+        widgets = build_params_from_model(_ListFloatModel)
+        container = widgets["vec3"]
+        spinboxes = container.findChildren(QDoubleSpinBox)
+        assert len(spinboxes) == 3
+
+    def test_list_float_default_values(self, qapp):
+        """容器内 QDoubleSpinBox 应有正确的默认值。"""
+        from src.view.params_panel import build_params_from_model
+
+        widgets = build_params_from_model(_ListFloatModel)
+        container = widgets["vec3"]
+        from PyQt6.QtWidgets import QDoubleSpinBox
+
+        spinboxes = container.findChildren(QDoubleSpinBox)
+        values = [sb.value() for sb in spinboxes]
+        assert values == pytest.approx([1.0, 2.0, 3.0])
+
+    def test_list_float_collect_params(self, qapp):
+        """collect_params 应正确读取 list[float] 容器的值。"""
+        from src.view.params_panel import build_params_from_model, collect_params
+
+        widgets = build_params_from_model(_ListFloatModel)
+        params = collect_params(widgets, _ListFloatModel)
+        assert isinstance(params["vec3"], list)
+        assert len(params["vec3"]) == 3
+        assert params["vec3"] == pytest.approx([1.0, 2.0, 3.0])
+
+    def test_list_float_collect_params_after_modify(self, qapp):
+        """修改 spinbox 值后 collect_params 应返回新值。"""
+        from PyQt6.QtWidgets import QDoubleSpinBox
+
+        from src.view.params_panel import build_params_from_model, collect_params
+
+        widgets = build_params_from_model(_ListFloatModel)
+        container = widgets["vec3"]
+        spinboxes = container.findChildren(QDoubleSpinBox)
+        spinboxes[0].setValue(10.0)
+        spinboxes[2].setValue(-5.0)
+
+        params = collect_params(widgets, _ListFloatModel)
+        assert params["vec3"] == pytest.approx([10.0, 2.0, -5.0])
+
+
+# ---------------------------------------------------------------------------
+# G7: Optional[T] -> QCheckBox 包装
+# ---------------------------------------------------------------------------
+
+
+class TestOptionalFieldCheckbox:
+    def test_optional_has_checkbox(self, qapp):
+        """Optional 字段应包含 QCheckBox。"""
+        from PyQt6.QtWidgets import QCheckBox
+
+        from src.view.params_panel import build_params_from_model
+
+        widgets = build_params_from_model(_OptionalModel)
+        cb = widgets["optional_val"].findChild(QCheckBox)
+        assert cb is not None
+
+    def test_optional_unchecked_returns_none(self, qapp):
+        """Optional 字段 checkbox 未勾选时 collect_params 返回 None。"""
+        from src.view.params_panel import build_params_from_model, collect_params
+
+        widgets = build_params_from_model(_OptionalModel)
+        params = collect_params(widgets, _OptionalModel)
+        assert params["optional_val"] is None
+
+    def test_optional_checked_returns_value(self, qapp):
+        """Optional 字段 checkbox 勾选后 collect_params 返回内部值。"""
+        from PyQt6.QtWidgets import QCheckBox
+
+        from src.view.params_panel import build_params_from_model, collect_params
+
+        widgets = build_params_from_model(_OptionalModel)
+        container = widgets["optional_val"]
+        cb = container.findChild(QCheckBox)
+        assert cb is not None
+        cb.setChecked(True)
+
+        params = collect_params(widgets, _OptionalModel)
+        assert isinstance(params["optional_val"], float)
+
+    def test_required_field_not_wrapped(self, qapp):
+        """非 Optional 字段不应有 QCheckBox 包装。"""
+        from PyQt6.QtWidgets import QCheckBox
+
+        from src.view.params_panel import build_params_from_model
+
+        widgets = build_params_from_model(_OptionalModel)
+        assert widgets["required_val"].findChild(QCheckBox) is None
