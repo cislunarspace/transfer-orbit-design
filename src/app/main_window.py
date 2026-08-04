@@ -102,7 +102,7 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self._status_bar)
         self._status_bar.showMessage("就绪")
 
-# Issue #338: 启动时从 OUTPUT_DIR 恢复已有 Artifact
+        # Issue #338: 启动时从 OUTPUT_DIR 恢复已有 Artifact
         # PR #345: 也允许 caller 传入预先填充的 Project（避免重复扫描）
         if not self._project.artifacts:
             self._restore_artifacts_from_disk()
@@ -171,18 +171,10 @@ class MainWindow(QMainWindow):
 
         # Issue #339: 投影切换 + 地月/L 点开关（纯 UI，业务逻辑在此 slot 中）
         toolbar = self._viz.projection_toolbar
-        toolbar.projection_3d.clicked.connect(
-            lambda: self._on_projection_changed("3d")
-        )
-        toolbar.projection_xy.clicked.connect(
-            lambda: self._on_projection_changed("xy")
-        )
-        toolbar.projection_xz.clicked.connect(
-            lambda: self._on_projection_changed("xz")
-        )
-        toolbar.projection_yz.clicked.connect(
-            lambda: self._on_projection_changed("yz")
-        )
+        toolbar.projection_3d.clicked.connect(lambda: self._on_projection_changed("3d"))
+        toolbar.projection_xy.clicked.connect(lambda: self._on_projection_changed("xy"))
+        toolbar.projection_xz.clicked.connect(lambda: self._on_projection_changed("xz"))
+        toolbar.projection_yz.clicked.connect(lambda: self._on_projection_changed("yz"))
         toolbar.show_bodies.toggled.connect(self._on_toggle_bodies)
         toolbar.show_libration.toggled.connect(self._on_toggle_libration)
 
@@ -323,9 +315,7 @@ class MainWindow(QMainWindow):
         if artifact.state_data is None and artifact.output_path is not None:
             loaded = load_artifact_arrays(artifact)
             if not loaded:
-                self._log.append_log(
-                    f"NPZ 懒加载失败: {artifact.label}（文件缺失或元数据缺失）"
-                )
+                self._log.append_log(f"NPZ 懒加载失败: {artifact.label}（文件缺失或元数据缺失）")
         if artifact.state_data is not None:
             self._warn_missing_mu(artifact)
             self._selected_artifact_ids = [artifact_id]
@@ -450,9 +440,7 @@ class MainWindow(QMainWindow):
         if json_path is None:
             self._status_bar.showMessage("设计完成但持久化失败", _STATUS_MSG_TIMEOUT_MS)
         else:
-            self._status_bar.showMessage(
-                f"{result.orbit_type} 设计完成", _STATUS_MSG_TIMEOUT_MS
-            )
+            self._status_bar.showMessage(f"{result.orbit_type} 设计完成", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_design_error(self, error_msg: str) -> None:
         # G1: 恢复按钮状态
@@ -469,9 +457,7 @@ class MainWindow(QMainWindow):
     def _warn_missing_mu(self, artifact: Artifact) -> None:
         """旧 Artifact 无 mu 时提示：地月/L 点标注不可用（计划决策 3）。"""
         if artifact.state_data is not None and artifact.extra.get("mu") is None:
-            self._log.append_log(
-                f"旧 Artifact 无 mu，跳过地月标注: {artifact.label}"
-            )
+            self._log.append_log(f"旧 Artifact 无 mu，跳过地月标注: {artifact.label}")
 
     def _artifact_for_id(self, artifact_id: str) -> dict | None:
         """返回画布渲染所需的 Artifact 数据（不含 e2m2e 类型）。
