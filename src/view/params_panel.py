@@ -31,6 +31,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.commons.units import DU_KM, SECONDS_PER_YEAR, TU_SECONDS
+
 # ---------------------------------------------------------------------------
 # 每轨道类型的默认值 / 显示字段（对齐 e2m2e design_orbit.py 各分支 None 兜底）
 # ---------------------------------------------------------------------------
@@ -111,6 +113,53 @@ _EPOCH_SPINBOX_SPECS: tuple[tuple[str, float, float, bool], ...] = (
 )
 
 # ---------------------------------------------------------------------------
+# 可切换显示单位（对齐 e2m2e 参数的标准单位，见 src/commons/units.py）
+# ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass(frozen=True)
+class UnitOption:
+    """单个显示单位。``display * to_standard = standard``。
+
+    decimals/step 为该显示单位下 spinbox 的小数位与步长。
+    """
+
+    label: str
+    to_standard: float
+    decimals: int = 4
+    step: float = 1.0
+
+
+#: 可切换单位字段 -> 单位选项（首个 = 标准单位，to_standard == 1.0）。
+#: 独立于 ORBIT_TYPE_DEFAULTS/FIELDS，避免破坏现有默认值测试。
+FIELD_UNIT_OPTIONS: dict[str, tuple[UnitOption, ...]] = {
+    "amplitude": (
+        UnitOption("km", 1.0),
+        UnitOption("DU", DU_KM, decimals=10, step=0.001),
+    ),
+    "perilune_height": (
+        UnitOption("km", 1.0),
+        UnitOption("DU", DU_KM, decimals=10, step=0.001),
+    ),
+    "amplitude_in": (
+        UnitOption("km", 1.0),
+        UnitOption("DU", DU_KM, decimals=10, step=0.001),
+    ),
+    "amplitude_out": (
+        UnitOption("km", 1.0),
+        UnitOption("DU", DU_KM, decimals=10, step=0.001),
+    ),
+    "duration": (
+        UnitOption("年", 1.0),
+        UnitOption("TU", TU_SECONDS / SECONDS_PER_YEAR, decimals=4, step=0.1),
+    ),
+    "output_step": (
+        UnitOption("秒", 1.0),
+        UnitOption("TU", TU_SECONDS, decimals=4, step=0.001),
+    ),
+}
+
+# ---------------------------------------------------------------------------
 # 辅助函数
 # ---------------------------------------------------------------------------
 
@@ -155,11 +204,70 @@ def _is_literal(tp: Any) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# 显示单位辅助
+# ---------------------------------------------------------------------------
+
+
+def get_field_units(field_name: str) -> tuple[UnitOption, ...] | None:
+    """返回字段的可切换单位选项；字段不支持单位切换时返回 None。"""
+    return FIELD_UNIT_OPTIONS.get(field_name)
+
+
+def _find_unit_option(field_name: str, unit: str) -> UnitOption | None:
+    """按单位名查找 UnitOption；未知时回退到标准单位（首个）。"""
+    options = get_field_units(field_name)
+    if not options:
+        return None
+    for opt in options:
+        if opt.label == unit:
+            return opt
+    return options[0]
+
+
+def _current_unit_option(field_name: str, widget: QWidget) -> UnitOption | None:
+    """读取控件当前显示单位（属性缺失时视为标准单位）。"""
+    options = get_field_units(field_name)
+    if not options:
+        return None
+    unit = widget.property("__params_panel_unit") or options[0].label
+    return _find_unit_option(field_name, unit)
+
+
+def set_spinbox_unit(sb: QDoubleSpinBox, field_name: str, unit: str) -> None:
+    """切换 QDoubleSpinBox 的显示单位：换算当前值并缩放范围/步长/小数位。
+
+    单位状态存于控件属性：``__params_panel_unit``（当前显示单位）、
+    ``__params_panel_std_min/__params_panel_std_max``（标准单位下的范围，
+    控件生成时从约束写入）。
+    """
+    options = get_field_units(field_name)
+    if not options:
+        return
+    new_opt = _find_unit_option(field_name, unit)
+    if new_opt is None:
+        return
+    old_opt = _current_unit_option(field_name, sb)
+    if old_opt is None or old_opt is new_opt:
+        return
+    standard = float(sb.value()) * old_opt.to_standard
+    sb.setProperty("__params_panel_unit", new_opt.label)
+    sb.setDecimals(new_opt.decimals)
+    sb.setSingleStep(new_opt.step)
+    std_min = sb.property("__params_panel_std_min")
+    std_max = sb.property("__params_panel_std_max")
+    if std_min is not None:
+        sb.setMinimum(float(std_min) / new_opt.to_standard)
+    if std_max is not None:
+        sb.setMaximum(float(std_max) / new_opt.to_standard)
+    sb.setValue(standard / new_opt.to_standard)
+
+
+# ---------------------------------------------------------------------------
 # 单类型控件工厂
 # ---------------------------------------------------------------------------
 
 
-def _make_float_field(field: Any, meta: dict[str, Any]) -> QDoubleSpinBox:
+def _make_float_field(field_name: str, field: Any, meta: dict[str, Any]) -> QDoubleSpinBox:
     widget = QDoubleSpinBox()
     widget.setDecimals(4)
     if "ge" in meta:
@@ -179,6 +287,16 @@ def _make_float_field(field: Any, meta: dict[str, Any]) -> QDoubleSpinBox:
         widget.setValue(default)
     elif widget.minimum() <= 0.0 <= widget.maximum():
         widget.setValue(0.0)
+
+    # 可切换单位字段：写入标准单位下的范围属性 + 默认显示单位（标准单位）
+    options = get_field_units(field_name)
+    if options is not None:
+        std = options[0]
+        widget.setProperty("__params_panel_std_min", float(widget.minimum()))
+        widget.setProperty("__params_panel_std_max", float(widget.maximum()))
+        widget.setProperty("__params_panel_unit", std.label)
+        widget.setDecimals(std.decimals)
+        widget.setSingleStep(std.step)
     return widget
 
 
@@ -349,7 +467,7 @@ def _make_field_widget(field_name: str, field: Any) -> QWidget | None:
         if args and args[0] is float:
             base_widget = _make_list_float_field(field, meta)
     elif inner_tp is float or origin is float:
-        base_widget = _make_float_field(field, meta)
+        base_widget = _make_float_field(field_name, field, meta)
     elif inner_tp is int or origin is int:
         base_widget = _make_int_field(field, meta)
     elif inner_tp is str:
@@ -441,7 +559,12 @@ def apply_orbit_type_defaults(
         widget.setEnabled(True)
         widgets[field_name] = widget
         if isinstance(widget, QDoubleSpinBox):
-            widget.setValue(float(value))
+            value_f = float(value)
+            # 标准单位默认值 -> 当前显示单位
+            opt = _current_unit_option(field_name, widget)
+            if opt is not None:
+                value_f /= opt.to_standard
+            widget.setValue(value_f)
         elif isinstance(widget, QSpinBox):
             widget.setValue(int(value))
         elif isinstance(widget, QComboBox):
@@ -527,7 +650,12 @@ def _read_widget_value(name: str, field: Any, widget: QWidget) -> Any:
         val = widget  # 不可达（防御）
 
     if inner_tp is float and isinstance(val, (int, float)):
-        return float(val)
+        result = float(val)
+        # 显示单位 -> 标准单位（可切换单位字段）
+        opt = _current_unit_option(name, widget)
+        if opt is not None:
+            result *= opt.to_standard
+        return result
     if inner_tp is int and isinstance(val, (int, float)):
         return int(val)
     return val
