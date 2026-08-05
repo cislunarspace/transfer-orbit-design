@@ -1,36 +1,21 @@
-# Transfer Orbit Design
+# transfer-orbit-design — 地月空间轨道设计 GUI 与脚本工具集
 
 [![Release](https://img.shields.io/github/v/release/cislunarspace/transfer-orbit-design?label=release)](https://github.com/cislunarspace/transfer-orbit-design/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/cislunarspace/transfer-orbit-design/ci.yml?branch=master&label=CI)](https://github.com/cislunarspace/transfer-orbit-design/actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/cislunarspace/transfer-orbit-design?style=flat)](https://github.com/cislunarspace/transfer-orbit-design/stargazers)
 [![Issues](https://img.shields.io/github/issues/cislunarspace/transfer-orbit-design)](https://github.com/cislunarspace/transfer-orbit-design/issues)
-[![Last commit](https://img.shields.io/github/last-commit/cislunarspace/transfer-orbit-design/master)](https://github.com/cislunarspace/transfer-orbit-design/commits/master)
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 中文 | [English](README.en.md)
 
-Transfer Orbit Design 是一组面向地月空间轨道设计的脚本和 GUI 工具，提供 CR3BP 周期轨道族生成、DRO↔RO/GEO/LEO 转移搜索与优化、CR3BP 到星历模型的修正，以及配套的绘图与图形界面。本仓库负责脚本编排、参数管理、结果保存和可视化；动力学、修正器、延拓器和转移算法由同级目录下的 `e2m2e` 仓库提供。
-
-> 本工具服务于地月空间发展的三大技术方向：**在轨机动**、**在轨服务**、**地月技术**。当前版本聚焦“在轨机动”方向的轨道设计基础能力，并以此为基座向其余两个方向扩展。背景、能力对应关系与后续路线图见文末「[使命与路线图](#使命与路线图)」。
-
-## 功能全景
-
-| 类别 | 能力 | 典型输出 |
-|------|------|----------|
-| CR3BP 轨道生成 | 4 类周期轨道族：DRO、DPO、Halo、RO | `output/<orbit-type>/` 下的 JSON/CSV |
-| 转移搜索 | DRO→RO、DRO→GEO、GEO→DRO、LEO→DRO 网格搜索 | `search_results_*.json` |
-| 转移优化 | 基于网格搜索结果执行 NLP 优化，最小化两脉冲或插入代价 | `optimization_results_*.json` |
-| 星历转换 | 将 CR3BP DRO/Halo 轨道或轨道族修正到真实星历模型 | `output/ephemeris/` 下的修正结果 JSON |
-| 绘图与检查 | 轨道族全局视图、稳定性图、搜索/优化结果图、单轨道检查器 | Matplotlib 窗口或保存图片 |
-| 轨迹分析 | STM 条件数、分段打靶参数敏感性、CR3BP 数据集统计 | `output/transfer/` 分析 JSON、`figures/` 图片 |
-| GUI | Project/Artifact 管理轨道与结果；内嵌 matplotlib 可视化（3D/XY/XZ/YZ 投影、地月/L1-L5 标注、多轨道叠加）；轨道设计与轨道保持工具 | 桌面交互界面；`output/dro/*.json` + `.npz` |
+transfer-orbit-design 是 e2m2e 的 **GUI 前端与脚本工具集**。e2m2e 提供地月空间轨道设计所需的动力学模型、修正器、延拓器与转移算法；本仓库把它们封装成可视化桌面应用与可复现脚本。它不实现算法，只做三件事——调用（经 e2m2e Facade API 发起计算）、管理（以 Project/Artifact 组织全部计算产物）、呈现（内嵌画布可视化结果）。用户不需要接触算法内部，通过“选工件 → 选操作 → 看结果”的三步交互，即可完成轨道设计、轨道保持与结果检查。
 
 ## 安装
 
-### 1. 克隆 e2m2e 依赖库
+### 克隆 e2m2e 依赖库
 
-本项目的核心算法依赖 `e2m2e`，它在 `pyproject.toml` 中被配置为本地路径依赖（`../e2m2e`），因此 `uv sync` 不会自动从远程拉取，需要先手动克隆到与本仓库同级的目录：
+核心算法依赖 `e2m2e`，它在 `pyproject.toml` 中被配置为本地路径依赖（`../e2m2e`），`uv sync` 不会自动拉取，需要先手动克隆到与本仓库同级的目录：
 
 ```bash
 cd ..
@@ -38,32 +23,27 @@ git clone https://github.com/cislunarspace/e2m2e.git
 cd transfer-orbit-design
 ```
 
-无需在 e2m2e 目录里单独安装，下一步的 `uv sync` 会以 editable 模式装好它。e2m2e 的算法与力模型细节见其在线文档 <https://cislunarspace.github.io/e2m2e/>。
+无需在 e2m2e 目录里单独安装，下一步的 `uv sync` 会以 editable 模式装好它。
 
-如果只使用 e2m2e 而不需要联调修改它，也可以改用 PyPI 版本：删除 `pyproject.toml` 中的 `tool.uv.sources.e2m2e` 配置，再执行 `uv add e2m2e`。
+### uv（推荐）
 
-### 2. 安装本项目
-
-项目要求 Python `>=3.13`，仓库已通过 `.python-version` 固定为 3.13。在仓库根目录执行：
+项目要求 Python `>=3.13`，仓库已通过 `.python-version` 固定。在仓库根目录执行：
 
 ```bash
 uv sync
 ```
 
-`uv sync` 会一次完成：准备 Python 3.13 解释器、创建虚拟环境、安装全部 PyPI 依赖、以 editable 模式从 `../e2m2e` 安装核心算法库，并以 editable 模式安装本项目。若两个仓库不在同级目录，请先修改 `pyproject.toml` 中的 `tool.uv.sources.e2m2e` 路径。
+`uv sync` 一次完成：准备 Python 3.13 解释器、创建虚拟环境、安装全部 PyPI 依赖、以 editable 模式安装 `../e2m2e` 与本项目。若两个仓库不在同级目录，请先修改 `pyproject.toml` 中的 `tool.uv.sources.e2m2e` 路径。
 
-星历转换脚本还需要 SPICE kernels。推荐从 [cislunarspace/e2m2e Releases 的 `kernels-v1`](https://github.com/cislunarspace/e2m2e/releases) 下载打包好的全部必需内核（国内可访问），解压到 `../e2m2e/kernels`；[NAIF 官网](https://naif.jpl.nasa.gov/naif/data.html)保留为备用来源。
+### 打包版（Windows 便携包 + SPICE kernels）
 
-```bash
-export SPICE_KERNEL_DIR=../e2m2e/kernels
-# 目录中应包含：de430.bsp、de440s.bsp、earth_latest_high_prec.bpc、
-# SPICEEarthPredictedKernel.bpc、SPICELunaCurrentKernel.bpc、
-# SPICELunaFrameKernel.tf、naif0011.tls、naif0012.tls、pck00010.tpc
-```
+从 GitHub Releases 下载 `TransferOrbitDesign-windows.zip`，解压即用，无需配置环境变量。另从 [`spice-data-v1`](https://github.com/cislunarspace/transfer-orbit-design/releases/tag/spice-data-v1) release 下载 `spice-kernels.zip`，解压到 `TransferOrbitDesign.exe` 所在目录（得到 `kernels/` 子目录），应用启动时会自动探测；显式设置 `SPICE_KERNEL_DIR` 环境变量仍然优先。该 release 还附带 MICE 工具包（供 MATLAB 等完整开发使用），运行本应用不需要。
 
-**打包版（PyInstaller 便携包）**：从 GitHub Releases 下载的 `TransferOrbitDesign-windows.zip` 无需配置环境变量。另从 [`spice-data-v1`](https://github.com/cislunarspace/transfer-orbit-design/releases/tag/spice-data-v1) release 下载 `spice-kernels.zip`，解压到 `TransferOrbitDesign.exe` 所在目录（得到 `kernels/` 子目录），应用启动时会自动探测；显式设置 `SPICE_KERNEL_DIR` 环境变量仍然优先。该 release 同时提供完整 MICE 工具包（`spice-mice-windows.zip` / `spice-mice-linux.zip`），供 MATLAB 等完整开发使用，运行本应用不需要。
+### SPICE 内核
 
-## 快速入门
+星历动力学需要 NASA SPICE 内核文件，放在 `kernels/` 目录或 `$SPICE_KERNEL_DIR` 指定的路径。必需的九个内核：`de430.bsp`、`de440s.bsp`、`earth_latest_high_prec.bpc`、`SPICEEarthPredictedKernel.bpc`、`SPICELunaCurrentKernel.bpc`、`SPICELunaFrameKernel.tf`、`naif0011.tls`、`naif0012.tls`、`pck00010.tpc`。推荐从 [e2m2e 的 `kernels-v1` release](https://github.com/cislunarspace/e2m2e/releases) 下载打包好的全部必需内核（国内可访问）；[NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html) 为备用来源。
+
+## 快速开始
 
 ### GUI
 
@@ -77,200 +57,62 @@ uv run python -m src.app.main
 uv run transfer-orbit-design-v2
 ```
 
-启动时 GUI 自动扫描 `output/` 目录，把历史运行结果重建为 Project 中的 Artifact。界面为三栏布局：左侧项目树、中间可视化画布 + 日志标签页、右侧工具选择器 + 参数面板 + 运行按钮。
+启动时 GUI 自动扫描 `output/` 目录，把历史运行结果重建为项目树中的 Artifact。界面为三栏布局：左侧项目树、中间可视化画布 + 日志标签页、右侧工具选择器 + 参数面板 + 运行按钮。
 
-操作流：选择工具（轨道设计 / 轨道保持）→ 填写参数 → 点击运行 → 结果即时落盘并在画布上叠加显示。轨道设计结果保存为 `output/dro/dro_<ts>.json` + `.npz` 双文件；轨道保持结果保存到 `output/ephemeris/`。画布支持 3D/XY/XZ/YZ 投影切换、地月天体与 L1–L5 平动点图层开关、多轨道叠加渲染。
+一次完整的轨道设计操作流：
 
-### CLI
+1. 在右侧工具选择器中选「轨道设计」。
+2. 轨道类型选 DRO，填写振幅（km）、相位（0~1）、起始历元、维持时间与输出步长。
+3. 点击运行。计算在后台线程执行，日志面板逐条输出进度。
+4. 完成后结果以 `output/dro/dro_<ts>.json` + `.npz` 双文件落盘，轨道随即叠加显示在画布上。
+5. 工具栏可切换 3D / XY / XZ / YZ 投影，开关地月天体与 L1–L5 平动点标注；Ctrl+点击项目树可多选轨道叠加对比。
 
-先生成基准轨道，再运行转移或绘图脚本。命令都在仓库根目录执行。
+轨道保持：在项目树中右键轨道 → 选择「轨道保持」，以该轨道星历为输入做蒙特卡洛仿真，结果写入 `output/ephemeris/`。
 
-```bash
-# DRO / DPO / Halo / RO
-uv run python -m tod.generates.cr3bp.dro.generate_dro_orbit
-uv run python -m tod.generates.cr3bp.dro.generate_dro_orbit --jacobi 3.1
-uv run python -m tod.generates.cr3bp.dro.generate_dro_orbit --seed-id earth-moon_dro:000001
-uv run python -m tod.generates.cr3bp.dro.generate_dro_family
-uv run python -m tod.generates.cr3bp.dpo.generate_dpo_orbit
-uv run python -m tod.generates.cr3bp.dpo.generate_dpo_family
-uv run python -m tod.generates.cr3bp.halo.generate_halo_family
-uv run python -m tod.generates.cr3bp.ro.generate_ro_family
+### 脚本与 CLI
 
-# 转移：先网格搜索，再 NLP 优化
-uv run python -m tod.transfers.dro_to_ro.grid_search_dro_to_ro
-uv run python -m tod.transfers.dro_to_ro.optimize_dro_to_ro
+需要 CR3BP 轨道生成、转移搜索与优化、星历修正、绘图等脚本工作流时，见 [Sphinx 文档](https://cislunarspace.github.io/transfer-orbit-design/zh/) 中的脚本索引与 API 参考。旧的 `tod/` 目录仍保留这套脚本。
 
-# 星历修正示例（单轨道，支持 DRO 和 Halo）
-uv run python -m tod.generates.ephemeris.correct_orbit_to_ephemeris \
-  --input-file output/dro/dro_<timestamp>.json \
-  --reference-epoch 2026-01-01T00:00:00 \
-  --orbit-type dro
+## 使命与进度
 
-uv run python -m tod.generates.ephemeris.correct_orbit_to_ephemeris \
-  --input-file output/halo/halo_family_<timestamp>.json \
-  --reference-epoch 2026-01-01T00:00:00 \
-  --orbit-type halo
-```
+地月空间轨道设计既要求算法算得准，也要求工具用得上。e2m2e 建设地月方向的算法工具集基础设施——动力学建模、轨道族生成、转移设计；transfer-orbit-design 则把这些能力带到人机交互层面：可视化桌面应用、参数管理、结果落盘与检查。两者分工是，e2m2e 管“算”，本仓库管“用”。整体架构设计见 [docs/architecture/architecture.md](docs/architecture/architecture.md)，逐项架构决策见 [docs/adr/](docs/adr/)。
 
-部分转移脚本仍带有硬编码的输入路径。运行前请检查脚本顶部或 `main()` 附近的默认文件路径，改成本地已生成的 JSON 文件。
+| 能力 | 实现状态 | 说明 |
+|------|---------|------|
+| 轨道设计（DRO/NRHO/Halo/Lissajous/L4/L5） | 已实现 | 参数面板由 Pydantic 模型自动生成，结果 JSON+NPZ 双文件落盘 |
+| 轨道保持（蒙特卡洛） | 已实现 | 以选中轨道星历为输入，输出受控星历与 Δv 统计 |
+| 多轨道可视化 | 已实现 | 3D/XY/XZ/YZ 投影、地月/L1–L5 标注、多轨道叠加 |
+| Artifact 持久化闭环 | 已实现 | 启动扫描 `output/` 重建 Project，数组 NPZ 懒加载 |
+| CLI 脚本工作流 | 已实现（遗留） | `tod/` 下的脚本，见 Sphinx 文档 |
+| 轨道族生成 / 稳定性分析 | 规划中 | 工具下拉灰显占位 |
 
-## 脚本清单
+## 文档
 
-### 轨道生成（CR3BP）
+在线文档：<https://cislunarspace.github.io/transfer-orbit-design/zh/>
 
-DRO 单轨生成入口已从旧的 3:1 专用脚本改名为 `generate_dro_orbit`。manual 路径继续支持 `--x0/--vy0/--period` 并执行固定周期微分修正；catalog 路径可通过 `--jacobi` 或 `--seed-id` 从 `data/cr3bp_data/normalized` 选择完整 6 维 seed 并直接传播保存。若 normalized catalog 缺失，脚本默认从 `data/cr3bp_data/raw` 自动生成；传入 `--no-auto-build-catalog` 可禁用自动生成。单轨输出命名为 `output/dro/dro_<timestamp>.json`；`dro_31_family_*` 等 DRO family artifact 不受单轨改名影响。
-
-每个轨道族提供**单轨道生成**（固定周期微分修正）和**轨道族延拓**（自然延拓）两个脚本。
-
-| 轨道族 | 单轨道脚本 | 轨道族脚本 | 说明 |
-|--------|-----------|-----------|------|
-| DRO | `tod.generates.cr3bp.dro.generate_dro_orbit` | `tod.generates.cr3bp.dro.generate_dro_family` | 次天体逆行轨道 |
-| DPO | `tod.generates.cr3bp.dpo.generate_dpo_orbit` | `tod.generates.cr3bp.dpo.generate_dpo_family` | 次天体顺行轨道 |
-| Halo | `tod.generates.cr3bp.halo.generate_halo_orbit` | `tod.generates.cr3bp.halo.generate_halo_family` | 三维周期轨道，支持自然/伪弧长延拓 |
-| RO | `tod.generates.cr3bp.ro.generate_ro_orbit` | `tod.generates.cr3bp.ro.generate_ro_family` | 共振轨道 |
-
-### 转移搜索与优化
-
-| 转移方向 | 搜索脚本 | 优化脚本 | 说明 |
-|---------|---------|---------|------|
-| DRO → RO | `tod.transfers.dro_to_ro.grid_search_dro_to_ro` | `tod.transfers.dro_to_ro.optimize_dro_to_ro` | 两脉冲候选搜索 + NLP 优化 |
-| DRO → GEO | `tod.transfers.dro_to_geo.grid_search_dro_to_geo` | `tod.transfers.dro_to_geo.optimize_dro_to_geo` | GEO 球面插入窗口搜索 + 优化 |
-| GEO → DRO | `tod.transfers.geo_to_dro.grid_search_geo_to_dro` | `tod.transfers.geo_to_dro.optimize_geo_to_dro` | GEO 出发到 DRO 的搜索 + 优化 |
-| GEO → DRO | — | `tod.transfers.geo_to_dro.validate_geo_to_dro` | 验证 GEO→DRO 转移结果 |
-| LEO → DRO | `tod.transfers.leo_to_dro.grid_search_leo_to_dro` | `tod.transfers.leo_to_dro.optimize_leo_to_dro` | LEO 出发到 DRO 的搜索 + 优化 |
-
-### 转移星历修正与分析
-
-以下脚本面向 DRO→GEO 等转移轨迹的星历修正与后续数值分析，均位于 `tod/transfers/dro_to_geo/`。
-
-| 脚本 | 功能 |
-|------|------|
-| `tod.transfers.dro_to_geo.transfer_to_ephemeris` | 优化轨迹 CR3BP→J2000 坐标转换与星历传播对比（不做修正） |
-| `tod.transfers.dro_to_geo.correct_transfer_to_ephemeris` | 转移轨迹多重打靶星历修正，支持 standard/two_level/homotopy/segmented（分段打靶拼接） |
-| `tod.transfers.dro_to_geo.compare_low_thrust` | 低推力与脉冲转移的燃料消耗对比 |
-| `tod.transfers.dro_to_geo.analyze_stm_condition_number` | 沿修正轨迹逐段/累积 STM 条件数分析，评估打靶法数值稳定性 |
-| `tod.transfers.dro_to_geo.analyze_patch_point_sensitivity` | 分段打靶 `points_per_segment` 参数敏感性分析 |
-| `tod.transfers.dro_to_geo.analyze_cr3bp_dataset` | CR3BP 原始 XLSX 数据集统计与覆盖图 |
-
-### 星历转换
-
-| 目标 | 单轨道 | 轨道族 | 说明 |
-|------|--------|--------|------|
-| 通用 | `tod.generates.ephemeris.correct_orbit_to_ephemeris` | — | 统一入口，支持 DRO/Halo 及多方法选择 |
-| DRO | — | `tod.generates.ephemeris.family_correction` (SCRIPT_ENTRIES[0]) | 轨道族多重打靶修正到星历模型 |
-| Halo | — | `tod.generates.ephemeris.family_correction` (SCRIPT_ENTRIES[1]) | 轨道族多重打靶修正到星历模型 |
-
-> `correct_orbit_to_ephemeris` 通过 `--orbit-type`（`dro`/`halo`）和 `--method`（`standard`/`two_level`/`homotopy`）选择轨道类型与修正方法。`--output-prefix` 自动生成 `{prefix}_{method}_tol{tol}.json`。输出包含计时与地心距统计。所有转换方法通过 `--method` 参数选择，默认 `two_level`。
-
-### 绘图
-
-| 类别 | 脚本 | 功能 |
-|------|------|------|
-| 统一入口 | `tod.plot.plot_orbits` | DRO/RO/Halo 轨道族与单轨道全局视图（FamilyPlotOrchestrator 统一入口） |
-| 星历 | `tod.plot.ephemeris.plot_ephemeris_correction` | 星历修正结果对比图 |
-| 检查 | `tod.plot.inspection.plot_interactive_orbit_inspector` | 交互式轨道检查器 |
-| 转移 | `tod.plot.transfer.dro_to_ro.plot_search_results_dro_to_ro` | DRO→RO 搜索结果可视化 |
-| 转移 | `tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro` | DRO→RO 优化结果可视化 |
-| 转移 | `tod.plot.transfer.dro_to_geo.*` | DRO→GEO 搜索/优化结果可视化 |
-| 转移 | `tod.plot.transfer.geo_to_dro.*` | GEO→DRO 搜索/优化结果可视化 |
-| 转移 | `tod.plot.transfer.leo_to_dro.*` | LEO→DRO 搜索/优化结果可视化 |
-
-> 轨道族绘图统一走 `tod.plot.plot_orbits` 入口（FamilyPlotOrchestrator），按文件类型与轨道族类型自动选择默认绘图配置。
-
-## 输出数据
-
-轨道与转移结果主要保存为 JSON。常见键包括：
-
-- `states`：状态历史，CR3BP 中通常为无量纲 `[x, y, z, vx, vy, vz]`。
-- `times`：与状态对应的时间数组。
-- `period`：轨道周期或传播时长。
-- `orbit_type`：轨道类型标识，如 `DRO`、`DPO`、`Halo`、`RO`。
-- `metadata`：脚本配置、延拓步数、误差统计等辅助信息。
-
-`output/*/family.json` 是最近一次生成的快捷副本，会被覆盖；长期引用请使用带时间戳的文件名。
-
-**新 GUI 双文件方案**：轨道设计结果以 `dro_<YYYYMMDDHHMMSS>.json`（标量元数据：轨道类型、历元、Jacobi 常数、收敛信息、`arrays_file` 指针）+ 同名 `.npz`（`states` / `times` / `eph_*` 数组）成对落盘到 `output/dro/`。GUI 启动时扫描 `output/` 重建 Project，数组文件按需懒加载。轨道保持结果写入 `output/ephemeris/orbit_ephemeris_<ts>.json` + `.npz`。
-
-## 目录结构
-
-```text
-src/
-  app/            主窗口组装、应用入口（src.app.main）
-  model/          Project / Artifact 数据模型、output/ 扫描发现
-  engine/         FacadeBridge、QThread worker、结果持久化、异常翻译
-  view/           内嵌 matplotlib 画布、项目树、参数面板、日志面板
-  commons/        跨层共享常量（路径、字体）
-tod/              旧 CLI 脚本工作流（新 GUI 已迁至 src/）
-  generates/      CR3BP 轨道生成与 CR3BP→星历转换脚本
-    cr3bp/          各轨道族生成（dro, dpo, halo, ro）
-    ephemeris/      DRO/Halo 星历转换（单轨道与轨道族）
-  transfers/      DRO/RO/GEO/LEO 转移搜索和优化脚本
-  plot/           轨道、轨道族、搜索结果和优化结果绘图脚本
-data/             CR3BP 种子数据（raw / normalized）
-packaging/        PyInstaller 打包 spec
-docs/
-  source/         Sphinx 文档源文件（含 narrative/ 下的 PRD 文档）
-  adr/            架构决策记录
-  architecture/   新 GUI 架构设计文档
-  planning/       迭代计划文档
-  agents/         Agent 协作与分诊文档
-  development.md  开发与文档规范
-scripts/          工程辅助脚本
-tools/            开发工具
-figures/          配图
-output/           运行结果目录（GUI 启动时扫描重建 Project）
-```
-
-## 使命与路线图
-
-### 使命背景
-
-Transfer Orbit Design 面向地月空间发展需求，围绕三个技术方向展开：**在轨机动**、**在轨服务**、**地月技术**。它的定位是为这三个方向提供可复现、可扩展的轨道设计与分析基座。当前版本已在“在轨机动”方向落地核心能力，其余两个方向按路线图逐步推进。
-
-### 一、在轨机动（已实现）
-
-这一方向的目标是大幅提升轨道机动能力。软件在其中的作用，是用 CR3BP 低能量轨道与转移设计**支撑**这一目标，而不是由软件本身完成机动——后者是任务层面的工程目标。
-
-当前已实现的能力对应到本仓库的脚本：
-
-- **周期轨道族生成**：4 类 CR3BP 周期轨道族（DRO、DPO、Halo、RO），可作为转移设计的出发/目标轨道。见[轨道生成（CR3BP）](#轨道生成cr3bp)。
-- **转移搜索与优化**：DRO→RO、DRO→GEO、GEO→DRO、LEO→DRO 的两脉冲网格搜索与 NLP 优化，最小化 Δv 或插入代价，为低能耗转移设计提供候选解。见[转移搜索与优化](#转移搜索与优化)。
-- **星历修正**：将 CR3BP 设计结果多重打靶修正到真实星历模型，缩小设计与工程实现的差距。见[星历转换](#星历转换)。
-
-### 二、在轨服务（规划中）
-
-目标方向：航天器在轨加注、维修与快速替换。计划覆盖：
-
-- 交会接近段的轨迹设计
-- 在轨加注、服务任务的窗口与机动序列规划
-- 服务航天器与目标航天器的协同轨道设计
-
-> 当前版本尚无对应实现，列入后续路线图。
-
-### 三、地月技术（规划中）
-
-目标方向：支撑深空域感知与行动，突破地月空间态势表征、轨道编目、导航、通信与控制等技术。计划覆盖：
-
-- 地月空间态势表征与可观测性分析
-- 轨道编目与目标关联
-- 面向导航、通信、控制的轨道支撑设计
-
-> 当前版本尚无对应实现，列入后续路线图。
-
-### 对标与定位
-
-Transfer Orbit Design 与 STK Cislunar Orbit Design (CODE)、NASA General Mission Analysis Tool (GMAT)、普渡大学 Adaptive Trajectory Design (ATD) 同属地月空间轨道设计领域，方法论基础一致：CR3BP/BR4BP 动力学、微分修正、自然与伪弧长延拓、星历多重打靶修正。与这几个成熟平台相比，本工具的侧重点是轻量和开源：用可读的脚本和可复现的流水线组织轨道生成、转移搜索与星历修正，便于按需裁剪、二次开发，或嵌入更大的任务设计流程，而不追求功能上的对等。
-
-## 文档与开发
-
-- 开发规范：[`docs/development.md`](docs/development.md)
-- 算法库文档：[e2m2e 在线文档](https://cislunarspace.github.io/e2m2e/)
-- 本地 HTML 文档：
+本地构建：
 
 ```bash
-uv run --extra docs python -m sphinx -b html docs/source docs/build/html
+uv sync --extra docs
+uv run sphinx-build -b html -D language=zh docs/source docs/build/html
 ```
 
-## 许可证
+## 测试与代码规范
 
-本项目采用 [Apache License 2.0](LICENSE) 授权。你可以自由使用、修改和分发本软件，但需保留版权与许可声明，并遵守许可证中的专利授权与商标条款。详见仓库根目录的 [`LICENSE`](LICENSE) 文件。
+```bash
+uv run pytest tests/ -m "not spice"
+uv run ruff check .
+uv run pyright
+```
+
+## 贡献
+
+1. Fork 本仓库
+2. 创建功能分支 (`git checkout -b feature/amazing-feature`)
+3. 提交更改 (`git commit -m 'Add amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 开启 Pull Request
+
+## License
+
+[Apache 2.0](LICENSE)

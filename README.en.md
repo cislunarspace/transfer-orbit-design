@@ -1,36 +1,21 @@
-# Transfer Orbit Design
+# transfer-orbit-design — Cislunar Orbit Design GUI and Script Toolkit
 
 [![Release](https://img.shields.io/github/v/release/cislunarspace/transfer-orbit-design?label=release)](https://github.com/cislunarspace/transfer-orbit-design/releases)
 [![CI](https://img.shields.io/github/actions/workflow/status/cislunarspace/transfer-orbit-design/ci.yml?branch=master&label=CI)](https://github.com/cislunarspace/transfer-orbit-design/actions/workflows/ci.yml)
 [![Stars](https://img.shields.io/github/stars/cislunarspace/transfer-orbit-design?style=flat)](https://github.com/cislunarspace/transfer-orbit-design/stargazers)
 [![Issues](https://img.shields.io/github/issues/cislunarspace/transfer-orbit-design)](https://github.com/cislunarspace/transfer-orbit-design/issues)
-[![Last commit](https://img.shields.io/github/last-commit/cislunarspace/transfer-orbit-design/master)](https://github.com/cislunarspace/transfer-orbit-design/commits/master)
 [![Python](https://img.shields.io/badge/python-3.13%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 
 [中文](README.md) | English
 
-Transfer Orbit Design is a collection of scripts and GUI tools for cislunar orbit design. It provides CR3BP periodic orbit family generation, DRO↔RO/GEO/LEO transfer search and optimization, CR3BP-to-ephemeris-model correction, and supporting plotting tools with a graphical interface. This repository handles script orchestration, parameter management, result storage, and visualization; the dynamics, correctors, continuators, and transfer algorithms are provided by the sibling `e2m2e` repository.
-
-> This tool serves three technical directions of cislunar development: **in-space mobility**, **in-space servicing**, and **cislunar technologies**. The current version focuses on fundamental orbit design capabilities for in-space mobility, and will expand toward the other two directions from this foundation. See [Mission and Roadmap](#mission-and-roadmap) for the background, capability mapping, and future plans.
-
-## Feature Overview
-
-| Category | Capabilities | Typical output |
-|------|------|----------|
-| CR3BP orbit generation | 4 periodic orbit families: DRO, DPO, Halo, RO | JSON/CSV under `output/<orbit-type>/` |
-| Transfer search | DRO→RO, DRO→GEO, GEO→DRO, LEO→DRO grid search | `search_results_*.json` |
-| Transfer optimization | NLP optimization on grid search results, minimizing two-impulse or insertion cost | `optimization_results_*.json` |
-| Ephemeris conversion | Correct CR3BP DRO/Halo orbits or orbit families into the real ephemeris model | Corrected result JSON under `output/ephemeris/` |
-| Plotting & inspection | Orbit family overview, stability maps, search/optimization plots, single-orbit inspector | Matplotlib windows or saved figures |
-| Trajectory analysis | STM condition number, segmented shooting parameter sensitivity, CR3BP dataset statistics | Analysis JSON under `output/transfer/`, figures under `figures/` |
-| GUI | Project/Artifact management of orbits and results; embedded matplotlib visualization (3D/XY/XZ/YZ projections, Earth-Moon/L1-L5 labels, multi-orbit overlay); orbit design and station-keeping tools | Desktop interface; `output/dro/*.json` + `.npz` |
+transfer-orbit-design is the **GUI frontend and script toolkit** of e2m2e. e2m2e provides the dynamics models, correctors, continuators, and transfer algorithms required for cislunar orbit design; this repository wraps them into a visual desktop application and reproducible scripts. It implements no algorithms itself — it does three things: calling (dispatching computations through the e2m2e Facade API), managing (organizing every computation artifact as a Project/Artifact), and presenting (visualizing results on an embedded canvas). Users never touch algorithm internals: a three-step interaction — select an artifact, select an operation, view the result — covers orbit design, station-keeping, and result inspection.
 
 ## Installation
 
-### 1. Clone the e2m2e dependency
+### Clone the e2m2e dependency
 
-The core algorithms depend on `e2m2e`, which is configured in `pyproject.toml` as a local path dependency (`../e2m2e`). `uv sync` will not fetch it from a remote, so clone it manually into the directory next to this repository:
+The core algorithms depend on `e2m2e`, configured in `pyproject.toml` as a local path dependency (`../e2m2e`). `uv sync` will not fetch it from a remote, so clone it into the directory next to this repository first:
 
 ```bash
 cd ..
@@ -38,30 +23,25 @@ git clone https://github.com/cislunarspace/e2m2e.git
 cd transfer-orbit-design
 ```
 
-There is no need to install anything inside the e2m2e directory itself; the `uv sync` step below installs it in editable mode. See <https://cislunarspace.github.io/e2m2e/> for e2m2e's algorithm and force model details.
+There is no need to install anything inside e2m2e; the `uv sync` step below installs it in editable mode.
 
-If you only want to use e2m2e without co-developing it, you can switch to the PyPI release instead: remove the `tool.uv.sources.e2m2e` entry from `pyproject.toml`, then run `uv add e2m2e`.
+### uv (recommended)
 
-### 2. Install this project
-
-The project requires Python `>=3.13`, pinned to 3.13 via `.python-version`. From the repository root:
+The project requires Python `>=3.13`, pinned via `.python-version`. From the repository root:
 
 ```bash
 uv sync
 ```
 
-`uv sync` does everything in one pass: provisions the Python 3.13 interpreter, creates the virtual environment, installs all PyPI dependencies, installs the core algorithm library from `../e2m2e` in editable mode, and installs this project in editable mode. If the two repositories are not siblings, first adjust the `tool.uv.sources.e2m2e` path in `pyproject.toml`.
+`uv sync` does it all in one pass: provisions the Python 3.13 interpreter, creates the virtual environment, installs all PyPI dependencies, and installs both `../e2m2e` and this project in editable mode. If the two repositories are not siblings, adjust the `tool.uv.sources.e2m2e` path in `pyproject.toml` first.
 
-The ephemeris conversion scripts also need SPICE kernels. The recommended source is the `kernels-v1` bundle from [cislunarspace/e2m2e Releases](https://github.com/cislunarspace/e2m2e/releases) (accessible from within China); extract it to `../e2m2e/kernels`. The [NAIF website](https://naif.jpl.nasa.gov/naif/data.html) remains a fallback source.
+### Packaged build (Windows portable bundle + SPICE kernels)
 
-```bash
-export SPICE_KERNEL_DIR=../e2m2e/kernels
-# The directory should contain: de430.bsp, de440s.bsp, earth_latest_high_prec.bpc,
-# SPICEEarthPredictedKernel.bpc, SPICELunaCurrentKernel.bpc,
-# SPICELunaFrameKernel.tf, naif0011.tls, naif0012.tls, pck00010.tpc
-```
+Download `TransferOrbitDesign-windows.zip` from GitHub Releases and extract it — no environment variables needed. Also download `spice-kernels.zip` from the [`spice-data-v1`](https://github.com/cislunarspace/transfer-orbit-design/releases/tag/spice-data-v1) release and extract it next to `TransferOrbitDesign.exe` (producing a `kernels/` subdirectory); the application detects it at startup. An explicitly set `SPICE_KERNEL_DIR` environment variable still takes precedence. That release also ships the MICE toolkit (for full development with MATLAB and similar tools); it is not required to run this application.
 
-**Packaged build (PyInstaller portable bundle)**: the `TransferOrbitDesign-windows.zip` from GitHub Releases needs no environment variables. Additionally download `spice-kernels.zip` from the [`spice-data-v1`](https://github.com/cislunarspace/transfer-orbit-design/releases/tag/spice-data-v1) release and extract it next to `TransferOrbitDesign.exe` (producing a `kernels/` subdirectory); the application detects it at startup. An explicitly set `SPICE_KERNEL_DIR` environment variable still takes precedence. That release also ships the full MICE toolkit (`spice-mice-windows.zip` / `spice-mice-linux.zip`) for full development with MATLAB and similar tools; it is not required to run this application.
+### SPICE kernels
+
+Ephemeris dynamics requires NASA SPICE kernel files, placed in `kernels/` or the path pointed to by `$SPICE_KERNEL_DIR`. The nine required kernels are `de430.bsp`, `de440s.bsp`, `earth_latest_high_prec.bpc`, `SPICEEarthPredictedKernel.bpc`, `SPICELunaCurrentKernel.bpc`, `SPICELunaFrameKernel.tf`, `naif0011.tls`, `naif0012.tls`, and `pck00010.tpc`. The recommended source is the `kernels-v1` bundle from [e2m2e Releases](https://github.com/cislunarspace/e2m2e/releases) (accessible from within China); [NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html) is the fallback.
 
 ## Quick Start
 
@@ -77,200 +57,62 @@ Or use the installed console entry point:
 uv run transfer-orbit-design-v2
 ```
 
-On startup the GUI scans the `output/` directory and rebuilds historical results into Project artifacts. The interface uses a three-column layout: project tree on the left, visualization canvas + log tabs in the center, and tool selector + parameter panel + run button on the right.
+On startup the GUI scans the `output/` directory and rebuilds historical results into project-tree artifacts. The interface uses a three-column layout: project tree on the left, visualization canvas + log tabs in the center, and tool selector + parameter panel + run button on the right.
 
-Workflow: pick a tool (orbit design / station keeping) → fill in the parameters → click Run → results are persisted immediately and overlaid on the canvas. Orbit design results are saved as `output/dro/dro_<ts>.json` + `.npz`; station-keeping results go to `output/ephemeris/`. The canvas supports 3D/XY/XZ/YZ projection switching, Earth-Moon and L1–L5 layer toggles, and multi-orbit overlay.
+A complete orbit-design walkthrough:
 
-### CLI
+1. Select the "Orbit Design" tool on the right.
+2. Set the orbit type to DRO, then fill in the amplitude (km), phase (0–1), starting epoch, duration, and output step.
+3. Click Run. Computation runs on a background thread while the log panel streams progress.
+4. When finished, the result is persisted as an `output/dro/dro_<ts>.json` + `.npz` pair and overlaid on the canvas.
+5. The toolbar switches between 3D / XY / XZ / YZ projections and toggles the Earth-Moon and L1–L5 annotations; Ctrl+click in the project tree selects multiple orbits for overlay comparison.
 
-Generate baseline orbits first, then run transfer or plotting scripts. All commands run from the repository root.
+Station keeping: right-click an orbit in the project tree → select "Station Keeping" → Monte Carlo simulation runs with that orbit's ephemeris as input, and the results are written to `output/ephemeris/`.
 
-```bash
-# DRO / DPO / Halo / RO
-uv run python -m tod.generates.cr3bp.dro.generate_dro_orbit
-uv run python -m tod.generates.cr3bp.dro.generate_dro_orbit --jacobi 3.1
-uv run python -m tod.generates.cr3bp.dro.generate_dro_orbit --seed-id earth-moon_dro:000001
-uv run python -m tod.generates.cr3bp.dro.generate_dro_family
-uv run python -m tod.generates.cr3bp.dpo.generate_dpo_orbit
-uv run python -m tod.generates.cr3bp.dpo.generate_dpo_family
-uv run python -m tod.generates.cr3bp.halo.generate_halo_family
-uv run python -m tod.generates.cr3bp.ro.generate_ro_family
+### Scripts and CLI
 
-# Transfer: grid search first, then NLP optimization
-uv run python -m tod.transfers.dro_to_ro.grid_search_dro_to_ro
-uv run python -m tod.transfers.dro_to_ro.optimize_dro_to_ro
+For the script workflows — CR3BP orbit generation, transfer search and optimization, ephemeris correction, plotting — see the script index and API reference in the [Sphinx docs](https://cislunarspace.github.io/transfer-orbit-design/en/). The legacy `tod/` directory still contains these scripts.
 
-# Ephemeris correction example (single orbit, DRO and Halo supported)
-uv run python -m tod.generates.ephemeris.correct_orbit_to_ephemeris \
-  --input-file output/dro/dro_<timestamp>.json \
-  --reference-epoch 2026-01-01T00:00:00 \
-  --orbit-type dro
+## Mission and Progress
 
-uv run python -m tod.generates.ephemeris.correct_orbit_to_ephemeris \
-  --input-file output/halo/halo_family_<timestamp>.json \
-  --reference-epoch 2026-01-01T00:00:00 \
-  --orbit-type halo
-```
+Cislunar orbit design demands algorithms that are accurate and tools that are usable. e2m2e builds the algorithm-toolkit infrastructure for the cislunar direction — dynamics modeling, orbit family generation, transfer design; transfer-orbit-design brings those capabilities to the human-computer interaction layer: a visual desktop application, parameter management, and result persistence and inspection. In short, e2m2e computes, this repository presents. The overall architecture is documented in [docs/architecture/architecture.md](docs/architecture/architecture.md), with individual decisions in [docs/adr/](docs/adr/).
 
-Some transfer scripts still carry hard-coded input paths. Before running, check the default file paths near the top of the script or in `main()`, and point them at JSON files you have generated locally.
+| Capability | Status | Notes |
+|------|---------|------|
+| Orbit design (DRO/NRHO/Halo/Lissajous/L4/L5) | Implemented | Parameter panel auto-generated from Pydantic models; results persisted as JSON+NPZ pairs |
+| Station keeping (Monte Carlo) | Implemented | Takes a selected orbit's ephemeris as input; outputs controlled ephemeris and Δv statistics |
+| Multi-orbit visualization | Implemented | 3D/XY/XZ/YZ projections, Earth-Moon/L1–L5 annotations, multi-orbit overlay |
+| Artifact persistence loop | Implemented | Scans `output/` on startup to rebuild the Project; lazy NPZ loading |
+| CLI script workflow | Implemented (legacy) | Scripts under `tod/`; see the Sphinx docs |
+| Orbit family generation / stability analysis | Planned | Greyed-out placeholder in the tool selector |
 
-## Script Catalog
+## Documentation
 
-### Orbit Generation (CR3BP)
+Online docs: <https://cislunarspace.github.io/transfer-orbit-design/en/>
 
-The single-orbit DRO entry point has been renamed from the old 3:1-specific script to `generate_dro_orbit`. The manual path still supports `--x0/--vy0/--period` with fixed-period differential correction; the catalog path selects a full 6-DOF seed from `data/cr3bp_data/normalized` via `--jacobi` or `--seed-id` and propagates it directly. If the normalized catalog is missing, the script builds it from `data/cr3bp_data/raw` by default; pass `--no-auto-build-catalog` to disable the automatic build. Single-orbit output is named `output/dro/dro_<timestamp>.json`; DRO family artifacts such as `dro_31_family_*` are unaffected by the single-orbit rename.
-
-Each orbit family provides two scripts: **single-orbit generation** (fixed-period differential correction) and **family continuation** (natural continuation).
-
-| Orbit family | Single-orbit script | Family script | Notes |
-|--------|-----------|-----------|------|
-| DRO | `tod.generates.cr3bp.dro.generate_dro_orbit` | `tod.generates.cr3bp.dro.generate_dro_family` | Distant retrograde orbit around the secondary |
-| DPO | `tod.generates.cr3bp.dpo.generate_dpo_orbit` | `tod.generates.cr3bp.dpo.generate_dpo_family` | Distant prograde orbit around the secondary |
-| Halo | `tod.generates.cr3bp.halo.generate_halo_orbit` | `tod.generates.cr3bp.halo.generate_halo_family` | 3D periodic orbits; natural and pseudo-arclength continuation |
-| RO | `tod.generates.cr3bp.ro.generate_ro_orbit` | `tod.generates.cr3bp.ro.generate_ro_family` | Resonant orbits |
-
-### Transfer Search and Optimization
-
-| Direction | Search script | Optimization script | Notes |
-|---------|---------|---------|------|
-| DRO → RO | `tod.transfers.dro_to_ro.grid_search_dro_to_ro` | `tod.transfers.dro_to_ro.optimize_dro_to_ro` | Two-impulse candidate search + NLP optimization |
-| DRO → GEO | `tod.transfers.dro_to_geo.grid_search_dro_to_geo` | `tod.transfers.dro_to_geo.optimize_dro_to_geo` | GEO spherical insertion window search + optimization |
-| GEO → DRO | `tod.transfers.geo_to_dro.grid_search_geo_to_dro` | `tod.transfers.geo_to_dro.optimize_geo_to_dro` | Search + optimization from GEO to DRO |
-| GEO → DRO | — | `tod.transfers.geo_to_dro.validate_geo_to_dro` | Validate GEO→DRO transfer results |
-| LEO → DRO | `tod.transfers.leo_to_dro.grid_search_leo_to_dro` | `tod.transfers.leo_to_dro.optimize_leo_to_dro` | Search + optimization from LEO to DRO |
-
-### Transfer Ephemeris Correction and Analysis
-
-These scripts handle ephemeris correction and downstream numerical analysis for transfer trajectories such as DRO→GEO. All live under `tod/transfers/dro_to_geo/`.
-
-| Script | Function |
-|------|------|
-| `tod.transfers.dro_to_geo.transfer_to_ephemeris` | CR3BP→J2000 coordinate conversion of the optimized trajectory with ephemeris propagation comparison (no correction) |
-| `tod.transfers.dro_to_geo.correct_transfer_to_ephemeris` | Multiple-shooting ephemeris correction of transfer trajectories; supports standard/two_level/homotopy/segmented (segmented shooting with merging) |
-| `tod.transfers.dro_to_geo.compare_low_thrust` | Fuel consumption comparison between low-thrust and impulsive transfers |
-| `tod.transfers.dro_to_geo.analyze_stm_condition_number` | Segment-wise and cumulative STM condition number analysis along a corrected trajectory, assessing the numerical stability of shooting methods |
-| `tod.transfers.dro_to_geo.analyze_patch_point_sensitivity` | Sensitivity analysis of the segmented-shooting `points_per_segment` parameter |
-| `tod.transfers.dro_to_geo.analyze_cr3bp_dataset` | Statistics and coverage plots for the raw CR3BP XLSX dataset |
-
-### Ephemeris Conversion
-
-| Target | Single orbit | Orbit family | Notes |
-|------|--------|--------|------|
-| General | `tod.generates.ephemeris.correct_orbit_to_ephemeris` | — | Unified entry; supports DRO/Halo and multiple methods |
-| DRO | — | `tod.generates.ephemeris.family_correction` (SCRIPT_ENTRIES[0]) | Multiple-shooting correction of an orbit family into the ephemeris model |
-| Halo | — | `tod.generates.ephemeris.family_correction` (SCRIPT_ENTRIES[1]) | Multiple-shooting correction of an orbit family into the ephemeris model |
-
-> `correct_orbit_to_ephemeris` selects the orbit type and correction method via `--orbit-type` (`dro`/`halo`) and `--method` (`standard`/`two_level`/`homotopy`). `--output-prefix` automatically produces `{prefix}_{method}_tol{tol}.json`. Output includes timing and geocentric distance statistics. The method defaults to `two_level`.
-
-### Plotting
-
-| Category | Script | Function |
-|------|------|------|
-| Unified entry | `tod.plot.plot_orbits` | DRO/RO/Halo family and single-orbit overview (FamilyPlotOrchestrator unified entry) |
-| Ephemeris | `tod.plot.ephemeris.plot_ephemeris_correction` | Ephemeris correction comparison plots |
-| Inspection | `tod.plot.inspection.plot_interactive_orbit_inspector` | Interactive orbit inspector |
-| Transfer | `tod.plot.transfer.dro_to_ro.plot_search_results_dro_to_ro` | DRO→RO search result visualization |
-| Transfer | `tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro` | DRO→RO optimization result visualization |
-| Transfer | `tod.plot.transfer.dro_to_geo.*` | DRO→GEO search/optimization visualization |
-| Transfer | `tod.plot.transfer.geo_to_dro.*` | GEO→DRO search/optimization visualization |
-| Transfer | `tod.plot.transfer.leo_to_dro.*` | LEO→DRO search/optimization visualization |
-
-> Family plotting goes through the `tod.plot.plot_orbits` entry (FamilyPlotOrchestrator), which picks the default plotting configuration from the file and family type.
-
-## Output Data
-
-Orbit and transfer results are stored mainly as JSON. Common keys include:
-
-- `states`: state history, usually non-dimensional `[x, y, z, vx, vy, vz]` in CR3BP.
-- `times`: time array corresponding to the states.
-- `period`: orbit period or propagation duration.
-- `orbit_type`: orbit type identifier, e.g. `DRO`, `DPO`, `Halo`, `RO`.
-- `metadata`: auxiliary information such as script configuration, continuation steps, and error statistics.
-
-`output/*/family.json` is a convenience copy of the most recent generation and gets overwritten; use the timestamped file names for long-term references.
-
-**New GUI dual-file scheme**: orbit design results are written as a `dro_<YYYYMMDDHHMMSS>.json` (scalar metadata: orbit type, epoch, Jacobi constant, convergence info, `arrays_file` pointer) plus a same-named `.npz` (`states` / `times` / `eph_*` arrays) pair under `output/dro/`. On startup the GUI scans `output/` to rebuild the Project, and array files are lazily loaded on demand. Station-keeping results are written to `output/ephemeris/orbit_ephemeris_<ts>.json` + `.npz`.
-
-## Directory Structure
-
-```text
-src/
-  app/            Main-window assembly, application entry (src.app.main)
-  model/          Project / Artifact data model, output/ scan discovery
-  engine/         FacadeBridge, QThread workers, result persistence, exception translation
-  view/           Embedded matplotlib canvas, project tree, parameter panel, log panel
-  commons/        Cross-layer shared constants (paths, fonts)
-tod/              Legacy CLI script workflow (new GUI lives in src/)
-  generates/      CR3BP orbit generation and CR3BP→ephemeris conversion scripts
-    cr3bp/          Per-family generation (dro, dpo, halo, ro)
-    ephemeris/      DRO/Halo ephemeris conversion (single orbit and family)
-  transfers/      DRO/RO/GEO/LEO transfer search and optimization scripts
-  plot/           Plotting scripts for orbits, families, search and optimization results
-data/             CR3BP seed data (raw / normalized)
-packaging/        PyInstaller packaging spec
-docs/
-  source/         Sphinx documentation sources (including PRDs under narrative/)
-  adr/            Architecture decision records
-  architecture/   New GUI architecture design docs
-  planning/       Iteration planning docs
-  agents/         Agent collaboration and triage docs
-  development.md  Development and documentation conventions
-scripts/          Engineering helper scripts
-tools/            Development tools
-figures/          Figures
-output/           Result directory (scanned at GUI startup to rebuild the Project)
-```
-
-## Mission and Roadmap
-
-### Background
-
-Transfer Orbit Design addresses the needs of cislunar development along three technical directions: **in-space mobility**, **in-space servicing**, and **cislunar technologies**. Its role is to provide a reproducible, extensible orbit design and analysis foundation for all three. The current version delivers core capabilities for in-space mobility; the other two directions advance according to the roadmap.
-
-### 1. In-Space Mobility (Implemented)
-
-The goal of this direction is to greatly improve orbit maneuver capability. The software's role is to **support** that goal with CR3BP low-energy orbit and transfer design, rather than to perform the maneuver itself — the latter is a mission-level engineering objective.
-
-The implemented capabilities map to scripts in this repository:
-
-- **Periodic orbit family generation**: 4 CR3BP periodic orbit families (DRO, DPO, Halo, RO), usable as departure/target orbits for transfer design. See [Orbit Generation (CR3BP)](#orbit-generation-cr3bp).
-- **Transfer search and optimization**: two-impulse grid search and NLP optimization for DRO→RO, DRO→GEO, GEO→DRO, and LEO→DRO, minimizing Δv or insertion cost and providing candidate solutions for low-energy transfer design. See [Transfer Search and Optimization](#transfer-search-and-optimization).
-- **Ephemeris correction**: multiple-shooting correction of CR3BP design results into the real ephemeris model, narrowing the gap between design and engineering implementation. See [Ephemeris Conversion](#ephemeris-conversion).
-
-### 2. In-Space Servicing (Planned)
-
-Target direction: on-orbit refueling, repair, and rapid replacement of spacecraft. Planned coverage:
-
-- Trajectory design for rendezvous and proximity operations
-- Window and maneuver sequence planning for refueling and servicing missions
-- Cooperative orbit design for servicer and client spacecraft
-
-> No corresponding implementation in the current version; listed on the roadmap.
-
-### 3. Cislunar Technologies (Planned)
-
-Target direction: supporting deep-space domain awareness and operations, advancing cislunar situational representation, orbit cataloging, navigation, communication, and control. Planned coverage:
-
-- Cislunar situational representation and observability analysis
-- Orbit cataloging and object association
-- Orbit support design for navigation, communication, and control
-
-> No corresponding implementation in the current version; listed on the roadmap.
-
-### Positioning
-
-Transfer Orbit Design belongs to the same cislunar orbit design domain as STK Cislunar Orbit Design (CODE), NASA's General Mission Analysis Tool (GMAT), and Purdue University's Adaptive Trajectory Design (ATD), sharing the same methodological foundation: CR3BP/BR4BP dynamics, differential correction, natural and pseudo-arclength continuation, and ephemeris multiple-shooting correction. Compared with these mature platforms, this tool emphasizes being lightweight and open source: it organizes orbit generation, transfer search, and ephemeris correction through readable scripts and reproducible pipelines, making it easy to trim, extend, or embed into larger mission design workflows — without aiming for feature parity.
-
-## Documentation and Development
-
-- Development conventions: [`docs/development.md`](docs/development.md)
-- Algorithm library documentation: [e2m2e online docs](https://cislunarspace.github.io/e2m2e/)
-- Local HTML documentation:
+Local build:
 
 ```bash
-uv run --extra docs python -m sphinx -b html docs/source docs/build/html
+uv sync --extra docs
+uv run sphinx-build -b html -D language=en docs/source docs/build/html
 ```
+
+## Tests and Code Standards
+
+```bash
+uv run pytest tests/ -m "not spice"
+uv run ruff check .
+uv run pyright
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-This project is licensed under the [Apache License 2.0](LICENSE). You may freely use, modify, and distribute this software, provided you retain the copyright and license notices and comply with the patent grant and trademark terms of the license. See the [`LICENSE`](LICENSE) file in the repository root for details.
+[Apache 2.0](LICENSE)
