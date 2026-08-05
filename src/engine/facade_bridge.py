@@ -39,8 +39,24 @@ class OrbitDesignResultData:
     correction_converged: bool
     correction_iterations: int
     mu: float | None = None  # CR3BP 质量比（从 cr3bp_orbit.system.mu 提取，缺失时 None）
+    # design_orbit 产出的 GCRS 星历（control_orbit 的标准输入）。
+    # None 表示算法层未返回 ephemeris（理论上不会，defensive）。
+    ephemeris: dict | None = None  # {year, month, ..., times_jd_tdb}，值均为 ndarray
 
-    # 注意：mu 带默认值放在末尾，保证旧代码按位置/关键字构造 DTO 时不传 mu 也能工作。
+    # 注意：mu / ephemeris 带默认值放在末尾，保证旧代码按位置/关键字构造 DTO 时不传也能工作。
+
+
+@dataclass
+class ControlResultData:
+    """跨线程传递的轨道保持结果 DTO。纯数据，不含 e2m2e 对象引用。"""
+
+    num_failed: int
+    sk_statistic_rows: Any  # np.ndarray (n, k)，m/s；k=3 无角动量，k>=4 含
+    maneuvers_mjd_tdb: Any  # np.ndarray (n,)
+    maneuvers_delta_v_mps: Any  # np.ndarray (n,)，m/s
+    controlled_states: Any  # np.ndarray (n, 6)：synodic_position (n,3) + 零速度列；全失败时 None
+    controlled_times: Any  # np.ndarray (n,)：arange 索引（画布不依赖物理时间）；None 若无星历
+    mu: float | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +93,7 @@ def _build_tool_registry() -> dict[str, ToolSpec]:
             request_model=ControlOrbitRequest,
             facade_method="control_orbit",
             label="轨道保持",
-            enabled=False,
+            enabled=True,
         ),
         "orbit_family_generation": ToolSpec(
             request_model=None,
@@ -144,6 +160,24 @@ class FacadeBridge:
         # mu 从 cr3bp_orbit.system.mu 提取（design_orbit.py 构造 Orbit 时绑定了
         # CR3BP_System）；三重 getattr 防御 system 缺失或未绑定。
         mu = getattr(getattr(cr3bp_orbit, "system", None), "mu", None)
+        eph = getattr(result, "ephemeris", None)
+        ephemeris_dict = None
+        if eph is not None:
+            ephemeris_dict = {
+                "year": np.asarray(eph.year),
+                "month": np.asarray(eph.month),
+                "day": np.asarray(eph.day),
+                "hour": np.asarray(eph.hour),
+                "minute": np.asarray(eph.minute),
+                "second": np.asarray(eph.second),
+                "position_km": np.asarray(eph.position_km),
+                "velocity_mps": np.asarray(eph.velocity_mps),
+                "synodic_position": np.asarray(eph.synodic_position),
+                # times_jd_tdb 当前版本不存在，getattr 防御；未来版本若有则存入
+                "times_jd_tdb": np.asarray(tjd)
+                if (tjd := getattr(eph, "times_jd_tdb", None)) is not None
+                else None,
+            }
         return OrbitDesignResultData(
             orbit_type=result.orbit_type,
             epoch_utc=result.epoch_utc,
@@ -155,4 +189,57 @@ class FacadeBridge:
             times=np.asarray(cr3bp_orbit.times),
             correction_converged=result.correction.converged,
             correction_iterations=result.correction.iterations,
+            ephemeris=ephemeris_dict,
+        )
+
+    def control_orbit(
+        self, ephemeris_data: dict, source_mu: float | None, **params: Any
+    ) -> ControlResultData:
+        """调用 e2m2e.algorithm.station_keeping.control_orbit，返回跨线程 DTO。
+
+        Args:
+            ephemeris_data: 来自 orbit Artifact 的 extra["ephemeris"]，
+                含重建 EphemerisTable 所需的全字段 ndarray。
+            source_mu: 源 orbit Artifact 的 CR3BP 质量比（extra["mu"]）。
+                ControlOrbitResult 不暴露 mu，受控星历画地月标注所需，
+                由调用方注入，直接写入 DTO（见 plan §5.1）。
+            **params: ControlOrbitRequest 的标量字段（control_mode 等），
+                由参数面板收集。input_ephemeris 不在其中（由本方法注入）。
+        """
+        from dataclasses import fields as dc_fields
+
+        from e2m2e.algorithm.station_keeping import control_orbit as _control
+        from e2m2e.data.types import EphemerisTable
+
+        from src.engine.exceptions import translate_exception
+
+        # 仅传入 EphemerisTable 实际拥有的字段，排除 times_jd_tdb 等额外键
+        valid_keys = {f.name for f in dc_fields(EphemerisTable)}
+        eph = EphemerisTable(
+            **{k: v for k, v in ephemeris_data.items() if k in valid_keys and v is not None}
+        )
+        params.setdefault("kernel_dir", self._kernel_dir)
+        try:
+            result = _control(eph, **params)
+        except Exception as e:
+            raise translate_exception(e) from e
+
+        controlled = result.controlled_ephemeris
+        if controlled is not None and controlled.synodic_position is not None:
+            n = len(controlled)
+            states = np.zeros((n, 6))
+            states[:, :3] = controlled.synodic_position
+            times = np.arange(n)
+        else:
+            states = None
+            times = None
+
+        return ControlResultData(
+            num_failed=result.num_failed,
+            sk_statistic_rows=np.asarray(result.sk_statistic.rows),
+            maneuvers_mjd_tdb=np.asarray(result.maneuvers.mjd_tdb),
+            maneuvers_delta_v_mps=np.asarray(result.maneuvers.delta_v_mps),
+            controlled_states=states,
+            controlled_times=times,
+            mu=source_mu,
         )

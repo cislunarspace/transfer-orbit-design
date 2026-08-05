@@ -1,0 +1,282 @@
+"""tests for FacadeBridge.control_orbit + OrbitDesignResultData.ephemeris (issue #348)。"""
+
+from __future__ import annotations
+
+from types import SimpleNamespace
+
+import numpy as np
+import pytest
+
+from src.engine.facade_bridge import ControlResultData, FacadeBridge
+
+# ---------------------------------------------------------------------------
+# Fakes
+# ---------------------------------------------------------------------------
+
+
+class _FakeEphemeris:
+    """Fake EphemerisTable -- 含 design_orbit 提取所需的全部字段。"""
+
+    def __init__(self, n: int = 10) -> None:
+        self.year = np.full(n, 2024)
+        self.month = np.ones(n, dtype=int)
+        self.day = np.ones(n, dtype=int)
+        self.hour = np.zeros(n, dtype=int)
+        self.minute = np.zeros(n, dtype=int)
+        self.second = np.zeros(n, dtype=float)
+        self.position_km = np.random.randn(n, 3)
+        self.velocity_mps = np.random.randn(n, 3)
+        self.synodic_position = np.random.randn(n, 3)
+
+
+class _FakeSKStatistic:
+    def __init__(self) -> None:
+        self.rows = np.array([[1.0, 2.0, 3.0]])
+
+
+class _FakeManeuverTable:
+    def __init__(self) -> None:
+        self.mjd_tdb = np.array([60000.0, 60030.0])
+        self.delta_v_mps = np.array([0.5, 0.3])
+
+
+class _FakeControlledEphemeris:
+    """Fake controlled_ephemeris -- 支持 len() 并暴露 synodic_position。"""
+
+    def __init__(self, synodic_position: np.ndarray) -> None:
+        self.synodic_position = synodic_position
+
+    def __len__(self) -> int:
+        return self.synodic_position.shape[0]
+
+
+class _FakeControlResult:
+    """Fake ControlOrbitResult。"""
+
+    def __init__(self, synodic_position: np.ndarray | None = None) -> None:
+        self.num_failed = 0
+        self.sk_statistic = _FakeSKStatistic()
+        self.maneuvers = _FakeManeuverTable()
+        if synodic_position is not None:
+            self.controlled_ephemeris = _FakeControlledEphemeris(synodic_position)
+        else:
+            self.controlled_ephemeris = None
+
+
+# ---------------------------------------------------------------------------
+# design_orbit ephemeris 提取
+# ---------------------------------------------------------------------------
+
+
+class TestDesignOrbitEphemerisExtraction:
+    def test_design_orbit_result_carries_ephemeris_fields(self, monkeypatch):
+        """design_orbit 应将 result.ephemeris 提取到 DTO.ephemeris dict。"""
+        n = 10
+        orbit = SimpleNamespace(
+            states=np.random.randn(n, 6),
+            times=np.linspace(0, 1, n),
+        )
+        correction = SimpleNamespace(converged=True, iterations=1)
+        fake_eph = _FakeEphemeris(n)
+        result = SimpleNamespace(
+            orbit_type="DRO",
+            epoch_utc="2024-01-01T00:00:00",
+            duration_day=1.0,
+            initial_state=np.zeros(6),
+            cr3bp_jacobi=3.0,
+            cr3bp_orbit=orbit,
+            correction=correction,
+            ephemeris=fake_eph,
+        )
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.design.design_orbit",
+            lambda **kw: result,
+            raising=False,
+        )
+        bridge = FacadeBridge()
+        data = bridge.design_orbit(orbit_type="DRO")
+        assert data.ephemeris is not None
+        for key in (
+            "year",
+            "month",
+            "day",
+            "hour",
+            "minute",
+            "second",
+            "position_km",
+            "velocity_mps",
+            "synodic_position",
+        ):
+            assert key in data.ephemeris
+            assert isinstance(data.ephemeris[key], np.ndarray)
+        assert data.ephemeris["times_jd_tdb"] is None
+
+    def test_design_orbit_ephemeris_none_when_absent(self, monkeypatch):
+        """result 无 ephemeris 属性时，DTO.ephemeris 为 None。"""
+        n = 10
+        orbit = SimpleNamespace(
+            states=np.random.randn(n, 6),
+            times=np.linspace(0, 1, n),
+        )
+        correction = SimpleNamespace(converged=True, iterations=1)
+        result = SimpleNamespace(
+            orbit_type="DRO",
+            epoch_utc="2024-01-01T00:00:00",
+            duration_day=1.0,
+            initial_state=np.zeros(6),
+            cr3bp_jacobi=3.0,
+            cr3bp_orbit=orbit,
+            correction=correction,
+        )
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.design.design_orbit",
+            lambda **kw: result,
+            raising=False,
+        )
+        bridge = FacadeBridge()
+        data = bridge.design_orbit(orbit_type="DRO")
+        assert data.ephemeris is None
+
+
+# ---------------------------------------------------------------------------
+# control_orbit
+# ---------------------------------------------------------------------------
+
+
+def _make_ephemeris_data(n: int = 10, with_none_tjd: bool = True) -> dict:
+    """构造 control_orbit 所需的 ephemeris_data dict。
+
+    times_jd_tdb 当前版本 EphemerisTable 无此字段，始终设 None（与生产提取一致）。
+    with_none_tjd 参数保留用于验证 None 值被正确跳过。
+    """
+    data = {
+        "year": np.full(n, 2024),
+        "month": np.ones(n, dtype=int),
+        "day": np.ones(n, dtype=int),
+        "hour": np.zeros(n, dtype=int),
+        "minute": np.zeros(n, dtype=int),
+        "second": np.zeros(n, dtype=float),
+        "position_km": np.random.randn(n, 3),
+        "velocity_mps": np.random.randn(n, 3),
+        "synodic_position": np.random.randn(n, 3),
+        "times_jd_tdb": None if with_none_tjd else np.linspace(60000, 60365, n),
+    }
+    return data
+
+
+class TestControlOrbit:
+    def test_control_orbit_returns_control_result_dto(self, monkeypatch):
+        """control_orbit 应返回 ControlResultData，controlled_states 形状 (n,6)。"""
+        n = 50
+        synodic = np.random.randn(n, 3)
+        fake_result = _FakeControlResult(synodic_position=synodic)
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.station_keeping.control_orbit",
+            lambda eph, **kw: fake_result,
+            raising=False,
+        )
+        bridge = FacadeBridge()
+        data = bridge.control_orbit(
+            ephemeris_data=_make_ephemeris_data(n),
+            source_mu=0.012153645822478,
+            control_mode=1,
+            num_monte_carlo=2,
+        )
+        assert isinstance(data, ControlResultData)
+        assert data.num_failed == 0
+        assert data.controlled_states is not None
+        assert data.controlled_states.shape == (n, 6)
+        # synodic_position 应在前 3 列
+        np.testing.assert_array_equal(data.controlled_states[:, :3], synodic)
+        # 速度列补零
+        np.testing.assert_array_equal(data.controlled_states[:, 3:], np.zeros((n, 3)))
+        assert data.controlled_times is not None
+        assert len(data.controlled_times) == n
+        assert data.mu == pytest.approx(0.012153645822478)
+
+    def test_control_orbit_none_states_when_no_ephemeris(self, monkeypatch):
+        """所有样本失败（controlled_ephemeris=None）时，controlled_states/times 为 None。"""
+        fake_result = _FakeControlResult(synodic_position=None)
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.station_keeping.control_orbit",
+            lambda eph, **kw: fake_result,
+            raising=False,
+        )
+        bridge = FacadeBridge()
+        data = bridge.control_orbit(
+            ephemeris_data=_make_ephemeris_data(10),
+            source_mu=None,
+            control_mode=1,
+        )
+        assert data.controlled_states is None
+        assert data.controlled_times is None
+        assert data.mu is None
+
+    def test_control_orbit_translates_exceptions(self, monkeypatch):
+        """算法层抛 ValueError 应翻译为 OrbitError(INVALID_PARAMS)。"""
+        from src.engine.exceptions import OrbitError
+
+        def _fail(eph, **kw):
+            raise ValueError("bad params")
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.station_keeping.control_orbit",
+            _fail,
+            raising=False,
+        )
+        bridge = FacadeBridge()
+        with pytest.raises(OrbitError) as exc_info:
+            bridge.control_orbit(
+                ephemeris_data=_make_ephemeris_data(10),
+                source_mu=None,
+            )
+        assert exc_info.value.code == "INVALID_PARAMS"
+
+    def test_ephemeris_table_reconstruction_skips_none_times(self, monkeypatch):
+        """times_jd_tdb=None 时 EphemerisTable 重建不崩（走 dataclass 默认）。"""
+        fake_result = _FakeControlResult(synodic_position=np.random.randn(5, 3))
+
+        captured: dict = {}
+
+        def _capture(eph, **kw):
+            captured["eph"] = eph
+            return fake_result
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.station_keeping.control_orbit",
+            _capture,
+            raising=False,
+        )
+        bridge = FacadeBridge()
+        bridge.control_orbit(
+            ephemeris_data=_make_ephemeris_data(5, with_none_tjd=True),
+            source_mu=None,
+        )
+        # EphemerisTable 成功构造（算法层被调用即证明）
+        assert "eph" in captured
+        assert captured["eph"].synodic_position is not None
+
+    def test_control_orbit_kernel_dir_forwarded(self, monkeypatch):
+        """kernel_dir 应注入到算法层调用。"""
+        captured: dict = {}
+        fake_result = _FakeControlResult(synodic_position=np.random.randn(5, 3))
+
+        def _capture(eph, **kw):
+            captured.update(kw)
+            return fake_result
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.station_keeping.control_orbit",
+            _capture,
+            raising=False,
+        )
+        bridge = FacadeBridge(kernel_dir="/tmp/kernels")
+        bridge.control_orbit(
+            ephemeris_data=_make_ephemeris_data(5),
+            source_mu=None,
+        )
+        assert captured.get("kernel_dir") == "/tmp/kernels"
