@@ -16,6 +16,7 @@ Pydantic -> Qt 映射：
 
 from __future__ import annotations
 
+import dataclasses
 import types
 import typing
 from typing import Any
@@ -31,16 +32,105 @@ from PyQt6.QtWidgets import (
 )
 
 # ---------------------------------------------------------------------------
+# 每轨道类型的默认值 / 显示字段（对齐 e2m2e design_orbit.py 各分支 None 兜底）
+# ---------------------------------------------------------------------------
+
+#: 每轨道类型分支的形状参数默认值。值与 e2m2e
+#: ``algorithm/design/design_orbit.py::_validate_params`` 的 None 兜底默认值一致。
+ORBIT_TYPE_DEFAULTS: dict[str, dict[str, float | int]] = {
+    "DRO": {"amplitude": 10000.0, "phase": 0.5001},
+    "NRHO": {
+        "collinear_point": 2,
+        "north_south": 2,
+        "perilune_height": 5000.0,
+        "phase": 0.5,
+    },
+    "Halo": {"collinear_point": 2, "amplitude": 30000.0, "phase": 0.0},
+    "Lissajous": {
+        "collinear_point": 2,
+        "amplitude_in": 2500.0,
+        "amplitude_out": 7500.0,
+        "phase_in": 0.01,
+        "phase_out": 0.55,
+    },
+    "L4": {
+        "amplitude_in": 8000.0,
+        "amplitude_out": 6000.0,
+        "phase_in": 0.0,
+        "phase_out": 0.0,
+    },
+    "L5": {
+        "amplitude_in": 8000.0,
+        "amplitude_out": 6000.0,
+        "phase_in": 0.0,
+        "phase_out": 0.0,
+    },
+}
+
+#: 每轨道类型分支应显示的字段集（== 该分支默认值字段集）。
+ORBIT_TYPE_FIELDS: dict[str, set[str]] = {
+    "DRO": {"amplitude", "phase"},
+    "NRHO": {"collinear_point", "north_south", "perilune_height", "phase"},
+    "Halo": {"collinear_point", "amplitude", "phase"},
+    "Lissajous": {
+        "collinear_point",
+        "amplitude_in",
+        "amplitude_out",
+        "phase_in",
+        "phase_out",
+    },
+    "L4": {"amplitude_in", "amplitude_out", "phase_in", "phase_out"},
+    "L5": {"amplitude_in", "amplitude_out", "phase_in", "phase_out"},
+}
+
+# ---------------------------------------------------------------------------
+# 特殊字段：epoch 6-spinbox 与 correction_method 下拉
+# ---------------------------------------------------------------------------
+
+#: epoch 字段名。仅当默认值是 6 元序列时渲染为 6 个 spinbox，
+#: 避免误伤其它 Any 字段（如 control_orbit 的 input_ephemeris）。
+_EPOCH_FIELD = "epoch"
+
+#: correction_method 下拉取值，须对齐 e2m2e
+#: ``algorithm/ephemeris_correction/__init__.py::_REGISTRY`` 的键。
+CORRECTION_METHOD_OPTIONS: tuple[str, ...] = ("standard", "two_level", "homotopy")
+
+#: str 枚举类字段 -> 下拉选项（现仅 correction_method）。
+_STR_ENUM_FIELDS: dict[str, tuple[str, ...]] = {
+    "correction_method": CORRECTION_METHOD_OPTIONS,
+}
+
+#: epoch 6 个 spinbox 的取值范围；is_int=True -> QSpinBox，False -> QDoubleSpinBox。
+_EPOCH_SPINBOX_SPECS: tuple[tuple[str, float, float, bool], ...] = (
+    ("年", 1900, 2100, True),
+    ("月", 1, 12, True),
+    ("日", 1, 31, True),
+    ("时", 0, 23, True),
+    ("分", 0, 59, True),
+    ("秒", 0.0, 60.0, False),
+)
+
+# ---------------------------------------------------------------------------
 # 辅助函数
 # ---------------------------------------------------------------------------
 
 
 def _get_field_meta(field: Any) -> dict[str, Any]:
-    """从 Pydantic v2 FieldInfo 提取约束元数据。"""
+    """从 Pydantic v2 FieldInfo 提取约束元数据。
+
+    annotated_types 约束（Ge/Le/Gt/Lt/...）是带 ``slots=True`` 的 frozen
+    dataclass，没有 ``__dict__``，须用 ``dataclasses.fields`` 提取。
+    """
     meta: dict[str, Any] = {}
     if not hasattr(field, "metadata"):
         return meta
     for constraint in field.metadata:
+        if dataclasses.is_dataclass(constraint):
+            for f in dataclasses.fields(constraint):
+                value = getattr(constraint, f.name)
+                if value is not None:
+                    meta[f.name] = value
+            continue
         if not hasattr(constraint, "__dict__"):
             continue
         for key, value in constraint.__dict__.items():
@@ -82,7 +172,11 @@ def _make_float_field(field: Any, meta: dict[str, Any]) -> QDoubleSpinBox:
         widget.setMaximum(float(meta["lt"]) - 1e-8)
     widget.setSingleStep(1.0)
     if field.default is not None and field.default is not ...:
-        widget.setValue(float(field.default))
+        default = float(field.default)
+        # 无上界约束时 Qt 默认 max=99.99，扩到能容纳默认值
+        if default > widget.maximum():
+            widget.setMaximum(default)
+        widget.setValue(default)
     elif widget.minimum() <= 0.0 <= widget.maximum():
         widget.setValue(0.0)
     return widget
@@ -99,7 +193,11 @@ def _make_int_field(field: Any, meta: dict[str, Any]) -> QSpinBox:
     elif "lt" in meta:
         widget.setMaximum(int(meta["lt"]) - 1)
     if field.default is not None and field.default is not ...:
-        widget.setValue(int(field.default))
+        default = int(field.default)
+        # 无上界约束时 Qt 默认 max=99，扩到能容纳默认值
+        if default > widget.maximum():
+            widget.setMaximum(default)
+        widget.setValue(default)
     elif widget.minimum() <= 0 <= widget.maximum():
         widget.setValue(0)
     return widget
@@ -176,6 +274,49 @@ def _make_list_float_field(field: Any, meta: dict[str, Any]) -> QWidget:
     return container
 
 
+def _is_epoch_default(value: Any) -> bool:
+    """判断默认值是否为 [年,月,日,时,分,秒] 六元序列。"""
+    return isinstance(value, (tuple, list)) and len(value) == 6
+
+
+def _make_epoch_field(field: Any) -> QWidget:
+    """epoch -> 水平排列的 6 个 spinbox（年/月/日/时/分 整数，秒浮点）。"""
+    defaults = (
+        [float(v) for v in field.default]
+        if _is_epoch_default(field.default)
+        else [2024.0, 1.0, 1.0, 0.0, 0.0, 0.0]
+    )
+    container = QWidget()
+    layout = QHBoxLayout(container)
+    layout.setContentsMargins(0, 0, 0, 0)
+
+    for (_, lo, hi, is_int), default in zip(_EPOCH_SPINBOX_SPECS, defaults, strict=True):
+        if is_int:
+            sb = QSpinBox()
+            sb.setRange(int(lo), int(hi))
+            sb.setValue(int(default))
+        else:
+            sb = QDoubleSpinBox()
+            sb.setDecimals(3)
+            sb.setRange(float(lo), float(hi))
+            sb.setValue(float(default))
+        layout.addWidget(sb)
+
+    container.setProperty("__params_panel_kind", "epoch")
+    return container
+
+
+def _make_str_enum_combo(field: Any, options: tuple[str, ...]) -> QComboBox:
+    """str 枚举字段 -> QComboBox，选中项对齐字段默认值。"""
+    combo = QComboBox()
+    combo.addItems(list(options))
+    if field.default is not None and field.default is not ...:
+        default = str(field.default)
+        if default in options:
+            combo.setCurrentIndex(options.index(default))
+    return combo
+
+
 # ---------------------------------------------------------------------------
 # 主入口
 # ---------------------------------------------------------------------------
@@ -184,6 +325,16 @@ def _make_list_float_field(field: Any, meta: dict[str, Any]) -> QWidget:
 def _make_field_widget(field_name: str, field: Any) -> QWidget | None:
     """根据 Pydantic 字段类型和约束创建对应 Qt 控件。"""
     inner_tp, is_optional = _unwrap_optional(field.annotation)
+
+    # 特判 1：epoch（[年,月,日,时,分,秒]）-> 6-spinbox 容器。
+    # 仅当默认值是 6 元序列才命中，避免误伤其它 Any 字段（如 input_ephemeris）。
+    if field_name == _EPOCH_FIELD and inner_tp is Any and _is_epoch_default(field.default):
+        return _make_epoch_field(field)
+
+    # 特判 2：str 枚举类字段（correction_method）-> QComboBox。
+    options = _STR_ENUM_FIELDS.get(field_name)
+    if inner_tp is str and options:
+        return _make_str_enum_combo(field, options)
 
     origin = typing.get_origin(inner_tp)
     meta = _get_field_meta(field)
@@ -242,6 +393,64 @@ def build_params_from_model(
 
 
 # ---------------------------------------------------------------------------
+# 默认值填充（per-orbit_type）
+# ---------------------------------------------------------------------------
+
+
+def _unwrap_optional_widget(widget: QWidget) -> QWidget:
+    """若控件是 Optional 容器（QCheckBox + 内部控件），解包返回内部控件。
+
+    解包时把内部控件脱离容器父级，避免容器被 Python 回收时连带删除内部控件。
+    非 Optional 容器原样返回。
+    """
+    if widget.property("__params_panel_kind") != "optional":
+        return widget
+    inner_widgets = widget.findChildren(QWidget)
+    inner = next(
+        (w for w in inner_widgets if not isinstance(w, QCheckBox)),
+        None,
+    )
+    if inner is not None:
+        inner.setParent(None)
+        return inner
+    return widget
+
+
+def apply_orbit_type_defaults(
+    widgets: dict[str, QWidget],
+    orbit_type: str,
+    model_class: type,
+) -> None:
+    """把 orbit_type 分支的默认值填入 widgets 对应控件。
+
+    分支字段若是 Optional 容器（QCheckBox + 内部控件），解包为内部控件并
+    用分支默认值 setValue（去掉勾选框，直接可调）。未知 orbit_type 或字段
+    缺失时静默跳过（无分支则不做任何事）。
+
+    ``model_class`` 保留供调用方语义对齐；本函数按控件类型而非模型字段类型
+    设值（int 默认值 -> QSpinBox，float 默认值 -> QDoubleSpinBox）。
+    """
+    defaults = ORBIT_TYPE_DEFAULTS.get(orbit_type)
+    if not defaults:
+        return
+    for field_name, value in defaults.items():
+        widget = widgets.get(field_name)
+        if widget is None:
+            continue
+        widget = _unwrap_optional_widget(widget)
+        widget.setEnabled(True)
+        widgets[field_name] = widget
+        if isinstance(widget, QDoubleSpinBox):
+            widget.setValue(float(value))
+        elif isinstance(widget, QSpinBox):
+            widget.setValue(int(value))
+        elif isinstance(widget, QComboBox):
+            widget.setCurrentText(str(value))
+        elif isinstance(widget, QLineEdit):
+            widget.setText(str(value))
+
+
+# ---------------------------------------------------------------------------
 # 值读取
 # ---------------------------------------------------------------------------
 
@@ -252,6 +461,34 @@ def _read_list_float(widget: QWidget) -> list[float]:
     for child in widget.findChildren(QDoubleSpinBox):
         result.append(float(child.value()))
     return result
+
+
+def _read_epoch(widget: QWidget) -> list[float]:
+    """从 epoch 容器按布局顺序读取 6 个 spinbox 值，返回 [年,月,日,时,分,秒]。
+
+    对日历合法性做校验（挡 Feb 30 等 spinbox 范围挡不住的非法日期），
+    让收集阶段立即报友好错误，而非等到 SPICE str2et 解析失败。
+    """
+    import datetime
+
+    values: list[float] = []
+    layout = widget.layout()
+    if layout is not None:
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item is None:
+                continue
+            w = item.widget()
+            if isinstance(w, (QSpinBox, QDoubleSpinBox)):
+                values.append(float(w.value()))
+
+    if len(values) == 6:
+        y, mo, d, h, mi, s = (int(v) for v in values)
+        try:
+            datetime.datetime(y, mo, d, h, mi, s)
+        except ValueError as exc:
+            raise ValueError(f"非法历元: {exc}") from exc
+    return values
 
 
 def _read_widget_value(name: str, field: Any, widget: QWidget) -> Any:
@@ -271,6 +508,10 @@ def _read_widget_value(name: str, field: Any, widget: QWidget) -> Any:
         )
         if inner is not None:
             return _read_widget_value(name, field, inner)
+
+    # epoch 容器（6 个 spinbox）
+    if widget.property("__params_panel_kind") == "epoch":
+        return _read_epoch(widget)
 
     # G6: list[float] 容器
     if widget.property("__params_panel_kind") == "list_float":

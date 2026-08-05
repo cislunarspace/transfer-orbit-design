@@ -36,7 +36,12 @@ from src.model import Artifact, Project
 from src.model.discovery import discover_artifacts
 from src.view.canvas import OrbitCanvasWithToolbar
 from src.view.log_panel import LogPanel
-from src.view.params_panel import build_params_from_model, collect_params
+from src.view.params_panel import (
+    ORBIT_TYPE_FIELDS,
+    apply_orbit_type_defaults,
+    build_params_from_model,
+    collect_params,
+)
 
 # G4+G5: 工具选择器 + 灰色占位
 
@@ -67,11 +72,14 @@ _DESIGN_ORBIT_LABELS: dict[str, str] = {
     "amplitude_out": "面外振幅 (km)",
     "phase_in": "面内相位",
     "phase_out": "面外相位",
-    "epoch": "历元",
+    "epoch": "历元 (年/月/日 时:分:秒)",
     "duration": "持续时间 (年)",
     "output_step": "输出步长 (秒)",
     "correction_method": "修正方法",
 }
+
+#: design_orbit 所有分支字段的并集（不在其中的字段视为通用字段，始终显示）
+_ORBIT_TYPE_ALL_BRANCH_FIELDS: set[str] = set().union(*ORBIT_TYPE_FIELDS.values())
 
 
 class MainWindow(QMainWindow):
@@ -89,6 +97,7 @@ class MainWindow(QMainWindow):
         self._worker: OrbitDesignWorker | ControlOrbitWorker | None = None
         self._current_tool_key: str | None = None
         self._param_widgets: dict[str, QWidget] = {}
+        self._param_rows: dict[str, tuple[QLabel, QWidget]] = {}
         self._param_container: QWidget | None = None
         self._param_container_layout: QVBoxLayout | None = None
         self._run_btn = QPushButton("运行")  # G1: 非 Optional，_build_right_panel 中配置
@@ -262,6 +271,7 @@ class MainWindow(QMainWindow):
 
         # 清空旧控件
         self._param_widgets = {}
+        self._param_rows = {}
         layout = self._param_container_layout
         if layout is None:
             return
@@ -280,21 +290,36 @@ class MainWindow(QMainWindow):
         if "orbit_type" in self._param_widgets:
             self._replace_orbit_type_with_combo(spec.request_model)
 
-        # 显示字段
+        # 显示字段（记录 label + widget 行，供按轨道类型显示/隐藏）
         for name, widget in self._param_widgets.items():
             label = _DESIGN_ORBIT_LABELS.get(name, name)
-            layout.addWidget(QLabel(label))
+            label_widget = QLabel(label)
+            layout.addWidget(label_widget)
             layout.addWidget(widget)
+            self._param_rows[name] = (label_widget, widget)
 
         # control_orbit 的 input_ephemeris 由选中 Artifact 注入，不在 UI 暴露
         if tool_key == "control_orbit" and "input_ephemeris" in self._param_widgets:
             old = self._param_widgets.pop("input_ephemeris")
             self._remove_widget_and_label(old)
 
+        # design_orbit：按 orbit_type 分支填默认值 + 只显示相关字段
+        if tool_key == "design_orbit":
+            orbit_type_widget = self._param_widgets.get("orbit_type")
+            if isinstance(orbit_type_widget, QComboBox):
+                orbit_type_widget.currentIndexChanged.connect(self._on_orbit_type_changed)
+                self._on_orbit_type_changed(orbit_type_widget.currentIndex())
+
         layout.addStretch()
 
     def _remove_widget_and_label(self, widget: QWidget) -> None:
         """从参数容器布局移除指定控件及其前置 QLabel。"""
+        # 同步 _param_rows
+        for name, (_, w) in list(self._param_rows.items()):
+            if w is widget:
+                del self._param_rows[name]
+                break
+
         layout = self._param_container_layout
         if layout is None:
             widget.setParent(None)
@@ -336,6 +361,48 @@ class MainWindow(QMainWindow):
         self._param_widgets["orbit_type"] = combo
         if old is not None:
             old.setParent(None)
+
+    def _on_orbit_type_changed(self, index: int) -> None:
+        """切轨道类型：填该分支默认值 + 只显示分支相关字段。"""
+        if self._current_tool_key != "design_orbit":
+            return
+        orbit_type_widget = self._param_widgets.get("orbit_type")
+        if not isinstance(orbit_type_widget, QComboBox):
+            return
+        orbit_type = orbit_type_widget.currentText()
+        model = TOOL_REGISTRY["design_orbit"].request_model
+        if model is None:
+            return
+        apply_orbit_type_defaults(self._param_widgets, orbit_type, model)
+        self._sync_visible_fields(orbit_type)
+
+    def _sync_visible_fields(self, orbit_type: str) -> None:
+        """按分支字段集显示/隐藏参数行，并把解包后的控件同步进布局。"""
+        branch_fields = ORBIT_TYPE_FIELDS.get(orbit_type, set())
+        for name in list(self._param_rows):
+            label, widget = self._param_rows[name]
+            current = self._param_widgets.get(name)
+            if current is not None and current is not widget:
+                self._replace_row_widget(name, current)
+                label, widget = self._param_rows[name]
+            visible = name in branch_fields or name not in _ORBIT_TYPE_ALL_BRANCH_FIELDS
+            label.setVisible(visible)
+            widget.setVisible(visible)
+
+    def _replace_row_widget(self, name: str, new_widget: QWidget) -> None:
+        """把参数面板布局中 name 行的控件替换为 new_widget（apply 解包后同步布局）。"""
+        row = self._param_rows.get(name)
+        if row is None:
+            return
+        label, old_widget = row
+        layout = self._param_container_layout
+        if layout is None:
+            old_widget.setParent(None)
+            self._param_rows[name] = (label, new_widget)
+            return
+        layout.replaceWidget(old_widget, new_widget)
+        old_widget.setParent(None)
+        self._param_rows[name] = (label, new_widget)
 
     # -- 信号槽 -------------------------------------------------------------
 
@@ -388,7 +455,12 @@ class MainWindow(QMainWindow):
         if isinstance(orbit_type_widget, QComboBox):
             orbit_type = orbit_type_widget.currentText()
 
-        params = collect_params(self._param_widgets, model)
+        try:
+            params = collect_params(self._param_widgets, model)
+        except ValueError as exc:
+            self._status_bar.showMessage(str(exc), _STATUS_MSG_TIMEOUT_MS)
+            self._log.append_log(f"参数错误: {exc}")
+            return
         params.pop("orbit_type", None)
 
         kernel_dir = self._detect_kernel_dir() or None
