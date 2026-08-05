@@ -8,6 +8,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import numpy as np
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel
 from PyQt6.QtWidgets import (
@@ -23,9 +24,14 @@ from PyQt6.QtWidgets import (
 )
 
 from src.commons.paths import OUTPUT_DIR
-from src.engine.facade_bridge import TOOL_REGISTRY, OrbitDesignResultData, ToolSpec
-from src.engine.persistence import load_artifact_arrays, save_artifact
-from src.engine.workers import OrbitDesignWorker
+from src.engine.facade_bridge import (
+    TOOL_REGISTRY,
+    ControlResultData,
+    OrbitDesignResultData,
+    ToolSpec,
+)
+from src.engine.persistence import load_artifact_arrays, save_artifact, save_control_result
+from src.engine.workers import ControlOrbitWorker, OrbitDesignWorker
 from src.model import Artifact, Project
 from src.model.discovery import discover_artifacts
 from src.view.canvas import OrbitCanvasWithToolbar
@@ -80,7 +86,7 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None, *, project: Project | None = None) -> None:
         super().__init__(parent)
         self._project = project if project is not None else Project(name="Transfer Orbit Design")
-        self._worker: OrbitDesignWorker | None = None
+        self._worker: OrbitDesignWorker | ControlOrbitWorker | None = None
         self._current_tool_key: str | None = None
         self._param_widgets: dict[str, QWidget] = {}
         self._param_container: QWidget | None = None
@@ -155,6 +161,7 @@ class MainWindow(QMainWindow):
         self._tree_view = ProjectTreeView()
         self._tree_view.artifact_selected.connect(self._on_artifact_clicked)
         self._tree_view.artifacts_selected.connect(self._on_artifacts_multi_selected)
+        self._tree_view.context_action.connect(self._on_context_action)
         layout.addWidget(self._tree_view)
 
         return panel
@@ -279,7 +286,32 @@ class MainWindow(QMainWindow):
             layout.addWidget(QLabel(label))
             layout.addWidget(widget)
 
+        # control_orbit 的 input_ephemeris 由选中 Artifact 注入，不在 UI 暴露
+        if tool_key == "control_orbit" and "input_ephemeris" in self._param_widgets:
+            old = self._param_widgets.pop("input_ephemeris")
+            self._remove_widget_and_label(old)
+
         layout.addStretch()
+
+    def _remove_widget_and_label(self, widget: QWidget) -> None:
+        """从参数容器布局移除指定控件及其前置 QLabel。"""
+        layout = self._param_container_layout
+        if layout is None:
+            widget.setParent(None)
+            return
+        target_index = -1
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item is not None and item.widget() is widget:
+                target_index = i
+                break
+        if target_index > 0:
+            prev_item = layout.itemAt(target_index - 1)
+            if prev_item is not None:
+                prev = prev_item.widget()
+                if isinstance(prev, QLabel):
+                    prev.setParent(None)
+        widget.setParent(None)
 
     def _replace_orbit_type_with_combo(self, model_class: type) -> None:
         """G3: 若 orbit_type 字段 description 含 '/'，替换为 QComboBox。"""
@@ -338,7 +370,17 @@ class MainWindow(QMainWindow):
     def _on_run(self) -> None:
         tool_key = self._current_tool_key
         spec = TOOL_REGISTRY.get(tool_key) if tool_key else None
-        if spec is None or spec.request_model is None:
+        if spec is None or not spec.enabled or spec.request_model is None:
+            return
+        if tool_key == "design_orbit":
+            self._run_design_orbit()
+        elif tool_key == "control_orbit":
+            self._run_control_orbit()
+
+    def _run_design_orbit(self) -> None:
+        spec = TOOL_REGISTRY["design_orbit"]
+        model = spec.request_model
+        if model is None:
             return
 
         orbit_type = ""
@@ -346,7 +388,7 @@ class MainWindow(QMainWindow):
         if isinstance(orbit_type_widget, QComboBox):
             orbit_type = orbit_type_widget.currentText()
 
-        params = collect_params(self._param_widgets, spec.request_model)
+        params = collect_params(self._param_widgets, model)
         params.pop("orbit_type", None)
 
         kernel_dir = self._detect_kernel_dir() or None
@@ -370,6 +412,99 @@ class MainWindow(QMainWindow):
         self._worker.finished.connect(self._on_design_finished)
         self._worker.error.connect(self._on_design_error)
         self._worker.start()
+
+    def _run_control_orbit(self) -> None:
+        source = self._selected_orbit_artifact()
+        if source is None:
+            self._status_bar.showMessage("请先选中一条轨道 Artifact", _STATUS_MSG_TIMEOUT_MS)
+            return
+        ephemeris_data = source.extra.get("ephemeris")
+        if not ephemeris_data:
+            self._status_bar.showMessage(
+                "该 Artifact 无星历数据，需重新设计", _STATUS_MSG_TIMEOUT_MS
+            )
+            return
+
+        spec = TOOL_REGISTRY["control_orbit"]
+        model = spec.request_model
+        if model is None:
+            return
+        params = collect_params(self._param_widgets, model)
+        params.pop("input_ephemeris", None)  # 防御：理论上已隐藏
+
+        kernel_dir = self._detect_kernel_dir() or None
+        self._log.clear()
+        self._log.append_log(f"轨道保持: 源 {source.label}")
+        self._status_bar.showMessage("正在仿真轨道保持（蒙特卡洛）...")
+        self._run_btn.setEnabled(False)
+        self._run_btn.setText("运行中...")
+
+        self._worker = ControlOrbitWorker(
+            ephemeris_data=ephemeris_data,
+            params=params,
+            source_mu=source.extra.get("mu"),
+            kernel_dir=kernel_dir,
+            parent=self,
+        )
+        self._worker.log.connect(self._on_worker_log)
+        self._worker.finished.connect(self._on_control_finished)
+        self._worker.error.connect(self._on_control_error)
+        self._worker.start()
+
+    def _selected_orbit_artifact(self) -> Artifact | None:
+        """返回当前选中的单个 orbit 类型 Artifact，否则 None。"""
+        if len(self._selected_artifact_ids) != 1:
+            return None
+        a = self._project.get_by_id(self._selected_artifact_ids[0])
+        if a is None or a.artifact_type != "orbit":
+            return None
+        return a
+
+    # -- 右键菜单动作（#340）------------------------------------------------
+
+    def _on_context_action(self, action: str, artifact_ids: list[str]) -> None:
+        """分发项目树右键菜单动作。
+
+        generate_family / analyze_stability / optimize / expand_members 在
+        ProjectTreeView 中已 setEnabled(False)，不会触发到这里。
+        """
+        if action == "delete":
+            self._delete_artifacts(artifact_ids)
+        elif action == "control_orbit":
+            self._trigger_control_orbit_from_tree(artifact_ids)
+
+    def _delete_artifacts(self, artifact_ids: list[str]) -> None:
+        """从 Project 移除 Artifact 并刷新树与画布。"""
+        if not artifact_ids:
+            return
+        removed = sum(1 for aid in artifact_ids if self._project.remove(aid))
+        # 从画布选中集剔除已删项
+        self._selected_artifact_ids = [
+            aid for aid in self._selected_artifact_ids if aid not in artifact_ids
+        ]
+        self._refresh_project_tree()
+        self._render_canvas()
+        self._status_bar.showMessage(f"已删除 {removed} 个 Artifact", _STATUS_MSG_TIMEOUT_MS)
+
+    def _trigger_control_orbit_from_tree(self, artifact_ids: list[str]) -> None:
+        """右键 orbit → 轨道保持：选中该 Artifact + 切到 control_orbit 工具。
+
+        不自动运行（给用户在参数面板调参的机会），与 #348 工具选择器范式一致。
+        """
+        if not artifact_ids:
+            return
+        orbit_id = artifact_ids[0]
+        artifact = self._project.get_by_id(orbit_id)
+        if artifact is None or artifact.artifact_type != "orbit":
+            return
+        if artifact.state_data is None and artifact.output_path is not None:
+            load_artifact_arrays(artifact)
+        self._selected_artifact_ids = [orbit_id]
+        for i in range(self._tool_combo.count()):
+            if self._tool_combo.itemData(i) == "control_orbit":
+                self._tool_combo.setCurrentIndex(i)
+                break
+        self._status_bar.showMessage("已选中轨道，调整参数后点运行", _STATUS_MSG_TIMEOUT_MS)
 
     @staticmethod
     def _detect_kernel_dir() -> str:
@@ -425,6 +560,7 @@ class MainWindow(QMainWindow):
                 "correction_converged": result.correction_converged,
                 "correction_iterations": result.correction_iterations,
                 "arrays_file": npz_name,
+                "ephemeris": result.ephemeris,  # 内存直通，control_orbit 即可用
             },
         )
         self._project.add(artifact)
@@ -449,6 +585,53 @@ class MainWindow(QMainWindow):
 
         self._log.append_log(f"错误:\n{error_msg}")
         self._status_bar.showMessage("设计失败", _STATUS_MSG_TIMEOUT_MS)
+
+    def _on_control_finished(self, result: ControlResultData) -> None:
+        self._run_btn.setEnabled(True)
+        self._run_btn.setText("运行")
+
+        json_path: Path | None = None
+        try:
+            json_path, _ = save_control_result(result, OUTPUT_DIR)
+            self._log.append_log(f"结果已保存: {json_path.name}")
+        except Exception as exc:  # noqa: BLE001
+            self._log.append_log(f"持久化失败: {exc}（结果仅保留在内存中）")
+            self._status_bar.showMessage("持久化失败", _STATUS_MSG_TIMEOUT_MS)
+
+        total_dv = float(np.sum(result.maneuvers_delta_v_mps))
+        artifact = Artifact(
+            artifact_type="ephemeris",
+            label=f"受控星历 (Δv={total_dv:.1f} m/s)",
+            source_tool="control_orbit",
+            state_data=result.controlled_states,
+            times=result.controlled_times,
+            output_path=json_path,
+            extra={
+                "mu": result.mu,
+                "num_failed": result.num_failed,
+                "total_delta_v_mps": total_dv,
+                "n_maneuvers": int(len(result.maneuvers_mjd_tdb)),
+            },
+        )
+        self._project.add(artifact)
+        self._refresh_project_tree()
+
+        if artifact.state_data is not None:
+            self._selected_artifact_ids = [artifact.artifact_id]
+            self._render_canvas()
+            self._center_tabs.setCurrentIndex(0)
+
+        self._log.append_log(
+            f"轨道保持完成: 总Δv={total_dv:.2f} m/s, 失败 {result.num_failed} 样本"
+        )
+        if json_path is not None:
+            self._status_bar.showMessage("轨道保持完成", _STATUS_MSG_TIMEOUT_MS)
+
+    def _on_control_error(self, error_msg: str) -> None:
+        self._run_btn.setEnabled(True)
+        self._run_btn.setText("运行")
+        self._log.append_log(f"错误:\n{error_msg}")
+        self._status_bar.showMessage("轨道保持失败", _STATUS_MSG_TIMEOUT_MS)
 
     # -- 渲染 ---------------------------------------------------------------
 

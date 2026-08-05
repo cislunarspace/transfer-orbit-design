@@ -30,7 +30,7 @@ class TestOrbitDesignResultData:
 
     def test_dto_field_count(self):
         """DTO 字段数稳定（防止意外增减）。"""
-        assert len(OrbitDesignResultData.__dataclass_fields__) == 10
+        assert len(OrbitDesignResultData.__dataclass_fields__) == 11
 
     def test_dto_has_mu_field(self):
         """DTO 应包含 mu 字段（issue #339 地月标注数据流）。"""
@@ -53,8 +53,12 @@ class TestToolRegistry:
     def test_design_orbit_enabled(self):
         assert TOOL_REGISTRY["design_orbit"].enabled is True
 
+    def test_control_orbit_enabled(self):
+        """issue #348: control_orbit 已激活。"""
+        assert TOOL_REGISTRY["control_orbit"].enabled is True
+
     def test_others_disabled(self):
-        for name in ("control_orbit", "orbit_family_generation", "orbit_stability"):
+        for name in ("orbit_family_generation", "orbit_stability"):
             assert TOOL_REGISTRY[name].enabled is False, f"{name} 应为 disabled"
 
     def test_facade_methods_defined(self):
@@ -141,9 +145,7 @@ class TestFacadeBridgeDesignOrbit:
                 correction=correction,
             )
 
-        monkeypatch.setattr(
-            "e2m2e.algorithm.design.design_orbit", _capture, raising=False
-        )
+        monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _capture, raising=False)
         bridge = FacadeBridge(kernel_dir="/tmp/kernels")
         bridge.design_orbit(orbit_type="DRO")
         assert captured.get("kernel_dir") == "/tmp/kernels"
@@ -155,9 +157,7 @@ class TestFacadeBridgeDesignOrbit:
         def _fail(**kwargs):
             raise ValueError("bad amplitude")
 
-        monkeypatch.setattr(
-            "e2m2e.algorithm.design.design_orbit", _fail, raising=False
-        )
+        monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _fail, raising=False)
         bridge = FacadeBridge()
         with pytest.raises(OrbitError) as exc_info:
             bridge.design_orbit(orbit_type="DRO", amplitude=-1)
