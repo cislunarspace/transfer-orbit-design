@@ -126,18 +126,14 @@ class ProjectTreeView(QWidget):
             menu.addSeparator()
 
         delete_action = QAction("删除", menu)
-        delete_action.triggered.connect(
-            lambda: self.context_action.emit("delete", list(selected))
-        )
+        delete_action.triggered.connect(lambda: self.context_action.emit("delete", list(selected)))
         menu.addAction(delete_action)
 
         viewport = self._tree.viewport()
         assert viewport is not None  # QTreeWidget 总有 viewport
         menu.exec(viewport.mapToGlobal(point))
 
-    def _populate_type_actions(
-        self, menu: QMenu, atype: str, selected: list[str]
-    ) -> None:
+    def _populate_type_actions(self, menu: QMenu, atype: str, selected: list[str]) -> None:
         """按 artifact_type 填充类型专属菜单项（删除由调用方统一加）。"""
         if atype == "orbit":
             items = _ORBIT_MENU_ITEMS

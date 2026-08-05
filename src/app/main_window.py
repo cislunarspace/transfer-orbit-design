@@ -484,9 +484,7 @@ class MainWindow(QMainWindow):
         ]
         self._refresh_project_tree()
         self._render_canvas()
-        self._status_bar.showMessage(
-            f"已删除 {removed} 个 Artifact", _STATUS_MSG_TIMEOUT_MS
-        )
+        self._status_bar.showMessage(f"已删除 {removed} 个 Artifact", _STATUS_MSG_TIMEOUT_MS)
 
     def _trigger_control_orbit_from_tree(self, artifact_ids: list[str]) -> None:
         """右键 orbit → 轨道保持：选中该 Artifact + 切到 control_orbit 工具。
@@ -506,9 +504,7 @@ class MainWindow(QMainWindow):
             if self._tool_combo.itemData(i) == "control_orbit":
                 self._tool_combo.setCurrentIndex(i)
                 break
-        self._status_bar.showMessage(
-            "已选中轨道，调整参数后点运行", _STATUS_MSG_TIMEOUT_MS
-        )
+        self._status_bar.showMessage("已选中轨道，调整参数后点运行", _STATUS_MSG_TIMEOUT_MS)
 
     @staticmethod
     def _detect_kernel_dir() -> str:
