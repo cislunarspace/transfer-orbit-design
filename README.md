@@ -24,7 +24,7 @@ Transfer Orbit Design 是一组面向地月空间轨道设计的脚本和 GUI �
 | 星历转换 | 将 CR3BP DRO/Halo 轨道或轨道族修正到真实星历模型 | `output/ephemeris/` 下的修正结果 JSON |
 | 绘图与检查 | 轨道族全局视图、稳定性图、搜索/优化结果图、单轨道检查器 | Matplotlib 窗口或保存图片 |
 | 轨迹分析 | STM 条件数、分段打靶参数敏感性、CR3BP 数据集统计 | `output/transfer/` 分析 JSON、`figures/` 图片 |
-| GUI | 图形界面组织脚本、参数、输出目录和运行日志；支持 zh/en 中英文切换 | 桌面交互界面 |
+| GUI | Project/Artifact 管理轨道与结果；内嵌 matplotlib 可视化（3D/XY/XZ/YZ 投影、地月/L1-L5 标注、多轨道叠加）；轨道设计与轨道保持工具 | 桌面交互界面；`output/dro/*.json` + `.npz` |
 
 ## 安装
 
@@ -68,12 +68,18 @@ export SPICE_KERNEL_DIR=../e2m2e/kernels
 ### GUI
 
 ```bash
-uv run python -m tod.gui.main
+uv run python -m src.app.main
 ```
 
-GUI 会按“生成 / 星历转换 / 转移 / 绘图”组织脚本，并根据 `tod/scripting/` 中的注册信息展示参数、帮助文本和输出目录。
+或使用已安装的控制台入口：
 
-**语言切换**：GUI 支持 `zh`（中文，默认）和 `en`（英文）两种界面语言。修改 `gui_defaults.json` 中的 `"language"` 配置项后重启生效；缺失的翻译条目自动回退到中文。
+```bash
+uv run transfer-orbit-design-v2
+```
+
+启动时 GUI 自动扫描 `output/` 目录，把历史运行结果重建为 Project 中的 Artifact。界面为三栏布局：左侧项目树、中间可视化画布 + 日志标签页、右侧工具选择器 + 参数面板 + 运行按钮。
+
+操作流：选择工具（轨道设计 / 轨道保持）→ 填写参数 → 点击运行 → 结果即时落盘并在画布上叠加显示。轨道设计结果保存为 `output/dro/dro_<ts>.json` + `.npz` 双文件；轨道保持结果保存到 `output/ephemeris/`。画布支持 3D/XY/XZ/YZ 投影切换、地月天体与 L1–L5 平动点图层开关、多轨道叠加渲染。
 
 ### CLI
 
@@ -160,10 +166,8 @@ DRO 单轨生成入口已从旧的 3:1 专用脚本改名为 `generate_dro_orbit
 
 | 类别 | 脚本 | 功能 |
 |------|------|------|
-| DRO | `tod.plot.dro.plot_dro_family` | DRO 轨道族全局视图 |
-| Halo | `tod.plot.halo.plot_halo_family` | Halo 轨道族 2D/3D 视图，支持按步长采样 |
+| 统一入口 | `tod.plot.plot_orbits` | DRO/RO/Halo 轨道族与单轨道全局视图（FamilyPlotOrchestrator 统一入口） |
 | 星历 | `tod.plot.ephemeris.plot_ephemeris_correction` | 星历修正结果对比图 |
-| 检查 | `tod.plot.inspection.plot_single_orbit` | 单轨道检查器 |
 | 检查 | `tod.plot.inspection.plot_interactive_orbit_inspector` | 交互式轨道检查器 |
 | 转移 | `tod.plot.transfer.dro_to_ro.plot_search_results_dro_to_ro` | DRO→RO 搜索结果可视化 |
 | 转移 | `tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro` | DRO→RO 优化结果可视化 |
@@ -171,7 +175,7 @@ DRO 单轨生成入口已从旧的 3:1 专用脚本改名为 `generate_dro_orbit
 | 转移 | `tod.plot.transfer.geo_to_dro.*` | GEO→DRO 搜索/优化结果可视化 |
 | 转移 | `tod.plot.transfer.leo_to_dro.*` | LEO→DRO 搜索/优化结果可视化 |
 
-> 各轨道族的绘图脚本遵循统一的 `FamilyPlotOrchestrator` 架构。部分旧轨道族（RO 系列）的独立绘图脚本已整合到 orchestrator 中。
+> 轨道族绘图统一走 `tod.plot.plot_orbits` 入口（FamilyPlotOrchestrator），按文件类型与轨道族类型自动选择默认绘图配置。
 
 ## 输出数据
 
@@ -185,22 +189,36 @@ DRO 单轨生成入口已从旧的 3:1 专用脚本改名为 `generate_dro_orbit
 
 `output/*/family.json` 是最近一次生成的快捷副本，会被覆盖；长期引用请使用带时间戳的文件名。
 
+**新 GUI 双文件方案**：轨道设计结果以 `dro_<YYYYMMDDHHMMSS>.json`（标量元数据：轨道类型、历元、Jacobi 常数、收敛信息、`arrays_file` 指针）+ 同名 `.npz`（`states` / `times` / `eph_*` 数组）成对落盘到 `output/dro/`。GUI 启动时扫描 `output/` 重建 Project，数组文件按需懒加载。轨道保持结果写入 `output/ephemeris/orbit_ephemeris_<ts>.json` + `.npz`。
+
 ## 目录结构
 
 ```text
-tod/
-  commons/        常量、路径和通用工具
+src/
+  app/            主窗口组装、应用入口（src.app.main）
+  model/          Project / Artifact 数据模型、output/ 扫描发现
+  engine/         FacadeBridge、QThread worker、结果持久化、异常翻译
+  view/           内嵌 matplotlib 画布、项目树、参数面板、日志面板
+  commons/        跨层共享常量（路径、字体）
+tod/              旧 CLI 脚本工作流（新 GUI 已迁至 src/）
   generates/      CR3BP 轨道生成与 CR3BP→星历转换脚本
     cr3bp/          各轨道族生成（dro, dpo, halo, ro）
     ephemeris/      DRO/Halo 星历转换（单轨道与轨道族）
   transfers/      DRO/RO/GEO/LEO 转移搜索和优化脚本
   plot/           轨道、轨道族、搜索结果和优化结果绘图脚本
-  gui/            PyQt6 GUI、脚本注册、参数面板、运行管理、主题与国际化
+data/             CR3BP 种子数据（raw / normalized）
+packaging/        PyInstaller 打包 spec
 docs/
   source/         Sphinx 文档源文件（含 narrative/ 下的 PRD 文档）
   adr/            架构决策记录
+  architecture/   新 GUI 架构设计文档
+  planning/       迭代计划文档
+  agents/         Agent 协作与分诊文档
   development.md  开发与文档规范
-output/           运行脚本后按需创建的结果目录
+scripts/          工程辅助脚本
+tools/            开发工具
+figures/          配图
+output/           运行结果目录（GUI 启动时扫描重建 Project）
 ```
 
 ## 使命与路线图

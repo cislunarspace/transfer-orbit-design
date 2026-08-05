@@ -228,7 +228,7 @@ wheels = [
 
 [[package]]
 name = "e2m2e"
-version = "5.5.0"
+version = "5.4.0"
 source = { editable = "../e2m2e" }
 dependencies = [
     { name = "numpy" },
@@ -1269,7 +1269,7 @@ wheels = [
 
 [[package]]
 name = "transfer-orbit-design"
-version = "2.2.0"
+version = "3.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "e2m2e" },

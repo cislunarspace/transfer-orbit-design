@@ -24,7 +24,7 @@ Transfer Orbit Design is a collection of scripts and GUI tools for cislunar orbi
 | Ephemeris conversion | Correct CR3BP DRO/Halo orbits or orbit families into the real ephemeris model | Corrected result JSON under `output/ephemeris/` |
 | Plotting & inspection | Orbit family overview, stability maps, search/optimization plots, single-orbit inspector | Matplotlib windows or saved figures |
 | Trajectory analysis | STM condition number, segmented shooting parameter sensitivity, CR3BP dataset statistics | Analysis JSON under `output/transfer/`, figures under `figures/` |
-| GUI | Organizes scripts, parameters, output directories, and run logs; zh/en language switch | Desktop interface |
+| GUI | Project/Artifact management of orbits and results; embedded matplotlib visualization (3D/XY/XZ/YZ projections, Earth-Moon/L1-L5 labels, multi-orbit overlay); orbit design and station-keeping tools | Desktop interface; `output/dro/*.json` + `.npz` |
 
 ## Installation
 
@@ -68,12 +68,18 @@ export SPICE_KERNEL_DIR=../e2m2e/kernels
 ### GUI
 
 ```bash
-uv run python -m tod.gui.main
+uv run python -m src.app.main
 ```
 
-The GUI organizes scripts under "Generate / Ephemeris Conversion / Transfer / Plotting" and displays parameters, help text, and output directories based on the registrations in `tod/scripting/`.
+Or use the installed console entry point:
 
-**Language switch**: the GUI supports `zh` (Chinese, default) and `en` (English). Edit the `"language"` entry in `gui_defaults.json` and restart for it to take effect; entries missing a translation fall back to Chinese.
+```bash
+uv run transfer-orbit-design-v2
+```
+
+On startup the GUI scans the `output/` directory and rebuilds historical results into Project artifacts. The interface uses a three-column layout: project tree on the left, visualization canvas + log tabs in the center, and tool selector + parameter panel + run button on the right.
+
+Workflow: pick a tool (orbit design / station keeping) → fill in the parameters → click Run → results are persisted immediately and overlaid on the canvas. Orbit design results are saved as `output/dro/dro_<ts>.json` + `.npz`; station-keeping results go to `output/ephemeris/`. The canvas supports 3D/XY/XZ/YZ projection switching, Earth-Moon and L1–L5 layer toggles, and multi-orbit overlay.
 
 ### CLI
 
@@ -160,10 +166,8 @@ These scripts handle ephemeris correction and downstream numerical analysis for 
 
 | Category | Script | Function |
 |------|------|------|
-| DRO | `tod.plot.dro.plot_dro_family` | DRO family overview |
-| Halo | `tod.plot.halo.plot_halo_family` | Halo family 2D/3D views, with stride-based sampling |
+| Unified entry | `tod.plot.plot_orbits` | DRO/RO/Halo family and single-orbit overview (FamilyPlotOrchestrator unified entry) |
 | Ephemeris | `tod.plot.ephemeris.plot_ephemeris_correction` | Ephemeris correction comparison plots |
-| Inspection | `tod.plot.inspection.plot_single_orbit` | Single-orbit inspector |
 | Inspection | `tod.plot.inspection.plot_interactive_orbit_inspector` | Interactive orbit inspector |
 | Transfer | `tod.plot.transfer.dro_to_ro.plot_search_results_dro_to_ro` | DRO→RO search result visualization |
 | Transfer | `tod.plot.transfer.dro_to_ro.plot_optimize_result_dro_to_ro` | DRO→RO optimization result visualization |
@@ -171,7 +175,7 @@ These scripts handle ephemeris correction and downstream numerical analysis for 
 | Transfer | `tod.plot.transfer.geo_to_dro.*` | GEO→DRO search/optimization visualization |
 | Transfer | `tod.plot.transfer.leo_to_dro.*` | LEO→DRO search/optimization visualization |
 
-> The orbit family plotting scripts share a unified `FamilyPlotOrchestrator` architecture. The standalone plotting scripts of some older families (the RO series) have been merged into the orchestrator.
+> Family plotting goes through the `tod.plot.plot_orbits` entry (FamilyPlotOrchestrator), which picks the default plotting configuration from the file and family type.
 
 ## Output Data
 
@@ -185,22 +189,36 @@ Orbit and transfer results are stored mainly as JSON. Common keys include:
 
 `output/*/family.json` is a convenience copy of the most recent generation and gets overwritten; use the timestamped file names for long-term references.
 
+**New GUI dual-file scheme**: orbit design results are written as a `dro_<YYYYMMDDHHMMSS>.json` (scalar metadata: orbit type, epoch, Jacobi constant, convergence info, `arrays_file` pointer) plus a same-named `.npz` (`states` / `times` / `eph_*` arrays) pair under `output/dro/`. On startup the GUI scans `output/` to rebuild the Project, and array files are lazily loaded on demand. Station-keeping results are written to `output/ephemeris/orbit_ephemeris_<ts>.json` + `.npz`.
+
 ## Directory Structure
 
 ```text
-tod/
-  commons/        Constants, paths, and shared utilities
+src/
+  app/            Main-window assembly, application entry (src.app.main)
+  model/          Project / Artifact data model, output/ scan discovery
+  engine/         FacadeBridge, QThread workers, result persistence, exception translation
+  view/           Embedded matplotlib canvas, project tree, parameter panel, log panel
+  commons/        Cross-layer shared constants (paths, fonts)
+tod/              Legacy CLI script workflow (new GUI lives in src/)
   generates/      CR3BP orbit generation and CR3BP→ephemeris conversion scripts
     cr3bp/          Per-family generation (dro, dpo, halo, ro)
     ephemeris/      DRO/Halo ephemeris conversion (single orbit and family)
   transfers/      DRO/RO/GEO/LEO transfer search and optimization scripts
   plot/           Plotting scripts for orbits, families, search and optimization results
-  gui/            PyQt6 GUI: script registry, parameter panels, run management, themes, i18n
+data/             CR3BP seed data (raw / normalized)
+packaging/        PyInstaller packaging spec
 docs/
   source/         Sphinx documentation sources (including PRDs under narrative/)
   adr/            Architecture decision records
+  architecture/   New GUI architecture design docs
+  planning/       Iteration planning docs
+  agents/         Agent collaboration and triage docs
   development.md  Development and documentation conventions
-output/           Result directory created on demand by script runs
+scripts/          Engineering helper scripts
+tools/            Development tools
+figures/          Figures
+output/           Result directory (scanned at GUI startup to rebuild the Project)
 ```
 
 ## Mission and Roadmap

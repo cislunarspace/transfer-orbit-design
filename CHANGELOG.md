@@ -1,6 +1,32 @@
 # 更新日志
 
-## 未发布
+## 3.0.0 (2026-08-05)
+
+本版本主线是 **GUI 架构重写**：把脚本任务范式整体重写为 Project/Artifact 数据模型架构（`src/` 四层），轨道设计与轨道保持经 QThread 直接调用 e2m2e 算法层，结果以 JSON+NPZ 双文件持久化并支持启动扫描恢复。
+
+### 新增
+
+- **src/ 四层架构 GUI**：`src/model`（Project/Artifact 数据模型）、`src/engine`（FacadeBridge 薄封装 + QThread worker + 结果持久化）、`src/view`（内嵌 matplotlib 画布、项目树、Pydantic 自动参数面板、日志）、`src/app`（三栏主窗口组装）（1400a90）。
+- **两个启用工具**：轨道设计（`design_orbit`）与轨道保持（`control_orbit`，蒙特卡洛仿真），经 `TOOL_REGISTRY` 注册；轨道族生成、稳定性分析为灰显占位（8359419、0060c73）。
+- **可视化**：内嵌 matplotlib 画布，支持 3D/XY/XZ/YZ 投影切换、地月天体与 L1–L5 平动点图层开关、多轨道叠加渲染（d362edf、34f413d）。
+- **Artifact 持久化闭环**：结果以 `dro_<ts>.json`（标量元数据）+ `.npz`（states/times/ephemeris 数组）双文件落盘，启动时扫描 `output/` 重建 Project，NPZ 数组懒加载（9121cd0、ea8e5e0、db05f74）。
+- **Pydantic 自动参数面板**：参数面板由工具绑定的 Request 模型动态生成（1e772f7）；e2m2e 异常经 `translate_exception` 翻译为结构化错误（8359419）。
+- **项目树右键菜单**：右键删除 Artifact、从树直接触发轨道保持（#340）（0060c73）。
+
+### 变更
+
+- **打包切新 GUI**：PyInstaller spec 入口从 `tod.gui.main` 改为 `src.app.main`，datas 收集 `src/` 取代 `tod/`，hiddenimports 补 `e2m2e.algorithm.station_keeping`。
+- **README 重写**：README.md / README.en.md 只描述新 GUI（`uv run python -m src.app.main`），移除旧 GUI 入口与 `gui_defaults.json` 语言切换说明；CLI 脚本工作流保留。
+- **CONTEXT.md 恢复并更新**：从 git 历史恢复，更新 GUI 相关术语（工具注册、任务范式、设置/主题、图层/标注）以对齐新 GUI。
+- 适配 e2m2e v5.4 迁移（96439fc）；新 GUI 架构设计文档与可运行原型（444f0b0）。
+
+### 修复
+
+- 测试隔离：MainWindow 初始化不再读取真实 `output/` 目录（db05f74）。
+
+### 验证
+
+- 全套测试 `pytest tests/ -m "not spice"` 1290 passed, 5 skipped, 33 deselected；ruff（src/）与 pyright 0 error。
 
 ## 2.2.0 (2026-07-29)
 
