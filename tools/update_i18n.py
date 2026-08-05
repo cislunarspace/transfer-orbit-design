@@ -15,12 +15,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-I18N_DIR = Path(__file__).resolve().parent.parent / "tod" / "gui" / "i18n"
+I18N_DIR = Path(__file__).resolve().parent.parent / "src" / "app" / "i18n"
 GUI_DIR = I18N_DIR.parent
 
 
 def extract_ts() -> None:
-    """使用 pylupdate6 从 tod/gui/ 提取待翻译字符串到 .ts 文件。
+    """使用 pylupdate6 从 src/app/ 提取待翻译字符串到 .ts 文件。
 
     注意：pylupdate6 会保留已有翻译，仅标记新增条目为 unfinished。
     对于使用 QCoreApplication.translate("Context", ...) 的 Mixin 类，

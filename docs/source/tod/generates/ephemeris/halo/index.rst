@@ -1,8 +1,0 @@
-API: tod.generates.ephemeris.halo
-=================================
-
-.. toctree::
-   :maxdepth: 2
-   :titlesonly:
-
-   correct_halo_to_ephemeris

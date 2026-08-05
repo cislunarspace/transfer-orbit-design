@@ -227,6 +227,8 @@ Desktop.ini
 !/data/cr3bp_data/
 !/data/cr3bp_data/raw/
 !/data/cr3bp_data/raw/**
+!/data/cr3bp_data/normalized/
+!/data/cr3bp_data/normalized/**
 /output/
 /scripts/output/
 /results/

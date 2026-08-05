@@ -48,13 +48,7 @@ uv sync
 ### GUI
 
 ```bash
-uv run python -m src.app.main
-```
-
-或使用已安装的控制台入口：
-
-```bash
-uv run transfer-orbit-design-v2
+uv run transfer-orbit-design
 ```
 
 启动时 GUI 自动扫描 `output/` 目录，把历史运行结果重建为项目树中的 Artifact。界面为三栏布局：左侧项目树、中间可视化画布 + 日志标签页、右侧工具选择器 + 参数面板 + 运行按钮。
@@ -71,7 +65,7 @@ uv run transfer-orbit-design-v2
 
 ### 脚本与 CLI
 
-需要 CR3BP 轨道生成、转移搜索与优化、星历修正、绘图等脚本工作流时，见 [Sphinx 文档](https://cislunarspace.github.io/transfer-orbit-design/zh/) 中的脚本索引与 API 参考。旧的 `tod/` 目录仍保留这套脚本。
+需要 CR3BP 轨道生成、转移搜索与优化、星历修正、绘图等脚本工作流时，使用 [e2m2e CLI](https://github.com/cislunarspace/e2m2e)，详见 [Sphinx 文档](https://cislunarspace.github.io/e2m2e/)。
 
 ## 使命与进度
 
@@ -83,7 +77,7 @@ uv run transfer-orbit-design-v2
 | 轨道保持（蒙特卡洛） | 已实现 | 以选中轨道星历为输入，输出受控星历与 Δv 统计 |
 | 多轨道可视化 | 已实现 | 3D/XY/XZ/YZ 投影、地月/L1–L5 标注、多轨道叠加 |
 | Artifact 持久化闭环 | 已实现 | 启动扫描 `output/` 重建 Project，数组 NPZ 懒加载 |
-| CLI 脚本工作流 | 已实现（遗留） | `tod/` 下的脚本，见 Sphinx 文档 |
+| CLI 脚本工作流 | 已实现（遗留） | 经 e2m2e CLI 使用，见 e2m2e 文档 |
 | 轨道族生成 / 稳定性分析 | 规划中 | 工具下拉灰显占位 |
 
 ## 文档

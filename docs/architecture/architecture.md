@@ -87,7 +87,7 @@ transfer-orbit-design/
 | `tod/plot/` | `plot/`（顶层） | 独立绘图脚本，高级用户可直接命令行使用 |
 | `tod/commons/` | `src/commons/` | 物理常量、轨道几何计算，不依赖 e2m2e 内部结构 |
 
-`src/` 是 Python src layout 约定：`pyproject.toml` 中 `packages = ["src"]`，import 时为 `from src.model import ...`。
+`src/` 是 Python src layout 约定：`pyproject.toml` 中 `[tool.setuptools.packages.find]` 通过 `include = ["src*", "plot*"]` 发现包，import 时为 `from src.model import ...`、`from plot.transfer.common import ...`。
 
 ## 第1层 数据层 `src/model/`
 

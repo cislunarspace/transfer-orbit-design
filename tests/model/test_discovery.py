@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC
 from pathlib import Path
 
 from src.model.discovery import discover_artifacts
@@ -123,10 +124,9 @@ class TestDiscoverArtifacts:
         p.write_text(json.dumps({"orbit_type": "DRO"}), encoding="utf-8")
         arts = discover_artifacts(tmp_path)
         # created_at should be close to now (within 60 seconds)
-        import time
-        from datetime import datetime, timezone
+        from datetime import datetime
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         assert abs((now - arts[0].created_at).total_seconds()) < 60
 
     def test_state_data_and_times_loaded(self, tmp_path: Path) -> None:

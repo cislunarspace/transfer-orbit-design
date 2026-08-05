@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import BaseModel, Field
-
 from e2m2e.api.models import DesignOrbitRequest
+from pydantic import BaseModel, Field
 
 
 @pytest.fixture()

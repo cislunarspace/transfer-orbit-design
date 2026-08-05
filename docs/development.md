@@ -6,18 +6,13 @@
 
 ### 模块级 docstring
 
-每个 `tod/` 生产模块都必须包含模块级 docstring，并放在文件第一条语句。建议结构：
+每个 `src/` 生产模块都必须包含模块级 docstring，并放在文件第一条语句。建议结构：
 
 ```python
 """生成 DRO 轨道族。
 
-本模块在地月 CR3BP 中从已知 DRO 种子轨道出发，通过微分修正和自然延拓生成轨道族。
-输入为命令行参数中的初始状态、周期猜测和延拓范围；输出为 `output/dro/` 下的 JSON/CSV 文件。
-
-运行示例:
-    .. code-block:: bash
-
-       uv run python -m tod.generates.cr3bp.dro.generate_dro_family --step-size 0.005
+在地月 CR3BP 中从已知 DRO 种子轨道出发，通过微分修正和自然延拓生成轨道族。
+输入为 GUI 参数面板填写的种子状态、周期猜测和延拓范围；输出为 `output/dro/` 下的轨道族 JSON 文件。
 """
 ```
 
@@ -94,21 +89,21 @@ python tools/update_i18n.py --compile # 仅编译 .ts → .qm
 ```
 
 脚本执行三个步骤：
-1. 用 `pylupdate6` 从 `tod/gui/` 提取待翻译字符串到 `tod/gui/i18n/gui.en.ts`
+1. 用 `pylupdate6` 从 `src/app/` 提取待翻译字符串到 `src/app/i18n/gui.en.ts`
 2. 用 `lrelease6` 编译所有 `.ts` 文件为 `.qm` 二进制格式
-3. 校验 `tod/gui/i18n/scripts.*.json` 的 JSON 格式
+3. 校验 `src/app/i18n/scripts.*.json` 的 JSON 格式
 
 依赖：`pylupdate6` 和 `lrelease6`（来自 PyQt6 或 PySide6 工具包）。新增 GUI 文本后应运行此脚本更新翻译文件。
 
 ### Sphinx 文档
 
-Sphinx 源文件位于 `docs/source/`。API 页面使用 `automodule`，叙事文档通过 MyST Markdown 接入。
+Sphinx 源文件位于 `docs/source/`，叙事文档通过 MyST Markdown 接入。
 
 ```bash
 uv run --extra docs python -m sphinx -b html docs/source docs/build/html
 ```
 
-提交前应至少确认构建无 ERROR，并尽量清理 WARNING。若新增公开模块，请在对应 `docs/source/tod/` toctree 中加入页面。
+提交前应至少确认构建无 ERROR，并尽量清理 WARNING。若新增叙事页面，请在 `docs/source/index.rst` 的对应 toctree 中加入条目。
 
 ### 多语言 README
 

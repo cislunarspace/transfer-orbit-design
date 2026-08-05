@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from src.engine.facade_bridge import FacadeBridge, OrbitDesignResultData, TOOL_REGISTRY
+from src.engine.facade_bridge import TOOL_REGISTRY, FacadeBridge, OrbitDesignResultData
 
 
 class TestDesignOrbitE2EMocked:

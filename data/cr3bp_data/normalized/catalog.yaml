@@ -1,0 +1,270 @@
+schema_version: 1
+generated_by: tod.generates.cr3bp.importer
+files:
+  index: index.csv
+  families:
+    axial: families/axial.csv
+    butterfly: families/butterfly.csv
+    dpo: families/dpo.csv
+    dragonfly: families/dragonfly.csv
+    dro: families/dro.csv
+    halo: families/halo.csv
+    lpo: families/lpo.csv
+    lpo_directional: families/lpo_directional.csv
+    lyapunov: families/lyapunov.csv
+    resonant: families/resonant.csv
+    spo: families/spo.csv
+    vertical: families/vertical.csv
+datasets:
+  - dataset_id: earth-moon_axial_L1
+    orbit_type: axial
+    source_orbit_type: axial
+    source_file: earth-moon_axial_L1.xlsx
+    row_count: 2498
+    script_status: script_incomplete
+  - dataset_id: earth-moon_axial_L2
+    orbit_type: axial
+    source_orbit_type: axial
+    source_file: earth-moon_axial_L2.xlsx
+    row_count: 2198
+    script_status: script_incomplete
+  - dataset_id: earth-moon_axial_L3
+    orbit_type: axial
+    source_orbit_type: axial
+    source_file: earth-moon_axial_L3.xlsx
+    row_count: 6999
+    script_status: script_incomplete
+  - dataset_id: earth-moon_axial_L4
+    orbit_type: axial
+    source_orbit_type: axial
+    source_file: earth-moon_axial_L4.xlsx
+    row_count: 7003
+    script_status: script_incomplete
+  - dataset_id: earth-moon_axial_L5
+    orbit_type: axial
+    source_orbit_type: axial
+    source_file: earth-moon_axial_L5.xlsx
+    row_count: 7003
+    script_status: script_incomplete
+  - dataset_id: earth-moon_butterfly_N
+    orbit_type: butterfly
+    source_orbit_type: butterfly
+    source_file: earth-moon_butterfly_N.xlsx
+    row_count: 3238
+    script_status: script_incomplete
+  - dataset_id: earth-moon_butterfly_S
+    orbit_type: butterfly
+    source_orbit_type: butterfly
+    source_file: earth-moon_butterfly_S.xlsx
+    row_count: 3238
+    script_status: script_incomplete
+  - dataset_id: earth-moon_dpo
+    orbit_type: dpo
+    source_orbit_type: dpo
+    source_file: earth-moon_dpo.xlsx
+    row_count: 5168
+    script_status: supported
+  - dataset_id: earth-moon_dragonfly_N
+    orbit_type: dragonfly
+    source_orbit_type: dragonfly
+    source_file: earth-moon_dragonfly_N.xlsx
+    row_count: 1409
+    script_status: script_missing
+  - dataset_id: earth-moon_dragonfly_S
+    orbit_type: dragonfly
+    source_orbit_type: dragonfly
+    source_file: earth-moon_dragonfly_S.xlsx
+    row_count: 1409
+    script_status: script_missing
+  - dataset_id: earth-moon_dro
+    orbit_type: dro
+    source_orbit_type: dro
+    source_file: earth-moon_dro.xlsx
+    row_count: 10998
+    script_status: supported
+  - dataset_id: earth-moon_halo_L1_N
+    orbit_type: halo
+    source_orbit_type: halo
+    source_file: earth-moon_halo_L1_N.xlsx
+    row_count: 5731
+    script_status: supported
+  - dataset_id: earth-moon_halo_L1_S
+    orbit_type: halo
+    source_orbit_type: halo
+    source_file: earth-moon_halo_L1_S.xlsx
+    row_count: 5731
+    script_status: supported
+  - dataset_id: earth-moon_halo_L2_N
+    orbit_type: halo
+    source_orbit_type: halo
+    source_file: earth-moon_halo_L2_N.xlsx
+    row_count: 1535
+    script_status: supported
+  - dataset_id: earth-moon_halo_L2_S
+    orbit_type: halo
+    source_orbit_type: halo
+    source_file: earth-moon_halo_L2_S.xlsx
+    row_count: 1535
+    script_status: supported
+  - dataset_id: earth-moon_halo_L3_N
+    orbit_type: halo
+    source_orbit_type: halo
+    source_file: earth-moon_halo_L3_N.xlsx
+    row_count: 6175
+    script_status: unsupported_parameter
+  - dataset_id: earth-moon_halo_L3_S
+    orbit_type: halo
+    source_orbit_type: halo
+    source_file: earth-moon_halo_L3_S.xlsx
+    row_count: 6175
+    script_status: unsupported_parameter
+  - dataset_id: earth-moon_longp_L4
+    orbit_type: lpo
+    source_orbit_type: longp
+    source_file: earth-moon_longp_L4.xlsx
+    row_count: 4703
+    script_status: script_incomplete
+  - dataset_id: earth-moon_longp_L5
+    orbit_type: lpo
+    source_orbit_type: longp
+    source_file: earth-moon_longp_L5.xlsx
+    row_count: 4703
+    script_status: script_incomplete
+  - dataset_id: earth-moon_lpo_E
+    orbit_type: lpo_directional
+    source_orbit_type: lpo
+    source_file: earth-moon_lpo_E.xlsx
+    row_count: 2695
+    script_status: semantic_uncertain
+  - dataset_id: earth-moon_lpo_W
+    orbit_type: lpo_directional
+    source_orbit_type: lpo
+    source_file: earth-moon_lpo_W.xlsx
+    row_count: 2726
+    script_status: semantic_uncertain
+  - dataset_id: earth-moon_lyapunov_L1
+    orbit_type: lyapunov
+    source_orbit_type: lyapunov
+    source_file: earth-moon_lyapunov_L1.xlsx
+    row_count: 3108
+    script_status: script_incomplete
+  - dataset_id: earth-moon_lyapunov_L2
+    orbit_type: lyapunov
+    source_orbit_type: lyapunov
+    source_file: earth-moon_lyapunov_L2.xlsx
+    row_count: 4298
+    script_status: script_incomplete
+  - dataset_id: earth-moon_lyapunov_L3
+    orbit_type: lyapunov
+    source_orbit_type: lyapunov
+    source_file: earth-moon_lyapunov_L3.xlsx
+    row_count: 5498
+    script_status: script_incomplete
+  - dataset_id: earth-moon_resonant_11
+    orbit_type: resonant
+    source_orbit_type: resonant
+    source_file: earth-moon_resonant_11.xlsx
+    row_count: 2052
+    script_status: unsupported_parameter
+  - dataset_id: earth-moon_resonant_12
+    orbit_type: resonant
+    source_orbit_type: resonant
+    source_file: earth-moon_resonant_12.xlsx
+    row_count: 11998
+    script_status: unsupported_parameter
+  - dataset_id: earth-moon_resonant_13
+    orbit_type: resonant
+    source_orbit_type: resonant
+    source_file: earth-moon_resonant_13.xlsx
+    row_count: 19782
+    script_status: unsupported_parameter
+  - dataset_id: earth-moon_resonant_14
+    orbit_type: resonant
+    source_orbit_type: resonant
+    source_file: earth-moon_resonant_14.xlsx
+    row_count: 13147
+    script_status: unsupported_parameter
+  - dataset_id: earth-moon_resonant_21
+    orbit_type: resonant
+    source_orbit_type: resonant
+    source_file: earth-moon_resonant_21.xlsx
+    row_count: 7467
+    script_status: unsupported_parameter
+  - dataset_id: earth-moon_resonant_23
+    orbit_type: resonant
+    source_orbit_type: resonant
+    source_file: earth-moon_resonant_23.xlsx
+    row_count: 9507
+    script_status: unsupported_parameter
+  - dataset_id: earth-moon_resonant_31
+    orbit_type: resonant
+    source_orbit_type: resonant
+    source_file: earth-moon_resonant_31.xlsx
+    row_count: 12156
+    script_status: script_incomplete
+  - dataset_id: earth-moon_resonant_32
+    orbit_type: resonant
+    source_orbit_type: resonant
+    source_file: earth-moon_resonant_32.xlsx
+    row_count: 8215
+    script_status: script_incomplete
+  - dataset_id: earth-moon_resonant_34
+    orbit_type: resonant
+    source_orbit_type: resonant
+    source_file: earth-moon_resonant_34.xlsx
+    row_count: 10717
+    script_status: unsupported_parameter
+  - dataset_id: earth-moon_resonant_41
+    orbit_type: resonant
+    source_orbit_type: resonant
+    source_file: earth-moon_resonant_41.xlsx
+    row_count: 8014
+    script_status: unsupported_parameter
+  - dataset_id: earth-moon_resonant_43
+    orbit_type: resonant
+    source_orbit_type: resonant
+    source_file: earth-moon_resonant_43.xlsx
+    row_count: 7517
+    script_status: unsupported_parameter
+  - dataset_id: earth-moon_short_L4
+    orbit_type: spo
+    source_orbit_type: short
+    source_file: earth-moon_short_L4.xlsx
+    row_count: 6999
+    script_status: script_incomplete
+  - dataset_id: earth-moon_short_L5
+    orbit_type: spo
+    source_orbit_type: short
+    source_file: earth-moon_short_L5.xlsx
+    row_count: 6999
+    script_status: script_incomplete
+  - dataset_id: earth-moon_vertical_L1
+    orbit_type: vertical
+    source_orbit_type: vertical
+    source_file: earth-moon_vertical_L1.xlsx
+    row_count: 6670
+    script_status: script_incomplete
+  - dataset_id: earth-moon_vertical_L2
+    orbit_type: vertical
+    source_orbit_type: vertical
+    source_file: earth-moon_vertical_L2.xlsx
+    row_count: 9651
+    script_status: script_incomplete
+  - dataset_id: earth-moon_vertical_L3
+    orbit_type: vertical
+    source_orbit_type: vertical
+    source_file: earth-moon_vertical_L3.xlsx
+    row_count: 6999
+    script_status: script_incomplete
+  - dataset_id: earth-moon_vertical_L4
+    orbit_type: vertical
+    source_orbit_type: vertical
+    source_file: earth-moon_vertical_L4.xlsx
+    row_count: 9172
+    script_status: script_incomplete
+  - dataset_id: earth-moon_vertical_L5
+    orbit_type: vertical
+    source_orbit_type: vertical
+    source_file: earth-moon_vertical_L5.xlsx
+    row_count: 9172
+    script_status: script_incomplete

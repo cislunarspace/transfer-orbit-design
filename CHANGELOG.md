@@ -1,5 +1,29 @@
 # 更新日志
 
+## 3.1.0 (2026-08-06)
+
+本版本是 3.0.0 GUI 架构重写的收尾：退役旧架构 `tod/`，消除双轨并存，让 `src/` 四层架构成为唯一代码（#349）。新架构在 3.0.0 已落地且不反向依赖 `tod/`，退役不影响已发布的 GUI 功能。
+
+### 退役
+
+- **删除 `tod/`（136 .py）与 `tests/tod/`（81 文件）**：旧 GUI（mixin 架构）、`generates/transfers/scripting` 脚本层、`commons/e2m2e_compat` 旧路径兼容 shim 全部移除。脚本工作流的算法逻辑本就属于 e2m2e，CLI 用户改经 e2m2e CLI 使用（ADR 0006）。
+- **`tod/commons/` 迁入 `src/commons/`**：`constants.py`（CR3BP 惰性常量 MU/DU/TU/VU）、`orbits.py`（GEO/LEO 圆轨道几何）、`input_contract.py`（输入文件选择契约）、`paths.py`（OUTPUT_DIR + find_project_root + safe_resolve_within + ensure_output_dir 合并）。
+- **`tod/plot/` 提升为顶层 `plot/`**：内部 import 改 `src.commons.*`，剥离 `tod.scripting`（SCRIPT_ENTRY 机制废弃），`load_search_results` 与 `find_latest_single_dro` 提取为 `plot/_io_utils.py`、`plot/_artifact_helpers.py`。绘图脚本作为独立命令行工具保留，供高级用户使用。
+- **`tod/gui/i18n` 迁入 `src/app/i18n`**：`.qm`/`.json` 资源随 package-data 路径同步更新。
+
+### 变更
+
+- **入口扶正**：`transfer-orbit-design` 命令从 `tod.gui.main:main` 改为 `src.app.main:main`，移除 `-v2` 别名。
+- **PyInstaller spec**：datas 收 `src/` + `plot/` 取代 `tod/`；注释更新为新 GUI QThread 直调模型（不再依赖磁盘脚本扫描）。
+- **README**：移除 `-v2` 命令与 `tod/` 引用，CLI 脚本工作流指向 e2m2e CLI。
+- **CI/lint**：ruff `exclude` 移除 `"tod/"`（全仓纳入扫描）；`docs.yml` 触发路径移除 `tod/**`、增加 `plot/**`。
+- **Sphinx 文档**：删除 `docs/source/tod/`（101 RST，含 `automodule:: tod.*`）与对应 locale `.po`（137 文件），`index.rst` 移除 `tod/index` toctree。
+- **扫描结论**：`tod/transfers`、`tod/generates` 经核查均为 e2m2e algorithm 层的薄封装 + argparse CLI，无非薄封装的编排逻辑需迁移；等价覆盖由 e2m2e 自身测试承担。
+
+### 验证
+
+- 测试基线从 ~1290 降至 232（移除 `tests/tod/` 占原 86%）；`uv run pytest` 232 passed；`uv run ruff check .` 0 error（移除 `tod/` exclude 后全仓扫描通过）。
+
 ## 3.0.0 (2026-08-05)
 
 本版本主线是 **GUI 架构重写**：把脚本任务范式整体重写为 Project/Artifact 数据模型架构（`src/` 四层），轨道设计与轨道保持经 QThread 直接调用 e2m2e 算法层，结果以 JSON+NPZ 双文件持久化并支持启动扫描恢复。

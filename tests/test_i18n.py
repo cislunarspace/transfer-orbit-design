@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 import pytest
 
-from tod.gui.i18n import TranslationLoader, translate_script_entry
+from src.app.i18n import TranslationLoader, translate_script_entry
 
 
 @pytest.fixture

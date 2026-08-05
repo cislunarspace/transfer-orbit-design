@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from src.engine.exceptions import OrbitError, translate_exception
 
 

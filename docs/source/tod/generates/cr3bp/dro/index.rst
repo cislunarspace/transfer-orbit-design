@@ -1,9 +1,0 @@
-API: tod.generates.cr3bp.dro
-============================
-
-.. toctree::
-   :maxdepth: 2
-   :titlesonly:
-
-   generate_dro_orbit
-   generate_dro_family

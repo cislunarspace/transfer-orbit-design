@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -24,7 +24,7 @@ class TestArtifactDefaults:
 
     def test_created_at_is_utc(self) -> None:
         art = Artifact()
-        assert art.created_at.tzinfo == timezone.utc
+        assert art.created_at.tzinfo == UTC
 
     def test_arrays_default_to_none(self) -> None:
         art = Artifact()

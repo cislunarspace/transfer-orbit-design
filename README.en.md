@@ -48,13 +48,7 @@ Ephemeris dynamics requires NASA SPICE kernel files, placed in `kernels/` or the
 ### GUI
 
 ```bash
-uv run python -m src.app.main
-```
-
-Or use the installed console entry point:
-
-```bash
-uv run transfer-orbit-design-v2
+uv run transfer-orbit-design
 ```
 
 On startup the GUI scans the `output/` directory and rebuilds historical results into project-tree artifacts. The interface uses a three-column layout: project tree on the left, visualization canvas + log tabs in the center, and tool selector + parameter panel + run button on the right.
@@ -71,7 +65,7 @@ Station keeping: right-click an orbit in the project tree → select "Station Ke
 
 ### Scripts and CLI
 
-For the script workflows — CR3BP orbit generation, transfer search and optimization, ephemeris correction, plotting — see the script index and API reference in the [Sphinx docs](https://cislunarspace.github.io/transfer-orbit-design/en/). The legacy `tod/` directory still contains these scripts.
+For the script workflows — CR3BP orbit generation, transfer search and optimization, ephemeris correction, plotting — use the [e2m2e CLI](https://github.com/cislunarspace/e2m2e); see the [Sphinx docs](https://cislunarspace.github.io/e2m2e/).
 
 ## Mission and Progress
 
@@ -83,7 +77,7 @@ Cislunar orbit design demands algorithms that are accurate and tools that are us
 | Station keeping (Monte Carlo) | Implemented | Takes a selected orbit's ephemeris as input; outputs controlled ephemeris and Δv statistics |
 | Multi-orbit visualization | Implemented | 3D/XY/XZ/YZ projections, Earth-Moon/L1–L5 annotations, multi-orbit overlay |
 | Artifact persistence loop | Implemented | Scans `output/` on startup to rebuild the Project; lazy NPZ loading |
-| CLI script workflow | Implemented (legacy) | Scripts under `tod/`; see the Sphinx docs |
+| CLI script workflow | Implemented (legacy) | Via e2m2e CLI; see e2m2e docs |
 | Orbit family generation / stability analysis | Planned | Greyed-out placeholder in the tool selector |
 
 ## Documentation

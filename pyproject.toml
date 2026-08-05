@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "transfer-orbit-design"
-version = "3.0.0"
+version = "3.1.0"
 description = "地月空间转移轨道设计与分析脚本工具集，提供 CR3BP 轨道生成、转移设计、绘图和星历转换能力"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -44,8 +44,7 @@ docs = [
 ]
 
 [project.scripts]
-transfer-orbit-design = "tod.gui.main:main"
-transfer-orbit-design-v2 = "src.app.main:main"
+transfer-orbit-design = "src.app.main:main"
 
 [project.urls]
 Repository = "https://github.com/cislunarspace/transfer-orbit-design"
@@ -64,11 +63,11 @@ markers = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["tod*", "src*"]
+include = ["src*", "plot*"]
 exclude = ["tests*", "scripts*"]
 
 [tool.setuptools.package-data]
-"tod.gui.i18n" = ["*.qm", "*.json"]
+"src.app.i18n" = ["*.qm", "*.json"]
 
 [dependency-groups]
 dev = ["ruff>=0.1", "pyright>=1.1"]
@@ -76,7 +75,7 @@ dev = ["ruff>=0.1", "pyright>=1.1"]
 [tool.ruff]
 line-length = 100
 target-version = "py313"
-exclude = ["tod/", "tests/", "docs/", "scripts/", "tools/"]
+exclude = ["tests/", "docs/", "scripts/", "tools/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM"]
