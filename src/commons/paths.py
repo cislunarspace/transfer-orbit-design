@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = [
     "OUTPUT_DIR",
+    "detect_kernel_dir",
     "ensure_output_dir",
     "find_project_root",
     "safe_resolve_within",
@@ -67,3 +68,23 @@ def safe_resolve_within(user_path: str, allowed_root: Path) -> Path | None:
 def ensure_output_dir(output_dir: str = "output") -> None:
     """确保输出目录存在。"""
     os.makedirs(output_dir, exist_ok=True)
+
+
+def detect_kernel_dir() -> str:
+    """探测 SPICE 内核目录。
+
+    优先级：``$SPICE_KERNEL_DIR`` -> ``<repo>/../e2m2e/kernels/``；找不到返回空串。
+
+    e2m2e 改为 pip 安装后，其内部闰秒内核（``.tls``）的自动搜索路径按源码仓库
+    布局计算父目录（``parents[3]``），在 site-packages 布局下指向错误位置，导致
+    ``SPICE(NOLEAPSECONDS)``、轨道设计失败。规避：调用方须在 import e2m2e 之前把
+    本函数返回值写入 ``SPICE_KERNEL_DIR``（e2m2e 的第二搜索路径），见 ``main()``。
+    """
+    env_val = os.environ.get("SPICE_KERNEL_DIR", "")
+    if env_val and Path(env_val).is_dir():
+        return env_val
+
+    candidate = _REPO_ROOT.parent / "e2m2e" / "kernels"
+    if candidate.is_dir():
+        return str(candidate)
+    return ""

@@ -5,7 +5,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import numpy as np
@@ -24,7 +23,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.commons.paths import OUTPUT_DIR
+from src.commons.paths import OUTPUT_DIR, detect_kernel_dir
 from src.engine.facade_bridge import (
     TOOL_REGISTRY,
     ControlResultData,
@@ -617,21 +616,8 @@ class MainWindow(QMainWindow):
 
     @staticmethod
     def _detect_kernel_dir() -> str:
-        """自动探测 SPICE 内核目录。
-
-        优先级：$SPICE_KERNEL_DIR 环境变量 -> ../e2m2e/kernels/。
-        """
-        env_val = os.environ.get("SPICE_KERNEL_DIR", "")
-        if env_val and Path(env_val).is_dir():
-            return env_val
-
-        here = Path(__file__).resolve()
-        repo_root = here.parent.parent.parent
-        candidate = repo_root.parent / "e2m2e" / "kernels"
-        if candidate.is_dir():
-            return str(candidate)
-
-        return ""
+        """自动探测 SPICE 内核目录（逻辑见 src.commons.paths.detect_kernel_dir）。"""
+        return detect_kernel_dir()
 
     def _on_worker_log(self, msg: str) -> None:
         self._log.append_log(msg)
