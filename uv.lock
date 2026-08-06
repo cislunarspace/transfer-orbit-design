@@ -229,7 +229,7 @@ wheels = [
 [[package]]
 name = "e2m2e"
 version = "5.5.0"
-source = { editable = "../e2m2e" }
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "pydantic" },
@@ -239,37 +239,10 @@ dependencies = [
     { name = "spiceypy" },
     { name = "tqdm" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "joblib", marker = "extra == 'normal-form'", specifier = ">=1.3" },
-    { name = "matplotlib", marker = "extra == 'viz'", specifier = ">=3.7" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0" },
-    { name = "numpy", specifier = ">=1.24" },
-    { name = "pydantic", specifier = ">=2.0" },
-    { name = "pyerfa", specifier = ">=2.0.1.5" },
-    { name = "r2s2", specifier = ">=0.1.0" },
-    { name = "scipy", specifier = ">=1.10" },
-    { name = "spiceypy", specifier = ">=8.1.0" },
-    { name = "sympy", marker = "extra == 'normal-form'", specifier = ">=1.12" },
-    { name = "tqdm", specifier = ">=4.66" },
-]
-provides-extras = ["normal-form", "viz", "mcp"]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "maturin", specifier = ">=1.0" },
-    { name = "mypy" },
-    { name = "pytest", specifier = ">=9.0.3" },
-    { name = "pytest-cov", specifier = ">=4.0" },
-    { name = "pytest-xdist", specifier = ">=3.0" },
-    { name = "ruff", specifier = ">=0.1" },
-]
-docs = [
-    { name = "sphinx", specifier = ">=7" },
-    { name = "sphinx-copybutton", specifier = ">=0.5" },
-    { name = "sphinx-rtd-theme", specifier = ">=2" },
-    { name = "sphinxcontrib-mermaid", specifier = ">=0.9" },
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/73/47/8d0c0ffef716de851e9ce41f02ed6e29d85a414f2e7b698b6cf1ca247237/e2m2e-5.5.0.tar.gz", hash = "sha256:700644636d30478a1e6265244aa0d7e5a7c58c6a3f54f3790be6b1a632d02d02", size = 3312212, upload-time = "2026-08-04T16:03:14.435Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/41/7a/8a3c5fb157b72158cee0f3aab7af544a146b78cf00d2d2bcdaccba8de3f6/e2m2e-5.5.0-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:ed103a605e153fcbf25dbae2067b6f3046cedbceed905d74a42f39e0473993fd", size = 4645282, upload-time = "2026-08-04T16:03:09.728Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/59/c8/ca12c3c6dad3b043226410408b38b2f6b85872bc2a7dfe58d1ee73f2f520/e2m2e-5.5.0-cp310-abi3-win_amd64.whl", hash = "sha256:0ca0948e1222492eec7988707a8ab491f67f903dfb89d6cc3e282f31598723ad", size = 4370556, upload-time = "2026-08-04T16:03:11.914Z" },
 ]
 
 [[package]]
@@ -1301,7 +1274,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "e2m2e", editable = "../e2m2e" },
+    { name = "e2m2e", specifier = ">=5.5.0" },
     { name = "matplotlib", specifier = ">=3.10.0" },
     { name = "myst-parser", marker = "extra == 'docs'", specifier = ">=2.0" },
     { name = "numpy", specifier = ">=2.4.0" },
