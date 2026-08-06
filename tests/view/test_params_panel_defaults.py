@@ -168,7 +168,7 @@ class TestApplyOrbitTypeDefaults:
         )
 
         widgets = build_params_from_model(DesignOrbitRequest)
-        apply_orbit_type_defaults(widgets, "DRO", DesignOrbitRequest)
+        apply_orbit_type_defaults(widgets, "DRO")
 
         # DRO 分支：amplitude -> QDoubleSpinBox 10000.0
         amp = widgets["amplitude"]
@@ -185,7 +185,7 @@ class TestApplyOrbitTypeDefaults:
         )
 
         widgets = build_params_from_model(DesignOrbitRequest)
-        apply_orbit_type_defaults(widgets, "NRHO", DesignOrbitRequest)
+        apply_orbit_type_defaults(widgets, "NRHO")
 
         # collinear_point -> QSpinBox 2
         cp = widgets["collinear_point"]
@@ -206,7 +206,7 @@ class TestApplyOrbitTypeDefaults:
         )
 
         widgets = build_params_from_model(DesignOrbitRequest)
-        apply_orbit_type_defaults(widgets, "Halo", DesignOrbitRequest)
+        apply_orbit_type_defaults(widgets, "Halo")
         params = collect_params(widgets, DesignOrbitRequest)
 
         assert params["collinear_point"] == 2
@@ -221,4 +221,4 @@ class TestApplyOrbitTypeDefaults:
         )
 
         widgets = build_params_from_model(DesignOrbitRequest)
-        apply_orbit_type_defaults(widgets, "UNKNOWN", DesignOrbitRequest)  # 不应抛异常
+        apply_orbit_type_defaults(widgets, "UNKNOWN")  # 不应抛异常

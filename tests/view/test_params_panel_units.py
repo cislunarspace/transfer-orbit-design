@@ -110,20 +110,20 @@ class TestWidgetDefaultUnit:
         """amplitude 默认显示单位为 km。"""
         from PyQt6.QtWidgets import QDoubleSpinBox
 
-        from src.view.params_panel import build_params_from_model
+        from src.view.params_panel import _UNIT_ATTR, build_params_from_model
 
         widgets = build_params_from_model(DesignOrbitRequest)
         amp = widgets["amplitude"]
         sb = amp.findChild(QDoubleSpinBox)
         assert sb is not None
-        assert sb.property("__params_panel_unit") == "km"
+        assert sb.property(_UNIT_ATTR) == "km"
 
     def test_phase_no_unit_property(self, qapp):
         """phase 无量纲，不应有单位属性。"""
-        from src.view.params_panel import build_params_from_model
+        from src.view.params_panel import _UNIT_ATTR, build_params_from_model
 
         widgets = build_params_from_model(DesignOrbitRequest)
-        assert widgets["phase"].property("__params_panel_unit") is None
+        assert widgets["phase"].property(_UNIT_ATTR) is None
 
     def test_default_collect_is_standard(self, qapp):
         """默认（标准单位）下 collect 返回标准单位值。"""
@@ -147,6 +147,7 @@ class TestSetSpinboxUnit:
         from PyQt6.QtWidgets import QDoubleSpinBox
 
         from src.view.params_panel import (
+            _UNIT_ATTR,
             build_params_from_model,
             set_spinbox_unit,
         )
@@ -160,7 +161,7 @@ class TestSetSpinboxUnit:
         from src.commons.units import DU_KM
 
         assert sb.value() == pytest.approx(10000.0 / DU_KM)
-        assert sb.property("__params_panel_unit") == "DU"
+        assert sb.property(_UNIT_ATTR) == "DU"
         assert sb.decimals() >= 6
 
     def test_switch_back_restores_value(self, qapp):
@@ -215,7 +216,7 @@ class TestCollectWithUnits:
         )
 
         widgets = build_params_from_model(DesignOrbitRequest)
-        apply_orbit_type_defaults(widgets, "DRO", DesignOrbitRequest)
+        apply_orbit_type_defaults(widgets, "DRO")
         sb = widgets["amplitude"]  # apply 后已解包为 QDoubleSpinBox
         assert isinstance(sb, QDoubleSpinBox)
         set_spinbox_unit(sb, "amplitude", "DU")
@@ -237,13 +238,13 @@ class TestCollectWithUnits:
         )
 
         widgets = build_params_from_model(DesignOrbitRequest)
-        apply_orbit_type_defaults(widgets, "DRO", DesignOrbitRequest)
+        apply_orbit_type_defaults(widgets, "DRO")
         sb = widgets["amplitude"]
         assert isinstance(sb, QDoubleSpinBox)
         set_spinbox_unit(sb, "amplitude", "DU")
 
         # 再次 apply DRO 默认值（标准单位 10000 km），应换算为 DU 显示
-        apply_orbit_type_defaults(widgets, "DRO", DesignOrbitRequest)
+        apply_orbit_type_defaults(widgets, "DRO")
         assert sb.value() == pytest.approx(10000.0 / DU_KM)
 
         params = collect_params(widgets, DesignOrbitRequest)

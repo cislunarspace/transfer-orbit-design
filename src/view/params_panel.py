@@ -109,7 +109,7 @@ _EPOCH_SPINBOX_SPECS: tuple[tuple[str, float, float, bool], ...] = (
     ("日", 1, 31, True),
     ("时", 0, 23, True),
     ("分", 0, 59, True),
-    ("秒", 0.0, 60.0, False),
+    ("秒", 0.0, 59.0, False),
 )
 
 # ---------------------------------------------------------------------------
@@ -158,6 +158,13 @@ FIELD_UNIT_OPTIONS: dict[str, tuple[UnitOption, ...]] = {
         UnitOption("TU", TU_SECONDS, decimals=4, step=0.001),
     ),
 }
+
+# Qt 动态属性名：控件用 setProperty 存单位状态。拼错会静默破坏换算，故提为常量。
+# 用单下划线前缀，避免双下划线带来的 name-mangling 语义误导（动态属性本身不参与
+# mangling，但双下划线会让读者误以为有改写）。
+_UNIT_ATTR = "_params_panel_unit"
+_STD_MIN_ATTR = "_params_panel_std_min"
+_STD_MAX_ATTR = "_params_panel_std_max"
 
 # ---------------------------------------------------------------------------
 # 辅助函数
@@ -214,14 +221,18 @@ def get_field_units(field_name: str) -> tuple[UnitOption, ...] | None:
 
 
 def _find_unit_option(field_name: str, unit: str) -> UnitOption | None:
-    """按单位名查找 UnitOption；未知时回退到标准单位（首个）。"""
+    """按单位名查找 UnitOption；未知单位返回 None（不静默回退到首个）。
+
+    调用方传入的 unit 通常来自控件属性或单位下拉（必是 options 中的 label），
+    返回 None 仅在收到非法 unit 时发生，由调用方自行决定是否中止。
+    """
     options = get_field_units(field_name)
     if not options:
         return None
     for opt in options:
         if opt.label == unit:
             return opt
-    return options[0]
+    return None
 
 
 def _current_unit_option(field_name: str, widget: QWidget) -> UnitOption | None:
@@ -229,15 +240,15 @@ def _current_unit_option(field_name: str, widget: QWidget) -> UnitOption | None:
     options = get_field_units(field_name)
     if not options:
         return None
-    unit = widget.property("__params_panel_unit") or options[0].label
+    unit = widget.property(_UNIT_ATTR) or options[0].label
     return _find_unit_option(field_name, unit)
 
 
 def set_spinbox_unit(sb: QDoubleSpinBox, field_name: str, unit: str) -> None:
     """切换 QDoubleSpinBox 的显示单位：换算当前值并缩放范围/步长/小数位。
 
-    单位状态存于控件属性：``__params_panel_unit``（当前显示单位）、
-    ``__params_panel_std_min/__params_panel_std_max``（标准单位下的范围，
+    单位状态存于控件属性：``_params_panel_unit``（当前显示单位）、
+    ``_params_panel_std_min/_params_panel_std_max``（标准单位下的范围，
     控件生成时从约束写入）。
     """
     options = get_field_units(field_name)
@@ -250,11 +261,11 @@ def set_spinbox_unit(sb: QDoubleSpinBox, field_name: str, unit: str) -> None:
     if old_opt is None or old_opt is new_opt:
         return
     standard = float(sb.value()) * old_opt.to_standard
-    sb.setProperty("__params_panel_unit", new_opt.label)
+    sb.setProperty(_UNIT_ATTR, new_opt.label)
     sb.setDecimals(new_opt.decimals)
     sb.setSingleStep(new_opt.step)
-    std_min = sb.property("__params_panel_std_min")
-    std_max = sb.property("__params_panel_std_max")
+    std_min = sb.property(_STD_MIN_ATTR)
+    std_max = sb.property(_STD_MAX_ATTR)
     if std_min is not None:
         sb.setMinimum(float(std_min) / new_opt.to_standard)
     if std_max is not None:
@@ -274,6 +285,7 @@ def _make_float_field(field_name: str, field: Any, meta: dict[str, Any]) -> QDou
         widget.setMinimum(float(meta["ge"]))
     elif "gt" in meta:
         widget.setMinimum(float(meta["gt"]) + 1e-8)
+    has_upper = "le" in meta or "lt" in meta
     if "le" in meta:
         widget.setMaximum(float(meta["le"]))
     elif "lt" in meta:
@@ -281,8 +293,12 @@ def _make_float_field(field_name: str, field: Any, meta: dict[str, Any]) -> QDou
     widget.setSingleStep(1.0)
     if field.default is not None and field.default is not ...:
         default = float(field.default)
-        # 无上界约束时 Qt 默认 max=99.99，扩到能容纳默认值
-        if default > widget.maximum():
+        # 无上界约束时 Qt 默认 max=99.99 过小：用大值（与 _make_list_float_field
+        # 的 ±1e12 一致），仅在默认值更大时再扩（实际不会触发）。
+        # 有上界约束时仍保留"扩 max 容纳默认值"的兜底。
+        if not has_upper:
+            widget.setMaximum(max(1e12, default))
+        elif default > widget.maximum():
             widget.setMaximum(default)
         widget.setValue(default)
     elif widget.minimum() <= 0.0 <= widget.maximum():
@@ -292,9 +308,9 @@ def _make_float_field(field_name: str, field: Any, meta: dict[str, Any]) -> QDou
     options = get_field_units(field_name)
     if options is not None:
         std = options[0]
-        widget.setProperty("__params_panel_std_min", float(widget.minimum()))
-        widget.setProperty("__params_panel_std_max", float(widget.maximum()))
-        widget.setProperty("__params_panel_unit", std.label)
+        widget.setProperty(_STD_MIN_ATTR, float(widget.minimum()))
+        widget.setProperty(_STD_MAX_ATTR, float(widget.maximum()))
+        widget.setProperty(_UNIT_ATTR, std.label)
         widget.setDecimals(std.decimals)
         widget.setSingleStep(std.step)
     return widget
@@ -398,12 +414,12 @@ def _is_epoch_default(value: Any) -> bool:
 
 
 def _make_epoch_field(field: Any) -> QWidget:
-    """epoch -> 水平排列的 6 个 spinbox（年/月/日/时/分 整数，秒浮点）。"""
-    defaults = (
-        [float(v) for v in field.default]
-        if _is_epoch_default(field.default)
-        else [2024.0, 1.0, 1.0, 0.0, 0.0, 0.0]
-    )
+    """epoch -> 水平排列的 6 个 spinbox（年/月/日/时/分 整数，秒浮点）。
+
+    调用方（``_make_field_widget``）仅在 ``_is_epoch_default(field.default)``
+    为真时路由进来，故此处 default 必为 6 元序列，无需兜底。
+    """
+    defaults = [float(v) for v in field.default]
     container = QWidget()
     layout = QHBoxLayout(container)
     layout.setContentsMargins(0, 0, 0, 0)
@@ -515,6 +531,15 @@ def build_params_from_model(
 # ---------------------------------------------------------------------------
 
 
+def _find_inner_widget(container: QWidget) -> QWidget | None:
+    """从 Optional 容器中找出唯一的非 QCheckBox 子控件。"""
+    inner_widgets = container.findChildren(QWidget)
+    return next(
+        (w for w in inner_widgets if not isinstance(w, QCheckBox)),
+        None,
+    )
+
+
 def _unwrap_optional_widget(widget: QWidget) -> QWidget:
     """若控件是 Optional 容器（QCheckBox + 内部控件），解包返回内部控件。
 
@@ -523,11 +548,7 @@ def _unwrap_optional_widget(widget: QWidget) -> QWidget:
     """
     if widget.property("__params_panel_kind") != "optional":
         return widget
-    inner_widgets = widget.findChildren(QWidget)
-    inner = next(
-        (w for w in inner_widgets if not isinstance(w, QCheckBox)),
-        None,
-    )
+    inner = _find_inner_widget(widget)
     if inner is not None:
         inner.setParent(None)
         return inner
@@ -537,16 +558,13 @@ def _unwrap_optional_widget(widget: QWidget) -> QWidget:
 def apply_orbit_type_defaults(
     widgets: dict[str, QWidget],
     orbit_type: str,
-    model_class: type,
 ) -> None:
     """把 orbit_type 分支的默认值填入 widgets 对应控件。
 
     分支字段若是 Optional 容器（QCheckBox + 内部控件），解包为内部控件并
     用分支默认值 setValue（去掉勾选框，直接可调）。未知 orbit_type 或字段
-    缺失时静默跳过（无分支则不做任何事）。
-
-    ``model_class`` 保留供调用方语义对齐；本函数按控件类型而非模型字段类型
-    设值（int 默认值 -> QSpinBox，float 默认值 -> QDoubleSpinBox）。
+    缺失时静默跳过（无分支则不做任何事）。按控件类型而非模型字段类型设值
+    （int 默认值 -> QSpinBox，float 默认值 -> QDoubleSpinBox）。
     """
     defaults = ORBIT_TYPE_DEFAULTS.get(orbit_type)
     if not defaults:
@@ -624,11 +642,7 @@ def _read_widget_value(name: str, field: Any, widget: QWidget) -> Any:
         if cb and not cb.isChecked():
             return None
         # 找到非 QCheckBox 的内部控件
-        inner_widgets = widget.findChildren(QWidget)
-        inner = next(
-            (w for w in inner_widgets if not isinstance(w, QCheckBox)),
-            None,
-        )
+        inner = _find_inner_widget(widget)
         if inner is not None:
             return _read_widget_value(name, field, inner)
 

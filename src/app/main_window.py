@@ -392,7 +392,7 @@ class MainWindow(QMainWindow):
         model = TOOL_REGISTRY["design_orbit"].request_model
         if model is None:
             return
-        apply_orbit_type_defaults(self._param_widgets, orbit_type, model)
+        apply_orbit_type_defaults(self._param_widgets, orbit_type)
         self._sync_visible_fields(orbit_type)
 
     def _sync_visible_fields(self, orbit_type: str) -> None:
