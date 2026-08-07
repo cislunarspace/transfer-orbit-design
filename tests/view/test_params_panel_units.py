@@ -99,6 +99,17 @@ class TestFieldUnitOptions:
 
         assert FIELD_UNIT_OPTIONS["amplitude"][1].to_standard == pytest.approx(DU_KM)
 
+    def test_duration_month_day_factors(self):
+        """duration 含'月'(1/12 年)、'日'(1/DAYS_PER_YEAR 年) 显示单位。"""
+        from src.commons.units import DAYS_PER_YEAR
+        from src.view.params_panel import FIELD_UNIT_OPTIONS
+
+        opts = {o.label: o for o in FIELD_UNIT_OPTIONS["duration"]}
+        assert "月" in opts
+        assert opts["月"].to_standard == pytest.approx(1.0 / 12.0)
+        assert "日" in opts
+        assert opts["日"].to_standard == pytest.approx(1.0 / DAYS_PER_YEAR)
+
 
 # ---------------------------------------------------------------------------
 # 控件生成默认单位不破坏现有行为
@@ -196,6 +207,29 @@ class TestSetSpinboxUnit:
 
         assert sb.value() == pytest.approx(SECONDS_PER_YEAR / TU_SECONDS)
 
+    def test_duration_switch_to_month(self, qapp):
+        """duration 1 年 -> 月 应显示 12 月。"""
+        from src.view.params_panel import build_params_from_model, set_spinbox_unit
+
+        widgets = build_params_from_model(DesignOrbitRequest)
+        sb = widgets["duration"]
+        sb.setValue(1.0)
+        set_spinbox_unit(sb, "duration", "月")
+
+        assert sb.value() == pytest.approx(12.0)
+
+    def test_duration_switch_to_day(self, qapp):
+        """duration 1 年 -> 日 应显示 DAYS_PER_YEAR 日。"""
+        from src.commons.units import DAYS_PER_YEAR
+        from src.view.params_panel import build_params_from_model, set_spinbox_unit
+
+        widgets = build_params_from_model(DesignOrbitRequest)
+        sb = widgets["duration"]
+        sb.setValue(1.0)
+        set_spinbox_unit(sb, "duration", "日")
+
+        assert sb.value() == pytest.approx(DAYS_PER_YEAR)
+
 
 # ---------------------------------------------------------------------------
 # 收集时换算 roundtrip
@@ -249,3 +283,19 @@ class TestCollectWithUnits:
 
         params = collect_params(widgets, DesignOrbitRequest)
         assert params["amplitude"] == pytest.approx(10000.0)
+
+    def test_collect_month_converts_to_years(self, qapp):
+        """duration 切月后 setValue(1.0)，collect 返回 1/12 年（标准单位）。"""
+        from src.view.params_panel import (
+            build_params_from_model,
+            collect_params,
+            set_spinbox_unit,
+        )
+
+        widgets = build_params_from_model(DesignOrbitRequest)
+        sb = widgets["duration"]
+        set_spinbox_unit(sb, "duration", "月")
+        sb.setValue(1.0)
+
+        params = collect_params(widgets, DesignOrbitRequest)
+        assert params["duration"] == pytest.approx(1.0 / 12.0)

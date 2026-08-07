@@ -340,6 +340,9 @@ class MainWindow(QMainWindow):
             if isinstance(orbit_type_widget, QComboBox):
                 orbit_type_widget.currentIndexChanged.connect(self._on_orbit_type_changed)
                 self._on_orbit_type_changed(orbit_type_widget.currentIndex())
+            # duration GUI 默认下调至 1 个月（issue #355）：模型 default=1.0 年不动，
+            # 仅在 GUI 层把单位切到"月"、值设为 1，让短弧设计更顺手。
+            self._apply_duration_default_month()
 
         layout.addStretch()
 
@@ -439,6 +442,27 @@ class MainWindow(QMainWindow):
             return
         set_spinbox_unit(sb, field_name, unit)
         label.setText(_field_label_with_unit(field_name, unit))
+
+    def _apply_duration_default_month(self) -> None:
+        """把 duration 控件单位切到"月"并设为 1（= 1/12 年标准值）。
+
+        模型 ``DesignOrbitRequest.duration`` 的 default=1.0（年）是上游契约，不改；
+        此处仅在 GUI 层覆盖显示，让短弧设计更顺手。duration 不在
+        ``ORBIT_TYPE_DEFAULTS``，切轨道类型不会重置该覆盖。
+        """
+        row = self._param_rows.get("duration")
+        if row is None:
+            return
+        _label, widget, unit_combo = row
+        sb = widget if isinstance(widget, QDoubleSpinBox) else widget.findChild(QDoubleSpinBox)
+        if unit_combo is None or sb is None:
+            return
+        idx = unit_combo.findText("月")
+        if idx < 0:
+            return
+        # 切单位触发 _on_unit_combo_changed：换算值（1 年 -> 12 月）+ 更新 label 后缀
+        unit_combo.setCurrentIndex(idx)
+        sb.setValue(1.0)  # 1 个月（= 1/12 年标准值）
 
     # -- 信号槽 -------------------------------------------------------------
 
