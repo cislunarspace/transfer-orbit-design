@@ -31,7 +31,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.commons.units import DU_KM, SECONDS_PER_YEAR, TU_SECONDS
+from src.commons.units import DAYS_PER_YEAR, DU_KM, SECONDS_PER_YEAR, TU_SECONDS
 
 # ---------------------------------------------------------------------------
 # 每轨道类型的默认值 / 显示字段（对齐 e2m2e design_orbit.py 各分支 None 兜底）
@@ -151,6 +151,8 @@ FIELD_UNIT_OPTIONS: dict[str, tuple[UnitOption, ...]] = {
     ),
     "duration": (
         UnitOption("年", 1.0),
+        UnitOption("月", 1.0 / 12, decimals=4, step=1.0),
+        UnitOption("日", 1.0 / DAYS_PER_YEAR, decimals=4, step=1.0),
         UnitOption("TU", TU_SECONDS / SECONDS_PER_YEAR, decimals=4, step=0.1),
     ),
     "output_step": (

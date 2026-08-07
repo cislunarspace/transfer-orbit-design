@@ -101,3 +101,43 @@ class TestDesignOrbitUnitCombo:
 
         output_step_row = window._param_rows["output_step"]
         assert isinstance(output_step_row[2], QComboBox)
+
+    def test_duration_defaults_to_one_month(self, qapp):
+        """issue #355: design_orbit 的 duration GUI 默认切到'月'、值 1（= 1/12 年）。
+
+        模型 default=1.0 年不动；GUI 层把单位切到'月'、值设为 1。
+        """
+        from PyQt6.QtWidgets import QComboBox, QDoubleSpinBox
+
+        from src.engine.facade_bridge import TOOL_REGISTRY
+        from src.view.params_panel import collect_params
+
+        window = _make_window(qapp)
+        _build_design_tool(window)
+
+        label, widget, unit_combo = window._param_rows["duration"]
+        assert isinstance(widget, QDoubleSpinBox)
+        assert isinstance(unit_combo, QComboBox)
+        assert unit_combo.currentText() == "月"
+        assert widget.value() == pytest.approx(1.0)
+        assert label.text() == "持续时间 (月)"
+
+        # collect 返回标准单位（年）：1 月 = 1/12 年
+        model = TOOL_REGISTRY["design_orbit"].request_model
+        params = collect_params(window._param_widgets, model)
+        assert params["duration"] == pytest.approx(1.0 / 12.0)
+
+    def test_duration_default_survives_orbit_type_switch(self, qapp):
+        """切轨道类型不应重置 duration（duration 不在 ORBIT_TYPE_DEFAULTS）。"""
+        window = _make_window(qapp)
+        orbit_combo = _build_design_tool(window)
+
+        # 默认已是 1 月；切到 Halo 再切回 DRO，duration 仍为 1 月
+        for name in ("Halo", "DRO"):
+            idx = orbit_combo.findText(name)
+            assert idx >= 0
+            orbit_combo.setCurrentIndex(idx)
+
+        _, widget, unit_combo = window._param_rows["duration"]
+        assert unit_combo.currentText() == "月"
+        assert widget.value() == pytest.approx(1.0)
