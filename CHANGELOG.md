@@ -1,5 +1,18 @@
 # 更新日志
 
+## 3.1.1 (2026-08-08)
+
+3.1.0 之后的小幅修订：GUI 默认 DRO 振幅调到典型中等量级，新增轨道保持专题文档，并修正随 e2m2e 改 PyPI 安装而过时的说明。
+
+### 修复
+
+- **GUI 默认 DRO 振幅 10000→60000 km（02e5bca）**：默认 10000 km 产出贴月的近月紧凑 DRO，在地月尺度画布上只是一个点；改到 60000 km（距月 5.4–6.6 万 km，ARTEMIS/Gateway 量级），打开即见典型中等 DRO。e2m2e 兜底仍为 10000（DFH 黄金样本）。文献里大幅 DRO 比小幅更稳（Zhang & Wang 2022：72000 km 年均保持 0.82 m/s vs 34000 km 1.96 m/s），选 60000 不牺牲稳定性。注：e2m2e 对大幅 DRO 的星历传播有 bug（cislunarspace/e2m2e#324），修复前该默认的星历会漂移；画布画 CR3BP 周期轨道，形状观察不受影响。
+
+### 文档
+
+- **新增轨道保持专题（fb85d1a）**：`docs/source/narrative/station-keeping.md` 给出 DRO/NRHO/halo/Lissajous 在真实星历里的稳定性差异与保持代价基准（Zhang & Wang 2022 全星历 2 年 Monte-Carlo）。如实标注当前软件限制（e2m2e#323 Lissajous 发散、#324 大幅 DRO 星历传播 bug），修复前哪些流程不可用。
+- **修正 e2m2e 改 PyPI 安装后的过时描述（ad8edf4）**：README/README.en/architecture.md 删除「手动克隆 ../e2m2e + editable 安装 + 改 tool.uv.sources 路径」步骤，改为 PyPI 依赖（e2m2e>=5.6.0）由 `uv sync` 一并安装，补充 SPICE 内核自动探测说明。ADR 0012 增补「后续更新」：冻窗已随 5.6.0/5.6.1 根治，QMovie 缓解作废。
+
 ## 3.1.0 (2026-08-08)
 
 本版本收尾 3.0.0 GUI 架构重写：修复默认轨道设计的界面冻窗、参数面板补单位切换与 duration 默认下调、e2m2e 改 pip 安装并自动探测 SPICE 内核，并退役旧架构 `tod/` 完成 `src/` 单轨迁移。
