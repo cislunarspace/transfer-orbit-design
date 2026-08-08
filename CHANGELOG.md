@@ -1,5 +1,13 @@
 # 更新日志
 
+## 3.1.2 (2026-08-08)
+
+3.1.1 之后的 CI 修复补丁：修复 release 流程中 headless 环境的 GUI 测试崩溃。
+
+### 修复
+
+- **修复 release CI 的 headless 测试配置（88ae7f9）**：`release.yml` 的 test job 在 ubuntu-latest 跑 GUI 测试时，`tests/app/test_context_menu.py` 等处的 `qapp` fixture 直接 `QApplication([])`，无显示服务器即 SIGABRT（exit 134，第一个 GUI 测试就崩）。给 Run tests 步骤加 `env: QT_QPA_PLATFORM: offscreen`。本仓 `ci.yml` 只有 lint、无 test job，此缺陷一直未暴露，直到 v3.1.1 release 才触发。
+
 ## 3.1.1 (2026-08-08)
 
 3.1.0 之后的小幅修订：GUI 默认 DRO 振幅调到典型中等量级，新增轨道保持专题文档，并修正随 e2m2e 改 PyPI 安装而过时的说明。
