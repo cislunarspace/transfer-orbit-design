@@ -1,8 +1,17 @@
 # ADR 0012：GUI 卡顿与接口边界依赖 e2m2e 上游修复，本地不上子进程
 
-**状态**：已接受
+**状态**：已接受（上游 #312/#313 均已关闭，结果见「后续更新」）
 **日期**：2026-08-06
 **关联**：ADR 0011（算法层直调）、e2m2e #312、e2m2e #313
+
+## 后续更新（2026-08-08）
+
+决策得到验证：上游两个 issue 均已关闭，冻窗已在本地根治。
+
+- **卡顿（#313，已于 2026-08-07 关闭）**：e2m2e 分两步修复并已由本仓消费——5.6.0（`dee042d`）把 CR3BP 族延拓切到 Rust `propagate_cr3bp_stm_py`，scipy 那段 ~70s 塌到 ~1.5s（第一层）；5.6.1 给长期预报 `propagate_compiled` 补 `allow_threads`（第二层）。本仓 `pyproject.toml` 升至 `e2m2e>=5.6.0`、`uv.lock` 钉 5.6.1（issue #354，2026-08-08）。默认 DRO + 1 月 duration 复测：总耗时 23.4s、>2s 空档 0 次、最大空档 0.40s——冻窗消除。下文「负面」中的"短期仍卡 66s+"已不复存在。
+- **更正背景一处误判**：背景称"星历段 `propagate_compiled`（释放 GIL）不阻塞"——这是当时的误判。`propagate_compiled` 同样死持 GIL（主循环未包 `py.allow_threads`），duration 拉长时它才是冻窗大头；即第二层。故实际修了两层，而非原以为的一层。
+- **接口边界（#312，已于 2026-08-07 关闭）**：e2m2e Facade Response 已补齐 `mu/states/times/ephemeris` 几何字段，按原计划可退回 Facade、移除 algorithm 层直调（ADR 0011 缓解措施 3）。截至本次更新，`facade_bridge.py` 仍直调 algorithm 层，切换尚未完成——这是一次性清理，不阻塞功能。
+- **QMovie 转圈缓解措施作废**：冻窗已根治，原「短期感知」缓解不再需要。
 
 ## 背景
 

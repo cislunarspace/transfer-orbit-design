@@ -13,27 +13,17 @@ transfer-orbit-design is the **GUI frontend and script toolkit** of e2m2e. e2m2e
 
 ## Installation
 
-### Clone the e2m2e dependency
-
-The core algorithms depend on `e2m2e`, configured in `pyproject.toml` as a local path dependency (`../e2m2e`). `uv sync` will not fetch it from a remote, so clone it into the directory next to this repository first:
-
-```bash
-cd ..
-git clone https://github.com/cislunarspace/e2m2e.git
-cd transfer-orbit-design
-```
-
-There is no need to install anything inside e2m2e; the `uv sync` step below installs it in editable mode.
-
 ### uv (recommended)
 
-The project requires Python `>=3.13`, pinned via `.python-version`. From the repository root:
+The project requires Python `>=3.13`, pinned via `.python-version`. The core algorithms depend on `e2m2e`, which `uv sync` installs alongside the other dependencies — no manual clone required. From the repository root:
 
 ```bash
 uv sync
 ```
 
-`uv sync` does it all in one pass: provisions the Python 3.13 interpreter, creates the virtual environment, installs all PyPI dependencies, and installs both `../e2m2e` and this project in editable mode. If the two repositories are not siblings, adjust the `tool.uv.sources.e2m2e` path in `pyproject.toml` first.
+`uv sync` does it all in one pass: provisions the Python 3.13 interpreter, creates the virtual environment, installs all PyPI dependencies (including `e2m2e>=5.6.0`), and installs this project.
+
+SPICE kernels are required at runtime (see "SPICE kernels" below). On development machines, a sibling `../e2m2e/kernels/` directory is auto-detected at startup; an explicitly set `SPICE_KERNEL_DIR` always takes precedence.
 
 ### Packaged build (Windows portable bundle + SPICE kernels)
 

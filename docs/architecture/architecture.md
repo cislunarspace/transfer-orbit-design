@@ -445,7 +445,7 @@ Artifact A (DRO orbit)
 ## 依赖
 
 - **运行时**：PyQt6, PyQt6-WebEngine（文档渲染）, matplotlib, numpy
-- **e2m2e**：本地路径依赖（editable install），通过 `src/engine/facade_bridge.py` 调用 algorithm 层
+- **e2m2e**：PyPI 依赖（`e2m2e>=5.6.0`），与其它依赖一起由 `uv sync` 安装。运行时通过 `src/engine/facade_bridge.py` 调用 algorithm 层
 - **可选**：PyInstaller（打包为 Windows 便携版）
 
 ## 测试策略

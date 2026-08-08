@@ -13,27 +13,17 @@ transfer-orbit-design 是 e2m2e 的 **GUI 前端与脚本工具集**。e2m2e 提
 
 ## 安装
 
-### 克隆 e2m2e 依赖库
-
-核心算法依赖 `e2m2e`，它在 `pyproject.toml` 中被配置为本地路径依赖（`../e2m2e`），`uv sync` 不会自动拉取，需要先手动克隆到与本仓库同级的目录：
-
-```bash
-cd ..
-git clone https://github.com/cislunarspace/e2m2e.git
-cd transfer-orbit-design
-```
-
-无需在 e2m2e 目录里单独安装，下一步的 `uv sync` 会以 editable 模式装好它。
-
 ### uv（推荐）
 
-项目要求 Python `>=3.13`，仓库已通过 `.python-version` 固定。在仓库根目录执行：
+项目要求 Python `>=3.13`，仓库已通过 `.python-version` 固定。核心算法依赖 `e2m2e`，与其它依赖一起由 `uv sync` 安装，无需手动克隆。在仓库根目录执行：
 
 ```bash
 uv sync
 ```
 
-`uv sync` 一次完成：准备 Python 3.13 解释器、创建虚拟环境、安装全部 PyPI 依赖、以 editable 模式安装 `../e2m2e` 与本项目。若两个仓库不在同级目录，请先修改 `pyproject.toml` 中的 `tool.uv.sources.e2m2e` 路径。
+`uv sync` 一次完成：准备 Python 3.13 解释器、创建虚拟环境、安装全部 PyPI 依赖（含 `e2m2e>=5.6.0`）与本项目。
+
+运行时需要 SPICE 内核（见下文「SPICE 内核」）。开发机上若存在同级 `../e2m2e/kernels/` 目录，启动时会被自动探测为兜底；显式设置 `SPICE_KERNEL_DIR` 始终优先。
 
 ### 打包版（Windows 便携包 + SPICE kernels）
 
