@@ -10,11 +10,12 @@ from __future__ import annotations
 import pytest
 from e2m2e.api.models import DesignOrbitRequest
 
-# 与 src/view/params_panel.py 的 ORBIT_TYPE_DEFAULTS / ORBIT_TYPE_FIELDS 对齐的期望值
-# （从 e2m2e design_orbit.py 各分支兜底默认值抄录，测试与实现共用同一事实来源）
+# 与 src/view/params_panel.py 的 ORBIT_TYPE_DEFAULTS / ORBIT_TYPE_FIELDS 对齐的期望值。
+# 多数分支对齐 e2m2e design_orbit.py 的 None 兜底默认值；DRO 例外——GUI 取
+# 60000 km（典型中等 DRO）而非 e2m2e 兜底的 10000 km（近月紧凑），详见 params_panel.py 注释。
 
 _EXPECTED_DEFAULTS: dict[str, dict[str, float | int]] = {
-    "DRO": {"amplitude": 10000.0, "phase": 0.5001},
+    "DRO": {"amplitude": 60000.0, "phase": 0.5001},
     "NRHO": {
         "collinear_point": 2,
         "north_south": 2,
@@ -170,7 +171,7 @@ class TestApplyOrbitTypeDefaults:
         widgets = build_params_from_model(DesignOrbitRequest)
         apply_orbit_type_defaults(widgets, "DRO")
 
-        # DRO 分支：amplitude -> QDoubleSpinBox 10000.0
+        # DRO 分支：amplitude -> QDoubleSpinBox 60000.0
         amp = widgets["amplitude"]
         assert isinstance(amp, QDoubleSpinBox)
         assert amp.value() == pytest.approx(ORBIT_TYPE_DEFAULTS["DRO"]["amplitude"])

@@ -74,12 +74,12 @@ class TestDesignOrbitUnitCombo:
 
         label, widget, unit_combo = window._param_rows["amplitude"]
         assert isinstance(widget, QDoubleSpinBox)
-        assert widget.value() == pytest.approx(10000.0)  # DRO 默认 10000 km
+        assert widget.value() == pytest.approx(60000.0)  # DRO 默认 60000 km
 
         # 切单位到 DU
         unit_combo.setCurrentIndex(unit_combo.findText("DU"))
         assert label.text() == "振幅 (DU)"
-        assert widget.value() == pytest.approx(10000.0 / DU_KM)
+        assert widget.value() == pytest.approx(60000.0 / DU_KM)
 
         # collect 返回标准单位 km
         from src.engine.facade_bridge import TOOL_REGISTRY
@@ -87,7 +87,7 @@ class TestDesignOrbitUnitCombo:
 
         model = TOOL_REGISTRY["design_orbit"].request_model
         params = collect_params(window._param_widgets, model)
-        assert params["amplitude"] == pytest.approx(10000.0)
+        assert params["amplitude"] == pytest.approx(60000.0)
 
     def test_control_orbit_output_step_has_unit(self, qapp):
         """control_orbit 的 output_step（共享字段）也应有单位下拉。"""

@@ -260,7 +260,7 @@ class TestCollectWithUnits:
         assert params["amplitude"] == pytest.approx(0.026 * DU_KM)
 
     def test_apply_respects_current_unit(self, qapp):
-        """切 DU 后再次 apply，amplitude 显示 10000/DU，collect 返回 10000 km。"""
+        """切 DU 后再次 apply，amplitude 显示 60000/DU，collect 返回 60000 km。"""
         from PyQt6.QtWidgets import QDoubleSpinBox
 
         from src.commons.units import DU_KM
@@ -277,12 +277,12 @@ class TestCollectWithUnits:
         assert isinstance(sb, QDoubleSpinBox)
         set_spinbox_unit(sb, "amplitude", "DU")
 
-        # 再次 apply DRO 默认值（标准单位 10000 km），应换算为 DU 显示
+        # 再次 apply DRO 默认值（标准单位 60000 km），应换算为 DU 显示
         apply_orbit_type_defaults(widgets, "DRO")
-        assert sb.value() == pytest.approx(10000.0 / DU_KM)
+        assert sb.value() == pytest.approx(60000.0 / DU_KM)
 
         params = collect_params(widgets, DesignOrbitRequest)
-        assert params["amplitude"] == pytest.approx(10000.0)
+        assert params["amplitude"] == pytest.approx(60000.0)
 
     def test_collect_month_converts_to_years(self, qapp):
         """duration 切月后 setValue(1.0)，collect 返回 1/12 年（标准单位）。"""

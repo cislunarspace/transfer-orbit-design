@@ -34,13 +34,18 @@ from PyQt6.QtWidgets import (
 from src.commons.units import DAYS_PER_YEAR, DU_KM, SECONDS_PER_YEAR, TU_SECONDS
 
 # ---------------------------------------------------------------------------
-# 每轨道类型的默认值 / 显示字段（对齐 e2m2e design_orbit.py 各分支 None 兜底）
+# 每轨道类型的默认值 / 显示字段
 # ---------------------------------------------------------------------------
 
-#: 每轨道类型分支的形状参数默认值。值与 e2m2e
-#: ``algorithm/design/design_orbit.py::_validate_params`` 的 None 兜底默认值一致。
+#: 每轨道类型分支的形状参数默认值。多数与 e2m2e
+#: ``algorithm/design/design_orbit.py::_validate_params`` 的 None 兜底默认值一致；
+#: **DRO 例外**——e2m2e 兜底 10000 km 是 DFH 黄金样本标定值（近月紧凑、星历稳定），
+#: 但在地月尺度画布上是贴着月球的点，不像用户认知里的"典型 DRO"。GUI 默认取
+#: 60000 km（距月 54000–66000 km，ARTEMIS/Gateway 量级的中等 DRO），让用户打开即见
+#: 典型形状。代价：大幅 DRO 在真实星历里不如紧凑 DRO 稳定（默认 1 个月星历会漂移），
+#: 与 Halo 默认同理——画布画的是 CR3BP 周期轨道，星历漂移不影响形状观察。
 ORBIT_TYPE_DEFAULTS: dict[str, dict[str, float | int]] = {
-    "DRO": {"amplitude": 10000.0, "phase": 0.5001},
+    "DRO": {"amplitude": 60000.0, "phase": 0.5001},
     "NRHO": {
         "collinear_point": 2,
         "north_south": 2,
