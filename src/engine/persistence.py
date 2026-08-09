@@ -1,11 +1,16 @@
 r"""结果持久化 -- 将 DTO 写入 output/ 目录。
 
-双文件方案（ADR 对齐）：
-- dro_<YYYYMMDDHHMMSS>.json -- 标量元数据
-- dro_<YYYYMMDDHHMMSS>.npz  -- states + times + ephemeris（numpy 压缩）
+双文件方案（ADR 对齐），按轨道类型分目录：
+- output/dro/   dro_<YYYYMMDDHHMMSS>.json/npz   -- DRO 轨道
+- output/halo/  halo_<YYYYMMDDHHMMSS>.json/npz   -- Halo 轨道
+- output/nrho/  nrho_<YYYYMMDDHHMMSS>.json/npz   -- NRHO 轨道
+- output/<type>/ <type>_<ts>.json/npz            -- 其余轨道类型（Lissajous/L4/L5/Axial 等）
 
-文件命名与 discovery.py 的 ``_DRO_ORBIT_RE = r"^dro_\d+\.json$"`` 兼容。
-轨道保持结果写入 output/ephemeris/，命名 ``orbit_ephemeris_<ts>``。
+目录名与文件名前缀均由 ``orbit_type`` 归一化派生（小写），与 discovery.py
+按「目录 + 前缀」分类的约定一致。曾无条件写 ``output/dro/dro_<ts>``，导致
+Halo 等非 DRO 轨道落盘成 DRO 文件、被 discovery 误分类（回归测试
+``TestSaveArtifactOrbitTypeNaming``）。轨道保持结果写入 output/ephemeris/，
+命名 ``orbit_ephemeris_<ts>``。
 """
 
 from __future__ import annotations
@@ -36,13 +41,31 @@ def _extract_mu(result_data: OrbitDesignResultData) -> float | None:
     return getattr(result_data, "mu", None)
 
 
+def _orbit_type_dirname(orbit_type: str) -> str:
+    """轨道类型 → 输出子目录名（小写）。
+
+    GUI 可选类型为 DRO/Halo/NRHO/Lissajous/L4/L5（e2m2e
+    ``DesignOrbitRequest.orbit_type`` description），归一化为小写即目录名
+    （dro/halo/nrho/lissajous/l4/l5）。算法层返回的 orbit_type 为全大写
+    （HALO），统一转小写兜底。
+    """
+    return orbit_type.lower()
+
+
+def _orbit_type_stem(orbit_type: str) -> str:
+    """轨道类型 → 文件名前缀（小写），DRO 兼容旧布局 ``dro_<ts>``。"""
+    return orbit_type.lower()
+
+
 def save_artifact(
     result_data: OrbitDesignResultData,
     output_dir: Path,
 ) -> tuple[Path, Path]:
-    """将计算结果写入 output/dro/ 目录，返回 ``(json_path, npz_path)`` 元组。
+    """将计算结果写入 output/<type>/ 目录，返回 ``(json_path, npz_path)`` 元组。
 
-    文件名格式 ``dro_<14位时间戳>``，与 discovery 正则兼容。
+    目录与文件名前缀由 ``result_data.orbit_type`` 派生（见
+    ``_orbit_type_dirname`` / ``_orbit_type_stem``）。DRO 保持既有布局
+    ``output/dro/dro_<14位时间戳>``，与 discovery 正则兼容。
     NPZ 文件名由 persistence 单一来源生成，避免调用方重复推导。
 
     Returns:
@@ -50,13 +73,13 @@ def save_artifact(
         作为 ``arrays_file`` 元数据键，避免再次 ``with_suffix(".npz").name``。
     """
     output_dir = Path(output_dir)
-    dro_dir = output_dir / "dro"
-    dro_dir.mkdir(parents=True, exist_ok=True)
+    type_dir = output_dir / _orbit_type_dirname(result_data.orbit_type)
+    type_dir.mkdir(parents=True, exist_ok=True)
 
     ts = _timestamp()
-    stem = f"dro_{ts}"
-    json_path = dro_dir / f"{stem}.json"
-    npz_path = dro_dir / f"{stem}.npz"
+    stem = f"{_orbit_type_stem(result_data.orbit_type)}_{ts}"
+    json_path = type_dir / f"{stem}.json"
+    npz_path = type_dir / f"{stem}.npz"
 
     npz_payload: dict[str, np.ndarray] = {
         "states": result_data.states,

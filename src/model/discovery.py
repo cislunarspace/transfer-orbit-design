@@ -11,12 +11,28 @@ import numpy as np
 from src.model.artifact import Artifact
 
 # Precompiled patterns for filename classification
-_DRO_ORBIT_RE = re.compile(r"^dro_\d+\.json$")
+# 单条 orbit 落盘布局（persistence.save_artifact）：output/<type>/<type>_<ts>.json，
+# 目录名与文件前缀均为轨道类型小写。DRO 恰为 dro_<14位时间戳>，与旧布局兼容。
 _DRO_FAMILY_RE = re.compile(r"^dro_.*_family_.*\.json$")
-_HALO_ORBIT_RE = re.compile(r"^halo_.*\.json$")
 _EPHEMERIS_RE = re.compile(r"^orbit_ephemeris_.*\.json$")
 _TRANSFER_CORRECTED_RE = re.compile(r"^corrected_transfer_.*\.json$")
 _TRANSFER_OPTIMIZATION_RE = re.compile(r"^optimization_.*\.json$")
+
+#: 单条轨道落盘的子目录 -> 轨道类型（与 persistence 的目录命名约定一致）。
+#: 轨道类型即子目录名的小写首字母大写；DRO 特例：目录名 dro 对应 "DRO"。
+_ORBIT_TYPE_BY_DIR: dict[str, str] = {
+    "dro": "DRO",
+    "halo": "Halo",
+    "nrho": "NRHO",
+    "lissajous": "Lissajous",
+    "l4": "L4",
+    "l5": "L5",
+    "axial": "Axial",
+}
+
+#: 任意类型单条 orbit 文件：``<type>_<后缀>.json``（persistence 落盘为
+#: ``<type>_<14位时间戳>.json``；兼容旧手工命名如 ``halo_north_L1.json``）。
+_ORBIT_ORBIT_RE = re.compile(r"^(?P<prefix>[a-z0-9]+)_\w+\.json$")
 
 
 def _classify_file(path: Path) -> dict | None:
@@ -24,14 +40,16 @@ def _classify_file(path: Path) -> dict | None:
     name = path.name
     parent = path.parent.name
 
+    # 遗留：旧 GUI 的 DRO 族输出（dro_*_family_*.json）
     if parent == "dro":
         if _DRO_FAMILY_RE.match(name):
             return {"artifact_type": "family", "orbit_type": "DRO"}
-        if _DRO_ORBIT_RE.match(name):
-            return {"artifact_type": "orbit", "orbit_type": "DRO"}
 
-    if parent == "halo" and _HALO_ORBIT_RE.match(name):
-        return {"artifact_type": "orbit", "orbit_type": "Halo"}
+    # 单条轨道：目录名 = 轨道类型小写，文件名 = <type>_<ts>.json
+    orbit_type = _ORBIT_TYPE_BY_DIR.get(parent)
+    m = _ORBIT_ORBIT_RE.match(name) if orbit_type is not None else None
+    if m is not None and m.group("prefix") == parent:
+        return {"artifact_type": "orbit", "orbit_type": orbit_type}
 
     if parent == "ephemeris" and _EPHEMERIS_RE.match(name):
         return {"artifact_type": "ephemeris", "orbit_type": ""}
