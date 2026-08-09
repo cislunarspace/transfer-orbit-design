@@ -41,9 +41,8 @@ def _classify_file(path: Path) -> dict | None:
     parent = path.parent.name
 
     # 遗留：旧 GUI 的 DRO 族输出（dro_*_family_*.json）
-    if parent == "dro":
-        if _DRO_FAMILY_RE.match(name):
-            return {"artifact_type": "family", "orbit_type": "DRO"}
+    if parent == "dro" and _DRO_FAMILY_RE.match(name):
+        return {"artifact_type": "family", "orbit_type": "DRO"}
 
     # 单条轨道：目录名 = 轨道类型小写，文件名 = <type>_<ts>.json
     orbit_type = _ORBIT_TYPE_BY_DIR.get(parent)
