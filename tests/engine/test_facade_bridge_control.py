@@ -28,6 +28,9 @@ class _FakeEphemeris:
         self.velocity_mps = np.random.randn(n, 3)
         self.synodic_position = np.random.randn(n, 3)
 
+    def __len__(self) -> int:
+        return self.year.shape[0]
+
 
 class _FakeSKStatistic:
     def __init__(self) -> None:
@@ -41,10 +44,33 @@ class _FakeManeuverTable:
 
 
 class _FakeControlledEphemeris:
-    """Fake controlled_ephemeris -- 支持 len() 并暴露 synodic_position。"""
+    """Fake controlled_ephemeris -- 支持 len() 并暴露 control_orbit 提取所需全字段。
 
-    def __init__(self, synodic_position: np.ndarray) -> None:
+    control_orbit 现在除 synodic_position 外还要读 position_km（透传 GCRS km）
+    和 year/month/day/hour/minute/second（重建 ET 秒）。
+    """
+
+    def __init__(
+        self,
+        synodic_position: np.ndarray,
+        position_km: np.ndarray | None = None,
+        times: list[tuple] | None = None,
+    ) -> None:
+        n = synodic_position.shape[0]
         self.synodic_position = synodic_position
+        # 默认用 2024-01-01 起步、每行递增 1 整秒，方便测试断言 ET 重建正确。
+        if position_km is None:
+            position_km = np.random.randn(n, 3)
+        self.position_km = position_km
+        if times is None:
+            times = [(2024, 1, 1, 0, 0, float(k)) for k in range(n)]
+        year, month, day, hour, minute, second = zip(*times)
+        self.year = np.array(year, dtype=int)
+        self.month = np.array(month, dtype=int)
+        self.day = np.array(day, dtype=int)
+        self.hour = np.array(hour, dtype=int)
+        self.minute = np.array(minute, dtype=int)
+        self.second = np.array(second, dtype=float)
 
     def __len__(self) -> int:
         return self.synodic_position.shape[0]
@@ -53,12 +79,21 @@ class _FakeControlledEphemeris:
 class _FakeControlResult:
     """Fake ControlOrbitResult。"""
 
-    def __init__(self, synodic_position: np.ndarray | None = None) -> None:
+    def __init__(
+        self,
+        synodic_position: np.ndarray | None = None,
+        position_km: np.ndarray | None = None,
+        times: list[tuple] | None = None,
+    ) -> None:
         self.num_failed = 0
         self.sk_statistic = _FakeSKStatistic()
         self.maneuvers = _FakeManeuverTable()
         if synodic_position is not None:
-            self.controlled_ephemeris = _FakeControlledEphemeris(synodic_position)
+            self.controlled_ephemeris = _FakeControlledEphemeris(
+                synodic_position=synodic_position,
+                position_km=position_km,
+                times=times,
+            )
         else:
             self.controlled_ephemeris = None
 
@@ -69,8 +104,13 @@ class _FakeControlResult:
 
 
 class TestDesignOrbitEphemerisExtraction:
+    @pytest.mark.spice
     def test_design_orbit_result_carries_ephemeris_fields(self, monkeypatch):
-        """design_orbit 应将 result.ephemeris 提取到 DTO.ephemeris dict。"""
+        """design_orbit 应将 result.ephemeris 提取到 DTO.ephemeris dict。
+
+        P0 起 ephemeris dict 还含 times_et（UTC 拆分用 str2et 重建的 ET 秒），
+        故此测试需要闰秒内核 → spice marker。
+        """
         n = 10
         orbit = SimpleNamespace(
             states=np.random.randn(n, 6),
@@ -107,6 +147,7 @@ class TestDesignOrbitEphemerisExtraction:
             "position_km",
             "velocity_mps",
             "synodic_position",
+            "times_et",
         ):
             assert key in data.ephemeris
             assert isinstance(data.ephemeris[key], np.ndarray)
@@ -167,11 +208,30 @@ def _make_ephemeris_data(n: int = 10, with_none_tjd: bool = True) -> dict:
 
 
 class TestControlOrbit:
+    @pytest.mark.spice
     def test_control_orbit_returns_control_result_dto(self, monkeypatch):
-        """control_orbit 应返回 ControlResultData，controlled_states 形状 (n,6)。"""
+        """control_orbit 应返回 ControlResultData，controlled_states 形状 (n,6)。
+
+        controlled_states[:, :3] 应为质心归一 synodic（= synodic_position − source_mu），
+        position_km 等于 fake 的 GCRS km，times_et 等于 SPICE str2et 重建的真物理时间。
+        """
+        import spiceypy as spice
+
+        from e2m2e.data.kernels.manager import SPICEManager
+
+        # 确保闰秒内核已 furnsh（dev 环境 SPICE_KERNEL_DIR 已设；CI 跳过此测试）。
+        SPICEManager()._ensure_leapseconds()
+
         n = 50
+        source_mu = 0.012153645822478
         synodic = np.random.randn(n, 3)
-        fake_result = _FakeControlResult(synodic_position=synodic)
+        position_km = np.random.randn(n, 3)
+        times_meta = [(2024, 1, 1, 0, 0, float(k)) for k in range(n)]
+        fake_result = _FakeControlResult(
+            synodic_position=synodic,
+            position_km=position_km,
+            times=times_meta,
+        )
 
         monkeypatch.setattr(
             "e2m2e.algorithm.station_keeping.control_orbit",
@@ -181,7 +241,7 @@ class TestControlOrbit:
         bridge = FacadeBridge()
         data = bridge.control_orbit(
             ephemeris_data=_make_ephemeris_data(n),
-            source_mu=0.012153645822478,
+            source_mu=source_mu,
             control_mode=1,
             num_monte_carlo=2,
         )
@@ -189,13 +249,33 @@ class TestControlOrbit:
         assert data.num_failed == 0
         assert data.controlled_states is not None
         assert data.controlled_states.shape == (n, 6)
-        # synodic_position 应在前 3 列
-        np.testing.assert_array_equal(data.controlled_states[:, :3], synodic)
+        # 质心归一：synodic − source_mu（地心归一 → 质心归一，月球在 1−μ）
+        np.testing.assert_array_equal(
+            data.controlled_states[:, :3], synodic - source_mu
+        )
         # 速度列补零
         np.testing.assert_array_equal(data.controlled_states[:, 3:], np.zeros((n, 3)))
         assert data.controlled_times is not None
         assert len(data.controlled_times) == n
-        assert data.mu == pytest.approx(0.012153645822478)
+        assert data.mu == pytest.approx(source_mu)
+
+        # position_km 直接透传
+        assert data.position_km is not None
+        np.testing.assert_array_equal(data.position_km, position_km)
+
+        # times_et 由 UTC 拆分用 str2et 重建，应与逐点独立 str2et 一致
+        assert data.times_et is not None
+        expected_et = np.array(
+            [
+                spice.str2et(
+                    f"{y:04d}-{mo:02d}-{d:02d}T{h:02d}:{mi:02d}:{s:06.3f}"
+                )
+                for (y, mo, d, h, mi, s) in times_meta
+            ]
+        )
+        np.testing.assert_allclose(data.times_et, expected_et)
+        # controlled_times 现在就是真物理时间（不再是 np.arange）
+        np.testing.assert_array_equal(data.controlled_times, data.times_et)
 
     def test_control_orbit_none_states_when_no_ephemeris(self, monkeypatch):
         """所有样本失败（controlled_ephemeris=None）时，controlled_states/times 为 None。"""
@@ -214,6 +294,8 @@ class TestControlOrbit:
         )
         assert data.controlled_states is None
         assert data.controlled_times is None
+        assert data.position_km is None
+        assert data.times_et is None
         assert data.mu is None
 
     def test_control_orbit_translates_exceptions(self, monkeypatch):
@@ -236,8 +318,12 @@ class TestControlOrbit:
             )
         assert exc_info.value.code == "INVALID_PARAMS"
 
+    @pytest.mark.spice
     def test_ephemeris_table_reconstruction_skips_none_times(self, monkeypatch):
-        """times_jd_tdb=None 时 EphemerisTable 重建不崩（走 dataclass 默认）。"""
+        """times_jd_tdb=None 时 EphemerisTable 重建不崩（走 dataclass 默认）。
+
+        P0 起 control_orbit 会重建 times_et（spice.str2et），需闰秒内核 → spice marker。
+        """
         fake_result = _FakeControlResult(synodic_position=np.random.randn(5, 3))
 
         captured: dict = {}
@@ -260,8 +346,12 @@ class TestControlOrbit:
         assert "eph" in captured
         assert captured["eph"].synodic_position is not None
 
+    @pytest.mark.spice
     def test_control_orbit_kernel_dir_forwarded(self, monkeypatch):
-        """kernel_dir 应注入到算法层调用。"""
+        """kernel_dir 应注入到算法层调用。
+
+        P0 起 control_orbit 会重建 times_et（spice.str2et），需闰秒内核 → spice marker。
+        """
         captured: dict = {}
         fake_result = _FakeControlResult(synodic_position=np.random.randn(5, 3))
 

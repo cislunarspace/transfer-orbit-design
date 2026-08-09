@@ -178,6 +178,34 @@ class TestOnControlFinished:
         assert a.extra["n_maneuvers"] == 2
         assert a.extra["total_delta_v_mps"] == pytest.approx(0.8)
 
+    def test_on_control_finished_extra_contains_position_and_times_et(self, qapp):
+        """_on_control_finished 应把 result.position_km/times_et 写入 Artifact.extra。"""
+        window = _make_window(qapp)
+        n = 5
+        position_km = np.random.randn(n, 3)
+        times_et = np.linspace(7.5e8, 7.6e8, n)
+        result = ControlResultData(
+            num_failed=0,
+            sk_statistic_rows=np.array([[1.0, 2.0, 3.0]]),
+            maneuvers_mjd_tdb=np.array([60000.0]),
+            maneuvers_delta_v_mps=np.array([0.5]),
+            controlled_states=np.random.randn(n, 6),
+            controlled_times=times_et,
+            mu=0.012153645822478,
+            position_km=position_km,
+            times_et=times_et,
+        )
+
+        with patch("src.app.main_window.save_control_result") as mock_save:
+            mock_save.return_value = (Path("/fake/eph.json"), Path("/fake/eph.npz"))
+            window._on_control_finished(result)
+
+        eph_artifacts = [a for a in window._project.artifacts if a.artifact_type == "ephemeris"]
+        assert len(eph_artifacts) == 1
+        a = eph_artifacts[0]
+        np.testing.assert_array_equal(a.extra["position_km"], position_km)
+        np.testing.assert_array_equal(a.extra["times_et"], times_et)
+
     def test_on_control_finished_save_failure_keeps_artifact(self, qapp):
         """持久化失败时 in-memory Artifact 仍可用。"""
         window = _make_window(qapp)
@@ -211,6 +239,51 @@ class TestOnControlFinished:
         eph_artifacts = [a for a in window._project.artifacts if a.artifact_type == "ephemeris"]
         assert len(eph_artifacts) == 1
         assert eph_artifacts[0].state_data is None
+
+
+class TestArtifactForIdControlFields:
+    def test_artifact_for_id_returns_position_km_and_times_et(self, qapp):
+        """_artifact_for_id 应把 extra 里的 position_km/times_et 透传给画布接口。"""
+        from src.model import Artifact
+
+        window = _make_window(qapp)
+        position_km = np.random.randn(5, 3)
+        times_et = np.linspace(7.5e8, 7.6e8, 5)
+        a = Artifact(
+            artifact_type="ephemeris",
+            label="受控星历",
+            state_data=np.random.randn(5, 6),
+            times=times_et,
+            extra={
+                "mu": 0.0123,
+                "position_km": position_km,
+                "times_et": times_et,
+            },
+        )
+        window._project.add(a)
+
+        result = window._artifact_for_id(a.artifact_id)
+        assert result is not None
+        np.testing.assert_array_equal(result["position_km"], position_km)
+        np.testing.assert_array_equal(result["times_et"], times_et)
+
+    def test_artifact_for_id_returns_none_for_missing_position_and_times_et(self, qapp):
+        """旧 Artifact extra 无 position_km/times_et 时，回传 None（画布降级）。"""
+        from src.model import Artifact
+
+        window = _make_window(qapp)
+        a = Artifact(
+            artifact_type="orbit",
+            label="旧轨道",
+            state_data=np.random.randn(5, 6),
+            extra={"mu": 0.0123},
+        )
+        window._project.add(a)
+
+        result = window._artifact_for_id(a.artifact_id)
+        assert result is not None
+        assert result["position_km"] is None
+        assert result["times_et"] is None
 
 
 class TestOnControlError:

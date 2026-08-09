@@ -730,6 +730,10 @@ class MainWindow(QMainWindow):
                 "num_failed": result.num_failed,
                 "total_delta_v_mps": total_dv,
                 "n_maneuvers": int(len(result.maneuvers_mjd_tdb)),
+                # 真物理时间（ET 秒）+ GCRS 惯性 km 位置：P1 坐标系切换、
+                # P2 帧动画所需，P0 画布不读。
+                "times_et": result.times_et,
+                "position_km": result.position_km,
             },
         )
         self._project.add(artifact)
@@ -774,6 +778,10 @@ class MainWindow(QMainWindow):
             "states": a.state_data,
             "label": a.label,
             "mu": a.extra.get("mu"),
+            # P0 仅透传到画布接口；P1 坐标系切换/P2 帧动画消费这两个字段。
+            # 缺失（旧 Artifact）返回 None，画布降级处理。
+            "position_km": a.extra.get("position_km"),
+            "times_et": a.extra.get("times_et"),
         }
 
     def _render_canvas(self) -> None:

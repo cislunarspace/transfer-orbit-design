@@ -38,6 +38,7 @@ def _make_dto_with_ephemeris(n: int = 100) -> OrbitDesignResultData:
             "velocity_mps": _RNG.standard_normal((n, 3)),
             "synodic_position": _RNG.standard_normal((n, 3)),
             "times_jd_tdb": None,
+            "times_et": np.linspace(7.5e8, 7.6e8, n),
         },
     )
 
@@ -51,6 +52,8 @@ def _make_control_result(n: int = 50) -> ControlResultData:
         controlled_states=_RNG.standard_normal((n, 6)),
         controlled_times=np.arange(n),
         mu=0.012153645822478,
+        position_km=_RNG.standard_normal((n, 3)),
+        times_et=np.linspace(7.5e8, 7.6e8, n),
     )
 
 
@@ -137,6 +140,36 @@ class TestSaveControlResult:
             np.testing.assert_array_equal(data["states"], result.controlled_states)
             np.testing.assert_array_equal(data["times"], result.controlled_times)
 
+    def test_save_control_result_npz_contains_position_km_and_times_et(self, tmp_path):
+        """NPZ 应含 control_orbit 特有的 position_km / times_et（顶层键，非 eph_ 前缀）。"""
+        result = _make_control_result()
+        _, npz_path = save_control_result(result, tmp_path)
+        with np.load(npz_path) as data:
+            assert "position_km" in data.files
+            assert "times_et" in data.files
+            np.testing.assert_array_equal(data["position_km"], result.position_km)
+            np.testing.assert_array_equal(data["times_et"], result.times_et)
+
+    def test_save_control_result_skips_none_position_and_times_et(self, tmp_path):
+        """position_km/times_et 为 None 时 NPZ 不写对应键（向后兼容旧 DTO）。"""
+        result = ControlResultData(
+            num_failed=1,
+            sk_statistic_rows=np.array([[1.0, 2.0, 3.0]]),
+            maneuvers_mjd_tdb=np.array([60000.0]),
+            maneuvers_delta_v_mps=np.array([0.5]),
+            controlled_states=_RNG.standard_normal((10, 6)),
+            controlled_times=np.arange(10),
+            mu=0.012153645822478,
+            # position_km/times_et 缺省 None
+        )
+        _, npz_path = save_control_result(result, tmp_path)
+        with np.load(npz_path) as data:
+            assert "position_km" not in data.files
+            assert "times_et" not in data.files
+            # states/times 仍正常
+            assert "states" in data.files
+            assert "times" in data.files
+
     def test_save_control_result_no_npz_when_all_failed(self, tmp_path):
         """全失败（controlled_states=None）时仅写 JSON，不写 NPZ。"""
         result = ControlResultData(
@@ -203,3 +236,28 @@ class TestLoadArtifactArraysEphemeris:
         # states/times 仍正常加载
         assert a.state_data is not None
         assert a.times is not None
+
+    def test_load_artifact_arrays_restores_ephemeris_times_et(self, tmp_path):
+        """design_orbit NPZ 的 eph_times_et 应读回到 extra["ephemeris"]["times_et"]。"""
+        dto = _make_dto_with_ephemeris()
+        save_artifact(dto, tmp_path)
+        artifacts = discover_artifacts(tmp_path)
+        assert len(artifacts) == 1
+        a = artifacts[0]
+        assert load_artifact_arrays(a) is True
+        eph = a.extra.get("ephemeris")
+        assert eph is not None
+        assert "times_et" in eph
+        np.testing.assert_array_equal(eph["times_et"], dto.ephemeris["times_et"])
+
+    def test_load_control_orbit_npz_restores_position_km_and_times_et(self, tmp_path):
+        """control_orbit NPZ 的顶层 position_km/times_et 应读回到 extra（非 eph_ 前缀）。"""
+        result = _make_control_result()
+        save_control_result(result, tmp_path)
+        artifacts = discover_artifacts(tmp_path)
+        assert len(artifacts) == 1
+        a = artifacts[0]
+        assert a.artifact_type == "ephemeris"
+        assert load_artifact_arrays(a) is True
+        np.testing.assert_array_equal(a.extra["position_km"], result.position_km)
+        np.testing.assert_array_equal(a.extra["times_et"], result.times_et)

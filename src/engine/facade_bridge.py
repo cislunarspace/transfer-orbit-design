@@ -54,9 +54,44 @@ class ControlResultData:
     sk_statistic_rows: Any  # np.ndarray (n, k)，m/s；k=3 无角动量，k>=4 含
     maneuvers_mjd_tdb: Any  # np.ndarray (n,)
     maneuvers_delta_v_mps: Any  # np.ndarray (n,)，m/s
-    controlled_states: Any  # np.ndarray (n, 6)：synodic_position (n,3) + 零速度列；全失败时 None
-    controlled_times: Any  # np.ndarray (n,)：arange 索引（画布不依赖物理时间）；None 若无星历
+    controlled_states: Any  # (n,6) 质心归一 synodic 位置 (n,3) + 零速度列；全失败 None
+    controlled_times: Any  # (n,) ET 秒（J2000 TDB）；None 若无受控星历
     mu: float | None = None
+    # GCRS 惯性位置 km（n,3）。controlled_states 为 None 时本字段也为 None。
+    # P1 坐标系切换（会合系 ↔ GCRS）与 P2 帧动画需要真惯性坐标。
+    position_km: Any = None
+    # 真物理时间（J2000 ET 秒，形状 (n,)）。controlled_states 为 None 时也为 None。
+    # 与 controlled_times 同源；分两字段是为了让画布 times（任意单调数组）与
+    # 物理时间解耦：P0 画布不读 times_et，但帧动画/GIF 需要它定位真时刻。
+    times_et: Any = None
+
+
+def _reconstruct_et_from_utc(eph: Any) -> np.ndarray:
+    """从 EphemerisTable 的 UTC 拆分（year/month/day/hour/minute/second）重建 ET。
+
+    EphemerisTable 只存 UTC 拆分，不直接暴露 ET；P0 起需要真物理时间
+    （坐标切换、帧动画），故按 SPICE 历法换算逐点重建。复用 e2m2e
+    SPICEManager 的闰秒内核加载机制（design_orbit/control_orbit 算法链路
+    本身就构造 SPICEManager，本函数仅保证闰秒内核已 furnsh）。
+
+    格式与 e2m2e.algorithm.station_keeping.monte_carlo._utc_iso 一致，
+    second 含小数用 :06.3f（毫秒精度），保证 str2et 双向可复现。
+    """
+    from e2m2e.data.kernels._spice_loader import get_spiceypy
+    from e2m2e.data.kernels.manager import SPICEManager
+
+    SPICEManager()._ensure_leapseconds()
+    spice = get_spiceypy()
+    n = len(eph)
+    et = np.empty(n, dtype=float)
+    for k in range(n):
+        iso = (
+            f"{int(eph.year[k]):04d}-{int(eph.month[k]):02d}-{int(eph.day[k]):02d}"
+            f"T{int(eph.hour[k]):02d}:{int(eph.minute[k]):02d}"
+            f":{float(eph.second[k]):06.3f}"
+        )
+        et[k] = spice.str2et(iso)
+    return et
 
 
 # ---------------------------------------------------------------------------
@@ -177,6 +212,9 @@ class FacadeBridge:
                 "times_jd_tdb": np.asarray(tjd)
                 if (tjd := getattr(eph, "times_jd_tdb", None)) is not None
                 else None,
+                # 真物理时间（ET 秒）：从 UTC 拆分用 SPICE str2et 重建。
+                # control_orbit 用其做会合→惯性坐标转换；帧动画也用它定位真时刻。
+                "times_et": _reconstruct_et_from_utc(eph),
             }
         return OrbitDesignResultData(
             orbit_type=result.orbit_type,
@@ -228,11 +266,20 @@ class FacadeBridge:
         if controlled is not None and controlled.synodic_position is not None:
             n = len(controlled)
             states = np.zeros((n, 6))
-            states[:, :3] = controlled.synodic_position
-            times = np.arange(n)
+            # 会合系原点偏移：controlled.synodic_position 是地心归一（月球在 +1），
+            # 画布地月标注是质心归一（月球在 1−μ）。减 source_mu 后两者对齐，
+            # 轨迹与月球标记不再差 μ·DU ≈ 4690 km。source_mu 为 None（旧 Artifact
+            # 无 μ）时不偏移（保留旧行为，画布跳过标注）。
+            states[:, :3] = controlled.synodic_position - (source_mu or 0.0)
+            # 真物理时间：替代旧 np.arange(n) 索引，供坐标切换/帧动画定位真时刻。
+            times_et = _reconstruct_et_from_utc(controlled)
+            times = times_et
+            position_km = np.asarray(controlled.position_km)
         else:
             states = None
             times = None
+            times_et = None
+            position_km = None
 
         return ControlResultData(
             num_failed=result.num_failed,
@@ -242,4 +289,6 @@ class FacadeBridge:
             controlled_states=states,
             controlled_times=times,
             mu=source_mu,
+            position_km=position_km,
+            times_et=times_et,
         )

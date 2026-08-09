@@ -123,6 +123,7 @@ def load_artifact_arrays(artifact: Artifact) -> bool:
                 "velocity_mps",
                 "synodic_position",
                 "times_jd_tdb",
+                "times_et",
             )
             eph: dict = {}
             for k in eph_keys:
@@ -131,6 +132,12 @@ def load_artifact_arrays(artifact: Artifact) -> bool:
                     eph[k] = data[arr_key]
             if eph:
                 artifact.extra.setdefault("ephemeris", eph)
+            # control_orbit 的 NPZ 存了顶层 position_km/times_et（不带 eph_ 前缀，
+            # 因它们不是 EphemerisTable 字段，而是 control_orbit 特有产物），
+            # 单独读回 extra。
+            for key in ("position_km", "times_et"):
+                if key in data:
+                    artifact.extra[key] = data[key]
     except (KeyError, OSError, ValueError):
         return False
     return True
@@ -156,11 +163,17 @@ def save_control_result(
 
     total_dv = float(np.sum(result_data.maneuvers_delta_v_mps))
     if result_data.controlled_states is not None:
-        np.savez_compressed(
-            npz_path,
-            states=result_data.controlled_states,
-            times=result_data.controlled_times,
-        )
+        # position_km/times_et 与 controlled_states 同源（来自 controlled_ephemeris），
+        # 故同时存在；与现有"全失败不写 NPZ"语义一致。
+        npz_payload: dict[str, np.ndarray] = {
+            "states": result_data.controlled_states,
+            "times": result_data.controlled_times,
+        }
+        if result_data.position_km is not None:
+            npz_payload["position_km"] = result_data.position_km
+        if result_data.times_et is not None:
+            npz_payload["times_et"] = result_data.times_et
+        np.savez_compressed(npz_path, **npz_payload)  # type: ignore[call-arg]
 
     meta = {
         "artifact_type": "ephemeris",
