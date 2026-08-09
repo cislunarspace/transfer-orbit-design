@@ -6,11 +6,12 @@
 
 ## 背景
 
-ADR 0010 落地内嵌画布时只围绕 CR3BP 旋转系设计：画布读 `states[:,:3]`，按 μ 画地月与 L1–L5，单位隐含无量纲（DU）。星历模型结果（轨道保持 control_orbit 产出的受控星历）虽也送进了画布，但有三个问题：
+ADR 0010 落地内嵌画布时只围绕 CR3BP 旋转系设计：画布读 `states[:,:3]`，按 μ 画地月与 L1–L5，单位隐含无量纲（DU）。星历模型结果（轨道保持 control_orbit 产出的受控星历、轨道设计 design_orbit 产出的标称星历）虽也送进了画布，但有四个问题：
 
 1. **原点不一致**：算法层输出的 `EphemerisTable.synodic_position` 是地心归一（月球在 +1，源自 design_orbit 与 monte_carlo 的 `synodic[:,0] += μ`），而画布地月标注按质心归一（月球在 1−μ）。两者差 μ·DU ≈ 4690 km——画 NRHO 这类绕月轨道时，月球标记与轨迹肉眼可见地错位。
 2. **缺惯性系视图**：GCRS 惯性位置 `position_km` 从未进入画布，用户看不到星历结果的"地心视角"。
 3. **时间轴退化**：control_orbit 产物的 `times` 是 `np.arange(n)` 占位索引，丢了物理时间，无法支撑惯性系月球轨迹或动画。
+4. **design_orbit 的标称星历在画布上完全看不到**：CR3BP 周期轨道作为初猜能画，但同一产物里真实星历模型下的标称星历（拟周期、跨整个 duration）一直埋在 Artifact 的 `extra["ephemeris"]`，画布只读顶层 `state_data`（初猜）。本 ADR 初版只覆盖 control_orbit 的受控星历；#359 把范围扩到 design_orbit 的标称星历。
 
 文献调研（三轮并行，覆盖约 2700 篇 cislunar 文献）的结论：
 
@@ -58,3 +59,15 @@ ADR 0010 落地内嵌画布时只围绕 CR3BP 旋转系设计：画布读 `state
 - 月心系视图（文献低频）若有明确需求再开。
 - GIF 帧采样策略在参数对话框暴露，默认 cumulative、滑窗 3 天（地月 DRO ~14 天周期的合理量级）。
 - 若算法层将来填 `times_jd_tdb`，GUI 侧的 `str2et` 重建可替换为直读，去掉一处重复。
+
+## 更新（#359，2026-08-09）：范围扩到 design_orbit 的标称星历
+
+初版只覆盖 control_orbit 的受控星历。#359 把范围扩到 design_orbit 产出的标称星历——同一份产物里 CR3BP 初猜（无量纲周期轨道）与真实星历模型下的标称星历（拟周期、跨整个 duration）首次并列进入画布。
+
+具体落地：
+
+- **数据契约**：`_artifact_for_id` 显式暴露四个并列槽位——`initial_guess_states`（CR3BP 周期轨道，无量纲会合系）、`ephemeris_synodic`（星历会合系位置，已减 μ）、`ephemeris_position_km`（GCRS km）、`ephemeris_times_et`（ET 秒）。不嵌套在 `extra["ephemeris"]` 里让人猜、不靠"顶层找不到翻 dict"的隐式 fallback。control_orbit 的受控星历沿 `ephemeris_synodic` 槽（state_data 已在 facade_bridge 减过 μ）。
+- **质心归一对齐沿用决策 1**：design_orbit 标称星历的会合系位置在 `_artifact_for_id` 里减 μ 后再送画布，与 control_orbit 的处理一致。
+- **绘制内容**：`CanvasState` 加 `plot_content` 字段（初猜 / 星历 / 叠加，默认叠加），与 `frame` 正交。叠加视图初猜用实线、星历用虚线，TAB10 相邻色区分。惯性系下"初猜"灰显（CR3BP 无量纲无惯性系表示）；control_orbit 产物无初猜，"初猜"恒灰显。
+- **导出动画跟随绘制内容**：仅星历可按物理时间轴动画化；初猜模式明确拒绝导出（CR3BP 单周期无物理时间轴）。
+- **持久化**：design_orbit NPZ 已存全字段（`eph_` 前缀），`load_artifact_arrays` 还原进 `extra["ephemeris"]`，从磁盘恢复的历史 Artifact 同样支持绘制内容切换。NPZ schema 不变。

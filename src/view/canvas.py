@@ -5,7 +5,7 @@ FigureCanvasQTAgg 嵌入 PyQt6 主窗口，支持 3D 轨道可视化和导航工
 
 渲染状态由 ``CanvasState`` 描述，``render()`` 是全量重绘单入口：
 - 投影切换（3d/xy/xz/yz）会重建 Axes，无法增量，故全量重绘。
-- 轨道数组复用内存注册表（``_states_by_id`` 等），切换投影/开关时
+- 轨道数组复用内存注册表（``_initial_guess_by_id`` 等），切换投影/开关时
   不从磁盘/NPZ 重读——验收标准 #5（数据复用）的可测形式。
 """
 
@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import matplotlib
+import numpy as np
 
 matplotlib.use("QtAgg")  # noqa: E402 -- 必须在 pyplot 导入前设置
 
@@ -45,6 +46,9 @@ class CanvasState:
         frame: 坐标系，``"synodic" | "inertial"``。``"synodic"`` 复用 CR3BP 旋转
             系（无量纲，月球固定在 1−μ）；``"inertial"`` 画 GCRS/J2000 真视图：
             地球原点 + 月球 SPICE 真实轨迹 + position_km（km），不画平动点。
+        plot_content: 绘制内容（与 frame 正交），``"guess" | "ephemeris" | "overlay"``。
+            会合系下三选一可选；惯性系下``"guess"`` 不可用（CR3BP 无量纲无惯性系表示）。
+            默认 ``"overlay"``：design_orbit 产物同时画初猜与星历。
     """
 
     projection: str = "3d"
@@ -52,6 +56,7 @@ class CanvasState:
     show_bodies: bool = True
     show_libration: bool = True
     frame: str = "synodic"
+    plot_content: str = "overlay"
 
     def copy(self) -> CanvasState:
         """返回副本（不可变更新模式：读当前 state → 改字段 → 传新 state）。"""
@@ -61,6 +66,7 @@ class CanvasState:
             show_bodies=self.show_bodies,
             show_libration=self.show_libration,
             frame=self.frame,
+            plot_content=self.plot_content,
         )
 
 
@@ -94,14 +100,20 @@ class OrbitCanvas(FigureCanvasQTAgg):
 
         # 渲染状态与数据注册表
         self._state = CanvasState()
-        # artifact_id -> 渲染数据（states / label / mu），由 main_window 经
-        # set_artifacts_provider() 注入查询回调后按需填充。
-        self._states_by_id: dict[str, Any] = {}
+        # artifact_id -> 渲染数据，由 main_window 经 set_artifacts_provider()
+        # 注入查询回调后按需填充。四个并列槽位（ADR 0013 + #359 数据契约）：
+        #   initial_guess_states: CR3BP 周期轨道（无量纲会合系，质心归一）。
+        #                         仅 design_orbit 产物有；control_orbit 为 None。
+        #   ephemeris_synodic: 星历会合系位置（质心归一，已减 μ）。
+        #                       design_orbit 的标称星历与 control_orbit 的受控星历共用此槽。
+        #   ephemeris_position_km: 星历惯性系 GCRS km 位置。
+        #   ephemeris_times_et: 物理时间（ET 秒），与上面两个星历槽同源。
+        self._initial_guess_by_id: dict[str, Any] = {}
+        self._ephemeris_synodic_by_id: dict[str, Any] = {}
+        self._ephemeris_position_km_by_id: dict[str, Any] = {}
+        self._ephemeris_times_et_by_id: dict[str, Any] = {}
         self._labels_by_id: dict[str, str] = {}
         self._mu_by_id: dict[str, float | None] = {}
-        # inertial 视图专用：GCRS km 位置 + ET 秒（缺失时 inertial 降级）
-        self._position_km_by_id: dict[str, Any] = {}
-        self._times_et_by_id: dict[str, Any] = {}
         self._artifacts_provider = None
 
     def _setup_axes(self, projection: str = "3d", *, title: str = "选择一个工件以可视化") -> None:
@@ -129,9 +141,15 @@ class OrbitCanvas(FigureCanvasQTAgg):
     # -- 数据提供 ----------------------------------------------------------
 
     def set_artifacts_provider(self, provider) -> None:
-        """注入 artifact 数据查询回调（main_window 提供，返回 dict 或 None）。
+        """注入 artifact 数据回调（main_window 提供，返回 dict 或 None）。
 
-        provider(artifact_id) -> {"states": ndarray, "label": str, "mu": float | None} | None
+        provider(artifact_id) -> dict | None，dict 的契约字段（#359）：
+            - ``label``: str
+            - ``mu``: float | None
+            - ``initial_guess_states``: ndarray (n,6) | None  -- CR3BP 周期轨道（无量纲会合系）
+            - ``ephemeris_synodic``: ndarray (n,3|6) | None   -- 星历会合系位置（质心归一，已减 μ）
+            - ``ephemeris_position_km``: ndarray (n,3) | None -- 星历惯性系 GCRS km
+            - ``ephemeris_times_et``: ndarray (n,) | None     -- 物理时间 ET 秒
         """
         self._artifacts_provider = provider
 
@@ -145,32 +163,41 @@ class OrbitCanvas(FigureCanvasQTAgg):
         数据来自内存（provider 回调），不从 NPZ 重读——切换投影/开关时
         数组已在内存，这是验收标准 #5 的实现方式。
 
-        同时透传 position_km / times_et（inertial 视图所需），缺失则对应
-        注册表项不写入，inertial 分支按缺数据降级。
+        四个并列槽位按 contract 显式读取（缺失对应槽位不写入注册表，
+        渲染分支按 plot_content 选择消费）。
         """
         self._state = state
         state.visible_artifacts = list(artifact_ids)
-        self._states_by_id = {}
+        self._initial_guess_by_id = {}
+        self._ephemeris_synodic_by_id = {}
+        self._ephemeris_position_km_by_id = {}
+        self._ephemeris_times_et_by_id = {}
         self._labels_by_id = {}
         self._mu_by_id = {}
-        self._position_km_by_id = {}
-        self._times_et_by_id = {}
         for aid in artifact_ids:
             data = self._artifacts_provider(aid) if self._artifacts_provider else None
             if data is None:
                 continue
-            states = data.get("states")
-            if states is None:
+            label = data.get("label", "")
+            mu = data.get("mu")
+            initial = data.get("initial_guess_states")
+            eph_syn = data.get("ephemeris_synodic")
+            eph_pos = data.get("ephemeris_position_km")
+            eph_t = data.get("ephemeris_times_et")
+            # 显式契约：任一星历槽存在即认为该 Artifact 有内容；纯 CR3BP 初猜
+            # 的旧 Artifact 仅 initial_guess 非 None。完全无内容则跳过。
+            if initial is None and eph_syn is None and eph_pos is None:
                 continue
-            self._states_by_id[aid] = states
-            self._labels_by_id[aid] = data.get("label", "")
-            self._mu_by_id[aid] = data.get("mu")
-            position_km = data.get("position_km")
-            times_et = data.get("times_et")
-            if position_km is not None:
-                self._position_km_by_id[aid] = position_km
-            if times_et is not None:
-                self._times_et_by_id[aid] = times_et
+            self._labels_by_id[aid] = label
+            self._mu_by_id[aid] = mu
+            if initial is not None:
+                self._initial_guess_by_id[aid] = initial
+            if eph_syn is not None:
+                self._ephemeris_synodic_by_id[aid] = eph_syn
+            if eph_pos is not None:
+                self._ephemeris_position_km_by_id[aid] = eph_pos
+            if eph_t is not None:
+                self._ephemeris_times_et_by_id[aid] = eph_t
 
     # -- 渲染入口 ----------------------------------------------------------
 
@@ -180,9 +207,18 @@ class OrbitCanvas(FigureCanvasQTAgg):
         调用方（main_window）在 CanvasState 变化时调此方法。
         数据复用：轨道数组来自内存注册表，不从磁盘/NPZ 重读。
 
-        frame="synodic" 走 CR3BP 旋转系（无量纲）；frame="inertial" 走 GCRS
-        真视图（km）：position_km 画轨迹、地球原点 marker、月球 SPICE 真实
-        轨迹，不画平动点。投影（3d/xy/xz/yz）与 frame 正交。
+        渲染按 ``frame × plot_content`` 组合（#359）：
+
+        - ``frame="synodic"``：
+          - ``plot_content="guess"``：仅画 ``initial_guess_states``（无量纲会合系）。
+          - ``plot_content="ephemeris"``：仅画 ``ephemeris_synodic``（质心归一）。
+          - ``plot_content="overlay"``：两者同画，初猜用实线、星历用虚线，
+            各取 TAB10 相邻色以视觉区分。
+        - ``frame="inertial"``：仅画 ``ephemeris_position_km``（GCRS km）；
+          ``plot_content="guess"`` 在惯性系无几何意义，由 main_window 灰显控件并
+          切到 ``"ephemeris"``，本层不再单独分支。
+
+        投影（3d/xy/xz/yz）与 frame × plot_content 正交。
         """
         state = state or self._state
         self._state = state
@@ -192,7 +228,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
         self._ax = ax
 
         if state.frame == "inertial":
-            # 1. 轨道（position_km）
+            # 1. 轨道（ephemeris_position_km）
             if state.projection == "3d":
                 self._draw_3d_inertial_orbits(ax, state)
             else:
@@ -202,11 +238,11 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 self._draw_inertial_bodies(ax, state)
             # inertial 不画平动点（A3 决策）
         else:
-            # 1. 轨道
+            # 1. 轨道（按 plot_content 选初猜/星历/叠加）
             if state.projection == "3d":
-                self._draw_3d_orbits(ax, state)
+                self._draw_3d_synodic_orbits(ax, state)
             else:
-                self._draw_2d_orbits(ax, state)
+                self._draw_2d_synodic_orbits(ax, state)
             # 2. 地月标注（依赖 mu）
             if state.show_bodies:
                 self._draw_bodies(ax, state)
@@ -215,9 +251,9 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 self._draw_libration(ax, state)
 
         if state.frame == "inertial":
-            has_orbits = bool(self._position_km_by_id)
+            has_orbits = bool(self._ephemeris_position_km_by_id)
         else:
-            has_orbits = bool(self._states_by_id)
+            has_orbits = bool(self._initial_guess_by_id) or bool(self._ephemeris_synodic_by_id)
         self._setup_axes(
             state.projection,
             title="" if has_orbits else "选择一个工件以可视化",
@@ -227,38 +263,86 @@ class OrbitCanvas(FigureCanvasQTAgg):
 
     # -- 内部绘制 ----------------------------------------------------------
 
-    def _draw_3d_orbits(self, ax, state) -> None:
-        for i, aid in enumerate(state.visible_artifacts):
-            states = self._states_by_id.get(aid)
-            if states is None:
-                continue
-            color = self._TAB10_COLORS[i % len(self._TAB10_COLORS)]
-            pos = states[:, :3]
-            ax.plot(
-                pos[:, 0],
-                pos[:, 1],
-                pos[:, 2],
-                linewidth=0.8,
-                color=color,
-                label=self._labels_by_id.get(aid, ""),
-            )
-            ax.scatter(*pos[0], s=30, c=color, zorder=5)
+    @staticmethod
+    def _positions(states_or_pos: Any) -> Any:
+        """取前 3 列作为位置（接受 (n,6) 状态矩阵或 (n,3) 位置数组）。"""
+        arr = np.asarray(states_or_pos)
+        return arr[:, :3] if arr.ndim == 2 and arr.shape[1] >= 3 else arr
 
-    def _draw_2d_orbits(self, ax, state) -> None:
-        plane = _PROJECTION_PLANE_AXES[state.projection]
+    def _draw_3d_synodic_orbits(self, ax, state) -> None:
+        """会合系轨道：按 plot_content 选 initial_guess / ephemeris_synodic / 两者叠加。
+
+        叠加时初猜用实线、星历用虚线，相邻 TAB10 色区分；非叠加模式同一 artifact
+        的两条数据按 TAB10 顺序着色（与现有约定一致）。
+        """
+        content = state.plot_content
         for i, aid in enumerate(state.visible_artifacts):
-            states = self._states_by_id.get(aid)
-            if states is None:
-                continue
-            color = self._TAB10_COLORS[i % len(self._TAB10_COLORS)]
-            pos = states[:, :3]
-            ax.plot(
-                pos[:, plane[0]],
-                pos[:, plane[1]],
-                linewidth=0.8,
-                color=color,
-                label=self._labels_by_id.get(aid, ""),
-            )
+            label = self._labels_by_id.get(aid, "")
+            base_color = self._TAB10_COLORS[(2 * i) % len(self._TAB10_COLORS)]
+            eph_color = self._TAB10_COLORS[(2 * i + 1) % len(self._TAB10_COLORS)]
+            if content in ("guess", "overlay"):
+                initial = self._initial_guess_by_id.get(aid)
+                if initial is not None:
+                    pos = self._positions(initial)
+                    ax.plot(
+                        pos[:, 0],
+                        pos[:, 1],
+                        pos[:, 2],
+                        linewidth=0.8,
+                        color=base_color,
+                        linestyle="-",
+                        label=f"{label}（初猜）" if content == "overlay" else label,
+                    )
+                    ax.scatter(*pos[0], s=30, c=base_color, zorder=5)
+            if content in ("ephemeris", "overlay"):
+                eph_syn = self._ephemeris_synodic_by_id.get(aid)
+                if eph_syn is not None:
+                    pos = self._positions(eph_syn)
+                    suffix = "（星历）" if content == "overlay" else ""
+                    ax.plot(
+                        pos[:, 0],
+                        pos[:, 1],
+                        pos[:, 2],
+                        linewidth=0.8,
+                        color=eph_color,
+                        linestyle="--" if content == "overlay" else "-",
+                        label=f"{label}{suffix}",
+                    )
+                    if content == "ephemeris":
+                        ax.scatter(*pos[0], s=30, c=eph_color, zorder=5)
+
+    def _draw_2d_synodic_orbits(self, ax, state) -> None:
+        plane = _PROJECTION_PLANE_AXES[state.projection]
+        content = state.plot_content
+        for i, aid in enumerate(state.visible_artifacts):
+            label = self._labels_by_id.get(aid, "")
+            base_color = self._TAB10_COLORS[(2 * i) % len(self._TAB10_COLORS)]
+            eph_color = self._TAB10_COLORS[(2 * i + 1) % len(self._TAB10_COLORS)]
+            if content in ("guess", "overlay"):
+                initial = self._initial_guess_by_id.get(aid)
+                if initial is not None:
+                    pos = self._positions(initial)
+                    ax.plot(
+                        pos[:, plane[0]],
+                        pos[:, plane[1]],
+                        linewidth=0.8,
+                        color=base_color,
+                        linestyle="-",
+                        label=f"{label}（初猜）" if content == "overlay" else label,
+                    )
+            if content in ("ephemeris", "overlay"):
+                eph_syn = self._ephemeris_synodic_by_id.get(aid)
+                if eph_syn is not None:
+                    pos = self._positions(eph_syn)
+                    suffix = "（星历）" if content == "overlay" else ""
+                    ax.plot(
+                        pos[:, plane[0]],
+                        pos[:, plane[1]],
+                        linewidth=0.8,
+                        color=eph_color,
+                        linestyle="--" if content == "overlay" else "-",
+                        label=f"{label}{suffix}",
+                    )
 
     def _draw_bodies(self, ax, state) -> None:
         # 经 viz_adapter 调用 e2m2e，view 不直接 import e2m2e
@@ -283,7 +367,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
 
     def _draw_3d_inertial_orbits(self, ax, state) -> None:
         for i, aid in enumerate(state.visible_artifacts):
-            position_km = self._position_km_by_id.get(aid)
+            position_km = self._ephemeris_position_km_by_id.get(aid)
             if position_km is None:
                 continue
             color = self._TAB10_COLORS[i % len(self._TAB10_COLORS)]
@@ -300,7 +384,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
     def _draw_2d_inertial_orbits(self, ax, state) -> None:
         plane = _PROJECTION_PLANE_AXES[state.projection]
         for i, aid in enumerate(state.visible_artifacts):
-            position_km = self._position_km_by_id.get(aid)
+            position_km = self._ephemeris_position_km_by_id.get(aid)
             if position_km is None:
                 continue
             color = self._TAB10_COLORS[i % len(self._TAB10_COLORS)]
@@ -321,7 +405,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
         draw_earth_origin_marker(ax, is_3d=is_3d, plane=plane)
         # 月球轨迹用任一可见 Artifact 的 times_et（同一物理时段，月球轨迹唯一）
         for aid in state.visible_artifacts:
-            times_et = self._times_et_by_id.get(aid)
+            times_et = self._ephemeris_times_et_by_id.get(aid)
             if times_et is not None:
                 draw_moon_gcrs_trajectory(ax, times_et, is_3d=is_3d, plane=plane)
                 break

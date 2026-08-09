@@ -54,6 +54,13 @@ class TestCanvasState:
         state = CanvasState()
         assert state.frame == "synodic"
 
+    def test_default_plot_content_is_overlay(self, qapp):
+        """#359：绘制内容默认 'overlay'（初猜 + 星历叠加）。"""
+        from src.view.canvas import CanvasState
+
+        state = CanvasState()
+        assert state.plot_content == "overlay"
+
     def test_copy_carries_frame(self):
         from src.view.canvas import CanvasState
 
@@ -62,6 +69,16 @@ class TestCanvasState:
         assert copied.frame == "inertial"
         copied.frame = "synodic"
         assert state.frame == "inertial"  # 副本独立
+
+    def test_copy_carries_plot_content(self, qapp):
+        """#359：copy 携带 plot_content 字段且独立。"""
+        from src.view.canvas import CanvasState
+
+        state = CanvasState(plot_content="guess")
+        copied = state.copy()
+        assert copied.plot_content == "guess"
+        copied.plot_content = "ephemeris"
+        assert state.plot_content == "guess"  # 副本独立
 
     def test_copy_returns_new_instance(self):
         from src.view.canvas import CanvasState
@@ -90,14 +107,22 @@ class TestOrbitCanvasRender:
         canvas = OrbitCanvas()
         canvas.set_artifacts_provider(
             _make_provider(
-                {"id1": {"states": _random_orbit(), "label": "DRO", "mu": _MU}}
+                {
+                    "id1": {
+                        "initial_guess_states": _random_orbit(),
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
             )
         )
         # 关闭地月/L 点标注，隔离轨道线计数（标注在 3D 下也是 Line3D marker）
+        # plot_content="guess" 只画初猜（避免 overlay 默认下两份 None 槽的歧义）
         state = CanvasState(
             visible_artifacts=["id1"],
             show_bodies=False,
             show_libration=False,
+            plot_content="guess",
         )
         canvas.sync_state(state, ["id1"])
         canvas.render()
@@ -116,8 +141,16 @@ class TestOrbitCanvasRender:
         canvas.set_artifacts_provider(
             _make_provider(
                 {
-                    "id1": {"states": _random_orbit(), "label": "A", "mu": _MU},
-                    "id2": {"states": _random_orbit(), "label": "B", "mu": _MU},
+                    "id1": {
+                        "initial_guess_states": _random_orbit(),
+                        "label": "A",
+                        "mu": _MU,
+                    },
+                    "id2": {
+                        "initial_guess_states": _random_orbit(),
+                        "label": "B",
+                        "mu": _MU,
+                    },
                 }
             )
         )
@@ -125,6 +158,7 @@ class TestOrbitCanvasRender:
             visible_artifacts=["id1", "id2"],
             show_bodies=False,
             show_libration=False,
+            plot_content="guess",
         )
         canvas.sync_state(state, ["id1", "id2"])
         canvas.render()
@@ -143,10 +177,18 @@ class TestOrbitCanvasRender:
         canvas = OrbitCanvas()
         canvas.set_artifacts_provider(
             _make_provider(
-                {"id1": {"states": _random_orbit(), "label": "DRO", "mu": _MU}}
+                {
+                    "id1": {
+                        "initial_guess_states": _random_orbit(),
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
             )
         )
-        state = CanvasState(projection="xy", visible_artifacts=["id1"])
+        state = CanvasState(
+            projection="xy", visible_artifacts=["id1"], plot_content="guess"
+        )
         canvas.sync_state(state, ["id1"])
         canvas.render()
 
@@ -163,15 +205,27 @@ class TestOrbitCanvasRender:
 
         canvas = OrbitCanvas()
         provider = _make_provider(
-            {"id1": {"states": _random_orbit(), "label": "DRO", "mu": _MU}}
+            {
+                "id1": {
+                    "initial_guess_states": _random_orbit(),
+                    "label": "DRO",
+                    "mu": _MU,
+                }
+            }
         )
         canvas.set_artifacts_provider(provider)
 
-        canvas.sync_state(CanvasState(projection="xy", visible_artifacts=["id1"]), ["id1"])
+        canvas.sync_state(
+            CanvasState(projection="xy", visible_artifacts=["id1"], plot_content="guess"),
+            ["id1"],
+        )
         canvas.render()
         assert canvas._fig.axes[0].name != "3d"
 
-        canvas.sync_state(CanvasState(projection="3d", visible_artifacts=["id1"]), ["id1"])
+        canvas.sync_state(
+            CanvasState(projection="3d", visible_artifacts=["id1"], plot_content="guess"),
+            ["id1"],
+        )
         canvas.render()
         assert canvas._fig.axes[0].name == "3d"
 
@@ -182,10 +236,18 @@ class TestOrbitCanvasRender:
         canvas = OrbitCanvas()
         canvas.set_artifacts_provider(
             _make_provider(
-                {"id1": {"states": _random_orbit(), "label": "DRO", "mu": _MU}}
+                {
+                    "id1": {
+                        "initial_guess_states": _random_orbit(),
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
             )
         )
-        state = CanvasState(visible_artifacts=["id1"], show_bodies=False)
+        state = CanvasState(
+            visible_artifacts=["id1"], show_bodies=False, plot_content="guess"
+        )
         canvas.sync_state(state, ["id1"])
         canvas.render()
         # 无异常即通过；地月标注禁用不影响轨道渲染
@@ -199,10 +261,18 @@ class TestOrbitCanvasRender:
         canvas = OrbitCanvas()
         canvas.set_artifacts_provider(
             _make_provider(
-                {"id1": {"states": _random_orbit(), "label": "DRO", "mu": _MU}}
+                {
+                    "id1": {
+                        "initial_guess_states": _random_orbit(),
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
             )
         )
-        state = CanvasState(visible_artifacts=["id1"], show_libration=False)
+        state = CanvasState(
+            visible_artifacts=["id1"], show_libration=False, plot_content="guess"
+        )
         canvas.sync_state(state, ["id1"])
         canvas.render()
         ax = canvas._fig.axes[0]
@@ -215,19 +285,35 @@ class TestOrbitCanvasRender:
         canvas = OrbitCanvas()
         canvas.set_artifacts_provider(
             _make_provider(
-                {"id1": {"states": _random_orbit(), "label": "DRO", "mu": _MU}}
+                {
+                    "id1": {
+                        "initial_guess_states": _random_orbit(),
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
             )
         )
 
         canvas.sync_state(
-            CanvasState(visible_artifacts=["id1"], show_bodies=True, show_libration=True),
+            CanvasState(
+                visible_artifacts=["id1"],
+                show_bodies=True,
+                show_libration=True,
+                plot_content="guess",
+            ),
             ["id1"],
         )
         canvas.render()
         n_with = len(canvas._fig.axes[0].get_children())
 
         canvas.sync_state(
-            CanvasState(visible_artifacts=["id1"], show_bodies=False, show_libration=False),
+            CanvasState(
+                visible_artifacts=["id1"],
+                show_bodies=False,
+                show_libration=False,
+                plot_content="guess",
+            ),
             ["id1"],
         )
         canvas.render()
@@ -241,9 +327,17 @@ class TestOrbitCanvasRender:
 
         canvas = OrbitCanvas()
         canvas.set_artifacts_provider(
-            _make_provider({"id1": {"states": _random_orbit(), "label": "旧DRO", "mu": None}})
+            _make_provider(
+                {
+                    "id1": {
+                        "initial_guess_states": _random_orbit(),
+                        "label": "旧DRO",
+                        "mu": None,
+                    }
+                }
+            )
         )
-        state = CanvasState(visible_artifacts=["id1"])
+        state = CanvasState(visible_artifacts=["id1"], plot_content="guess")
         canvas.sync_state(state, ["id1"])
         canvas.render()  # 不抛异常
 
@@ -256,7 +350,7 @@ class TestOrbitCanvasRender:
 
         canvas = OrbitCanvas()
         canvas.set_artifacts_provider(_make_provider({}))
-        state = CanvasState(visible_artifacts=["missing"])
+        state = CanvasState(visible_artifacts=["missing"], plot_content="guess")
         canvas.sync_state(state, ["missing"])
         canvas.render()
         ax = canvas._fig.axes[0]
@@ -279,10 +373,10 @@ def _random_position_km(n: int = 50) -> np.ndarray:
 
 
 class TestOrbitCanvasInertialFrame:
-    """frame='inertial' 分支：position_km 画轨迹 + 地球原点 + 月球轨迹（SPICE）。"""
+    """frame='inertial' 分支：ephemeris_position_km 画轨迹 + 地球原点 + 月球轨迹（SPICE）。"""
 
     def test_inertial_orbit_line_equals_position_km(self, qapp):
-        """frame=inertial 时 3D 轨道线的 xyz 数据 == 注入的 position_km。"""
+        """frame=inertial 时 3D 轨道线的 xyz 数据 == 注入的 ephemeris_position_km。"""
         from src.view.canvas import CanvasState, OrbitCanvas
 
         position_km = _random_position_km()
@@ -291,11 +385,11 @@ class TestOrbitCanvasInertialFrame:
             _make_provider(
                 {
                     "id1": {
-                        "states": _random_orbit(),
+                        "initial_guess_states": _random_orbit(),
                         "label": "受控",
                         "mu": _MU,
-                        "position_km": position_km,
-                        "times_et": None,  # 此例不测月球轨迹
+                        "ephemeris_position_km": position_km,
+                        "ephemeris_times_et": None,  # 此例不测月球轨迹
                     }
                 }
             )
@@ -331,11 +425,11 @@ class TestOrbitCanvasInertialFrame:
             _make_provider(
                 {
                     "id1": {
-                        "states": _random_orbit(),
+                        "initial_guess_states": _random_orbit(),
                         "label": "受控",
                         "mu": _MU,
-                        "position_km": position_km,
-                        "times_et": None,
+                        "ephemeris_position_km": position_km,
+                        "ephemeris_times_et": None,
                     }
                 }
             )
@@ -371,11 +465,11 @@ class TestOrbitCanvasInertialFrame:
             _make_provider(
                 {
                     "id1": {
-                        "states": _random_orbit(),
+                        "initial_guess_states": _random_orbit(),
                         "label": "受控",
                         "mu": _MU,
-                        "position_km": _random_position_km(),
-                        "times_et": None,
+                        "ephemeris_position_km": _random_position_km(),
+                        "ephemeris_times_et": None,
                     }
                 }
             )
@@ -402,11 +496,11 @@ class TestOrbitCanvasInertialFrame:
             _make_provider(
                 {
                     "id1": {
-                        "states": _random_orbit(),
+                        "initial_guess_states": _random_orbit(),
                         "label": "受控",
                         "mu": _MU,
-                        "position_km": _random_position_km(),
-                        "times_et": None,
+                        "ephemeris_position_km": _random_position_km(),
+                        "ephemeris_times_et": None,
                     }
                 }
             )
@@ -445,11 +539,11 @@ class TestOrbitCanvasInertialFrame:
             _make_provider(
                 {
                     "id1": {
-                        "states": _random_orbit(),
+                        "initial_guess_states": _random_orbit(),
                         "label": "无星历",
                         "mu": _MU,
-                        "position_km": None,
-                        "times_et": None,
+                        "ephemeris_position_km": None,
+                        "ephemeris_times_et": None,
                     }
                 }
             )
@@ -495,11 +589,11 @@ class TestOrbitCanvasInertialFrame:
             _make_provider(
                 {
                     "id1": {
-                        "states": _random_orbit(5),
+                        "initial_guess_states": _random_orbit(5),
                         "label": "受控",
                         "mu": _MU,
-                        "position_km": position_km,
-                        "times_et": times_et,
+                        "ephemeris_position_km": position_km,
+                        "ephemeris_times_et": times_et,
                     }
                 }
             )

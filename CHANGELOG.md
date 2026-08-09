@@ -6,6 +6,7 @@
 
 ### 功能
 
+- **轨道设计标称星历进入画布（#359）**：轨道设计产物此前在画布上只能看到 CR3BP 周期初猜，真实星历模型下的标称星历（拟周期、跨整个 duration）一直埋在 Artifact 的 `extra["ephemeris"]`。画布新增"绘制内容"维度（初猜 / 星历 / 叠加，默认叠加）——与会合系/惯性系正交。叠加视图初猜用实线、星历用虚线，TAB10 相邻色区分。两份轨迹从 `_artifact_for_id` 显式平级进画布（`initial_guess_states` / `ephemeris_synodic` / `ephemeris_position_km` / `ephemeris_times_et` 四槽），不嵌套、不靠隐式 fallback。惯性系下"初猜"灰显（CR3BP 无量纲无惯性系表示）；control_orbit 产物无初猜，"初猜"恒灰显。导出动画跟随绘制内容：初猜模式无物理时间轴，明确拒绝导出。从磁盘恢复的历史 design_orbit Artifact 也支持（NPZ 已存全字段）。ADR 0013 范围从 control_orbit 受控星历扩到 design_orbit 标称星历 + control_orbit 受控星历。
 - **星历模型坐标系切换与惯性系视图（#358 P1，93977fa）**：画布新增会合系 / 地心惯性系（GCRS）切换。惯性系视图以地球为原点、月球按 SPICE 真实轨迹移动、轨迹用 GCRS km、不画平动点；会合系维持 CR3BP 旋转系 + 地月 + L1–L5。脉动-旋转系为 cislunar 可视化主流（Folta 2022、Park 2025），瞬时平动点在该系与 CR3BP 几何一致（Boudad 2022）。
 - **GIF 动画导出（#358 P2，93977fa）**：新增独立"导出动画"工具，按时间等分采样逐帧渲染、Pillow 合成 GIF（不依赖 ffmpeg）。支持累积 / 滑动窗口、UTC 帧时间戳、坐标系随当前视图。
 

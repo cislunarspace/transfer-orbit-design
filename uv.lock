@@ -228,7 +228,7 @@ wheels = [
 
 [[package]]
 name = "e2m2e"
-version = "5.6.1"
+version = "5.6.3"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
 dependencies = [
     { name = "numpy" },
@@ -239,10 +239,10 @@ dependencies = [
     { name = "spiceypy" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/86/4e/3bcae172eef89cd9ce0d42d7a45e1f4da37d5371f03a470e416c985b09f8/e2m2e-5.6.1.tar.gz", hash = "sha256:e0fa563dd9fc0d0bb633c4411617aa0f3c1356848f47b4668067cfea6b56ed71", size = 3351607, upload-time = "2026-08-07T15:50:30.495Z" }
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/84/5e/288129291236a4d2caa174a18272ecad283f983be4f136de69ff3c924b5e/e2m2e-5.6.3.tar.gz", hash = "sha256:5c196038c288f2715b47eaa8754ae3de7ba62a71af18e8d4fe40fc427062ef02", size = 3373071, upload-time = "2026-08-08T07:39:23.21Z" }
 wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/24/b0/b11cd4f34c0261f910b4c6dee4cc38ce97fed944ba21fbf631384d4ae69a/e2m2e-5.6.1-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:5996f8f3172b0d2f10c49e00fa63add73c419f16aec84874206d56abe9dd896b", size = 4761371, upload-time = "2026-08-07T15:50:26.543Z" },
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/fb/c6/cdb8fedcd8b37f15b773f8dc813af60a02390287349e1d1afdc2e5f702d6/e2m2e-5.6.1-cp310-abi3-win_amd64.whl", hash = "sha256:9c2f449d755ad1bceab3986bd3cd761e6aa9f56af3dc6da8655231f9f22d7d2c", size = 4480624, upload-time = "2026-08-07T15:50:28.516Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/a5/c8/422a2c6bf5d42fd852c43df86ede642531499de2e9059b7bf27bcf2ce246/e2m2e-5.6.3-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:421be9a978b2433ef3335a60bcb637c77b189ae8e554b06647db7ce68239b9fe", size = 4777411, upload-time = "2026-08-08T07:39:20.023Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/3c/7f/d36b7e7230872732f7105a77d7980002ce2f40b65d3563a30df1cb7f3582/e2m2e-5.6.3-cp310-abi3-win_amd64.whl", hash = "sha256:a6200a685d553c9cbcba791fac759c58920105d94e1ca0f29fdb30e90ad4c7c9", size = 4497130, upload-time = "2026-08-08T07:39:21.811Z" },
 ]
 
 [[package]]
@@ -1275,7 +1275,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "e2m2e", specifier = ">=5.6.0" },
+    { name = "e2m2e", specifier = "==5.6.3" },
     { name = "matplotlib", specifier = ">=3.10.0" },
     { name = "myst-parser", marker = "extra == 'docs'", specifier = ">=2.0" },
     { name = "numpy", specifier = ">=2.4.0" },

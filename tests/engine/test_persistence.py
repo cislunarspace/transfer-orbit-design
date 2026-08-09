@@ -15,10 +15,10 @@ from src.model.discovery import discover_artifacts
 _RNG = np.random.default_rng(seed=42)
 
 
-def _make_dto() -> OrbitDesignResultData:
+def _make_dto(orbit_type: str = "DRO") -> OrbitDesignResultData:
     n = 100
     return OrbitDesignResultData(
-        orbit_type="DRO",
+        orbit_type=orbit_type,
         epoch_utc="2024-01-01T00:00:00",
         duration_day=365.25,
         initial_state=np.array([1.0, 2.0, 3.0, 0.1, 0.2, 0.3]),
@@ -77,6 +77,58 @@ class TestSaveArtifact:
         assert a.orbit_type == "DRO"
         assert a.output_path is not None
         assert a.output_path.exists()
+
+
+class TestSaveArtifactOrbitTypeNaming:
+    """回归：Halo 等非 DRO 轨道不得落盘为 dro_ 前缀（#359 后画布数据契约）。
+
+    save_artifact 曾无条件写 ``output/dro/dro_<ts>``，导致 Halo/NRHO/Lissajous
+    等轨道保存成 DRO 文件；discovery 按目录+前缀分类，读取时被当作 DRO。
+    """
+
+    @pytest.mark.parametrize("orbit_type", ["DRO", "Halo", "NRHO", "Lissajous"])
+    def test_saves_to_type_subdir(self, tmp_path, orbit_type):
+        json_path, _ = save_artifact(_make_dto(orbit_type), tmp_path)
+        expected_dir = tmp_path / orbit_type.lower()
+        assert json_path.parent == expected_dir, (
+            f"{orbit_type} 轨道应写入 output/{orbit_type.lower()}/，"
+            f"实际写入 {json_path.parent}"
+        )
+
+    @pytest.mark.parametrize("orbit_type", ["DRO", "Halo", "NRHO", "Lissajous"])
+    def test_filename_prefix_matches_type(self, tmp_path, orbit_type):
+        json_path, _ = save_artifact(_make_dto(orbit_type), tmp_path)
+        assert json_path.stem.startswith(orbit_type.lower() + "_"), (
+            f"{orbit_type} 轨道文件名应以 {orbit_type.lower()}_ 开头，"
+            f"实际为 {json_path.stem}"
+        )
+
+    @pytest.mark.parametrize("orbit_type", ["DRO", "Halo", "NRHO", "Lissajous"])
+    def test_discover_roundtrip_type(self, tmp_path, orbit_type):
+        """保存后 discover 能按目录分类回正确的 orbit_type。"""
+        save_artifact(_make_dto(orbit_type), tmp_path)
+        artifacts = discover_artifacts(tmp_path)
+        assert len(artifacts) == 1
+        a = artifacts[0]
+        assert a.artifact_type == "orbit"
+        assert a.orbit_type == orbit_type, (
+            f"{orbit_type} 保存后 discover 分类为 {a.orbit_type}"
+        )
+        assert a.source_tool == "design_orbit"
+
+    def test_dro_backward_compatible_layout(self, tmp_path):
+        """DRO 的既有布局（output/dro/dro_<ts>）保持不变。"""
+        json_path, _ = save_artifact(_make_dto("DRO"), tmp_path)
+        assert json_path.parent == tmp_path / "dro"
+        assert re.match(r"^dro_\d+\.json$", json_path.name)
+
+    def test_mixed_types_separated(self, tmp_path):
+        """DRO 与 Halo 混存时互不串目录。"""
+        save_artifact(_make_dto("DRO"), tmp_path)
+        save_artifact(_make_dto("Halo"), tmp_path)
+        artifacts = discover_artifacts(tmp_path)
+        types = sorted(a.orbit_type for a in artifacts)
+        assert types == ["DRO", "Halo"]
 
 
 class TestLazyLoadRoundtrip:

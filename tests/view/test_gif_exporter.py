@@ -164,11 +164,12 @@ class TestExportAnimationEndToEnd:
         canvas = self._make_canvas(
             {
                 "a": {
-                    "states": _random_orbit(n),
+                    "initial_guess_states": _random_orbit(n),
+                    "ephemeris_synodic": _random_orbit(n)[:, :3],
                     "label": "DRO",
                     "mu": _MU,
-                    "times_et": np.linspace(0.0, 1e6, n),
-                    "position_km": None,
+                    "ephemeris_times_et": np.linspace(0.0, 1e6, n),
+                    "ephemeris_position_km": None,
                 }
             }
         )
@@ -189,7 +190,7 @@ class TestExportAnimationEndToEnd:
             assert img.size[0] > 0 and img.size[1] > 0
 
     def test_inertial_gif_basic(self, qapp, tmp_path):
-        """inertial GIF：position_km 子集 + 地球原点（月球轨迹降级跳过）。"""
+        """inertial GIF：ephemeris_position_km 子集 + 地球原点（月球轨迹降级跳过）。"""
         from PIL import Image
 
         from src.view.gif_exporter import export_animation
@@ -198,9 +199,9 @@ class TestExportAnimationEndToEnd:
         canvas = self._make_canvas(
             {
                 "a": {
-                    "states": _random_orbit(n),
-                    "position_km": _random_position_km(n),
-                    "times_et": np.linspace(0.0, 1e6, n),
+                    "initial_guess_states": _random_orbit(n),
+                    "ephemeris_position_km": _random_position_km(n),
+                    "ephemeris_times_et": np.linspace(0.0, 1e6, n),
                     "label": "受控",
                     "mu": _MU,
                 }
@@ -230,8 +231,9 @@ class TestExportAnimationEndToEnd:
         canvas = self._make_canvas(
             {
                 "a": {
-                    "states": _random_orbit(n),
-                    "times_et": times_et,
+                    "initial_guess_states": _random_orbit(n),
+                    "ephemeris_synodic": _random_orbit(n)[:, :3],
+                    "ephemeris_times_et": times_et,
                     "label": "DRO",
                     "mu": _MU,
                 }
@@ -255,7 +257,13 @@ class TestExportAnimationEndToEnd:
 
         n = 20
         canvas = self._make_canvas(
-            {"a": {"states": _random_orbit(n), "times_et": np.arange(n, dtype=float)}}
+            {
+                "a": {
+                    "initial_guess_states": _random_orbit(n),
+                    "ephemeris_synodic": _random_orbit(n)[:, :3],
+                    "ephemeris_times_et": np.arange(n, dtype=float),
+                }
+            }
         )
         with pytest.raises(ValueError, match="frame 非法"):
             export_animation(
@@ -273,9 +281,14 @@ class TestExportAnimationEndToEnd:
 
         n = 20
         canvas = self._make_canvas(
-            {"a": {"states": _random_orbit(n)}}  # 无 times_et
+            {
+                "a": {
+                    "initial_guess_states": _random_orbit(n),
+                    "ephemeris_synodic": _random_orbit(n)[:, :3],
+                }  # 无 ephemeris_times_et
+            }
         )
-        with pytest.raises(ValueError, match="times_et"):
+        with pytest.raises(ValueError, match="ephemeris_times_et"):
             export_animation(
                 canvas,
                 canvas._artifacts_provider("a"),
@@ -291,9 +304,15 @@ class TestExportAnimationEndToEnd:
 
         n = 20
         canvas = self._make_canvas(
-            {"a": {"states": _random_orbit(n), "times_et": np.arange(n, dtype=float)}}
+            {
+                "a": {
+                    "initial_guess_states": _random_orbit(n),
+                    "ephemeris_synodic": _random_orbit(n)[:, :3],
+                    "ephemeris_times_et": np.arange(n, dtype=float),
+                }
+            }
         )
-        with pytest.raises(ValueError, match="position_km"):
+        with pytest.raises(ValueError, match="ephemeris_position_km"):
             export_animation(
                 canvas,
                 canvas._artifacts_provider("a"),
@@ -305,7 +324,7 @@ class TestExportAnimationEndToEnd:
             )
 
     def test_canvas_state_restored_after_export(self, qapp, tmp_path):
-        """导出后 canvas 的 provider / 可见 artifact 恢复。"""
+        """导出后 canvas 的 provider / 可见 artifact / plot_content 恢复。"""
         from src.view.canvas import CanvasState, OrbitCanvas
 
         n = 30
@@ -314,17 +333,22 @@ class TestExportAnimationEndToEnd:
             _make_provider(
                 {
                     "orig": {
-                        "states": _random_orbit(n),
+                        "initial_guess_states": _random_orbit(n),
+                        "ephemeris_synodic": _random_orbit(n)[:, :3],
                         "label": "DRO",
                         "mu": _MU,
-                        "times_et": np.linspace(0.0, 1e6, n),
+                        "ephemeris_times_et": np.linspace(0.0, 1e6, n),
                     }
                 }
             )
         )
-        canvas.sync_state(CanvasState(visible_artifacts=["orig"]), ["orig"])
+        canvas.sync_state(
+            CanvasState(visible_artifacts=["orig"], plot_content="ephemeris"),
+            ["orig"],
+        )
         saved_provider = canvas._artifacts_provider
         saved_visible = list(canvas._state.visible_artifacts)
+        saved_content = canvas._state.plot_content
 
         from src.view.gif_exporter import export_animation
 
@@ -339,6 +363,7 @@ class TestExportAnimationEndToEnd:
         )
         assert canvas._artifacts_provider is saved_provider
         assert list(canvas._state.visible_artifacts) == saved_visible
+        assert canvas._state.plot_content == saved_content
 
     def test_progress_callback_invoked(self, qapp, tmp_path):
         from src.view.gif_exporter import export_animation
@@ -347,8 +372,9 @@ class TestExportAnimationEndToEnd:
         canvas = self._make_canvas(
             {
                 "a": {
-                    "states": _random_orbit(n),
-                    "times_et": np.linspace(0.0, 1e6, n),
+                    "initial_guess_states": _random_orbit(n),
+                    "ephemeris_synodic": _random_orbit(n)[:, :3],
+                    "ephemeris_times_et": np.linspace(0.0, 1e6, n),
                     "label": "DRO",
                     "mu": _MU,
                 }
@@ -395,7 +421,7 @@ class TestMainWindowExportAnimationSlot:
         assert "请先选中" in w._status_bar.currentMessage()
 
     def test_synodic_export_via_dialog(self, qapp, tmp_path, monkeypatch):
-        """选中带 times_et 的 Artifact → 弹对话框(自动 accept) → 选路径 → 导出。"""
+        """选中带 ephemeris_times_et 的 Artifact → 弹对话框(自动 accept) → 选路径 → 导出。"""
         from src.model import Artifact
 
         w = _make_window()
@@ -403,10 +429,15 @@ class TestMainWindowExportAnimationSlot:
         a = Artifact(
             artifact_type="orbit",
             label="DRO",
+            source_tool="design_orbit",
             state_data=_random_orbit(n),
             extra={
                 "mu": _MU,
-                "times_et": np.linspace(0.0, 1e6, n),
+                "ephemeris": {
+                    "synodic_position": _random_orbit(n)[:, :3],
+                    "position_km": _random_position_km(n),
+                    "times_et": np.linspace(0.0, 1e6, n),
+                },
             },
         )
         w._project.add(a)
@@ -435,8 +466,15 @@ class TestMainWindowExportAnimationSlot:
         a = Artifact(
             artifact_type="orbit",
             label="DRO",
+            source_tool="design_orbit",
             state_data=_random_orbit(n),
-            extra={"mu": _MU, "times_et": np.linspace(0.0, 1e6, n)},
+            extra={
+                "mu": _MU,
+                "ephemeris": {
+                    "synodic_position": _random_orbit(n)[:, :3],
+                    "times_et": np.linspace(0.0, 1e6, n),
+                },
+            },
         )
         w._project.add(a)
         w._on_artifact_clicked(a.artifact_id)
@@ -455,3 +493,34 @@ class TestMainWindowExportAnimationSlot:
         btn = w._viz.projection_toolbar.export_animation
         assert btn.text() == "导出动画"
         assert btn.isEnabled()
+
+    def test_initial_guess_mode_blocks_export(self, qapp, tmp_path, monkeypatch):
+        """#359：plot_content='guess' 时拒绝导出动画（无物理时间轴）。"""
+        from src.model import Artifact
+
+        w = _make_window()
+        n = 40
+        a = Artifact(
+            artifact_type="orbit",
+            label="DRO",
+            source_tool="design_orbit",
+            state_data=_random_orbit(n),
+            extra={
+                "mu": _MU,
+                "ephemeris": {
+                    "synodic_position": _random_orbit(n)[:, :3],
+                    "position_km": _random_position_km(n),
+                    "times_et": np.linspace(0.0, 1e6, n),
+                },
+            },
+        )
+        w._project.add(a)
+        w._on_artifact_clicked(a.artifact_id)
+        # 切到初猜模式
+        w._on_plot_content_changed("guess")
+        assert w._canvas_state.plot_content == "guess"
+
+        w._on_export_animation()
+        assert "初猜模式" in w._status_bar.currentMessage()
+        # 不应进入对话框/导出流程
+        assert "正在导出" not in w._status_bar.currentMessage()

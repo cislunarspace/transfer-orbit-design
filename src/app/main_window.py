@@ -214,6 +214,9 @@ class MainWindow(QMainWindow):
         toolbar.projection_yz.clicked.connect(lambda: self._on_projection_changed("yz"))
         toolbar.frame_synodic.clicked.connect(lambda: self._on_frame_changed("synodic"))
         toolbar.frame_inertial.clicked.connect(lambda: self._on_frame_changed("inertial"))
+        toolbar.plot_overlay.clicked.connect(lambda: self._on_plot_content_changed("overlay"))
+        toolbar.plot_guess.clicked.connect(lambda: self._on_plot_content_changed("guess"))
+        toolbar.plot_ephemeris.clicked.connect(lambda: self._on_plot_content_changed("ephemeris"))
         toolbar.show_bodies.toggled.connect(self._on_toggle_bodies)
         toolbar.show_libration.toggled.connect(self._on_toggle_libration)
         toolbar.export_animation.clicked.connect(self._on_export_animation)
@@ -485,7 +488,9 @@ class MainWindow(QMainWindow):
                 self._log.append_log(f"NPZ 懒加载失败: {artifact.label}（文件缺失或元数据缺失）")
         if artifact.state_data is not None:
             self._warn_missing_mu(artifact)
+            self._warn_missing_ephemeris(artifact)
             self._selected_artifact_ids = [artifact_id]
+            self._update_plot_content_controls()
             self._render_canvas()
             self._center_tabs.setCurrentIndex(0)
 
@@ -498,7 +503,9 @@ class MainWindow(QMainWindow):
             if artifact.state_data is None and artifact.output_path is not None:
                 load_artifact_arrays(artifact)
             self._warn_missing_mu(artifact)
+            self._warn_missing_ephemeris(artifact)
         self._selected_artifact_ids = list(artifact_ids)
+        self._update_plot_content_controls()
         self._render_canvas()
         self._center_tabs.setCurrentIndex(0)
 
@@ -786,24 +793,61 @@ class MainWindow(QMainWindow):
         if artifact.state_data is not None and artifact.extra.get("mu") is None:
             self._log.append_log(f"旧 Artifact 无 mu，跳过地月标注: {artifact.label}")
 
+    def _warn_missing_ephemeris(self, artifact: Artifact) -> None:
+        """轨道设计产物（design_orbit）无标称星历时提示：画布只能画初猜。
+
+        #359 US 10：星历缺失要明确告知，而非画布静默只画初猜。design_orbit
+        正常总会产出星历，此分支仅防御异常/旧产物。
+        """
+        if artifact.source_tool == "design_orbit" and not artifact.extra.get("ephemeris"):
+            self._log.append_log(f"该轨道无标称星历，画布只能画初猜: {artifact.label}")
+
     def _artifact_for_id(self, artifact_id: str) -> dict | None:
         """返回画布渲染所需的 Artifact 数据（不含 e2m2e 类型）。
 
         经 canvas.set_artifacts_provider() 注入；渲染前由 canvas.sync_state()
         调用，返回内存数组，不从磁盘/NPZ 重读。
+
+        契约（#359）：四份轨迹数据显式平级暴露给画布，不嵌套、不靠隐式 fallback。
+        画布按 ``CanvasState.plot_content`` 选择消费哪一槽。
+
+        - ``initial_guess_states``: CR3BP 周期轨道（无量纲会合系，质心归一）。
+          仅 design_orbit 产物有；control_orbit 与历史 Artifact 为 None。
+        - ``ephemeris_synodic``: 星历会合系位置（质心归一，已减 μ；ADR 0013）。
+          design_orbit 的标称星历（从 extra["ephemeris"]）与 control_orbit 的
+          受控星历（state_data 已在 facade_bridge 减过 μ）共用此槽。
+        - ``ephemeris_position_km``: 星历惯性系 GCRS km 位置。
+        - ``ephemeris_times_et``: 物理时间（ET 秒，与星历槽同源）。
         """
         a = self._project.get_by_id(artifact_id)
         if a is None or a.state_data is None:
             return None
-        return {
-            "states": a.state_data,
+        mu = a.extra.get("mu")
+        data: dict = {
             "label": a.label,
-            "mu": a.extra.get("mu"),
-            # P0 仅透传到画布接口；P1 坐标系切换/P2 帧动画消费这两个字段。
-            # 缺失（旧 Artifact）返回 None，画布降级处理。
-            "position_km": a.extra.get("position_km"),
-            "times_et": a.extra.get("times_et"),
+            "mu": mu,
+            "initial_guess_states": None,
+            "ephemeris_synodic": None,
+            "ephemeris_position_km": None,
+            "ephemeris_times_et": None,
         }
+        if a.source_tool == "design_orbit":
+            # CR3BP 周期轨道作为初猜；标称星历四件套来自 extra["ephemeris"]
+            eph = a.extra.get("ephemeris") or {}
+            data["initial_guess_states"] = a.state_data
+            syn = eph.get("synodic_position")
+            if syn is not None:
+                # ADR 0013：星历会合系位置送画布前减 μ（地心归一 → 质心归一）
+                data["ephemeris_synodic"] = np.asarray(syn) - (mu or 0.0)
+            data["ephemeris_position_km"] = eph.get("position_km")
+            data["ephemeris_times_et"] = eph.get("times_et")
+        else:
+            # control_orbit / 历史 ephemeris Artifact：state_data 已是质心归一
+            # 的受控星历会合系位置（facade_bridge 减过 μ），作为星历会合系槽。
+            data["ephemeris_synodic"] = a.state_data
+            data["ephemeris_position_km"] = a.extra.get("position_km")
+            data["ephemeris_times_et"] = a.extra.get("times_et")
+        return data
 
     def _render_canvas(self) -> None:
         """同步 CanvasState 并触发 render()。数据在内存，不从 NPZ 重读。"""
@@ -826,12 +870,51 @@ class MainWindow(QMainWindow):
         """坐标系切换：会合系（CR3BP 旋转系）/ 惯性系（GCRS/J2000，km）。
 
         inertial 需要 position_km + times_et；缺失时画布降级（仅地球原点），
-        并在状态栏提示。
+        并在状态栏提示。inertial 下 CR3BP 初猜无几何意义，"初猜"绘制内容
+        自动切到"星历"并灰显控件。
         """
         self._canvas_state.frame = frame
+        self._update_plot_content_controls()
         if frame == "inertial" and not self._selected_artifacts_have_inertial():
             self._status_bar.showMessage("该 Artifact 无星历惯性数据", _STATUS_MSG_TIMEOUT_MS)
         self._render_canvas()
+
+    def _on_plot_content_changed(self, content: str) -> None:
+        """绘制内容切换：初猜 / 星历 / 叠加（与会合系/惯性系正交）。
+
+        仅会合系 + 含初猜数据的 Artifact 允许"初猜"；其他场景由
+        ``_update_plot_content_controls`` 灰显。本 slot 不二次校验，依赖控件状态。
+        """
+        self._canvas_state.plot_content = content
+        self._render_canvas()
+
+    def _update_plot_content_controls(self) -> None:
+        """按当前坐标系与选中 Artifact 启用/禁用"初猜"绘制按钮。
+
+        规则：
+        - 惯性系：CR3BP 无量纲初猜无惯性系表示，"初猜"灰显；若当前选了"初猜"，
+          自动切到"星历"。
+        - 选中 Artifact 任一含初猜（design_orbit 产物）：会合系下"初猜"可用。
+        - 否则（control_orbit 产物）：会合系下"初猜"也灰显。
+        """
+        toolbar = self._viz.projection_toolbar
+        guess_available = (
+            self._canvas_state.frame == "synodic" and self._selected_artifacts_have_initial_guess()
+        )
+        toolbar.plot_guess.setEnabled(guess_available)
+        if not guess_available and self._canvas_state.plot_content == "guess":
+            # 初猜不可用时退到"星历"（有星历）或"叠加"（默认）
+            self._canvas_state.plot_content = "ephemeris"
+
+    def _selected_artifacts_have_initial_guess(self) -> bool:
+        """任一当前选中 Artifact 含 CR3BP 初猜（design_orbit 产物）即为 True。"""
+        for aid in self._selected_artifact_ids:
+            a = self._project.get_by_id(aid)
+            if a is None:
+                continue
+            if a.source_tool == "design_orbit" and a.state_data is not None:
+                return True
+        return False
 
     def _selected_artifacts_have_inertial(self) -> bool:
         """任一当前选中 Artifact 同时含 position_km 与 times_et 即为 True。"""
@@ -839,7 +922,12 @@ class MainWindow(QMainWindow):
             a = self._project.get_by_id(aid)
             if a is None:
                 continue
-            if a.extra.get("position_km") is not None and a.extra.get("times_et") is not None:
+            # design_orbit 的星历在 extra["ephemeris"]，control_orbit 在 extra 顶层
+            if a.source_tool == "design_orbit":
+                eph = a.extra.get("ephemeris") or {}
+                if eph.get("position_km") is not None and eph.get("times_et") is not None:
+                    return True
+            elif a.extra.get("position_km") is not None and a.extra.get("times_et") is not None:
                 return True
         return False
 
@@ -848,13 +936,22 @@ class MainWindow(QMainWindow):
     def _on_export_animation(self) -> None:
         """工具栏"导出动画"：检查选中 Artifact → 弹参数对话框 → 选保存路径 → 渲染。
 
-        数据不全（synodic 缺 states / inertial 缺 position_km+times_et）时给出
-        明确降级提示，不进入对话框。导出期间状态栏提示"正在导出"，同步渲染
-        （不强制 QThread，离线导出非频繁操作）。
+        绘制内容为"初猜"时不可导出（CR3BP 单周期无物理时间轴），状态栏明确提示。
+        数据不全（synodic 缺 ephemeris_synodic / inertial 缺 ephemeris_position_km
+        + ephemeris_times_et）时给出明确降级提示，不进入对话框。导出期间状态栏
+        提示"正在导出"，同步渲染（不强制 QThread，离线导出非频繁操作）。
         """
         artifact = self._selected_exportable_artifact()
         if artifact is None or artifact.state_data is None:
             self._status_bar.showMessage("请先选中一条星历 Artifact", _STATUS_MSG_TIMEOUT_MS)
+            return
+
+        # 初猜模式无物理时间轴，明确拒绝（不进入对话框）
+        if self._canvas_state.plot_content == "guess":
+            self._status_bar.showMessage(
+                "初猜模式无物理时间轴，无法导出动画（切到星历或叠加再导出）",
+                _STATUS_MSG_TIMEOUT_MS,
+            )
             return
 
         artifact_data = self._artifact_for_id(artifact.artifact_id)
@@ -863,11 +960,12 @@ class MainWindow(QMainWindow):
             return
 
         has_inertial = (
-            artifact_data.get("position_km") is not None
-            and artifact_data.get("times_et") is not None
+            artifact_data.get("ephemeris_position_km") is not None
+            and artifact_data.get("ephemeris_times_et") is not None
         )
         has_synodic = (
-            artifact_data.get("states") is not None and artifact_data.get("times_et") is not None
+            artifact_data.get("ephemeris_synodic") is not None
+            and artifact_data.get("ephemeris_times_et") is not None
         )
         if not (has_inertial or has_synodic):
             self._status_bar.showMessage(
