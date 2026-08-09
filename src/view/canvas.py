@@ -42,12 +42,16 @@ class CanvasState:
         visible_artifacts: 当前显示的 artifact_id 列表。
         show_bodies: 是否显示地月标注。
         show_libration: 是否显示 L1-L5 拉格朗日点标注。
+        frame: 坐标系，``"synodic" | "inertial"``。``"synodic"`` 复用 CR3BP 旋转
+            系（无量纲，月球固定在 1−μ）；``"inertial"`` 画 GCRS/J2000 真视图：
+            地球原点 + 月球 SPICE 真实轨迹 + position_km（km），不画平动点。
     """
 
     projection: str = "3d"
     visible_artifacts: list[str] = field(default_factory=list)
     show_bodies: bool = True
     show_libration: bool = True
+    frame: str = "synodic"
 
     def copy(self) -> CanvasState:
         """返回副本（不可变更新模式：读当前 state → 改字段 → 传新 state）。"""
@@ -56,6 +60,7 @@ class CanvasState:
             visible_artifacts=list(self.visible_artifacts),
             show_bodies=self.show_bodies,
             show_libration=self.show_libration,
+            frame=self.frame,
         )
 
 
@@ -94,6 +99,9 @@ class OrbitCanvas(FigureCanvasQTAgg):
         self._states_by_id: dict[str, Any] = {}
         self._labels_by_id: dict[str, str] = {}
         self._mu_by_id: dict[str, float | None] = {}
+        # inertial 视图专用：GCRS km 位置 + ET 秒（缺失时 inertial 降级）
+        self._position_km_by_id: dict[str, Any] = {}
+        self._times_et_by_id: dict[str, Any] = {}
         self._artifacts_provider = None
 
     def _setup_axes(self, projection: str = "3d", *, title: str = "选择一个工件以可视化") -> None:
@@ -136,12 +144,17 @@ class OrbitCanvas(FigureCanvasQTAgg):
 
         数据来自内存（provider 回调），不从 NPZ 重读——切换投影/开关时
         数组已在内存，这是验收标准 #5 的实现方式。
+
+        同时透传 position_km / times_et（inertial 视图所需），缺失则对应
+        注册表项不写入，inertial 分支按缺数据降级。
         """
         self._state = state
         state.visible_artifacts = list(artifact_ids)
         self._states_by_id = {}
         self._labels_by_id = {}
         self._mu_by_id = {}
+        self._position_km_by_id = {}
+        self._times_et_by_id = {}
         for aid in artifact_ids:
             data = self._artifacts_provider(aid) if self._artifacts_provider else None
             if data is None:
@@ -152,6 +165,12 @@ class OrbitCanvas(FigureCanvasQTAgg):
             self._states_by_id[aid] = states
             self._labels_by_id[aid] = data.get("label", "")
             self._mu_by_id[aid] = data.get("mu")
+            position_km = data.get("position_km")
+            times_et = data.get("times_et")
+            if position_km is not None:
+                self._position_km_by_id[aid] = position_km
+            if times_et is not None:
+                self._times_et_by_id[aid] = times_et
 
     # -- 渲染入口 ----------------------------------------------------------
 
@@ -160,6 +179,10 @@ class OrbitCanvas(FigureCanvasQTAgg):
 
         调用方（main_window）在 CanvasState 变化时调此方法。
         数据复用：轨道数组来自内存注册表，不从磁盘/NPZ 重读。
+
+        frame="synodic" 走 CR3BP 旋转系（无量纲）；frame="inertial" 走 GCRS
+        真视图（km）：position_km 画轨迹、地球原点 marker、月球 SPICE 真实
+        轨迹，不画平动点。投影（3d/xy/xz/yz）与 frame 正交。
         """
         state = state or self._state
         self._state = state
@@ -168,21 +191,33 @@ class OrbitCanvas(FigureCanvasQTAgg):
         ax = self._fig.add_subplot(111, projection=projection)
         self._ax = ax
 
-        # 1. 轨道
-        if state.projection == "3d":
-            self._draw_3d_orbits(ax, state)
+        if state.frame == "inertial":
+            # 1. 轨道（position_km）
+            if state.projection == "3d":
+                self._draw_3d_inertial_orbits(ax, state)
+            else:
+                self._draw_2d_inertial_orbits(ax, state)
+            # 2. 地球原点 + 月球 SPICE 轨迹（依赖 show_bodies，与 synodic 一致）
+            if state.show_bodies:
+                self._draw_inertial_bodies(ax, state)
+            # inertial 不画平动点（A3 决策）
         else:
-            self._draw_2d_orbits(ax, state)
+            # 1. 轨道
+            if state.projection == "3d":
+                self._draw_3d_orbits(ax, state)
+            else:
+                self._draw_2d_orbits(ax, state)
+            # 2. 地月标注（依赖 mu）
+            if state.show_bodies:
+                self._draw_bodies(ax, state)
+            # 3. L1-L5 标注
+            if state.show_libration:
+                self._draw_libration(ax, state)
 
-        # 2. 地月标注（依赖 mu）
-        if state.show_bodies:
-            self._draw_bodies(ax, state)
-
-        # 3. L1-L5 标注
-        if state.show_libration:
-            self._draw_libration(ax, state)
-
-        has_orbits = bool(self._states_by_id)
+        if state.frame == "inertial":
+            has_orbits = bool(self._position_km_by_id)
+        else:
+            has_orbits = bool(self._states_by_id)
         self._setup_axes(
             state.projection,
             title="" if has_orbits else "选择一个工件以可视化",
@@ -242,6 +277,53 @@ class OrbitCanvas(FigureCanvasQTAgg):
             mu = self._mu_by_id.get(aid)
             if mu is not None:
                 draw_libration_points(ax, mu, is_3d=(state.projection == "3d"))
+                break
+
+    # -- inertial 分支（GCRS/J2000，km）-----------------------------------
+
+    def _draw_3d_inertial_orbits(self, ax, state) -> None:
+        for i, aid in enumerate(state.visible_artifacts):
+            position_km = self._position_km_by_id.get(aid)
+            if position_km is None:
+                continue
+            color = self._TAB10_COLORS[i % len(self._TAB10_COLORS)]
+            ax.plot(
+                position_km[:, 0],
+                position_km[:, 1],
+                position_km[:, 2],
+                linewidth=0.8,
+                color=color,
+                label=self._labels_by_id.get(aid, ""),
+            )
+            ax.scatter(*position_km[0], s=30, c=color, zorder=5)
+
+    def _draw_2d_inertial_orbits(self, ax, state) -> None:
+        plane = _PROJECTION_PLANE_AXES[state.projection]
+        for i, aid in enumerate(state.visible_artifacts):
+            position_km = self._position_km_by_id.get(aid)
+            if position_km is None:
+                continue
+            color = self._TAB10_COLORS[i % len(self._TAB10_COLORS)]
+            ax.plot(
+                position_km[:, plane[0]],
+                position_km[:, plane[1]],
+                linewidth=0.8,
+                color=color,
+                label=self._labels_by_id.get(aid, ""),
+            )
+
+    def _draw_inertial_bodies(self, ax, state) -> None:
+        # 经 viz_adapter 调 SPICE 查月球 GCRS 位置；地球在原点（惯性系定义）
+        from src.engine.viz_adapter import draw_earth_origin_marker, draw_moon_gcrs_trajectory
+
+        is_3d = state.projection == "3d"
+        plane = None if is_3d else _PROJECTION_PLANE_AXES[state.projection]
+        draw_earth_origin_marker(ax, is_3d=is_3d, plane=plane)
+        # 月球轨迹用任一可见 Artifact 的 times_et（同一物理时段，月球轨迹唯一）
+        for aid in state.visible_artifacts:
+            times_et = self._times_et_by_id.get(aid)
+            if times_et is not None:
+                draw_moon_gcrs_trajectory(ax, times_et, is_3d=is_3d, plane=plane)
                 break
 
     # -- 便捷封装（向后兼容） -----------------------------------------------

@@ -12,10 +12,15 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QStandardItemModel
 from PyQt6.QtWidgets import (
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QDoubleSpinBox,
+    QFileDialog,
+    QFormLayout,
     QLabel,
     QMainWindow,
     QPushButton,
+    QSpinBox,
     QSplitter,
     QStatusBar,
     QTabWidget,
@@ -207,8 +212,11 @@ class MainWindow(QMainWindow):
         toolbar.projection_xy.clicked.connect(lambda: self._on_projection_changed("xy"))
         toolbar.projection_xz.clicked.connect(lambda: self._on_projection_changed("xz"))
         toolbar.projection_yz.clicked.connect(lambda: self._on_projection_changed("yz"))
+        toolbar.frame_synodic.clicked.connect(lambda: self._on_frame_changed("synodic"))
+        toolbar.frame_inertial.clicked.connect(lambda: self._on_frame_changed("inertial"))
         toolbar.show_bodies.toggled.connect(self._on_toggle_bodies)
         toolbar.show_libration.toggled.connect(self._on_toggle_libration)
+        toolbar.export_animation.clicked.connect(self._on_export_animation)
 
         # 日志标签页
         self._log = LogPanel()
@@ -592,6 +600,19 @@ class MainWindow(QMainWindow):
             return None
         return a
 
+    def _selected_exportable_artifact(self) -> Artifact | None:
+        """返回当前选中的可导出动画的 Artifact（orbit 或 ephemeris），否则 None。
+
+        动画导出的对象是星历产物（control_orbit 的 ephemeris 类型为主，
+        也兼容 design_orbit 的 orbit 类型）。单选时返回该 Artifact。
+        """
+        if len(self._selected_artifact_ids) != 1:
+            return None
+        a = self._project.get_by_id(self._selected_artifact_ids[0])
+        if a is None or a.artifact_type not in ("orbit", "ephemeris"):
+            return None
+        return a
+
     # -- 右键菜单动作（#340）------------------------------------------------
 
     def _on_context_action(self, action: str, artifact_ids: list[str]) -> None:
@@ -800,6 +821,161 @@ class MainWindow(QMainWindow):
     def _on_toggle_libration(self, checked: bool) -> None:
         self._canvas_state.show_libration = checked
         self._render_canvas()
+
+    def _on_frame_changed(self, frame: str) -> None:
+        """坐标系切换：会合系（CR3BP 旋转系）/ 惯性系（GCRS/J2000，km）。
+
+        inertial 需要 position_km + times_et；缺失时画布降级（仅地球原点），
+        并在状态栏提示。
+        """
+        self._canvas_state.frame = frame
+        if frame == "inertial" and not self._selected_artifacts_have_inertial():
+            self._status_bar.showMessage("该 Artifact 无星历惯性数据", _STATUS_MSG_TIMEOUT_MS)
+        self._render_canvas()
+
+    def _selected_artifacts_have_inertial(self) -> bool:
+        """任一当前选中 Artifact 同时含 position_km 与 times_et 即为 True。"""
+        for aid in self._selected_artifact_ids:
+            a = self._project.get_by_id(aid)
+            if a is None:
+                continue
+            if a.extra.get("position_km") is not None and a.extra.get("times_et") is not None:
+                return True
+        return False
+
+    # -- 导出动画（P2，单条星历 Artifact -> GIF） -------------------------
+
+    def _on_export_animation(self) -> None:
+        """工具栏"导出动画"：检查选中 Artifact → 弹参数对话框 → 选保存路径 → 渲染。
+
+        数据不全（synodic 缺 states / inertial 缺 position_km+times_et）时给出
+        明确降级提示，不进入对话框。导出期间状态栏提示"正在导出"，同步渲染
+        （不强制 QThread，离线导出非频繁操作）。
+        """
+        artifact = self._selected_exportable_artifact()
+        if artifact is None or artifact.state_data is None:
+            self._status_bar.showMessage("请先选中一条星历 Artifact", _STATUS_MSG_TIMEOUT_MS)
+            return
+
+        artifact_data = self._artifact_for_id(artifact.artifact_id)
+        if artifact_data is None:
+            self._status_bar.showMessage("该 Artifact 数据不可用", _STATUS_MSG_TIMEOUT_MS)
+            return
+
+        has_inertial = (
+            artifact_data.get("position_km") is not None
+            and artifact_data.get("times_et") is not None
+        )
+        has_synodic = (
+            artifact_data.get("states") is not None and artifact_data.get("times_et") is not None
+        )
+        if not (has_inertial or has_synodic):
+            self._status_bar.showMessage(
+                "该 Artifact 无星历时间数据，无法导出动画", _STATUS_MSG_TIMEOUT_MS
+            )
+            return
+
+        params = self._ask_gif_export_params(has_synodic=has_synodic, has_inertial=has_inertial)
+        if params is None:
+            return  # 用户取消
+
+        # 选保存路径
+        default_name = f"{artifact.label or 'animation'}.gif"
+        path, _ = QFileDialog.getSaveFileName(self, "保存 GIF", default_name, "GIF 动画 (*.gif)")
+        if not path:
+            return
+
+        self._status_bar.showMessage("正在导出动画...")
+        try:
+            from src.view.gif_exporter import export_animation
+
+            output = export_animation(
+                self._viz.canvas,
+                artifact_data,
+                frame=params["frame"],
+                time_range=None,  # 用 times_et 全量，帧数控制采样密度
+                n_frames=params["n_frames"],
+                window_mode=params["window_mode"],
+                output_path=path,
+                sliding_window_seconds=params.get("sliding_window_seconds"),
+            )
+        except Exception as exc:  # noqa: BLE001 -- 导出失败给明确提示，不崩
+            self._status_bar.showMessage("动画导出失败", _STATUS_MSG_TIMEOUT_MS)
+            self._log.append_log(f"动画导出失败: {exc}")
+            return
+
+        self._status_bar.showMessage(f"导出完成: {output}", _STATUS_MSG_TIMEOUT_MS)
+        self._log.append_log(f"动画已导出: {output}")
+
+    def _ask_gif_export_params(
+        self,
+        *,
+        has_synodic: bool,
+        has_inertial: bool,
+    ) -> dict | None:
+        """弹出 GIF 参数对话框，返回 {frame, n_frames, window_mode, ...} 或 None。
+
+        默认 frame 取当前画布坐标系（inertial 优先，若数据支持）；帧数 20；
+        窗口模式 cumulative。sliding 模式暴露窗口宽度输入。
+        """
+        from src.view.gif_exporter import DEFAULT_SLIDING_WINDOW_SECONDS
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("导出动画参数")
+        form = QFormLayout(dlg)
+
+        frame_combo = QComboBox()
+        if has_synodic:
+            frame_combo.addItem("会合系（CR3BP 旋转系）", "synodic")
+        if has_inertial:
+            frame_combo.addItem("惯性系（GCRS/J2000）", "inertial")
+        # 默认与当前画布坐标系一致；不可用时选第一个
+        current_frame = self._canvas_state.frame
+        target_idx = next(
+            (i for i in range(frame_combo.count()) if frame_combo.itemData(i) == current_frame),
+            0,
+        )
+        frame_combo.setCurrentIndex(target_idx)
+        form.addRow("坐标系", frame_combo)
+
+        n_spin = QSpinBox()
+        n_spin.setRange(2, 200)
+        n_spin.setValue(20)
+        form.addRow("帧数", n_spin)
+
+        window_combo = QComboBox()
+        window_combo.addItem("累计（每帧画 [t0, ti]）", "cumulative")
+        window_combo.addItem("滑动（每帧画 [ti-w, ti]）", "sliding")
+        form.addRow("窗口模式", window_combo)
+
+        window_spin = QDoubleSpinBox()
+        window_spin.setRange(1.0, 1e9)
+        window_spin.setSuffix(" 秒")
+        window_spin.setValue(DEFAULT_SLIDING_WINDOW_SECONDS)
+        window_spin.setEnabled(False)
+        window_combo.currentIndexChanged.connect(
+            lambda idx: window_spin.setEnabled(window_combo.itemData(idx) == "sliding")
+        )
+        form.addRow("滑动窗宽度", window_spin)
+
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(dlg.accept)
+        buttons.rejected.connect(dlg.reject)
+        form.addRow(buttons)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return None
+
+        params: dict = {
+            "frame": frame_combo.currentData(),
+            "n_frames": n_spin.value(),
+            "window_mode": window_combo.currentData(),
+        }
+        if params["window_mode"] == "sliding":
+            params["sliding_window_seconds"] = window_spin.value()
+        return params
 
     # -- 项目树 -------------------------------------------------------------
 

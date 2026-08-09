@@ -48,6 +48,21 @@ class TestCanvasState:
         assert state.show_bodies is True
         assert state.show_libration is True
 
+    def test_default_frame_is_synodic(self):
+        from src.view.canvas import CanvasState
+
+        state = CanvasState()
+        assert state.frame == "synodic"
+
+    def test_copy_carries_frame(self):
+        from src.view.canvas import CanvasState
+
+        state = CanvasState(frame="inertial")
+        copied = state.copy()
+        assert copied.frame == "inertial"
+        copied.frame = "synodic"
+        assert state.frame == "inertial"  # 副本独立
+
     def test_copy_returns_new_instance(self):
         from src.view.canvas import CanvasState
 
@@ -257,6 +272,269 @@ class TestOrbitCanvasRender:
         assert "2 条轨道" in ax.get_title()
 
 
+def _random_position_km(n: int = 50) -> np.ndarray:
+    """生成随机 GCRS 位置数组 (n, 3)，单位 km（量级 ~1e5 模拟地月距离）。"""
+    rng = np.random.default_rng(7)
+    return rng.standard_normal((n, 3)) * 1e5
+
+
+class TestOrbitCanvasInertialFrame:
+    """frame='inertial' 分支：position_km 画轨迹 + 地球原点 + 月球轨迹（SPICE）。"""
+
+    def test_inertial_orbit_line_equals_position_km(self, qapp):
+        """frame=inertial 时 3D 轨道线的 xyz 数据 == 注入的 position_km。"""
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        position_km = _random_position_km()
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "states": _random_orbit(),
+                        "label": "受控",
+                        "mu": _MU,
+                        "position_km": position_km,
+                        "times_et": None,  # 此例不测月球轨迹
+                    }
+                }
+            )
+        )
+        state = CanvasState(
+            visible_artifacts=["id1"],
+            show_bodies=False,  # 隔离：只断言轨道线
+            show_libration=False,
+            frame="inertial",
+        )
+        canvas.sync_state(state, ["id1"])
+        canvas.render()
+
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        ax = canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line3D)]
+        assert len(lines) == 1
+        xdata, ydata, zdata = lines[0].get_data_3d()
+        np.testing.assert_array_equal(np.asarray(xdata), position_km[:, 0])
+        np.testing.assert_array_equal(np.asarray(ydata), position_km[:, 1])
+        np.testing.assert_array_equal(np.asarray(zdata), position_km[:, 2])
+
+    def test_inertial_2d_projection_uses_position_km(self, qapp):
+        """frame=inertial + projection=xy：2D 轨道线数据 == position_km 的 (x,y)。"""
+        from matplotlib.lines import Line2D
+
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        position_km = _random_position_km()
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "states": _random_orbit(),
+                        "label": "受控",
+                        "mu": _MU,
+                        "position_km": position_km,
+                        "times_et": None,
+                    }
+                }
+            )
+        )
+        state = CanvasState(
+            projection="xy",
+            visible_artifacts=["id1"],
+            show_bodies=False,
+            show_libration=False,
+            frame="inertial",
+        )
+        canvas.sync_state(state, ["id1"])
+        canvas.render()
+
+        ax = canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line2D)]
+        assert len(lines) == 1
+        np.testing.assert_array_equal(np.asarray(lines[0].get_xdata()), position_km[:, 0])
+        np.testing.assert_array_equal(np.asarray(lines[0].get_ydata()), position_km[:, 1])
+
+    def test_inertial_does_not_draw_libration_points(self, qapp):
+        """frame=inertial 时即使 show_libration=True 也不画 L 点。
+
+        回归 guard：惯性系下不应触发 draw_libration_points（无 mu 几何意义）。
+        通过 patch viz_adapter.draw_libration_points 断言不被调用。
+        """
+        from unittest.mock import patch
+
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "states": _random_orbit(),
+                        "label": "受控",
+                        "mu": _MU,
+                        "position_km": _random_position_km(),
+                        "times_et": None,
+                    }
+                }
+            )
+        )
+        state = CanvasState(
+            visible_artifacts=["id1"],
+            show_bodies=False,
+            show_libration=True,  # 开 L 点开关，但 inertial 不应画
+            frame="inertial",
+        )
+        canvas.sync_state(state, ["id1"])
+        with patch("src.engine.viz_adapter.draw_libration_points") as mock_lib:
+            canvas.render()
+        mock_lib.assert_not_called()
+
+    def test_inertial_draws_earth_origin_marker(self, qapp):
+        """frame=inertial + show_bodies=True：画地球原点 marker（在 (0,0,0)）。"""
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "states": _random_orbit(),
+                        "label": "受控",
+                        "mu": _MU,
+                        "position_km": _random_position_km(),
+                        "times_et": None,
+                    }
+                }
+            )
+        )
+        # 关 show_bodies 时只有 1 条轨道线
+        state_off = CanvasState(
+            visible_artifacts=["id1"],
+            show_bodies=False,
+            show_libration=False,
+            frame="inertial",
+        )
+        canvas.sync_state(state_off, ["id1"])
+        canvas.render()
+        ax = canvas._fig.axes[0]
+        n_off = len([c for c in ax.get_children() if isinstance(c, Line3D)])
+
+        # 开 show_bodies 时多出地球 marker（+ 月球轨迹若 SPICE 可用）
+        state_on = CanvasState(
+            visible_artifacts=["id1"],
+            show_bodies=True,
+            show_libration=False,
+            frame="inertial",
+        )
+        canvas.sync_state(state_on, ["id1"])
+        canvas.render()
+        ax = canvas._fig.axes[0]
+        n_on = len([c for c in ax.get_children() if isinstance(c, Line3D)])
+        assert n_on > n_off  # 至少多出地球 marker
+
+    def test_inertial_without_position_km_does_not_crash(self, qapp):
+        """position_km 缺失时 inertial 分支不崩（降级为空轨迹）。"""
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "states": _random_orbit(),
+                        "label": "无星历",
+                        "mu": _MU,
+                        "position_km": None,
+                        "times_et": None,
+                    }
+                }
+            )
+        )
+        state = CanvasState(
+            visible_artifacts=["id1"],
+            show_bodies=True,
+            show_libration=False,
+            frame="inertial",
+        )
+        canvas.sync_state(state, ["id1"])
+        canvas.render()  # 不抛
+        ax = canvas._fig.axes[0]
+        assert ax is not None
+
+    @pytest.mark.spice
+    def test_inertial_draws_moon_trajectory_from_spice(self, qapp):
+        """frame=inertial + times_et：用 SPICE 查月球 GCRS 位置画轨迹线。
+
+        需要 de440s.bsp 与 naif0012.tls（@pytest.mark.spice，CI 跳过）。
+        断言月球轨迹线存在于 axes（灰色虚线，label='Moon'）。
+        """
+        from e2m2e.data.kernels.manager import SPICEManager
+
+        # 确保 .bsp + 闰秒已 furnsh（find_ephemeris_kernel + load_kernel 在
+        # viz_adapter.draw_moon_gcrs_trajectory 内部完成，这里只验证可调用）
+        from src.engine.viz_adapter import draw_moon_gcrs_trajectory
+
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        # 取一段真实 ET 范围（2024 年初约一周），5 个采样点足够画线
+        spice = SPICEManager()
+        spice._ensure_leapseconds()
+        from e2m2e.data.kernels._spice_loader import get_spiceypy
+
+        sp = get_spiceypy()
+        t0 = sp.str2et("2024-01-01T00:00:00")
+        times_et = np.array([t0 + 86400.0 * k for k in range(5)])
+
+        position_km = _random_position_km(5)
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "states": _random_orbit(5),
+                        "label": "受控",
+                        "mu": _MU,
+                        "position_km": position_km,
+                        "times_et": times_et,
+                    }
+                }
+            )
+        )
+        state = CanvasState(
+            visible_artifacts=["id1"],
+            show_bodies=True,
+            show_libration=False,
+            frame="inertial",
+        )
+        canvas.sync_state(state, ["id1"])
+        canvas.render()
+
+        # 月球轨迹线在 axes 中（label='Moon'，灰色虚线）
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        ax = canvas._fig.axes[0]
+        moon_lines = [
+            c
+            for c in ax.get_children()
+            if isinstance(c, Line3D) and (c.get_label() == "Moon")
+        ]
+        assert len(moon_lines) == 1
+        # 复用同一入口校验：直接调 viz_adapter 函数也返回 True
+        import matplotlib.pyplot as plt
+
+        fig2 = plt.figure()
+        ax2 = fig2.add_subplot(111, projection="3d")
+        try:
+            ok = draw_moon_gcrs_trajectory(ax2, times_et, is_3d=True)
+        finally:
+            plt.close(fig2)
+        assert ok is True
+
+
 def _make_window():
     """构造测试用 MainWindow（不扫描磁盘）。"""
     from unittest.mock import patch
@@ -421,3 +699,48 @@ class TestMainWindowCanvasStateFlow:
             w._on_projection_changed("yz")
             w._on_projection_changed("3d")
             assert mock_load.call_count == 1  # 仍为 1，数据已在内存
+
+    def test_frame_button_signal_updates_state(self, qapp):
+        """toolbar.frame_inertial.click() 经 slot 更新 _canvas_state.frame。"""
+        w = _make_window()
+        w._viz.projection_toolbar.frame_inertial.click()
+        assert w._canvas_state.frame == "inertial"
+        w._viz.projection_toolbar.frame_synodic.click()
+        assert w._canvas_state.frame == "synodic"
+
+    def test_frame_inertial_without_ephemeris_shows_status_hint(self, qapp):
+        """inertial 切换时若 Artifact 无 position_km/times_et，状态栏给提示。"""
+        from src.model import Artifact
+
+        w = _make_window()
+        a = Artifact(
+            artifact_type="orbit",
+            label="纯 CR3BP",
+            state_data=_random_orbit(),
+            extra={"mu": _MU},  # 无 position_km / times_et
+        )
+        w._project.add(a)
+        w._on_artifact_clicked(a.artifact_id)
+        w._on_frame_changed("inertial")
+        assert w._canvas_state.frame == "inertial"
+        assert "无星历惯性数据" in w._status_bar.currentMessage()
+
+    def test_frame_inertial_with_ephemeris_no_hint(self, qapp):
+        """inertial 切换时若 Artifact 有 position_km/times_et，状态栏无降级提示。"""
+        from src.model import Artifact
+
+        w = _make_window()
+        a = Artifact(
+            artifact_type="ephemeris",
+            label="受控",
+            state_data=_random_orbit(),
+            extra={
+                "mu": _MU,
+                "position_km": _random_position_km(),
+                "times_et": np.linspace(0, 1e6, 50),
+            },
+        )
+        w._project.add(a)
+        w._on_artifact_clicked(a.artifact_id)
+        w._on_frame_changed("inertial")
+        assert "无星历惯性数据" not in w._status_bar.currentMessage()
