@@ -1,6 +1,10 @@
 version = 1
 revision = 3
 requires-python = ">=3.13"
+resolution-markers = [
+    "sys_platform != 'win32'",
+    "sys_platform == 'win32'",
+]
 
 [[package]]
 name = "alabaster"
@@ -33,12 +37,38 @@ wheels = [
 name = "calcephpy"
 version = "5.0.0"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
+resolution-markers = [
+    "sys_platform != 'win32'",
+]
 dependencies = [
     { name = "cython" },
     { name = "numpy" },
     { name = "setuptools" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/c0/83/a3e830fd0ea6e1427fd172b5a4d4f0704cfae5e86471920581ca8e22c0c9/calcephpy-5.0.0.tar.gz", hash = "sha256:abf52b8d2898299ff837f90ed9824cc40d70745700b440374d6f375a86a5e831", size = 8633564, upload-time = "2026-07-06T11:48:01.49Z" }
+
+[[package]]
+name = "calcephpy"
+version = "5.0.0"
+source = { url = "https://github.com/cislunarspace/e2m2e/releases/download/calcephpy-v1/calcephpy-5.0.0-cp313-cp313-win_amd64.whl" }
+resolution-markers = [
+    "sys_platform == 'win32'",
+]
+dependencies = [
+    { name = "cython" },
+    { name = "numpy" },
+    { name = "setuptools" },
+]
+wheels = [
+    { url = "https://github.com/cislunarspace/e2m2e/releases/download/calcephpy-v1/calcephpy-5.0.0-cp313-cp313-win_amd64.whl", hash = "sha256:7caed4c52e87dc48a1e043cc58cda4277c52c3426ba14ce8f2b59268e2568397" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "cython", specifier = ">=0.27" },
+    { name = "numpy" },
+    { name = "setuptools", specifier = ">=20.4" },
+]
 
 [[package]]
 name = "certifi"
@@ -950,7 +980,8 @@ name = "r2s2"
 version = "0.1.0"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
 dependencies = [
-    { name = "calcephpy" },
+    { name = "calcephpy", version = "5.0.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }, marker = "sys_platform != 'win32'" },
+    { name = "calcephpy", version = "5.0.0", source = { url = "https://github.com/cislunarspace/e2m2e/releases/download/calcephpy-v1/calcephpy-5.0.0-cp313-cp313-win_amd64.whl" }, marker = "sys_platform == 'win32'" },
     { name = "numpy" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/17/1d/ad3be7135ebd9c65189247726349fe5dd758b8163ba7a686cbffb2085916/r2s2-0.1.0.tar.gz", hash = "sha256:3f8f56d9fe01bb87ff425ebfab1f396a12046f828ee346765df83dc1fdf727b0", size = 10033886, upload-time = "2026-01-22T09:00:19.628Z" }
@@ -1245,6 +1276,8 @@ name = "transfer-orbit-design"
 version = "3.1.3"
 source = { editable = "." }
 dependencies = [
+    { name = "calcephpy", version = "5.0.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }, marker = "sys_platform != 'win32'" },
+    { name = "calcephpy", version = "5.0.0", source = { url = "https://github.com/cislunarspace/e2m2e/releases/download/calcephpy-v1/calcephpy-5.0.0-cp313-cp313-win_amd64.whl" }, marker = "sys_platform == 'win32'" },
     { name = "e2m2e" },
     { name = "matplotlib" },
     { name = "numpy" },
@@ -1275,6 +1308,8 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "calcephpy", marker = "sys_platform != 'win32'", specifier = "==5.0.0" },
+    { name = "calcephpy", marker = "sys_platform == 'win32'", url = "https://github.com/cislunarspace/e2m2e/releases/download/calcephpy-v1/calcephpy-5.0.0-cp313-cp313-win_amd64.whl" },
     { name = "e2m2e", specifier = "==5.6.3" },
     { name = "matplotlib", specifier = ">=3.10.0" },
     { name = "myst-parser", marker = "extra == 'docs'", specifier = ">=2.0" },
