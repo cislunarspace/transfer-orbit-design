@@ -487,6 +487,22 @@ class TestMainWindowInertialHintDesignOrbit:
         w._on_frame_changed("inertial")
         assert "无星历惯性数据" in w._status_bar.currentMessage()
 
+    def test_design_orbit_without_ephemeris_warns_in_synodic(self, qapp):
+        """#359 US 10：design_orbit 产物无标称星历，会合系下也明确提示，而非静默只画初猜。"""
+        from src.model import Artifact
+
+        w = _make_window()
+        a = Artifact(
+            artifact_type="orbit",
+            label="仅 CR3BP",
+            source_tool="design_orbit",
+            state_data=_orbit(20),
+            extra={"mu": _MU},  # 无 ephemeris
+        )
+        w._project.add(a)
+        w._on_artifact_clicked(a.artifact_id)
+        assert "无标称星历" in w._log.toPlainText()
+
 
 class TestRestoredDesignOrbitArtifact:
     """#359 完成标准 5：从磁盘恢复的历史 design_orbit Artifact 也支持绘制内容。

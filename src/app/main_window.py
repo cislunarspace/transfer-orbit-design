@@ -488,6 +488,7 @@ class MainWindow(QMainWindow):
                 self._log.append_log(f"NPZ 懒加载失败: {artifact.label}（文件缺失或元数据缺失）")
         if artifact.state_data is not None:
             self._warn_missing_mu(artifact)
+            self._warn_missing_ephemeris(artifact)
             self._selected_artifact_ids = [artifact_id]
             self._update_plot_content_controls()
             self._render_canvas()
@@ -502,6 +503,7 @@ class MainWindow(QMainWindow):
             if artifact.state_data is None and artifact.output_path is not None:
                 load_artifact_arrays(artifact)
             self._warn_missing_mu(artifact)
+            self._warn_missing_ephemeris(artifact)
         self._selected_artifact_ids = list(artifact_ids)
         self._update_plot_content_controls()
         self._render_canvas()
@@ -790,6 +792,15 @@ class MainWindow(QMainWindow):
         """旧 Artifact 无 mu 时提示：地月/L 点标注不可用（计划决策 3）。"""
         if artifact.state_data is not None and artifact.extra.get("mu") is None:
             self._log.append_log(f"旧 Artifact 无 mu，跳过地月标注: {artifact.label}")
+
+    def _warn_missing_ephemeris(self, artifact: Artifact) -> None:
+        """轨道设计产物（design_orbit）无标称星历时提示：画布只能画初猜。
+
+        #359 US 10：星历缺失要明确告知，而非画布静默只画初猜。design_orbit
+        正常总会产出星历，此分支仅防御异常/旧产物。
+        """
+        if artifact.source_tool == "design_orbit" and not artifact.extra.get("ephemeris"):
+            self._log.append_log(f"该轨道无标称星历，画布只能画初猜: {artifact.label}")
 
     def _artifact_for_id(self, artifact_id: str) -> dict | None:
         """返回画布渲染所需的 Artifact 数据（不含 e2m2e 类型）。
