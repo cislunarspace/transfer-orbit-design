@@ -258,6 +258,18 @@ class OrbitCanvas(FigureCanvasQTAgg):
             state.projection,
             title="" if has_orbits else "选择一个工件以可视化",
         )
+        if state.projection == "3d":
+            # 3D 等比例 box：按各轴数据范围设 box_aspect。mpl 3D 默认把 Figure
+            # 宽高比塞进 3D 盒子（与数据无关），近平面轨道（DRO 等，Z 振幅远
+            # 小于 XY）的 Z 会被放大约一个数量级，看起来大幅鼓起。
+            ax.set_box_aspect(
+                tuple(np.ptp(lim) for lim in (ax.get_xlim(), ax.get_ylim(), ax.get_zlim()))
+            )
+        else:
+            # 2D 等比例：mpl 默认 aspect='auto' 让每轴独立填满画面，XZ/YZ 下
+            # Z 数据远小于 X/Y 会被拉伸填满画面高度（同样约 9x 放大），与 3D
+            # box_aspect 失真同类。等比例后如实反映轨道几何（DRO 显示为近平面）。
+            ax.set_aspect("equal")
         self._fig.tight_layout()
         self.draw()
 
@@ -348,19 +360,23 @@ class OrbitCanvas(FigureCanvasQTAgg):
         # 经 viz_adapter 调用 e2m2e，view 不直接 import e2m2e
         from src.engine.viz_adapter import draw_primary_bodies
 
+        is_3d = state.projection == "3d"
+        plane = None if is_3d else _PROJECTION_PLANE_AXES[state.projection]
         for aid in state.visible_artifacts:
             mu = self._mu_by_id.get(aid)
             if mu is not None:
-                draw_primary_bodies(ax, mu, is_3d=(state.projection == "3d"))
+                draw_primary_bodies(ax, mu, is_3d=is_3d, plane=plane)
                 break  # 只画一次（同一 CR3BP 系统）
 
     def _draw_libration(self, ax, state) -> None:
         from src.engine.viz_adapter import draw_libration_points
 
+        is_3d = state.projection == "3d"
+        plane = None if is_3d else _PROJECTION_PLANE_AXES[state.projection]
         for aid in state.visible_artifacts:
             mu = self._mu_by_id.get(aid)
             if mu is not None:
-                draw_libration_points(ax, mu, is_3d=(state.projection == "3d"))
+                draw_libration_points(ax, mu, is_3d=is_3d, plane=plane)
                 break
 
     # -- inertial 分支（GCRS/J2000，km）-----------------------------------

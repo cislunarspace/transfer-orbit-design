@@ -98,6 +98,31 @@ class TestDrawLibrationPoints:
         draw_libration_points(ax, _MU, is_3d=False)
         assert len(ax.get_children()) > before
 
+    def test_draw_libration_points_2d_xz_projects_z_not_y(self):
+        """XZ 投影：L1-L5 都在 z=0 平面，纵轴应≈0，而非 e2m2e 默认的 Y≈±0.866。
+
+        回归 guard：e2m2e plot_libration_points(is_3d=False) 无视投影平面、
+        恒用 (x,y)，把 L4/L5 的 Y 撑进纵轴；viz_adapter 的 plane 分支按
+        投影平面取坐标修正此问题。
+        """
+        from matplotlib.collections import PathCollection
+        from matplotlib.figure import Figure
+
+        from src.engine.viz_adapter import draw_libration_points
+
+        fig = Figure()
+        ax = fig.add_subplot(111)
+        draw_libration_points(ax, _MU, is_3d=False, plane=(0, 2))
+        ys = [
+            float(off[1])
+            for child in ax.get_children()
+            if isinstance(child, PathCollection)
+            for off in child.get_offsets()
+        ]
+        # CR3BP 五平动点 z≈0：纵轴应全部≈0；e2m2e bug 下 L4/L5 会是 ±0.866
+        assert ys, "未画出平动点 scatter"
+        assert max(abs(y) for y in ys) < 0.1, f"XZ 纵轴应是 z≈0，但有 {ys}"
+
 
 class TestNoImportE2m2eAtModuleImport:
     def test_importing_module_does_not_import_e2m2e(self):

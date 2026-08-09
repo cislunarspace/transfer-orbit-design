@@ -237,6 +237,170 @@ class TestSynodicPlotContentCombinations:
         np.testing.assert_array_equal(np.asarray(zdata), eph_synodic[:, 2])
 
 
+class Test3DDataEqualBoxAspect:
+    """3D 渲染应等比例：box_aspect 按数据范围，而非 matplotlib 默认的 figure 宽高比。
+
+    回归 guard：DRO 等近平面轨道（Z 振幅远小于 XY）在 3D 下曾因 mpl 默认
+    box_aspect（源自 Figure 宽高比）把 Z 放大约 9 倍，看起来大幅鼓起；
+    2D 投影因每轴独立 auto-scale 不受影响，故表现为"2D 正确、3D Z 异常"。
+    """
+
+    def test_3d_box_aspect_data_equal_for_flat_orbit(self, qapp):
+        """DRO 形状数据（XY≈0.6、Z≈0.05）：box z/x 比 == 数据 z/x 比。"""
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        n = 120
+        theta = np.linspace(0, 2 * np.pi, n)
+        moon = 1 - _MU
+        x = moon + 0.6 * np.cos(theta)
+        y = -0.6 * np.sin(theta)  # 逆行
+        z = 0.05 * np.sin(3 * theta)  # 星历摄动下的小 Z 振幅
+        eph_syn = np.column_stack([x, y, z])
+        ig = np.column_stack([x, y, np.zeros(n), np.zeros((n, 3))])
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "initial_guess_states": ig,
+                        "ephemeris_synodic": eph_syn,
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
+            )
+        )
+        canvas.sync_state(
+            CanvasState(
+                visible_artifacts=["id1"],
+                show_bodies=False,
+                show_libration=False,
+                plot_content="ephemeris",
+            ),
+            ["id1"],
+        )
+        canvas.render()
+
+        ax = canvas._fig.axes[0]
+        rx, ry, rz = np.ptp(ax.get_xlim()), np.ptp(ax.get_ylim()), np.ptp(ax.get_zlim())
+        bx, by, bz = ax.get_box_aspect()
+        # 等比例：box 分量比 == 数据范围比。Z 数据小，box z 也该小。
+        assert bz / bx == pytest.approx(rz / rx, rel=0.05)
+        assert bz / by == pytest.approx(rz / ry, rel=0.05)
+
+
+class Test2DProjectionPlaneCorrect:
+    """2D 投影的天体/平动点标注应按投影平面取坐标。
+
+    回归 guard：e2m2e 的 plot_libration_points / plot_primary_bodies 在 2D 下
+    无视投影平面、恒用 (x,y)；XZ/YZ 投影下 L4/L5 的 Y≈±0.87 被错误画进纵轴
+    （应为 Z），把 ylim 撑到 ±0.95，使 Z 数据细节（±0.05）被压扁看不见。
+    """
+
+    def test_xz_and_yz_ylim_reflects_z_not_libration_y(self, qapp):
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        n = 120
+        theta = np.linspace(0, 2 * np.pi, n)
+        moon = 1 - _MU
+        x = moon + 0.6 * np.cos(theta)
+        y = -0.6 * np.sin(theta)  # 逆行
+        z = 0.05 * np.sin(3 * theta)  # 星历摄动下的小 Z 振幅
+        eph_syn = np.column_stack([x, y, z])
+        ig = np.column_stack([x, y, np.zeros(n), np.zeros((n, 3))])
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "initial_guess_states": ig,
+                        "ephemeris_synodic": eph_syn,
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
+            )
+        )
+        z_range = float(np.ptp(eph_syn[:, 2]))  # 0.1
+        for proj in ("xz", "yz"):
+            canvas.sync_state(
+                CanvasState(
+                    visible_artifacts=["id1"],
+                    projection=proj,
+                    show_bodies=True,
+                    show_libration=True,
+                    plot_content="ephemeris",
+                ),
+                ["id1"],
+            )
+            canvas.render()
+            ax = canvas._fig.axes[0]
+            ylim_range = float(np.ptp(ax.get_ylim()))
+            # 纵轴是 Z：应反映 Z 数据（~0.1+margin），而非被 L4/L5 的 Y 撑到 ~1.9
+            assert ylim_range < z_range * 3, (
+                f"{proj} 纵轴范围 {ylim_range:.3f} 远大于 Z 数据 {z_range:.3f}，疑被平动点 Y 坐标污染"
+            )
+
+
+class Test2DEqualAspect:
+    """2D 投影应等比例：纵/横每数据单位的像素比≈1（与 3D set_box_aspect 等比例一致）。
+
+    回归 guard：mpl 2D 默认 aspect='auto'，每轴独立填满 axes。XZ/YZ 下 Z 数据
+    范围远小于 X/Y，Z 被拉伸填满画面高度（约 9x 放大），与 3D 默认 box_aspect
+    失真同类；XY 因 axes 宽高比也有约 0.7x 偏差。等比例后如实反映轨道几何。
+    """
+
+    def test_2d_projections_have_equal_aspect(self, qapp):
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        n = 120
+        theta = np.linspace(0, 2 * np.pi, n)
+        moon = 1 - _MU
+        x = moon + 0.6 * np.cos(theta)
+        y = -0.6 * np.sin(theta)
+        z = 0.05 * np.sin(3 * theta)
+        eph_syn = np.column_stack([x, y, z])
+        ig = np.column_stack([x, y, np.zeros(n), np.zeros((n, 3))])
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "initial_guess_states": ig,
+                        "ephemeris_synodic": eph_syn,
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
+            )
+        )
+        for proj in ("xy", "xz", "yz"):
+            canvas.sync_state(
+                CanvasState(
+                    visible_artifacts=["id1"],
+                    projection=proj,
+                    show_bodies=False,
+                    show_libration=False,
+                    plot_content="ephemeris",
+                ),
+                ["id1"],
+            )
+            canvas.render()
+            canvas._fig.canvas.draw()  # 触发 renderer，拿 axes 像素尺寸
+            ax = canvas._fig.axes[0]
+            bbox = ax.get_window_extent()
+            xrng = float(np.ptp(ax.get_xlim()))
+            yrng = float(np.ptp(ax.get_ylim()))
+            # 纵/横每数据单位的像素比；等比例时应≈1
+            ratio = (bbox.height / yrng) / (bbox.width / xrng)
+            assert abs(ratio - 1.0) < 0.1, (
+                f"{proj} 纵/横单位像素比 {ratio:.2f}，非等比例（轨道形状会被拉伸失真）"
+            )
+
+
 class TestInertialPlotContentCombinations:
     """惯性系下 plot_content × 数据存在的组合。
 

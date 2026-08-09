@@ -25,34 +25,60 @@ def build_cr3bp_system(mu: float) -> Any:
     return CR3BP_System(mu=mu, primary="Earth", secondary="Moon")
 
 
-def draw_primary_bodies(ax, mu: float, *, is_3d: bool = True) -> None:
+def draw_primary_bodies(
+    ax, mu: float, *, is_3d: bool = True, plane: tuple[int, int] | None = None
+) -> None:
     """在 ax 上绘制地球/月球位置标注。
 
     Args:
         ax: 目标 matplotlib Axes。
         mu: CR3BP 质量比。地球在 (-mu,0,0)，月球在 (1-mu,0,0)。
         is_3d: 是否在 3D 坐标系绘制（False = 2D 投影平面）。
+        plane: 2D 投影平面的轴下标。None 或 (0,1) 时委托 e2m2e（XY 投影，
+            其 2D 实现恒用 (x,y) 正好匹配并保留 PNG 图标）；XZ/YZ 投影
+            由本函数按平面自绘——e2m2e 2D 无视投影平面，会把天体画进
+            错误的轴（如 YZ 下本应重叠于原点的地月被画到 y=±μ）。
     """
     from e2m2e.tools.viz import OrbitVisualizer
 
     system = build_cr3bp_system(mu)
-    viz = OrbitVisualizer(system)
-    viz.plot_primary_bodies(ax=ax, is_3d=is_3d)
+    if is_3d or plane is None or plane == (0, 1):
+        OrbitVisualizer(system).plot_primary_bodies(ax=ax, is_3d=is_3d)
+        return
+    for name, xpos, color in (("Earth", -mu, "tab:blue"), ("Moon", 1 - mu, "tab:gray")):
+        coord3d = (xpos, 0.0, 0.0)
+        px, py = coord3d[plane[0]], coord3d[plane[1]]
+        ax.scatter(px, py, color=color, s=60, zorder=5)
+        ax.annotate(name, (px, py), xytext=(5, 5), textcoords="offset points", fontsize=9)
 
 
-def draw_libration_points(ax, mu: float, *, is_3d: bool = True) -> None:
+def draw_libration_points(
+    ax, mu: float, *, is_3d: bool = True, plane: tuple[int, int] | None = None
+) -> None:
     """在 ax 上绘制 L1-L5 拉格朗日点标注。
 
     Args:
         ax: 目标 matplotlib Axes。
         mu: CR3BP 质量比。
         is_3d: 是否在 3D 坐标系绘制（False = 2D 投影平面）。
+        plane: 2D 投影平面的轴下标。None 或 (0,1) 委托 e2m2e；XZ/YZ 自绘
+            （理由同 draw_primary_bodies：e2m2e 2D 无视投影平面）。
     """
+    from e2m2e.algorithm.dynamics import LibrationPoint
     from e2m2e.tools.viz import OrbitVisualizer
 
     system = build_cr3bp_system(mu)
-    viz = OrbitVisualizer(system)
-    viz.plot_libration_points(ax=ax, show_labels=True, is_3d=is_3d)
+    if is_3d or plane is None or plane == (0, 1):
+        OrbitVisualizer(system).plot_libration_points(ax=ax, show_labels=True, is_3d=is_3d)
+        return
+    if not system.has_L_points:
+        system.compute_libration_points()
+    labels = ("L1", "L2", "L3", "L4", "L5")
+    for i, lp in enumerate(LibrationPoint):
+        coord = system.L_points[lp]
+        px, py = coord[plane[0]], coord[plane[1]]
+        ax.scatter(px, py, color="black", marker="+", s=50, zorder=5)
+        ax.annotate(labels[i], (px, py), xytext=(5, 5), textcoords="offset points", fontsize=8)
 
 
 def draw_earth_origin_marker(
