@@ -541,8 +541,8 @@ class MainWindow(QMainWindow):
         kernel_dir = self._detect_kernel_dir() or None
 
         self._log.clear()
-        self._log.append_log(f"开始 {orbit_type} 轨道设计")
-        self._log.append_log(f"参数: {params}")
+        # 开场日志（开始/参数）由 worker 统一 emit，避免主窗口与 worker 各打一次
+        # 造成重复；这里只清空日志 + 状态栏即时反馈。
         self._status_bar.showMessage(f"正在设计 {orbit_type}...")
 
         # G1: 运行按钮状态管理
