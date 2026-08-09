@@ -108,14 +108,29 @@ class TestDiscoverArtifacts:
         assert len(arts) == 1
         assert arts[0].label == "dro_002"
 
-    def test_source_tool_is_empty(self, tmp_path: Path) -> None:
+    def test_source_tool_inferred_from_path(self, tmp_path: Path) -> None:
+        """source_tool 按产物路径推断（#359 数据契约需要）。
+
+        dro/halo 落 design_orbit；ephemeris 落 control_orbit。这是产物来源的
+        ground truth：旧版 JSON 不存 source_tool 字段，但路径已经决定了来源。
+        """
         dro_dir = tmp_path / "dro"
         dro_dir.mkdir()
         (dro_dir / "dro_001.json").write_text(
             json.dumps({"orbit_type": "DRO"}), encoding="utf-8"
         )
         arts = discover_artifacts(tmp_path)
-        assert arts[0].source_tool == ""
+        assert arts[0].source_tool == "design_orbit"
+
+    def test_source_tool_inferred_for_control_orbit(self, tmp_path: Path) -> None:
+        """ephemeris 路径推断为 control_orbit。"""
+        eph_dir = tmp_path / "ephemeris"
+        eph_dir.mkdir()
+        (eph_dir / "orbit_ephemeris_001.json").write_text(
+            json.dumps({"artifact_type": "ephemeris"}), encoding="utf-8"
+        )
+        arts = discover_artifacts(tmp_path)
+        assert arts[0].source_tool == "control_orbit"
 
     def test_created_at_from_mtime(self, tmp_path: Path) -> None:
         dro_dir = tmp_path / "dro"

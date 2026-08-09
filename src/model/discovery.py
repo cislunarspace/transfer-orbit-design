@@ -96,12 +96,20 @@ def discover_artifacts(output_dir: Path) -> list[Artifact]:
 
         mtime = datetime.fromtimestamp(json_file.stat().st_mtime, tz=UTC)
 
+        # source_tool 从 meta.artifact_type 推断（路径是产物来源的 ground truth）。
+        # design_orbit 落 output/dro|halo/，control_orbit 落 output/ephemeris/。
+        # 画布数据契约（#359）按 source_tool 区分初猜/星历槽位，必须正确。
+        at = meta["artifact_type"]
+        inferred_source = (
+            "design_orbit" if at == "orbit" else "control_orbit" if at == "ephemeris" else ""
+        )
+
         artifacts.append(
             Artifact(
-                artifact_type=meta["artifact_type"],
+                artifact_type=at,
                 label=json_file.stem,
                 orbit_type=orbit_type or "",
-                source_tool="",
+                source_tool=inferred_source,
                 output_path=json_file,
                 state_data=state_data,
                 times=times,

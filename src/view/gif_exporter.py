@@ -118,8 +118,10 @@ def export_animation(
     Args:
         canvas: 已配置好 artifacts provider 的画布实例。渲染期间不修改其
             常驻状态（sync_state 临时切换，结束时恢复）。
-        artifact_data: 单条 Artifact 的渲染数据，来自 main_window._artifact_for_id，
-            至少含 states（synodic 必需）或 position_km（inertial 必需）+ times_et。
+        artifact_data: 单条 Artifact 的渲染数据，来自 main_window._artifact_for_id
+            （#359 契约）。synodic 视图用 ``ephemeris_synodic``，inertial 视图用
+            ``ephemeris_position_km``；二者都需要 ``ephemeris_times_et``。
+            ``initial_guess_states`` 不参与动画（无物理时间轴）。
         frame: ``"synodic"`` 或 ``"inertial"``。
         time_range: (t0, t1) ET 秒，None 则用 times_et 首末。
         n_frames: 帧数（<2 强制为 2）。
@@ -144,14 +146,14 @@ def export_animation(
         raise ValueError(f"window_mode 非法: {window_mode}")
 
     # 数据完备性校验（降级由调用方提示，本层直接报错以便测试覆盖）
-    times_et = artifact_data.get("times_et")
+    times_et = artifact_data.get("ephemeris_times_et")
     if times_et is None:
-        raise ValueError("该 Artifact 无 times_et，无法按物理时间导出动画")
+        raise ValueError("该 Artifact 无 ephemeris_times_et，无法按物理时间导出动画")
     times_et = np.asarray(times_et, dtype=float)
-    if frame == "synodic" and artifact_data.get("states") is None:
-        raise ValueError("该 Artifact 无 states 数据")
-    if frame == "inertial" and artifact_data.get("position_km") is None:
-        raise ValueError("该 Artifact 无 position_km 数据，惯性系不可导出")
+    if frame == "synodic" and artifact_data.get("ephemeris_synodic") is None:
+        raise ValueError("该 Artifact 无 ephemeris_synodic 数据")
+    if frame == "inertial" and artifact_data.get("ephemeris_position_km") is None:
+        raise ValueError("该 Artifact 无 ephemeris_position_km 数据，惯性系不可导出")
 
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -173,15 +175,19 @@ def export_animation(
     n = len(export_times)
     try:
         for i, (ti, idx) in enumerate(zip(export_times, index_ranges, strict=True)):
-            states = artifact_data.get("states")
-            position_km = artifact_data.get("position_km")
-            sub_states = np.asarray(states)[idx] if states is not None else None
-            sub_position = np.asarray(position_km)[idx] if position_km is not None else None
+            eph_syn = artifact_data.get("ephemeris_synodic")
+            eph_pos = artifact_data.get("ephemeris_position_km")
+            sub_syn = np.asarray(eph_syn)[idx] if eph_syn is not None else None
+            sub_pos = np.asarray(eph_pos)[idx] if eph_pos is not None else None
             sub_times_et = times_et[idx]
             sub_artifact: dict[str, Any] = {
-                "states": sub_states,
-                "position_km": sub_position,
-                "times_et": sub_times_et,
+                # 动画只消费星历槽（初猜无物理时间轴）。canvas 在 synodic 帧下
+                # 默认按 plot_content="overlay" 同时尝试画初猜 + 星历；这里把星历
+                # 同时灌进两个槽，让初猜槽为 None、渲染只画星历。
+                "initial_guess_states": None,
+                "ephemeris_synodic": sub_syn,
+                "ephemeris_position_km": sub_pos,
+                "ephemeris_times_et": sub_times_et,
                 "label": artifact_data.get("label", ""),
                 "mu": artifact_data.get("mu"),
             }
@@ -196,6 +202,8 @@ def export_animation(
                 show_bodies=canvas._state.show_bodies,
                 show_libration=canvas._state.show_libration,
                 frame=frame,
+                # 初猜槽为 None，"overlay" 与 "ephemeris" 等价（只画星历）
+                plot_content=canvas._state.plot_content,
             )
             canvas.sync_state(frame_state, [artifact_id])
             canvas.render()
