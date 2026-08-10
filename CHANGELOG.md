@@ -1,5 +1,22 @@
 # 更新日志
 
+## 3.2.0 (2026-08-10)
+
+3.1.3 之后适配 e2m2e 5.6.5：恢复 Halo/NRHO 设计端到端可用（e2m2e 自动走 segmented 星历修正，修多圈发散），并修复 e2m2e 5.6.4 起 `design_orbit` 入口的签名与参数模型 breaking——后者自 5.6.4 起让 GUI 任何轨道设计都 TypeError，因测试全 mock 未暴露。
+
+### 功能
+
+- **Halo/NRHO 设计端到端可用（e2m2e 5.6.5，docs 457fe8b）**：two_level"修正 1 圈 + 自由外推"对不稳定轨道（STM ~1e7/圈）必发散；e2m2e 5.6.5 对 Halo/NRHO 自动重定向 segmented（全程分段打靶，不依赖外推）。GUI 设计 Halo（amp=30000、L2、30 天）~9 s 收敛，三圈会合系 x∈[1.085, 1.187] 紧邻 L2。圈间漂移是固有准周期特征，由 station_keeping 处理，设计阶段不压。
+
+### 修复
+
+- **适配 design_orbit 入口签名 + duration 单位（224f89f）**：e2m2e 5.6.4 起 `design_orbit` 首参从散字段改为 `DesignOrbitRequest`（`extra="forbid"`），facade 的 `**kwargs` 转发会 TypeError、GUI 设计全挂；`duration` 单位从年改秒，facade 加 `* SECONDS_PER_YEAR` 换算（不修则 1 年当 1 秒、et_grid 只剩 1 点）。改为构造 request 调用。此前测试全 mock（伪造 kwargs 签名）掩盖了断裂，本次把 mock 改回真签名 + 加 `@pytest.mark.spice` 真 smoke 守住接缝。
+- **params_panel 适配新参数模型（224f89f）**：`DesignOrbitRequest` 从 14 字段扩到 23（ELFO 根数 inclination/dyb 等新增），duration 改 Optional。`ORBIT_TYPE_DEFAULTS` 补 ELFO 分支与新 Optional 默认值；orbit_type 下拉原从 description split（5.6.5 改全大写 + 含 "..." 占位符，得 "HALO" 与 key "Halo" 不匹配），改从 `ORBIT_TYPE_DEFAULTS` key 取。
+
+### 工程
+
+- **pin e2m2e>=5.6.5（7c23752）**：含 Halo segmented 修复的最低版本，uv.lock 同步。
+
 ## 3.1.3 (2026-08-09)
 
 3.1.2 之后的星历模型可视化改造：星历结果获得会合系（质心归一，自洽）/ 地心惯性系双视图与 GIF 动画导出，轨道设计标称星历进画布，修复星历产物与地月标注的原点偏移，并为画布接入真物理时间轴。约定见 ADR 0013。
