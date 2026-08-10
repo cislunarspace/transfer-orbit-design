@@ -75,11 +75,14 @@ GUI 工具中常见参数的说明。
 
 ### 修正方法
 
-`--method`：星历修正方法。
-- `standard`：标准修正
-- `two_level`：两阶段修正（默认，推荐）
-- `homotopy`：同伦过渡（适用于困难收敛场景）
+`--method`：星历修正方法。稳定轨道（DRO 等）用 `two_level`/`standard`；
+不稳定轨道（Halo/NRHO）由 e2m2e 自动改走 `segmented`（分段打靶拼接——
+two_level 的"修正 1 圈 + 自由外推"对不稳定轨道必发散），无需手选。
+- `standard`：标准修正（稳定轨道）
+- `two_level`：两阶段修正（默认；稳定轨道推荐，Halo/NRHO 自动转 segmented）
+- `homotopy`：同伦过渡（质点 N 体语义，不支持全摄动力模型）
 
 ### 位置容差
 
-`--position-tol`：轨道拼接点的位置连续性容差（km）。默认 1e-3 km。
+`--position-tol`：轨道拼接点的位置连续性容差（km）。默认 2e-2 km
+（e2m2e `CORRECTION_TOL_KM`，对齐星历模型与 CR3BP 初猜的物理收敛底线）。

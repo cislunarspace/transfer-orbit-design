@@ -100,6 +100,8 @@ _EPOCH_FIELD = "epoch"
 
 #: correction_method 下拉取值，须对齐 e2m2e
 #: ``algorithm/ephemeris_correction/__init__.py::_REGISTRY`` 的键。
+#: 注：segmented 由 e2m2e 对 Halo/NRHO 自动选用（design_orbit 内部路径），
+#: 不在此暴露——用户选 two_level/standard 时不稳定轨道会被自动重定向。
 CORRECTION_METHOD_OPTIONS: tuple[str, ...] = ("standard", "two_level", "homotopy")
 
 #: str 枚举类字段 -> 下拉选项（现仅 correction_method）。

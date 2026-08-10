@@ -301,7 +301,7 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
 [14:32:01] 开始设计 DRO 轨道...
 [14:32:01] 参数: amplitude=40000.0 km, duration=1.0 yr
 [14:32:15] 微分修正收敛 (3 次迭代, 残差 2.3e-12)
-[14:32:18] 星历修正完成 (two_level, 5 段)
+[14:32:18] 星历修正完成 (two_level, max_res=1.6e-02 km)
 [14:32:20] ✓ 设计完成: DRO, C_J=3.005811
 ```
 
