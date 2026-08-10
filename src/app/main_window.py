@@ -42,6 +42,7 @@ from src.model.discovery import discover_artifacts
 from src.view.canvas import OrbitCanvasWithToolbar
 from src.view.log_panel import LogPanel
 from src.view.params_panel import (
+    ORBIT_TYPE_DEFAULTS,
     ORBIT_TYPE_FIELDS,
     apply_orbit_type_defaults,
     build_params_from_model,
@@ -83,6 +84,9 @@ _DESIGN_ORBIT_LABELS: dict[str, str] = {
     "duration": "持续时间 (年)",
     "output_step": "输出步长 (秒)",
     "correction_method": "修正方法",
+    "inclination": "倾角 (度)",
+    "arg_of_pericenter": "近月点幅角 (度)",
+    "semi_major_axis": "半长轴 (km)",
 }
 
 #: design_orbit 所有分支字段的并集（不在其中的字段视为通用字段，始终显示）
@@ -371,22 +375,25 @@ class MainWindow(QMainWindow):
         widget.setParent(None)
 
     def _replace_orbit_type_with_combo(self, model_class: type) -> None:
-        """G3: 若 orbit_type 字段 description 含 '/'，替换为 QComboBox。"""
-        field = model_class.model_fields.get("orbit_type")
-        if field is None or not field.description:
-            return
-        if "/" not in field.description:
-            return
+        """G3: orbit_type 字段替换为 QComboBox。
 
-        options = [opt.strip() for opt in field.description.split("/") if opt.strip()]
+        选项来源是 ``ORBIT_TYPE_DEFAULTS`` 的 key（用户友好的分支名，如
+        Halo/Lissajous/ELFO），而非 ``field.description`` 的全大写枚举——后者
+        含 "..." 占位符、且 5.6.5 起改全大写（HALO/LISSAJOUS），不适合直接
+        展示，也不与 ``apply_orbit_type_defaults`` 的分支 key 对齐。description
+        仍作 tooltip。
+        """
+        field = model_class.model_fields.get("orbit_type")
+        if field is None:
+            return
+        options = list(ORBIT_TYPE_DEFAULTS.keys())
         if not options:
             return
 
         combo = QComboBox()
         combo.addItems(options)
-        combo.setToolTip(field.description)
-        if field.default is not None and str(field.default) in options:
-            combo.setCurrentIndex(options.index(str(field.default)))
+        if field.description:
+            combo.setToolTip(field.description)
 
         # 替换 _param_widgets 中的条目
         old = self._param_widgets.get("orbit_type")

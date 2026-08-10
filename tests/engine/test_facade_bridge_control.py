@@ -131,7 +131,7 @@ class TestDesignOrbitEphemerisExtraction:
 
         monkeypatch.setattr(
             "e2m2e.algorithm.design.design_orbit",
-            lambda **kw: result,
+            lambda request, *, spice=None, kernel_dir=None, verbose=False: result,
             raising=False,
         )
         bridge = FacadeBridge()
@@ -173,7 +173,7 @@ class TestDesignOrbitEphemerisExtraction:
 
         monkeypatch.setattr(
             "e2m2e.algorithm.design.design_orbit",
-            lambda **kw: result,
+            lambda request, *, spice=None, kernel_dir=None, verbose=False: result,
             raising=False,
         )
         bridge = FacadeBridge()

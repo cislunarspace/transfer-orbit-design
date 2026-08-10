@@ -70,9 +70,13 @@ def fake_design_result() -> _FakeDesignResult:
 
 @pytest.fixture()
 def mock_design_orbit(monkeypatch, fake_design_result):
-    """Monkeypatch e2m2e.algorithm.design.design_orbit，返回 fake_design_result。"""
+    """Monkeypatch e2m2e.algorithm.design.design_orbit，返回 fake_design_result。
 
-    def _fake_design_orbit(**kwargs):
+    签名对齐 e2m2e 5.6.5：``design_orbit(request, *, spice, kernel_dir, verbose)``。
+    若 FacadeBridge 改回散字段转发，此处会 TypeError，守住接缝。
+    """
+
+    def _fake_design_orbit(request, *, spice=None, kernel_dir=None, verbose=False):
         return fake_design_result
 
     monkeypatch.setattr(

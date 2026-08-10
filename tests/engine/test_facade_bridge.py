@@ -98,7 +98,7 @@ class TestFacadeBridgeDesignOrbit:
             correction=correction,
         )
 
-        def _fake_design_orbit(**kwargs):
+        def _fake_design_orbit(request, *, spice=None, kernel_dir=None, verbose=False):
             return result
 
         monkeypatch.setattr(
@@ -122,11 +122,14 @@ class TestFacadeBridgeDesignOrbit:
         assert data.states.shape == fake_design_result.cr3bp_orbit.states.shape
 
     def test_kernel_dir_forwarded(self, monkeypatch):
-        """kernel_dir 参数应被注入到 e2m2e 调用中。"""
+        """kernel_dir 应作为 design_orbit 的关键字参数注入；request 为位置参数。"""
+        from e2m2e.api.models import DesignOrbitRequest
+
         captured: dict = {}
 
-        def _capture(**kwargs):
-            captured.update(kwargs)
+        def _capture(request, *, spice=None, kernel_dir=None, verbose=False):
+            captured["request"] = request
+            captured["kernel_dir"] = kernel_dir
             from types import SimpleNamespace
 
             n = 10
@@ -148,17 +151,59 @@ class TestFacadeBridgeDesignOrbit:
         monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _capture, raising=False)
         bridge = FacadeBridge(kernel_dir="/tmp/kernels")
         bridge.design_orbit(orbit_type="DRO")
+        # 守住接缝：facade 必须构造 DesignOrbitRequest 并以位置参传入，
+        # kernel_dir 以关键字参传入（非 request 字段）。
+        assert isinstance(captured.get("request"), DesignOrbitRequest)
+        assert captured["request"].orbit_type == "DRO"
         assert captured.get("kernel_dir") == "/tmp/kernels"
+
+    def test_duration_converts_years_to_seconds(self, monkeypatch):
+        """GUI duration 单位年，e2m2e 5.6.5 duration 单位秒；facade 做换算。"""
+        from e2m2e.api.models import DesignOrbitRequest
+
+        captured: dict = {}
+
+        def _capture(request, *, spice=None, kernel_dir=None, verbose=False):
+            captured["duration"] = request.duration
+            from types import SimpleNamespace
+
+            n = 10
+            orbit = SimpleNamespace(
+                states=np.random.randn(n, 6),
+                times=np.linspace(0, 1, n),
+            )
+            correction = SimpleNamespace(converged=True, iterations=1)
+            return SimpleNamespace(
+                orbit_type="DRO",
+                epoch_utc="2024-01-01T00:00:00",
+                duration_day=1.0,
+                initial_state=np.zeros(6),
+                cr3bp_jacobi=3.0,
+                cr3bp_orbit=orbit,
+                correction=correction,
+            )
+
+        monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _capture, raising=False)
+        bridge = FacadeBridge()
+        # 1 年（GUI 标准单位）应被换算成 1 年的秒数
+        bridge.design_orbit(orbit_type="DRO", duration=1.0)
+        from src.commons.units import SECONDS_PER_YEAR
+
+        assert captured["duration"] == pytest.approx(SECONDS_PER_YEAR)
+        # 0.5 年 -> 半年秒数
+        bridge.design_orbit(orbit_type="DRO", duration=0.5)
+        assert captured["duration"] == pytest.approx(0.5 * SECONDS_PER_YEAR)
 
     def test_orbit_error_translated(self, monkeypatch):
         """e2m2e 异常应被翻译为 OrbitError。"""
         from src.engine.exceptions import OrbitError
 
-        def _fail(**kwargs):
+        def _fail(request, *, spice=None, kernel_dir=None, verbose=False):
             raise ValueError("bad amplitude")
 
         monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _fail, raising=False)
         bridge = FacadeBridge()
         with pytest.raises(OrbitError) as exc_info:
-            bridge.design_orbit(orbit_type="DRO", amplitude=-1)
+            # amplitude=50 < DRO 下限 1737 km，触发 model_validator ValueError
+            bridge.design_orbit(orbit_type="DRO", amplitude=50.0)
         assert exc_info.value.code == "INVALID_PARAMS"

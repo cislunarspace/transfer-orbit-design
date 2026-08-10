@@ -42,6 +42,14 @@ _EXPECTED_DEFAULTS: dict[str, dict[str, float | int]] = {
         "phase_in": 0.0,
         "phase_out": 0.0,
     },
+    # ELFO 形状参数：semi_major_axis 为 GUI 选定的近月冻结代表值，其余对齐
+    # DesignOrbitRequest model_validator 的 ELFO 默认。
+    "ELFO": {
+        "semi_major_axis": 6500.0,
+        "inclination": 75.0,
+        "arg_of_pericenter": 270.0,
+        "perilune_height": 200.0,
+    },
 }
 
 _EXPECTED_FIELDS: dict[str, set[str]] = {
@@ -57,10 +65,26 @@ _EXPECTED_FIELDS: dict[str, set[str]] = {
     },
     "L4": {"amplitude_in", "amplitude_out", "phase_in", "phase_out"},
     "L5": {"amplitude_in", "amplitude_out", "phase_in", "phase_out"},
+    "ELFO": {"semi_major_axis", "inclination", "arg_of_pericenter", "perilune_height"},
 }
 
-# 所有类型共享的通用字段（模型自带默认值，不属于任何分支）
-_COMMON_FIELDS = {"orbit_type", "epoch", "duration", "output_step", "correction_method"}
+# 所有类型共享的通用字段（模型自带默认值，不属于任何 orbit_type 分支）。
+# 5.6.5 新增一批通用修正/摄动参数（earth_degree/moon_degree/perturbation/dyb/
+# correction_revolutions/correction_velocity_tolerance），它们不随 orbit_type 变化，
+# 归入此处由守卫排除；duration 5.6.5 改 Optional 但仍是通用字段。
+_COMMON_FIELDS = {
+    "orbit_type",
+    "epoch",
+    "duration",
+    "output_step",
+    "correction_method",
+    "earth_degree",
+    "moon_degree",
+    "perturbation",
+    "dyb",
+    "correction_revolutions",
+    "correction_velocity_tolerance",
+}
 
 
 @pytest.fixture()

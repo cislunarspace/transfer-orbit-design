@@ -72,6 +72,15 @@ ORBIT_TYPE_DEFAULTS: dict[str, dict[str, float | int]] = {
         "phase_in": 0.0,
         "phase_out": 0.0,
     },
+    # ELFO（月心冻结轨道）形状参数。semi_major_axis 模型必填，GUI 取近月冻结
+    # 代表值 6500 km；其余对齐 DesignOrbitRequest model_validator 的 ELFO 默认
+    # （inclination=75、arg_of_pericenter=270、perilune_height=200）。
+    "ELFO": {
+        "semi_major_axis": 6500.0,
+        "inclination": 75.0,
+        "arg_of_pericenter": 270.0,
+        "perilune_height": 200.0,
+    },
 }
 
 #: 每轨道类型分支应显示的字段集（== 该分支默认值字段集）。
@@ -88,6 +97,7 @@ ORBIT_TYPE_FIELDS: dict[str, set[str]] = {
     },
     "L4": {"amplitude_in", "amplitude_out", "phase_in", "phase_out"},
     "L5": {"amplitude_in", "amplitude_out", "phase_in", "phase_out"},
+    "ELFO": {"semi_major_axis", "inclination", "arg_of_pericenter", "perilune_height"},
 }
 
 # ---------------------------------------------------------------------------
@@ -166,6 +176,18 @@ FIELD_UNIT_OPTIONS: dict[str, tuple[UnitOption, ...]] = {
         UnitOption("秒", 1.0),
         UnitOption("TU", TU_SECONDS, decimals=4, step=0.001),
     ),
+}
+
+#: Optional 字段的 GUI 展示默认值：这些字段不包 Optional 容器（勾选框），直接
+#: 展示为 spinbox 并填入默认值。它们是"通用字段"（不进 ORBIT_TYPE_DEFAULTS
+#: 分支，不会被 apply_orbit_type_defaults 解包），需要 GUI 层自行给初值。
+#:
+#: duration：e2m2e 5.6.5 起 model default=None（让 model_validator 按 orbit_type
+#: 填秒级默认）；GUI 仍展示 1 年短弧默认（issue #355），main_window 再覆盖到 1 月。
+#: 此处默认值单位为年（FIELD_UNIT_OPTIONS["duration"] 的标准单位），facade
+#: 构造 request 时换算成秒。
+_OPTIONAL_FIELD_GUI_DEFAULTS: dict[str, float] = {
+    "duration": 1.0,
 }
 
 # Qt 动态属性名：控件用 setProperty 存单位状态。拼错会静默破坏换算，故提为常量。
@@ -508,6 +530,15 @@ def _make_field_widget(field_name: str, field: Any) -> QWidget | None:
 
     # G7: Optional 包装
     if is_optional and field.default is None:
+        # 通用 Optional 字段（如 duration）：模型 default=None（让 e2m2e
+        # model_validator 兜底），但 GUI 始终展示 spinbox + 合理默认值，不走
+        # 勾选框式 Optional 容器。这些字段不在 ORBIT_TYPE_DEFAULTS 分支，不会被
+        # apply_orbit_type_defaults 解包，故在此直接给 spinbox。
+        gui_default = _OPTIONAL_FIELD_GUI_DEFAULTS.get(field_name)
+        if gui_default is not None:
+            if isinstance(base_widget, QDoubleSpinBox):
+                base_widget.setValue(float(gui_default))
+            return base_widget
         return _make_optional_wrapper(base_widget, field)
 
     return base_widget

@@ -172,7 +172,14 @@ class FacadeBridge:
     def design_orbit(self, **kwargs: Any) -> OrbitDesignResultData:
         """调用 e2m2e.algorithm.design.design_orbit，返回跨线程 DTO。
 
-        所有关键字参数原样转发给 e2m2e（kernel_dir 由本类注入）。
+        e2m2e 5.6.5 起 ``design_orbit`` 第一个参数为 ``DesignOrbitRequest``
+        （散字段不再支持），本方法把 GUI 收集的 kwargs 包成 request 再调用。
+        ``kernel_dir`` 不是 request 字段（``extra="forbid"``），单独传入。
+
+        单位换算：GUI ``duration`` 标准单位为年（见
+        ``params_panel.FIELD_UNIT_OPTIONS``），e2m2e 5.6.5 起 ``duration`` 字段
+        单位为秒，本方法做年→秒换算（``* SECONDS_PER_YEAR``）。
+
         异常经 translate_exception() 翻译为 OrbitError 后抛出。
 
         Returns:
@@ -182,12 +189,20 @@ class FacadeBridge:
             OrbitError: 经翻译的结构化错误。
         """
         from e2m2e.algorithm.design import design_orbit
+        from e2m2e.api.models import DesignOrbitRequest
 
+        from src.commons.units import SECONDS_PER_YEAR
         from src.engine.exceptions import translate_exception
 
-        kwargs.setdefault("kernel_dir", self._kernel_dir)
+        # kernel_dir 不是 DesignOrbitRequest 字段（extra="forbid"），单独拎出。
+        # 其余 kwargs 都是 collect_params 按 model_fields 收集的合法 request 字段。
+        kernel_dir = kwargs.pop("kernel_dir", self._kernel_dir)
+        # GUI duration 单位年 -> e2m2e duration 单位秒
+        if kwargs.get("duration") is not None:
+            kwargs["duration"] = float(kwargs["duration"]) * SECONDS_PER_YEAR
         try:
-            result = design_orbit(**kwargs)
+            request = DesignOrbitRequest(**kwargs)
+            result = design_orbit(request, kernel_dir=kernel_dir)
         except Exception as e:
             raise translate_exception(e) from e
 
