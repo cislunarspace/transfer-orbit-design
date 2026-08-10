@@ -60,7 +60,7 @@ dependencies = [
     { name = "setuptools" },
 ]
 wheels = [
-    { url = "https://github.com/cislunarspace/e2m2e/releases/download/calcephpy-v1/calcephpy-5.0.0-cp313-cp313-win_amd64.whl", hash = "sha256:7caed4c52e87dc48a1e043cc58cda4277c52c3426ba14ce8f2b59268e2568397" },
+    { url = "https://github.com/cislunarspace/e2m2e/releases/download/calcephpy-v1/calcephpy-5.0.0-cp313-cp313-win_amd64.whl", hash = "sha256:e47c116d75e21b3136f73d4665d60ed74e32448c4e3caddf3865ff3dd9d84408" },
 ]
 
 [package.metadata]
@@ -261,7 +261,8 @@ name = "e2m2e"
 version = "5.6.5"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
 dependencies = [
-    { name = "calcephpy" },
+    { name = "calcephpy", version = "5.0.0", source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }, marker = "sys_platform != 'win32'" },
+    { name = "calcephpy", version = "5.0.0", source = { url = "https://github.com/cislunarspace/e2m2e/releases/download/calcephpy-v1/calcephpy-5.0.0-cp313-cp313-win_amd64.whl" }, marker = "sys_platform == 'win32'" },
     { name = "numpy" },
     { name = "pydantic" },
     { name = "pyerfa" },
@@ -1309,13 +1310,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-<<<<<<< HEAD
     { name = "calcephpy", marker = "sys_platform != 'win32'", specifier = "==5.0.0" },
     { name = "calcephpy", marker = "sys_platform == 'win32'", url = "https://github.com/cislunarspace/e2m2e/releases/download/calcephpy-v1/calcephpy-5.0.0-cp313-cp313-win_amd64.whl" },
-    { name = "e2m2e", specifier = "==5.6.3" },
-=======
     { name = "e2m2e", specifier = ">=5.6.5" },
->>>>>>> 7c23752 (chore(deps): pin e2m2e>=5.6.5 + uv.lock)
     { name = "matplotlib", specifier = ">=3.10.0" },
     { name = "myst-parser", marker = "extra == 'docs'", specifier = ">=2.0" },
     { name = "numpy", specifier = ">=2.4.0" },
