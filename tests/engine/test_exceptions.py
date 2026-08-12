@@ -32,6 +32,40 @@ class TestTranslateDesignNotConverged:
         assert err.cause is raw
 
 
+class TestTranslatePropagationNewContract:
+    """e2m2e 5.6.6 新增类型化异常（#349/#378）的翻译。"""
+
+    def test_translate_propagation_failure(self):
+        from e2m2e.exceptions import PropagationFailure
+
+        raw = PropagationFailure("step size collapsed to machine floor")
+        err = translate_exception(raw)
+        assert err.code == "PROPAGATION_FAILED"
+        assert err.cause is raw
+
+    def test_translate_rust_extension_unavailable(self):
+        from e2m2e.exceptions import RustExtensionUnavailableError
+
+        raw = RustExtensionUnavailableError("missing symbol: propagate_cr3bp")
+        err = translate_exception(raw)
+        assert err.code == "BACKEND_UNAVAILABLE"
+        assert err.cause is raw
+
+    def test_design_not_converged_message_carries_cause(self):
+        from e2m2e.algorithm.design.design_orbit import DesignNotConvergedError
+        from e2m2e.algorithm.results import ConvergenceState, FailureCause
+
+        # status/cause 须一致（ResultStatus 构造校验），停滞对停滞
+        raw = DesignNotConvergedError(
+            "LM 停滞",
+            status=ConvergenceState.STAGNATED,
+            cause=FailureCause.STAGNATION_DETECTED,
+        )
+        err = translate_exception(raw)
+        assert err.code == "CORRECTION_DIVERGED"
+        assert "STAGNATION_DETECTED" in err.message
+
+
 class TestTranslateUnsupportedCorrectorMethod:
     def test_translate_unsupported_corrector(self):
         from e2m2e.algorithm.ephemeris_correction.types import (

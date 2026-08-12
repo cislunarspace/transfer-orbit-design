@@ -189,6 +189,7 @@ class FacadeBridge:
             OrbitError: 经翻译的结构化错误。
         """
         from e2m2e.algorithm.design import design_orbit
+        from e2m2e.algorithm.results import ConvergenceState
         from e2m2e.api.models import DesignOrbitRequest
 
         from src.commons.units import SECONDS_PER_YEAR
@@ -231,6 +232,13 @@ class FacadeBridge:
                 # control_orbit 用其做会合→惯性坐标转换；帧动画也用它定位真时刻。
                 "times_et": _reconstruct_et_from_utc(eph),
             }
+        # e2m2e 5.6.6 起 EphemerisCorrectionResult 废除 converged 方言，
+        # 收敛判定走统一结果契约 status == ConvergenceState.CONVERGED
+        # （上游 #351）。correction 为 None 是 ELFO 场景（无星历修正），视为未收敛。
+        correction = result.correction
+        correction_converged = (
+            correction is not None and correction.status is ConvergenceState.CONVERGED
+        )
         return OrbitDesignResultData(
             orbit_type=result.orbit_type,
             epoch_utc=result.epoch_utc,
@@ -240,8 +248,8 @@ class FacadeBridge:
             mu=mu,
             states=np.asarray(cr3bp_orbit.states),
             times=np.asarray(cr3bp_orbit.times),
-            correction_converged=result.correction.converged,
-            correction_iterations=result.correction.iterations,
+            correction_converged=correction_converged,
+            correction_iterations=correction.iterations if correction is not None else 0,
             ephemeris=ephemeris_dict,
         )
 

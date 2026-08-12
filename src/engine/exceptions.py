@@ -31,7 +31,11 @@ def translate_exception(e: Exception) -> OrbitError:
     """将 e2m2e 异常翻译为 OrbitError。
 
     映射规则（按优先级）：
-    - DesignNotConvergedError  -> CORRECTION_DIVERGED
+    - DesignNotConvergedError  -> CORRECTION_DIVERGED（附上游 FailureCause）
+    - PropagationFailure       -> PROPAGATION_FAILED（5.6.6 起取代错误消息
+      前缀匹配的类型化传播失败，上游 #349）
+    - RustExtensionUnavailableError -> BACKEND_UNAVAILABLE（5.6.6 起禁止
+      Rust 缺失静默回退 Python，上游 #378）
     - UnsupportedCorrectorMethodError -> INVALID_CORRECTION_METHOD
     - FileNotFoundError         -> KERNEL_NOT_FOUND
     - NotImplementedError        -> NOT_IMPLEMENTED
@@ -42,9 +46,30 @@ def translate_exception(e: Exception) -> OrbitError:
         from e2m2e.algorithm.design.design_orbit import DesignNotConvergedError
 
         if isinstance(e, DesignNotConvergedError):
+            # 5.6.6 起异常携带 FailureCause（统一结果契约 #351），附上便于定位
+            cause_name = getattr(getattr(e, "cause", None), "name", None)
+            detail = f"（{cause_name}）" if cause_name else ""
             return OrbitError(
                 code="CORRECTION_DIVERGED",
-                message=f"轨道修正未收敛: {e}",
+                message=f"轨道修正未收敛{detail}: {e}",
+                cause=e,
+            )
+    except ImportError:
+        pass
+
+    try:
+        from e2m2e.exceptions import PropagationFailure, RustExtensionUnavailableError
+
+        if isinstance(e, PropagationFailure):
+            return OrbitError(
+                code="PROPAGATION_FAILED",
+                message=f"轨道传播失败: {e}",
+                cause=e,
+            )
+        if isinstance(e, RustExtensionUnavailableError):
+            return OrbitError(
+                code="BACKEND_UNAVAILABLE",
+                message=f"e2m2e Rust 计算内核不可用: {e}",
                 cause=e,
             )
     except ImportError:

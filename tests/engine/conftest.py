@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from e2m2e.algorithm.results import ConvergenceState
 
 
 class _FakeCorrection:
-    """Fake EphemerisCorrectionResult（只保留 converged/iterations）。"""
+    """Fake EphemerisCorrectionResult（只保留 status/iterations）。
+
+    e2m2e 5.6.6 起收敛判定走统一结果契约 status（#351），不再有 converged。
+    """
 
     def __init__(self, converged: bool = True, iterations: int = 3) -> None:
-        self.converged = converged
+        self.status = (
+            ConvergenceState.CONVERGED if converged else ConvergenceState.DIVERGED
+        )
         self.iterations = iterations
 
 
