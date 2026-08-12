@@ -521,9 +521,12 @@ def _make_field_widget(field_name: str, field: Any) -> QWidget | None:
         base_widget = _make_str_field(field)
     else:
         # Any / 其它 -> QLineEdit（JSON）
-        base_widget = QLineEdit()
+        # 无注解局部变量承接：pyright 对 PyQt6 类型不做赋值收窄（已知限制），
+        # 带 `| None` 注解的 base_widget 赋值后仍视为可为 None，故换名新建。
+        line_edit = QLineEdit()
         if field.default is not None and field.default is not ...:
-            base_widget.setText(str(field.default))
+            line_edit.setText(str(field.default))
+        base_widget = line_edit
 
     if base_widget is None:
         return None

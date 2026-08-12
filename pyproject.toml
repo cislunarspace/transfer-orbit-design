@@ -52,7 +52,7 @@ Repository = "https://github.com/cislunarspace/transfer-orbit-design"
 pythonVersion = "3.13"
 reportMissingImports = "none"
 include = ["src"]
-exclude = ["tests"]
+exclude = ["tests", "src/commons/viz"]  # viz 为收编的第三方代码（原 e2m2e tools/viz），不承担本仓类型标准
 
 [tool.pytest.ini_options]
 markers = [

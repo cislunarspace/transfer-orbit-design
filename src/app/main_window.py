@@ -256,8 +256,9 @@ class MainWindow(QMainWindow):
 
         # 参数容器
         self._param_container = QWidget()
-        self._param_container_layout = QVBoxLayout(self._param_container)
-        self._param_container_layout.setContentsMargins(0, 0, 0, 0)
+        container_layout = QVBoxLayout(self._param_container)
+        container_layout.setContentsMargins(0, 0, 0, 0)
+        self._param_container_layout = container_layout
         layout.addWidget(self._param_container)
 
         layout.addStretch()
@@ -334,14 +335,17 @@ class MainWindow(QMainWindow):
             layout.addWidget(widget)
             unit_combo: QComboBox | None = None
             if options:
-                unit_combo = QComboBox()
+                # 无注解局部变量承接：pyright 对 PyQt6 类型不做 isinstance/赋值收窄
+                # （已知限制），带 `| None` 注解的变量赋值也不收窄，故换名新建。
+                combo = QComboBox()
                 for opt in options:
-                    unit_combo.addItem(opt.label)
-                unit_combo.setCurrentIndex(0)
-                unit_combo.currentIndexChanged.connect(
+                    combo.addItem(opt.label)
+                combo.setCurrentIndex(0)
+                combo.currentIndexChanged.connect(
                     lambda _idx, n=name: self._on_unit_combo_changed(n)
                 )
-                layout.addWidget(unit_combo)
+                layout.addWidget(combo)
+                unit_combo = combo
             self._param_rows[name] = (label_widget, widget, unit_combo)
 
         # control_orbit 的 input_ephemeris 由选中 Artifact 注入，不在 UI 暴露
@@ -353,8 +357,10 @@ class MainWindow(QMainWindow):
         if tool_key == "design_orbit":
             orbit_type_widget = self._param_widgets.get("orbit_type")
             if isinstance(orbit_type_widget, QComboBox):
-                orbit_type_widget.currentIndexChanged.connect(self._on_orbit_type_changed)
-                self._on_orbit_type_changed(orbit_type_widget.currentIndex())
+                # pyright 不窄化 PyQt6 类型的 isinstance（已知限制），带注解赋值强制类型
+                orbit_combo: QComboBox = orbit_type_widget
+                orbit_combo.currentIndexChanged.connect(self._on_orbit_type_changed)
+                self._on_orbit_type_changed(orbit_combo.currentIndex())
             # duration GUI 默认下调至 1 个月（issue #355）：模型 default=1.0 年不动，
             # 仅在 GUI 层把单位切到"月"、值设为 1，让短弧设计更顺手。
             self._apply_duration_default_month()
@@ -408,7 +414,9 @@ class MainWindow(QMainWindow):
         orbit_type_widget = self._param_widgets.get("orbit_type")
         if not isinstance(orbit_type_widget, QComboBox):
             return
-        orbit_type = orbit_type_widget.currentText()
+        # pyright 不窄化 PyQt6 类型的 isinstance（已知限制），带注解赋值强制类型
+        orbit_combo: QComboBox = orbit_type_widget
+        orbit_type = orbit_combo.currentText()
         model = TOOL_REGISTRY["design_orbit"].request_model
         if model is None:
             return
@@ -535,7 +543,9 @@ class MainWindow(QMainWindow):
         orbit_type = ""
         orbit_type_widget = self._param_widgets.get("orbit_type")
         if isinstance(orbit_type_widget, QComboBox):
-            orbit_type = orbit_type_widget.currentText()
+            # pyright 不窄化 PyQt6 类型的 isinstance（已知限制），带注解赋值强制类型
+            orbit_combo: QComboBox = orbit_type_widget
+            orbit_type = orbit_combo.currentText()
 
         try:
             params = collect_params(self._param_widgets, model)
