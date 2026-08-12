@@ -29,7 +29,7 @@ import contextlib
 
 import matplotlib
 import numpy as np
-from e2m2e.transfer import load_orbit_from_json
+from e2m2e.algorithm.transfer import load_orbit_from_json
 from matplotlib.colors import Normalize
 
 from plot.config import apply_standard_plot_config, style_colorbar

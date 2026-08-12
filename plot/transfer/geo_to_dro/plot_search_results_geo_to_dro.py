@@ -31,7 +31,7 @@ import contextlib
 import matplotlib
 import numpy as np
 from e2m2e.algorithm.dynamics import CR3BP_Dynamics, CR3BP_System
-from e2m2e.transfer import load_orbit_from_json
+from e2m2e.algorithm.transfer import load_orbit_from_json
 
 from plot.config import apply_standard_plot_config, subsample_indices
 from plot.transfer.common import (

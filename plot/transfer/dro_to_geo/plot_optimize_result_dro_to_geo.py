@@ -31,7 +31,7 @@ import contextlib
 
 import matplotlib  # noqa: E402
 import numpy as np
-from e2m2e.transfer import load_orbit_from_json
+from e2m2e.algorithm.transfer import load_orbit_from_json
 
 from plot._artifact_helpers import find_latest_single_dro
 from plot.transfer.common import (

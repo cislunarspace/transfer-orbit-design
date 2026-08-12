@@ -31,8 +31,9 @@ if not logging.getLogger().handlers:
 import e2m2e
 import matplotlib
 import numpy as np
-from e2m2e.algorithm.dynamics import CR3BP_System, Orbit
-from e2m2e.transfer import TransferSearch, load_orbit_from_json
+from e2m2e.algorithm.dynamics import CR3BP_System
+from e2m2e.algorithm.transfer import TransferSearch, load_orbit_from_json
+from e2m2e.data.types.orbit import Orbit
 
 from plot._artifact_helpers import find_latest_single_dro
 from plot.config import apply_standard_plot_config, subsample_indices
