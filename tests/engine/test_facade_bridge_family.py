@@ -227,6 +227,18 @@ class TestAnalyzeStability:
         assert orbit.system is not None
         assert orbit.system.mu == pytest.approx(0.01215)
 
+    def test_mu_none_uses_earth_moon_default(self, mock_stability):
+        """mu 缺失（旧 Artifact）时用 e2m2e 地月系统默认质量比，而非硬编码常量。"""
+        from e2m2e.data.templates.seed import EARTH_MOON_MU
+
+        FacadeBridge().analyze_stability(
+            states=np.random.randn(10, 6),
+            times=np.linspace(0, 1, 10),
+            mu=None,
+        )
+        orbit = mock_stability.instances[-1].orbit
+        assert orbit.system.mu == pytest.approx(EARTH_MOON_MU)
+
 
 # ---------------------------------------------------------------------------
 # 真路径（纯 CR3BP，无需 SPICE）

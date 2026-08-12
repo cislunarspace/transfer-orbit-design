@@ -475,13 +475,14 @@ class FacadeBridge:
         """
         from e2m2e.algorithm.dynamics import CR3BP_Dynamics
         from e2m2e.algorithm.stability import StabilityAnalysis
+        from e2m2e.data.templates.seed import EARTH_MOON_MU
         from e2m2e.data.types import Orbit
 
         from src.engine.exceptions import translate_exception
         from src.engine.viz_adapter import build_cr3bp_system
 
         try:
-            system = build_cr3bp_system(mu if mu is not None else 0.012150585350562453)
+            system = build_cr3bp_system(mu if mu is not None else EARTH_MOON_MU)
             dynamics = CR3BP_Dynamics(system)
             orbit = Orbit(states=states, times=times, system=system)
             result = StabilityAnalysis(orbit=orbit, dynamics=dynamics).analyze()
