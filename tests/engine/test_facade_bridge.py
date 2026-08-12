@@ -58,9 +58,14 @@ class TestToolRegistry:
         """issue #348: control_orbit 已激活。"""
         assert TOOL_REGISTRY["control_orbit"].enabled is True
 
-    def test_others_disabled(self):
-        for name in ("orbit_family_generation", "orbit_stability"):
-            assert TOOL_REGISTRY[name].enabled is False, f"{name} 应为 disabled"
+    def test_family_generation_enabled(self):
+        """issue #340: orbit_family_generation 已激活（e2m2e 族延拓接入）。"""
+        assert TOOL_REGISTRY["orbit_family_generation"].enabled is True
+        assert TOOL_REGISTRY["orbit_family_generation"].request_model is not None
+
+    def test_stability_disabled_in_tool_combo(self):
+        """orbit_stability 无参数面板，工具下拉保持灰显（右键菜单入口）。"""
+        assert TOOL_REGISTRY["orbit_stability"].enabled is False
 
     def test_facade_methods_defined(self):
         """每个注册工具都必须有 facade_method。"""

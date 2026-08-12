@@ -81,6 +81,14 @@ _Avoid_: 生成单条轨道（CLI 脚本概念）、脚本
 新 GUI 的轨道保持工具，经 `TOOL_REGISTRY` 注册并绑定 `ControlOrbitRequest` 模型。以一条轨道 Artifact 的星历数据为输入，调用 e2m2e 算法层的 `station_keeping.control_orbit` 做蒙特卡洛仿真，输出受控星历与机动 Δv 统计；结果写入 `output/ephemeris/`。
 _Avoid_: 轨道设计、脚本
 
+**轨道族生成** (`orbit_family_generation`):
+新 GUI 的轨道族生成工具，经 `TOOL_REGISTRY` 注册并绑定本地 `FamilyGenerationRequest` 模型（e2m2e 无对应 Request）。第一版仅支持 Halo 北族：从 0.001 DU 小振幅种子出发，固定 z0 逐步修正延拓到目标最大面外振幅（L2 折叠点前自动终止）；其余轨道类型在 e2m2e 只有单条设计函数、无族延拓接口，故不提供族类型选择。结果以 family Artifact（`output/family/`，NPZ 存 `(m, n, 6)` 三维数组）落盘，画布按成员逐条叠加渲染。
+_Avoid_: 单条轨道设计（那是 `design_orbit`）、批量并发跑多条单轨道
+
+**稳定性分析** (`orbit_stability`):
+右键 orbit Artifact 触发的分析动作（无参数面板，不进工具下拉），对选中的 CR3BP 周期轨道调 e2m2e `algorithm/stability.StabilityAnalysis`，输出 Floquet 乘子、稳定性指数（ν₁/ν₂/ν₃/Broucke）、稳定性分类与分岔检测；结果在对话框展示并落盘 `output/stability/` 独立 JSON（不建 Artifact、不进画布）。
+_Avoid_: 轨道设计、轨道族生成
+
 **生成单条轨道**:
 用户通过手动输入、参考初值或其它起点条件，生成一条 CR3BP 周期轨道。输出是一个 **单条轨道**，可作为绘图、检查、星历转换或转移设计的输入。
 _Avoid_: 生成轨道（未说明输出对象类型）、生成种子、生成一个 JSON

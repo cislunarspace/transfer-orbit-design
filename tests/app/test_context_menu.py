@@ -78,9 +78,9 @@ def test_orbit_menu_control_enabled_others_disabled(qapp):
     acts = menu.actions()
 
     assert [a.text() for a in acts] == ["轨道保持", "生成轨道族", "查看稳定性"]
-    assert acts[0].isEnabled() is True   # control_orbit
-    assert acts[1].isEnabled() is False  # generate_family 待 e2m2e
-    assert acts[2].isEnabled() is False  # analyze_stability 待 e2m2e
+    assert acts[0].isEnabled() is True  # control_orbit
+    assert acts[1].isEnabled() is False  # generate_family 从工具选择器进，右键灰显
+    assert acts[2].isEnabled() is True  # analyze_stability 已接入 e2m2e
 
 
 def test_family_menu_single_disabled_item(qapp):
@@ -88,9 +88,7 @@ def test_family_menu_single_disabled_item(qapp):
 
     from src.model import Artifact
 
-    view = _make_view(
-        _project_with(Artifact(artifact_id="f1", artifact_type="family", label="f1"))
-    )
+    view = _make_view(_project_with(Artifact(artifact_id="f1", artifact_type="family", label="f1")))
 
     menu = QMenu()
     view._populate_type_actions(menu, "family", ["f1"])

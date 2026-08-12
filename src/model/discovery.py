@@ -17,6 +17,8 @@ _DRO_FAMILY_RE = re.compile(r"^dro_.*_family_.*\.json$")
 _EPHEMERIS_RE = re.compile(r"^orbit_ephemeris_.*\.json$")
 _TRANSFER_CORRECTED_RE = re.compile(r"^corrected_transfer_.*\.json$")
 _TRANSFER_OPTIMIZATION_RE = re.compile(r"^optimization_.*\.json$")
+# 轨道族生成落盘布局（persistence.save_family_result）：output/family/family_<ts>.json
+_FAMILY_RE = re.compile(r"^family_.*\.json$")
 
 #: 单条轨道落盘的子目录 -> 轨道类型（与 persistence 的目录命名约定一致）。
 #: 轨道类型即子目录名的小写首字母大写；DRO 特例：目录名 dro 对应 "DRO"。
@@ -43,6 +45,10 @@ def _classify_file(path: Path) -> dict | None:
     # 遗留：旧 GUI 的 DRO 族输出（dro_*_family_*.json）
     if parent == "dro" and _DRO_FAMILY_RE.match(name):
         return {"artifact_type": "family", "orbit_type": "DRO"}
+
+    # 轨道族生成（persistence.save_family_result）：output/family/family_<ts>.json
+    if parent == "family" and _FAMILY_RE.match(name):
+        return {"artifact_type": "family", "orbit_type": "Halo"}
 
     # 单条轨道：目录名 = 轨道类型小写，文件名 = <type>_<ts>.json
     orbit_type = _ORBIT_TYPE_BY_DIR.get(parent)
@@ -118,7 +124,13 @@ def discover_artifacts(output_dir: Path) -> list[Artifact]:
         # 画布数据契约（#359）按 source_tool 区分初猜/星历槽位，必须正确。
         at = meta["artifact_type"]
         inferred_source = (
-            "design_orbit" if at == "orbit" else "control_orbit" if at == "ephemeris" else ""
+            "design_orbit"
+            if at == "orbit"
+            else "control_orbit"
+            if at == "ephemeris"
+            else "orbit_family_generation"
+            if at == "family"
+            else ""
         )
 
         artifacts.append(

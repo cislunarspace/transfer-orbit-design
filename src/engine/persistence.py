@@ -16,14 +16,20 @@ Halo 等非 DRO 轨道落盘成 DRO 文件、被 discovery 误分类（回归测
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 if TYPE_CHECKING:
-    from src.engine.facade_bridge import ControlResultData, OrbitDesignResultData
+    from src.engine.facade_bridge import (
+        ControlResultData,
+        FamilyResultData,
+        OrbitDesignResultData,
+        StabilityResultData,
+    )
     from src.model.artifact import Artifact
 
 
@@ -161,6 +167,9 @@ def load_artifact_arrays(artifact: Artifact) -> bool:
             for key in ("position_km", "times_et"):
                 if key in data:
                     artifact.extra[key] = data[key]
+            # family 的 z0s（各族成员面外振幅）与 states 同源，读回 extra 供展示
+            if "z0s" in data:
+                artifact.extra["z0s"] = data["z0s"]
     except (KeyError, OSError, ValueError):
         return False
     return True
@@ -212,3 +221,93 @@ def save_control_result(
     }
     json_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     return json_path, npz_path
+
+
+def save_family_result(
+    result_data: FamilyResultData,
+    output_dir: Path,
+) -> tuple[Path, Path]:
+    """将轨道族生成结果写入 output/family/，返回 ``(json_path, npz_path)``。
+
+    文件名 ``family_<ts>``，与 discovery 的 family 识别约定兼容。
+    NPZ 存各族成员的三维数组：``states (m,n,6)`` / ``times (m,n)`` /
+    ``z0s (m,)``。
+    """
+    output_dir = Path(output_dir)
+    family_dir = output_dir / "family"
+    family_dir.mkdir(parents=True, exist_ok=True)
+
+    ts = _timestamp()
+    stem = f"family_{ts}"
+    json_path = family_dir / f"{stem}.json"
+    npz_path = family_dir / f"{stem}.npz"
+
+    np.savez_compressed(
+        npz_path,  # type: ignore[call-arg]
+        states=result_data.states,
+        times=result_data.times,
+        z0s=result_data.z0s,
+    )
+
+    meta = {
+        "artifact_type": "family",
+        "source_tool": "orbit_family_generation",
+        "orbit_type": result_data.orbit_type,
+        "libration_point": result_data.libration_point,
+        "n_orbits": result_data.n_orbits,
+        "mu": result_data.mu,
+        "states_shape": list(result_data.states.shape),
+        "arrays_file": npz_path.name,
+    }
+    json_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    return json_path, npz_path
+
+
+def save_stability_result(
+    result_data: StabilityResultData,
+    output_dir: Path,
+    *,
+    orbit_label: str,
+) -> Path:
+    """将稳定性分析结果写入 output/stability/，返回 json_path。
+
+    结果只落盘 JSON（不进项目树/画布，见 main_window 对话框）；数组字段
+    tolist 序列化。文件名 ``<orbit_label>_stability_<ts>``（orbit_label 清洗
+    为安全文件名字符）。
+    """
+    output_dir = Path(output_dir)
+    stab_dir = output_dir / "stability"
+    stab_dir.mkdir(parents=True, exist_ok=True)
+
+    ts = _timestamp()
+    safe_label = re.sub(r"[^\w\-]+", "_", orbit_label).strip("_") or "orbit"
+    json_path = stab_dir / f"{safe_label}_stability_{ts}.json"
+
+    def _ser(v: Any) -> Any:
+        from enum import Enum
+
+        if isinstance(v, Enum):
+            return v.value
+        if isinstance(v, np.ndarray):
+            return _ser(v.tolist())
+        if isinstance(v, complex):
+            # json 无 complex 原生表示 → [real, imag]
+            return [v.real, v.imag]
+        if isinstance(v, dict):
+            return {k: _ser(x) for k, x in v.items()}
+        if isinstance(v, (list, tuple)):
+            return [_ser(x) for x in v]
+        return v
+
+    meta = {
+        "source_tool": "orbit_stability",
+        "orbit_label": orbit_label,
+        "monodromy_matrix": _ser(result_data.monodromy_matrix),
+        "eigenvalues": _ser(result_data.eigenvalues),
+        "stability_indices": result_data.stability_indices,
+        "classification": _ser(result_data.classification),
+        "bifurcation": _ser(result_data.bifurcation),
+        "numerical_errors": result_data.numerical_errors,
+    }
+    json_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    return json_path

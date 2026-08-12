@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from PyQt6.QtCore import Qt
@@ -32,11 +33,24 @@ from src.commons.paths import OUTPUT_DIR, detect_kernel_dir
 from src.engine.facade_bridge import (
     TOOL_REGISTRY,
     ControlResultData,
+    FamilyResultData,
     OrbitDesignResultData,
+    StabilityResultData,
     ToolSpec,
 )
-from src.engine.persistence import load_artifact_arrays, save_artifact, save_control_result
-from src.engine.workers import ControlOrbitWorker, OrbitDesignWorker
+from src.engine.persistence import (
+    load_artifact_arrays,
+    save_artifact,
+    save_control_result,
+    save_family_result,
+    save_stability_result,
+)
+from src.engine.workers import (
+    ControlOrbitWorker,
+    FamilyOrbitWorker,
+    OrbitDesignWorker,
+    StabilityWorker,
+)
 from src.model import Artifact, Project
 from src.model.discovery import discover_artifacts
 from src.view.canvas import OrbitCanvasWithToolbar
@@ -87,6 +101,9 @@ _DESIGN_ORBIT_LABELS: dict[str, str] = {
     "inclination": "倾角 (度)",
     "arg_of_pericenter": "近月点幅角 (度)",
     "semi_major_axis": "半长轴 (km)",
+    # 轨道族生成参数（FamilyGenerationRequest）
+    "max_amplitude_km": "最大面外振幅 (km)",
+    "n_orbits": "族成员数",
 }
 
 #: design_orbit 所有分支字段的并集（不在其中的字段视为通用字段，始终显示）
@@ -119,7 +136,9 @@ class MainWindow(QMainWindow):
     def __init__(self, parent=None, *, project: Project | None = None) -> None:
         super().__init__(parent)
         self._project = project if project is not None else Project(name="Transfer Orbit Design")
-        self._worker: OrbitDesignWorker | ControlOrbitWorker | None = None
+        self._worker: (
+            OrbitDesignWorker | ControlOrbitWorker | FamilyOrbitWorker | StabilityWorker | None
+        ) = None
         self._current_tool_key: str | None = None
         self._param_widgets: dict[str, QWidget] = {}
         self._param_rows: dict[str, tuple[QLabel, QWidget, QComboBox | None]] = {}
@@ -533,6 +552,8 @@ class MainWindow(QMainWindow):
             self._run_design_orbit()
         elif tool_key == "control_orbit":
             self._run_control_orbit()
+        elif tool_key == "orbit_family_generation":
+            self._run_family_generation()
 
     def _run_design_orbit(self) -> None:
         spec = TOOL_REGISTRY["design_orbit"]
@@ -615,6 +636,78 @@ class MainWindow(QMainWindow):
         self._worker.error.connect(self._on_control_error)
         self._worker.start()
 
+    def _run_family_generation(self) -> None:
+        """运行 Halo 轨道族生成（工具选择器入口，参数来自面板）。"""
+        spec = TOOL_REGISTRY["orbit_family_generation"]
+        model = spec.request_model
+        if model is None:
+            return
+        try:
+            params = collect_params(self._param_widgets, model)
+        except ValueError as exc:
+            self._status_bar.showMessage(str(exc), _STATUS_MSG_TIMEOUT_MS)
+            self._log.append_log(f"参数错误: {exc}")
+            return
+
+        self._log.clear()
+        self._status_bar.showMessage("正在生成 Halo 轨道族...")
+        self._run_btn.setEnabled(False)
+        self._run_btn.setText("运行中...")
+
+        self._worker = FamilyOrbitWorker(params=params, parent=self)
+        self._worker.log.connect(self._on_worker_log)
+        self._worker.finished.connect(self._on_family_finished)
+        self._worker.error.connect(self._on_family_error)
+        self._worker.start()
+
+    def _on_family_finished(self, result: FamilyResultData) -> None:
+        """族生成完成：落盘 + 建 family Artifact + 画布叠加显示。"""
+        self._run_btn.setEnabled(True)
+        self._run_btn.setText("运行")
+
+        json_path: Path | None = None
+        try:
+            json_path, _ = save_family_result(result, OUTPUT_DIR)
+            self._log.append_log(f"结果已保存: {json_path.name}")
+        except Exception as exc:  # noqa: BLE001
+            self._log.append_log(f"持久化失败: {exc}（结果仅保留在内存中）")
+            self._status_bar.showMessage("持久化失败", _STATUS_MSG_TIMEOUT_MS)
+
+        artifact = Artifact(
+            artifact_type="family",
+            label=f"Halo 族 (L{result.libration_point}, {result.n_orbits} 条)",
+            orbit_type=result.orbit_type,
+            source_tool="orbit_family_generation",
+            state_data=result.states,  # (m, n, 6)
+            times=result.times,  # (m, n)
+            output_path=json_path,
+            extra={
+                "mu": result.mu,
+                "libration_point": result.libration_point,
+                "z0s": result.z0s,
+                "arrays_file": json_path.name if json_path else None,
+            },
+        )
+        self._project.add(artifact)
+        self._refresh_project_tree()
+
+        if artifact.state_data is not None:
+            self._selected_artifact_ids = [artifact.artifact_id]
+            self._render_canvas()
+            self._center_tabs.setCurrentIndex(0)
+
+        self._log.append_log(
+            f"轨道族生成完成: {result.n_orbits} 条 Halo 轨道（L{result.libration_point}）"
+        )
+        if json_path is not None:
+            self._status_bar.showMessage("轨道族生成完成", _STATUS_MSG_TIMEOUT_MS)
+
+    def _on_family_error(self, error_msg: str) -> None:
+        self._run_btn.setEnabled(True)
+        self._run_btn.setText("运行")
+        self._log.append_log(f"错误:\n{error_msg}")
+        self._status_bar.showMessage("轨道族生成失败", _STATUS_MSG_TIMEOUT_MS)
+
     def _selected_orbit_artifact(self) -> Artifact | None:
         """返回当前选中的单个 orbit 类型 Artifact，否则 None。"""
         if len(self._selected_artifact_ids) != 1:
@@ -642,13 +735,16 @@ class MainWindow(QMainWindow):
     def _on_context_action(self, action: str, artifact_ids: list[str]) -> None:
         """分发项目树右键菜单动作。
 
-        generate_family / analyze_stability / optimize / expand_members 在
-        ProjectTreeView 中已 setEnabled(False)，不会触发到这里。
+        generate_family / optimize / expand_members 在 ProjectTreeView 中
+        setEnabled(False)，不会触发到这里。analyze_stability 由本方法
+        直接启动后台分析（结果对话框 + 落盘）。
         """
         if action == "delete":
             self._delete_artifacts(artifact_ids)
         elif action == "control_orbit":
             self._trigger_control_orbit_from_tree(artifact_ids)
+        elif action == "analyze_stability":
+            self._trigger_stability_from_tree(artifact_ids)
 
     def _delete_artifacts(self, artifact_ids: list[str]) -> None:
         """从 Project 移除 Artifact 并刷新树与画布。"""
@@ -682,6 +778,131 @@ class MainWindow(QMainWindow):
                 self._tool_combo.setCurrentIndex(i)
                 break
         self._status_bar.showMessage("已选中轨道，调整参数后点运行", _STATUS_MSG_TIMEOUT_MS)
+
+    def _trigger_stability_from_tree(self, artifact_ids: list[str]) -> None:
+        """右键 orbit → 查看稳定性：后台分析选中轨道，结果弹对话框 + 落盘。
+
+        稳定性分析用 CR3BP 周期轨道（Artifact.state_data），无需 SPICE。
+        mu 缺失（旧 Artifact）时由 FacadeBridge 用默认地月系统兜底。
+        """
+        if not artifact_ids:
+            return
+        orbit_id = artifact_ids[0]
+        artifact = self._project.get_by_id(orbit_id)
+        if artifact is None or artifact.artifact_type != "orbit":
+            self._status_bar.showMessage("请选中一条轨道 Artifact", _STATUS_MSG_TIMEOUT_MS)
+            return
+        if artifact.state_data is None and artifact.output_path is not None:
+            load_artifact_arrays(artifact)
+        if artifact.state_data is None:
+            self._status_bar.showMessage("该 Artifact 无轨道数据", _STATUS_MSG_TIMEOUT_MS)
+            return
+
+        self._stability_source_label = artifact.label
+        self._log.append_log(f"稳定性分析: {artifact.label}")
+        self._status_bar.showMessage("正在分析稳定性...")
+        self._worker = StabilityWorker(
+            states=artifact.state_data,
+            times=artifact.times,
+            mu=artifact.extra.get("mu"),
+            parent=self,
+        )
+        self._worker.log.connect(self._on_worker_log)
+        self._worker.finished.connect(self._on_stability_finished)
+        self._worker.error.connect(self._on_stability_error)
+        self._worker.start()
+
+    def _on_stability_finished(self, result: StabilityResultData) -> None:
+        """稳定性分析完成：落盘 JSON + 弹结果对话框。"""
+        label = getattr(self, "_stability_source_label", "orbit")
+        try:
+            json_path = save_stability_result(result, OUTPUT_DIR, orbit_label=label)
+            self._log.append_log(f"稳定性结果已保存: {json_path.name}")
+        except Exception as exc:  # noqa: BLE001
+            self._log.append_log(f"稳定性结果落盘失败: {exc}")
+        self._show_stability_dialog(result, label)
+        self._status_bar.showMessage("稳定性分析完成", _STATUS_MSG_TIMEOUT_MS)
+
+    def _on_stability_error(self, error_msg: str) -> None:
+        self._log.append_log(f"错误:\n{error_msg}")
+        self._status_bar.showMessage("稳定性分析失败", _STATUS_MSG_TIMEOUT_MS)
+
+    @staticmethod
+    def _format_stability_text(result: StabilityResultData, orbit_label: str) -> str:
+        """把稳定性 DTO 格式化为只读文本（对话框展示）。"""
+        from enum import Enum
+
+        lines: list[str] = [f"轨道: {orbit_label}", ""]
+
+        cls = result.classification or {}
+        stability_type = cls.get("stability_type")
+        st_name = stability_type.value if isinstance(stability_type, Enum) else stability_type
+        lines.append(f"稳定性分类: {st_name}")
+        lines.append(f"  稳定: {cls.get('is_stable')}    不稳定: {cls.get('is_unstable')}")
+
+        def _fmt(v: Any) -> str:
+            return f"{v:.6f}" if isinstance(v, (int, float)) else str(v)
+
+        lines.append(f"  稳定裕度: {_fmt(cls.get('stability_margin'))}")
+        lines.append(
+            f"  Floquet 模最大/最小: {_fmt(cls.get('max_eigenvalue_magnitude'))} / "
+            f"{_fmt(cls.get('min_eigenvalue_magnitude'))}"
+        )
+        if cls.get("max_lyapunov_exponent") is not None:
+            lines.append(f"  最大 Lyapunov 指数: {_fmt(cls.get('max_lyapunov_exponent'))}")
+
+        idx = result.stability_indices or {}
+        lines.append(
+            "\n稳定性指数:  ν1={}  ν2={}  ν3={}  Broucke={}".format(
+                *(_fmt(idx.get(k)) for k in ("nu1", "nu2", "nu3", "broucke"))
+            )
+        )
+
+        bif = result.bifurcation or {}
+        bif_type = bif.get("bifurcation_type")
+        bif_name = bif_type.value if isinstance(bif_type, Enum) else bif_type
+        lines.append(f"分岔: {bif_name}（检测到: {bif.get('bifurcation_detected')}）")
+
+        ev = result.eigenvalues
+        if ev is not None:
+            lines.append("\nFloquet 乘子（单值矩阵特征值）:")
+            for i, lam in enumerate(np.asarray(ev)):
+                lines.append(
+                    f"  λ{i + 1} = {lam.real:+.6f} {lam.imag:+.6f}j    |λ| = {abs(lam):.6f}"
+                )
+
+        mm = result.monodromy_matrix
+        if mm is not None:
+            lines.append("\n单值矩阵 (6×6):")
+            for row in np.asarray(mm):
+                lines.append("  " + "  ".join(f"{v:+.4f}" for v in row))
+
+        return "\n".join(lines)
+
+    def _show_stability_dialog(self, result: StabilityResultData, orbit_label: str) -> None:
+        """弹出稳定性分析结果对话框（只读文本）。"""
+        from PyQt6.QtWidgets import (
+            QDialog,
+            QDialogButtonBox,
+            QTextEdit,
+            QVBoxLayout,
+        )
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"稳定性分析 - {orbit_label}")
+        dlg.resize(680, 560)
+        layout = QVBoxLayout(dlg)
+
+        text = QTextEdit(dlg)
+        text.setReadOnly(True)
+        text.setFontFamily("monospace")
+        text.setPlainText(self._format_stability_text(result, orbit_label))
+        layout.addWidget(text)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        buttons.accepted.connect(dlg.accept)
+        layout.addWidget(buttons)
+        dlg.exec()
 
     @staticmethod
     def _detect_kernel_dir() -> str:
@@ -847,6 +1068,7 @@ class MainWindow(QMainWindow):
             "ephemeris_synodic": None,
             "ephemeris_position_km": None,
             "ephemeris_times_et": None,
+            "family_states": None,
         }
         if a.source_tool == "design_orbit":
             # CR3BP 周期轨道作为初猜；标称星历四件套来自 extra["ephemeris"]
@@ -858,6 +1080,10 @@ class MainWindow(QMainWindow):
                 data["ephemeris_synodic"] = np.asarray(syn) - (mu or 0.0)
             data["ephemeris_position_km"] = eph.get("position_km")
             data["ephemeris_times_et"] = eph.get("times_et")
+        elif a.source_tool == "orbit_family_generation":
+            # 轨道族：state_data 为 (m, n, 6) 三维数组，画布逐条渲染；
+            # 族是纯 CR3BP 周期轨道（无量纲会合系，质心归一），无星历。
+            data["family_states"] = a.state_data
         else:
             # control_orbit / 历史 ephemeris Artifact：state_data 已是质心归一
             # 的受控星历会合系位置（facade_bridge 减过 μ），作为星历会合系槽。

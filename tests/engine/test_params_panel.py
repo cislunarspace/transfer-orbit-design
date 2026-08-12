@@ -59,9 +59,7 @@ class TestBuildParamsFromModel:
 
         widgets = build_params_from_model(DesignOrbitRequest)
         expected_count = len(DesignOrbitRequest.model_fields)
-        assert len(widgets) == expected_count, (
-            f"控件数 {len(widgets)} != 字段数 {expected_count}"
-        )
+        assert len(widgets) == expected_count, f"控件数 {len(widgets)} != 字段数 {expected_count}"
 
     def test_all_field_names_present(self, qapp):
         """所有字段名都应有对应控件。"""
@@ -221,3 +219,34 @@ class TestOptionalFieldCheckbox:
 
         widgets = build_params_from_model(_OptionalModel)
         assert widgets["required_val"].findChild(QCheckBox) is None
+
+
+class TestFamilyGenerationParams:
+    """FamilyGenerationRequest → 参数面板控件（轨道族生成工具）。"""
+
+    def test_builds_three_widgets(self, qapp):
+        from src.engine.facade_bridge import FamilyGenerationRequest
+        from src.view.params_panel import build_params_from_model
+
+        widgets = build_params_from_model(FamilyGenerationRequest)
+        assert set(widgets) == {"libration_point", "max_amplitude_km", "n_orbits"}
+
+    def test_collect_defaults(self, qapp):
+        from src.engine.facade_bridge import FamilyGenerationRequest
+        from src.view.params_panel import build_params_from_model, collect_params
+
+        widgets = build_params_from_model(FamilyGenerationRequest)
+        params = collect_params(widgets, FamilyGenerationRequest)
+        assert params == {"libration_point": 2, "max_amplitude_km": 30000.0, "n_orbits": 20}
+
+    def test_collect_edited_values(self, qapp):
+
+        from src.engine.facade_bridge import FamilyGenerationRequest
+        from src.view.params_panel import build_params_from_model, collect_params
+
+        widgets = build_params_from_model(FamilyGenerationRequest)
+        widgets["libration_point"].setValue(1)
+        widgets["max_amplitude_km"].setValue(15000.0)
+        widgets["n_orbits"].setValue(30)
+        params = collect_params(widgets, FamilyGenerationRequest)
+        assert params == {"libration_point": 1, "max_amplitude_km": 15000.0, "n_orbits": 30}
