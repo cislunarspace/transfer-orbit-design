@@ -5,6 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from e2m2e.data.templates import ConvergenceState
+from e2m2e.data.templates.seed import EARTH_MOON_MU
 
 from src.engine.facade_bridge import (
     TOOL_REGISTRY,
@@ -91,7 +92,7 @@ class TestFacadeBridgeDesignOrbit:
         orbit = SimpleNamespace(
             states=np.random.randn(n, 6),
             times=np.linspace(0, 1, n),
-            system=SimpleNamespace(mu=0.012153645822478),
+            system=SimpleNamespace(mu=EARTH_MOON_MU),
         )
         correction = SimpleNamespace(status=ConvergenceState.CONVERGED, iterations=1)
         result = SimpleNamespace(
@@ -114,7 +115,7 @@ class TestFacadeBridgeDesignOrbit:
         )
         bridge = FacadeBridge()
         data = bridge.design_orbit(orbit_type="DRO")
-        assert data.mu == pytest.approx(0.012153645822478)
+        assert data.mu == pytest.approx(EARTH_MOON_MU)
 
     def test_mu_is_none_when_orbit_has_no_system(self, mock_design_orbit):
         """system 缺失（旧 fake / 无上下文）时 mu 为 None，不崩溃。"""

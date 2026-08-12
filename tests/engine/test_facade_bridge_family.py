@@ -10,6 +10,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+from e2m2e.data.templates.seed import EARTH_MOON_MU
 from pydantic import ValidationError
 
 from src.engine.facade_bridge import (
@@ -56,7 +57,7 @@ class TestFamilyGenerationRequest:
 class _FakeSystem:
     """Fake CR3BP_System（earth_moon_system 的替身）。"""
 
-    mu = 0.012150585350562453
+    mu = EARTH_MOON_MU
     characteristic_length = 384400.0
 
 
@@ -124,7 +125,7 @@ class TestGenerateFamily:
         assert data.states.shape == (5, 100, 6)
         assert data.times.shape == (5, 100)
         assert data.z0s.shape == (5,)
-        assert data.mu == pytest.approx(0.012150585350562453)
+        assert data.mu == pytest.approx(EARTH_MOON_MU)
 
     def test_seed_uses_small_amplitude(self, mock_family_stack):
         """种子振幅必须取 0.001 DU（Richardson 收敛域），不得透传用户振幅。"""
@@ -229,8 +230,6 @@ class TestAnalyzeStability:
 
     def test_mu_none_uses_earth_moon_default(self, mock_stability):
         """mu 缺失（旧 Artifact）时用 e2m2e 地月系统默认质量比，而非硬编码常量。"""
-        from e2m2e.data.templates.seed import EARTH_MOON_MU
-
         FacadeBridge().analyze_stability(
             states=np.random.randn(10, 6),
             times=np.linspace(0, 1, 10),

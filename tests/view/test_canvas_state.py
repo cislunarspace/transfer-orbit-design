@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from e2m2e.data.templates.seed import EARTH_MOON_MU
 
 
 @pytest.fixture()
@@ -20,7 +21,7 @@ def qapp():
         pytest.skip("QApplication 不可用（无 GUI 环境）")
 
 
-_MU = 0.012153645822478
+_MU = EARTH_MOON_MU
 
 
 def _random_orbit(n: int = 100) -> np.ndarray:

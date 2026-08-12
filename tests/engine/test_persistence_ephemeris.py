@@ -7,6 +7,7 @@ import re
 
 import numpy as np
 import pytest
+from e2m2e.data.templates.seed import EARTH_MOON_MU
 
 from src.engine.facade_bridge import ControlResultData, OrbitDesignResultData
 from src.engine.persistence import load_artifact_arrays, save_artifact, save_control_result
@@ -26,7 +27,7 @@ def _make_dto_with_ephemeris(n: int = 100) -> OrbitDesignResultData:
         times=np.linspace(0, 365.25, n),
         correction_converged=True,
         correction_iterations=3,
-        mu=0.012153645822478,
+        mu=EARTH_MOON_MU,
         ephemeris={
             "year": np.full(n, 2024),
             "month": np.ones(n, dtype=int),
@@ -51,7 +52,7 @@ def _make_control_result(n: int = 50) -> ControlResultData:
         maneuvers_delta_v_mps=np.array([0.5, 0.3]),
         controlled_states=_RNG.standard_normal((n, 6)),
         controlled_times=np.arange(n),
-        mu=0.012153645822478,
+        mu=EARTH_MOON_MU,
         position_km=_RNG.standard_normal((n, 3)),
         times_et=np.linspace(7.5e8, 7.6e8, n),
     )
@@ -129,7 +130,7 @@ class TestSaveControlResult:
         assert meta["num_failed"] == 1
         assert meta["n_maneuvers"] == 2
         assert meta["total_delta_v_mps"] == pytest.approx(0.8)
-        assert meta["mu"] == pytest.approx(0.012153645822478)
+        assert meta["mu"] == pytest.approx(EARTH_MOON_MU)
         assert meta["states_shape"] == [50, 6]
 
     def test_save_control_result_npz_arrays(self, tmp_path):
@@ -159,7 +160,7 @@ class TestSaveControlResult:
             maneuvers_delta_v_mps=np.array([0.5]),
             controlled_states=_RNG.standard_normal((10, 6)),
             controlled_times=np.arange(10),
-            mu=0.012153645822478,
+            mu=EARTH_MOON_MU,
             # position_km/times_et 缺省 None
         )
         _, npz_path = save_control_result(result, tmp_path)
