@@ -8,13 +8,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
-
-if TYPE_CHECKING:
-    from pydantic import BaseModel
-
+from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
 # DTO
@@ -44,6 +41,40 @@ class OrbitDesignResultData:
     ephemeris: dict | None = None  # {year, month, ..., times_jd_tdb}，值均为 ndarray
 
     # 注意：mu / ephemeris 带默认值放在末尾，保证旧代码按位置/关键字构造 DTO 时不传也能工作。
+
+
+@dataclass
+class FamilyResultData:
+    """跨线程传递的轨道族生成结果 DTO。纯数据类，不含 e2m2e 对象引用。
+
+    族成员为等长周期轨道（``states``/``times`` 均为 ``(m, n, ...)`` 三维数组，
+    由 ``generate_halo_family`` 的固定采样点数保证；形状不一致时构造方
+    已用 np.stack 统一）。
+    """
+
+    orbit_type: str  # "Halo"
+    libration_point: int
+    n_orbits: int  # 实际生成的成员数（含种子，可能少于请求数——延拓在折叠点前终止）
+    mu: float
+    states: Any  # (m, n, 6) -- 各族成员 CR3BP 状态
+    times: Any  # (m, n) -- 各族成员时间序列（无量纲 TU）
+    z0s: Any  # (m,) -- 各族成员面外振幅 z0（无量纲，北族为正）
+
+
+@dataclass
+class StabilityResultData:
+    """跨线程传递的稳定性分析结果 DTO。纯数据，不含 e2m2e 对象引用。
+
+    数组字段（monodromy/eigenvalues）保留 ndarray 供对话框直接展示；
+    落盘时由调用方 tolist 序列化。
+    """
+
+    monodromy_matrix: Any | None  # (6,6)
+    eigenvalues: Any | None  # (6,)
+    stability_indices: dict  # {nu1, nu2, nu3, broucke}
+    classification: dict
+    bifurcation: dict
+    numerical_errors: dict
 
 
 @dataclass
@@ -109,6 +140,32 @@ class ToolSpec:
     enabled: bool  # 是否启用
 
 
+# ---------------------------------------------------------------------------
+# 本地请求模型（e2m2e 无对应 Request，GUI 参数面板按此生成控件）
+# ---------------------------------------------------------------------------
+
+
+class FamilyGenerationRequest(BaseModel):
+    """轨道族生成参数（第一版仅支持 Halo 北族，见 README 能力表）。
+
+    e2m2e 的族延拓（``generate_halo_family``）只对 Halo 成熟：从小子种子
+    （z0=0.001 DU）固定 z0 逐步修正，直到最大面外振幅（折叠点前自动终止）。
+    其余轨道类型（DRO/NRHO/...）在 e2m2e 只有单条设计函数，无族延拓接口，
+    故参数面板不提供族类型选择。
+    """
+
+    model_config = {"extra": "forbid"}
+
+    libration_point: int = Field(2, ge=1, le=2, description="共线平动点（1=L1，2=L2）")
+    max_amplitude_km: float = Field(
+        30000.0,
+        ge=1000.0,
+        le=57000.0,
+        description="最大面外振幅 (km)，族延拓到该振幅或折叠点自动停止",
+    )
+    n_orbits: int = Field(20, ge=2, le=100, description="族成员数（含种子，实际以延拓结果为准）")
+
+
 def _build_tool_registry() -> dict[str, ToolSpec]:
     """延迟构建 TOOL_REGISTRY，避免在 e2m2e 未安装时 import 失败。"""
     try:
@@ -131,11 +188,13 @@ def _build_tool_registry() -> dict[str, ToolSpec]:
             enabled=True,
         ),
         "orbit_family_generation": ToolSpec(
-            request_model=None,
+            request_model=FamilyGenerationRequest,
             facade_method="generate_family",
             label="轨道族生成",
-            enabled=False,
+            enabled=True,
         ),
+        # 稳定性分析无参数面板（右键轨道触发），不进工具下拉；enabled=False
+        # 仅表示下拉灰显，右键菜单（project_tree._ORBIT_MENU_ITEMS）另行启用。
         "orbit_stability": ToolSpec(
             request_model=None,
             facade_method="analyze_stability",
@@ -319,4 +378,125 @@ class FacadeBridge:
             mu=source_mu,
             position_km=position_km,
             times_et=times_et,
+        )
+
+    def generate_family(self, **kwargs: Any) -> FamilyResultData:
+        """生成 Halo 轨道族，返回跨线程 DTO。
+
+        调 e2m2e ``algorithm/family`` 的 Halo 自然参数延拓：小振幅种子
+        （z0=0.001 DU，Richardson 近似收敛域内）出发，固定 z0 逐步修正，
+        到 ``max_amplitude_km`` 或折叠点自动终止。纯 CR3BP 计算，不需要
+        SPICE 内核。
+
+        Args:
+            **kwargs: ``FamilyGenerationRequest`` 字段
+                （libration_point / max_amplitude_km / n_orbits）。
+
+        Returns:
+            FamilyResultData -- 族成员等长 states/times 三维数组。
+
+        Raises:
+            OrbitError: 经翻译的结构化错误。
+        """
+        from e2m2e.algorithm.dynamics import CR3BP_Dynamics
+        from e2m2e.algorithm.family.cr3bp_orbits import earth_moon_system
+        from e2m2e.algorithm.solver.continuation import Continuation
+        from e2m2e.algorithm.solver.differential_correction import DifferentialCorrection
+
+        from src.commons.units import DU_KM
+        from src.engine.exceptions import translate_exception
+
+        # Halo 种子振幅（DU）：Richardson 三阶近似的收敛域，与 e2m2e
+        # cr3bp_orbits 的 ``_HALO_SEED_Z0`` 一致（0.001）。传大振幅种子
+        # 会使微分修正发散（实测 0.05 时残差不降）。
+        _SEED_AMPLITUDE_DU = 0.001
+
+        try:
+            request = FamilyGenerationRequest(**kwargs)
+            libration_point = request.libration_point
+            z_max = request.max_amplitude_km / DU_KM
+
+            system = earth_moon_system()
+            mu = system.mu
+            dyn = CR3BP_Dynamics(system)
+            cont = Continuation(corrector=DifferentialCorrection(dyn))
+
+            seed = cont.generate_halo_seed_orbit(  # type: ignore[attr-defined]
+                libration_point, amplitude_z=_SEED_AMPLITUDE_DU, halo_class=0
+            )
+            if seed is None:
+                raise ValueError(f"Halo 种子轨道生成失败（L{libration_point} 微分修正不收敛）")
+
+            # 步长 = 目标振幅范围 / 成员数，让族均匀覆盖 [种子, z_max]；
+            # 夹在 generate_halo_family 内部步长边界 [1e-4, 0.05] 内。
+            step_size = min(max(z_max / request.n_orbits, 1e-4), 0.05)
+            family = cont.generate_halo_family(  # type: ignore[attr-defined]
+                seed,
+                n_orbits=request.n_orbits,
+                direction="positive",
+                z_range=(_SEED_AMPLITUDE_DU, z_max),
+                step_size=step_size,
+            )
+        except Exception as e:
+            raise translate_exception(e) from e
+
+        states = np.stack([np.asarray(o.states) for o in family])
+        times = np.stack([np.asarray(o.times) for o in family])
+        z0s = np.array([float(np.asarray(o.states)[0, 2]) for o in family])
+        return FamilyResultData(
+            orbit_type="Halo",
+            libration_point=libration_point,
+            n_orbits=len(family),
+            mu=mu,
+            states=states,
+            times=times,
+            z0s=z0s,
+        )
+
+    def analyze_stability(self, states: Any, times: Any, mu: float | None) -> StabilityResultData:
+        """对 CR3BP 周期轨道做稳定性分析，返回跨线程 DTO。
+
+        从 Artifact 数据构造 e2m2e Orbit + CR3BP_System（mu 取自 Artifact
+        extra，缺失时按地月系统默认值兜底，见 viz_adapter.build_cr3bp_system），
+        调 ``algorithm/stability.StabilityAnalysis``。纯 CR3BP 计算，不需要
+        SPICE 内核。
+
+        Args:
+            states: CR3BP 周期轨道状态 (n,6)（Artifact.state_data）。
+            times: 时间序列 (n,)（Artifact.times）。
+            mu: 质量比（Artifact.extra["mu"]），None 时用默认地月系统。
+
+        Returns:
+            StabilityResultData -- 单值矩阵 / Floquet 乘子 / 稳定性指数 /
+            分类 / 分岔（数组保持 ndarray）。
+
+        Raises:
+            OrbitError: 经翻译的结构化错误。
+        """
+        from e2m2e.algorithm.dynamics import CR3BP_Dynamics
+        from e2m2e.algorithm.stability import StabilityAnalysis
+        from e2m2e.data.types import Orbit
+
+        from src.engine.exceptions import translate_exception
+        from src.engine.viz_adapter import build_cr3bp_system
+
+        try:
+            system = build_cr3bp_system(mu if mu is not None else 0.012150585350562453)
+            dynamics = CR3BP_Dynamics(system)
+            orbit = Orbit(states=states, times=times, system=system)
+            result = StabilityAnalysis(orbit=orbit, dynamics=dynamics).analyze()
+        except Exception as e:
+            raise translate_exception(e) from e
+
+        return StabilityResultData(
+            monodromy_matrix=(
+                np.asarray(result.monodromy_matrix) if result.monodromy_matrix is not None else None
+            ),
+            eigenvalues=(
+                np.asarray(result.eigenvalues) if result.eigenvalues is not None else None
+            ),
+            stability_indices=result.stability_indices,
+            classification=result.classification,
+            bifurcation=result.bifurcation,
+            numerical_errors=result.numerical_errors,
         )

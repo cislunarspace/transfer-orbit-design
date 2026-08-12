@@ -186,9 +186,7 @@ class TestOrbitCanvasRender:
                 }
             )
         )
-        state = CanvasState(
-            projection="xy", visible_artifacts=["id1"], plot_content="guess"
-        )
+        state = CanvasState(projection="xy", visible_artifacts=["id1"], plot_content="guess")
         canvas.sync_state(state, ["id1"])
         canvas.render()
 
@@ -245,9 +243,7 @@ class TestOrbitCanvasRender:
                 }
             )
         )
-        state = CanvasState(
-            visible_artifacts=["id1"], show_bodies=False, plot_content="guess"
-        )
+        state = CanvasState(visible_artifacts=["id1"], show_bodies=False, plot_content="guess")
         canvas.sync_state(state, ["id1"])
         canvas.render()
         # 无异常即通过；地月标注禁用不影响轨道渲染
@@ -270,9 +266,7 @@ class TestOrbitCanvasRender:
                 }
             )
         )
-        state = CanvasState(
-            visible_artifacts=["id1"], show_libration=False, plot_content="guess"
-        )
+        state = CanvasState(visible_artifacts=["id1"], show_libration=False, plot_content="guess")
         canvas.sync_state(state, ["id1"])
         canvas.render()
         ax = canvas._fig.axes[0]
@@ -571,7 +565,6 @@ class TestOrbitCanvasInertialFrame:
         # 确保 .bsp + 闰秒已 furnsh（find_ephemeris_kernel + load_kernel 在
         # viz_adapter.draw_moon_gcrs_trajectory 内部完成，这里只验证可调用）
         from src.engine.viz_adapter import draw_moon_gcrs_trajectory
-
         from src.view.canvas import CanvasState, OrbitCanvas
 
         # 取一段真实 ET 范围（2024 年初约一周），5 个采样点足够画线
@@ -612,9 +605,7 @@ class TestOrbitCanvasInertialFrame:
 
         ax = canvas._fig.axes[0]
         moon_lines = [
-            c
-            for c in ax.get_children()
-            if isinstance(c, Line3D) and (c.get_label() == "Moon")
+            c for c in ax.get_children() if isinstance(c, Line3D) and (c.get_label() == "Moon")
         ]
         assert len(moon_lines) == 1
         # 复用同一入口校验：直接调 viz_adapter 函数也返回 True
@@ -838,3 +829,82 @@ class TestMainWindowCanvasStateFlow:
         w._on_artifact_clicked(a.artifact_id)
         w._on_frame_changed("inertial")
         assert "无星历惯性数据" not in w._status_bar.currentMessage()
+
+
+class TestFamilyRender:
+    """轨道族（family_states 三维数组）渲染。"""
+
+    def _family_provider(self, n_members: int = 5):
+        rng = np.random.default_rng(7)
+        family = rng.random((n_members, 50, 6))
+        return _make_provider(
+            {
+                "fam1": {
+                    "label": "Halo 族",
+                    "mu": _MU,
+                    "family_states": family,
+                    "initial_guess_states": None,
+                    "ephemeris_synodic": None,
+                    "ephemeris_position_km": None,
+                    "ephemeris_times_et": None,
+                }
+            }
+        )
+
+    def test_render_family_3d_draws_all_members(self, qapp):
+        """3D 下族成员数 = 画出的线数（+1 起点 marker）。"""
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(self._family_provider(5))
+        state = CanvasState(
+            visible_artifacts=["fam1"],
+            show_bodies=False,
+            show_libration=False,
+        )
+        canvas.sync_state(state, ["fam1"])
+        canvas.render()
+
+        ax = canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line3D)]
+        assert len(lines) == 5
+
+    def test_render_family_2d_projection(self, qapp):
+        """XY 投影下族成员逐条绘制为 Line2D。"""
+        from matplotlib.lines import Line2D
+
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(self._family_provider(4))
+        state = CanvasState(
+            projection="xy",
+            visible_artifacts=["fam1"],
+            show_bodies=False,
+            show_libration=False,
+        )
+        canvas.sync_state(state, ["fam1"])
+        canvas.render()
+
+        ax = canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line2D)]
+        assert len(lines) == 4
+
+    def test_render_family_has_orbits_title(self, qapp):
+        """family 计入 has_orbits，标题不为占位提示。"""
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(self._family_provider(3))
+        state = CanvasState(
+            visible_artifacts=["fam1"],
+            show_bodies=False,
+            show_libration=False,
+        )
+        canvas.sync_state(state, ["fam1"])
+        canvas.render()
+
+        ax = canvas._fig.axes[0]
+        assert ax.get_title() != "选择一个工件以可视化"

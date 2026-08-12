@@ -53,6 +53,10 @@ uv run transfer-orbit-design
 
 轨道保持：在项目树中右键轨道 → 选择「轨道保持」，以该轨道星历为输入做蒙特卡洛仿真，结果写入 `output/ephemeris/`。
 
+轨道族生成：右侧工具选择器选「轨道族生成」，填平动点、最大面外振幅与成员数，一族 Halo 轨道（小振幅种子延拓到目标振幅）落盘 `output/family/` 并在画布叠加显示。
+
+稳定性分析：在项目树中右键轨道 → 选择「查看稳定性」，弹出 Floquet 乘子 / 稳定性指数 / 分岔分类结果对话框，JSON 落盘 `output/stability/`。
+
 ### 脚本与 CLI
 
 需要 CR3BP 轨道生成、转移搜索与优化、星历修正、绘图等脚本工作流时，使用 [e2m2e CLI](https://github.com/cislunarspace/e2m2e)，详见 [Sphinx 文档](https://cislunarspace.github.io/e2m2e/)。
@@ -65,10 +69,11 @@ uv run transfer-orbit-design
 |------|---------|------|
 | 轨道设计（DRO/NRHO/Halo/Lissajous/L4/L5） | 已实现 | 参数面板由 Pydantic 模型自动生成，结果 JSON+NPZ 双文件落盘 |
 | 轨道保持（蒙特卡洛） | 已实现 | 以选中轨道星历为输入，输出受控星历与 Δv 统计 |
+| 轨道族生成（Halo 族） | 已实现 | 小振幅种子伪弧长延拓到目标面外振幅，一族多轨道叠加显示；其余轨道类型 e2m2e 暂无族延拓接口 |
+| 稳定性分析 | 已实现 | 右键轨道 → Floquet 乘子 / 稳定性指数（ν₁/ν₂/ν₃/Broucke）/ 分岔分类，结果对话框 + 独立 JSON 落盘 |
 | 多轨道可视化 | 已实现 | 3D/XY/XZ/YZ 投影、地月/L1–L5 标注、多轨道叠加 |
 | Artifact 持久化闭环 | 已实现 | 启动扫描 `output/` 重建 Project，数组 NPZ 懒加载 |
 | CLI 脚本工作流 | 已实现（遗留） | 经 e2m2e CLI 使用，见 e2m2e 文档 |
-| 轨道族生成 / 稳定性分析 | 规划中 | 工具下拉灰显占位 |
 
 ## 文档
 

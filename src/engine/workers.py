@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from src.commons.units import DU_KM
 from src.engine.exceptions import OrbitError
 from src.engine.facade_bridge import FacadeBridge
 
@@ -110,6 +111,83 @@ class ControlOrbitWorker(QThread):
                 f"失败 {data.num_failed} 样本, "
                 f"{len(data.maneuvers_mjd_tdb)} 次机动"
             )
+            self.finished.emit(data)
+        except OrbitError as e:
+            self.error.emit(f"[{e.code}] {e.message}")
+        except Exception as e:
+            self.error.emit(f"[UNKNOWN_ERROR] {e}")
+
+
+class FamilyOrbitWorker(QThread):
+    """后台执行 e2m2e Halo 轨道族生成（CR3BP 纯计算，无需 SPICE）。
+
+    Signals:
+        log(str):                     进度/信息日志。
+        finished(FamilyResultData):   成功结果。
+        error(str):                   错误消息（含错误码前缀）。
+    """
+
+    log = pyqtSignal(str)
+    finished = pyqtSignal(object)
+    error = pyqtSignal(str)
+
+    def __init__(
+        self,
+        params: dict[str, Any],
+        parent=None,
+    ) -> None:
+        super().__init__(parent)
+        self._params = params
+
+    def run(self) -> None:
+        try:
+            self.log.emit("开始生成 Halo 轨道族...")
+            self.log.emit(f"参数: {self._params}")
+            bridge = FacadeBridge()
+            data = bridge.generate_family(**self._params)
+            self.log.emit(
+                f"轨道族生成完成: {data.n_orbits} 条 Halo 轨道"
+                f"（L{data.libration_point}，z 振幅 {data.z0s.min() * DU_KM:.0f}–"
+                f"{data.z0s.max() * DU_KM:.0f} km）"
+            )
+            self.finished.emit(data)
+        except OrbitError as e:
+            self.error.emit(f"[{e.code}] {e.message}")
+        except Exception as e:
+            self.error.emit(f"[UNKNOWN_ERROR] {e}")
+
+
+class StabilityWorker(QThread):
+    """后台执行 e2m2e 轨道稳定性分析（CR3BP 纯计算，无需 SPICE）。
+
+    Signals:
+        log(str):                       进度/信息日志。
+        finished(StabilityResultData):  成功结果。
+        error(str):                     错误消息（含错误码前缀）。
+    """
+
+    log = pyqtSignal(str)
+    finished = pyqtSignal(object)
+    error = pyqtSignal(str)
+
+    def __init__(
+        self,
+        states: Any,
+        times: Any,
+        mu: float | None,
+        parent=None,
+    ) -> None:
+        super().__init__(parent)
+        self._states = states
+        self._times = times
+        self._mu = mu
+
+    def run(self) -> None:
+        try:
+            self.log.emit("开始稳定性分析...")
+            bridge = FacadeBridge()
+            data = bridge.analyze_stability(self._states, self._times, self._mu)
+            self.log.emit("稳定性分析完成")
             self.finished.emit(data)
         except OrbitError as e:
             self.error.emit(f"[{e.code}] {e.message}")

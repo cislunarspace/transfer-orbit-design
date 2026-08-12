@@ -8,8 +8,13 @@ import re
 import numpy as np
 import pytest
 
-from src.engine.facade_bridge import OrbitDesignResultData
-from src.engine.persistence import load_artifact_arrays, save_artifact
+from src.engine.facade_bridge import FamilyResultData, OrbitDesignResultData, StabilityResultData
+from src.engine.persistence import (
+    load_artifact_arrays,
+    save_artifact,
+    save_family_result,
+    save_stability_result,
+)
 from src.model.discovery import discover_artifacts
 
 _RNG = np.random.default_rng(seed=42)
@@ -91,16 +96,14 @@ class TestSaveArtifactOrbitTypeNaming:
         json_path, _ = save_artifact(_make_dto(orbit_type), tmp_path)
         expected_dir = tmp_path / orbit_type.lower()
         assert json_path.parent == expected_dir, (
-            f"{orbit_type} 轨道应写入 output/{orbit_type.lower()}/，"
-            f"实际写入 {json_path.parent}"
+            f"{orbit_type} 轨道应写入 output/{orbit_type.lower()}/，实际写入 {json_path.parent}"
         )
 
     @pytest.mark.parametrize("orbit_type", ["DRO", "Halo", "NRHO", "Lissajous"])
     def test_filename_prefix_matches_type(self, tmp_path, orbit_type):
         json_path, _ = save_artifact(_make_dto(orbit_type), tmp_path)
         assert json_path.stem.startswith(orbit_type.lower() + "_"), (
-            f"{orbit_type} 轨道文件名应以 {orbit_type.lower()}_ 开头，"
-            f"实际为 {json_path.stem}"
+            f"{orbit_type} 轨道文件名应以 {orbit_type.lower()}_ 开头，实际为 {json_path.stem}"
         )
 
     @pytest.mark.parametrize("orbit_type", ["DRO", "Halo", "NRHO", "Lissajous"])
@@ -111,9 +114,7 @@ class TestSaveArtifactOrbitTypeNaming:
         assert len(artifacts) == 1
         a = artifacts[0]
         assert a.artifact_type == "orbit"
-        assert a.orbit_type == orbit_type, (
-            f"{orbit_type} 保存后 discover 分类为 {a.orbit_type}"
-        )
+        assert a.orbit_type == orbit_type, f"{orbit_type} 保存后 discover 分类为 {a.orbit_type}"
         assert a.source_tool == "design_orbit"
 
     def test_dro_backward_compatible_layout(self, tmp_path):
@@ -161,9 +162,7 @@ class TestLoadArtifactArrays:
 
         json_path = tmp_path / "dro_no_arrays.json"
         json_path.write_text("{}", encoding="utf-8")
-        a = Artifact(
-            artifact_type="orbit", label="x", output_path=json_path, extra={}
-        )
+        a = Artifact(artifact_type="orbit", label="x", output_path=json_path, extra={})
         assert load_artifact_arrays(a) is False
 
     def test_returns_false_when_npz_missing(self, tmp_path):
@@ -193,3 +192,89 @@ class TestLoadArtifactArrays:
             extra={"arrays_file": "dro_corrupt.npz"},
         )
         assert load_artifact_arrays(a) is False
+
+
+class TestSaveFamilyResult:
+    def _family_dto(self, m: int = 4, n: int = 100) -> FamilyResultData:
+        return FamilyResultData(
+            orbit_type="Halo",
+            libration_point=2,
+            n_orbits=m,
+            mu=0.01215,
+            states=_RNG.standard_normal((m, n, 6)),
+            times=np.tile(np.linspace(0, 1, n), (m, 1)),
+            z0s=np.linspace(0.001, 0.05, m),
+        )
+
+    def test_creates_family_dir_json_npz(self, tmp_path):
+        json_path, npz_path = save_family_result(self._family_dto(), tmp_path)
+        assert json_path.parent.name == "family"
+        assert json_path.name.startswith("family_")
+        assert json_path.exists()
+        assert npz_path.exists()
+
+    def test_npz_stores_3d_states(self, tmp_path):
+        _, npz_path = save_family_result(self._family_dto(), tmp_path)
+        with np.load(npz_path) as data:
+            assert data["states"].shape == (4, 100, 6)
+            assert data["times"].shape == (4, 100)
+            assert data["z0s"].shape == (4,)
+
+    def test_meta_fields(self, tmp_path):
+        json_path, _ = save_family_result(self._family_dto(), tmp_path)
+        meta = json.loads(json_path.read_text(encoding="utf-8"))
+        assert meta["artifact_type"] == "family"
+        assert meta["source_tool"] == "orbit_family_generation"
+        assert meta["orbit_type"] == "Halo"
+        assert meta["n_orbits"] == 4
+        assert meta["states_shape"] == [4, 100, 6]
+
+    def test_discover_roundtrip(self, tmp_path):
+        json_path, _ = save_family_result(self._family_dto(), tmp_path)
+        artifacts = discover_artifacts(tmp_path)
+        assert len(artifacts) == 1
+        a = artifacts[0]
+        assert a.artifact_type == "family"
+        assert a.source_tool == "orbit_family_generation"
+        assert a.orbit_type == "Halo"
+
+
+class TestSaveStabilityResult:
+    def _stability_dto(self) -> StabilityResultData:
+        from e2m2e.algorithm.stability import BifurcationType, StabilityType
+
+        return StabilityResultData(
+            monodromy_matrix=np.eye(6),
+            eigenvalues=np.array([1.0, -1.0, 0.5 + 0.5j, 0.5 - 0.5j, 2.0, 0.5]),
+            stability_indices={"nu1": 1.5, "nu2": 0.8, "nu3": 1.1, "broucke": 2.3},
+            classification={
+                "stability_type": StabilityType.HYPERBOLIC,
+                "is_stable": False,
+                "is_unstable": True,
+                "stability_margin": -1.0,
+            },
+            bifurcation={
+                "bifurcation_type": BifurcationType.NONE,
+                "bifurcation_detected": False,
+            },
+            numerical_errors={"monodromy": None},
+        )
+
+    def test_creates_stability_json(self, tmp_path):
+        json_path = save_stability_result(
+            self._stability_dto(), tmp_path, orbit_label="Halo L2 (C_J=3.1)"
+        )
+        assert json_path.parent.name == "stability"
+        assert "Halo_L2" in json_path.name
+        assert json_path.exists()
+
+    def test_json_serializable(self, tmp_path):
+        json_path = save_stability_result(self._stability_dto(), tmp_path, orbit_label="test")
+        meta = json.loads(json_path.read_text(encoding="utf-8"))
+        # enum/ndarray 均被序列化为普通 JSON
+        assert meta["classification"]["stability_type"] == "hyperbolic"
+        assert meta["bifurcation"]["bifurcation_type"] == "none"
+        assert meta["monodromy_matrix"][0][0] == 1.0
+        # complex128 数组 tolist 后全为复数 → [real, imag]
+        assert meta["eigenvalues"][0] == [1.0, 0.0]
+        assert meta["eigenvalues"][2] == [0.5, 0.5]

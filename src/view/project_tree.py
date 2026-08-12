@@ -17,12 +17,13 @@ _TYPE_GROUP_LABELS: dict[str, str] = {
 }
 
 # 右键菜单项：(action_key, 显示文本, enabled, 禁用时的 tooltip)。
-# 未实现项对应 e2m2e 侧能力缺口（见 issue #340 审查：family/stability 阻塞于
-# Facade 语义错位与缺失 Request 模型），先灰掉，e2m2e 实现后改 enabled=True。
+# 未实现项对应 e2m2e 侧能力缺口：generate_family 的族延拓只对 Halo 成熟
+# （从工具选择器进，参数面板有振幅/成员数），故右键入口保持灰显；
+# analyze_stability 已接入 e2m2e algorithm/stability，右键直接分析选中轨道。
 _ORBIT_MENU_ITEMS: list[tuple[str, str, bool, str]] = [
     ("control_orbit", "轨道保持", True, ""),
-    ("generate_family", "生成轨道族", False, "待 e2m2e 实现轨道族生成"),
-    ("analyze_stability", "查看稳定性", False, "待 e2m2e 实现稳定性分析"),
+    ("generate_family", "生成轨道族", False, "请从右侧工具选择器使用「轨道族生成」"),
+    ("analyze_stability", "查看稳定性", True, ""),
 ]
 _FAMILY_MENU_ITEMS: list[tuple[str, str, bool, str]] = [
     ("expand_members", "展开/折叠成员", False, "待轨道族生成实现"),

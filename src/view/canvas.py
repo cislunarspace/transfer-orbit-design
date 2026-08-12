@@ -114,6 +114,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
         self._ephemeris_times_et_by_id: dict[str, Any] = {}
         self._labels_by_id: dict[str, str] = {}
         self._mu_by_id: dict[str, float | None] = {}
+        self._family_by_id: dict[str, Any] = {}
         self._artifacts_provider = None
 
     def _setup_axes(self, projection: str = "3d", *, title: str = "选择一个工件以可视化") -> None:
@@ -174,6 +175,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
         self._ephemeris_times_et_by_id = {}
         self._labels_by_id = {}
         self._mu_by_id = {}
+        self._family_by_id = {}
         for aid in artifact_ids:
             data = self._artifacts_provider(aid) if self._artifacts_provider else None
             if data is None:
@@ -184,9 +186,10 @@ class OrbitCanvas(FigureCanvasQTAgg):
             eph_syn = data.get("ephemeris_synodic")
             eph_pos = data.get("ephemeris_position_km")
             eph_t = data.get("ephemeris_times_et")
+            family = data.get("family_states")
             # 显式契约：任一星历槽存在即认为该 Artifact 有内容；纯 CR3BP 初猜
             # 的旧 Artifact 仅 initial_guess 非 None。完全无内容则跳过。
-            if initial is None and eph_syn is None and eph_pos is None:
+            if initial is None and eph_syn is None and eph_pos is None and family is None:
                 continue
             self._labels_by_id[aid] = label
             self._mu_by_id[aid] = mu
@@ -198,6 +201,8 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 self._ephemeris_position_km_by_id[aid] = eph_pos
             if eph_t is not None:
                 self._ephemeris_times_et_by_id[aid] = eph_t
+            if family is not None:
+                self._family_by_id[aid] = family
 
     # -- 渲染入口 ----------------------------------------------------------
 
@@ -253,7 +258,11 @@ class OrbitCanvas(FigureCanvasQTAgg):
         if state.frame == "inertial":
             has_orbits = bool(self._ephemeris_position_km_by_id)
         else:
-            has_orbits = bool(self._initial_guess_by_id) or bool(self._ephemeris_synodic_by_id)
+            has_orbits = (
+                bool(self._initial_guess_by_id)
+                or bool(self._ephemeris_synodic_by_id)
+                or bool(self._family_by_id)
+            )
         self._setup_axes(
             state.projection,
             title="" if has_orbits else "选择一个工件以可视化",
@@ -292,6 +301,10 @@ class OrbitCanvas(FigureCanvasQTAgg):
             label = self._labels_by_id.get(aid, "")
             base_color = self._TAB10_COLORS[(2 * i) % len(self._TAB10_COLORS)]
             eph_color = self._TAB10_COLORS[(2 * i + 1) % len(self._TAB10_COLORS)]
+            if aid in self._family_by_id:
+                # 轨道族：m 条成员按 viridis 渐变色逐条绘制，覆盖普通槽。
+                self._draw_family_3d(ax, self._family_by_id[aid], label)
+                continue
             if content in ("guess", "overlay"):
                 initial = self._initial_guess_by_id.get(aid)
                 if initial is not None:
@@ -323,6 +336,55 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     if content == "ephemeris":
                         ax.scatter(*pos[0], s=30, c=eph_color, zorder=5)
 
+    def _draw_family_3d(self, ax, family_states: Any, label: str) -> None:
+        """轨道族 3D 渲染：m 条成员按 viridis 渐变色逐条绘制。
+
+        ``family_states`` 为 ``(m, n, 6)``（无量纲会合系，质心归一）。
+        颜色从浅到深映射成员 z 振幅递增，起点小点标记族起始端。
+        """
+        import matplotlib.cm as cm
+        import matplotlib.colors as mcolors
+
+        arr = np.asarray(family_states)
+        if arr.ndim != 3:
+            return
+        m = arr.shape[0]
+        norm = mcolors.Normalize(vmin=0.0, vmax=max(m - 1, 1))
+        cmap = cm.get_cmap("viridis")
+        for j in range(m):
+            pos = arr[j][:, :3]
+            color = cmap(norm(j))
+            ax.plot(
+                pos[:, 0],
+                pos[:, 1],
+                pos[:, 2],
+                linewidth=0.7,
+                color=color,
+                label=label if j == 0 else None,
+            )
+        ax.scatter(*arr[0][0, :3], s=20, c=cmap(norm(0)), zorder=5)
+
+    def _draw_family_2d(self, ax, family_states: Any, label: str, plane: tuple[int, int]) -> None:
+        """轨道族 2D 投影渲染（渐变色逐条，逻辑同 _draw_family_3d）。"""
+        import matplotlib.cm as cm
+        import matplotlib.colors as mcolors
+
+        arr = np.asarray(family_states)
+        if arr.ndim != 3:
+            return
+        m = arr.shape[0]
+        norm = mcolors.Normalize(vmin=0.0, vmax=max(m - 1, 1))
+        cmap = cm.get_cmap("viridis")
+        for j in range(m):
+            pos = arr[j][:, :3]
+            ax.plot(
+                pos[:, plane[0]],
+                pos[:, plane[1]],
+                linewidth=0.7,
+                color=cmap(norm(j)),
+                label=label if j == 0 else None,
+            )
+
     def _draw_2d_synodic_orbits(self, ax, state) -> None:
         plane = _PROJECTION_PLANE_AXES[state.projection]
         content = state.plot_content
@@ -330,6 +392,10 @@ class OrbitCanvas(FigureCanvasQTAgg):
             label = self._labels_by_id.get(aid, "")
             base_color = self._TAB10_COLORS[(2 * i) % len(self._TAB10_COLORS)]
             eph_color = self._TAB10_COLORS[(2 * i + 1) % len(self._TAB10_COLORS)]
+            if aid in self._family_by_id:
+                # 轨道族：2D 投影逐条绘制
+                self._draw_family_2d(ax, self._family_by_id[aid], label, plane)
+                continue
             if content in ("guess", "overlay"):
                 initial = self._initial_guess_by_id.get(aid)
                 if initial is not None:
