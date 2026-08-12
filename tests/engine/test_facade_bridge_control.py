@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 from e2m2e.data.templates import ConvergenceState
+from e2m2e.data.templates.seed import EARTH_MOON_MU
 
 from src.engine.facade_bridge import ControlResultData, FacadeBridge
 
@@ -223,7 +224,7 @@ class TestControlOrbit:
         SPICEManager()._ensure_leapseconds()
 
         n = 50
-        source_mu = 0.012153645822478
+        source_mu = EARTH_MOON_MU
         synodic = np.random.randn(n, 3)
         position_km = np.random.randn(n, 3)
         times_meta = [(2024, 1, 1, 0, 0, float(k)) for k in range(n)]

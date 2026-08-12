@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from e2m2e.data.templates.seed import EARTH_MOON_MU
 
 
 @pytest.fixture()
@@ -23,7 +24,7 @@ def qapp():
         pytest.skip("QApplication 不可用（无 GUI 环境）")
 
 
-_MU = 0.012150585
+_MU = EARTH_MOON_MU
 
 
 def _orbit(n: int = 60, *, seed: int = 0) -> np.ndarray:

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import matplotlib
 import pytest
+from e2m2e.data.templates.seed import EARTH_MOON_MU
 
 matplotlib.use("Agg")
 
@@ -26,7 +27,7 @@ def qapp():
         pytest.skip("QApplication 不可用（无 GUI 环境）")
 
 
-_MU = 0.012153645822478  # 地月质量比（issue #339 实测值）
+_MU = EARTH_MOON_MU  # 地月质量比（e2m2e DE421 基准）
 
 
 class TestBuildCr3bpSystem:

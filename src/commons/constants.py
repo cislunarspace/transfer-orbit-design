@@ -45,11 +45,10 @@ def _init_cr3bp() -> None:
     if _cr3bp_initialized:
         return
     from e2m2e.algorithm.dynamics import CR3BP_System
+    from e2m2e.data.templates.seed import EARTH_MOON_MU
 
-    _em = CR3BP_System(
-        mu=0.012153645822478, primary="Earth", secondary="Moon"
-    )._with_default_scales()
-    MU = _em.mu  # 1.21536648e-2
+    _em = CR3BP_System(mu=EARTH_MOON_MU, primary="Earth", secondary="Moon")._with_default_scales()
+    MU = _em.mu  # 0.012150585350562453（e2m2e DE421 基准）
     # TU/VU 单位为 TOD 约定：TU 是天、VU 是 m/s（消费方 * TU 得天数、VU/1000 得 km/s）。
     # 旧注释曾标为 s / km/s，系单位误标。
     DU = _em.DU  # 384400.0 km（e2m2e 5.6.6 起；此前 384405.0）

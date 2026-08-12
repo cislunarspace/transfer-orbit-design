@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
+from e2m2e.data.templates.seed import EARTH_MOON_MU
 
 from src.engine.facade_bridge import ControlResultData
 
@@ -140,12 +141,12 @@ class TestRunControlDispatch:
         """source_mu 应从 Artifact extra["mu"] 注入到 ControlOrbitWorker。"""
         window = _make_window(qapp)
         _select_control_tool(window)
-        _make_orbit_artifact(window, with_ephemeris=True, mu=0.012153645822478)
+        _make_orbit_artifact(window, with_ephemeris=True, mu=EARTH_MOON_MU)
 
         with patch("src.app.main_window.ControlOrbitWorker") as mock_cls:
             window._on_run()
             _, kwargs = mock_cls.call_args
-            assert kwargs["source_mu"] == pytest.approx(0.012153645822478)
+            assert kwargs["source_mu"] == pytest.approx(EARTH_MOON_MU)
 
 
 class TestOnControlFinished:
@@ -157,7 +158,7 @@ class TestOnControlFinished:
             maneuvers_delta_v_mps=np.array([0.5, 0.3]),
             controlled_states=np.random.randn(n, 6),
             controlled_times=np.arange(n),
-            mu=0.012153645822478,
+            mu=EARTH_MOON_MU,
         )
 
     def test_on_control_finished_registers_ephemeris_artifact(self, qapp):
@@ -191,7 +192,7 @@ class TestOnControlFinished:
             maneuvers_delta_v_mps=np.array([0.5]),
             controlled_states=np.random.randn(n, 6),
             controlled_times=times_et,
-            mu=0.012153645822478,
+            mu=EARTH_MOON_MU,
             position_km=position_km,
             times_et=times_et,
         )
