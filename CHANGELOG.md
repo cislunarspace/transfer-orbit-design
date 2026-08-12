@@ -1,6 +1,6 @@
 # 更新日志
 
-## Unreleased
+## 3.2.1 (2026-08-12)
 
 适配 e2m2e 5.6.7：上游删除 `tools/viz` 模块（各自实现绘图）并统一结果契约（#351，`success`/`converged` 方言废除，改 `status`/`cause`/`message`），本项目收编绘图代码、迁移收敛判定，并把新增的类型化异常接入错误翻译层。5.6.6 发布物漏打包 `constants.toml`（安装后 import 即 `FileNotFoundError`），由上游 5.6.7 修复（文件收进 `e2m2e/data/constants/` 包内），故下限直接钉 5.6.7。
 
@@ -19,6 +19,8 @@
 - **pin e2m2e>=5.6.7**：结果契约迁移后的最低可用版本（5.6.6 发布物漏打包 `constants.toml`，安装后 import 即 `FileNotFoundError`，上游 5.6.7 已修复），uv.lock 同步。
 - **常数注释同步上游单一来源化（#377）**：`CR3BP_System` 默认尺度变化（DU 384405.0→384400.0 km、TU 4.33030→4.34248 天、VU 1027.30→1024.55 m/s），与 `data.templates` 特征尺度对齐，units.py 中两者不一致的历史警告移除；同时纠正 constants.py 行内注释的单位误标（TU 属性返回天、VU 返回 m/s，非 s/km/s——消费方用法本就与天/m/s 一致，仅注释错）。
 - **已知上游问题（5.6.7 已修复，本条留档）**：e2m2e 5.6.6 发布物（sdist/wheel）漏打包 `constants.toml`，安装后 import 即 `FileNotFoundError`（loader 按 site-packages 根寻址）；5.6.7 将文件收进 `e2m2e/data/constants/` 包内并改包内寻址，问题消除，本地不再需要桥接。
+- **清理 release lint job 的 e2m2e clone（dcc6602）**：08c6bb1 已把 test/build job 改用 PyPI e2m2e，lint job 里遗留的 `git clone ../e2m2e` 纯属闲置（lint 只跑 ruff），删除。
+- **重新生成 uv.lock（7531c03）**：v3.2.0 发布途中 rebase 冲突残留了 `<<<<<<<` 标记，`uv lock` 重新生成以清掉，当前文件已无冲突标记。
 
 ## 3.2.0 (2026-08-10)
 
