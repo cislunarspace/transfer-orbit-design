@@ -34,7 +34,7 @@ def get_standard_plot_config(
     use_env: bool = True,
 ):
     """创建与 plot_dro_family.py 一致的 PlotConfig。"""
-    from e2m2e.tools.viz.config import PlotConfig
+    from src.commons.viz.config import PlotConfig
 
     kwargs: dict[str, float] = {}
     kwargs.update(STANDARD_PLOT_FONT_SIZES)

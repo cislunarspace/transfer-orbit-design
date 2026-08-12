@@ -27,8 +27,8 @@ import numpy as np
 with contextlib.suppress(ImportError, ValueError):
     matplotlib.use("TkAgg")
 
-from e2m2e.algorithm.dynamics import CR3BP_System, Orbit, OrbitFamily
-from e2m2e.tools.viz.family import FamilyPlotter
+from e2m2e.algorithm.dynamics import CR3BP_System
+from e2m2e.data.types.orbit import Orbit, OrbitFamily
 
 from plot._argparse import (
     build_argparser,  # noqa: F401
@@ -44,6 +44,7 @@ from plot._stability import compute_stability_indices
 from plot.config import apply_standard_plot_config
 from src.commons.constants import MU
 from src.commons.paths import find_project_root
+from src.commons.viz.family import FamilyPlotter
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 import numpy as np
-from e2m2e.tools.viz.family import FamilyPlotter
+
+from src.commons.viz.family import FamilyPlotter
 
 
 def _project_2d(xyz: Sequence[float] | np.ndarray, plane: str) -> tuple[float, float]:

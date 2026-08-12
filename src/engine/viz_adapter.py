@@ -1,8 +1,9 @@
-"""e2m2e 可视化适配层 -- view 与 OrbitVisualizer 之间的薄封装。
+"""可视化适配层 -- view 与 OrbitVisualizer 之间的薄封装。
 
 职责：
 - 构造 CR3BP_System（从 mu 提取，地月质量比）
-- 调用 e2m2e OrbitVisualizer 绘制地月标注 / L1-L5 / 2D 投影
+- 调用 src.commons.viz 的 OrbitVisualizer 绘制地月标注 / L1-L5 / 2D 投影
+  （OrbitVisualizer 收编自 e2m2e 5.6.5 tools/viz，e2m2e 5.6.6 已删除该模块）
 - 惯性系（GCRS/J2000）视图：地球原点 marker、月球真实轨迹
 - 向 view 暴露纯数组接口（不泄漏 e2m2e 类型）
 
@@ -39,7 +40,7 @@ def draw_primary_bodies(
             由本函数按平面自绘——e2m2e 2D 无视投影平面，会把天体画进
             错误的轴（如 YZ 下本应重叠于原点的地月被画到 y=±μ）。
     """
-    from e2m2e.tools.viz import OrbitVisualizer
+    from src.commons.viz import OrbitVisualizer
 
     system = build_cr3bp_system(mu)
     if is_3d or plane is None or plane == (0, 1):
@@ -65,7 +66,8 @@ def draw_libration_points(
             （理由同 draw_primary_bodies：e2m2e 2D 无视投影平面）。
     """
     from e2m2e.algorithm.dynamics import LibrationPoint
-    from e2m2e.tools.viz import OrbitVisualizer
+
+    from src.commons.viz import OrbitVisualizer
 
     system = build_cr3bp_system(mu)
     if is_3d or plane is None or plane == (0, 1):
