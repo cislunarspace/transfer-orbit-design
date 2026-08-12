@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from e2m2e.algorithm.results import ConvergenceState
+from e2m2e.data.templates import ConvergenceState
 
 
 class _FakeCorrection:

@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-from e2m2e.algorithm.results import ConvergenceState
+from e2m2e.data.templates import ConvergenceState
 
 from src.engine.facade_bridge import ControlResultData, FacadeBridge
 
