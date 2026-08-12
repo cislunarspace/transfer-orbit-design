@@ -21,9 +21,10 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from e2m2e.algorithm.dynamics import EphemerisDynamics, EphemerisSystem
+from e2m2e.algorithm.coordinate.synodic_j2000 import SynodicJ2000System
+from e2m2e.algorithm.dynamics import CR3BP_System, EphemerisDynamics, EphemerisSystem
 from e2m2e.data.kernels.manager import SPICEManager
-from e2m2e.data.types.orbit import CR3BP_System, Orbit, SynodicJ2000System
+from e2m2e.data.types.orbit import Orbit
 from e2m2e.mbse.data.enums import ReferenceFrame
 
 from plot.config import apply_standard_plot_config

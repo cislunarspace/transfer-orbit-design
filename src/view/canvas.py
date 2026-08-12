@@ -263,7 +263,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
             # 宽高比塞进 3D 盒子（与数据无关），近平面轨道（DRO 等，Z 振幅远
             # 小于 XY）的 Z 会被放大约一个数量级，看起来大幅鼓起。
             ax.set_box_aspect(
-                tuple(np.ptp(lim) for lim in (ax.get_xlim(), ax.get_ylim(), ax.get_zlim()))
+                tuple(np.ptp(lim) for lim in (ax.get_xlim(), ax.get_ylim(), ax.get_zlim()))  # type: ignore[attr-defined, arg-type]
             )
         else:
             # 2D 等比例：mpl 默认 aspect='auto' 让每轴独立填满画面，XZ/YZ 下

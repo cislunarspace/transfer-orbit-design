@@ -27,8 +27,8 @@ if not logging.getLogger().handlers:
 import e2m2e
 import matplotlib
 import matplotlib.pyplot as plt
-from e2m2e.data.types.orbit import CR3BP_System, OrbitFamily
-from e2m2e.tools.viz.base import OrbitVisualizer
+from e2m2e.algorithm.dynamics import CR3BP_System
+from e2m2e.data.types.orbit import OrbitFamily
 from matplotlib.colors import Normalize
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
@@ -40,6 +40,7 @@ from src.commons.input_contract import (
     resolve_input_file,
 )
 from src.commons.paths import find_project_root
+from src.commons.viz.base import OrbitVisualizer
 
 logger = logging.getLogger(__name__)
 project_root = find_project_root(Path(__file__))

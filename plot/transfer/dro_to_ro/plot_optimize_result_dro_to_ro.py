@@ -32,8 +32,8 @@ import contextlib
 import matplotlib
 import numpy as np
 from e2m2e.algorithm.dynamics import CR3BP_Dynamics, CR3BP_System
+from e2m2e.algorithm.transfer import load_orbit_from_json
 from e2m2e.data.types.orbit import Orbit
-from e2m2e.transfer import load_orbit_from_json
 from matplotlib.axes import Axes
 from matplotlib.colors import Normalize
 

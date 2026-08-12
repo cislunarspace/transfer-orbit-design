@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from e2m2e.data.templates import ConvergenceState
 
 from src.engine.facade_bridge import (
     TOOL_REGISTRY,
@@ -87,7 +88,7 @@ class TestFacadeBridgeDesignOrbit:
             times=np.linspace(0, 1, n),
             system=SimpleNamespace(mu=0.012153645822478),
         )
-        correction = SimpleNamespace(converged=True, iterations=1)
+        correction = SimpleNamespace(status=ConvergenceState.CONVERGED, iterations=1)
         result = SimpleNamespace(
             orbit_type="DRO",
             epoch_utc="2024-01-01T00:00:00",
@@ -137,7 +138,7 @@ class TestFacadeBridgeDesignOrbit:
                 states=np.random.randn(n, 6),
                 times=np.linspace(0, 1, n),
             )
-            correction = SimpleNamespace(converged=True, iterations=1)
+            correction = SimpleNamespace(status=ConvergenceState.CONVERGED, iterations=1)
             return SimpleNamespace(
                 orbit_type="DRO",
                 epoch_utc="2024-01-01T00:00:00",
@@ -159,7 +160,6 @@ class TestFacadeBridgeDesignOrbit:
 
     def test_duration_converts_years_to_seconds(self, monkeypatch):
         """GUI duration 单位年，e2m2e 5.6.5 duration 单位秒；facade 做换算。"""
-        from e2m2e.api.models import DesignOrbitRequest
 
         captured: dict = {}
 
@@ -172,7 +172,7 @@ class TestFacadeBridgeDesignOrbit:
                 states=np.random.randn(n, 6),
                 times=np.linspace(0, 1, n),
             )
-            correction = SimpleNamespace(converged=True, iterations=1)
+            correction = SimpleNamespace(status=ConvergenceState.CONVERGED, iterations=1)
             return SimpleNamespace(
                 orbit_type="DRO",
                 epoch_utc="2024-01-01T00:00:00",

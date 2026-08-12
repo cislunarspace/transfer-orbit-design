@@ -190,6 +190,7 @@ class FacadeBridge:
         """
         from e2m2e.algorithm.design import design_orbit
         from e2m2e.api.models import DesignOrbitRequest
+        from e2m2e.data.templates import ConvergenceState
 
         from src.commons.units import SECONDS_PER_YEAR
         from src.engine.exceptions import translate_exception
@@ -207,6 +208,11 @@ class FacadeBridge:
             raise translate_exception(e) from e
 
         cr3bp_orbit = result.cr3bp_orbit
+        if cr3bp_orbit is None:
+            # ELFO 场景无 CR3BP 周期轨道（设计结果不携带），GUI 用不到
+            raise translate_exception(
+                ValueError("设计结果不含 CR3BP 轨道（ELFO 场景不支持 GUI 可视化）")
+            ) from None
         # mu 从 cr3bp_orbit.system.mu 提取（design_orbit.py 构造 Orbit 时绑定了
         # CR3BP_System）；三重 getattr 防御 system 缺失或未绑定。
         mu = getattr(getattr(cr3bp_orbit, "system", None), "mu", None)
@@ -231,6 +237,13 @@ class FacadeBridge:
                 # control_orbit 用其做会合→惯性坐标转换；帧动画也用它定位真时刻。
                 "times_et": _reconstruct_et_from_utc(eph),
             }
+        # e2m2e 5.6.6 起 EphemerisCorrectionResult 废除 converged 方言，
+        # 收敛判定走统一结果契约 status == ConvergenceState.CONVERGED
+        # （上游 #351）。correction 为 None 是 ELFO 场景（无星历修正），视为未收敛。
+        correction = result.correction
+        correction_converged = (
+            correction is not None and correction.status is ConvergenceState.CONVERGED
+        )
         return OrbitDesignResultData(
             orbit_type=result.orbit_type,
             epoch_utc=result.epoch_utc,
@@ -240,8 +253,8 @@ class FacadeBridge:
             mu=mu,
             states=np.asarray(cr3bp_orbit.states),
             times=np.asarray(cr3bp_orbit.times),
-            correction_converged=result.correction.converged,
-            correction_iterations=result.correction.iterations,
+            correction_converged=correction_converged,
+            correction_iterations=correction.iterations if correction is not None else 0,
             ephemeris=ephemeris_dict,
         )
 

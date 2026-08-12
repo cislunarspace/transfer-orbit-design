@@ -3,10 +3,10 @@
 常量来源对齐 ``e2m2e.data.templates.seed``：``CHAR_LENGTH_KM=384400`` km、
 ``CHAR_PERIOD_SEC=27.32*86400`` s；``TU = CHAR_PERIOD_SEC / (2π)``。
 
-注意：``tod/commons/constants.py`` 的 DU=384405 / TU=375188.73 来自
-``CR3BP_System`` 默认尺度，与 design_orbit 链路实际使用的
-``set_characteristic_scales(CHAR_LENGTH_KM, CHAR_PERIOD_SEC)`` 不一致
-（差约 0.86 倍），GUI 必须以 ``e2m2e.data.templates`` 为准，与算法链路保持一致。
+注意：e2m2e 5.6.6 常数单一来源化（上游 #377）后，``CR3BP_System`` 默认尺度
+与 ``set_characteristic_scales(CHAR_LENGTH_KM, CHAR_PERIOD_SEC)`` 已对齐为同一套
+值，历史版本两者不一致（差约 0.86 倍）的问题不复存在。GUI 仍以
+``e2m2e.data.templates`` 为准，与算法链路保持一致。
 """
 
 from __future__ import annotations

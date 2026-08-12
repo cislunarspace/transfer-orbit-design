@@ -1,5 +1,25 @@
 # 更新日志
 
+## Unreleased
+
+适配 e2m2e 5.6.7：上游删除 `tools/viz` 模块（各自实现绘图）并统一结果契约（#351，`success`/`converged` 方言废除，改 `status`/`cause`/`message`），本项目收编绘图代码、迁移收敛判定，并把新增的类型化异常接入错误翻译层。5.6.6 发布物漏打包 `constants.toml`（安装后 import 即 `FileNotFoundError`），由上游 5.6.7 修复（文件收进 `e2m2e/data/constants/` 包内），故下限直接钉 5.6.7。
+
+### 修复
+
+- **收编 e2m2e `tools/viz` 为 `src/commons/viz`**：e2m2e 5.6.6 删除整个 `tools/viz` 模块（上游 #391），GUI 画布的地月标注/平动点绘制（viz_adapter）与 plot/ 脚本的 FamilyPlotter/PlotConfig 全部 `ModuleNotFoundError`（34 项测试挂）。将 5.6.5 的 base/config/family/icons 四件套收编进 `src/commons/viz`（Apache-2.0，内部相对导入改绝对导入，剔除未用的 TransferPlotter），由本项目自维护。
+- **收敛判定迁移统一结果契约**：e2m2e 5.6.6 起 `EphemerisCorrectionResult.converged` 废除（上游 #351），facade 的 `result.correction.converged` 会 AttributeError。改为 `status is ConvergenceState.CONVERGED`；顺带修了 ELFO 场景 `correction=None` 时的既有 AttributeError 隐患（现视为未收敛）。
+- **plot/ 脚本导入修正**：`from e2m2e.transfer import ...`（5.6.5 下即不存在的顶层模块，既存错误）改为 `e2m2e.algorithm.transfer`；`Orbit`/`OrbitFamily` 不再由 `e2m2e.algorithm.dynamics` 转发、`CR3BP_System`/`SynodicJ2000System` 不再由 `e2m2e.data.types.orbit` 转发，统一改从定义处导入（`e2m2e.data.types.orbit` / `e2m2e.algorithm.dynamics` / `e2m2e.algorithm.coordinate.synodic_j2000`）。
+
+### 功能
+
+- **异常翻译接入 5.6.6 新类型化异常**：`PropagationFailure`（传播失败，上游 #349，取代错误消息前缀匹配）映射为新错误码 `PROPAGATION_FAILED`；`RustExtensionUnavailableError`（Rust 内核缺失不再静默回退 Python，上游 #378）映射为 `BACKEND_UNAVAILABLE`；`DesignNotConvergedError` 消息附带上游 `FailureCause`，失败原因可定位。
+
+### 工程
+
+- **pin e2m2e>=5.6.7**：结果契约迁移后的最低可用版本（5.6.6 发布物漏打包 `constants.toml`，安装后 import 即 `FileNotFoundError`，上游 5.6.7 已修复），uv.lock 同步。
+- **常数注释同步上游单一来源化（#377）**：`CR3BP_System` 默认尺度变化（DU 384405.0→384400.0 km、TU 4.33030→4.34248 天、VU 1027.30→1024.55 m/s），与 `data.templates` 特征尺度对齐，units.py 中两者不一致的历史警告移除；同时纠正 constants.py 行内注释的单位误标（TU 属性返回天、VU 返回 m/s，非 s/km/s——消费方用法本就与天/m/s 一致，仅注释错）。
+- **已知上游问题（5.6.7 已修复，本条留档）**：e2m2e 5.6.6 发布物（sdist/wheel）漏打包 `constants.toml`，安装后 import 即 `FileNotFoundError`（loader 按 site-packages 根寻址）；5.6.7 将文件收进 `e2m2e/data/constants/` 包内并改包内寻址，问题消除，本地不再需要桥接。
+
 ## 3.2.0 (2026-08-10)
 
 3.1.3 之后适配 e2m2e 5.6.5：恢复 Halo/NRHO 设计端到端可用（e2m2e 自动走 segmented 星历修正，修多圈发散），并修复 e2m2e 5.6.4 起 `design_orbit` 入口的签名与参数模型 breaking——后者自 5.6.4 起让 GUI 任何轨道设计都 TypeError，因测试全 mock 未暴露。

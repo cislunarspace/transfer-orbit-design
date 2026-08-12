@@ -6,6 +6,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+from e2m2e.data.templates import ConvergenceState
 
 from src.engine.facade_bridge import ControlResultData, FacadeBridge
 
@@ -116,7 +117,7 @@ class TestDesignOrbitEphemerisExtraction:
             states=np.random.randn(n, 6),
             times=np.linspace(0, 1, n),
         )
-        correction = SimpleNamespace(converged=True, iterations=1)
+        correction = SimpleNamespace(status=ConvergenceState.CONVERGED, iterations=1)
         fake_eph = _FakeEphemeris(n)
         result = SimpleNamespace(
             orbit_type="DRO",
@@ -160,7 +161,7 @@ class TestDesignOrbitEphemerisExtraction:
             states=np.random.randn(n, 6),
             times=np.linspace(0, 1, n),
         )
-        correction = SimpleNamespace(converged=True, iterations=1)
+        correction = SimpleNamespace(status=ConvergenceState.CONVERGED, iterations=1)
         result = SimpleNamespace(
             orbit_type="DRO",
             epoch_utc="2024-01-01T00:00:00",
@@ -216,7 +217,6 @@ class TestControlOrbit:
         position_km 等于 fake 的 GCRS km，times_et 等于 SPICE str2et 重建的真物理时间。
         """
         import spiceypy as spice
-
         from e2m2e.data.kernels.manager import SPICEManager
 
         # 确保闰秒内核已 furnsh（dev 环境 SPICE_KERNEL_DIR 已设；CI 跳过此测试）。

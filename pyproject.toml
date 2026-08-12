@@ -25,7 +25,7 @@ dependencies = [
     "tqdm>=4.66",
     "PyQt6>=6.6.0",
     "PyQt6-WebEngine>=6.6.0",
-    "e2m2e>=5.6.5",
+    "e2m2e>=5.6.7",
     "pillow>=10.0.0",  # GIF 合成；matplotlib 的既有传递依赖，显式声明本仓库使用
     "calcephpy==5.0.0",  # 经 e2m2e→r2s2 传递依赖；显式声明以使 [tool.uv.sources] 生效（uv sources 仅覆盖直接依赖）
 ]
@@ -52,7 +52,11 @@ Repository = "https://github.com/cislunarspace/transfer-orbit-design"
 pythonVersion = "3.13"
 reportMissingImports = "none"
 include = ["src"]
-exclude = ["tests"]
+exclude = ["tests", "src/commons/viz"]  # viz 为收编的第三方代码（原 e2m2e tools/viz），不承担本仓类型标准
+# 显式指定 venv：pyright 的 venv 自动探测在部分环境失效（会退回系统 python，
+# 导致解析不到 venv 内的 e2m2e/matplotlib 而误报 0 错误），钉死 .venv 与 CI 对齐。
+venvPath = "."
+venv = ".venv"
 
 [tool.pytest.ini_options]
 markers = [
