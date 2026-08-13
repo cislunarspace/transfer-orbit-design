@@ -35,8 +35,8 @@ uv run transfer-orbit-design
 界面为三栏布局：左侧项目树、中间可视化画布与日志标签页、右侧工具选择器与
 参数面板。
 
-1. 右侧工具选择器选**轨道设计**，选轨道类型（DRO / Halo / NRHO / Lissajous /
-   L4 / L5 / ELFO）并填参数。
+1. 右侧工具选择器选**轨道设计**，选轨道类型（DRO / DPO / Halo / NRHO /
+   Lissajous / Axial / L4 / L5 / ELFO 等）并填参数。
 2. 点击**运行**，计算在后台线程执行，日志面板逐条输出进度。
 3. 完成后结果以 JSON + NPZ 双文件落盘 `output/`，轨道随即叠加显示在画布上。
 

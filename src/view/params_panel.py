@@ -17,6 +17,7 @@ Pydantic -> Qt 映射：
 from __future__ import annotations
 
 import dataclasses
+import math
 import types
 import typing
 from typing import Any
@@ -44,8 +45,12 @@ from src.commons.units import DAYS_PER_YEAR, DU_KM, SECONDS_PER_YEAR, TU_SECONDS
 #: 60000 km（距月 54000–66000 km，ARTEMIS/Gateway 量级的中等 DRO），让用户打开即见
 #: 典型形状。代价：大幅 DRO 在真实星历里不如紧凑 DRO 稳定（默认 1 个月星历会漂移），
 #: 与 Halo 默认同理——画布画的是 CR3BP 周期轨道，星历漂移不影响形状观察。
+#:
+#: 键 = 轨道类型下拉显示名（须满足 ``display.upper()`` == e2m2e
+#: ``DesignOrbitRequest`` model_validator 接受的 orbit_type token）。
 ORBIT_TYPE_DEFAULTS: dict[str, dict[str, float | int]] = {
     "DRO": {"amplitude": 60000.0, "phase": 0.5001},
+    "DPO": {"amplitude": 20000.0, "phase": 0.5001},
     "NRHO": {
         "collinear_point": 2,
         "north_south": 2,
@@ -60,6 +65,7 @@ ORBIT_TYPE_DEFAULTS: dict[str, dict[str, float | int]] = {
         "phase_in": 0.01,
         "phase_out": 0.55,
     },
+    "Axial": {"collinear_point": 2, "amplitude": 5000.0, "phase": 0.0},
     "L4": {
         "amplitude_in": 8000.0,
         "amplitude_out": 6000.0,
@@ -72,6 +78,12 @@ ORBIT_TYPE_DEFAULTS: dict[str, dict[str, float | int]] = {
         "phase_in": 0.0,
         "phase_out": 0.0,
     },
+    "L4_SPO": {"amplitude": 10000.0, "phase": 0.0},
+    "L5_SPO": {"amplitude": 10000.0, "phase": 0.0},
+    "L4_LPO": {"amplitude": 50000.0, "phase": 0.0},
+    "L5_LPO": {"amplitude": 50000.0, "phase": 0.0},
+    "L4_HORSESHOE": {"amplitude": 150000.0, "phase": 0.0},
+    "L5_HORSESHOE": {"amplitude": 150000.0, "phase": 0.0},
     # ELFO（月心冻结轨道）形状参数。semi_major_axis 模型必填，GUI 取近月冻结
     # 代表值 6500 km；其余对齐 DesignOrbitRequest model_validator 的 ELFO 默认
     # （inclination=75、arg_of_pericenter=270、perilune_height=200）。
@@ -86,6 +98,7 @@ ORBIT_TYPE_DEFAULTS: dict[str, dict[str, float | int]] = {
 #: 每轨道类型分支应显示的字段集（== 该分支默认值字段集）。
 ORBIT_TYPE_FIELDS: dict[str, set[str]] = {
     "DRO": {"amplitude", "phase"},
+    "DPO": {"amplitude", "phase"},
     "NRHO": {"collinear_point", "north_south", "perilune_height", "phase"},
     "Halo": {"collinear_point", "amplitude", "phase"},
     "Lissajous": {
@@ -95,8 +108,15 @@ ORBIT_TYPE_FIELDS: dict[str, set[str]] = {
         "phase_in",
         "phase_out",
     },
+    "Axial": {"collinear_point", "amplitude", "phase"},
     "L4": {"amplitude_in", "amplitude_out", "phase_in", "phase_out"},
     "L5": {"amplitude_in", "amplitude_out", "phase_in", "phase_out"},
+    "L4_SPO": {"amplitude", "phase"},
+    "L5_SPO": {"amplitude", "phase"},
+    "L4_LPO": {"amplitude", "phase"},
+    "L5_LPO": {"amplitude", "phase"},
+    "L4_HORSESHOE": {"amplitude", "phase"},
+    "L5_HORSESHOE": {"amplitude", "phase"},
     "ELFO": {"semi_major_axis", "inclination", "arg_of_pericenter", "perilune_height"},
 }
 
@@ -117,6 +137,32 @@ CORRECTION_METHOD_OPTIONS: tuple[str, ...] = ("standard", "two_level", "homotopy
 #: str 枚举类字段 -> 下拉选项（现仅 correction_method）。
 _STR_ENUM_FIELDS: dict[str, tuple[str, ...]] = {
     "correction_method": CORRECTION_METHOD_OPTIONS,
+}
+
+#: 整数枚举字段 -> (值, 显示名) 下拉选项。模型里这些字段是无语义的 int
+#: （如 control_mode=1..6），裸 spinbox 对用户不友好；下拉让取值一目了然。
+#: 值存在 QComboBox.itemData（int），收集时按数据取值而非文本。
+_INT_COMBO_OPTIONS: dict[str, tuple[tuple[int, str], ...]] = {
+    "collinear_point": ((1, "L1"), (2, "L2"), (3, "L3")),
+    "libration_point": ((1, "L1"), (2, "L2")),
+    "north_south": ((1, "北族"), (2, "南族")),
+    "control_mode": (
+        (1, "1 - 目标点（宽松）"),
+        (2, "2 - 目标点（严格）"),
+        (3, "3 - 特征点"),
+        (4, "4 - 目标点宽松 + 角动量管理"),
+        (5, "5 - 目标点严格 + 角动量管理"),
+        (6, "6 - 特征点 + 角动量管理"),
+    ),
+    "is_nrho": ((0, "否"), (1, "是")),
+    "special_mode": ((1, "Lissajous（ẋ=0）"), (2, "Halo/NRHO（ẋ=0 且 ż=0）")),
+}
+
+#: 模型未给约束的 int 字段的 GUI 临时范围（e2m2e 侧缺 Field 约束，已提 issue；
+#: 这里只挡明显非法值，避免 QSpinBox 默认 0~99 把合法默认值截断）。
+_INT_RANGE_OVERRIDES: dict[str, tuple[int, int]] = {
+    "num_controls": (1, 10000),
+    "num_monte_carlo": (1, 1000),
 }
 
 #: epoch 6 个 spinbox 的取值范围；is_int=True -> QSpinBox，False -> QDoubleSpinBox。
@@ -148,33 +194,103 @@ class UnitOption:
 
 
 #: 可切换单位字段 -> 单位选项（首个 = 标准单位，to_standard == 1.0）。
+#: 标准单位 = e2m2e 参数契约单位（km/度/秒/天等），收集时换算回标准单位；
+#: 国际单位（m/秒/rad）与归一化单位（DU/TU）作展示选项。
 #: 独立于 ORBIT_TYPE_DEFAULTS/FIELDS，避免破坏现有默认值测试。
 FIELD_UNIT_OPTIONS: dict[str, tuple[UnitOption, ...]] = {
+    # 距离（标准 km）：m 为国际单位，DU 为归一化距离单位
     "amplitude": (
         UnitOption("km", 1.0),
+        UnitOption("m", 1e-3, decimals=0, step=1000.0),
         UnitOption("DU", DU_KM, decimals=10, step=0.001),
     ),
     "perilune_height": (
         UnitOption("km", 1.0),
+        UnitOption("m", 1e-3, decimals=0, step=1000.0),
         UnitOption("DU", DU_KM, decimals=10, step=0.001),
     ),
     "amplitude_in": (
         UnitOption("km", 1.0),
+        UnitOption("m", 1e-3, decimals=0, step=1000.0),
         UnitOption("DU", DU_KM, decimals=10, step=0.001),
     ),
     "amplitude_out": (
         UnitOption("km", 1.0),
+        UnitOption("m", 1e-3, decimals=0, step=1000.0),
         UnitOption("DU", DU_KM, decimals=10, step=0.001),
     ),
+    "semi_major_axis": (
+        UnitOption("km", 1.0),
+        UnitOption("m", 1e-3, decimals=0, step=1000.0),
+        UnitOption("DU", DU_KM, decimals=10, step=0.001),
+    ),
+    "max_amplitude_km": (
+        UnitOption("km", 1.0),
+        UnitOption("m", 1e-3, decimals=0, step=1000.0),
+        UnitOption("DU", DU_KM, decimals=10, step=0.001),
+    ),
+    # 相位（标准 周期份额，无量纲）：度/弧度为其角度表示
+    "phase": (
+        UnitOption("周期份额", 1.0, decimals=4, step=0.05),
+        UnitOption("度", 1.0 / 360.0, decimals=1, step=5.0),
+        UnitOption("弧度", 1.0 / (2.0 * math.pi), decimals=3, step=0.05),
+    ),
+    "phase_in": (
+        UnitOption("周期份额", 1.0, decimals=4, step=0.05),
+        UnitOption("度", 1.0 / 360.0, decimals=1, step=5.0),
+        UnitOption("弧度", 1.0 / (2.0 * math.pi), decimals=3, step=0.05),
+    ),
+    "phase_out": (
+        UnitOption("周期份额", 1.0, decimals=4, step=0.05),
+        UnitOption("度", 1.0 / 360.0, decimals=1, step=5.0),
+        UnitOption("弧度", 1.0 / (2.0 * math.pi), decimals=3, step=0.05),
+    ),
+    # 角度（标准 度）：rad 为国际单位
+    "inclination": (
+        UnitOption("度", 1.0, decimals=2, step=1.0),
+        UnitOption("rad", 180.0 / math.pi, decimals=4, step=0.01),
+    ),
+    "arg_of_pericenter": (
+        UnitOption("度", 1.0, decimals=2, step=1.0),
+        UnitOption("rad", 180.0 / math.pi, decimals=4, step=0.01),
+    ),
+    # 时间（标准 年，GUI 契约；e2m2e 秒由 facade_bridge 换算）：秒为国际单位，
+    # TU 为归一化时间单位
     "duration": (
         UnitOption("年", 1.0),
         UnitOption("月", 1.0 / 12, decimals=4, step=1.0),
         UnitOption("日", 1.0 / DAYS_PER_YEAR, decimals=4, step=1.0),
+        UnitOption("时", 1.0 / (DAYS_PER_YEAR * 24.0), decimals=2, step=1.0),
+        UnitOption("秒", 1.0 / SECONDS_PER_YEAR, decimals=0, step=86400.0),
         UnitOption("TU", TU_SECONDS / SECONDS_PER_YEAR, decimals=4, step=0.1),
     ),
+    # 输出步长（标准 秒）：时/日为常用刻度，TU 为归一化时间单位
     "output_step": (
         UnitOption("秒", 1.0),
+        UnitOption("时", 3600.0, decimals=2, step=0.5),
+        UnitOption("日", 86400.0, decimals=3, step=0.1),
         UnitOption("TU", TU_SECONDS, decimals=4, step=0.001),
+    ),
+    # 控制间隔/反馈弧/卸载间隔（标准 天，e2m2e 契约）：秒为国际单位，TU 为归一化
+    "control_interval": (
+        UnitOption("天", 1.0, decimals=3, step=1.0),
+        UnitOption("秒", 1.0 / 86400.0, decimals=0, step=86400.0),
+        UnitOption("TU", TU_SECONDS / 86400.0, decimals=4, step=0.01),
+    ),
+    "feedback_arc": (
+        UnitOption("天", 1.0, decimals=3, step=1.0),
+        UnitOption("秒", 1.0 / 86400.0, decimals=0, step=86400.0),
+        UnitOption("TU", TU_SECONDS / 86400.0, decimals=4, step=0.01),
+    ),
+    "momentum_interval": (
+        UnitOption("天", 1.0, decimals=3, step=1.0),
+        UnitOption("秒", 1.0 / 86400.0, decimals=0, step=86400.0),
+        UnitOption("TU", TU_SECONDS / 86400.0, decimals=4, step=0.01),
+    ),
+    # SRP 压心偏移（标准 m，list 容器）：DU 为归一化距离单位
+    "srp_offset_m": (
+        UnitOption("m", 1.0),
+        UnitOption("DU", DU_KM * 1000.0, decimals=10, step=0.001),
     ),
 }
 
@@ -196,6 +312,22 @@ _OPTIONAL_FIELD_GUI_DEFAULTS: dict[str, float] = {
 _UNIT_ATTR = "_params_panel_unit"
 _STD_MIN_ATTR = "_params_panel_std_min"
 _STD_MAX_ATTR = "_params_panel_std_max"
+#: 控件描述文本属性（Pydantic Field.description），范围提示拼接 tooltip 时用。
+_DESC_ATTR = "_params_panel_desc"
+#: 换算缓存：`(换算后的显示值, 精确标准值)`。QDoubleSpinBox 按 decimals 舍入
+#: 存储值，切单位再切回会有累计精度损失（如 30 天→TU→天 变 30.000022 天）；
+#: 自动换算时把精确标准值缓存下来，collect 时若显示值未被用户改动则取缓存。
+_STD_VALUE_ATTR = "_params_panel_std_value"
+
+#: JSON 文本框（str/Any 无约束字段）为空时的占位提示：告知参数可填内容格式。
+#: 数值控件不用此表——它们的占位提示由 `_apply_range_hint` 按 min/max 生成。
+_FIELD_PLACEHOLDERS: dict[str, str] = {
+    "perturbation": ("JSON 摄动开关，例如 {'sun_body': 1, 'planets': 1}（留空=默认全开）"),
+    "dyb": "JSON 数组，9 分量面质比系数，dyb[0] 为等效面质比（m²/kg），留空=默认",
+    "engine_layout": (
+        "JSON 发动机布局 {'positions_m': [...], 'directions': [...]}（模式 4-6 必填）"
+    ),
+}
 
 # ---------------------------------------------------------------------------
 # 辅助函数
@@ -275,12 +407,13 @@ def _current_unit_option(field_name: str, widget: QWidget) -> UnitOption | None:
     return _find_unit_option(field_name, unit)
 
 
-def set_spinbox_unit(sb: QDoubleSpinBox, field_name: str, unit: str) -> None:
-    """切换 QDoubleSpinBox 的显示单位：换算当前值并缩放范围/步长/小数位。
+def set_spinbox_unit(widget: QWidget, field_name: str, unit: str) -> None:
+    """切换数值控件的显示单位：换算当前值并缩放范围/步长/小数位。
 
-    单位状态存于控件属性：``_params_panel_unit``（当前显示单位）、
+    支持单 spinbox（QDoubleSpinBox）、list[float] 容器及其 Optional 包装：
+    单位状态存于容器/控件属性 ``_params_panel_unit``（当前显示单位）、
     ``_params_panel_std_min/_params_panel_std_max``（标准单位下的范围，
-    控件生成时从约束写入）。
+    控件生成时从约束写入）。换算后同步刷新范围占位提示。
     """
     options = get_field_units(field_name)
     if not options:
@@ -288,20 +421,133 @@ def set_spinbox_unit(sb: QDoubleSpinBox, field_name: str, unit: str) -> None:
     new_opt = _find_unit_option(field_name, unit)
     if new_opt is None:
         return
-    old_opt = _current_unit_option(field_name, sb)
+    # Optional 包装：换算其内部控件（单位状态存在内部控件上）
+    if widget.property("__params_panel_kind") == "optional":
+        inner = _find_inner_widget(widget)
+        if inner is None:
+            return
+        widget = inner
+    if widget.property("__params_panel_kind") == "list_float":
+        old_opt = _current_unit_option(field_name, widget)
+        if old_opt is None or old_opt is new_opt:
+            return
+        std_min = widget.property(_STD_MIN_ATTR)
+        std_max = widget.property(_STD_MAX_ATTR)
+        # 先更新容器单位状态，再换算子控件：范围提示按新单位生成。
+        # 子 spinbox 自身无单位属性（状态在容器上），提示单位显式传入。
+        widget.setProperty(_UNIT_ATTR, new_opt.label)
+        for child in widget.findChildren(QDoubleSpinBox):
+            _convert_spinbox(
+                child,
+                old_opt,
+                new_opt,
+                std_min,
+                std_max,
+                field_name,
+                unit_label=new_opt.label,
+            )
+        return
+    old_opt = _current_unit_option(field_name, widget)
     if old_opt is None or old_opt is new_opt:
         return
-    standard = float(sb.value()) * old_opt.to_standard
-    sb.setProperty(_UNIT_ATTR, new_opt.label)
+    if not isinstance(widget, QDoubleSpinBox):
+        return  # 非数值控件无单位状态（防御，正常路径不会到这里）
+    std_min = widget.property(_STD_MIN_ATTR)
+    std_max = widget.property(_STD_MAX_ATTR)
+    widget.setProperty(_UNIT_ATTR, new_opt.label)
+    _convert_spinbox(widget, old_opt, new_opt, std_min, std_max, field_name)
+
+
+def _convert_spinbox(
+    sb: QDoubleSpinBox,
+    old_opt: UnitOption,
+    new_opt: UnitOption,
+    std_min: float | None,
+    std_max: float | None,
+    field_name: str,
+    *,
+    unit_label: str | None = None,
+) -> None:
+    """把单个 spinbox 从 old_opt 显示单位换到 new_opt（范围/步长/小数位/值）。
+
+    精确标准值写入 ``_STD_VALUE_ATTR`` 缓存（含换算后显示值），避免多次切单位
+    的舍入误差累积。``unit_label`` 供范围提示使用（list 容器子控件自身无单位
+    属性，由调用方显式传入新单位标签）。
+    """
+    standard = _standard_value_of(sb, old_opt.to_standard)
     sb.setDecimals(new_opt.decimals)
     sb.setSingleStep(new_opt.step)
-    std_min = sb.property(_STD_MIN_ATTR)
-    std_max = sb.property(_STD_MAX_ATTR)
     if std_min is not None:
         sb.setMinimum(float(std_min) / new_opt.to_standard)
     if std_max is not None:
         sb.setMaximum(float(std_max) / new_opt.to_standard)
     sb.setValue(standard / new_opt.to_standard)
+    sb.setProperty(_STD_VALUE_ATTR, (float(sb.value()), standard))
+    _apply_range_hint(sb, field_name, unit_label)
+
+
+def _standard_value_of(sb: QDoubleSpinBox, fallback_factor: float) -> float:
+    """读取 spinbox 的精确标准值：显示值未改动时用缓存，否则按当前单位换算。"""
+    cached = sb.property(_STD_VALUE_ATTR)
+    if cached is not None and float(cached[0]) == float(sb.value()):
+        return float(cached[1])
+    return float(sb.value()) * fallback_factor
+
+
+def attach_unit_state(sb: QDoubleSpinBox, field_name: str) -> None:
+    """给模型外补充字段（如 control_interval）的 spinbox 写入单位状态。
+
+    补充字段由调用方（main_window）手工创建，未经模型自动生成路径，故需手动
+    记录标准单位范围/当前单位并生成范围占位提示，collect 时才能按显示单位换算。
+    """
+    options = get_field_units(field_name)
+    if options is None:
+        return
+    std = options[0]
+    sb.setProperty(_STD_MIN_ATTR, float(sb.minimum()))
+    sb.setProperty(_STD_MAX_ATTR, float(sb.maximum()))
+    sb.setProperty(_UNIT_ATTR, std.label)
+    sb.setDecimals(std.decimals)
+    sb.setSingleStep(std.step)
+    _apply_range_hint(sb, field_name)
+
+
+# ---------------------------------------------------------------------------
+# 范围占位提示
+# ---------------------------------------------------------------------------
+
+
+def _apply_range_hint(
+    widget: QWidget,
+    field_name: str,
+    unit_label: str | None = None,
+) -> None:
+    """给数值控件写范围提示：占位文本 + tooltip。
+
+    - 内部 QLineEdit 设 placeholder：框内文本清空时显示"可填范围 min~max 单位"；
+    - tooltip = 字段描述 + 范围（描述经 ``_DESC_ATTR`` 属性传入）。
+    - list[float] 容器：逐个子 spinbox 应用（单位状态在容器上）。
+    """
+    if widget.property("__params_panel_kind") == "list_float":
+        if unit_label is None:
+            opt = _current_unit_option(field_name, widget)
+            unit_label = opt.label if opt else None
+        for child in widget.findChildren(QDoubleSpinBox):
+            _apply_range_hint(child, field_name, unit_label)
+        return
+    if not isinstance(widget, (QDoubleSpinBox, QSpinBox)):
+        return
+    desc = str(widget.property(_DESC_ATTR) or "")
+    if unit_label is None:
+        opt = _current_unit_option(field_name, widget)
+        unit_label = opt.label if opt else None
+    hint = f"可填范围: {widget.minimum():g} ~ {widget.maximum():g}"
+    if unit_label:
+        hint += f" {unit_label}"
+    line_edit = widget.lineEdit()
+    if line_edit is not None:
+        line_edit.setPlaceholderText(hint)
+    widget.setToolTip(f"{desc}\n{hint}" if desc else hint)
 
 
 # ---------------------------------------------------------------------------
@@ -347,7 +593,7 @@ def _make_float_field(field_name: str, field: Any, meta: dict[str, Any]) -> QDou
     return widget
 
 
-def _make_int_field(field: Any, meta: dict[str, Any]) -> QSpinBox:
+def _make_int_field(field_name: str, field: Any, meta: dict[str, Any]) -> QSpinBox:
     widget = QSpinBox()
     if "ge" in meta:
         widget.setMinimum(int(meta["ge"]))
@@ -357,6 +603,12 @@ def _make_int_field(field: Any, meta: dict[str, Any]) -> QSpinBox:
         widget.setMaximum(int(meta["le"]))
     elif "lt" in meta:
         widget.setMaximum(int(meta["lt"]) - 1)
+    # 模型缺约束的 int 字段（如 num_controls）用 GUI 临时范围兜底，避免 Qt
+    # 默认 0~99 截断合法默认值（e2m2e 侧缺 Field 约束，已提 issue）。
+    override = _INT_RANGE_OVERRIDES.get(field_name)
+    if override is not None:
+        widget.setMinimum(override[0])
+        widget.setMaximum(override[1])
     if field.default is not None and field.default is not ...:
         default = int(field.default)
         # 无上界约束时 Qt 默认 max=99，扩到能容纳默认值
@@ -366,6 +618,18 @@ def _make_int_field(field: Any, meta: dict[str, Any]) -> QSpinBox:
     elif widget.minimum() <= 0 <= widget.maximum():
         widget.setValue(0)
     return widget
+
+
+def _make_int_combo(field: Any, options: tuple[tuple[int, str], ...]) -> QComboBox:
+    """整数枚举字段 -> QComboBox，值存 itemData（int），按默认值选中。"""
+    combo = QComboBox()
+    for value, text in options:
+        combo.addItem(text, value)
+    if field.default is not None and field.default is not ...:
+        idx = combo.findData(int(field.default))
+        if idx >= 0:
+            combo.setCurrentIndex(idx)
+    return combo
 
 
 def _make_str_field(field: Any) -> QLineEdit:
@@ -414,8 +678,13 @@ def _make_optional_wrapper(
     return container
 
 
-def _make_list_float_field(field: Any, meta: dict[str, Any]) -> QWidget:
-    """list[float] -> 水平排列的 N 个 QDoubleSpinBox。"""
+def _make_list_float_field(field_name: str, field: Any, meta: dict[str, Any]) -> QWidget:
+    """list[float] -> 水平排列的 N 个 QDoubleSpinBox。
+
+    可切换单位字段（如 srp_offset_m）的单位状态存在容器上
+    （``_UNIT_ATTR``/``_STD_MIN_ATTR``/``_STD_MAX_ATTR``），换算时全部子
+    spinbox 一起缩放。
+    """
     args = typing.get_args(field.annotation)
     n = args[1] if len(args) > 1 and isinstance(args[1], int) else 3
 
@@ -436,6 +705,15 @@ def _make_list_float_field(field: Any, meta: dict[str, Any]) -> QWidget:
         layout.addWidget(sb)
 
     container.setProperty("__params_panel_kind", "list_float")
+    options = get_field_units(field_name)
+    if options is not None:
+        std = options[0]
+        container.setProperty(_STD_MIN_ATTR, -1e12)
+        container.setProperty(_STD_MAX_ATTR, 1e12)
+        container.setProperty(_UNIT_ATTR, std.label)
+        for sb in container.findChildren(QDoubleSpinBox):
+            sb.setDecimals(std.decimals)
+            sb.setSingleStep(std.step)
     return container
 
 
@@ -512,11 +790,15 @@ def _make_field_widget(field_name: str, field: Any) -> QWidget | None:
     elif origin is list:
         args = typing.get_args(inner_tp)
         if args and args[0] is float:
-            base_widget = _make_list_float_field(field, meta)
+            base_widget = _make_list_float_field(field_name, field, meta)
     elif inner_tp is float or origin is float:
         base_widget = _make_float_field(field_name, field, meta)
     elif inner_tp is int or origin is int:
-        base_widget = _make_int_field(field, meta)
+        int_options = _INT_COMBO_OPTIONS.get(field_name)
+        if int_options is not None:
+            base_widget = _make_int_combo(field, int_options)
+        else:
+            base_widget = _make_int_field(field_name, field, meta)
     elif inner_tp is str:
         base_widget = _make_str_field(field)
     else:
@@ -547,6 +829,31 @@ def _make_field_widget(field_name: str, field: Any) -> QWidget | None:
     return base_widget
 
 
+def _decorate_widget(widget: QWidget, name: str, description: str) -> None:
+    """G2: 控件装饰——描述存属性、范围提示写占位/tooltip、JSON 占位提示。
+
+    Optional 包装控件要穿透到内部控件装饰（勾选框 + 内部控件的组合体自身
+    不承载数值）。
+    """
+    widget.setProperty(_DESC_ATTR, description or "")
+    kind = widget.property("__params_panel_kind")
+    if isinstance(widget, (QDoubleSpinBox, QSpinBox)):
+        _apply_range_hint(widget, name)
+        return
+    if kind == "list_float":
+        _apply_range_hint(widget, name)
+        return
+    if kind == "optional":
+        inner = _find_inner_widget(widget)
+        if inner is not None:
+            _decorate_widget(inner, name, description)
+        return
+    if isinstance(widget, QLineEdit):
+        placeholder = _FIELD_PLACEHOLDERS.get(name)
+        if placeholder and not widget.text():
+            widget.setPlaceholderText(placeholder)
+
+
 def build_params_from_model(
     model_class: type,
     parent: QWidget | None = None,
@@ -562,9 +869,7 @@ def build_params_from_model(
         if widget is not None:
             if parent is not None:
                 widget.setParent(parent)
-            # G2: Field.description -> tooltip
-            if field.description:
-                widget.setToolTip(field.description)
+            _decorate_widget(widget, name, field.description or "")
             widgets[name] = widget
     return widgets
 
@@ -629,7 +934,15 @@ def apply_orbit_type_defaults(
         elif isinstance(widget, QSpinBox):
             widget.setValue(int(value))
         elif isinstance(widget, QComboBox):
-            widget.setCurrentText(str(value))
+            if isinstance(value, int):
+                # 整数枚举下拉：按 itemData（int）选中
+                idx = widget.findData(value)
+                if idx >= 0:
+                    widget.setCurrentIndex(idx)
+                else:
+                    widget.setCurrentText(str(value))
+            else:
+                widget.setCurrentText(str(value))
         elif isinstance(widget, QLineEdit):
             widget.setText(str(value))
 
@@ -695,10 +1008,25 @@ def _read_widget_value(name: str, field: Any, widget: QWidget) -> Any:
 
     # G6: list[float] 容器
     if widget.property("__params_panel_kind") == "list_float":
-        return _read_list_float(widget)
+        values = _read_list_float(widget)
+        # 显示单位 -> 标准单位（可切换单位字段，如 srp_offset_m）；
+        # 换算缓存（_STD_VALUE_ATTR）避免多次切单位的舍入累积
+        opt = _current_unit_option(name, widget)
+        if opt is not None:
+            out: list[float] = []
+            for child, v in zip(widget.findChildren(QDoubleSpinBox), values, strict=False):
+                cached = child.property(_STD_VALUE_ATTR)
+                if cached is not None and float(cached[0]) == float(v):
+                    out.append(float(cached[1]))
+                else:
+                    out.append(float(v) * opt.to_standard)
+            values = out
+        return values
 
     if isinstance(widget, QComboBox):
-        val = widget.currentText()
+        data = widget.currentData()
+        # 整数枚举下拉：值存 itemData；文本下拉按文本取值
+        val = data if isinstance(data, int) else widget.currentText()
     elif isinstance(widget, (QDoubleSpinBox, QSpinBox)):
         val = widget.value()
     elif isinstance(widget, QLineEdit):
@@ -708,10 +1036,10 @@ def _read_widget_value(name: str, field: Any, widget: QWidget) -> Any:
 
     if inner_tp is float and isinstance(val, (int, float)):
         result = float(val)
-        # 显示单位 -> 标准单位（可切换单位字段）
+        # 显示单位 -> 标准单位（可切换单位字段）；换算缓存避免舍入累积
         opt = _current_unit_option(name, widget)
-        if opt is not None:
-            result *= opt.to_standard
+        if opt is not None and isinstance(widget, QDoubleSpinBox):
+            result = _standard_value_of(widget, opt.to_standard)
         return result
     if inner_tp is int and isinstance(val, (int, float)):
         return int(val)
@@ -729,8 +1057,13 @@ def collect_params(widgets: dict[str, QWidget], model_class: type) -> dict[str, 
     for name, widget in widgets.items():
         field = model_class.model_fields.get(name)
         if field is None:
-            # 补充字段（模型未暴露）：仅数值控件（control_interval 等）
-            params[name] = widget.value()  # type: ignore[union-attr]
+            # 补充字段（模型未暴露，如 control_interval/feedback_arc）：按控件
+            # 类型取值；可切换单位字段按 FIELD_UNIT_OPTIONS 换算为标准单位。
+            opt = _current_unit_option(name, widget)
+            if isinstance(widget, QDoubleSpinBox) and opt is not None:
+                params[name] = _standard_value_of(widget, opt.to_standard)
+            else:
+                params[name] = widget.value()  # type: ignore[union-attr]
             continue
         params[name] = _read_widget_value(name, field, widget)
     return params

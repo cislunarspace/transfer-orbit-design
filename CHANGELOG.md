@@ -1,5 +1,21 @@
 # 更新日志
 
+## 未发布
+
+### 功能（右边栏更新）
+
+- **参数分组与工具说明**：参数面板按组展示（轨道设计：形状/传播/修正参数；轨道保持：控制/仿真与误差/角动量管理；族生成：族参数），组表头 + 分隔线，轨道类型切换时整组隐藏；工具选择器下方新增工具说明（`ToolSpec.description`）；运行按钮旁新增"重置参数"按钮（重建面板恢复默认值）。
+- **整数枚举改下拉**：`collinear_point`（L1/L2/L3）、`north_south`（北族/南族）、`control_mode`（1-6 带角动量管理语义）、`is_nrho`、`special_mode`、`libration_point` 由裸 spinbox 改为带中文标签的 QComboBox（值存 itemData，收集按数据取值）。
+- **范围占位提示**：数值控件框内文本清空时显示"可填范围: min~max 单位"（placeholder），tooltip 附描述+范围；切单位后提示同步刷新。JSON 文本框（perturbation/dyb/engine_layout）为空时给格式示例提示。模型缺约束的 int 字段（num_controls/num_monte_carlo）用 GUI 临时范围兜底。
+- **单位换算全覆盖**：所有可换算参数都提供国际单位与归一化单位切换——距离 km/m/DU（amplitude/amplitude_in/amplitude_out/perilune_height/semi_major_axis/max_amplitude_km）、相位 周期份额/度/弧度、角度 度/rad、时间 duration 年/月/日/时/秒/TU、output_step 秒/时/日/TU、control_interval/feedback_arc/momentum_interval 天/秒/TU、srp_offset_m 列表容器 m/DU；模型外补充字段（control_interval/feedback_arc）收集时也按显示单位换算。多次切单位精确往返（换算缓存，30 天→TU→秒→天无舍入漂移）。
+- **facade 工具清单对齐**：`TOOL_REGISTRY` 从 `e2m2e.api.Facade.mcp_tools()` 自动派生全量清单——已接入的轨道设计/轨道保持/轨道族生成 enabled，e2m2e 已实现但 GUI 未接入的（转移设计/轨道预报/时空坐标转换）与 e2m2e 占位的（转移搜索/小推力设计/不变流形分析/低能转移/相对运动）灰显并附工具说明；e2m2e 新增工具时清单零改动跟随。稳定性分析保持右键入口（下拉灰显）。
+- **新增轨道类型**：轨道设计支持 e2m2e 5.6.8 全部周期轨道类型——新增 DPO、Axial、L4_SPO、L5_SPO、L4_LPO、L5_LPO、L4_HORSESHOE、L5_HORSESHOE（默认值对齐 `DesignOrbitRequest` model_validator）。
+- **补全字段标签**：perturbation/dyb/earth_degree/moon_degree/correction_revolutions/correction_velocity_tolerance 与轨道保持新字段（control_mode/is_nrho/special_mode/num_controls/num_monte_carlo/engine_layout/momentum_interval/srp_offset_m/spacecraft_mass/srp_torque）全部换中文标签（此前裸显字段名）。
+
+### 上游问题跟踪
+
+- 向 e2m2e 提交 5 条 issue（右边栏无法在本仓解决的问题）：#408（ControlOrbitRequest 是算法层签名子集且缺约束/单位说明）、#409（DesignOrbitRequest 分支范围不可机器读取）、#410（correction_velocity_tolerance 死参数）、#411（orbit_family_generation 无 Request 模型）、#412（facade 工具清单状态不可机器读取）。
+
 ## 3.2.2 (2026-08-13)
 
 适配 e2m2e 5.6.8：上游修复 segmented 逐段积分的位置-时间错位（#398）——`ForceModel._prepare_t_eval` 会在 `t_eval` 末尾自动追加段终点，逐段积分把每段多出的端点状态拼进星历，位置数组比时间网格多出段数个点，`batch_j2000_to_synodic` 按索引配对，错位逐段累积，会合系曲线一圈一圈偏离 Halo 轨道（GUI 观感"慢慢发散"）。同版为 GUI 补上 SPICE 内核引导（首次启动探测不到内核自动弹窗，可一键下载或指定已有目录），并修复轨道保持三处可用性问题（mu 透传崩溃、engine_layout 字符串崩溃、仿真时长超出星历覆盖致全样本失败）。

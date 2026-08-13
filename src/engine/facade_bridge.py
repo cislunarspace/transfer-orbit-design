@@ -172,7 +172,8 @@ class ToolSpec:
     request_model: type[BaseModel] | None  # Pydantic 模型（None = 无正式模型）
     facade_method: str  # FacadeBridge 方法名
     label: str  # UI 显示名
-    enabled: bool  # 是否启用
+    description: str  # 工具说明（面板顶部展示，用用户概念而非实现术语）
+    enabled: bool  # 是否启用（False = 工具下拉灰显"即将提供"）
 
 
 # ---------------------------------------------------------------------------
@@ -201,42 +202,143 @@ class FamilyGenerationRequest(BaseModel):
     n_orbits: int = Field(20, ge=2, le=100, description="族成员数（含种子，实际以延拓结果为准）")
 
 
-def _build_tool_registry() -> dict[str, ToolSpec]:
-    """延迟构建 TOOL_REGISTRY，避免在 e2m2e 未安装时 import 失败。"""
-    try:
-        from e2m2e.api.models import ControlOrbitRequest, DesignOrbitRequest
-    except ImportError:
-        DesignOrbitRequest = None  # type: ignore[misc,assignment]
-        ControlOrbitRequest = None  # type: ignore[misc,assignment]
+#: GUI 已接入工具的元数据（label/description/enabled/request_model 绑定）。
+#: 表外 facade 工具自动灰显（label=方法名，"即将提供"），e2m2e 新增工具时
+#: GUI 清单零改动跟随。facade 工具清单见 ``e2m2e.api.Facade.mcp_tools()``。
+_TOOL_META: dict[str, dict[str, Any]] = {
+    "design_orbit": {
+        "label": "轨道设计",
+        "description": "在 CR3BP 模型中生成周期轨道并修正到星历模型；"
+        "结果与标称星历叠加显示在画布。",
+        "enabled": True,
+        "model": "DesignOrbitRequest",
+    },
+    "control_orbit": {
+        "label": "轨道保持",
+        "description": "以选中轨道工件的标称星历为输入，做带导航、机动与"
+        "光压误差的蒙特卡洛轨道保持仿真，输出受控星历与机动 Δv 统计。",
+        "enabled": True,
+        "model": "ControlOrbitRequest",
+    },
+    "orbit_family_generation": {
+        "label": "轨道族生成",
+        "description": "从 Halo 小振幅种子出发延拓生成轨道族（第一版仅支持"
+        "Halo 北族），画布按成员逐条叠加渲染。",
+        "enabled": True,
+        "model": "FamilyGenerationRequest",  # 本地模型（e2m2e 无对应 Request）
+    },
+    "orbit_stability": {
+        "label": "稳定性分析",
+        "description": "对选中轨道的 CR3BP 周期解做稳定性分析：Floquet 乘子、"
+        "稳定性指数与分岔检测。右键轨道工件触发，不进工具下拉。",
+        "enabled": False,
+        "model": None,
+    },
+    "transfer_design": {
+        "label": "转移设计",
+        "description": "转移轨道设计（e2m2e 已实现，GUI 尚未接入）。",
+        "enabled": False,
+        "model": None,
+    },
+    "orbit_propagation": {
+        "label": "轨道预报",
+        "description": "轨道预报（e2m2e 已实现，GUI 尚未接入）。",
+        "enabled": False,
+        "model": None,
+    },
+    "spacetime_transform": {
+        "label": "时空坐标转换",
+        "description": "时空坐标转换（e2m2e 已实现，GUI 尚未接入）。",
+        "enabled": False,
+        "model": None,
+    },
+    "transfer_search": {
+        "label": "转移搜索",
+        "description": "转移网格搜索（e2m2e 占位，未实现）。",
+        "enabled": False,
+        "model": None,
+    },
+    "low_thrust_design": {
+        "label": "小推力设计",
+        "description": "小推力转移设计（e2m2e 占位，未实现）。",
+        "enabled": False,
+        "model": None,
+    },
+    "manifold_analysis": {
+        "label": "不变流形分析",
+        "description": "不变流形分析（e2m2e 占位，未实现）。",
+        "enabled": False,
+        "model": None,
+    },
+    "low_energy_transfer": {
+        "label": "低能转移",
+        "description": "低能转移（e2m2e 占位，未实现）。",
+        "enabled": False,
+        "model": None,
+    },
+    "relative_motion": {
+        "label": "相对运动",
+        "description": "相对运动（e2m2e 占位，未实现）。",
+        "enabled": False,
+        "model": None,
+    },
+}
 
-    return {
-        "design_orbit": ToolSpec(
-            request_model=DesignOrbitRequest,
-            facade_method="design_orbit",
-            label="轨道设计",
-            enabled=True,
-        ),
-        "control_orbit": ToolSpec(
-            request_model=ControlOrbitRequest,
-            facade_method="control_orbit",
-            label="轨道保持",
-            enabled=True,
-        ),
-        "orbit_family_generation": ToolSpec(
-            request_model=FamilyGenerationRequest,
-            facade_method="generate_family",
-            label="轨道族生成",
-            enabled=True,
-        ),
-        # 稳定性分析无参数面板（右键轨道触发），不进工具下拉；enabled=False
-        # 仅表示下拉灰显，右键菜单（project_tree._ORBIT_MENU_ITEMS）另行启用。
-        "orbit_stability": ToolSpec(
-            request_model=None,
-            facade_method="analyze_stability",
-            label="稳定性分析",
-            enabled=False,
-        ),
+#: GUI 下拉展示顺序（enabled 工具在前；表外 facade 工具按方法名排序追加）。
+_TOOL_ORDER: tuple[str, ...] = (
+    "design_orbit",
+    "control_orbit",
+    "orbit_family_generation",
+    "orbit_stability",
+    "transfer_design",
+    "orbit_propagation",
+    "spacetime_transform",
+    "transfer_search",
+    "low_thrust_design",
+    "manifold_analysis",
+    "low_energy_transfer",
+    "relative_motion",
+)
+
+
+def _build_tool_registry() -> dict[str, ToolSpec]:
+    """构建 TOOL_REGISTRY，与 e2m2e facade 工具清单（mcp_tools）对齐。
+
+    e2m2e 更新后新 facade 工具自动出现在清单中（灰显"即将提供"）；本地
+    ``_TOOL_META`` 只维护 GUI 已接入工具的元数据。e2m2e 未安装时退回本地
+    最小清单（仅已接入的 4 个工具，request_model 置 None）。
+    """
+    facade_names: list[str] = []
+    models: dict[str, type[BaseModel] | None] = {
+        "DesignOrbitRequest": None,
+        "ControlOrbitRequest": None,
+        "FamilyGenerationRequest": FamilyGenerationRequest,
     }
+    try:
+        from e2m2e.api import Facade, mcp_tools
+        from e2m2e.api.models import ControlOrbitRequest, DesignOrbitRequest
+
+        models["DesignOrbitRequest"] = DesignOrbitRequest
+        models["ControlOrbitRequest"] = ControlOrbitRequest
+        facade_names = mcp_tools(Facade())
+    except Exception:  # noqa: BLE001 -- e2m2e 缺失/异常时退回本地最小清单
+        facade_names = ["design_orbit", "control_orbit", "orbit_family_generation"]
+
+    ordered = [n for n in _TOOL_ORDER if n in facade_names]
+    ordered += sorted(set(facade_names) - set(ordered))
+
+    registry: dict[str, ToolSpec] = {}
+    for name in ordered:
+        meta = _TOOL_META.get(name, {})
+        model_key = meta.get("model")
+        registry[name] = ToolSpec(
+            request_model=models.get(model_key) if model_key else None,
+            facade_method=name,
+            label=meta.get("label", name),
+            description=meta.get("description", "e2m2e facade 工具，GUI 尚未接入"),
+            enabled=bool(meta.get("enabled", False)),
+        )
+    return registry
 
 
 TOOL_REGISTRY: dict[str, ToolSpec] = _build_tool_registry()

@@ -103,18 +103,19 @@ class TestCollectParams:
 
 class TestTooltipFromDescription:
     def test_tooltip_set_when_description_present(self, qapp):
-        """字段有 description 时，widget.setToolTip 应被调用。"""
+        """字段有 description 时，toolTip 应含描述（数值控件附范围提示）。"""
         from src.view.params_panel import build_params_from_model
 
         widgets = build_params_from_model(_TooltipModel)
-        assert widgets["with_desc"].toolTip() == "带描述的字段"
+        assert widgets["with_desc"].toolTip().startswith("带描述的字段")
+        assert "可填范围" in widgets["with_desc"].toolTip()
 
-    def test_no_tooltip_when_no_description(self, qapp):
-        """字段无 description 时，toolTip 应为空。"""
+    def test_no_description_tooltip_is_range_only(self, qapp):
+        """字段无 description 时，toolTip 显示范围提示（不再为空）。"""
         from src.view.params_panel import build_params_from_model
 
         widgets = build_params_from_model(_TooltipModel)
-        assert widgets["without_desc"].toolTip() == ""
+        assert widgets["without_desc"].toolTip().startswith("可填范围")
 
 
 # ---------------------------------------------------------------------------
@@ -245,7 +246,11 @@ class TestFamilyGenerationParams:
         from src.view.params_panel import build_params_from_model, collect_params
 
         widgets = build_params_from_model(FamilyGenerationRequest)
-        widgets["libration_point"].setValue(1)
+        # libration_point 是整数枚举下拉（itemData 存 int）
+        cp = widgets["libration_point"]
+        idx = cp.findData(1)
+        assert idx >= 0
+        cp.setCurrentIndex(idx)
         widgets["max_amplitude_km"].setValue(15000.0)
         widgets["n_orbits"].setValue(30)
         params = collect_params(widgets, FamilyGenerationRequest)

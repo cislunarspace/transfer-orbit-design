@@ -43,7 +43,7 @@ def _build_design_tool(window):
 
 class TestDesignOrbitUnitCombo:
     def test_amplitude_row_has_unit_combo(self, qapp):
-        """amplitude 行应含单位 QComboBox，phase 行不含。"""
+        """amplitude/phase 行应含单位 QComboBox（km/m/DU 与 周期份额/度/弧度）。"""
         from PyQt6.QtWidgets import QComboBox
 
         window = _make_window(qapp)
@@ -53,9 +53,10 @@ class TestDesignOrbitUnitCombo:
         phase_row = window._param_rows["phase"]
 
         assert isinstance(amplitude_row[2], QComboBox)
-        assert amplitude_row[2].count() == 2  # km / DU
+        assert amplitude_row[2].count() == 3  # km / m / DU
         assert amplitude_row[0].text() == "振幅 (km)"
-        assert phase_row[2] is None
+        assert isinstance(phase_row[2], QComboBox)
+        assert phase_row[2].count() == 3  # 周期份额 / 度 / 弧度
 
     def test_switch_unit_updates_label_and_collect(self, qapp):
         """切 amplitude 到 DU 后 label 更新、collect 返回标准单位 km。"""
