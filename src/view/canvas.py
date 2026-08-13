@@ -189,9 +189,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
         name = self._chart.colormap
         if name == "tab10":
             return self._TAB10_COLORS[index % len(self._TAB10_COLORS)]
-        import matplotlib.cm as cm
-
-        cmap = cm.get_cmap(name)
+        cmap = matplotlib.colormaps[name]
         return cmap(index % cmap.N)
 
     def sync_state(
@@ -470,7 +468,6 @@ class OrbitCanvas(FigureCanvasQTAgg):
         ``family_states`` 为 ``(m, n, 6)``（无量纲会合系，质心归一）。
         颜色从浅到深映射成员 z 振幅递增，起点小点标记族起始端。
         """
-        import matplotlib.cm as cm
         import matplotlib.colors as mcolors
 
         arr = np.asarray(family_states)
@@ -478,7 +475,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
             return
         m = arr.shape[0]
         norm = mcolors.Normalize(vmin=0.0, vmax=max(m - 1, 1))
-        cmap = cm.get_cmap("viridis")
+        cmap = matplotlib.colormaps["viridis"]
         for j in range(m):
             pos = arr[j][:, :3] - center
             color = cmap(norm(j))
@@ -496,7 +493,6 @@ class OrbitCanvas(FigureCanvasQTAgg):
         self, ax, family_states: Any, label: str, plane: tuple[int, int], center
     ) -> None:
         """轨道族 2D 投影渲染（渐变色逐条，逻辑同 _draw_family_3d）。"""
-        import matplotlib.cm as cm
         import matplotlib.colors as mcolors
 
         arr = np.asarray(family_states)
@@ -504,7 +500,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
             return
         m = arr.shape[0]
         norm = mcolors.Normalize(vmin=0.0, vmax=max(m - 1, 1))
-        cmap = cm.get_cmap("viridis")
+        cmap = matplotlib.colormaps["viridis"]
         for j in range(m):
             pos = arr[j][:, :3] - center
             ax.plot(
@@ -690,14 +686,13 @@ class OrbitCanvas(FigureCanvasQTAgg):
         family = self._family_by_id.get(aid)
         family_times = self._family_times_by_id.get(aid)
         if family is not None and family_times is not None:
-            import matplotlib.cm as cm
             import matplotlib.colors as mcolors
 
             arr = np.asarray(family)
             t = np.asarray(family_times)
             m = arr.shape[0]
             norm = mcolors.Normalize(vmin=0.0, vmax=max(m - 1, 1))
-            cmap = cm.get_cmap("viridis")
+            cmap = matplotlib.colormaps["viridis"]
             label = self._labels_by_id.get(aid, "")
             for j in range(m):
                 pos = _shift(arr[j][:, :3], t[j])
