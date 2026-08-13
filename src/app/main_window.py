@@ -250,6 +250,10 @@ class MainWindow(QMainWindow):
         toolbar.projection_quad.clicked.connect(lambda: self._on_projection_changed("quad"))
         toolbar.frame_synodic.clicked.connect(lambda: self._on_frame_changed("synodic"))
         toolbar.frame_inertial.clicked.connect(lambda: self._on_frame_changed("inertial"))
+        toolbar.center_barycenter.clicked.connect(lambda: self._on_center_changed("barycenter"))
+        toolbar.center_moon.clicked.connect(lambda: self._on_center_changed("moon"))
+        toolbar.center_l1.clicked.connect(lambda: self._on_center_changed("L1"))
+        toolbar.center_l2.clicked.connect(lambda: self._on_center_changed("L2"))
         toolbar.plot_overlay.clicked.connect(lambda: self._on_plot_content_changed("overlay"))
         toolbar.plot_guess.clicked.connect(lambda: self._on_plot_content_changed("guess"))
         toolbar.plot_ephemeris.clicked.connect(lambda: self._on_plot_content_changed("ephemeris"))
@@ -1085,11 +1089,15 @@ class MainWindow(QMainWindow):
 
         - ``initial_guess_states``: CR3BP 周期轨道（无量纲会合系，质心归一）。
           仅 design_orbit 产物有；control_orbit 与历史 Artifact 为 None。
+        - ``initial_guess_times``: 初猜无量纲会合系时间（旋转角 θ=t），
+          惯性系近似视图用。
         - ``ephemeris_synodic``: 星历会合系位置（质心归一，已减 μ；ADR 0013）。
           design_orbit 的标称星历（从 extra["ephemeris"]）与 control_orbit 的
           受控星历（state_data 已在 facade_bridge 减过 μ）共用此槽。
         - ``ephemeris_position_km``: 星历惯性系 GCRS km 位置。
         - ``ephemeris_times_et``: 物理时间（ET 秒，与星历槽同源）。
+        - ``family_states`` / ``family_times``: 轨道族（无量纲会合系）及其
+          无量纲时间，惯性系近似视图用。
         """
         a = self._project.get_by_id(artifact_id)
         if a is None or a.state_data is None:
@@ -1099,15 +1107,18 @@ class MainWindow(QMainWindow):
             "label": a.label,
             "mu": mu,
             "initial_guess_states": None,
+            "initial_guess_times": None,
             "ephemeris_synodic": None,
             "ephemeris_position_km": None,
             "ephemeris_times_et": None,
             "family_states": None,
+            "family_times": None,
         }
         if a.source_tool == "design_orbit":
             # CR3BP 周期轨道作为初猜；标称星历四件套来自 extra["ephemeris"]
             eph = a.extra.get("ephemeris") or {}
             data["initial_guess_states"] = a.state_data
+            data["initial_guess_times"] = a.times
             syn = eph.get("synodic_position")
             if syn is not None:
                 # ADR 0013：星历会合系位置送画布前减 μ（地心归一 → 质心归一）
@@ -1118,6 +1129,7 @@ class MainWindow(QMainWindow):
             # 轨道族：state_data 为 (m, n, 6) 三维数组，画布逐条渲染；
             # 族是纯 CR3BP 周期轨道（无量纲会合系，质心归一），无星历。
             data["family_states"] = a.state_data
+            data["family_times"] = a.times
         else:
             # control_orbit / 历史 ephemeris Artifact：state_data 已是质心归一
             # 的受控星历会合系位置（facade_bridge 减过 μ），作为星历会合系槽。
@@ -1144,22 +1156,41 @@ class MainWindow(QMainWindow):
         self._render_canvas()
 
     def _on_toggle_equal_aspect(self, checked: bool) -> None:
-        """等比例开关：勾选后 3D/2D 按数据真实比例，否则各轴独立填满。"""
+        """等比例开关：勾选后 3D/2D 按数据真实比例（Z 区间会多取一些），否则各轴独立填满。"""
         self._canvas_state.equal_aspect = checked
+        self._render_canvas()
+
+    def _on_center_changed(self, center: str) -> None:
+        """中心视图切换：质心/月球/L1/L2（惯性系下 L1/L2 已灰显，不会到达）。"""
+        self._canvas_state.center = center
         self._render_canvas()
 
     def _on_frame_changed(self, frame: str) -> None:
         """坐标系切换：会合系（CR3BP 旋转系）/ 惯性系（GCRS/J2000，km）。
 
-        inertial 需要 position_km + times_et；缺失时画布降级（仅地球原点），
-        并在状态栏提示。inertial 下 CR3BP 初猜无几何意义，"初猜"绘制内容
-        自动切到"星历"并灰显控件。
+        inertial 需要 position_km + times_et；纯 CR3BP 产物（轨道族/旧初猜）
+        降级为旋转近似视图。inertial 下 L1/L2 中心无意义（灰显并回退质心）；
+        CR3BP 初猜无几何意义，"初猜"绘制内容自动切到"星历"并灰显控件。
         """
         self._canvas_state.frame = frame
+        if frame == "inertial" and self._canvas_state.center in ("L1", "L2"):
+            # L1/L2 是会合系概念，惯性系下回退质心（即地球原点）
+            self._canvas_state.center = "barycenter"
         self._update_plot_content_controls()
+        self._update_center_controls()
         if frame == "inertial" and not self._selected_artifacts_have_inertial():
-            self._status_bar.showMessage("该 Artifact 无星历惯性数据", _STATUS_MSG_TIMEOUT_MS)
+            self._status_bar.showMessage(
+                "该 Artifact 无星历惯性数据，显示会合系旋转近似视图", _STATUS_MSG_TIMEOUT_MS
+            )
         self._render_canvas()
+
+    def _update_center_controls(self) -> None:
+        """惯性系下 L1/L2 中心无几何意义，灰显；回会合系恢复。"""
+        tb = self._viz.projection_toolbar
+        enabled = self._canvas_state.frame == "synodic"
+        tb.center_l1.setEnabled(enabled)
+        tb.center_l2.setEnabled(enabled)
+        self._sync_toolbar_buttons()
 
     def _on_plot_content_changed(self, content: str) -> None:
         """绘制内容切换：初猜 / 星历 / 叠加（与会合系/惯性系正交）。
@@ -1206,6 +1237,10 @@ class MainWindow(QMainWindow):
         tb.projection_quad.setChecked(state.projection == "quad")
         tb.frame_synodic.setChecked(state.frame == "synodic")
         tb.frame_inertial.setChecked(state.frame == "inertial")
+        tb.center_barycenter.setChecked(state.center == "barycenter")
+        tb.center_moon.setChecked(state.center == "moon")
+        tb.center_l1.setChecked(state.center == "L1")
+        tb.center_l2.setChecked(state.center == "L2")
         tb.plot_overlay.setChecked(state.plot_content == "overlay")
         tb.plot_guess.setChecked(state.plot_content == "guess")
         tb.plot_ephemeris.setChecked(state.plot_content == "ephemeris")

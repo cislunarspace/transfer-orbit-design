@@ -295,13 +295,13 @@ class PlotConfig(BaseModel):
     legend: float = 14
     colorbar: float = 13
     suptitle: float = 18
-    lp_label: float = 16
+    lp_label: float = 12
 
     # 颜色和标记参数
     colormap: str = "coolwarm"
-    primary_body_color: str = "blue"
+    primary_body_color: str = "#2E86AB"
     primary_body_size: int = 200
-    secondary_body_color: str = "silver"
+    secondary_body_color: str = "#95A5A6"
     secondary_body_size: int = 100
     # 天体图标缩放系数（用于 PNG 图标显示大小微调，不影响散点回退）
     primary_body_icon_scale: float = 1.0
@@ -313,9 +313,9 @@ class PlotConfig(BaseModel):
     # 主天体/次天体图标文件名（相对于 icon_path）
     primary_body_icon: str = "地球.png"
     secondary_body_icon: str = "月球.png"
-    lp_colors: list[str] = Field(default_factory=lambda: ["gray"] * 5)
+    lp_colors: list[str] = Field(default_factory=lambda: ["#d62728"] * 5)
     lp_markers: list[str] = Field(default_factory=lambda: ["^"] * 5)
-    lp_sizes: list[int] = Field(default_factory=lambda: [60] * 5)
+    lp_sizes: list[int] = Field(default_factory=lambda: [80] * 5)
 
     # 线条和图像尺寸参数
     orbit_linewidth: float = 1.5

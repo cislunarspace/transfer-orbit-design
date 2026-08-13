@@ -33,6 +33,11 @@ _PROJECTION_PLANE_AXES: dict[str, tuple[int, int]] = {
     "yz": (1, 2),
 }
 
+# 等比模式下 Z 轴区间相对 XY 区间的最小比例：近平面轨道（Z 振幅远小于 XY）
+# 若直接按数据范围等比，Z 会被压成一条线；把 Z 显示区间“多取一些”到 XY 的
+# 该比例（0.5），Z 细节可见，又不至于与 XY 等量。
+_EQUAL_ASPECT_MIN_Z_RATIO = 0.5
+
 
 @dataclass
 class CanvasState:
@@ -50,9 +55,14 @@ class CanvasState:
         plot_content: 绘制内容（与 frame 正交），``"guess" | "ephemeris" | "overlay"``。
             会合系下三选一可选；惯性系下``"guess"`` 不可用（CR3BP 无量纲无惯性系表示）。
             默认 ``"overlay"``：design_orbit 产物同时画初猜与星历。
-        equal_aspect: 是否等比例显示。``True`` 时 3D 按数据范围设 box_aspect、
-            2D 设 aspect='equal'，如实反映轨道几何（近平面轨道 Z 会被压扁）；
-            ``False``（默认）时各轴独立缩放填满画面，Z 方向细节清晰可见。
+        equal_aspect: 是否等比例显示。``True``（默认）时 3D 按数据范围设 box_aspect、
+            2D 设 aspect='equal'，如实反映轨道几何；近平面轨道（Z 振幅远小于 XY）的
+            Z 轴区间会扩大到 XY 的 ``_EQUAL_ASPECT_MIN_Z_RATIO`` 倍，避免压成一条线。
+            ``False`` 时各轴独立缩放填满画面。
+        center: 绘图中心，``"barycenter" | "moon" | "L1" | "L2"``（会合系）。
+            渲染时整体平移使所选点成为坐标原点。惯性系下 ``"L1"/"L2"`` 无意义
+            （由 main_window 灰显），``"barycenter"`` 即地球原点、``"moon"`` 为
+            月球中心。
     """
 
     projection: str = "3d"
@@ -61,7 +71,8 @@ class CanvasState:
     show_libration: bool = True
     frame: str = "synodic"
     plot_content: str = "overlay"
-    equal_aspect: bool = False
+    equal_aspect: bool = True
+    center: str = "barycenter"
 
     def copy(self) -> CanvasState:
         """返回副本（不可变更新模式：读当前 state → 改字段 → 传新 state）。"""
@@ -73,6 +84,7 @@ class CanvasState:
             frame=self.frame,
             plot_content=self.plot_content,
             equal_aspect=self.equal_aspect,
+            center=self.center,
         )
 
 
@@ -121,6 +133,8 @@ class OrbitCanvas(FigureCanvasQTAgg):
         self._labels_by_id: dict[str, str] = {}
         self._mu_by_id: dict[str, float | None] = {}
         self._family_by_id: dict[str, Any] = {}
+        self._initial_guess_times_by_id: dict[str, Any] = {}
+        self._family_times_by_id: dict[str, Any] = {}
         self._artifacts_provider = None
 
     def _setup_axes(
@@ -155,9 +169,12 @@ class OrbitCanvas(FigureCanvasQTAgg):
             - ``label``: str
             - ``mu``: float | None
             - ``initial_guess_states``: ndarray (n,6) | None  -- CR3BP 周期轨道（无量纲会合系）
+            - ``initial_guess_times``: ndarray (n,) | None   -- 无量纲会合系时间（θ=角度）
             - ``ephemeris_synodic``: ndarray (n,3|6) | None   -- 星历会合系位置（质心归一，已减 μ）
             - ``ephemeris_position_km``: ndarray (n,3) | None -- 星历惯性系 GCRS km
             - ``ephemeris_times_et``: ndarray (n,) | None     -- 物理时间 ET 秒
+            - ``family_states``: ndarray (m,n,6) | None       -- 轨道族（无量纲会合系）
+            - ``family_times``: ndarray (m,n) | None          -- 族各成员无量纲时间
         """
         self._artifacts_provider = provider
 
@@ -183,6 +200,8 @@ class OrbitCanvas(FigureCanvasQTAgg):
         self._labels_by_id = {}
         self._mu_by_id = {}
         self._family_by_id = {}
+        self._initial_guess_times_by_id = {}
+        self._family_times_by_id = {}
         for aid in artifact_ids:
             data = self._artifacts_provider(aid) if self._artifacts_provider else None
             if data is None:
@@ -194,6 +213,8 @@ class OrbitCanvas(FigureCanvasQTAgg):
             eph_pos = data.get("ephemeris_position_km")
             eph_t = data.get("ephemeris_times_et")
             family = data.get("family_states")
+            initial_t = data.get("initial_guess_times")
+            family_t = data.get("family_times")
             # 显式契约：任一星历槽存在即认为该 Artifact 有内容；纯 CR3BP 初猜
             # 的旧 Artifact 仅 initial_guess 非 None。完全无内容则跳过。
             if initial is None and eph_syn is None and eph_pos is None and family is None:
@@ -210,6 +231,10 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 self._ephemeris_times_et_by_id[aid] = eph_t
             if family is not None:
                 self._family_by_id[aid] = family
+            if initial_t is not None:
+                self._initial_guess_times_by_id[aid] = initial_t
+            if family_t is not None:
+                self._family_times_by_id[aid] = family_t
 
     # -- 渲染入口 ----------------------------------------------------------
 
@@ -252,57 +277,86 @@ class OrbitCanvas(FigureCanvasQTAgg):
 
     def _render_axes(self, ax, state: CanvasState) -> None:
         """在单个 Axes 上按 state 绘制轨道 + 标注（单视图与四视图共用）。"""
+        center = np.zeros(3)
+        if state.frame == "synodic" and state.center != "barycenter":
+            center = self._center_offset(state)
         if state.frame == "inertial":
-            # 1. 轨道（ephemeris_position_km）
+            # 1. 轨道：优先真惯性系 position_km；无则用会合系旋转近似视图
+            #    （轨道族/旧初猜等纯 CR3BP 产物，历元对齐取 θ(t=0)=0）
             if state.projection == "3d":
                 self._draw_3d_inertial_orbits(ax, state)
             else:
                 self._draw_2d_inertial_orbits(ax, state)
-            # 2. 地球原点 + 月球 SPICE 轨迹（依赖 show_bodies，与 synodic 一致）
+            # 2. 地球原点 + 月球轨迹（依赖 show_bodies，与 synodic 一致）
             if state.show_bodies:
                 self._draw_inertial_bodies(ax, state)
             # inertial 不画平动点（A3 决策）
         else:
             # 1. 轨道（按 plot_content 选初猜/星历/叠加）
             if state.projection == "3d":
-                self._draw_3d_synodic_orbits(ax, state)
+                self._draw_3d_synodic_orbits(ax, state, center)
             else:
-                self._draw_2d_synodic_orbits(ax, state)
+                self._draw_2d_synodic_orbits(ax, state, center)
             # 2. 地月标注（依赖 mu）
             if state.show_bodies:
-                self._draw_bodies(ax, state)
+                self._draw_bodies(ax, state, center)
             # 3. L1-L5 标注
             if state.show_libration:
-                self._draw_libration(ax, state)
+                self._draw_libration(ax, state, center)
 
-        if state.frame == "inertial":
-            has_orbits = bool(self._ephemeris_position_km_by_id)
-        else:
-            has_orbits = (
-                bool(self._initial_guess_by_id)
-                or bool(self._ephemeris_synodic_by_id)
-                or bool(self._family_by_id)
-            )
-        self._setup_axes(
-            ax,
-            state.projection,
-            title="" if has_orbits else "选择一个工件以可视化",
+        has_orbits = (
+            bool(self._ephemeris_position_km_by_id)
+            or bool(self._initial_guess_by_id)
+            or bool(self._ephemeris_synodic_by_id)
+            or bool(self._family_by_id)
         )
+        if has_orbits:
+            title = ""
+        elif state.frame == "inertial":
+            title = "该 Artifact 无惯性系星历数据"
+        else:
+            title = "选择一个工件以可视化"
+        self._setup_axes(ax, state.projection, title=title)
+        # 自定义中心视图（月球/L1/L2；惯性系月球中心）：坐标轴范围对称于
+        # 中心点（平移后即原点），使所选中心位于画面正中央。否则 mpl
+        # autoscale 会按平移后的数据重新居中，视觉上“中心没变”。
+        is_custom_center = (state.frame == "synodic" and state.center != "barycenter") or (
+            state.frame == "inertial" and state.center == "moon"
+        )
+        if is_custom_center:
+            ax.set_xlim(*self._symmetrize(*ax.get_xlim()))
+            ax.set_ylim(*self._symmetrize(*ax.get_ylim()))
+            if state.projection == "3d":
+                ax.set_zlim(*self._symmetrize(*ax.get_zlim()))  # type: ignore[attr-defined]
         if state.projection == "3d":
-            # equal_aspect=True 时按各轴数据范围设 box_aspect。mpl 3D 默认把
-            # Figure 宽高比塞进 3D 盒子（与数据无关），近平面轨道（DRO 等，Z
-            # 振幅远小于 XY）的 Z 会被放大约一个数量级，看起来大幅鼓起。
-            # equal_aspect=False 时保留 mpl 默认（各轴独立填满），Z 细节清晰。
+            # 3D 等比例：按各轴显示区间设 box_aspect。Z 区间先“多取一些”
+            # （至少为 XY 较小范围的 _EQUAL_ASPECT_MIN_Z_RATIO 倍），避免近平面
+            # 轨道（DRO 等，Z 振幅远小于 XY）被压成一条线。
             if state.equal_aspect:
+                xspan = np.ptp(ax.get_xlim())
+                yspan = np.ptp(ax.get_ylim())
+                zlim = ax.get_zlim()  # type: ignore[attr-defined]
+                target = max(np.ptp(zlim), min(xspan, yspan) * _EQUAL_ASPECT_MIN_Z_RATIO)
+                zmid = (zlim[0] + zlim[1]) / 2
+                ax.set_zlim(zmid - target / 2, zmid + target / 2)  # type: ignore[attr-defined]
                 ax.set_box_aspect(
                     tuple(np.ptp(lim) for lim in (ax.get_xlim(), ax.get_ylim(), ax.get_zlim()))  # type: ignore[attr-defined, arg-type]
                 )
+            # equal_aspect=False 时保留 mpl 默认（各轴独立缩放填满画面）。
         else:
-            # 2D 等比例：mpl 默认 aspect='auto' 让每轴独立填满画面，XZ/YZ 下
-            # Z 数据远小于 X/Y 会被拉伸填满画面高度（同样约 9x 放大），与 3D
-            # box_aspect 失真同类。equal_aspect=True 时等比例后如实反映轨道
-            # 几何（DRO 显示为近平面）；False 时各轴独立缩放，Z 细节清晰。
-            ax.set_aspect("equal" if state.equal_aspect else "auto")
+            # 2D 等比例：XZ/YZ 投影纵轴是 Z，同样“多取一些”避免压成细条。
+            if state.equal_aspect:
+                plane = _PROJECTION_PLANE_AXES[state.projection]
+                if plane[1] == 2:
+                    xspan = np.ptp(ax.get_xlim())
+                    ylim = ax.get_ylim()
+                    target = max(np.ptp(ylim), xspan * _EQUAL_ASPECT_MIN_Z_RATIO)
+                    ymid = (ylim[0] + ylim[1]) / 2
+                    ax.set_ylim(ymid - target / 2, ymid + target / 2)
+                ax.set_aspect("equal")
+            else:
+                # 非等比：每轴独立 autoscale 填满画面，Z 细节清晰可见。
+                ax.set_aspect("auto")
 
     # -- 内部绘制 ----------------------------------------------------------
 
@@ -312,11 +366,37 @@ class OrbitCanvas(FigureCanvasQTAgg):
         arr = np.asarray(states_or_pos)
         return arr[:, :3] if arr.ndim == 2 and arr.shape[1] >= 3 else arr
 
-    def _draw_3d_synodic_orbits(self, ax, state) -> None:
+    @staticmethod
+    def _symmetrize(lo: float, hi: float) -> tuple[float, float]:
+        """把 (lo, hi) 展成以 0 为中心的对称区间，保持覆盖原范围。"""
+        r = max(abs(lo), abs(hi))
+        return (-r, r)
+
+    def _center_offset(self, state: CanvasState) -> Any:
+        """会合系中心点（无量纲，质心归一）——渲染时整体平移用。
+
+        ``center="barycenter"`` 返回零向量；其余经 viz_adapter 计算
+        （月球 (1-μ,0,0)；L1/L2 由 e2m2e 解算）。无 mu 可用时回退质心。
+        """
+        if state.center == "barycenter":
+            return np.zeros(3)
+        mu: float | None = None
+        for aid in state.visible_artifacts:
+            mu = self._mu_by_id.get(aid)
+            if mu is not None:
+                break
+        if mu is None:
+            return np.zeros(3)
+        from src.engine.viz_adapter import body_center_offset
+
+        return np.asarray(body_center_offset(mu, state.center))
+
+    def _draw_3d_synodic_orbits(self, ax, state, center) -> None:
         """会合系轨道：按 plot_content 选 initial_guess / ephemeris_synodic / 两者叠加。
 
         叠加时初猜用实线、星历用虚线，相邻 TAB10 色区分；非叠加模式同一 artifact
-        的两条数据按 TAB10 顺序着色（与现有约定一致）。
+        的两条数据按 TAB10 顺序着色（与现有约定一致）。所有坐标整体减去 ``center``
+        （中心视图平移）。
         """
         content = state.plot_content
         for i, aid in enumerate(state.visible_artifacts):
@@ -325,12 +405,12 @@ class OrbitCanvas(FigureCanvasQTAgg):
             eph_color = self._TAB10_COLORS[(2 * i + 1) % len(self._TAB10_COLORS)]
             if aid in self._family_by_id:
                 # 轨道族：m 条成员按 viridis 渐变色逐条绘制，覆盖普通槽。
-                self._draw_family_3d(ax, self._family_by_id[aid], label)
+                self._draw_family_3d(ax, self._family_by_id[aid], label, center)
                 continue
             if content in ("guess", "overlay"):
                 initial = self._initial_guess_by_id.get(aid)
                 if initial is not None:
-                    pos = self._positions(initial)
+                    pos = self._positions(initial) - center
                     ax.plot(
                         pos[:, 0],
                         pos[:, 1],
@@ -344,7 +424,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
             if content in ("ephemeris", "overlay"):
                 eph_syn = self._ephemeris_synodic_by_id.get(aid)
                 if eph_syn is not None:
-                    pos = self._positions(eph_syn)
+                    pos = self._positions(eph_syn) - center
                     suffix = "（星历）" if content == "overlay" else ""
                     ax.plot(
                         pos[:, 0],
@@ -358,7 +438,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     if content == "ephemeris":
                         ax.scatter(*pos[0], s=30, c=eph_color, zorder=5)
 
-    def _draw_family_3d(self, ax, family_states: Any, label: str) -> None:
+    def _draw_family_3d(self, ax, family_states: Any, label: str, center) -> None:
         """轨道族 3D 渲染：m 条成员按 viridis 渐变色逐条绘制。
 
         ``family_states`` 为 ``(m, n, 6)``（无量纲会合系，质心归一）。
@@ -374,7 +454,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
         norm = mcolors.Normalize(vmin=0.0, vmax=max(m - 1, 1))
         cmap = cm.get_cmap("viridis")
         for j in range(m):
-            pos = arr[j][:, :3]
+            pos = arr[j][:, :3] - center
             color = cmap(norm(j))
             ax.plot(
                 pos[:, 0],
@@ -384,9 +464,11 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 color=color,
                 label=label if j == 0 else None,
             )
-        ax.scatter(*arr[0][0, :3], s=20, c=cmap(norm(0)), zorder=5)
+        ax.scatter(*(arr[0][0, :3] - center), s=20, color=cmap(norm(0)), zorder=5)
 
-    def _draw_family_2d(self, ax, family_states: Any, label: str, plane: tuple[int, int]) -> None:
+    def _draw_family_2d(
+        self, ax, family_states: Any, label: str, plane: tuple[int, int], center
+    ) -> None:
         """轨道族 2D 投影渲染（渐变色逐条，逻辑同 _draw_family_3d）。"""
         import matplotlib.cm as cm
         import matplotlib.colors as mcolors
@@ -398,7 +480,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
         norm = mcolors.Normalize(vmin=0.0, vmax=max(m - 1, 1))
         cmap = cm.get_cmap("viridis")
         for j in range(m):
-            pos = arr[j][:, :3]
+            pos = arr[j][:, :3] - center
             ax.plot(
                 pos[:, plane[0]],
                 pos[:, plane[1]],
@@ -407,7 +489,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 label=label if j == 0 else None,
             )
 
-    def _draw_2d_synodic_orbits(self, ax, state) -> None:
+    def _draw_2d_synodic_orbits(self, ax, state, center) -> None:
         plane = _PROJECTION_PLANE_AXES[state.projection]
         content = state.plot_content
         for i, aid in enumerate(state.visible_artifacts):
@@ -416,12 +498,12 @@ class OrbitCanvas(FigureCanvasQTAgg):
             eph_color = self._TAB10_COLORS[(2 * i + 1) % len(self._TAB10_COLORS)]
             if aid in self._family_by_id:
                 # 轨道族：2D 投影逐条绘制
-                self._draw_family_2d(ax, self._family_by_id[aid], label, plane)
+                self._draw_family_2d(ax, self._family_by_id[aid], label, plane, center)
                 continue
             if content in ("guess", "overlay"):
                 initial = self._initial_guess_by_id.get(aid)
                 if initial is not None:
-                    pos = self._positions(initial)
+                    pos = self._positions(initial) - center
                     ax.plot(
                         pos[:, plane[0]],
                         pos[:, plane[1]],
@@ -433,7 +515,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
             if content in ("ephemeris", "overlay"):
                 eph_syn = self._ephemeris_synodic_by_id.get(aid)
                 if eph_syn is not None:
-                    pos = self._positions(eph_syn)
+                    pos = self._positions(eph_syn) - center
                     suffix = "（星历）" if content == "overlay" else ""
                     ax.plot(
                         pos[:, plane[0]],
@@ -444,7 +526,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                         label=f"{label}{suffix}",
                     )
 
-    def _draw_bodies(self, ax, state) -> None:
+    def _draw_bodies(self, ax, state, center) -> None:
         # 经 viz_adapter 调用 e2m2e，view 不直接 import e2m2e
         from src.engine.viz_adapter import draw_primary_bodies
 
@@ -453,10 +535,12 @@ class OrbitCanvas(FigureCanvasQTAgg):
         for aid in state.visible_artifacts:
             mu = self._mu_by_id.get(aid)
             if mu is not None:
-                draw_primary_bodies(ax, mu, is_3d=is_3d, plane=plane)
+                draw_primary_bodies(
+                    ax, mu, is_3d=is_3d, plane=plane, center=tuple(center)
+                )
                 break  # 只画一次（同一 CR3BP 系统）
 
-    def _draw_libration(self, ax, state) -> None:
+    def _draw_libration(self, ax, state, center) -> None:
         from src.engine.viz_adapter import draw_libration_points
 
         is_3d = state.projection == "3d"
@@ -464,54 +548,184 @@ class OrbitCanvas(FigureCanvasQTAgg):
         for aid in state.visible_artifacts:
             mu = self._mu_by_id.get(aid)
             if mu is not None:
-                draw_libration_points(ax, mu, is_3d=is_3d, plane=plane)
+                draw_libration_points(
+                    ax, mu, is_3d=is_3d, plane=plane, center=tuple(center)
+                )
                 break
 
     # -- inertial 分支（GCRS/J2000，km）-----------------------------------
 
     def _draw_3d_inertial_orbits(self, ax, state) -> None:
         for i, aid in enumerate(state.visible_artifacts):
-            position_km = self._ephemeris_position_km_by_id.get(aid)
-            if position_km is None:
-                continue
             color = self._TAB10_COLORS[i % len(self._TAB10_COLORS)]
-            ax.plot(
-                position_km[:, 0],
-                position_km[:, 1],
-                position_km[:, 2],
-                linewidth=0.8,
-                color=color,
-                label=self._labels_by_id.get(aid, ""),
-            )
-            ax.scatter(*position_km[0], s=30, c=color, zorder=5)
+            label = self._labels_by_id.get(aid, "")
+            position_km = self._ephemeris_position_km_by_id.get(aid)
+            if position_km is not None:
+                pos = np.asarray(position_km)[:, :3]
+                if state.center == "moon":
+                    times_et = self._ephemeris_times_et_by_id.get(aid)
+                    if times_et is not None:
+                        moon = self._moon_gcrs_positions(times_et)
+                        if moon is not None:
+                            pos = pos - moon
+                ax.plot(
+                    pos[:, 0],
+                    pos[:, 1],
+                    pos[:, 2],
+                    linewidth=0.8,
+                    color=color,
+                    label=label,
+                )
+                ax.scatter(*pos[0], s=30, c=color, zorder=5)
+                continue
+            # 无 position_km：会合系旋转近似视图（轨道族/旧初猜等纯 CR3BP 产物）
+            self._draw_inertial_approx(ax, aid, state, color, plane=None)
 
     def _draw_2d_inertial_orbits(self, ax, state) -> None:
         plane = _PROJECTION_PLANE_AXES[state.projection]
         for i, aid in enumerate(state.visible_artifacts):
-            position_km = self._ephemeris_position_km_by_id.get(aid)
-            if position_km is None:
-                continue
             color = self._TAB10_COLORS[i % len(self._TAB10_COLORS)]
-            ax.plot(
-                position_km[:, plane[0]],
-                position_km[:, plane[1]],
-                linewidth=0.8,
-                color=color,
-                label=self._labels_by_id.get(aid, ""),
-            )
+            label = self._labels_by_id.get(aid, "")
+            position_km = self._ephemeris_position_km_by_id.get(aid)
+            if position_km is not None:
+                pos = np.asarray(position_km)[:, :3]
+                if state.center == "moon":
+                    times_et = self._ephemeris_times_et_by_id.get(aid)
+                    if times_et is not None:
+                        moon = self._moon_gcrs_positions(times_et)
+                        if moon is not None:
+                            pos = pos - moon
+                ax.plot(
+                    pos[:, plane[0]],
+                    pos[:, plane[1]],
+                    linewidth=0.8,
+                    color=color,
+                    label=label,
+                )
+                continue
+            self._draw_inertial_approx(ax, aid, state, color, plane=plane)
+
+    @staticmethod
+    def _moon_gcrs_positions(times_et) -> Any:
+        """SPICE 查询月球 GCRS 位置（km），失败返回 None。"""
+        from src.engine.viz_adapter import moon_position_gcrs
+
+        return moon_position_gcrs(times_et)
+
+    def _draw_inertial_approx(self, ax, aid: str, state, color: str, *, plane) -> None:
+        """会合系数据旋转到惯性系 km 的近似视图（历元对齐取 θ(t=0)=0）。
+
+        用于无 position_km 的纯 CR3BP 产物（轨道族/旧初猜）：r_gcrs =
+        R(θ)·(r_syn + (μ,0,0))·DU。moon 中心时再减月球解析位置 R(θ)·(1,0,0)·DU。
+        """
+        from src.engine.viz_adapter import approx_moon_gcrs_km, synodic_to_gcrs_km
+
+        mu = self._mu_by_id.get(aid)
+        if mu is None:
+            return
+        moon_center = state.center == "moon"
+
+        def _shift(pos3: Any, th: Any) -> Any:
+            out = synodic_to_gcrs_km(pos3, th, mu)
+            if moon_center:
+                out = out - approx_moon_gcrs_km(th)
+            return out
+
+        family = self._family_by_id.get(aid)
+        family_times = self._family_times_by_id.get(aid)
+        if family is not None and family_times is not None:
+            import matplotlib.cm as cm
+            import matplotlib.colors as mcolors
+
+            arr = np.asarray(family)
+            t = np.asarray(family_times)
+            m = arr.shape[0]
+            norm = mcolors.Normalize(vmin=0.0, vmax=max(m - 1, 1))
+            cmap = cm.get_cmap("viridis")
+            label = self._labels_by_id.get(aid, "")
+            for j in range(m):
+                pos = _shift(arr[j][:, :3], t[j])
+                if plane is None:
+                    ax.plot(
+                        pos[:, 0], pos[:, 1], pos[:, 2], linewidth=0.7,
+                        color=cmap(norm(j)), label=label if j == 0 else None,
+                    )
+                else:
+                    ax.plot(
+                        pos[:, plane[0]], pos[:, plane[1]], linewidth=0.7,
+                        color=cmap(norm(j)), label=label if j == 0 else None,
+                    )
+            return
+        initial = self._initial_guess_by_id.get(aid)
+        initial_times = self._initial_guess_times_by_id.get(aid)
+        if initial is not None and initial_times is not None:
+            pos = _shift(np.asarray(initial)[:, :3], np.asarray(initial_times))
+            label = self._labels_by_id.get(aid, "")
+            if plane is None:
+                ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], linewidth=0.8, color=color, label=label)
+            else:
+                ax.plot(
+                    pos[:, plane[0]], pos[:, plane[1]], linewidth=0.8, color=color, label=label
+                )
 
     def _draw_inertial_bodies(self, ax, state) -> None:
         # 经 viz_adapter 调 SPICE 查月球 GCRS 位置；地球在原点（惯性系定义）
-        from src.engine.viz_adapter import draw_earth_origin_marker, draw_moon_gcrs_trajectory
+        from src.engine.viz_adapter import (
+            approx_moon_gcrs_km,
+            draw_earth_origin_marker,
+            draw_moon_gcrs_trajectory,
+        )
 
         is_3d = state.projection == "3d"
         plane = None if is_3d else _PROJECTION_PLANE_AXES[state.projection]
-        draw_earth_origin_marker(ax, is_3d=is_3d, plane=plane)
-        # 月球轨迹用任一可见 Artifact 的 times_et（同一物理时段，月球轨迹唯一）
+        if state.center == "moon":
+            # 月球中心视图：月球 marker 在原点，地球相对月球的位置/轨迹另行绘制
+            if is_3d:
+                ax.plot(
+                    [0], [0], [0], "o", color="#95A5A6", markersize=10,
+                    markeredgecolor="black", markeredgewidth=0.8, label="Moon",
+                )
+            else:
+                ax.scatter(0, 0, color="#95A5A6", s=90, edgecolors="#566573", linewidth=1.2, zorder=10)
+                ax.annotate("Moon", (0, 0), xytext=(6, 6), textcoords="offset points", fontsize=10)
+        else:
+            draw_earth_origin_marker(ax, is_3d=is_3d, plane=plane)
+        # 月球（或月球中心视图的地球）轨迹：用任一可见 Artifact 的时间轴
         for aid in state.visible_artifacts:
             times_et = self._ephemeris_times_et_by_id.get(aid)
             if times_et is not None:
-                draw_moon_gcrs_trajectory(ax, times_et, is_3d=is_3d, plane=plane)
+                moon = self._moon_gcrs_positions(times_et)
+                if moon is None:
+                    break
+                if state.center == "moon":
+                    # 月球中心：地球相对月球 = -moon_pos(t)，画灰虚线轨迹
+                    earth = -moon
+                    if is_3d:
+                        ax.plot(earth[:, 0], earth[:, 1], earth[:, 2], linewidth=0.8,
+                                color="#2E86AB", linestyle="--", label="Earth")
+                    else:
+                        ax.plot(earth[:, plane[0]], earth[:, plane[1]], linewidth=0.8,
+                                color="#2E86AB", linestyle="--", label="Earth")
+                else:
+                    draw_moon_gcrs_trajectory(ax, times_et, is_3d=is_3d, plane=plane)
+                break
+            # 无 times_et：近似视图（轨道族/旧初猜）——月球解析正圆轨迹
+            th = None
+            family_times = self._family_times_by_id.get(aid)
+            if family_times is not None:
+                th = np.asarray(family_times)[0]
+            elif self._initial_guess_times_by_id.get(aid) is not None:
+                th = np.asarray(self._initial_guess_times_by_id[aid])
+            if th is not None:
+                moon = approx_moon_gcrs_km(th)
+                if state.center == "moon":
+                    break  # 月球轨迹退化为原点一点，无需画
+                if is_3d:
+                    ax.plot(moon[:, 0], moon[:, 1], moon[:, 2], linewidth=0.8,
+                            color="gray", linestyle="--", label="Moon")
+                else:
+                    ax.plot(moon[:, plane[0]], moon[:, plane[1]], linewidth=0.8,
+                            color="gray", linestyle="--", label="Moon")
                 break
 
     # -- 便捷封装（向后兼容） -----------------------------------------------
@@ -612,6 +826,7 @@ class OrbitCanvasWithToolbar:
     """画布 + 导航工具栏 + 投影/标注工具栏的组合控件。"""
 
     def __init__(self, parent=None):
+        from PyQt6.QtCore import Qt
         from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
         from src.view.canvas_toolbar import CanvasToolbar
@@ -626,7 +841,8 @@ class OrbitCanvasWithToolbar:
 
         layout.addWidget(self.toolbar)
         layout.addWidget(self.projection_toolbar)
-        layout.addWidget(self.canvas)
+        # 画布宽度固定 7.5cm，水平居中（工具栏仍横跨整行）
+        layout.addWidget(self.canvas, alignment=Qt.AlignmentFlag.AlignHCenter)
 
     def plot_orbit(self, **kwargs) -> None:
         self.canvas.plot_orbit(**kwargs)

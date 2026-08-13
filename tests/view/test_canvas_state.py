@@ -62,22 +62,22 @@ class TestCanvasState:
         state = CanvasState()
         assert state.plot_content == "overlay"
 
-    def test_default_equal_aspect_is_false(self):
-        """默认非等比（填充模式），让近平面轨道的 Z 细节清晰可见。"""
+    def test_default_equal_aspect_is_true(self):
+        """默认等比例显示（工具栏“等比”默认勾选）。"""
         from src.view.canvas import CanvasState
 
         state = CanvasState()
-        assert state.equal_aspect is False
+        assert state.equal_aspect is True
 
     def test_copy_carries_equal_aspect(self):
         """copy 携带 equal_aspect 字段且独立。"""
         from src.view.canvas import CanvasState
 
-        state = CanvasState(equal_aspect=True)
+        state = CanvasState(equal_aspect=False)
         copied = state.copy()
-        assert copied.equal_aspect is True
-        copied.equal_aspect = False
-        assert state.equal_aspect is True
+        assert copied.equal_aspect is False
+        copied.equal_aspect = True
+        assert state.equal_aspect is False
 
     def test_copy_carries_frame(self):
         from src.view.canvas import CanvasState

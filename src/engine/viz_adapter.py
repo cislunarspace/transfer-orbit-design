@@ -26,61 +26,127 @@ def build_cr3bp_system(mu: float) -> Any:
     return CR3BP_System(mu=mu, primary="Earth", secondary="Moon")
 
 
-def draw_primary_bodies(
-    ax, mu: float, *, is_3d: bool = True, plane: tuple[int, int] | None = None
-) -> None:
-    """在 ax 上绘制地球/月球位置标注。
+def body_center_offset(mu: float, center: str) -> tuple[float, float, float]:
+    """中心点坐标（无量纲会合系，质心归一）。
 
-    Args:
-        ax: 目标 matplotlib Axes。
-        mu: CR3BP 质量比。地球在 (-mu,0,0)，月球在 (1-mu,0,0)。
-        is_3d: 是否在 3D 坐标系绘制（False = 2D 投影平面）。
-        plane: 2D 投影平面的轴下标。None 或 (0,1) 时委托 e2m2e（XY 投影，
-            其 2D 实现恒用 (x,y) 正好匹配并保留 PNG 图标）；XZ/YZ 投影
-            由本函数按平面自绘——e2m2e 2D 无视投影平面，会把天体画进
-            错误的轴（如 YZ 下本应重叠于原点的地月被画到 y=±μ）。
+    ``"barycenter"`` 为 (0,0,0)；``"moon"`` 为 (1-μ,0,0)；``"L1"``/``"L2"`` 由
+    e2m2e 解算平动点坐标。未知 center 回退质心。
     """
-    from src.commons.viz import OrbitVisualizer
+    if center == "moon":
+        return (1.0 - mu, 0.0, 0.0)
+    if center in ("L1", "L2"):
+        from e2m2e.algorithm.dynamics import LibrationPoint
 
-    system = build_cr3bp_system(mu)
-    if is_3d or plane is None or plane == (0, 1):
-        OrbitVisualizer(system).plot_primary_bodies(ax=ax, is_3d=is_3d)
-        return
-    for name, xpos, color in (("Earth", -mu, "tab:blue"), ("Moon", 1 - mu, "tab:gray")):
-        coord3d = (xpos, 0.0, 0.0)
-        px, py = coord3d[plane[0]], coord3d[plane[1]]
-        ax.scatter(px, py, color=color, s=60, zorder=5)
-        ax.annotate(name, (px, py), xytext=(5, 5), textcoords="offset points", fontsize=9)
+        system = build_cr3bp_system(mu)
+        if not system.has_L_points:
+            system.compute_libration_points()
+        coord = system.L_points[LibrationPoint[center]]
+        return (float(coord[0]), float(coord[1]), float(coord[2]))
+    return (0.0, 0.0, 0.0)
+
+
+def synodic_to_gcrs_km(pos, theta, mu: float) -> Any:
+    """会合系（质心归一，无量纲）→ GCRS 惯性系 km。
+
+    会合系角速度归一为 1，旋转角 θ(t) = t（无量纲时间；物理秒下
+    θ = t_sec / TU_sec）。转换式：``r_gcrs = R(θ)·(r_syn + (μ,0,0))·DU``
+    （地球在原点）。用于无星历的纯 CR3BP 产物（轨道族/旧初猜）在惯性系
+    下的近似视图——历元对齐取 θ(t=0)=0。
+    """
+    import numpy as np
+
+    from src.commons.constants import DU
+
+    arr = np.asarray(pos)[:, :3]
+    th = np.asarray(theta)
+    c, s = np.cos(th), np.sin(th)
+    x = arr[:, 0] * c - arr[:, 1] * s
+    y = arr[:, 0] * s + arr[:, 1] * c
+    z = arr[:, 2]
+    return np.column_stack([(x + mu) * DU, y * DU, z * DU])
+
+
+def approx_moon_gcrs_km(theta) -> Any:
+    """近似惯性系视图的月球 GCRS 位置：R(θ)·(1,0,0)·DU（正圆轨道）。
+
+    与 :func:`synodic_to_gcrs_km` 的月球特例一致，供无星历的纯 CR3BP 产物
+    （轨道族/旧初猜）在惯性系视图下绘制月球轨迹与月球中心平移。
+    """
+    import numpy as np
+
+    from src.commons.constants import DU
+
+    th = np.asarray(theta)
+    return np.column_stack([np.cos(th), np.sin(th), np.zeros_like(th)]) * DU
+
+
+def draw_primary_bodies(
+    ax,
+    mu: float,
+    *,
+    is_3d: bool = True,
+    plane: tuple[int, int] | None = None,
+    center: tuple[float, float, float] = (0.0, 0.0, 0.0),
+) -> None:
+    """在 ax 上绘制地球/月球位置标注（自绘，支持中心平移）。
+
+    地球在 (-μ,0,0)，月球在 (1-μ,0,0)（质心归一会合系）；绘制时整体减去
+    ``center``，使所选中心点成为坐标原点（如月球中心/L1/L2 中心视图）。
+    """
+    if plane is None:
+        plane = (0, 1)
+    cx, cy, cz = center
+    for name, xpos, color, edge, ms3d, s2d in (
+        ("Earth", -mu, "#2E86AB", "#1A5276", 14.0, 160),
+        ("Moon", 1.0 - mu, "#95A5A6", "#566573", 10.0, 90),
+    ):
+        x, y, z = xpos - cx, -cy, -cz
+        if is_3d:
+            ax.plot(
+                [x],
+                [y],
+                [z],
+                "o",
+                color=color,
+                markersize=ms3d,
+                markeredgecolor="black",
+                markeredgewidth=0.8,
+                label=name,
+            )
+        else:
+            px, py = (x, y, z)[plane[0]], (x, y, z)[plane[1]]
+            ax.scatter(px, py, color=color, s=s2d, edgecolors=edge, linewidth=1.2, zorder=10)
+            ax.annotate(name, (px, py), xytext=(6, 6), textcoords="offset points", fontsize=10)
 
 
 def draw_libration_points(
-    ax, mu: float, *, is_3d: bool = True, plane: tuple[int, int] | None = None
+    ax,
+    mu: float,
+    *,
+    is_3d: bool = True,
+    plane: tuple[int, int] | None = None,
+    center: tuple[float, float, float] = (0.0, 0.0, 0.0),
 ) -> None:
-    """在 ax 上绘制 L1-L5 拉格朗日点标注。
-
-    Args:
-        ax: 目标 matplotlib Axes。
-        mu: CR3BP 质量比。
-        is_3d: 是否在 3D 坐标系绘制（False = 2D 投影平面）。
-        plane: 2D 投影平面的轴下标。None 或 (0,1) 委托 e2m2e；XZ/YZ 自绘
-            （理由同 draw_primary_bodies：e2m2e 2D 无视投影平面）。
-    """
+    """在 ax 上绘制 L1-L5 拉格朗日点标注（自绘，支持中心平移）。"""
     from e2m2e.algorithm.dynamics import LibrationPoint
 
-    from src.commons.viz import OrbitVisualizer
-
+    if plane is None:
+        plane = (0, 1)
     system = build_cr3bp_system(mu)
-    if is_3d or plane is None or plane == (0, 1):
-        OrbitVisualizer(system).plot_libration_points(ax=ax, show_labels=True, is_3d=is_3d)
-        return
     if not system.has_L_points:
         system.compute_libration_points()
+    cx, cy, cz = center
     labels = ("L1", "L2", "L3", "L4", "L5")
     for i, lp in enumerate(LibrationPoint):
         coord = system.L_points[lp]
-        px, py = coord[plane[0]], coord[plane[1]]
-        ax.scatter(px, py, color="black", marker="+", s=50, zorder=5)
-        ax.annotate(labels[i], (px, py), xytext=(5, 5), textcoords="offset points", fontsize=8)
+        x, y, z = coord[0] - cx, coord[1] - cy, coord[2] - cz
+        if is_3d:
+            ax.plot([x], [y], [z], marker="^", color="#d62728", markersize=8.9, linestyle="None")
+            ax.text(x, y, z + 0.02, labels[i], fontsize=12, ha="center")
+        else:
+            px, py = (x, y, z)[plane[0]], (x, y, z)[plane[1]]
+            ax.scatter(px, py, color="#d62728", marker="^", s=80, zorder=5)
+            ax.annotate(labels[i], (px, py), xytext=(5, 5), textcoords="offset points", fontsize=12)
 
 
 def draw_earth_origin_marker(
@@ -96,9 +162,61 @@ def draw_earth_origin_marker(
         plane: 2D 投影平面的轴下标（is_3d=False 时使用）。
     """
     if is_3d:
-        ax.plot([0], [0], [0], "o", color="tab:blue", markersize=8, label="Earth")
+        ax.plot(
+            [0],
+            [0],
+            [0],
+            "o",
+            color="#2E86AB",
+            markersize=10,
+            markeredgecolor="black",
+            markeredgewidth=0.8,
+            label="Earth",
+        )
     else:
-        ax.plot([0], [0], "o", color="tab:blue", markersize=8, label="Earth")
+        ax.plot(
+            [0],
+            [0],
+            "o",
+            color="#2E86AB",
+            markersize=10,
+            markeredgecolor="black",
+            markeredgewidth=0.8,
+            label="Earth",
+        )
+
+
+def moon_position_gcrs(
+    times_et: np.ndarray,
+    *,
+    kernel_dir: str | None = None,
+) -> Any:
+    """SPICE 查询月球 GCRS（J2000，Earth-relative）位置，shape (n,3) km。
+
+    内核缺失/查询失败返回 None（调用方降级）。
+    """
+    import numpy as np
+    from e2m2e.data.kernels.manager import SPICEManager
+
+    from src.commons.paths import detect_kernel_dir
+
+    kd = kernel_dir or detect_kernel_dir()
+    if not kd:
+        return None
+    mgr = SPICEManager()
+    try:
+        kernel_path = mgr.find_ephemeris_kernel(kd)
+        mgr.load_kernel(kernel_path)
+    except FileNotFoundError:
+        return None
+
+    try:
+        moon_pos = np.array(
+            [mgr.get_body_position("MOON", float(et), "J2000", "EARTH") for et in times_et]
+        )
+    except Exception:  # noqa: BLE001 -- SPICE 查询失败时降级，不阻塞轨道线渲染
+        return None
+    return moon_pos
 
 
 def draw_moon_gcrs_trajectory(
@@ -124,26 +242,8 @@ def draw_moon_gcrs_trajectory(
     Returns:
         True 画出月球轨迹；False 因内核缺失/查询失败而跳过（调用方降级）。
     """
-    import numpy as np
-    from e2m2e.data.kernels.manager import SPICEManager
-
-    from src.commons.paths import detect_kernel_dir
-
-    kd = kernel_dir or detect_kernel_dir()
-    if not kd:
-        return False
-    mgr = SPICEManager()
-    try:
-        kernel_path = mgr.find_ephemeris_kernel(kd)
-        mgr.load_kernel(kernel_path)
-    except FileNotFoundError:
-        return False
-
-    try:
-        moon_pos = np.array(
-            [mgr.get_body_position("MOON", float(et), "J2000", "EARTH") for et in times_et]
-        )
-    except Exception:  # noqa: BLE001 -- SPICE 查询失败时降级，不阻塞轨道线渲染
+    moon_pos = moon_position_gcrs(times_et, kernel_dir=kernel_dir)
+    if moon_pos is None:
         return False
 
     if is_3d:
