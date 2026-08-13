@@ -16,6 +16,7 @@ from e2m2e.api.models import DesignOrbitRequest
 
 _EXPECTED_DEFAULTS: dict[str, dict[str, float | int]] = {
     "DRO": {"amplitude": 60000.0, "phase": 0.5001},
+    "DPO": {"amplitude": 20000.0, "phase": 0.5001},
     "NRHO": {
         "collinear_point": 2,
         "north_south": 2,
@@ -30,6 +31,7 @@ _EXPECTED_DEFAULTS: dict[str, dict[str, float | int]] = {
         "phase_in": 0.01,
         "phase_out": 0.55,
     },
+    "Axial": {"collinear_point": 2, "amplitude": 5000.0, "phase": 0.0},
     "L4": {
         "amplitude_in": 8000.0,
         "amplitude_out": 6000.0,
@@ -42,6 +44,12 @@ _EXPECTED_DEFAULTS: dict[str, dict[str, float | int]] = {
         "phase_in": 0.0,
         "phase_out": 0.0,
     },
+    "L4_SPO": {"amplitude": 10000.0, "phase": 0.0},
+    "L5_SPO": {"amplitude": 10000.0, "phase": 0.0},
+    "L4_LPO": {"amplitude": 50000.0, "phase": 0.0},
+    "L5_LPO": {"amplitude": 50000.0, "phase": 0.0},
+    "L4_HORSESHOE": {"amplitude": 150000.0, "phase": 0.0},
+    "L5_HORSESHOE": {"amplitude": 150000.0, "phase": 0.0},
     # ELFO 形状参数：semi_major_axis 为 GUI 选定的近月冻结代表值，其余对齐
     # DesignOrbitRequest model_validator 的 ELFO 默认。
     "ELFO": {
@@ -54,6 +62,7 @@ _EXPECTED_DEFAULTS: dict[str, dict[str, float | int]] = {
 
 _EXPECTED_FIELDS: dict[str, set[str]] = {
     "DRO": {"amplitude", "phase"},
+    "DPO": {"amplitude", "phase"},
     "NRHO": {"collinear_point", "north_south", "perilune_height", "phase"},
     "Halo": {"collinear_point", "amplitude", "phase"},
     "Lissajous": {
@@ -63,8 +72,15 @@ _EXPECTED_FIELDS: dict[str, set[str]] = {
         "phase_in",
         "phase_out",
     },
+    "Axial": {"collinear_point", "amplitude", "phase"},
     "L4": {"amplitude_in", "amplitude_out", "phase_in", "phase_out"},
     "L5": {"amplitude_in", "amplitude_out", "phase_in", "phase_out"},
+    "L4_SPO": {"amplitude", "phase"},
+    "L5_SPO": {"amplitude", "phase"},
+    "L4_LPO": {"amplitude", "phase"},
+    "L5_LPO": {"amplitude", "phase"},
+    "L4_HORSESHOE": {"amplitude", "phase"},
+    "L5_HORSESHOE": {"amplitude", "phase"},
     "ELFO": {"semi_major_axis", "inclination", "arg_of_pericenter", "perilune_height"},
 }
 
@@ -201,8 +217,8 @@ class TestApplyOrbitTypeDefaults:
         assert amp.value() == pytest.approx(ORBIT_TYPE_DEFAULTS["DRO"]["amplitude"])
 
     def test_apply_int_field(self, qapp):
-        """整数默认值应填入 QSpinBox / QComboBox。"""
-        from PyQt6.QtWidgets import QSpinBox
+        """整数枚举默认值应填入 QComboBox（值存 itemData）。"""
+        from PyQt6.QtWidgets import QComboBox
 
         from src.view.params_panel import (
             apply_orbit_type_defaults,
@@ -212,15 +228,15 @@ class TestApplyOrbitTypeDefaults:
         widgets = build_params_from_model(DesignOrbitRequest)
         apply_orbit_type_defaults(widgets, "NRHO")
 
-        # collinear_point -> QSpinBox 2
+        # collinear_point -> QComboBox，itemData 2
         cp = widgets["collinear_point"]
-        assert isinstance(cp, QSpinBox)
-        assert cp.value() == 2
+        assert isinstance(cp, QComboBox)
+        assert cp.currentData() == 2
 
-        # north_south -> 也是 QSpinBox（int + ge/le）
+        # north_south -> QComboBox，itemData 2（南族）
         ns = widgets["north_south"]
-        assert isinstance(ns, QSpinBox)
-        assert ns.value() == 2
+        assert isinstance(ns, QComboBox)
+        assert ns.currentData() == 2
 
     def test_apply_collect_params_roundtrip(self, qapp):
         """填默认值后 collect_params 应返回该分支的完整参数集。"""

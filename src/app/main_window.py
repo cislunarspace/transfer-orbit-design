@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QFrame,
     QGridLayout,
+    QHBoxLayout,
     QLabel,
     QMainWindow,
     QPushButton,
@@ -68,6 +69,7 @@ from src.view.params_panel import (
     ORBIT_TYPE_DEFAULTS,
     ORBIT_TYPE_FIELDS,
     apply_orbit_type_defaults,
+    attach_unit_state,
     build_params_from_model,
     collect_params,
     get_field_units,
@@ -91,31 +93,121 @@ def _get_default_tool_key() -> str | None:
 
 
 # G4+G5: 字段标签（_FIELD_LABELS 已提取为模块级常量）
+# 可切换单位字段的标签须以" (标准单位)"结尾（_base_field_label 按后缀剥离，
+# 切单位时重新拼后缀），标准单位 = FIELD_UNIT_OPTIONS 首选项。
 
 _DESIGN_ORBIT_LABELS: dict[str, str] = {
     "orbit_type": "轨道类型",
     "amplitude": "振幅 (km)",
     "phase": "初始相位 (周期份额)",
     "collinear_point": "共线平动点",
-    "north_south": "北/南 (1=北, 2=南)",
+    "north_south": "北/南族",
     "perilune_height": "近月点高度 (km)",
     "amplitude_in": "面内振幅 (km)",
     "amplitude_out": "面外振幅 (km)",
-    "phase_in": "面内相位",
-    "phase_out": "面外相位",
+    "phase_in": "面内相位 (周期份额)",
+    "phase_out": "面外相位 (周期份额)",
     "epoch": "历元 (年/月/日 时:分:秒)",
     "duration": "持续时间 (年)",
     "output_step": "输出步长 (秒)",
     "correction_method": "修正方法",
+    "correction_revolutions": "修正圈数",
+    "correction_velocity_tolerance": "速度连续性容差",
     "inclination": "倾角 (度)",
     "arg_of_pericenter": "近月点幅角 (度)",
     "semi_major_axis": "半长轴 (km)",
+    "perturbation": "摄动开关 (JSON)",
+    "dyb": "DYB 面质比 (JSON)",
+    "earth_degree": "地球引力位阶数",
+    "moon_degree": "月球引力位阶数",
+    # 轨道保持字段（ControlOrbitRequest）
+    "control_mode": "控制模式",
+    "is_nrho": "目标为 NRHO",
+    "special_mode": "特征点模式",
+    "num_controls": "控制次数",
+    "num_monte_carlo": "蒙特卡洛样本数",
+    "engine_layout": "发动机布局 (JSON)",
+    "momentum_interval": "角动量卸载间隔 (天)",
+    "srp_offset_m": "SRP 压心偏移 (m)",
+    "spacecraft_mass": "航天器质量 (kg)",
+    "srp_torque": "SRP 力矩 (N·m)",
     # 轨道保持补充字段（ControlOrbitRequest 模型未暴露，算法必需）
     "control_interval": "控制间隔 (天)",
     "feedback_arc": "反馈弧段 (天)",
     # 轨道族生成参数（FamilyGenerationRequest）
+    "libration_point": "共线平动点",
     "max_amplitude_km": "最大面外振幅 (km)",
     "n_orbits": "族成员数",
+}
+
+#: 参数分组：工具 -> ((组标题, 字段元组), ...)。未分组的字段归入自动追加的
+#: "其他" 组（e2m2e 新增字段不会被遗漏）。轨道类型切换时整组隐藏。
+_PARAM_GROUPS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
+    "design_orbit": (
+        (
+            "形状参数",
+            (
+                "orbit_type",
+                "amplitude",
+                "phase",
+                "collinear_point",
+                "north_south",
+                "perilune_height",
+                "amplitude_in",
+                "amplitude_out",
+                "phase_in",
+                "phase_out",
+                "semi_major_axis",
+                "inclination",
+                "arg_of_pericenter",
+            ),
+        ),
+        (
+            "传播参数",
+            (
+                "epoch",
+                "duration",
+                "output_step",
+                "perturbation",
+                "dyb",
+                "earth_degree",
+                "moon_degree",
+            ),
+        ),
+        (
+            "修正参数",
+            (
+                "correction_method",
+                "correction_revolutions",
+                "correction_velocity_tolerance",
+            ),
+        ),
+    ),
+    "control_orbit": (
+        (
+            "控制参数",
+            (
+                "control_mode",
+                "is_nrho",
+                "special_mode",
+                "control_interval",
+                "feedback_arc",
+                "num_controls",
+            ),
+        ),
+        (
+            "仿真与误差",
+            (
+                "num_monte_carlo",
+                "output_step",
+                "spacecraft_mass",
+                "srp_offset_m",
+                "srp_torque",
+            ),
+        ),
+        ("角动量管理", ("engine_layout", "momentum_interval")),
+    ),
+    "orbit_family_generation": (("族参数", ("libration_point", "max_amplitude_km", "n_orbits")),),
 }
 
 #: design_orbit 所有分支字段的并集（不在其中的字段视为通用字段，始终显示）
@@ -154,10 +246,14 @@ class MainWindow(QMainWindow):
         self._current_tool_key: str | None = None
         self._param_widgets: dict[str, QWidget] = {}
         self._param_rows: dict[str, tuple[QLabel, QWidget, QComboBox | None]] = {}
+        # 参数分组：组标题 -> (QLabel 表头, QFrame 分隔线)；组标题 -> 组内字段名
+        self._group_headers: dict[str, tuple[QLabel, QFrame]] = {}
+        self._group_fields: dict[str, list[str]] = {}
         self._param_container: QWidget | None = None
         self._param_container_layout: QGridLayout | None = None
         self._param_scroll: QScrollArea | None = None
         self._run_btn = QPushButton("运行")  # G1: 非 Optional，_build_right_panel 中配置
+        self._reset_btn = QPushButton("重置参数")
 
         # Issue #339: 画布渲染状态（CanvasState）与当前选中 Artifact 集合
         from src.view.canvas import CanvasState
@@ -342,9 +438,15 @@ class MainWindow(QMainWindow):
                 item = model.item(idx)
                 if item is not None:
                     item.setEnabled(False)
-                    item.setToolTip("即将提供")
+                    item.setToolTip(spec.description)
         self._tool_combo.currentIndexChanged.connect(self._on_tool_changed)
         layout.addWidget(self._tool_combo)
+
+        # 工具说明：灰色小字，切换工具时同步（帮助用户理解工具用途与输入要求）
+        self._tool_desc_label = QLabel("")
+        self._tool_desc_label.setWordWrap(True)
+        self._tool_desc_label.setStyleSheet("color: #666; font-size: 11px; padding: 2px;")
+        layout.addWidget(self._tool_desc_label)
 
         # 参数容器：QScrollArea + QGridLayout（label 与控件同行、单位下拉并入
         # 控件行），字段多时可滚动，不再被窗口高度截断。
@@ -365,7 +467,13 @@ class MainWindow(QMainWindow):
             "QPushButton:hover { background-color: #45a049; }"
         )
         self._run_btn.clicked.connect(self._on_run)
-        layout.addWidget(self._run_btn)
+        # 重置按钮：重建当前工具参数面板（恢复模型默认值 + 轨道类型默认值）
+        self._reset_btn.clicked.connect(self._on_reset_params)
+        btn_row = QHBoxLayout()
+        btn_row.setContentsMargins(0, 0, 0, 0)
+        btn_row.addWidget(self._reset_btn, 1)
+        btn_row.addWidget(self._run_btn, 2)
+        layout.addLayout(btn_row)
 
         # 默认选中第一个 enabled 工具
         default_key = _get_default_tool_key()
@@ -388,10 +496,30 @@ class MainWindow(QMainWindow):
         if tool_key is None or tool_key == self._current_tool_key:
             return
         self._current_tool_key = tool_key
+        spec = TOOL_REGISTRY.get(tool_key)
+        if self._tool_desc_label is not None and spec is not None:
+            self._tool_desc_label.setText(spec.description)
         self._build_tool_params(tool_key)
 
+    def _on_reset_params(self) -> None:
+        """重置参数：重建当前工具面板（恢复模型默认值 + 轨道类型分支默认值）。"""
+        if self._current_tool_key is not None:
+            self._build_tool_params(self._current_tool_key)
+
+    def _add_group_header(self, layout: QGridLayout, title: str, row: int) -> int:
+        """在参数面板插入组表头（加粗标题 + 分隔线），返回下一行号。"""
+        header = QLabel(title)
+        header.setStyleSheet("font-weight: bold; color: #2c3e50; margin-top: 6px; font-size: 12px;")
+        layout.addWidget(header, row, 0, 1, 3)
+        sep = QFrame()
+        sep.setFrameShape(QFrame.Shape.HLine)
+        sep.setStyleSheet("color: #d8d8d8;")
+        layout.addWidget(sep, row + 1, 0, 1, 3)
+        self._group_headers[title] = (header, sep)
+        return row + 2
+
     def _build_tool_params(self, tool_key: str) -> None:
-        """为指定工具构建参数面板。"""
+        """为指定工具构建参数面板（分组展示：组标题 + 字段行）。"""
         spec: ToolSpec | None = TOOL_REGISTRY.get(tool_key)
         if spec is None or spec.request_model is None:
             return
@@ -401,6 +529,8 @@ class MainWindow(QMainWindow):
         # 残留也一并重置——避免跨工具切换残留空行造成底部大段空白。
         self._param_widgets = {}
         self._param_rows = {}
+        self._group_headers = {}
+        self._group_fields = {}
         new_container = QWidget()
         new_layout = QGridLayout(new_container)
         new_layout.setContentsMargins(0, 0, 0, 0)
@@ -416,58 +546,69 @@ class MainWindow(QMainWindow):
         # control_orbit：ControlOrbitRequest 模型是算法函数参数的子集，
         # control_interval/feedback_arc（默认 30/28 天）未暴露——缺了它们用户
         # 无法配出与源星历覆盖匹配的参数（默认值下仿真时长 ≈ 3570 天，30 天
-        # 星历必然全样本失败）。作为补充字段加入面板。
+        # 星历必然全样本失败）。作为补充字段加入面板（带单位状态，可切 天/秒/TU）。
         if tool_key == "control_orbit":
             for name, default in (("control_interval", 30.0), ("feedback_arc", 28.0)):
                 if name in self._param_widgets:
                     continue
                 sb = QDoubleSpinBox()
                 sb.setRange(1e-3, 1e4)
-                sb.setDecimals(3)
                 sb.setValue(default)
+                attach_unit_state(sb, name)
                 self._param_widgets[name] = sb
+            # input_ephemeris 由选中 Artifact 注入，不在 UI 暴露；mu 同样由源
+            # Artifact 注入（source_mu），面板编辑无效（ControlOrbitRequest 的
+            # mu 仅为响应透传字段，算法层不消费）
+            for hidden in ("input_ephemeris", "mu"):
+                self._param_widgets.pop(hidden, None)
 
         # G3: orbit_type -> QComboBox（若字段存在且有 description）
         if "orbit_type" in self._param_widgets:
             self._replace_orbit_type_with_combo(spec.request_model)
 
+        # 分组顺序：_PARAM_GROUPS 声明顺序 + 未分组字段归入"其他"
+        group_specs = _PARAM_GROUPS.get(tool_key, ())
+        grouped = [f for _, fields in group_specs for f in fields]
+        ungrouped = [n for n in self._param_widgets if n not in grouped]
+        all_groups: list[tuple[str, tuple[str, ...]]] = list(group_specs)
+        if ungrouped:
+            all_groups.append(("其他", tuple(ungrouped)))
+
         # 显示字段：QGridLayout 3 列（label / 控件 / 单位下拉），label 与控件
         # 同行、单位下拉并入控件行。_param_rows 契约（label, widget, unit_combo）不变。
         row = 0
-        for name, widget in self._param_widgets.items():
-            options = get_field_units(name)
-            label_text = (
-                _field_label_with_unit(name, options[0].label)
-                if options
-                else _DESIGN_ORBIT_LABELS.get(name, name)
-            )
-            label_widget = QLabel(label_text)
-            layout.addWidget(label_widget, row, 0)
-            layout.addWidget(widget, row, 1)
-            unit_combo: QComboBox | None = None
-            if options:
-                # 无注解局部变量承接：pyright 对 PyQt6 类型不做 isinstance/赋值收窄
-                # （已知限制），带 `| None` 注解的变量赋值也不收窄，故换名新建。
-                combo = QComboBox()
-                for opt in options:
-                    combo.addItem(opt.label)
-                combo.setCurrentIndex(0)
-                combo.currentIndexChanged.connect(
-                    lambda _idx, n=name: self._on_unit_combo_changed(n)
+        for title, fields in all_groups:
+            present = [n for n in fields if n in self._param_widgets]
+            if not present:
+                continue
+            row = self._add_group_header(layout, title, row)
+            self._group_fields[title] = present
+            for name in present:
+                widget = self._param_widgets[name]
+                options = get_field_units(name)
+                label_text = (
+                    _field_label_with_unit(name, options[0].label)
+                    if options
+                    else _DESIGN_ORBIT_LABELS.get(name, name)
                 )
-                layout.addWidget(combo, row, 2)
-                unit_combo = combo
-            self._param_rows[name] = (label_widget, widget, unit_combo)
-            row += 1
-
-        # control_orbit 的 input_ephemeris 由选中 Artifact 注入，不在 UI 暴露；
-        # mu 同样由源 Artifact 注入（source_mu），面板编辑无效（ControlOrbitRequest
-        # 的 mu 仅为响应透传字段，算法层不消费）
-        if tool_key == "control_orbit":
-            for hidden in ("input_ephemeris", "mu"):
-                if hidden in self._param_widgets:
-                    old = self._param_widgets.pop(hidden)
-                    self._remove_widget_and_label(old)
+                label_widget = QLabel(label_text)
+                layout.addWidget(label_widget, row, 0)
+                layout.addWidget(widget, row, 1)
+                unit_combo: QComboBox | None = None
+                if options:
+                    # 无注解局部变量承接：pyright 对 PyQt6 类型不做 isinstance/赋值收窄
+                    # （已知限制），带 `| None` 注解的变量赋值也不收窄，故换名新建。
+                    combo = QComboBox()
+                    for opt in options:
+                        combo.addItem(opt.label)
+                    combo.setCurrentIndex(0)
+                    combo.currentIndexChanged.connect(
+                        lambda _idx, n=name: self._on_unit_combo_changed(n)
+                    )
+                    layout.addWidget(combo, row, 2)
+                    unit_combo = combo
+                self._param_rows[name] = (label_widget, widget, unit_combo)
+                row += 1
 
         # design_orbit：按 orbit_type 分支填默认值 + 只显示相关字段
         if tool_key == "design_orbit":
@@ -482,25 +623,6 @@ class MainWindow(QMainWindow):
             self._apply_duration_default_month()
 
         layout.setRowStretch(row, 1)
-
-    def _remove_widget_and_label(self, widget: QWidget) -> None:
-        """从参数容器布局移除指定控件的整行（label + widget + 单位下拉）。"""
-        layout = self._param_container_layout
-        for name, (label, w, unit_combo) in list(self._param_rows.items()):
-            if w is widget:
-                del self._param_rows[name]
-                # QGridLayout 下 setParent(None) 不会自动移除布局项，须显式 removeWidget
-                if layout is not None:
-                    layout.removeWidget(label)
-                    layout.removeWidget(widget)
-                    if unit_combo is not None:
-                        layout.removeWidget(unit_combo)
-                label.setParent(None)
-                widget.setParent(None)
-                if unit_combo is not None:
-                    unit_combo.setParent(None)
-                return
-        widget.setParent(None)
 
     def _replace_orbit_type_with_combo(self, model_class: type) -> None:
         """G3: orbit_type 字段替换为 QComboBox。
@@ -546,7 +668,11 @@ class MainWindow(QMainWindow):
         self._sync_visible_fields(orbit_type)
 
     def _sync_visible_fields(self, orbit_type: str) -> None:
-        """按分支字段集显示/隐藏参数行，并把解包后的控件同步进布局。"""
+        """按分支字段集显示/隐藏参数行，并把解包后的控件同步进布局。
+
+        整组字段全隐藏时同步隐藏组表头（如 ELFO 分支下"修正参数"仍可见，
+        "形状参数"组内只留该分支字段）。
+        """
         branch_fields = ORBIT_TYPE_FIELDS.get(orbit_type, set())
         for name in list(self._param_rows):
             label, widget, unit_combo = self._param_rows[name]
@@ -559,6 +685,17 @@ class MainWindow(QMainWindow):
             widget.setVisible(visible)
             if unit_combo is not None:
                 unit_combo.setVisible(visible)
+        # 组表头：组内字段全部隐藏时同步隐藏表头与分隔线。
+        for title, fields in self._group_fields.items():
+            header_pair = self._group_headers.get(title)
+            if header_pair is None:
+                continue
+            any_visible = any(
+                name in self._param_rows and not self._param_rows[name][0].isHidden()
+                for name in fields
+            )
+            header_pair[0].setVisible(any_visible)
+            header_pair[1].setVisible(any_visible)
 
     def _replace_row_widget(self, name: str, new_widget: QWidget) -> None:
         """把参数面板布局中 name 行的控件替换为 new_widget（apply 解包后同步布局）。"""
@@ -576,7 +713,11 @@ class MainWindow(QMainWindow):
         self._param_rows[name] = (label, new_widget, unit_combo)
 
     def _on_unit_combo_changed(self, field_name: str) -> None:
-        """单位下拉切换：换算控件显示值 + 更新 label 后缀。"""
+        """单位下拉切换：换算控件显示值 + 更新 label 后缀。
+
+        widget 可能是 Optional 容器（未 apply 前）、list[float] 容器或解包后的
+        spinbox；set_spinbox_unit 对三种形态统一处理。
+        """
         row = self._param_rows.get(field_name)
         if row is None:
             return
@@ -584,11 +725,7 @@ class MainWindow(QMainWindow):
         if unit_combo is None:
             return
         unit = unit_combo.currentText()
-        # widget 可能是 Optional 容器（未 apply 前）或解包后的 spinbox
-        sb = widget if isinstance(widget, QDoubleSpinBox) else widget.findChild(QDoubleSpinBox)
-        if sb is None:
-            return
-        set_spinbox_unit(sb, field_name, unit)
+        set_spinbox_unit(widget, field_name, unit)
         label.setText(_field_label_with_unit(field_name, unit))
 
     def _apply_duration_default_month(self) -> None:

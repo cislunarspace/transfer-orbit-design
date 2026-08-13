@@ -77,12 +77,28 @@ class TestFieldUnitOptions:
         from src.view.params_panel import FIELD_UNIT_OPTIONS
 
         assert set(FIELD_UNIT_OPTIONS) == {
+            # 距离（km/m/DU）
             "amplitude",
             "perilune_height",
             "amplitude_in",
             "amplitude_out",
+            "semi_major_axis",
+            "max_amplitude_km",
+            # 相位（周期份额/度/弧度）
+            "phase",
+            "phase_in",
+            "phase_out",
+            # 角度（度/rad）
+            "inclination",
+            "arg_of_pericenter",
+            # 时间
             "duration",
             "output_step",
+            "control_interval",
+            "feedback_arc",
+            "momentum_interval",
+            # 长度列表容器（m/DU）
+            "srp_offset_m",
         }
 
     def test_first_option_is_standard(self):
@@ -97,7 +113,10 @@ class TestFieldUnitOptions:
         from src.commons.units import DU_KM
         from src.view.params_panel import FIELD_UNIT_OPTIONS
 
-        assert FIELD_UNIT_OPTIONS["amplitude"][1].to_standard == pytest.approx(DU_KM)
+        opts = {o.label: o for o in FIELD_UNIT_OPTIONS["amplitude"]}
+        assert opts["DU"].to_standard == pytest.approx(DU_KM)
+        # 国际单位 m：display m * 1e-3 = 标准 km
+        assert opts["m"].to_standard == pytest.approx(1e-3)
 
     def test_duration_month_day_factors(self):
         """duration 含'月'(1/12 年)、'日'(1/DAYS_PER_YEAR 年) 显示单位。"""
@@ -109,6 +128,34 @@ class TestFieldUnitOptions:
         assert opts["月"].to_standard == pytest.approx(1.0 / 12.0)
         assert "日" in opts
         assert opts["日"].to_standard == pytest.approx(1.0 / DAYS_PER_YEAR)
+
+    def test_duration_has_seconds_and_tu(self):
+        """duration 含秒（国际单位）与 TU（归一化）选项。"""
+        from src.commons.units import SECONDS_PER_YEAR, TU_SECONDS
+        from src.view.params_panel import FIELD_UNIT_OPTIONS
+
+        opts = {o.label: o for o in FIELD_UNIT_OPTIONS["duration"]}
+        assert opts["秒"].to_standard == pytest.approx(1.0 / SECONDS_PER_YEAR)
+        assert opts["TU"].to_standard == pytest.approx(TU_SECONDS / SECONDS_PER_YEAR)
+
+    def test_control_interval_days_seconds_tu(self):
+        """control_interval（标准 天）含秒与 TU 选项。"""
+        from src.commons.units import TU_SECONDS
+        from src.view.params_panel import FIELD_UNIT_OPTIONS
+
+        opts = {o.label: o for o in FIELD_UNIT_OPTIONS["control_interval"]}
+        assert opts["天"].to_standard == pytest.approx(1.0)
+        assert opts["秒"].to_standard == pytest.approx(1.0 / 86400.0)
+        assert opts["TU"].to_standard == pytest.approx(TU_SECONDS / 86400.0)
+
+    def test_angle_fields_have_radian(self):
+        """inclination/arg_of_pericenter（标准 度）含 rad 选项。"""
+        import math
+
+        from src.view.params_panel import FIELD_UNIT_OPTIONS
+
+        opts = {o.label: o for o in FIELD_UNIT_OPTIONS["inclination"]}
+        assert opts["rad"].to_standard == pytest.approx(180.0 / math.pi)
 
 
 # ---------------------------------------------------------------------------
@@ -129,12 +176,21 @@ class TestWidgetDefaultUnit:
         assert sb is not None
         assert sb.property(_UNIT_ATTR) == "km"
 
-    def test_phase_no_unit_property(self, qapp):
-        """phase 无量纲，不应有单位属性。"""
+    def test_phase_has_unit_options(self, qapp):
+        """phase 可切单位（周期份额/度/弧度），单位状态存在 spinbox 上。"""
         from src.view.params_panel import _UNIT_ATTR, build_params_from_model
 
         widgets = build_params_from_model(DesignOrbitRequest)
-        assert widgets["phase"].property(_UNIT_ATTR) is None
+        assert widgets["phase"].property(_UNIT_ATTR) is None  # Optional 包装在容器上
+
+        from src.view.params_panel import apply_orbit_type_defaults
+
+        apply_orbit_type_defaults(widgets, "DRO")
+        sb = widgets["phase"]
+        from PyQt6.QtWidgets import QDoubleSpinBox
+
+        assert isinstance(sb, QDoubleSpinBox)
+        assert sb.property(_UNIT_ATTR) == "周期份额"
 
     def test_default_collect_is_standard(self, qapp):
         """默认（标准单位）下 collect 返回标准单位值。"""

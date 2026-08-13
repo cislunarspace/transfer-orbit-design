@@ -405,8 +405,40 @@ class TestControlOrbit:
         assert isinstance(layout, EngineLayout)
         assert layout.num_engines == 6
 
+    def test_control_orbit_coerces_engine_layout_json_text(self, monkeypatch):
+        """control_mode >= 4 时面板 JSON 文本应解析为 EngineLayout 实例。"""
+        import json
+
+        from e2m2e.algorithm.station_keeping import EngineLayout
+
+        received: dict = {}
+
+        def _fake_control(eph, **kwargs):
+            received.update(kwargs)
+            return _FakeControlResult(synodic_position=np.random.randn(5, 3))
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.station_keeping.control_orbit",
+            _fake_control,
+            raising=False,
+        )
+        positions = [[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0],
+                     [0.0, -1.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, -1.0]]
+        directions = [[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0],
+                      [0.0, -1.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, -1.0]]
+        layout_text = json.dumps({"positions_m": positions, "directions": directions})
+
+        FacadeBridge().control_orbit(
+            ephemeris_data=_make_ephemeris_data(5),
+            source_mu=None,
+            control_mode=4,
+            engine_layout=layout_text,
+        )
+
+        assert isinstance(received.get("engine_layout"), EngineLayout)
+
     def test_control_orbit_rejects_invalid_engine_layout(self, monkeypatch):
-        """control_mode >= 4 时无效 engine_layout（如 "4"）应报清晰错误而非裸崩。"""
+        """control_mode >= 4 时非布局 JSON（如 "4"）应报清晰错误而非裸崩。"""
         from src.engine.exceptions import OrbitError
 
         def _fake_control(eph, **kwargs):
@@ -427,6 +459,28 @@ class TestControlOrbit:
             )
         assert exc_info.value.code == "INVALID_PARAMS"
         assert "engine_layout" in exc_info.value.message
+
+    def test_control_orbit_rejects_invalid_engine_layout_json(self, monkeypatch):
+        """control_mode >= 4 时非法 JSON 文本应报 JSON 解析错误。"""
+        from src.engine.exceptions import OrbitError
+
+        def _fake_control(eph, **kwargs):
+            return _FakeControlResult(synodic_position=np.random.randn(5, 3))
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.station_keeping.control_orbit",
+            _fake_control,
+            raising=False,
+        )
+        with pytest.raises(OrbitError) as exc_info:
+            FacadeBridge().control_orbit(
+                ephemeris_data=_make_ephemeris_data(5),
+                source_mu=None,
+                control_mode=4,
+                engine_layout="{invalid",
+            )
+        assert exc_info.value.code == "INVALID_PARAMS"
+        assert "JSON" in exc_info.value.message
 
     @pytest.mark.spice
     def test_ephemeris_table_reconstruction_skips_none_times(self, monkeypatch):

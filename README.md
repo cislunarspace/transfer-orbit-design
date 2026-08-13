@@ -51,7 +51,7 @@ uv run transfer-orbit-design
 
 **轨道设计**
 
-- 周期轨道生成：DRO、NRHO、Halo、Lissajous、L4/L5，参数面板由 Pydantic 模型自动生成，结果 JSON + NPZ 双文件落盘。
+- 周期轨道生成：DRO、DPO、NRHO、Halo、Lissajous、Axial、L4/L5（含短周期/长周期/马蹄形变体），参数面板由 Pydantic 模型自动生成，结果 JSON + NPZ 双文件落盘。
 
 **轨道维护与分析**
 

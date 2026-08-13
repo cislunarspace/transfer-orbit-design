@@ -262,7 +262,7 @@ class CanvasState:
 | Pydantic 字段类型 | Qt 控件 |
 |---|---|
 | `float` (有 ge/le) | `QDoubleSpinBox` (range=ge..le) |
-| `int` (有 ge/le) | `QSpinBox` (range=ge..le) |
+| `int` (有 ge/le) | `QSpinBox` (range=ge..le)；字段在 `_INT_COMBO_OPTIONS` 时改 `QComboBox`（值存 itemData） |
 | `str` (有 enum) | `QComboBox` |
 | `str` (无 enum) | `QLineEdit` |
 | `list[float]` | 多个 `QDoubleSpinBox` |
@@ -272,24 +272,34 @@ class CanvasState:
 
 | Pydantic Field 信息 | Qt 属性 |
 |---|---|
-| `description` | 控件 tooltip |
+| `description` | 控件 tooltip（数值控件附加"可填范围"提示） |
 | `default` | 控件默认值 |
-| `ge/le/gt/lt` | 控件范围 |
-| `Field(json_schema_extra={"unit": "km"})` | 单位标签 |
+| `ge/le/gt/lt` | 控件范围；也是框内清空时的"可填范围"占位提示 |
+| `FIELD_UNIT_OPTIONS[field]` | 单位下拉（首个=标准单位，切换仅改显示值；收集时换算回标准单位，换算缓存保证多次切换精确往返） |
+
+单位下拉覆盖所有可换算参数：距离 km/m/DU、时间 年/月/日/时/秒/TU（或 秒/时/日/TU、天/秒/TU）、角度 度/rad、相位 周期份额/度/弧度、SRP 偏移 m/DU（list 容器整体换算）。无量纲计数（阶数/圈数/样本数）与字典/JSON 字段无可换算单位。
 
 每个工具类型注册一个参数面板生成函数：
 
 ```python
-# src/engine/facade_bridge.py 中的注册表
+# src/engine/facade_bridge.py 中的注册表（与 e2m2e facade 工具清单对齐）
 TOOL_REGISTRY: dict[str, ToolSpec] = {
     "design_orbit": ToolSpec(request_model=DesignOrbitRequest, ...),
     "control_orbit": ToolSpec(request_model=ControlOrbitRequest, ...),
     "orbit_family_generation": ToolSpec(request_model=FamilyGenerationRequest, ...),
     "orbit_stability": ToolSpec(request_model=None, ...),  # 右键触发，不进工具下拉
+    "transfer_design": ToolSpec(request_model=None, enabled=False, ...),  # 灰显，悬停显示工具说明
+    # ... 其余 e2m2e facade 工具同构灰显
 }
 ```
 
-稳定性分析无参数面板（右键轨道触发），`enabled=False` 仅表示下拉灰显，右键菜单另行启用。轨道族生成使用本地 `FamilyGenerationRequest` 模型（e2m2e 无对应 Request）。
+`TOOL_REGISTRY` 从 `e2m2e.api.Facade.mcp_tools()` 自动派生全量清单：已接入的
+工具 enabled；e2m2e 已实现但 GUI 未接入、e2m2e 占位的工具灰显，悬停显示工具
+说明（区分"GUI 尚未接入"与"e2m2e 占位"）。e2m2e 新增工具时 GUI 清单零改动
+跟随。`ToolSpec.description`（工具说明）展示在工具选择器下方。稳定性分析无
+参数面板（右键轨道触发），`enabled=False` 仅表示下拉灰显，右键菜单另行启用。
+轨道族生成使用本地 `FamilyGenerationRequest` 模型（e2m2e 无对应 Request，
+已提上游 issue）。
 
 ### 日志面板 `log_panel.py`
 
