@@ -15,16 +15,35 @@ permissions:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@v7
-      - run: git clone --depth 1 https://github.com/cislunarspace/e2m2e.git ../e2m2e
-      # --frozen：lock 与 pyproject 一致时跳过解析，也避免 uv 对 calcephpy
-      # direct URL（win_amd64 wheel）做缓存校验请求——该请求在 CI 上偶发
-      # GitHub CDN 瞬时故障（stream refused），与代码无关却会让 lint 误失败。
-      # lock 与 pyproject 不一致时 --frozen 会明确报错（正向约束）。
-      - run: uv sync --group dev --frozen
-      - run: uv run --frozen ruff check .
-      - run: uv run --frozen ruff format --check .
-      - run: uv run --frozen pyright
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      # 静态检查不需要安装当前项目，避免触发本地构建和运行时依赖安装。
+      - run: uv sync --group dev --frozen --no-install-project
+      - run: uv run --frozen --no-sync ruff check .
+      - run: uv run --frozen --no-sync ruff format --check .
+      - run: uv run --frozen --no-sync pyright
+
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libegl1
+      - run: uv sync --extra test --frozen
+      - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: uv run --frozen --no-sync pytest tests/ -v -m "not spice"

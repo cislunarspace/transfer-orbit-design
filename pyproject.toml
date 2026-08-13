@@ -74,6 +74,7 @@ exclude = ["tests*", "scripts*"]
 
 [dependency-groups]
 dev = ["ruff>=0.1", "pyright>=1.1"]
+build = ["pyinstaller>=6.0"]
 
 # calcephpy（e2m2e→r2s2 的传递依赖）PyPI 仅有 sdist，Windows 需 cmake+MSVC
 # 现场编译。用 [tool.uv.sources] 在 Windows 上指向 e2m2e 仓库 calcephpy-v1

@@ -12,6 +12,10 @@
 - **新增轨道类型**：轨道设计支持 e2m2e 5.6.8 全部周期轨道类型——新增 DPO、Axial、L4_SPO、L5_SPO、L4_LPO、L5_LPO、L4_HORSESHOE、L5_HORSESHOE（默认值对齐 `DesignOrbitRequest` model_validator）。
 - **补全字段标签与 JSON 接口**：perturbation/dyb/earth_degree/moon_degree/correction_revolutions/correction_velocity_tolerance 与轨道保持新字段（control_mode/is_nrho/special_mode/num_controls/num_monte_carlo/engine_layout/momentum_interval/srp_offset_m/spacecraft_mass/srp_torque）全部换中文标签（此前裸显字段名）。`engine_layout` 的有效 JSON 文本现会解析为 `EngineLayout`，角动量管理模式 4–6 可实际使用；非法 JSON 与非布局 JSON 均给出 `INVALID_PARAMS` 明确错误。
 
+### 工程
+
+- **CI/release 一致性与效率**：PR CI 补全 headless GUI 测试，不再等到发布 tag 才首次执行；静态检查、测试、文档和 Windows 打包均改用 `uv.lock` 的冻结安装，避免 `pip` 和临时 PyInstaller 版本漂移；静态检查跳过本项目安装，docs/release 取消无用的 e2m2e 源码 clone。runner 固定为 Ubuntu 24.04 / Windows 2025，uv 缓存按 `uv.lock` 失效，checkout 不保留凭据；发布 token 收敛到创建 GitHub Release 的 job，Windows 产物缺失会立即失败。PyInstaller 构建组纳入锁文件，并移除 e2m2e 5.6.8 已删除的 `tools.viz` hidden import。
+
 ### 上游问题跟踪
 
 - 向 e2m2e 提交 5 条 issue（右边栏无法在本仓解决的问题）：#408（ControlOrbitRequest 是算法层签名子集且缺约束/单位说明）、#409（DesignOrbitRequest 分支范围不可机器读取）、#410（correction_velocity_tolerance 死参数）、#411（orbit_family_generation 无 Request 模型）、#412（facade 工具清单状态不可机器读取）。
