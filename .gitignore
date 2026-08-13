@@ -70,14 +70,9 @@ Desktop.ini
 # 文档静态资源（logo 等）除外
 !docs/source/_static/*.png
 
-# SPICE 内核文件（体量大，不入库）
+# SPICE 内核：小文件（.tls/.tpc/.bpc/.tf/.mk/.fk）入库；星历 .bsp 体量大不入库
+# 下载脚本：scripts/download_kernels.py（从 e2m2e kernels-v1 release 拉取）
 *.bsp
-*.tpc
-*.tf
-*.bpc
-*.tls
-*.mk
-*.fk
 
 # 项目数据与输出
 # 大型数据默认不入库；CR3BP 种子数据是显式例外
