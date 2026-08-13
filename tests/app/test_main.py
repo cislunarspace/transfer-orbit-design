@@ -41,7 +41,11 @@ def qapp():
 
 
 def test_main_window_minimum_width_fits_960px_screen(qapp):
-    """子组件的隐式最小宽度不得阻止窄屏最大化。"""
+    """子组件的隐式最小宽度不得阻止窄屏最大化。
+
+    阈值 960px：常见最小屏幕宽度为 1024px，需预留
+    系统边框、字体度量与 DPI 缩放的余量。
+    """
     from src.app.main_window import MainWindow
 
     with patch("src.app.main_window.discover_artifacts", return_value=[]):
