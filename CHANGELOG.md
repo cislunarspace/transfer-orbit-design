@@ -28,16 +28,16 @@
 
 ### 功能
 
-- **Halo/NRHO 设计端到端可用（e2m2e 5.6.5，docs 457fe8b）**：two_level"修正 1 圈 + 自由外推"对不稳定轨道（STM ~1e7/圈）必发散；e2m2e 5.6.5 对 Halo/NRHO 自动重定向 segmented（全程分段打靶，不依赖外推）。GUI 设计 Halo（amp=30000、L2、30 天）~9 s 收敛，三圈会合系 x∈[1.085, 1.187] 紧邻 L2。圈间漂移是固有准周期特征，由 station_keeping 处理，设计阶段不压。
+- **Halo/NRHO 设计端到端可用（e2m2e 5.6.5，docs 73d1ff6）**：two_level 的「修正 1 圈 + 自由外推」对不稳定轨道（STM ~1e7/圈）必发散；e2m2e 5.6.5 对 Halo/NRHO 自动重定向 segmented（全程分段打靶，不依赖外推）。GUI 设计 Halo（amp=30000、L2、30 天）~9 s 收敛，三圈会合系 x∈[1.085, 1.187] 紧邻 L2。圈间漂移是固有准周期特征，由 station_keeping 处理，设计阶段不压。
 
 ### 修复
 
-- **适配 design_orbit 入口签名 + duration 单位（224f89f）**：e2m2e 5.6.4 起 `design_orbit` 首参从散字段改为 `DesignOrbitRequest`（`extra="forbid"`），facade 的 `**kwargs` 转发会 TypeError、GUI 设计全挂；`duration` 单位从年改秒，facade 加 `* SECONDS_PER_YEAR` 换算（不修则 1 年当 1 秒、et_grid 只剩 1 点）。改为构造 request 调用。此前测试全 mock（伪造 kwargs 签名）掩盖了断裂，本次把 mock 改回真签名 + 加 `@pytest.mark.spice` 真 smoke 守住接缝。
-- **params_panel 适配新参数模型（224f89f）**：`DesignOrbitRequest` 从 14 字段扩到 23（ELFO 根数 inclination/dyb 等新增），duration 改 Optional。`ORBIT_TYPE_DEFAULTS` 补 ELFO 分支与新 Optional 默认值；orbit_type 下拉原从 description split（5.6.5 改全大写 + 含 "..." 占位符，得 "HALO" 与 key "Halo" 不匹配），改从 `ORBIT_TYPE_DEFAULTS` key 取。
+- **适配 design_orbit 入口签名 + duration 单位（27eda00）**：e2m2e 5.6.4 起 `design_orbit` 首参从散字段改为 `DesignOrbitRequest`（`extra="forbid"`），facade 的 `**kwargs` 转发会 TypeError、GUI 设计全挂；`duration` 单位从年改秒，facade 加 `* SECONDS_PER_YEAR` 换算（不修则 1 年当 1 秒、et_grid 只剩 1 点）。改为构造 request 调用。此前测试全 mock（伪造 kwargs 签名）掩盖了断裂，本次把 mock 改回真签名 + 加 `@pytest.mark.spice` 真 smoke 守住接缝。
+- **params_panel 适配新参数模型（27eda00）**：`DesignOrbitRequest` 从 14 字段扩到 23（ELFO 根数 inclination 与摄动/修正字段 dyb 等新增），duration 改 Optional。`ORBIT_TYPE_DEFAULTS` 补 ELFO 分支与新 Optional 默认值；orbit_type 下拉原从 description split（5.6.4 改全大写 + 含 "..." 占位符，得 "HALO" 与 key "Halo" 不匹配），改从 `ORBIT_TYPE_DEFAULTS` key 取。
 
 ### 工程
 
-- **pin e2m2e>=5.6.5（7c23752）**：含 Halo segmented 修复的最低版本，uv.lock 同步。
+- **pin e2m2e>=5.6.5（e00b64f）**：含 Halo segmented 修复的最低版本，uv.lock 同步。
 
 ## 3.1.3 (2026-08-09)
 
@@ -81,10 +81,6 @@
 
 - **新增轨道保持专题（fb85d1a）**：`docs/source/narrative/station-keeping.md` 给出 DRO/NRHO/halo/Lissajous 在真实星历里的稳定性差异与保持代价基准（Zhang & Wang 2022 全星历 2 年 Monte-Carlo）。如实标注当前软件限制（e2m2e#323 Lissajous 发散、#324 大幅 DRO 星历传播 bug），修复前哪些流程不可用。
 - **修正 e2m2e 改 PyPI 安装后的过时描述（ad8edf4）**：README/README.en/architecture.md 删除「手动克隆 ../e2m2e + editable 安装 + 改 tool.uv.sources 路径」步骤，改为 PyPI 依赖（e2m2e>=5.6.0）由 `uv sync` 一并安装，补充 SPICE 内核自动探测说明。ADR 0012 增补「后续更新」：冻窗已随 5.6.0/5.6.1 根治，QMovie 缓解作废。
-
-### 工程
-
-- **修复 release CI 的 headless 测试配置**：`release.yml` 的 test job 在 ubuntu-latest 跑 GUI 测试时，`tests/app/test_context_menu.py` 等处的 `qapp` fixture 直接 `QApplication([])`，无显示服务器即 SIGABRT（exit 134，第一个 GUI 测试就崩）。给 Run tests 步骤加 `env: QT_QPA_PLATFORM: offscreen`。本仓 `ci.yml` 只有 lint、无 test job，此缺陷一直未暴露，直到本版本 release 才触发。
 
 ## 3.1.0 (2026-08-08)
 
