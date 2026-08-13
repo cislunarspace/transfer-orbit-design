@@ -280,3 +280,7 @@ test_results/
 MagicMock/
 # ZCode IDE 本地会话计划产物
 .zcode/
+
+# pi harness 项目级 agent
+.pi/
+
