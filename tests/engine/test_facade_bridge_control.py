@@ -319,6 +319,35 @@ class TestControlOrbit:
             )
         assert exc_info.value.code == "INVALID_PARAMS"
 
+    def test_control_orbit_drops_mu_param(self, monkeypatch):
+        """params 携带的 mu 不应透传算法层（函数签名无 mu）。
+
+        回归：面板按 ControlOrbitRequest 字段收集 mu（响应透传字段，非算法
+        参数），facade 以 **params 展开调用 →
+        "control_orbit() got an unexpected keyword argument 'mu'"，GUI 轨道
+        保持报 UNKNOWN_ERROR。DTO 的 mu 由 source_mu 注入，与算法层无关。
+        """
+        received: dict = {}
+
+        def _fake_control(eph, **kwargs):
+            received.update(kwargs)
+            return _FakeControlResult(synodic_position=np.random.randn(5, 3))
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.station_keeping.control_orbit",
+            _fake_control,
+            raising=False,
+        )
+        bridge = FacadeBridge()
+        data = bridge.control_orbit(
+            ephemeris_data=_make_ephemeris_data(5),
+            source_mu=0.0123,
+            mu=None,  # 面板收集的字段
+            control_mode=1,
+        )
+        assert "mu" not in received
+        assert data.mu == pytest.approx(0.0123)
+
     @pytest.mark.spice
     def test_ephemeris_table_reconstruction_skips_none_times(self, monkeypatch):
         """times_jd_tdb=None 时 EphemerisTable 重建不崩（走 dataclass 默认）。

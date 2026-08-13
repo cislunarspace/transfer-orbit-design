@@ -344,6 +344,11 @@ class FacadeBridge:
             **{k: v for k, v in ephemeris_data.items() if k in valid_keys and v is not None}
         )
         params.setdefault("kernel_dir", self._kernel_dir)
+        # ControlOrbitRequest.mu 是响应透传字段（画地月/L 点标注用），算法层
+        # control_orbit() 函数签名无 mu；面板收集的 mu 若展开传入会 TypeError。
+        # DTO 的 mu 由 source_mu 注入（见下方 ControlResultData(mu=source_mu)），
+        # 这里剔除，避免 **params 展开时炸。
+        params.pop("mu", None)
         try:
             result = _control(eph, **params)
         except Exception as e:

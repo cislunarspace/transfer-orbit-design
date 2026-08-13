@@ -85,6 +85,16 @@ class TestBuildToolParamsControl:
         assert "control_mode" in window._param_widgets
         assert "num_monte_carlo" in window._param_widgets
 
+    def test_control_orbit_hidden_mu_field(self, qapp):
+        """control_orbit 不应在 UI 暴露 mu（由源 Artifact 注入，面板编辑无效）。
+
+        ControlOrbitRequest.mu 是响应透传字段，e2m2e control_orbit 函数签名
+        无 mu；此前面板收集到 mu 后透传，轨道保持直接 TypeError。
+        """
+        window = _make_window(qapp)
+        _select_control_tool(window)
+        assert "mu" not in window._param_widgets
+
 
 class TestRunControlValidation:
     def test_run_control_without_selection_shows_status(self, qapp):
@@ -147,6 +157,22 @@ class TestRunControlDispatch:
             window._on_run()
             _, kwargs = mock_cls.call_args
             assert kwargs["source_mu"] == pytest.approx(EARTH_MOON_MU)
+
+    def test_run_control_params_exclude_mu(self, qapp):
+        """传给 ControlOrbitWorker 的 params 不应含 mu（否则透传给 e2m2e 报 TypeError）。
+
+        回归：面板曾按 ControlOrbitRequest 字段收集 mu 进 params，facade 用
+        **params 展开调用 control_orbit()，函数签名无 mu →
+        "control_orbit() got an unexpected keyword argument 'mu'"。
+        """
+        window = _make_window(qapp)
+        _select_control_tool(window)
+        _make_orbit_artifact(window, with_ephemeris=True, mu=EARTH_MOON_MU)
+
+        with patch("src.app.main_window.ControlOrbitWorker") as mock_cls:
+            window._on_run()
+            _, kwargs = mock_cls.call_args
+            assert "mu" not in kwargs["params"]
 
 
 class TestOnControlFinished:

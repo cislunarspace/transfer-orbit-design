@@ -12,6 +12,10 @@ GUI 首次启动的 SPICE 内核引导：e2m2e 的 SPICE 内核不随 pip 包分
   - **暂时跳过**：本次不准备，功能用时再报错。
 - **下载逻辑抽为 `src/commons/kernels.py`**：`download_kernels`（幂等 + 进度回调）、`kernel_dir_usable`（行星历 `.bsp` + 闰秒 `.tls` 完整性判断）、`user_kernel_dir`；`scripts/download_kernels.py` 改为其 CLI 包装（命令行行为不变）。
 
+### 修复
+
+- **轨道保持 mu 透传崩溃**：参数面板按 `ControlOrbitRequest` 字段收集 `mu`（e2m2e 的响应透传字段，画地月标注用，算法函数签名无此参数），facade 以 `**params` 展开调用 `control_orbit()` 直接 `TypeError`（GUI 报 UNKNOWN_ERROR，轨道保持完全不可用）。修复：面板隐藏 mu（与 `input_ephemeris` 同构，由源 Artifact 注入 `source_mu`），facade 接缝处 `pop("mu")` 防回归。新增 3 项测试（面板不含 mu、params 不含 mu、算法层收不到 mu）。
+
 ### 工程
 
 - **新增测试**：下载幂等/进度/资产过滤、可用性判断、用户目录探测、配置读写、弹窗三分支（可用直返/下载/指定/跳过）共 34 项。

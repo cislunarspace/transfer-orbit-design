@@ -443,10 +443,14 @@ class MainWindow(QMainWindow):
             self._param_rows[name] = (label_widget, widget, unit_combo)
             row += 1
 
-        # control_orbit 的 input_ephemeris 由选中 Artifact 注入，不在 UI 暴露
-        if tool_key == "control_orbit" and "input_ephemeris" in self._param_widgets:
-            old = self._param_widgets.pop("input_ephemeris")
-            self._remove_widget_and_label(old)
+        # control_orbit 的 input_ephemeris 由选中 Artifact 注入，不在 UI 暴露；
+        # mu 同样由源 Artifact 注入（source_mu），面板编辑无效（ControlOrbitRequest
+        # 的 mu 仅为响应透传字段，算法层不消费）
+        if tool_key == "control_orbit":
+            for hidden in ("input_ephemeris", "mu"):
+                if hidden in self._param_widgets:
+                    old = self._param_widgets.pop(hidden)
+                    self._remove_widget_and_label(old)
 
         # design_orbit：按 orbit_type 分支填默认值 + 只显示相关字段
         if tool_key == "design_orbit":
