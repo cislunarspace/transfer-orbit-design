@@ -163,16 +163,17 @@ def draw_libration_points(
 
 
 def draw_earth_origin_marker(
-    ax, *, is_3d: bool = True, plane: tuple[int, int] | None = None
+    ax,
+    *,
+    is_3d: bool = True,
+    plane: tuple[int, int] | None = None,
+    earth_size: float = 160.0,
+    fontsize: float = 10.0,
 ) -> None:
     """惯性系视图：在地球原点（GCRS/J2000 原点）画 marker。
 
-    惯性系以地球为原点，地球位置固定在 (0,0,0)。
-
-    Args:
-        ax: 目标 matplotlib Axes。
-        is_3d: 是否在 3D 坐标系绘制。
-        plane: 2D 投影平面的轴下标（is_3d=False 时使用）。
+    惯性系以地球为原点，地球位置固定在 (0,0,0)。样式与会合系地月标注
+    一致（深蓝圆 + 黑描边；2D 带标签），大小/字号可由图表设置控制。
     """
     if is_3d:
         ax.plot(
@@ -181,22 +182,16 @@ def draw_earth_origin_marker(
             [0],
             "o",
             color="#2E86AB",
-            markersize=10,
+            markersize=earth_size**0.5,
             markeredgecolor="black",
             markeredgewidth=0.8,
             label="Earth",
         )
     else:
-        ax.plot(
-            [0],
-            [0],
-            "o",
-            color="#2E86AB",
-            markersize=10,
-            markeredgecolor="black",
-            markeredgewidth=0.8,
-            label="Earth",
-        )
+        if plane is None:
+            plane = (0, 1)
+        ax.scatter(0, 0, color="#2E86AB", s=earth_size, edgecolors="#1A5276", linewidth=1.2, zorder=10)
+        ax.annotate("Earth", (0, 0), xytext=(6, 6), textcoords="offset points", fontsize=fontsize)
 
 
 def moon_position_gcrs(

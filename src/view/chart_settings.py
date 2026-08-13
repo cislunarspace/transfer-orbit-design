@@ -11,9 +11,9 @@ from dataclasses import asdict, dataclass, fields
 #: 可选的轨道颜色方案（matplotlib 定性 colormap 名）
 COLORMAP_OPTIONS: list[str] = ["tab10", "tab20", "Set1", "Set2", "Dark2", "Paired"]
 
-#: QSettings 的组织/应用名（与窗口标题一致）
-_ORG_NAME = "TransferOrbitDesign"
-_APP_NAME = "chart"
+#: QSettings 的组织/应用名（与窗口标题一致），main_window 复用
+ORG_NAME = "TransferOrbitDesign"
+APP_NAME = "chart"
 
 
 @dataclass
@@ -39,9 +39,28 @@ class ChartSettings:
 
 
 def load_settings(qsettings) -> ChartSettings:
-    """从 QSettings 加载 ChartSettings；缺失键用默认值。"""
+    """从 QSettings 加载 ChartSettings；缺失键用默认值。
+
+    QSettings ini 格式会把数值读回为 str（如 "0.8"），按字段类型显式转换；
+    解析失败的值丢弃、用默认值。
+    """
     raw = {f.name: qsettings.value(f.name) for f in fields(ChartSettings)}
-    valid = {k: v for k, v in raw.items() if v is not None}
+    valid: dict = {}
+    for f in fields(ChartSettings):
+        v = raw[f.name]
+        if v is None:
+            continue
+        if isinstance(v, str) and f.type in ("float", "int", "bool"):
+            try:
+                if f.type == "float":
+                    v = float(v)
+                elif f.type == "int":
+                    v = int(v)
+                else:  # bool
+                    v = v.strip().lower() in ("true", "1", "yes", "on")
+            except ValueError:
+                continue  # 无法解析的值丢弃，用默认
+        valid[f.name] = v
     return ChartSettings(**valid)
 
 

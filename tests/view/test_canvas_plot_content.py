@@ -1018,3 +1018,90 @@ class TestCenterControlsMainWindow:
         w._on_frame_changed("synodic")
         assert tb.center_l1.isEnabled()
         assert tb.center_l2.isEnabled()
+
+
+class TestInertialMoonCenterDegradation:
+    """惯性系月球中心：月球位置不可用时降级，杜绝坐标系错位。"""
+
+    def _canvas(self, qapp, times_et=None):
+        from src.view.canvas import OrbitCanvas
+
+        rng = np.random.default_rng(9)
+        pos_km = rng.standard_normal((40, 3)) * 3.8e5
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "label": "受控",
+                        "mu": _MU,
+                        "ephemeris_synodic": pos_km * 1e-5,
+                        "ephemeris_position_km": pos_km,
+                        "ephemeris_times_et": times_et,
+                    }
+                }
+            )
+        )
+        return canvas, pos_km
+
+    def test_moon_center_without_spice_skips_orbit_and_hints(self, qapp):
+        """SPICE 不可用（无 times_et）：轨道跳过、无月球 marker、画布提示。"""
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        from src.view.canvas import CanvasState
+
+        canvas, _ = self._canvas(qapp, times_et=None)
+        canvas.sync_state(
+            CanvasState(
+                visible_artifacts=["id1"],
+                show_bodies=True,
+                frame="inertial",
+                center="moon",
+            ),
+            ["id1"],
+        )
+        canvas.render()
+        ax = canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line3D)]
+        labels = {ln.get_label() for ln in lines}
+        # 轨道与月球 marker 都不画（避免地心/月心坐标同屏错位）
+        assert "受控" not in labels
+        assert "Moon" not in labels
+        assert "月球位置不可用" in ax.get_title()
+
+    def test_moon_center_with_spice_shifts_orbit_and_draws_moon(self, qapp):
+        """SPICE 可用：轨道平移、月球 marker 按设置大小绘制。"""
+        from unittest.mock import patch
+
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        from src.view.canvas import CanvasState
+        from src.view.chart_settings import ChartSettings
+
+        times_et = np.linspace(7.5e8, 7.6e8, 40)
+        canvas, pos_km = self._canvas(qapp, times_et=times_et)
+        fake_moon = pos_km + np.array([[1e4, 2e4, 3e4]])
+        with patch("src.engine.viz_adapter.moon_position_gcrs", return_value=fake_moon):
+            canvas.set_chart_settings(ChartSettings(moon_size=300.0))
+            canvas.sync_state(
+                CanvasState(
+                    visible_artifacts=["id1"],
+                    show_bodies=True,
+                    frame="inertial",
+                    center="moon",
+                ),
+                ["id1"],
+            )
+            canvas.render()
+        ax = canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line3D)]
+        # 轨道已平移：首点 = pos_km[0] - fake_moon[0]
+        track = next(ln for ln in lines if ln.get_label() == "受控")
+        x0 = np.asarray(track.get_data_3d()[0])[0]
+        assert x0 == pytest.approx(pos_km[0, 0] - fake_moon[0, 0])
+        # 月球 marker 在原点，大小取设置的平方根
+        moon = next(ln for ln in lines if ln.get_label() == "Moon")
+        assert moon.get_markersize() == pytest.approx(300.0**0.5)
+        # 地球轨迹（月球中心视图）= -月球位置
+        earth = next(ln for ln in lines if ln.get_label() == "Earth")
+        assert np.asarray(earth.get_data_3d()[0])[0] == pytest.approx(-fake_moon[0, 0])

@@ -57,6 +57,8 @@ from src.model import Artifact, Project
 from src.model.discovery import discover_artifacts
 from src.view.canvas import OrbitCanvasWithToolbar
 from src.view.chart_settings import (
+    APP_NAME,
+    ORG_NAME,
     ChartSettings,
     chart_settings_dialog,
     load_settings,
@@ -164,7 +166,7 @@ class MainWindow(QMainWindow):
         # 图表设置：QSettings 持久化，启动加载后注入画布
         from PyQt6.QtCore import QSettings
 
-        self._qsettings = QSettings("TransferOrbitDesign", "chart")
+        self._qsettings = QSettings(ORG_NAME, APP_NAME)
         self._chart_settings = load_settings(self._qsettings)
 
         self.setWindowTitle("Transfer Orbit Design v2")

@@ -35,9 +35,6 @@ _PROJECTION_PLANE_AXES: dict[str, tuple[int, int]] = {
     "yz": (1, 2),
 }
 
-# GUI 内嵌画布固定宽度（cm）相关注释：等比模式 Z 区间比例由 ChartSettings.z_ratio
-# 控制（默认 0.5），见 src/view/chart_settings.py。
-
 
 @dataclass
 class CanvasState:
@@ -300,15 +297,17 @@ class OrbitCanvas(FigureCanvasQTAgg):
         if state.frame == "synodic" and state.center != "barycenter":
             center = self._center_offset(state)
         if state.frame == "inertial":
+            # 月球位置（center=moon 平移、月球/地球轨迹共用；不可用为 None）
+            moon_shift = self._inertial_moon_positions(state)
             # 1. 轨道：优先真惯性系 position_km；无则用会合系旋转近似视图
             #    （轨道族/旧初猜等纯 CR3BP 产物，历元对齐取 θ(t=0)=0）
             if state.projection == "3d":
-                self._draw_3d_inertial_orbits(ax, state)
+                self._draw_3d_inertial_orbits(ax, state, moon_shift)
             else:
-                self._draw_2d_inertial_orbits(ax, state)
+                self._draw_2d_inertial_orbits(ax, state, moon_shift)
             # 2. 地球原点 + 月球轨迹（依赖 show_bodies，与 synodic 一致）
             if state.show_bodies:
-                self._draw_inertial_bodies(ax, state)
+                self._draw_inertial_bodies(ax, state, moon_shift)
             # inertial 不画平动点（A3 决策）
         else:
             # 1. 轨道（按 plot_content 选初猜/星历/叠加）
@@ -329,7 +328,12 @@ class OrbitCanvas(FigureCanvasQTAgg):
             or bool(self._ephemeris_synodic_by_id)
             or bool(self._family_by_id)
         )
-        if has_orbits:
+        moon_unavailable = state.frame == "inertial" and state.center == "moon" and not any(
+            v is not None for v in moon_shift.values()
+        )
+        if moon_unavailable:
+            title = "月球位置不可用（SPICE 查询失败），无法使用月球中心视图"
+        elif has_orbits:
             title = ""
         elif state.frame == "inertial":
             title = "该 Artifact 无惯性系星历数据"
@@ -588,7 +592,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
 
     # -- inertial 分支（GCRS/J2000，km）-----------------------------------
 
-    def _draw_3d_inertial_orbits(self, ax, state) -> None:
+    def _draw_3d_inertial_orbits(self, ax, state, moon_shift) -> None:
         for i, aid in enumerate(state.visible_artifacts):
             color = self._orbit_color(i)
             label = self._labels_by_id.get(aid, "")
@@ -596,11 +600,11 @@ class OrbitCanvas(FigureCanvasQTAgg):
             if position_km is not None:
                 pos = np.asarray(position_km)[:, :3]
                 if state.center == "moon":
-                    times_et = self._ephemeris_times_et_by_id.get(aid)
-                    if times_et is not None:
-                        moon = self._moon_gcrs_positions(times_et)
-                        if moon is not None:
-                            pos = pos - moon
+                    moon = moon_shift.get(aid)
+                    if moon is None:
+                        # 月球位置不可用：跳过轨道，避免地心/月心坐标同屏错位
+                        continue
+                    pos = pos - moon
                 ax.plot(
                     pos[:, 0],
                     pos[:, 1],
@@ -614,7 +618,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
             # 无 position_km：会合系旋转近似视图（轨道族/旧初猜等纯 CR3BP 产物）
             self._draw_inertial_approx(ax, aid, state, color, plane=None)
 
-    def _draw_2d_inertial_orbits(self, ax, state) -> None:
+    def _draw_2d_inertial_orbits(self, ax, state, moon_shift) -> None:
         plane = _PROJECTION_PLANE_AXES[state.projection]
         for i, aid in enumerate(state.visible_artifacts):
             color = self._orbit_color(i)
@@ -623,11 +627,11 @@ class OrbitCanvas(FigureCanvasQTAgg):
             if position_km is not None:
                 pos = np.asarray(position_km)[:, :3]
                 if state.center == "moon":
-                    times_et = self._ephemeris_times_et_by_id.get(aid)
-                    if times_et is not None:
-                        moon = self._moon_gcrs_positions(times_et)
-                        if moon is not None:
-                            pos = pos - moon
+                    moon = moon_shift.get(aid)
+                    if moon is None:
+                        # 月球位置不可用：跳过轨道，避免地心/月心坐标同屏错位
+                        continue
+                    pos = pos - moon
                 ax.plot(
                     pos[:, plane[0]],
                     pos[:, plane[1]],
@@ -638,12 +642,28 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 continue
             self._draw_inertial_approx(ax, aid, state, color, plane=plane)
 
-    @staticmethod
-    def _moon_gcrs_positions(times_et) -> Any:
-        """SPICE 查询月球 GCRS 位置（km），失败返回 None。"""
-        from src.engine.viz_adapter import moon_position_gcrs
+    def _inertial_moon_positions(self, state) -> dict[str, Any]:
+        """各可见 Artifact 的月球 GCRS 位置（km）；不可用为 None。
 
-        return moon_position_gcrs(times_et)
+        近似视图（轨道族/旧初猜）用解析正圆位置（无需 SPICE）；真惯性系
+        用 SPICE 查询。返回 dict 供轨道平移与月球/地球轨迹共用，避免
+        同一时间轴多次 SPICE 查询。
+        """
+        from src.engine.viz_adapter import approx_moon_gcrs_km, moon_position_gcrs
+
+        out: dict[str, Any] = {}
+        for aid in state.visible_artifacts:
+            family_times = self._family_times_by_id.get(aid)
+            if family_times is not None:
+                out[aid] = approx_moon_gcrs_km(np.asarray(family_times)[0])
+                continue
+            initial_times = self._initial_guess_times_by_id.get(aid)
+            if initial_times is not None:
+                out[aid] = approx_moon_gcrs_km(np.asarray(initial_times))
+                continue
+            times_et = self._ephemeris_times_et_by_id.get(aid)
+            out[aid] = moon_position_gcrs(times_et) if times_et is not None else None
+        return out
 
     def _draw_inertial_approx(self, ax, aid: str, state, color: str, *, plane) -> None:
         """会合系数据旋转到惯性系 km 的近似视图（历元对齐取 θ(t=0)=0）。
@@ -701,65 +721,66 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     pos[:, plane[0]], pos[:, plane[1]], linewidth=self._chart.orbit_linewidth, color=color, label=label
                 )
 
-    def _draw_inertial_bodies(self, ax, state) -> None:
-        # 经 viz_adapter 调 SPICE 查月球 GCRS 位置；地球在原点（惯性系定义）
-        from src.engine.viz_adapter import (
-            approx_moon_gcrs_km,
-            draw_earth_origin_marker,
-            draw_moon_gcrs_trajectory,
-        )
+    def _draw_inertial_bodies(self, ax, state, moon_shift) -> None:
+        """惯性系天体标注：地球/月球 marker + 月球（或月球中心的地球）轨迹。
+
+        ``moon_shift`` 来自 ``_inertial_moon_positions``；月球位置不可用时
+        （SPICE 失败/无时间轴）不画依赖它的标注，避免坐标系错位。
+        """
+        from src.engine.viz_adapter import draw_earth_origin_marker
 
         is_3d = state.projection == "3d"
         plane = None if is_3d else _PROJECTION_PLANE_AXES[state.projection]
+        chart = self._chart
+        moon_available = any(v is not None for v in moon_shift.values())
         if state.center == "moon":
-            # 月球中心视图：月球 marker 在原点，地球相对月球的位置/轨迹另行绘制
-            if is_3d:
-                ax.plot(
-                    [0], [0], [0], "o", color="#95A5A6", markersize=10,
-                    markeredgecolor="black", markeredgewidth=0.8, label="Moon",
-                )
-            else:
-                ax.scatter(0, 0, color="#95A5A6", s=90, edgecolors="#566573", linewidth=1.2, zorder=10)
-                ax.annotate("Moon", (0, 0), xytext=(6, 6), textcoords="offset points", fontsize=10)
-        else:
-            draw_earth_origin_marker(ax, is_3d=is_3d, plane=plane)
-        # 月球（或月球中心视图的地球）轨迹：用任一可见 Artifact 的时间轴
-        for aid in state.visible_artifacts:
-            times_et = self._ephemeris_times_et_by_id.get(aid)
-            if times_et is not None:
-                moon = self._moon_gcrs_positions(times_et)
-                if moon is None:
-                    break
-                if state.center == "moon":
-                    # 月球中心：地球相对月球 = -moon_pos(t)，画灰虚线轨迹
-                    earth = -moon
-                    if is_3d:
-                        ax.plot(earth[:, 0], earth[:, 1], earth[:, 2], linewidth=self._chart.orbit_linewidth,
-                                color="#2E86AB", linestyle="--", label="Earth")
-                    else:
-                        ax.plot(earth[:, plane[0]], earth[:, plane[1]], linewidth=self._chart.orbit_linewidth,
-                                color="#2E86AB", linestyle="--", label="Earth")
-                else:
-                    draw_moon_gcrs_trajectory(ax, times_et, is_3d=is_3d, plane=plane)
-                break
-            # 无 times_et：近似视图（轨道族/旧初猜）——月球解析正圆轨迹
-            th = None
-            family_times = self._family_times_by_id.get(aid)
-            if family_times is not None:
-                th = np.asarray(family_times)[0]
-            elif self._initial_guess_times_by_id.get(aid) is not None:
-                th = np.asarray(self._initial_guess_times_by_id[aid])
-            if th is not None:
-                moon = approx_moon_gcrs_km(th)
-                if state.center == "moon":
-                    break  # 月球轨迹退化为原点一点，无需画
+            # 月球中心视图：月球 marker 在原点（仅当月球位置可用，否则无坐标基准）
+            if moon_available:
                 if is_3d:
-                    ax.plot(moon[:, 0], moon[:, 1], moon[:, 2], linewidth=self._chart.orbit_linewidth,
-                            color="gray", linestyle="--", label="Moon")
+                    ax.plot(
+                        [0], [0], [0], "o", color="#95A5A6",
+                        markersize=chart.moon_size**0.5,
+                        markeredgecolor="black", markeredgewidth=0.8, label="Moon",
+                    )
                 else:
-                    ax.plot(moon[:, plane[0]], moon[:, plane[1]], linewidth=self._chart.orbit_linewidth,
-                            color="gray", linestyle="--", label="Moon")
-                break
+                    ax.scatter(0, 0, color="#95A5A6", s=chart.moon_size,
+                               edgecolors="#566573", linewidth=1.2, zorder=10)
+                    ax.annotate(
+                        "Moon", (0, 0), xytext=(6, 6),
+                        textcoords="offset points", fontsize=chart.label_fontsize,
+                    )
+        else:
+            draw_earth_origin_marker(
+                ax, is_3d=is_3d, plane=plane,
+                earth_size=chart.earth_size, fontsize=chart.label_fontsize,
+            )
+        # 月球（或月球中心的地球）轨迹：用任一可见 Artifact 的月球位置
+        for aid in state.visible_artifacts:
+            moon = moon_shift.get(aid)
+            if moon is None:
+                continue
+            if state.center == "moon":
+                # 月球中心：地球相对月球 = -moon_pos(t)，深蓝虚线轨迹
+                earth = -moon
+                if is_3d:
+                    ax.plot(earth[:, 0], earth[:, 1], earth[:, 2],
+                            linewidth=chart.orbit_linewidth, color="#2E86AB",
+                            linestyle="--", label="Earth")
+                else:
+                    ax.plot(earth[:, plane[0]], earth[:, plane[1]],
+                            linewidth=chart.orbit_linewidth, color="#2E86AB",
+                            linestyle="--", label="Earth")
+            else:
+                # 地球中心：月球轨迹灰色虚线
+                if is_3d:
+                    ax.plot(moon[:, 0], moon[:, 1], moon[:, 2],
+                            linewidth=chart.orbit_linewidth, color="gray",
+                            linestyle="--", label="Moon")
+                else:
+                    ax.plot(moon[:, plane[0]], moon[:, plane[1]],
+                            linewidth=chart.orbit_linewidth, color="gray",
+                            linestyle="--", label="Moon")
+            break
 
     # -- 便捷封装（向后兼容） -----------------------------------------------
 
@@ -874,7 +895,7 @@ class OrbitCanvasWithToolbar:
 
         layout.addWidget(self.toolbar)
         layout.addWidget(self.projection_toolbar)
-        # 画布宽度固定 7.5cm，水平居中（工具栏仍横跨整行）
+        # 画布水平居中（工具栏仍横跨整行）
         layout.addWidget(self.canvas, alignment=Qt.AlignmentFlag.AlignHCenter)
 
     def plot_orbit(self, **kwargs) -> None:
