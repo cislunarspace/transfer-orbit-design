@@ -9,23 +9,23 @@
 每个 `src/` 生产模块都必须包含模块级 docstring，并放在文件第一条语句。建议结构：
 
 ```python
-"""生成 DRO 轨道族。
+"""FacadeBridge -- e2m2e 算法层直调的薄封装。
 
-在地月 CR3BP 中从已知 DRO 种子轨道出发，通过微分修正和自然延拓生成轨道族。
-输入为 GUI 参数面板填写的种子状态、周期猜测和延拓范围；输出为 `output/dro/` 下的轨道族 JSON 文件。
+直接调用 algorithm 层而非 Facade 门面，因为 Facade 返回的 DesignOrbitResponse
+剥离了轨道数据（只返回标量汇总），而 GUI 需要完整的 Orbit 对象用于可视化。
+详见 docs/adr/0011-algorithm-layer-direct-call.md。
 """
 ```
 
-不同脚本类型的重点如下：
+不同模块类型的重点如下：
 
 | 类型 | 必写内容 |
 |------|----------|
-| 轨道生成 | 物理模型、种子轨道/延拓方法、输出目录、典型命令 |
-| 转移搜索 | 输入轨道文件、搜索网格含义、筛选准则、输出 JSON |
-| 转移优化 | 输入搜索结果、优化变量/目标、主要约束、失败处理 |
-| 星历转换 | CR3BP 输入、参考历元、SPICE kernel 需求、修正方法 |
-| 绘图 | 输入结果文件、可选图层、显示/保存行为 |
-| GUI wrapper | 引用底层脚本，说明 GUI 中展示的参数与输出 |
+| 数据层（`src/model/`） | 数据类的字段含义、与 `output/` 文件的对应关系 |
+| 执行层（`src/engine/`） | 调用的 e2m2e 算法、返回 DTO 的字段、异常翻译、落盘布局 |
+| 表现层（`src/view/`） | 控件职责、信号语义、与数据/执行层的交互 |
+| 入口层（`src/app/`） | 组装顺序、启动探测逻辑（如 SPICE 内核引导） |
+| 工具脚本（`scripts/`） | 用途、参数、输出 |
 
 ### 函数与类 docstring
 
@@ -49,9 +49,9 @@ def load_orbit(path: Path) -> dict:
 
 `main()` 和 `parse_args()` 也需要 docstring：`parse_args()` 说明返回解析后的命名空间；`main()` 说明执行完整脚本流程且通常不返回值。私有 helper 可以使用较短 docstring，但仍应说明单位、边界或失败条件。
 
-### CLI help 文本
+### CLI help 文本（工具脚本）
 
-`argparse` help 文本必须回答三个问题：参数控制什么、默认值是什么、单位是什么。示例：
+`scripts/` 下的独立工具脚本（目前仅有 `download_kernels.py`）使用 `argparse`，help 文本必须回答三个问题：参数控制什么、默认值是什么、单位是什么。示例：
 
 ```python
 parser.add_argument(
@@ -63,20 +63,6 @@ parser.add_argument(
 ```
 
 无量纲 CR3BP 参数应明确写“无量纲”；角度写“rad”或“度”；时间写“TU”“天”或“秒”。布尔开关说明开启后的行为。
-
-### GUI 描述文本
-
-`ScriptEntry.description` 使用 2–3 句中文描述，按“目的 + 输入 + 输出”组织。`CliParam.help` 与 CLI help 保持同义，并写明默认值和单位。星历转换类脚本必须提示 `SPICE_KERNEL_DIR` 或 `--spice-kernel-dir`。
-
-```python
-ScriptEntry(
-    description=(
-        "在地月 CR3BP 中生成 DRO 轨道族，用于后续转移搜索或绘图。"
-        "脚本读取 GUI 中填写的种子状态、周期猜测和延拓范围。"
-        "结果保存到 output/dro/，包括带时间戳的轨道族 JSON 和 latest 副本。"
-    ),
-)
-```
 
 ### 国际化工具
 
@@ -95,6 +81,8 @@ python tools/update_i18n.py --compile # 仅编译 .ts → .qm
 
 依赖：`pylupdate6` 和 `lrelease6`（来自 PyQt6 或 PySide6 工具包）。新增 GUI 文本后应运行此脚本更新翻译文件。
 
+> 现状：i18n 基础设施（`src/app/i18n/`、`tools/update_i18n.py`）已就位，但 GUI 尚未接入语言切换（界面固定中文，`TranslationLoader` 未被主窗口调用）。接入前维护翻译文件意义有限，新增界面文本直接写中文即可。
+
 ### Sphinx 文档
 
 Sphinx 源文件位于 `docs/source/`，叙事文档通过 MyST Markdown 接入。
@@ -103,7 +91,7 @@ Sphinx 源文件位于 `docs/source/`，叙事文档通过 MyST Markdown 接入�
 uv run --extra docs python -m sphinx -b html docs/source docs/build/html
 ```
 
-提交前应至少确认构建无 ERROR，并尽量清理 WARNING。若新增叙事页面，请在 `docs/source/index.rst` 的对应 toctree 中加入条目。
+提交前应至少确认构建无 ERROR，并尽量清理 WARNING。若新增/删除叙事页面，请在 `docs/source/index.rst` 的对应 toctree 中增删条目，并同步更新英文 `.po`（见 `docs/README.md` 的 `sphinx-intl update` 流程）。
 
 ### 多语言 README
 

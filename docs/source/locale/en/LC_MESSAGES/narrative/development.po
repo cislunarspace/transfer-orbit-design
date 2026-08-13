@@ -1,0 +1,321 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-13 14:15+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../development.md:2 1b3ed8258d1f45d1b7f66f8985141f2a
+msgid "开发指南"
+msgstr ""
+
+#: ../../development.md:4 8a2f476b4c60413f9280d92feed2f845
+msgid "文档规范"
+msgstr ""
+
+#: ../../development.md:6 dddd5ae93be4423da55525e966f1477d
+msgid ""
+"本项目的文档面向中文研究用户和维护者，所有新增 README、Sphinx 页面、GUI 描述、CLI help 与 docstring "
+"均使用中文。Python docstring 采用 Google style，以便 `sphinx.ext.napoleon` 自动解析。"
+msgstr ""
+
+#: ../../development.md:8 e0e10fee84ac4dacafd5bedcf0119c63
+msgid "模块级 docstring"
+msgstr ""
+
+#: ../../development.md:10 3124286ea3254988b72eb33e7762e3d2
+msgid "每个 `src/` 生产模块都必须包含模块级 docstring，并放在文件第一条语句。建议结构："
+msgstr ""
+
+#: ../../development.md:21 14df97f7f23d456ba4c148d554ae2771
+msgid "不同模块类型的重点如下："
+msgstr ""
+
+#: ../../source/narrative/development.md:1 980d48b1ac2f480dab6c073032c0da1d
+msgid "类型"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 cd4970e2e0a44b69a85754ea13adb244
+msgid "必写内容"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 7ea2bee78624488a9474817f50ea2d91
+msgid "数据层（`src/model/`）"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 2b3c7d3ad3f24c2781c6476e4782d413
+msgid "数据类的字段含义、与 `output/` 文件的对应关系"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 3bb7c495745b41b19b7ecff60241d747
+msgid "执行层（`src/engine/`）"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 45b4d6d04e5d4e8f88abb81a22d7f776
+msgid "调用的 e2m2e 算法、返回 DTO 的字段、异常翻译、落盘布局"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 2a5ca5fbcd324c49b7ec4ee018e79e41
+msgid "表现层（`src/view/`）"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 11f601a0dfcb4164af8ab669fb3a3845
+msgid "控件职责、信号语义、与数据/执行层的交互"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 5ab4bb0d5c094b81b90339cc0dda3bed
+msgid "入口层（`src/app/`）"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 9143b91ffaf040dda7adc787ec79319b
+msgid "组装顺序、启动探测逻辑（如 SPICE 内核引导）"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 4571eb2b725b424a8a3a1244e33d764d
+msgid "工具脚本（`scripts/`）"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 e49ba6e66e3244dfbbb87c995dc8a2ae
+msgid "用途、参数、输出"
+msgstr ""
+
+#: ../../development.md:31 df8dcece5ccd4d638591c2ea30a2a836
+msgid "函数与类 docstring"
+msgstr ""
+
+#: ../../development.md:33 c84d555eee1d439081ef71bb55bd2600
+msgid ""
+"公共函数、公共类和 dataclass 使用单行摘要 + `Args` / `Returns` / `Raises` 的 Google-style"
+" 格式。不要在 `Args` 中重复 type hint，只写含义、单位和约束。"
+msgstr ""
+
+#: ../../development.md:51 35d7a33eb397455a8982343340a29691
+msgid ""
+"`main()` 和 `parse_args()` 也需要 docstring：`parse_args()` "
+"说明返回解析后的命名空间；`main()` 说明执行完整脚本流程且通常不返回值。私有 helper 可以使用较短 "
+"docstring，但仍应说明单位、边界或失败条件。"
+msgstr ""
+
+#: ../../development.md:53 738a9e57c1664024a1937565d30ed25c
+msgid "CLI help 文本（工具脚本）"
+msgstr ""
+
+#: ../../development.md:55 00a9ad52d4434df5a9f052afed09141f
+msgid ""
+"`scripts/` 下的独立工具脚本（目前仅有 `download_kernels.py`）使用 `argparse`，help "
+"文本必须回答三个问题：参数控制什么、默认值是什么、单位是什么。示例："
+msgstr ""
+
+#: ../../development.md:66 d6ff73b6b95e455097bfb1a7354967ca
+msgid "无量纲 CR3BP 参数应明确写“无量纲”；角度写“rad”或“度”；时间写“TU”“天”或“秒”。布尔开关说明开启后的行为。"
+msgstr ""
+
+#: ../../development.md:68 d285eb015b82417cbdedcd8b3b384eec
+msgid "国际化工具"
+msgstr ""
+
+#: ../../development.md:70 c7117585e19e47b98df99aa23a951143
+msgid "`tools/update_i18n.py` 用于维护 GUI 的翻译文件："
+msgstr ""
+
+#: ../../development.md:78 04306beb8e9e45d5ab22a49548719953
+msgid "脚本执行三个步骤："
+msgstr ""
+
+#: ../../development.md:79 eddde244384e4ead883cf2d78154ae0c
+msgid "用 `pylupdate6` 从 `src/app/` 提取待翻译字符串到 `src/app/i18n/gui.en.ts`"
+msgstr ""
+
+#: ../../development.md:80 e436266bb17d4814bb78bc4ac551c2fb
+msgid "用 `lrelease6` 编译所有 `.ts` 文件为 `.qm` 二进制格式"
+msgstr ""
+
+#: ../../development.md:81 350e5c1e06a8476db553a13739f5f424
+msgid "校验 `src/app/i18n/scripts.*.json` 的 JSON 格式"
+msgstr ""
+
+#: ../../development.md:83 72458dc080d04f6ca6383d7ab3d640e3
+msgid ""
+"依赖：`pylupdate6` 和 `lrelease6`（来自 PyQt6 或 PySide6 工具包）。新增 GUI "
+"文本后应运行此脚本更新翻译文件。"
+msgstr ""
+
+#: ../../development.md:85 283b8a647f0a4bc284ca93e774471f3a
+msgid ""
+"现状：i18n 基础设施（`src/app/i18n/`、`tools/update_i18n.py`）已就位，但 GUI "
+"尚未接入语言切换（界面固定中文，`TranslationLoader` 未被主窗口调用）。接入前维护翻译文件意义有限，新增界面文本直接写中文即可。"
+msgstr ""
+
+#: ../../development.md:87 5db46e62b8fd4611b99e7493a9ede1a6
+msgid "Sphinx 文档"
+msgstr ""
+
+#: ../../development.md:89 97ad8f26b8854e9abd5f7e319ab64d09
+msgid "Sphinx 源文件位于 `docs/source/`，叙事文档通过 MyST Markdown 接入。"
+msgstr ""
+
+#: ../../development.md:95 61e88519a6aa4a95910d43884caab06c
+msgid ""
+"提交前应至少确认构建无 ERROR，并尽量清理 WARNING。若新增/删除叙事页面，请在 `docs/source/index.rst` 的对应"
+" toctree 中增删条目，并同步更新英文 `.po`（见 `docs/README.md` 的 `sphinx-intl update` "
+"流程）。"
+msgstr ""
+
+#: ../../development.md:97 2f5e8893ef5f4cbb9eed3becad680dc5
+msgid "多语言 README"
+msgstr ""
+
+#: ../../development.md:99 53390b5f0bdb413492c01f88ac49d495
+msgid "`README.md` 为中文主文档；其他语言版本命名为 `README.<lang>.md`（当前仅有 `README.en.md`）。"
+msgstr ""
+
+#: ../../development.md:100 ad77ee7b27824f32b5fd32b09a04d2de
+msgid "修改任一语言版本时，应在同一提交中同步其余版本，保持章节结构一一对应。"
+msgstr ""
+
+#: ../../development.md:101 202c70555e724d89a18c9c6d38786739
+msgid "代码块、命令、路径、模块名一律不翻译；标题翻译后需同步修正文内锚点链接。"
+msgstr ""
+
+#: ../../development.md:102 47d9e66d63504156a4ed3bbe682ba2d1
+msgid "各语言版本顶部均应放置语言切换链接。"
+msgstr ""
+
+#: ../../development.md:104 ad0c0785b9cf4960be3842f9307dc44b
+msgid "日志与打印"
+msgstr ""
+
+#: ../../development.md:106 2faa70a41a3644148fe8f4cd5e93d08b
+msgid "本项目使用 Python `logging` 模块而非 `print()` 进行输出。"
+msgstr ""
+
+#: ../../development.md:108 b382b382c4db497ca7abed8f33af01ae
+msgid "日志级别"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 4eaee11e13c7444faa66282a5a807937
+msgid "级别"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 e404ae3940e44bc5a445ada94db40881
+msgid "数值"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 06d101a45cc546018b47708c73d41ba5
+msgid "说明"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 f9931c544b02475c91f08c6c8eefeb78
+msgid "`DEBUG`"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 cbb0fec14cc34e14bb5a70382a955891
+msgid "10"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 741f3b2287cc4e6cbdba984e186c05e9
+msgid "详细调试信息"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 d684a31312ee4c4e938b828ae512001e
+msgid "`INFO`"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 f059f3dde6344a21a49f941c81087ddf
+msgid "20"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 10b30253f6d742dda4b5d11e559a9537
+msgid "一般信息"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 5d4902ac879745a58f4ced22bded3f71
+msgid "`WARNING`"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 dc4582dff1e54881b18c237f9b338cb8
+msgid "30"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 8fe666d696cf4d839fd1889b50e33588
+msgid "警告（默认级别）"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 00342f067db647558246efe1b7f5b975
+msgid "`ERROR`"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 af40a124172a488fae164012d8b5850a
+msgid "40"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 d24638072aff4cec988fac2bfcf7a6b4
+msgid "错误"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 761b3266a3e34b6091376676c8e47dfc
+msgid "`CRITICAL`"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 ad8512cfdff043599672154f3c0835f7
+msgid "50"
+msgstr ""
+
+#: ../../source/narrative/development.md:1 84bbed9fe9b142299609dbca5070f898
+msgid "严重错误"
+msgstr ""
+
+#: ../../development.md:118 a4ec13966a984dbd95e5ab319dd38079
+msgid "默认日志级别为 `WARNING`，只有更高级别的日志会输出。"
+msgstr ""
+
+#: ../../development.md:120 b079f3d100734624b5cd1650cc1432d7
+msgid "使用规范"
+msgstr ""
+
+#: ../../development.md:122 9b47e089ea4a4f1fae32f7e51d560c04
+msgid "脚本入口模块应配置 logging："
+msgstr ""
+
+#: ../../development.md:134 9b2fd393f3504ca6938c9711d7156092
+msgid "使用 `logger.info()`、`logger.debug()` 等代替 `print()`。这使得："
+msgstr ""
+
+#: ../../development.md:135 a6b41bdff200431c8217e3f0fe8cdabf
+msgid "可通过调整日志级别控制输出详细程度"
+msgstr ""
+
+#: ../../development.md:136 73514561e4134ffaa49832d5f4f12db1
+msgid "支持日志处理器（如写入文件）"
+msgstr ""
+
+#: ../../development.md:137 8e4e4ec0477b4e899278ecd400824d2a
+msgid "输出带有时间戳、模块名等上下文信息"
+msgstr ""
+
+#: ../../development.md:139 46fdb96092834560b0ee0c5735f2421f
+msgid "调试模式"
+msgstr ""
+
+#: ../../development.md:141 510fd9f3a2e44bba9c9cffb057b51f4a
+msgid "运行脚本时设置环境变量可临时调整日志级别："
+msgstr ""
+
+#~ msgid "开发规范"
+#~ msgstr ""
+

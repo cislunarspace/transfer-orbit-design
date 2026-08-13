@@ -1,0 +1,154 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0010-embedded-visualization.md:2 4206736dcac34147bfe34848c8bdf9df
+msgid "ADR 0010：内嵌可视化替代弹窗"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:4 fa6dae5429c84ee2a5bb201d8db0dd0c
+msgid ""
+"**状态**：已接受 **日期**：2026-08-04 "
+"**关联**：`docs/architecture/architecture.md`（第3层 表现层）"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:8 88ab72cb1b9249b2bd19dbd7fdd4d867
+msgid "背景"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:10 932a2e842b01422a99cf7560f2fb4988
+msgid ""
+"旧 GUI 的可视化完全依赖外部 matplotlib 窗口（`plt.show()` 弹出独立 Tk 窗口）。用户需要在 PyQt GUI 和 "
+"matplotlib 弹窗之间来回切换，体验割裂。"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:12 c48498b2b00e468d863cca61682dc714
+msgid "新架构需要将可视化集成到主窗口内。"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:14 50cf40d696844bc184a5c00daba16be1
+msgid "决策"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:16 fd21965ed51e4b6492f632e5c7c551ac
+msgid ""
+"使用 `matplotlib.backends.backend_qtagg.FigureCanvasQTAgg` 将 matplotlib "
+"Figure 嵌入 PyQt6 主窗口。配合 `NavigationToolbar2QT` 提供交互工具栏。"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:18 075d7531c13243ef90ce244bea0f8534
+msgid "标准可视化能力（MVP）："
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:20 4eb9d8c96d364e938a44ee7f1e2ace59
+msgid "**3D 轨道图**：CR3BP 旋转坐标系"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:21 cf8a0df0623d48f48db31579a0133992
+msgid "**2D 投影切换**：XY / XZ / YZ 三视图"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:22 f49987e3ba4a4d1b8eff0a85f5b7c68d
+msgid "**多轨道叠加**：选中多个 Artifact 时叠加渲染"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:23 ca702f8dea8d4dfaaadf060aac8df4de
+msgid "**地月系统标注**：地球、月球位置 + 五个拉格朗日点"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:24 643a1bb005f641c694b5ae696a8b7e9a
+msgid "**轨道族热力图**：Jacobi 常数着色"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:25 09e3e1cd0b074dbf9c167d7a3b85e2ca
+msgid "**导航工具栏**：缩放/平移/旋转/保存图片"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:27 61a8ee4219874f2bbd5e0957818c14d1
+msgid "理由"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:29 e5c2d343562f4395b9fc392fff58a37e
+msgid "**消除上下文切换**：用户在同一窗口内完成\"操作 → 查看\"全流程。"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:30 ced55c0bd6724fb39e24f05986b83d37
+msgid "**FigureCanvasQTAgg 成熟**：matplotlib 官方支持的 Qt 嵌入方案，API 稳定。"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:31 ba8178f058364ced963933b8d93829cb
+msgid "**NavigationToolbar2QT 复用**：不需要自己实现缩放/旋转/保存逻辑。"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:32 bd22ea7f26784c5da49f01cc5f08ba1c
+msgid ""
+"**e2m2e OrbitVisualizer 兼容**：`OrbitVisualizer.plot_3d_orbit()` 接受可选 `ax` "
+"参数，可以传入嵌入式 Axes。"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:34 65b62fe9daf4483085238659260eabd5
+msgid "后果"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:36 4624a1758dd147748848bd54fb8c059c
+msgid "正面"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:38 35a53d3ccc5a40f696ff02c485e6cd4c
+msgid "用户体验从\"两个窗口\"变为\"一个窗口\""
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:39 cfe6b919d0ce4b37b61693cdaff6eedc
+msgid "可以利用 Qt 布局系统控制画布大小和位置"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:40 c78f3765c270459f9b4554ed28e1ae37
+msgid "支持未来扩展（如拖拽 Artifact 到画布区域直接渲染）"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:42 0f7468341f24493cbd9a7064eb30d3f1
+msgid "负面"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:44 ee1975022f95420ea34a7e306d32403f
+msgid "matplotlib 的 3D 渲染性能有限（大量点时旋转卡顿）"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:45 909c46c9deb94a06beab5e4c18ce83e6
+msgid "FigureCanvasQTAgg 的 DPI 处理在高分屏上需要额外适配"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:46 95e7fc9f8045459d85f9766fadb4ac75
+msgid "CJK 字体需要显式配置（复用 `tod/plot/_font_config.py`）"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:48 9522e8b283bb4a6aad738e3df50787cd
+msgid "后续"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:50 eaf6e76fdedf45d69464d438c81700d2
+msgid "如果 matplotlib 3D 性能不满足需求，可考虑 PyVista/VTK 替代"
+msgstr ""
+
+#: ../../adr/0010-embedded-visualization.md:51 9a5b30d514d344c4a26871d6ecee2247
+msgid "可增加画布分屏（2x2 多视图）"
+msgstr ""
+

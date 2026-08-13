@@ -1,0 +1,2 @@
+```{include} ../../architecture/architecture.md
+```

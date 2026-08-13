@@ -45,7 +45,7 @@ A walkthrough of orbit design:
 2. Click Run. Computation runs on a background thread while the log panel streams progress.
 3. When finished, the result is persisted as a JSON + NPZ pair under `output/` and overlaid on the canvas.
 
-The canvas toolbar switches between 3D / XY / XZ / YZ projections and toggles the Earth-Moon and L1-L5 annotations; Ctrl+click in the project tree selects multiple orbits for overlay comparison. Right-click an orbit in the project tree to launch station keeping and stability analysis.
+The canvas toolbar switches between 3D / XY / XZ / YZ / quad-view projections, synodic and inertial (GCRS) coordinate frames, toggles the Earth-Moon and L1-L5 annotations, switches the plotted content (initial guess / ephemeris / overlay), and exports GIF animations; the "Settings → Chart Settings" menu adjusts line width, color scheme, annotation size, and Z-range ratio. Ctrl+click in the project tree selects multiple orbits for overlay comparison. Right-click an orbit in the project tree to launch station keeping and stability analysis.
 
 ## Capabilities
 
@@ -61,7 +61,7 @@ The canvas toolbar switches between 3D / XY / XZ / YZ projections and toggles th
 
 **Visualization**
 
-- Multi-orbit visualization: 3D / XY / XZ / YZ projections, Earth-Moon and L1-L5 annotations, multi-orbit overlay.
+- Multi-orbit visualization: 3D / XY / XZ / YZ / quad-view projections, synodic / inertial frame switching, Earth-Moon and L1-L5 annotations, multi-orbit overlay, chart settings (line width / palette / font size / Z ratio), GIF animation export.
 
 For scripted workflows (CR3BP orbit generation, transfer search, ephemeris correction, plotting), use the [e2m2e CLI](https://github.com/cislunarspace/e2m2e); see the [Sphinx docs](https://cislunarspace.github.io/e2m2e/).
 

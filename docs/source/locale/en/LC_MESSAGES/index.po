@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-04 10:35+0800\n"
+"POT-Creation-Date: 2026-08-13 14:14+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -19,41 +19,61 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../source/index.rst:10
-msgid "入门与规范"
+#: ../../source/index.rst:13
+msgid "入门"
 msgstr ""
 
-#: ../../source/index.rst:19
-msgid "API 参考"
+#: ../../source/index.rst:20
+msgid "使用指南"
 msgstr ""
 
-#: ../../source/index.rst:25
-msgid "PRD 文档"
+#: ../../source/index.rst:30
+msgid "领域知识"
 msgstr ""
 
-#: ../../source/index.rst:6 7521b4e32e104201998de99d6a41063b
+#: ../../source/index.rst:38
+msgid "开发"
+msgstr ""
+
+#: ../../source/index.rst:6 1150525a4e32417196f82afb3a8f19ea
 msgid "Transfer Orbit Design 文档"
 msgstr ""
 
-#: ../../source/index.rst:8 59404199a49542d4a0580580fd49bc64
+#: ../../source/index.rst:8 5d090aec795640b3bf0cfecf7035c2bf
 msgid ""
-"Transfer Orbit Design 提供地月 CR3BP 轨道生成、DRO/RO/GEO/LEO 转移设计、CR3BP "
-"到星历模型修正，以及配套 GUI 和绘图脚本。"
+"Transfer Orbit Design 是 `e2m2e <https://github.com/cislunarspace/e2m2e>`_"
+" 的 GUI 前端：e2m2e 提供地月空间轨道设计所需的动力学模型与算法，本仓库把它们封装 成可视化桌面应用，通过\"选工件 → 选操作 → "
+"看结果\"的三步交互完成轨道设计、 轨道族生成、轨道保持与稳定性分析。"
 msgstr ""
 
-#: ../../source/index.rst:36 f9d8389a5bb846eeb14edbb4ae0e4847
+#: ../../source/index.rst:47 214210ab2708455d9e3c772f93c34bd4
 msgid "索引"
 msgstr ""
 
-#: ../../source/index.rst:38 9ae5d742eb0e4d5e8611a037dbda0482
+#: ../../source/index.rst:49 a31a8b5567794222a9580f4ff6db9d37
 msgid ":ref:`genindex`"
 msgstr ""
 
-#: ../../source/index.rst:39 7acdfd70f66440218a3cf22916fa5270
+#: ../../source/index.rst:50 77fd7bcd45204f65b839de3ce27e9bea
 msgid ":ref:`modindex`"
 msgstr ""
 
-#: ../../source/index.rst:40 b38f25cd439644659e7723571ddde0ee
+#: ../../source/index.rst:51 6e54478fbf134b47afe4c3c9dbe42179
 msgid ":ref:`search`"
 msgstr ""
+
+#~ msgid "入门与规范"
+#~ msgstr ""
+
+#~ msgid "API 参考"
+#~ msgstr ""
+
+#~ msgid "PRD 文档"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Transfer Orbit Design 提供地月 CR3BP "
+#~ "轨道生成、DRO/RO/GEO/LEO 转移设计、CR3BP 到星历模型修正，以及配套 GUI "
+#~ "和绘图脚本。"
+#~ msgstr ""
 

@@ -7,36 +7,6 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
-# Provide documentation-only shims for legacy e2m2e ephemeris APIs that some
-# historical scripts still import. This keeps autodoc importable without
-# changing runtime code paths.
-class _DocStub:
-    """Minimal object used only while Sphinx imports legacy modules."""
-
-    def __init__(self, *args, **kwargs):
-        pass
-
-    def __call__(self, *args, **kwargs):
-        return self
-
-    def __getattr__(self, name):
-        return self
-
-try:
-    import types
-    import e2m2e.core as _e2m2e_core
-
-    for _name in ("SPICEManager", "EphemerisSystem", "EphemerisDynamics"):
-        if not hasattr(_e2m2e_core, _name):
-            setattr(_e2m2e_core, _name, _DocStub)
-
-    _ephem_mod = types.ModuleType("e2m2e.algorithms.ephemeris_correction")
-    _ephem_mod.EphemerisCorrectionResult = _DocStub
-    _ephem_mod.correct_ephemeris_patch_points = lambda *args, **kwargs: _DocStub()
-    sys.modules.setdefault("e2m2e.algorithms.ephemeris_correction", _ephem_mod)
-except Exception:
-    pass
-
 project = "Transfer Orbit Design"
 copyright = "2026, Authors"
 author = "Authors"

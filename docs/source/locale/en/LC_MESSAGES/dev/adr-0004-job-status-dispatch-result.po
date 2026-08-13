@@ -1,0 +1,222 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0004-job-status-dispatch-result.md:2
+#: f8c765dc0482437f95dd654a4642070f
+msgid "ADR-0004: JobStatus 枚举与 DispatchResult 信号载体"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:4
+#: 8037f84b6e8e4867b29210c595c8ff05
+msgid "状态"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:6
+#: 7c1ebcdb5e38447e9074165b27a5e819
+msgid "已接受"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:8
+#: a463dbb66f4d4fc48f71e62f7848a0c6
+msgid "上下文"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:10
+#: 2257f2a3d6f242ddbf3fe0a2edfc5a0f
+msgid ""
+"`CONTEXT.md` 定义了 **任务状态** 的五个规范取值：等待中、运行中、成功、失败和已停止。PR1（ADR-0003）引入 "
+"`RunConfirmationDialog` 后，GUI 任务生命周期的下一阶段需要统一："
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:12
+#: 3ab70aff38a54a09bd6793feb155e190
+msgid ""
+"`Job.status` 原为 `str`（`\"running\"` / `\"finished\"` / `\"error\"` / "
+"`\"stopped\"`），与 `CONTEXT.md` 的五状态不对应。"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:13
+#: f6e4bc6112c1407d967db38313afe277
+msgid ""
+"`job_finished` 信号原签名为 `(job_id: str, name: str, exit_code: "
+"int)`，消费端（`JobPanelMixin._on_job_finished`）需回调 "
+"`JobManager.get_job(job_id)` 查询实际状态再做 UI 更新。这引入 TOCTOU：`stop_job` 已将 "
+"`job.status` 标为 `STOPPED`，但 `_on_job_finished` 可能在回调时读到被覆盖的值。"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:14
+#: 54876d9c515245dcb1b71eca82260b03
+msgid ""
+"`job_error` 信号原签名为 `(job_id: str, error_message: str)`，与 `job_finished` "
+"携带不同信息结构，消费端需要分别处理两个信号才能获得完整的状态/错误/脚本名上下文。"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:16
+#: 0c35718b8fc144a5a7a015b441b30ec0
+msgid "决策"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:18
+#: 1a7280be4f1e4c438dcabc35b106ae32
+msgid "1. 引入 `JobStatus(StrEnum)` 五值枚举"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:29
+#: 5ba84ee0a88a4577b26860a46b9b623e
+msgid "继承 `StrEnum`，可直接用于 `str` 比较和 JSON 序列化。"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:30
+#: e88aeb2f525b42759b5978020b808d72
+msgid ""
+"提供 `is_active` / `is_terminal` 两个 property，通过 `frozenset` 集合判定，不做 "
+"`__contains__` 线性扫描。"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:31
+#: 26f58419c443443c992a1e7e4732f6d6
+msgid ""
+"提供 `from_exit_code(code, *, stopped=False)` 纯函数：`stopped=True` "
+"优先级最高，`code==0` 返回 `SUCCESS`，其他返回 `FAILURE`。"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:33
+#: 510dd25fba8640cd837e9e4c72b19e1e
+msgid "2. 引入 `DispatchResult(frozen=True dataclass)` 统一信号载体"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:45
+#: 3dde6aae5c014dc893147138295c1d69
+msgid "`job_finished` 和 `job_error` 信号签名统一为 `(DispatchResult)`。"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:46
+#: bcfe3f87a7484020a06f92e9920c4f3f
+msgid ""
+"`JobManager._on_finished` / `_on_error` / `start_job` 上限错误均构造 "
+"`DispatchResult`。"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:47
+#: cf0d50140bd34e9592675cf08c4b6d9f
+msgid "消费端（`JobPanelMixin`）直接读 `result.status`，不再回调 `JobManager.get_job`。"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:48
+#: 4802f8e4b91c430183109d3bc5961bc7
+msgid "`frozen=True` 确保信号参数不会被下游意外修改。"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:50
+#: c65bdf068ea942349aafbbf1917bdbf0
+msgid "3. `stop_job` 路径的状态归属"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:52
+#: 081ad8adb2d043cb8d67296ff7589c88
+msgid ""
+"`stop_job` 显式将 `job.status = JobStatus.STOPPED`，`_on_finished` 看到 "
+"`is_terminal` 时跳过 `from_exit_code` 覆盖。`DispatchResult.status` 由 "
+"`JobManager` 在构造时一次性确定，消费端无需推断。"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:54
+#: 265b3c23293648a9ada36d183127f0b5
+msgid "4. 中文显示映射集中硬编码"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:66
+#: b05ae048f0c240959a62cb7b82a33451
+msgid "不接 i18n（`CONTEXT.md` 任务状态术语已定），避免翻译缺失导致状态显示空白。"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:68
+#: 6d3c5c5f429b4fbcac620ab9e126da61
+msgid "后果"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:70
+#: 4dee9924993d4e1c826da4d4df770b2c
+msgid "正面"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:72
+#: dad96dbbe9664bc2a196dad6e18a0714
+msgid "任务状态与 `CONTEXT.md` 五值完全对应，类型安全（`StrEnum`），替代松散的 `str` 比较"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:73
+#: 464ffe7f03a449ddbdeaf730ac02dd2f
+msgid "`DispatchResult` 消除 TOCTOU：`_on_job_finished` 无需回调查询，信号携带完整终态"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:74
+#: 143d94bbb4fb48a7b53979bcc972c478
+msgid ""
+"`job_finished` / `job_error` 信号签名统一为 `(object)`，`main_window.py` 无需改动（Qt "
+"`object` 信号兼容任意 slot 签名）"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:75
+#: 342f66c4563d4ce1ad2a3f7d69528707
+msgid "`frozen dataclass` + `StrEnum` 对序列化、调试和类型推断友好"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:76
+#: 66d5bcebe9324dd0b21ced1cb5232492
+msgid "停止任务的状态由生产端（`JobManager`）确定，而非消费端推断"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:78
+#: 23260382796d40a289b1071e07ce59b2
+msgid "负面"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:80
+#: 637ec9fe7e974d0ba5ab2ef8ea9bdaba
+msgid ""
+"信号签名变更（`(str, str, int)` → `(object)`）：所有 `connect` "
+"代码需要同步更新；`main_window.py` 因 Qt `object` 类型兼容性无需改动，但第三方插件（如有）需注意"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:81
+#: 1f5f7385df8d45f1b716385d319df667
+msgid ""
+"`Job.status` 从 `str` 迁移到 `JobStatus` 枚举：任何对 `job.status == \"running\"` "
+"的字符串比较都会变为类型错误，需要全量 grep 修复"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:83
+#: ba063434d28c4148a2394b8bce0682f9
+msgid "后续"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:85
+#: 73c1585b7445469eb58b65c833f30005
+msgid "`PENDING` 状态已就位但尚未引入真实队列调度；留给后续 issue"
+msgstr ""
+
+#: ../../adr/0004-job-status-dispatch-result.md:86
+#: d377205aaff24673819aa9df6d8ff1d9
+msgid "`DispatchResult` 可承载更多诊断字段（如 `wall_time`、`peak_memory`），按需扩展"
+msgstr ""
+

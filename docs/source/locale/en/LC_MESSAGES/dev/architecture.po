@@ -1,0 +1,930 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-13 14:15+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../architecture/architecture.md:2 111df04e2eae4c429a6ba14f7418f0b7
+msgid "transfer-orbit-design 架构设计"
+msgstr ""
+
+#: ../../architecture/architecture.md:4 526cc323490b49c2912a41b8a44164ce
+msgid "本文描述 transfer-orbit-design（以下简称 tod）的**最终形态**架构。逐项架构决策见 `docs/adr/`。"
+msgstr ""
+
+#: ../../architecture/architecture.md:6 a8e7b9ce2918405daef9501af6d8a88e
+msgid "总体定位"
+msgstr ""
+
+#: ../../architecture/architecture.md:8 c128a3da9084443a8c0d52792979640c
+msgid "tod 是 **e2m2e 的 GUI 前端**。它不实现任何轨道力学算法，只做三件事："
+msgstr ""
+
+#: ../../architecture/architecture.md:10 ed914c7d4bd544028caede645510e5dc
+msgid "**调用**——通过 e2m2e Facade API 发起计算任务（轨道设计、轨道族生成、轨道保持、稳定性分析）。"
+msgstr ""
+
+#: ../../architecture/architecture.md:11 12316f275f6a4fdeaa436b9247f191e9
+msgid "**管理**——追踪用户工作会话中的全部计算产物（轨道、轨道族、转移结果），提供结构化的数据导航和管线串联。"
+msgstr ""
+
+#: ../../architecture/architecture.md:12 41354b7f935f4751b33acc8a19181fa5
+msgid "**呈现**——将计算结果以内嵌可视化的方式展示在主窗口中，支持 3D/2D 轨道图、多轨道叠加、地月系统标注。"
+msgstr ""
+
+#: ../../architecture/architecture.md:14 ab4e97b81c5f44938c1828cb5cca490b
+msgid ""
+"用户不需要知道 e2m2e 的内部结构，也不需要手动管理文件路径。tod 把 e2m2e 的能力封装为\"选工件 → 选操作 → "
+"看结果\"的三步交互。"
+msgstr ""
+
+#: ../../architecture/architecture.md:16 6027f060379746e0a5036e0f7daa10ba
+msgid "总体分层"
+msgstr ""
+
+#: ../../architecture/architecture.md:18 e62a8ab0c90c4a6a8d4c287718928cbc
+msgid "按依赖方向由内向外，四层。**内层不感知外层**。"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 6bb3d172e0c2459fb946f33b479acc2a
+#: 895e1bab08ad406a9a4d95df8443a36d
+msgid "层级"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 27ee109415e04f158b037445dce6d61a
+msgid "名称"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 70a923dd8d1f460590e9a29196d33bdf
+msgid "职责"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 a25c705f097f4e74bf400ef88c649828
+msgid "第1层"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 ad57987b72994408aab7e5faaa6179b3
+msgid "数据层 `src/model/`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 d28bfd47bb6f43e0aaf785cd8745ee46
+msgid "Project、Artifact、output/ 扫描、元数据"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 31faa63918cd47368ce85c877a2168f4
+msgid "第2层"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 6d1ffc52c35e4e178ae4193005b64566
+msgid "执行层 `src/engine/`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 06e7610196884e96a709c763ab474f58
+msgid "Facade/算法层调用（QThread 工作线程）、结果落盘"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 632d5e943930453f941478f27bc8c373
+msgid "第3层"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 85a87de136d7410089b2c05c9bb376ae
+msgid "表现层 `src/view/`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 4cf1f33df0004cef9bd82a4c9082fe47
+msgid "Qt 控件：项目树、可视化画布、参数面板、日志"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 2ae1e2f14b6242fbb638fa56279103fa
+msgid "第4层"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 35c340462c0649e28e2b0822f60230f9
+msgid "入口 `src/app/`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 109fc23875604e119d1d7b935c6c4b6c
+msgid "主窗口组装、设置、国际化、主题"
+msgstr ""
+
+#: ../../architecture/architecture.md:27 bae95f29e9644e29870b52f1ad02e1e9
+msgid "**分层哲学**："
+msgstr ""
+
+#: ../../architecture/architecture.md:29 9d0354ca208a4a1c8d0363c0ae9cadd8
+msgid "**数据层不知道 GUI 的存在**。Project/Artifact 是纯 Python 数据类，可在测试中独立使用。"
+msgstr ""
+
+#: ../../architecture/architecture.md:30 2bf961421bf241a5bb7c0e105580d8fc
+msgid ""
+"**执行层不知道 Qt 的存在**。它只负责\"接收参数 → 调 e2m2e → 返回结果 + 落盘\"。线程管理由表现层的 QThread "
+"包装处理。"
+msgstr ""
+
+#: ../../architecture/architecture.md:31 0073d0fa68024a9a9a4fa4c41c88aeb7
+msgid "**表现层不调 e2m2e**。它只和数据层、执行层的接口交互。"
+msgstr ""
+
+#: ../../architecture/architecture.md:32 abe14dfb2bdd4762847d641120cb1c24
+msgid "**入口层只做组装**。它把数据层、执行层、表现层粘在一起，不包含业务逻辑。"
+msgstr ""
+
+#: ../../architecture/architecture.md:34 c3eda248617640eb8e5980e7b1853d8e
+msgid "顶层结构（最终形态）"
+msgstr ""
+
+#: ../../architecture/architecture.md:79 76e400aa360845c19b7aba14b5aa70f0
+msgid "**删除的旧代码**（大爆炸替换）："
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 a20fad6ed202491e92efbd905122e58a
+msgid "旧目录"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 96afe9a144a44f32971d31062ff7e1fa
+msgid "原因"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 6738dba9b9d445dc9af6c8a0bcee0432
+msgid "`tod/gui/`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 35a70c47af5a43d983f525e34be77f47
+msgid "被 `src/view/` + `src/app/` 替代"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 b5e170f49027440f83902962f2caecd8
+msgid "`tod/generates/`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 814cd0acbcc84de89116ae1ed4ebbb16
+#: a12bfc73d32547eb9842809dfb31cd63
+msgid "被 e2m2e Facade API 直调替代"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 f99ee0f0574c4654a502556345821e78
+msgid "`tod/transfers/`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 18ae33f1b8934ff792cbc9df5dedc184
+msgid "`tod/scripting/`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 7222f7fe596f40628fd1878e8829c168
+msgid "SCRIPT_ENTRY 机制废弃"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 fefd5b440e104fe8a17e23cba6f33499
+msgid "`tod/commons/e2m2e_compat.py`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 86aebfdc5e414badb0d10638179aa754
+msgid "不再需要旧路径兼容"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 d04df5bbda7a473298c0e8a0498b48db
+msgid "`plot/`（顶层）"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 c5ab10001c354d069ea171dd48cd6236
+msgid "v3.2.1 起 e2m2e 删除 `tools/viz`，绘图组件收编为 `src/commons/viz/` 由本项目自维护"
+msgstr ""
+
+#: ../../architecture/architecture.md:90 59160b9765304c0099ce732f76cc0a9c
+msgid "第1层 数据层 `src/model/`"
+msgstr ""
+
+#: ../../architecture/architecture.md:92 952236162247417dbca83e3fe41784d8
+msgid "Artifact"
+msgstr ""
+
+#: ../../architecture/architecture.md:94 2d5d0c94b46d4d37830a3b8d5dffdc8a
+msgid "一次计算的产出物。纯数据类，不依赖 Qt 或 e2m2e。"
+msgstr ""
+
+#: ../../architecture/architecture.md:111 da9f3abd9e6848eda491e18edb0d7ba5
+msgid "Project"
+msgstr ""
+
+#: ../../architecture/architecture.md:113 d427cdbac92243f4a3abd27c417752ee
+msgid "管理一次工作会话的全部 Artifact。**Project 不做持久化**——持久化由 `output/` 目录承担。"
+msgstr ""
+
+#: ../../architecture/architecture.md:128 3eb5a42d7e5540c690585862d10136a1
+msgid "Discovery"
+msgstr ""
+
+#: ../../architecture/architecture.md:130 df7a43e33fa443479fc38b0922388b10
+msgid "GUI 启动时扫描 `output/` 目录，重建 Project。"
+msgstr ""
+
+#: ../../architecture/architecture.md:138 019c30eb83f948269840ea988b4cbe60
+msgid "文件命名约定（与现有 output/ 结构兼容）："
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 7cab8f24269b483c8ee277bdea0cbdc6
+msgid "子目录"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 c96bb9e029904399bdd1dcbefe2b9cb8
+msgid "文件名模式"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 9d2a28e334ea4600a4af01536774cf14
+msgid "Artifact 类型"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 621204111d2949c7aaa1657c9f54b0ce
+msgid "`output/<type>/`（dro/halo/nrho/lissajous/l4/l5）"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 2702122a98ff4f9ebc4997860f89abff
+msgid "`<type>_<14位时间戳>.json`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 ca5fbe9d9cc2483db427c59dcc3cd6f3
+msgid "orbit"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 ca0a02eee97e4626a1dd791e35fdc454
+msgid "`output/family/`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 7316cd3ef68b4bb088305f31096d3a95
+msgid "`family_<ts>.json`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 f512361a2396438d85f07b89ecb7e914
+msgid "family（Halo 族）"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 92a1a567fc634cf5b43db5368edf9d96
+msgid "`output/ephemeris/`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 0d827217028b42139644e9a2bfd2942c
+msgid "`orbit_ephemeris_<ts>.json`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 f87b2074e88c499ea2664eef13e25230
+msgid "ephemeris（轨道保持）"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 a246b2ecb9004337b75e06f059a8a0cb
+msgid "`output/stability/`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 8f8604b51d734c50ba76650147331c78
+msgid "`<label>_stability_<ts>.json`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 e029a5d9a0a94d4c8e116a3234250831
+msgid "不进项目树（对话框展示）"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 d22d3ed4343c45a79fab6c96d8c94887
+msgid "`output/dro/`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 5dbc6f36d4b445ec92ba16ddaf55b6f6
+msgid "`dro_*_family_*.json`（遗留）"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 7d9d591d214148d29b846e317e6d2fb4
+msgid "family（旧 GUI 的 DRO 族，兼容识别）"
+msgstr ""
+
+#: ../../architecture/architecture.md:148 9dc777fe177941a49aaa3ca64f310183
+msgid "第2层 执行层 `src/engine/`"
+msgstr ""
+
+#: ../../architecture/architecture.md:150 e2566bacb4c241d0bf12db85607e27b5
+msgid "FacadeBridge"
+msgstr ""
+
+#: ../../architecture/architecture.md:152 8ee9e1821d8e48c79c459fb2c4295bce
+msgid "e2m2e Facade API 的薄封装。处理配置注入、异常翻译、结果落盘。"
+msgstr ""
+
+#: ../../architecture/architecture.md:167 7121b22eaddf4bc1b05271ccf75a1c93
+msgid "**关键设计**："
+msgstr ""
+
+#: ../../architecture/architecture.md:169 5a8d1a834fda44658930ae286c7c72d4
+msgid ""
+"**直接调用 algorithm 层，不经过 Facade 门面**。原因：`Facade.design_orbit()` 返回的 "
+"`DesignOrbitResponse` 剥离了轨道数据（只返回标量汇总），而 GUI 需要完整的 `OrbitDesignResult`（含 "
+"`cr3bp_orbit`、`ephemeris`）用于可视化。Facade 门面是 MCP/CLI 的接口层，GUI 作为 e2m2e "
+"的深度集成者直接使用算法层（ADR-0011）。"
+msgstr ""
+
+#: ../../architecture/architecture.md:170 69736a6830dd4a9fb24412bff80cf3e7
+msgid ""
+"**e2m2e 5.6.5 起 `design_orbit` 首参为 `DesignOrbitRequest`**（散字段不再支持），facade"
+" 把 GUI 收集的 kwargs 包成 request 再调用；`duration` 由面板年单位换算为秒。"
+msgstr ""
+
+#: ../../architecture/architecture.md:171 5814026582d14036a0629938982f8c25
+msgid ""
+"**结果 DTO（Data Transfer Object）**：可跨线程边界传递的纯数据类，不持有 e2m2e 对象引用。包含 numpy "
+"数组（状态矩阵、时间向量）和标量元数据。"
+msgstr ""
+
+#: ../../architecture/architecture.md:172 b82515d415d447c09ef9002b403e1343
+msgid "**异常翻译**：e2m2e 异常 → 结构化错误码 + 用户友好消息（`src/engine/exceptions.py`）。"
+msgstr ""
+
+#: ../../architecture/architecture.md:174 a50fdaeaaf244debad8b6e6413ede516
+msgid "Workers"
+msgstr ""
+
+#: ../../architecture/architecture.md:176 ea1ab2c851a045d28216451eb608ba9d
+msgid "QThread 工作线程，每个 Facade 方法一个 Worker 类。"
+msgstr ""
+
+#: ../../architecture/architecture.md:185 766e64644e68452a827a4c53db8c08ff
+msgid ""
+"Workers 是**执行层与表现层的边界**：它们使用 PyQt6 的 QThread 和 pyqtSignal，因此在技术上依赖 "
+"Qt。这是有意的设计选择——避免引入额外的线程-通信抽象层。"
+msgstr ""
+
+#: ../../architecture/architecture.md:187 97defd3c080543efa1156694e97dfacc
+msgid "Persistence"
+msgstr ""
+
+#: ../../architecture/architecture.md:189 cc50e1fdfac34149bda420dfbb393aed
+msgid "结果落盘。利用 e2m2e 算法层自身的 `write_ephemeris()` / `save_to_file()` 方法。"
+msgstr ""
+
+#: ../../architecture/architecture.md:197 6fe207820d474c6d9039a873e0d974da
+msgid "第3层 表现层 `src/view/`"
+msgstr ""
+
+#: ../../architecture/architecture.md:199 53798b4b3b7a42f6ac4ce0dccc76acb0
+msgid "项目树 `project_tree.py`"
+msgstr ""
+
+#: ../../architecture/architecture.md:201 4ecff063ae6746379b7829904b36d239
+msgid "主窗口左侧。**项目主导**：按 Artifact 类型分组展示，右键菜单暴露可用操作。"
+msgstr ""
+
+#: ../../architecture/architecture.md:214 78f979afbd664e26a76dbb10649f93b3
+msgid "右键菜单上下文感知："
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 5b1c51cfc8b749ef9d4166b20879aa00
+msgid "选中 Artifact 类型"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 4deb6bba80ce497ab3ed96f420e574ab
+msgid "右键可用操作"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 a96dfebe390445dfa7cbf18846f66bb3
+msgid "orbit（含星历）"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 71033dd6f50a48eabb0837621dd3bcc0
+msgid "轨道保持、稳定性分析、删除"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 18c4714cb36d49cbae4ec61c22db9f29
+msgid "orbit（仅 CR3BP）"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 920a2cf3423c4ff0abec022b67630566
+msgid "稳定性分析、删除"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 e8066715d9a840029458941fd1859df4
+msgid "family"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 3f687b8434fb4cfda32a61de6328c887
+#: 7a79fb0cbdf34b9cb0f9cfb823532c70
+msgid "删除"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 37e5449973a545ad8ebe00c5544d070a
+msgid "ephemeris（保持结果）"
+msgstr ""
+
+#: ../../architecture/architecture.md:223 a89eda23de424126a7859760f8e17908
+msgid "可视化画布 `canvas.py`"
+msgstr ""
+
+#: ../../architecture/architecture.md:225 975d5af5413c4503b49848dd0e35bf26
+msgid "主窗口中央。内嵌 `FigureCanvasQTAgg` + `NavigationToolbar2QT`。"
+msgstr ""
+
+#: ../../architecture/architecture.md:227 1dd3a482e5bd4cbb94b73a369e8c62ee
+msgid "**标准可视化能力**："
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 8ea69400ce2b4107b98cecc3ff1f561a
+msgid "能力"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 2e1a39e75bc04aa58b8882996a1e37cc
+#: 34eca7712280414885af4a04ed12a0c0
+msgid "说明"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 30a6bdf991064502b690957a07218892
+msgid "3D 轨道图"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 966aaedce4de46a1bf43b1654cc828e4
+msgid "CR3BP 旋转坐标系下的轨道，可拖拽旋转"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 24901f8070b54a7a8e6c45be0cf3b54b
+msgid "2D 投影切换"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 3f46e0efdc464db9ad78825b4c3e1911
+msgid "XY / XZ / YZ 三视图 + 四视图（2×2 网格），工具栏按钮切换"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 a25952472a404bf3862da1e73e573cd6
+msgid "坐标系切换"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 4a32012ddee44fb09fc35ba46b3fb802
+msgid "会合系（CR3BP 旋转系，无量纲）/ 惯性系（GCRS，km），惯性系下月球沿真实轨迹移动"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 c73c3acd386240c18e7e10a6753a6a6f
+msgid "中心切换"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 bb3a75588d314d089780bc6db0c2525a
+msgid "质心 / 月球 / L1 / L2（会合系），惯性系以地球为原点"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 d6f2113ee2ed4ade883f88be64161e34
+msgid "绘制内容"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 3b7e70602e6347b98df74829733553c1
+msgid "初猜 / 星历 / 叠加三选一（轨道设计产物同时携带两份轨迹）"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 7f72931a2ed64b418c5ef84a9054e3d5
+msgid "多轨道叠加"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 d624df38a6454fa1b4091d2e57a3b2dc
+msgid "选中多个 Artifact 时叠加渲染，自动分配颜色"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 75a5b985b8624096861fc70007c1ee3a
+msgid "地月系统标注"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 9138cc63bc6544deaad15f602d7483a5
+msgid "地球、月球位置 + 五个拉格朗日点，`viz_adapter` 提供"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 ce824757cffe4e4bb99e12a830fbb9c7
+msgid "轨道族渲染"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 ea43cad3ad344b0ead9ba4cc60de00e9
+msgid "族成员逐条渲染，`viz` 组件提供"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 eba45b50014a41a3a5a1e0a762ee74a2
+msgid "图表设置"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 163172d233ca4640a682f48922e6a151
+msgid "线宽/颜色方案/标注大小/字号/Z 区间比例，QSettings 持久化"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 6a528d526d0e4fcea3a763312979b934
+msgid "GIF 动画导出"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 1febe6ad406a43fe8cbe6cf5fbaa15b1
+msgid "按时间等分采样逐帧渲染，Pillow 合成，累积/滑动窗口"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 d0a8f237d05f4a36b3bec2d8a21830df
+msgid "导航工具栏"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 f0c8e243d1a04a4697d1443fa2eed57e
+msgid "缩放/平移/旋转/保存图片"
+msgstr ""
+
+#: ../../architecture/architecture.md:243 787179c72a7744da805015aae2df50f8
+msgid "**画布状态**："
+msgstr ""
+
+#: ../../architecture/architecture.md:257 8f7fd7ca76b3420eb33a1451baba3c40
+msgid "参数面板 `params_panel.py`"
+msgstr ""
+
+#: ../../architecture/architecture.md:259 97195ba94c86403ea6b777b16a5b5b5e
+msgid "主窗口右侧。**从 e2m2e Pydantic 模型自动生成**。"
+msgstr ""
+
+#: ../../architecture/architecture.md:261 66f79efce7e84e92b27a23cb2178f945
+msgid "生成规则："
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 24c8fc9cac184d22ad115ec3d79434d3
+msgid "Pydantic 字段类型"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 48a469b702164546a522b2aa1e30adcd
+msgid "Qt 控件"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 f6b06db68855406a88b2d7d3e6d40030
+msgid "`float` (有 ge/le)"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 a15df2b6818f4904a92bf5961788d226
+msgid "`QDoubleSpinBox` (range=ge..le)"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 b5754e51b33345bd8171cba96d37817b
+msgid "`int` (有 ge/le)"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 d3fe85ec8e1e4e4c97d9700be9223dbe
+msgid "`QSpinBox` (range=ge..le)"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 c07c020020b447d4b1ea142bdd1d0f21
+msgid "`str` (有 enum)"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 26d890ec818c400d811bcd28f5d29a47
+msgid "`QComboBox`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 2818eb63127b4cbfb4c9afc865169d09
+msgid "`str` (无 enum)"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 98627e6afac741558c7cc763d258ef7a
+msgid "`QLineEdit`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 7a713a48995b4fc68daeaaebc9d191cd
+msgid "`list[float]`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 285b3b76d6144ef8a772d077bbb953fa
+msgid "多个 `QDoubleSpinBox`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 8f488883aee94593bdd9b8fe7077af25
+msgid "`Any` (可选)"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 165047733e2e4672b6ef60a47a04eb4b
+msgid "`QLineEdit` (JSON 输入)"
+msgstr ""
+
+#: ../../architecture/architecture.md:272 981d4ecf6dcd4f52855f7f7b569c2935
+msgid "字段元数据映射："
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 0f38d0e0cc1540e8930c8bd4fcdc5deb
+msgid "Pydantic Field 信息"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 0afd3467ee2647318db48ae15e15c58e
+msgid "Qt 属性"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 88684d8986a645c8aaa572682b32957d
+msgid "`description`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 abfa72ce6dfc44dea2f58016a1c7b769
+msgid "控件 tooltip"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 c9e3edc0787a4f1689f57f3ff63886d4
+msgid "`default`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 7a9572a48fdb4ec49052300cddc06257
+msgid "控件默认值"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 17b1d8c18b824f7c8208d58a42158eee
+msgid "`ge/le/gt/lt`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 008c8b9a61d14b9582bab7b28c614409
+msgid "控件范围"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 e76cbcb9ffbf4605bfb5e856857868a4
+#, python-brace-format
+msgid "`Field(json_schema_extra={\"unit\": \"km\"})`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 cce99d7182ab4670bedba8f64639dac8
+msgid "单位标签"
+msgstr ""
+
+#: ../../architecture/architecture.md:281 92cd2d47f4364e6cae15efd8ff7071ca
+msgid "每个工具类型注册一个参数面板生成函数："
+msgstr ""
+
+#: ../../architecture/architecture.md:293 fd40d74e56f34ff3a38086903b9c6a66
+msgid ""
+"稳定性分析无参数面板（右键轨道触发），`enabled=False` 仅表示下拉灰显，右键菜单另行启用。轨道族生成使用本地 "
+"`FamilyGenerationRequest` 模型（e2m2e 无对应 Request）。"
+msgstr ""
+
+#: ../../architecture/architecture.md:295 d0522c67cd3b454b8033fb5d4d579a4c
+msgid "日志面板 `log_panel.py`"
+msgstr ""
+
+#: ../../architecture/architecture.md:297 14f2b816bfb647d8a28b6684ae92ecf3
+msgid "主窗口中央标签页（与可视化画布并列）。显示当前任务的结构化日志："
+msgstr ""
+
+#: ../../architecture/architecture.md:307 d2c6109969ec4cdaa58b050c69c21236
+msgid "第4层 入口 `src/app/`"
+msgstr ""
+
+#: ../../architecture/architecture.md:309 b43ef59479b74abebbaedc088c0273a5
+msgid "主窗口布局 `main_window.py`"
+msgstr ""
+
+#: ../../architecture/architecture.md:331 881cb901dbc249d59644239f6b14e6a0
+msgid "**Splitter 布局**：三栏可拖拽调整比例。默认 20:55:25。"
+msgstr ""
+
+#: ../../architecture/architecture.md:333 54a683dc5e9d437ca690d5823ba42103
+msgid "设置与配置"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 ca127835de334227a9497269e5d835f6
+msgid "设置项"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 41ae85c721fb466fb03c6d0313aad99b
+msgid "存储位置"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 3c50e49afdaa4de18d8a0090a8dea16e
+msgid "SPICE 内核目录"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 b609f7e9c501499a99641d0214270d2e
+msgid "配置文件 `kernels_dir.txt`（`~/.config/transfer-orbit-design/`）"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 070abb1840fd4e499dfb14aba45dc7ae
+msgid "首次启动缺失内核时弹窗引导（下载/指定/跳过），探测顺序见 `src/commons/paths.py`"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 2cdbca7ed158420bac9c10304094b959
+msgid "图表设置（线宽/颜色/标注/字号/Z 比例）"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 31818dad7efc4360b1370f2d3e276cdd
+msgid "QSettings"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 91c6020e53f048808d0d2ad67cf989de
+msgid "`src/view/chart_settings.py`，菜单\"设置 → 图表设置…\""
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 f544c7c4470f43d2b8fe715b2037a620
+msgid "界面语言"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 5eeee56902244ea39a943d1016ca77f1
+msgid "—"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 947e89b78797406dba75e7f6e96dec6c
+msgid "i18n 基础设施已就位但未接入，界面固定中文"
+msgstr ""
+
+#: ../../architecture/architecture.md:341 85186494c84a46a3b75445d82eced017
+msgid "入口 `main.py`"
+msgstr ""
+
+#: ../../architecture/architecture.md:353 c175d8eb847143d28d650f691fe014e3
+msgid "依赖方向规则"
+msgstr ""
+
+#: ../../architecture/architecture.md:363 1b3e7080655b4aa0b35f07a07a571d2f
+msgid "**硬规则**："
+msgstr ""
+
+#: ../../architecture/architecture.md:365 91207428026540a1ae52c59d3311617c
+msgid "`src/model/` 不 import `src/view/` 或 `src/engine/`。"
+msgstr ""
+
+#: ../../architecture/architecture.md:366 023b060cd99049f09f40704fb77d4549
+msgid "`src/view/` 不直接 import e2m2e。所有 e2m2e 调用经 `src/engine/` 桥接。"
+msgstr ""
+
+#: ../../architecture/architecture.md:367 1ec17777b2144a74839db1744efe2906
+msgid ""
+"`src/engine/` 不 import `src/view/`（Workers 的信号是技术性例外，仅 import "
+"PyQt6.QtCore）。"
+msgstr ""
+
+#: ../../architecture/architecture.md:368 2af52f9b48cf4a77a88a7cf94d31f277
+msgid ""
+"`src/commons/` 不被 `src/model/`、`src/engine/`、`src/view/` 反向依赖（commons "
+"是叶子）。"
+msgstr ""
+
+#: ../../architecture/architecture.md:370 9b3cbb9930144591a6fcdf9d7adaf945
+msgid "可视化架构"
+msgstr ""
+
+#: ../../architecture/architecture.md:372 f26f5614faf74f4193f53cea960ab1db
+msgid "画布内部结构"
+msgstr ""
+
+#: ../../architecture/architecture.md:385 58f769e9b27447519dbc99723bc1ee09
+msgid "渲染流程"
+msgstr ""
+
+#: ../../architecture/architecture.md:400 85c16592629a4c9c97c213868e47a736
+msgid "颜色策略"
+msgstr ""
+
+#: ../../architecture/architecture.md:402 2d9b7305973042f7a356e7e5535903bb
+msgid "单轨道：tab10 调色板首个颜色"
+msgstr ""
+
+#: ../../architecture/architecture.md:403 6204191d88514f8cbeece2a57de694f1
+msgid "多轨道叠加：tab10 调色板自动分配；颜色方案可在图表设置中切换"
+msgstr ""
+
+#: ../../architecture/architecture.md:404 bf72b5e13f9e48dab13c85756451fd6f
+msgid "轨道族：m 条成员按 viridis colormap 渐变着色"
+msgstr ""
+
+#: ../../architecture/architecture.md:405 99dfb982994e4c618bb176388be2ddea
+msgid "叠加视图：初猜实线、星历虚线，TAB10 相邻色区分"
+msgstr ""
+
+#: ../../architecture/architecture.md:406 0cf9f8f4929241bba1dd66588c116ff0
+msgid "起点：绿色圆点；终点：红色圆点"
+msgstr ""
+
+#: ../../architecture/architecture.md:407 cb85a6e8e5b749548e7403fa88571199
+msgid "地球：蓝色大圆 + 图标；月球：灰色大圆 + 图标；L 点：黑色三角 + 标签"
+msgstr ""
+
+#: ../../architecture/architecture.md:409 7f31e33e61de4706ae4a0f77c51df0c6
+msgid "管线串联"
+msgstr ""
+
+#: ../../architecture/architecture.md:411 698816bba70040e9b800894186248aba
+msgid "用户操作一个 Artifact 后，项目树的右键菜单展示可用的下一步操作。"
+msgstr ""
+
+#: ../../architecture/architecture.md:413 a5d6236a26f94d27ab5207bc051d4a7b
+msgid "**因果链**："
+msgstr ""
+
+#: ../../architecture/architecture.md:423 23041490d4964dd5b737c26d4c8857cf
+msgid ""
+"**数据流**：Artifact 的 `state_data` / 星历数组在内存中传递（numpy 数组引用），不经过文件 "
+"I/O。落盘是并行行为（Persistence 模块异步写 output/）。"
+msgstr ""
+
+#: ../../architecture/architecture.md:425 94ae9af3159947d5a85db0a335299e2e
+msgid "工具范围（当前）"
+msgstr ""
+
+#: ../../architecture/architecture.md:427 6f0897e388b044eda83fb9173f24eb6b
+msgid ""
+"GUI 的工具范围固定为四件：轨道设计、轨道保持、轨道族生成（Halo 北族）、 稳定性分析（右键）。e2m2e "
+"的转移设计、低推力、流形分析等能力**不在 GUI 范围内**——需要脚本化工作流时直接使用 [e2m2e "
+"CLI](https://github.com/cislunarspace/e2m2e)。这与早期版本\"灰显 占位等待 e2m2e "
+"实现\"的策略不同：不承诺 GUI 承载全部算法能力，避免维护 一批永远点不亮的按钮。"
+msgstr ""
+
+#: ../../architecture/architecture.md:434 a49d556044564351bf275177daab65d6
+msgid "依赖"
+msgstr ""
+
+#: ../../architecture/architecture.md:436 584fe572927b48e3bb815b88661fc851
+msgid "**运行时**：PyQt6, PyQt6-WebEngine, matplotlib, numpy, scipy, pillow（GIF 合成）"
+msgstr ""
+
+#: ../../architecture/architecture.md:437 5bc73b6b4c0d4063aa074a93c74a2462
+msgid ""
+"**e2m2e**：PyPI 依赖（`e2m2e>=5.6.8`），运行时经 `src/engine/facade_bridge.py` 调用 "
+"algorithm 层"
+msgstr ""
+
+#: ../../architecture/architecture.md:438 1f29fb2edb664129b0cfab6ce6af4aa0
+msgid ""
+"**calcephpy**：经 e2m2e→r2s2 传递依赖（Windows 用预编译 wheel，见 `pyproject.toml` 的 "
+"`[tool.uv.sources]`）"
+msgstr ""
+
+#: ../../architecture/architecture.md:439 afeffef699b64c188a3eec50ab581fb0
+msgid "**可选**：PyInstaller（打包为 Windows 便携版）"
+msgstr ""
+
+#: ../../architecture/architecture.md:441 b955981dbc06430eb0410bb781cbcc5d
+msgid "测试策略"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 a954e26937fd49fc8119d5c92e8b607f
+msgid "测试类型"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 1fd281eee1cd48f7953c0aec641af01f
+msgid "覆盖目标"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 107490c0d4634ae98d93ca87acaebc43
+msgid "model/"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 62379a26ee5244c782f60eb1e03a9dc1
+#: edfc8e1735084ef49413cf4d3b9c0084
+msgid "单元测试"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 88f37f8d38b74ad9b888d70f8c5290ce
+msgid "Artifact CRUD、Project 查询、Discovery 扫描"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 5a373a03af694793b618c739e9ee6155
+msgid "engine/"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 70fb6b0c04744349908dc489b53b1482
+#: 8ebd769d775f458a88b56cb2dba4c7fb
+msgid "集成测试"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 81cb0b93446e4436ac0808f1d8282c95
+msgid "FacadeBridge → e2m2e（真实参数模型签名）、持久化落盘、异常翻译"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 5d6967a3a4bc49d9bdcaa689912010e0
+msgid "view/"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 89c35276f917424ea8183d15e6135f76
+msgid "控件测试"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 afe69b16534f41aa9625a88928c6954b
+msgid "参数面板生成/收集、画布渲染、项目树交互、图表设置"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 da5e6662c8f0441bb6c824158c603aed
+msgid "app/"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 62600ba8f8aa41529e38da5d911d7b8d
+msgid "内核引导、主窗口工具调度、i18n 加载"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 b6ee2c6629b9404e8b347141621da226
+msgid "commons/"
+msgstr ""
+
+#: ../../source/dev/architecture.md:1 526a1c876bda487e99fb5b090bd7b95f
+msgid "单位换算、内核下载/可用性判断、路径探测"
+msgstr ""
+
+#: ../../architecture/architecture.md:451 d18d8715c2cb43e2a34f18e5f1692b41
+msgid "e2m2e 本身已通过其自身测试套件验证，tod 不重复测试 e2m2e 的计算正确性。tod 的测试关注 GUI 行为和数据流。"
+msgstr ""
+
+#~ msgid "架构"
+#~ msgstr ""
+
