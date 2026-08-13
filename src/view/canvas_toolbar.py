@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QCheckBox, QHBoxLayout, QPushButton, QWidget
+from PyQt6.QtWidgets import QButtonGroup, QCheckBox, QHBoxLayout, QPushButton, QWidget
 
 
 class CanvasToolbar(QWidget):
@@ -45,6 +45,30 @@ class CanvasToolbar(QWidget):
         self.show_bodies.setChecked(True)
         self.show_libration.setChecked(True)
 
+        # 三组互斥按钮：投影 / 坐标系 / 绘制内容。checked 态高亮（此前无选中态，
+        # 用户看不出当前生效的投影/坐标系/内容）。QButtonGroup 互斥保证同组唯一选中。
+        self._projection_group = QButtonGroup(self)
+        self._projection_group.setExclusive(True)
+        self._frame_group = QButtonGroup(self)
+        self._frame_group.setExclusive(True)
+        self._content_group = QButtonGroup(self)
+        self._content_group.setExclusive(True)
+
+        for btn in (self.projection_3d, self.projection_xy, self.projection_xz, self.projection_yz):
+            btn.setCheckable(True)
+            self._projection_group.addButton(btn)
+        for btn in (self.frame_synodic, self.frame_inertial):
+            btn.setCheckable(True)
+            self._frame_group.addButton(btn)
+        for btn in (self.plot_overlay, self.plot_guess, self.plot_ephemeris):
+            btn.setCheckable(True)
+            self._content_group.addButton(btn)
+
+        # 默认选中与 CanvasState 默认一致（3d / synodic / overlay）
+        self.projection_3d.setChecked(True)
+        self.frame_synodic.setChecked(True)
+        self.plot_overlay.setChecked(True)
+
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.projection_3d)
@@ -63,3 +87,10 @@ class CanvasToolbar(QWidget):
         layout.addWidget(self.show_libration)
         layout.addStretch()
         layout.addWidget(self.export_animation)
+
+        # 选中态：灰色加深（低调不突兀，仍能看出当前生效项）
+        self.setStyleSheet(
+            "QPushButton:checked {"
+            "  background-color: #b0b0b0;"
+            "}"
+        )

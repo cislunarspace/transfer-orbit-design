@@ -18,13 +18,15 @@ from PyQt6.QtWidgets import (
     QDoubleSpinBox,
     QFileDialog,
     QFormLayout,
+    QFrame,
+    QGridLayout,
     QLabel,
     QMainWindow,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QSplitter,
     QStatusBar,
-    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -143,7 +145,8 @@ class MainWindow(QMainWindow):
         self._param_widgets: dict[str, QWidget] = {}
         self._param_rows: dict[str, tuple[QLabel, QWidget, QComboBox | None]] = {}
         self._param_container: QWidget | None = None
-        self._param_container_layout: QVBoxLayout | None = None
+        self._param_container_layout: QGridLayout | None = None
+        self._param_scroll: QScrollArea | None = None
         self._run_btn = QPushButton("运行")  # G1: 非 Optional，_build_right_panel 中配置
 
         # Issue #339: 画布渲染状态（CanvasState）与当前选中 Artifact 集合
@@ -191,15 +194,25 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage(f"启动扫描: {count} 个 Artifact, 耗时 {seconds:.2f}s")
 
     def _build_ui(self) -> None:
+        # 分隔条可见性：默认 QSplitter handle 过细难以发现/抓住，着色 + hover
+        # 加深；宽度用 setHandleWidth 设置（QSS 的 width 对 handle 不生效）。
+        self.setStyleSheet(
+            "QSplitter::handle { background-color: #c8c8c8; }"
+            "QSplitter::handle:hover { background-color: #8f8f8f; }"
+        )
+
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(6)
 
         splitter.addWidget(self._build_left_panel())
         splitter.addWidget(self._build_center_panel())
         splitter.addWidget(self._build_right_panel())
 
-        splitter.setStretchFactor(0, 1)  # 左侧
-        splitter.setStretchFactor(1, 3)  # 中间
-        splitter.setStretchFactor(2, 1)  # 右侧
+        # D: 左右栏固定宽度（不随窗口拉伸），中间画布占满剩余空间
+        splitter.setStretchFactor(0, 0)
+        splitter.setStretchFactor(1, 1)
+        splitter.setStretchFactor(2, 0)
+        splitter.setSizes([260, 820, 320])
 
         self.setCentralWidget(splitter)
 
@@ -207,6 +220,7 @@ class MainWindow(QMainWindow):
         from src.view.project_tree import ProjectTreeView
 
         panel = QWidget()
+        panel.setMinimumWidth(200)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(4, 4, 4, 4)
 
@@ -220,14 +234,12 @@ class MainWindow(QMainWindow):
         return panel
 
     def _build_center_panel(self) -> QWidget:
-        tabs = QTabWidget()
-
-        # 可视化标签页
+        # C: 画布与日志同屏（垂直 splitter），运行时可同时看轨道与日志，
+        # 不再切 tab。日志默认高度较小，可拖动分隔条调整。
         self._viz = OrbitCanvasWithToolbar()
         # Issue #339: 注入数据回调 -- main_window 提供 state_data / label / mu 查询，
         # canvas 不自持 Project（view 只经接口与数据层交互）。
         self._viz.canvas.set_artifacts_provider(self._artifact_for_id)
-        tabs.addTab(self._viz.widget, "可视化")
 
         # Issue #339: 投影切换 + 地月/L 点开关（纯 UI，业务逻辑在此 slot 中）
         toolbar = self._viz.projection_toolbar
@@ -244,18 +256,31 @@ class MainWindow(QMainWindow):
         toolbar.show_libration.toggled.connect(self._on_toggle_libration)
         toolbar.export_animation.clicked.connect(self._on_export_animation)
 
-        # 日志标签页
         self._log = LogPanel()
-        tabs.addTab(self._log, "日志")
+        self._log.setMinimumHeight(80)
 
-        self._center_tabs = tabs
-        return tabs
+        # 去掉 tab 后日志区不再自带标题，补一个与左侧「项目」一致的标签
+        log_widget = QWidget()
+        log_layout = QVBoxLayout(log_widget)
+        log_layout.setContentsMargins(0, 0, 0, 0)
+        log_layout.addWidget(QLabel("日志"))
+        log_layout.addWidget(self._log)
+
+        splitter = QSplitter(Qt.Orientation.Vertical)
+        splitter.setHandleWidth(6)
+        splitter.addWidget(self._viz.widget)
+        splitter.addWidget(log_widget)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 1)
+        splitter.setSizes([560, 160])
+
+        return splitter
 
     def _build_right_panel(self) -> QWidget:
         panel = QWidget()
+        panel.setMinimumWidth(300)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(4, 4, 4, 4)
-        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
         # G4: 工具选择器
         layout.addWidget(QLabel(_RIGHT_PANEL_TOOL_COMBO_LABEL))
@@ -273,14 +298,17 @@ class MainWindow(QMainWindow):
         self._tool_combo.currentIndexChanged.connect(self._on_tool_changed)
         layout.addWidget(self._tool_combo)
 
-        # 参数容器
+        # 参数容器：QScrollArea + QGridLayout（label 与控件同行、单位下拉并入
+        # 控件行），字段多时可滚动，不再被窗口高度截断。
+        self._param_scroll = QScrollArea()
+        self._param_scroll.setWidgetResizable(True)
+        self._param_scroll.setFrameShape(QFrame.Shape.NoFrame)
         self._param_container = QWidget()
-        container_layout = QVBoxLayout(self._param_container)
+        container_layout = QGridLayout(self._param_container)
         container_layout.setContentsMargins(0, 0, 0, 0)
         self._param_container_layout = container_layout
-        layout.addWidget(self._param_container)
-
-        layout.addStretch()
+        self._param_scroll.setWidget(self._param_container)
+        layout.addWidget(self._param_scroll)
 
         # G1: 配置运行按钮（已在 __init__ 中创建）
         self._run_btn.setStyleSheet(
@@ -320,19 +348,19 @@ class MainWindow(QMainWindow):
         if spec is None or spec.request_model is None:
             return
 
-        # 清空旧控件
+        # 清空旧控件：替换 scroll area 的 widget。QScrollArea.setWidget 会销毁旧
+        # container（连同其 layout 与子控件），QGridLayout 的 rowCount/rowStretch
+        # 残留也一并重置——避免跨工具切换残留空行造成底部大段空白。
         self._param_widgets = {}
         self._param_rows = {}
-        layout = self._param_container_layout
-        if layout is None:
-            return
-        while layout.count():
-            item = layout.takeAt(0)
-            if item is None:
-                continue
-            w = item.widget()
-            if w:
-                w.setParent(None)
+        new_container = QWidget()
+        new_layout = QGridLayout(new_container)
+        new_layout.setContentsMargins(0, 0, 0, 0)
+        self._param_container = new_container
+        self._param_container_layout = new_layout
+        if self._param_scroll is not None:
+            self._param_scroll.setWidget(new_container)
+        layout = new_layout
 
         # 生成控件
         self._param_widgets = build_params_from_model(spec.request_model)
@@ -341,7 +369,9 @@ class MainWindow(QMainWindow):
         if "orbit_type" in self._param_widgets:
             self._replace_orbit_type_with_combo(spec.request_model)
 
-        # 显示字段（记录 label + widget + 单位下拉 行，供按轨道类型显示/隐藏）
+        # 显示字段：QGridLayout 3 列（label / 控件 / 单位下拉），label 与控件
+        # 同行、单位下拉并入控件行。_param_rows 契约（label, widget, unit_combo）不变。
+        row = 0
         for name, widget in self._param_widgets.items():
             options = get_field_units(name)
             label_text = (
@@ -350,8 +380,8 @@ class MainWindow(QMainWindow):
                 else _DESIGN_ORBIT_LABELS.get(name, name)
             )
             label_widget = QLabel(label_text)
-            layout.addWidget(label_widget)
-            layout.addWidget(widget)
+            layout.addWidget(label_widget, row, 0)
+            layout.addWidget(widget, row, 1)
             unit_combo: QComboBox | None = None
             if options:
                 # 无注解局部变量承接：pyright 对 PyQt6 类型不做 isinstance/赋值收窄
@@ -363,9 +393,10 @@ class MainWindow(QMainWindow):
                 combo.currentIndexChanged.connect(
                     lambda _idx, n=name: self._on_unit_combo_changed(n)
                 )
-                layout.addWidget(combo)
+                layout.addWidget(combo, row, 2)
                 unit_combo = combo
             self._param_rows[name] = (label_widget, widget, unit_combo)
+            row += 1
 
         # control_orbit 的 input_ephemeris 由选中 Artifact 注入，不在 UI 暴露
         if tool_key == "control_orbit" and "input_ephemeris" in self._param_widgets:
@@ -384,14 +415,20 @@ class MainWindow(QMainWindow):
             # 仅在 GUI 层把单位切到"月"、值设为 1，让短弧设计更顺手。
             self._apply_duration_default_month()
 
-        layout.addStretch()
+        layout.setRowStretch(row, 1)
 
     def _remove_widget_and_label(self, widget: QWidget) -> None:
         """从参数容器布局移除指定控件的整行（label + widget + 单位下拉）。"""
-        # 同步 _param_rows
+        layout = self._param_container_layout
         for name, (label, w, unit_combo) in list(self._param_rows.items()):
             if w is widget:
                 del self._param_rows[name]
+                # QGridLayout 下 setParent(None) 不会自动移除布局项，须显式 removeWidget
+                if layout is not None:
+                    layout.removeWidget(label)
+                    layout.removeWidget(widget)
+                    if unit_combo is not None:
+                        layout.removeWidget(unit_combo)
                 label.setParent(None)
                 widget.setParent(None)
                 if unit_combo is not None:
@@ -526,7 +563,6 @@ class MainWindow(QMainWindow):
             self._selected_artifact_ids = [artifact_id]
             self._update_plot_content_controls()
             self._render_canvas()
-            self._center_tabs.setCurrentIndex(0)
 
     def _on_artifacts_multi_selected(self, artifact_ids: list[str]) -> None:
         # Issue #339: 多选分支补上懒加载（现状缺失，见审查意见）
@@ -541,7 +577,6 @@ class MainWindow(QMainWindow):
         self._selected_artifact_ids = list(artifact_ids)
         self._update_plot_content_controls()
         self._render_canvas()
-        self._center_tabs.setCurrentIndex(0)
 
     def _on_run(self) -> None:
         tool_key = self._current_tool_key
@@ -694,7 +729,6 @@ class MainWindow(QMainWindow):
         if artifact.state_data is not None:
             self._selected_artifact_ids = [artifact.artifact_id]
             self._render_canvas()
-            self._center_tabs.setCurrentIndex(0)
 
         self._log.append_log(
             f"轨道族生成完成: {result.n_orbits} 条 Halo 轨道（L{result.libration_point}）"
@@ -954,7 +988,6 @@ class MainWindow(QMainWindow):
         if artifact.state_data is not None:
             self._selected_artifact_ids = [artifact.artifact_id]
             self._render_canvas()
-            self._center_tabs.setCurrentIndex(0)
 
         self._log.append_log(f"设计完成: {result.orbit_type}, C_J={result.cr3bp_jacobi:.6f}")
         # S4: 若持久化失败，最终状态栏提示优先告知错误（避免被"完成"覆盖）
@@ -1008,7 +1041,6 @@ class MainWindow(QMainWindow):
         if artifact.state_data is not None:
             self._selected_artifact_ids = [artifact.artifact_id]
             self._render_canvas()
-            self._center_tabs.setCurrentIndex(0)
 
         self._log.append_log(
             f"轨道保持完成: 总Δv={total_dv:.2f} m/s, 失败 {result.num_failed} 样本"
@@ -1148,6 +1180,27 @@ class MainWindow(QMainWindow):
         if not guess_available and self._canvas_state.plot_content == "guess":
             # 初猜不可用时退到"星历"（有星历）或"叠加"（默认）
             self._canvas_state.plot_content = "ephemeris"
+        self._sync_toolbar_buttons()
+
+    def _sync_toolbar_buttons(self) -> None:
+        """把工具栏按钮 checked 状态同步到 CanvasState。
+
+        QButtonGroup 互斥保证用户点击时 checked 自动正确；此方法只在程序化
+        改变 CanvasState 时（如惯性系强制 guess->ephemeris）同步高亮，避免
+        状态与按钮脱节。setChecked 只发 toggled 不触发 connected 的 clicked
+        信号，不会造成递归。
+        """
+        tb = self._viz.projection_toolbar
+        state = self._canvas_state
+        tb.projection_3d.setChecked(state.projection == "3d")
+        tb.projection_xy.setChecked(state.projection == "xy")
+        tb.projection_xz.setChecked(state.projection == "xz")
+        tb.projection_yz.setChecked(state.projection == "yz")
+        tb.frame_synodic.setChecked(state.frame == "synodic")
+        tb.frame_inertial.setChecked(state.frame == "inertial")
+        tb.plot_overlay.setChecked(state.plot_content == "overlay")
+        tb.plot_guess.setChecked(state.plot_content == "guess")
+        tb.plot_ephemeris.setChecked(state.plot_content == "ephemeris")
 
     def _selected_artifacts_have_initial_guess(self) -> bool:
         """任一当前选中 Artifact 含 CR3BP 初猜（design_orbit 产物）即为 True。"""
