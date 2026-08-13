@@ -482,7 +482,8 @@ class TestControlOrbit:
         assert exc_info.value.code == "INVALID_PARAMS"
         assert "JSON" in exc_info.value.message
 
-
+    @pytest.mark.spice
+    def test_ephemeris_table_reconstruction_skips_none_times(self, monkeypatch):
         """times_jd_tdb=None 时 EphemerisTable 重建不崩（走 dataclass 默认）。
 
         P0 起 control_orbit 会重建 times_et（spice.str2et），需闰秒内核 → spice marker。

@@ -92,6 +92,21 @@ class TestRangePlaceholder:
         assert hint.startswith("可填范围: > ")
         assert "秒" in hint
 
+    def test_both_strict_bounds_show_open_interval(self, qapp):
+        """同时存在 gt/lt 时范围提示保留开区间语义。"""
+        from pydantic import BaseModel, Field
+
+        from src.view.params_panel import build_params_from_model
+
+        class _Model(BaseModel):
+            value: float = Field(0.5, gt=0.0, lt=1.0)
+
+        widgets = build_params_from_model(_Model)
+        hint = widgets["value"].lineEdit().placeholderText()
+        assert " > " in f" {hint} "
+        assert " < " in f" {hint} "
+        assert " ~ " not in hint
+
     def test_unconstrained_int_shows_gui_temporary_range(self, qapp):
         """模型缺上界的 int（num_controls，ge=1 无 le）补 GUI 临时上界并注明。"""
         from PyQt6.QtWidgets import QSpinBox
@@ -106,8 +121,11 @@ class TestRangePlaceholder:
         assert "GUI 临时" in hint
 
     def test_json_field_placeholder(self, qapp):
-        """JSON 文本框（perturbation/engine_layout）为空时给格式示例提示。"""
+        """JSON 文本框（perturbation/engine_layout）为空时给可解析格式示例。"""
+        import json
+
         from PyQt6.QtWidgets import QLineEdit
+        from e2m2e.algorithm.station_keeping import EngineLayout
 
         from src.view.params_panel import build_params_from_model
 
@@ -120,7 +138,12 @@ class TestRangePlaceholder:
         ctrl = build_params_from_model(ControlOrbitRequest)
         # engine_layout 是 Any（非 Optional 注解），直接渲染为 QLineEdit
         assert isinstance(ctrl["engine_layout"], QLineEdit)
-        assert "positions_m" in ctrl["engine_layout"].placeholderText()
+        placeholder = ctrl["engine_layout"].placeholderText()
+        assert "positions_m" in placeholder
+        assert '"positions_m"' in placeholder
+        assert "'positions_m'" not in placeholder
+        example = placeholder[placeholder.index("{") : placeholder.rindex("}") + 1]
+        assert EngineLayout(**json.loads(example)).num_engines == 6
 
 
 # ---------------------------------------------------------------------------

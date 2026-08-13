@@ -328,10 +328,13 @@ _BOUNDS_ATTR = "_params_panel_bounds"
 #: JSON 文本框（str/Any 无约束字段）为空时的占位提示：告知参数可填内容格式。
 #: 数值控件不用此表——它们的占位提示由 `_apply_range_hint` 按 min/max 生成。
 _FIELD_PLACEHOLDERS: dict[str, str] = {
-    "perturbation": ("JSON 摄动开关，例如 {'sun_body': 1, 'planets': 1}（留空=默认全开）"),
+    "perturbation": ('JSON 摄动开关，例如 {"sun_body": 1, "planets": 1}（留空=默认全开）'),
     "dyb": "JSON 数组，9 分量面质比系数，dyb[0] 为等效面质比（m²/kg），留空=默认",
     "engine_layout": (
-        "JSON 发动机布局 {'positions_m': [...], 'directions': [...]}（模式 4-6 必填）"
+        "JSON 发动机布局，例如 "
+        '{"positions_m":[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]], '
+        '"directions":[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]]} '
+        "（模式 4-6 必填）"
     ),
 }
 
@@ -538,7 +541,8 @@ def _apply_range_hint(
 
     - 内部 QLineEdit 设 placeholder：框内文本清空时显示可填范围，随约束状态
       区分——有约束显示"可填范围: min ~ max 单位"，仅单侧约束显示 ≥/≤，
-      无约束显示"无范围约束"（不拿 Qt 兜底值冒充真实范围）；
+      双侧约束分别显示下界和上界的严格性；无约束显示"无范围约束"（不拿 Qt
+      兜底值冒充真实范围）；
     - tooltip = 字段描述 + 同样的范围提示（描述经 ``_DESC_ATTR`` 属性传入）；
     - list[float] 容器：逐个子 spinbox 应用（单位/约束状态在容器上）。
     """
@@ -572,6 +576,10 @@ def _apply_range_hint(
     elif not has_lower:
         prefix = "<" if strict_upper else "≤"
         hint = f"可填范围: {prefix} {hi:g}{unit_suffix}"
+    elif strict_lower or strict_upper:
+        lower_prefix = ">" if strict_lower else "≥"
+        upper_prefix = "<" if strict_upper else "≤"
+        hint = f"可填范围: {lower_prefix} {lo:g}{unit_suffix} 且 {upper_prefix} {hi:g}{unit_suffix}"
     else:
         hint = f"可填范围: {lo:g} ~ {hi:g}{unit_suffix}"
     if note:
