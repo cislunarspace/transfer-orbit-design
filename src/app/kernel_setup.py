@@ -110,9 +110,7 @@ def _download_and_wait(parent: QWidget | None) -> str | None:
 
 def _pick_existing(parent: QWidget | None) -> str | None:
     """让用户指定已有内核目录；校验通过后写入配置并返回。"""
-    chosen = QFileDialog.getExistingDirectory(
-        parent, "选择 SPICE 内核目录", str(Path.home())
-    )
+    chosen = QFileDialog.getExistingDirectory(parent, "选择 SPICE 内核目录", str(Path.home()))
     if not chosen:
         return None
     if not kernels.kernel_dir_usable(chosen):

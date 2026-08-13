@@ -153,9 +153,7 @@ def _coerce_engine_layout(layout: Any, control_mode: int) -> Any:
         try:
             return EngineLayout(**layout)
         except (TypeError, ValueError) as exc:
-            raise OrbitError(
-                "INVALID_PARAMS", f"engine_layout 无效: {exc}"
-            ) from exc
+            raise OrbitError("INVALID_PARAMS", f"engine_layout 无效: {exc}") from exc
     raise OrbitError(
         "INVALID_PARAMS",
         f"engine_layout 需为发动机布局 JSON（positions_m/directions）或留空，当前 {layout!r}",

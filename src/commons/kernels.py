@@ -121,6 +121,4 @@ def kernel_dir_usable(kernel_dir: str | os.PathLike[str]) -> bool:
     if not d.is_dir():
         return False
     names = {f.name for f in d.iterdir() if f.is_file()}
-    return any(n in _EPHEMERIS_NAMES for n in names) and any(
-        n.endswith(".tls") for n in names
-    )
+    return any(n in _EPHEMERIS_NAMES for n in names) and any(n.endswith(".tls") for n in names)
