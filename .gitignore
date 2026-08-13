@@ -111,3 +111,6 @@ test_results/
 
 # Git worktrees
 .worktrees/
+
+# pi harness 项目级 agent
+.pi/
