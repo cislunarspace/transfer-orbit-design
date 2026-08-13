@@ -27,7 +27,7 @@ from matplotlib.backends.backend_qt import NavigationToolbar2QT  # noqa: E402
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg  # noqa: E402
 from matplotlib.figure import Figure  # noqa: E402
 
-from src.view.chart_settings import ChartSettings
+from src.view.chart_settings import ChartSettings  # noqa: E402
 
 _PROJECTION_PLANE_AXES: dict[str, tuple[int, int]] = {
     "xy": (0, 1),
@@ -328,8 +328,10 @@ class OrbitCanvas(FigureCanvasQTAgg):
             or bool(self._ephemeris_synodic_by_id)
             or bool(self._family_by_id)
         )
-        moon_unavailable = state.frame == "inertial" and state.center == "moon" and not any(
-            v is not None for v in moon_shift.values()
+        moon_unavailable = (
+            state.frame == "inertial"
+            and state.center == "moon"
+            and not any(v is not None for v in moon_shift.values())
         )
         if moon_unavailable:
             title = "月球位置不可用（SPICE 查询失败），无法使用月球中心视图"
@@ -700,13 +702,20 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 pos = _shift(arr[j][:, :3], t[j])
                 if plane is None:
                     ax.plot(
-                        pos[:, 0], pos[:, 1], pos[:, 2], linewidth=self._chart.orbit_linewidth,
-                        color=cmap(norm(j)), label=label if j == 0 else None,
+                        pos[:, 0],
+                        pos[:, 1],
+                        pos[:, 2],
+                        linewidth=self._chart.orbit_linewidth,
+                        color=cmap(norm(j)),
+                        label=label if j == 0 else None,
                     )
                 else:
                     ax.plot(
-                        pos[:, plane[0]], pos[:, plane[1]], linewidth=self._chart.orbit_linewidth,
-                        color=cmap(norm(j)), label=label if j == 0 else None,
+                        pos[:, plane[0]],
+                        pos[:, plane[1]],
+                        linewidth=self._chart.orbit_linewidth,
+                        color=cmap(norm(j)),
+                        label=label if j == 0 else None,
                     )
             return
         initial = self._initial_guess_by_id.get(aid)
@@ -715,10 +724,21 @@ class OrbitCanvas(FigureCanvasQTAgg):
             pos = _shift(np.asarray(initial)[:, :3], np.asarray(initial_times))
             label = self._labels_by_id.get(aid, "")
             if plane is None:
-                ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], linewidth=self._chart.orbit_linewidth, color=color, label=label)
+                ax.plot(
+                    pos[:, 0],
+                    pos[:, 1],
+                    pos[:, 2],
+                    linewidth=self._chart.orbit_linewidth,
+                    color=color,
+                    label=label,
+                )
             else:
                 ax.plot(
-                    pos[:, plane[0]], pos[:, plane[1]], linewidth=self._chart.orbit_linewidth, color=color, label=label
+                    pos[:, plane[0]],
+                    pos[:, plane[1]],
+                    linewidth=self._chart.orbit_linewidth,
+                    color=color,
+                    label=label,
                 )
 
     def _draw_inertial_bodies(self, ax, state, moon_shift) -> None:
@@ -738,21 +758,40 @@ class OrbitCanvas(FigureCanvasQTAgg):
             if moon_available:
                 if is_3d:
                     ax.plot(
-                        [0], [0], [0], "o", color="#95A5A6",
+                        [0],
+                        [0],
+                        [0],
+                        "o",
+                        color="#95A5A6",
                         markersize=chart.moon_size**0.5,
-                        markeredgecolor="black", markeredgewidth=0.8, label="Moon",
+                        markeredgecolor="black",
+                        markeredgewidth=0.8,
+                        label="Moon",
                     )
                 else:
-                    ax.scatter(0, 0, color="#95A5A6", s=chart.moon_size,
-                               edgecolors="#566573", linewidth=1.2, zorder=10)
+                    ax.scatter(
+                        0,
+                        0,
+                        color="#95A5A6",
+                        s=chart.moon_size,
+                        edgecolors="#566573",
+                        linewidth=1.2,
+                        zorder=10,
+                    )
                     ax.annotate(
-                        "Moon", (0, 0), xytext=(6, 6),
-                        textcoords="offset points", fontsize=chart.label_fontsize,
+                        "Moon",
+                        (0, 0),
+                        xytext=(6, 6),
+                        textcoords="offset points",
+                        fontsize=chart.label_fontsize,
                     )
         else:
             draw_earth_origin_marker(
-                ax, is_3d=is_3d, plane=plane,
-                earth_size=chart.earth_size, fontsize=chart.label_fontsize,
+                ax,
+                is_3d=is_3d,
+                plane=plane,
+                earth_size=chart.earth_size,
+                fontsize=chart.label_fontsize,
             )
         # 月球（或月球中心的地球）轨迹：用任一可见 Artifact 的月球位置
         for aid in state.visible_artifacts:
@@ -763,23 +802,45 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 # 月球中心：地球相对月球 = -moon_pos(t)，深蓝虚线轨迹
                 earth = -moon
                 if is_3d:
-                    ax.plot(earth[:, 0], earth[:, 1], earth[:, 2],
-                            linewidth=chart.orbit_linewidth, color="#2E86AB",
-                            linestyle="--", label="Earth")
+                    ax.plot(
+                        earth[:, 0],
+                        earth[:, 1],
+                        earth[:, 2],
+                        linewidth=chart.orbit_linewidth,
+                        color="#2E86AB",
+                        linestyle="--",
+                        label="Earth",
+                    )
                 else:
-                    ax.plot(earth[:, plane[0]], earth[:, plane[1]],
-                            linewidth=chart.orbit_linewidth, color="#2E86AB",
-                            linestyle="--", label="Earth")
+                    ax.plot(
+                        earth[:, plane[0]],
+                        earth[:, plane[1]],
+                        linewidth=chart.orbit_linewidth,
+                        color="#2E86AB",
+                        linestyle="--",
+                        label="Earth",
+                    )
             else:
                 # 地球中心：月球轨迹灰色虚线
                 if is_3d:
-                    ax.plot(moon[:, 0], moon[:, 1], moon[:, 2],
-                            linewidth=chart.orbit_linewidth, color="gray",
-                            linestyle="--", label="Moon")
+                    ax.plot(
+                        moon[:, 0],
+                        moon[:, 1],
+                        moon[:, 2],
+                        linewidth=chart.orbit_linewidth,
+                        color="gray",
+                        linestyle="--",
+                        label="Moon",
+                    )
                 else:
-                    ax.plot(moon[:, plane[0]], moon[:, plane[1]],
-                            linewidth=chart.orbit_linewidth, color="gray",
-                            linestyle="--", label="Moon")
+                    ax.plot(
+                        moon[:, plane[0]],
+                        moon[:, plane[1]],
+                        linewidth=chart.orbit_linewidth,
+                        color="gray",
+                        linestyle="--",
+                        label="Moon",
+                    )
             break
 
     # -- 便捷封装（向后兼容） -----------------------------------------------
@@ -831,7 +892,13 @@ class OrbitCanvas(FigureCanvasQTAgg):
 
         for states, orb_label in orbits_data:
             pos = states[:, :3]
-            ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], linewidth=self._chart.orbit_linewidth, label=orb_label)
+            ax.plot(
+                pos[:, 0],
+                pos[:, 1],
+                pos[:, 2],
+                linewidth=self._chart.orbit_linewidth,
+                label=orb_label,
+            )
 
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
@@ -862,7 +929,14 @@ class OrbitCanvas(FigureCanvasQTAgg):
         for i, (states, label) in enumerate(orbits):
             color = self._orbit_color(i)
             pos = states[:, :3]
-            ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], linewidth=self._chart.orbit_linewidth, color=color, label=label)
+            ax.plot(
+                pos[:, 0],
+                pos[:, 1],
+                pos[:, 2],
+                linewidth=self._chart.orbit_linewidth,
+                color=color,
+                label=label,
+            )
             ax.scatter(*pos[0], s=30, c=color, zorder=5)
 
         ax.set_xlabel("X")

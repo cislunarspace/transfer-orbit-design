@@ -112,17 +112,13 @@ def chart_settings_dialog(parent, current: ChartSettings) -> ChartSettings | Non
 
     lp_color = QPushButton()
     picked_color = {"value": current.lp_color}
-    lp_color.setStyleSheet(
-        f"background-color: {picked_color['value']}; min-width: 60px;"
-    )
+    lp_color.setStyleSheet(f"background-color: {picked_color['value']}; min-width: 60px;")
 
     def _pick_color() -> None:
         color = QColorDialog.getColor(parent=dlg)
         if color.isValid():
             picked_color["value"] = color.name()
-            lp_color.setStyleSheet(
-                f"background-color: {picked_color['value']}; min-width: 60px;"
-            )
+            lp_color.setStyleSheet(f"background-color: {picked_color['value']}; min-width: 60px;")
 
     lp_color.clicked.connect(_pick_color)
     form.addRow("L 点颜色", lp_color)

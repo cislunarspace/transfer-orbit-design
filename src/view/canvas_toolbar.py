@@ -121,8 +121,4 @@ class CanvasToolbar(QWidget):
         layout.addWidget(self.export_animation)
 
         # 选中态：灰色加深（低调不突兀，仍能看出当前生效项）
-        self.setStyleSheet(
-            "QPushButton:checked {"
-            "  background-color: #b0b0b0;"
-            "}"
-        )
+        self.setStyleSheet("QPushButton:checked {  background-color: #b0b0b0;}")

@@ -150,9 +150,7 @@ def draw_libration_points(
         coord = system.L_points[lp]
         x, y, z = coord[0] - cx, coord[1] - cy, coord[2] - cz
         if is_3d:
-            ax.plot(
-                [x], [y], [z], marker="^", color=color, markersize=size**0.5, linestyle="None"
-            )
+            ax.plot([x], [y], [z], marker="^", color=color, markersize=size**0.5, linestyle="None")
             ax.text(x, y, z + 0.02, labels[i], fontsize=fontsize, ha="center")
         else:
             px, py = (x, y, z)[plane[0]], (x, y, z)[plane[1]]
@@ -190,7 +188,9 @@ def draw_earth_origin_marker(
     else:
         if plane is None:
             plane = (0, 1)
-        ax.scatter(0, 0, color="#2E86AB", s=earth_size, edgecolors="#1A5276", linewidth=1.2, zorder=10)
+        ax.scatter(
+            0, 0, color="#2E86AB", s=earth_size, edgecolors="#1A5276", linewidth=1.2, zorder=10
+        )
         ax.annotate("Earth", (0, 0), xytext=(6, 6), textcoords="offset points", fontsize=fontsize)
 
 
