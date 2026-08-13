@@ -59,7 +59,6 @@ from src.view.canvas import OrbitCanvasWithToolbar
 from src.view.chart_settings import (
     APP_NAME,
     ORG_NAME,
-    ChartSettings,
     chart_settings_dialog,
     load_settings,
     save_settings,
