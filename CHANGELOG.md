@@ -1,5 +1,21 @@
 # 更新日志
 
+## 3.2.3 (2026-08-13)
+
+GUI 首次启动的 SPICE 内核引导：e2m2e 的 SPICE 内核不随 pip 包分发（大文件托管在 `kernels-v1` release，需宿主自行准备），此前用户只能手动跑下载脚本或设环境变量，否则等到设计轨道才报“SPICE 内核文件未找到”。现在启动时探测不到可用内核（目录存在但缺行星历/闰秒内核也算）会自动弹窗引导。
+
+### 功能
+
+- **启动时内核缺失引导（#366）**：`main()` 启动时探测可用内核目录（`$SPICE_KERNEL_DIR` → 配置记录 → 仓库 `kernels/` → 用户数据目录 → 同级 e2m2e 源码仓库），缺失则弹窗三选一：
+  - **下载内核**：后台线程从 e2m2e `kernels-v1` release 下载到用户数据目录（`~/.local/share/transfer-orbit-design/kernels`，Windows 为 `%LOCALAPPDATA%`，跨版本共享），模态进度条显示逐文件进度，可取消（已下载文件保留，重试幂等续传）；
+  - **指定已有目录**：文件选择对话框选目录，校验含行星历 `.bsp` 与闰秒 `.tls` 后写入配置文件（`~/.config/transfer-orbit-design/kernels_dir.txt`），下次启动自动探测；
+  - **暂时跳过**：本次不准备，功能用时再报错。
+- **下载逻辑抽为 `src/commons/kernels.py`**：`download_kernels`（幂等 + 进度回调）、`kernel_dir_usable`（行星历 `.bsp` + 闰秒 `.tls` 完整性判断）、`user_kernel_dir`；`scripts/download_kernels.py` 改为其 CLI 包装（命令行行为不变）。
+
+### 工程
+
+- **新增测试**：下载幂等/进度/资产过滤、可用性判断、用户目录探测、配置读写、弹窗三分支（可用直返/下载/指定/跳过）共 34 项。
+
 ## 3.2.2 (2026-08-13)
 
 适配 e2m2e 5.6.8：上游修复 segmented 逐段积分的位置-时间错位（#398）——`ForceModel._prepare_t_eval` 会在 `t_eval` 末尾自动追加段终点，逐段积分把每段多出的端点状态拼进星历，位置数组比时间网格多出段数个点，`batch_j2000_to_synodic` 按索引配对，错位逐段累积，会合系曲线一圈一圈偏离 Halo 轨道（GUI 观感"慢慢发散"）。本项目为 e2m2e 消费方，仅升级依赖下限并同步 uv.lock，无代码改动。

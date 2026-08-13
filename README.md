@@ -23,7 +23,7 @@ Windows 用户也可从 [GitHub Releases](https://github.com/cislunarspace/trans
 
 ## SPICE 内核
 
-星历动力学需要 NASA SPICE 内核文件。全部必需内核打包在 [e2m2e 的 `kernels-v1` release](https://github.com/cislunarspace/e2m2e/releases) 中。三种配置方式：
+星历动力学需要 NASA SPICE 内核文件。全部必需内核打包在 [e2m2e 的 `kernels-v1` release](https://github.com/cislunarspace/e2m2e/releases) 中。**GUI 启动时若未找到可用内核，会自动弹窗引导**：一键下载（带进度条，下载到用户数据目录，跨版本共享）或指定已有内核目录（选择后自动记忆）。命令行/脚本场景可用以下三种方式之一：
 
 - **自动下载（推荐）**：`python scripts/download_kernels.py`，幂等地拉取全部内核到 `kernels/`。
 - **手动下载**：从上述 release 下载解压到 `kernels/` 目录。
