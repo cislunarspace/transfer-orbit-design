@@ -239,15 +239,15 @@ class TestSynodicPlotContentCombinations:
 
 
 class Test3DDataEqualBoxAspect:
-    """3D 渲染应等比例：box_aspect 按数据范围，而非 matplotlib 默认的 figure 宽高比。
+    """3D 渲染的等比/填充两种模式。
 
-    回归 guard：DRO 等近平面轨道（Z 振幅远小于 XY）在 3D 下曾因 mpl 默认
-    box_aspect（源自 Figure 宽高比）把 Z 放大约 9 倍，看起来大幅鼓起；
-    2D 投影因每轴独立 auto-scale 不受影响，故表现为"2D 正确、3D Z 异常"。
+    equal_aspect=True 时按数据范围等比（box 分量比 == 数据范围比）；
+    equal_aspect=False（默认）时保留 mpl 默认比例（z 轴不被压成数据比例，
+    近平面轨道 DRO 的 Z 细节清晰可见）。
     """
 
     def test_3d_box_aspect_data_equal_for_flat_orbit(self, qapp):
-        """DRO 形状数据（XY≈0.6、Z≈0.05）：box z/x 比 == 数据 z/x 比。"""
+        """equal_aspect=True：DRO 形状数据（XY≈0.6、Z≈0.05）的 box z/x 比 == 数据 z/x 比。"""
         from src.view.canvas import CanvasState, OrbitCanvas
 
         n = 120
@@ -278,6 +278,7 @@ class Test3DDataEqualBoxAspect:
                 show_bodies=False,
                 show_libration=False,
                 plot_content="ephemeris",
+                equal_aspect=True,
             ),
             ["id1"],
         )
@@ -289,6 +290,50 @@ class Test3DDataEqualBoxAspect:
         # 等比例：box 分量比 == 数据范围比。Z 数据小，box z 也该小。
         assert bz / bx == pytest.approx(rz / rx, rel=0.05)
         assert bz / by == pytest.approx(rz / ry, rel=0.05)
+
+    def test_3d_default_non_equal_fills_z(self, qapp):
+        """equal_aspect=False（默认）：3D box z 分量不被压成数据比例，Z 细节放大。"""
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        n = 120
+        theta = np.linspace(0, 2 * np.pi, n)
+        moon = 1 - _MU
+        x = moon + 0.6 * np.cos(theta)
+        y = -0.6 * np.sin(theta)
+        z = 0.05 * np.sin(3 * theta)
+        eph_syn = np.column_stack([x, y, z])
+        ig = np.column_stack([x, y, np.zeros(n), np.zeros((n, 3))])
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "initial_guess_states": ig,
+                        "ephemeris_synodic": eph_syn,
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
+            )
+        )
+        canvas.sync_state(
+            CanvasState(
+                visible_artifacts=["id1"],
+                show_bodies=False,
+                show_libration=False,
+                plot_content="ephemeris",
+            ),
+            ["id1"],
+        )
+        canvas.render()
+
+        ax = canvas._fig.axes[0]
+        rx, ry, rz = np.ptp(ax.get_xlim()), np.ptp(ax.get_ylim()), np.ptp(ax.get_zlim())
+        bx, by, bz = ax.get_box_aspect()
+        # 默认非等比：box 的 z/x 比大于数据 z/x 比（z 被放大而非压成 0.083）。
+        assert bz / bx > (rz / rx) * 3
+        assert bz / by > (rz / ry) * 3
 
 
 class Test2DProjectionPlaneCorrect:
@@ -346,14 +391,14 @@ class Test2DProjectionPlaneCorrect:
 
 
 class Test2DEqualAspect:
-    """2D 投影应等比例：纵/横每数据单位的像素比≈1（与 3D set_box_aspect 等比例一致）。
+    """2D 投影的等比/填充两种模式。
 
-    回归 guard：mpl 2D 默认 aspect='auto'，每轴独立填满 axes。XZ/YZ 下 Z 数据
-    范围远小于 X/Y，Z 被拉伸填满画面高度（约 9x 放大），与 3D 默认 box_aspect
-    失真同类；XY 因 axes 宽高比也有约 0.7x 偏差。等比例后如实反映轨道几何。
+    equal_aspect=True 时 aspect='equal'（纵/横每数据单位像素比≈1）；
+    equal_aspect=False（默认）时 aspect='auto'，每轴独立填满画面，Z 细节清晰。
     """
 
     def test_2d_projections_have_equal_aspect(self, qapp):
+        """equal_aspect=True：纵/横每数据单位的像素比≈1（如实反映轨道几何）。"""
         from src.view.canvas import CanvasState, OrbitCanvas
 
         n = 120
@@ -386,6 +431,7 @@ class Test2DEqualAspect:
                     show_bodies=False,
                     show_libration=False,
                     plot_content="ephemeris",
+                    equal_aspect=True,
                 ),
                 ["id1"],
             )
@@ -399,6 +445,55 @@ class Test2DEqualAspect:
             ratio = (bbox.height / yrng) / (bbox.width / xrng)
             assert abs(ratio - 1.0) < 0.1, (
                 f"{proj} 纵/横单位像素比 {ratio:.2f}，非等比例（轨道形状会被拉伸失真）"
+            )
+
+    def test_2d_default_non_equal_fills_z(self, qapp):
+        """equal_aspect=False（默认）：XZ/YZ 投影纵轴（Z）被放大填满，不再压成细条。"""
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        n = 120
+        theta = np.linspace(0, 2 * np.pi, n)
+        moon = 1 - _MU
+        x = moon + 0.6 * np.cos(theta)
+        y = -0.6 * np.sin(theta)
+        z = 0.05 * np.sin(3 * theta)
+        eph_syn = np.column_stack([x, y, z])
+        ig = np.column_stack([x, y, np.zeros(n), np.zeros((n, 3))])
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "initial_guess_states": ig,
+                        "ephemeris_synodic": eph_syn,
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
+            )
+        )
+        for proj in ("xz", "yz"):
+            canvas.sync_state(
+                CanvasState(
+                    visible_artifacts=["id1"],
+                    projection=proj,
+                    show_bodies=False,
+                    show_libration=False,
+                    plot_content="ephemeris",
+                ),
+                ["id1"],
+            )
+            canvas.render()
+            canvas._fig.canvas.draw()
+            ax = canvas._fig.axes[0]
+            bbox = ax.get_window_extent()
+            xrng = float(np.ptp(ax.get_xlim()))
+            yrng = float(np.ptp(ax.get_ylim()))
+            ratio = (bbox.height / yrng) / (bbox.width / xrng)
+            # 非等比：Z 数据范围远小于 X/Y，被拉伸填满画面 → 单位像素比 > 1
+            assert ratio > 3.0, (
+                f"{proj} 纵/横单位像素比 {ratio:.2f}，Z 未被放大（细节仍被压缩）"
             )
 
 

@@ -247,6 +247,7 @@ class MainWindow(QMainWindow):
         toolbar.projection_xy.clicked.connect(lambda: self._on_projection_changed("xy"))
         toolbar.projection_xz.clicked.connect(lambda: self._on_projection_changed("xz"))
         toolbar.projection_yz.clicked.connect(lambda: self._on_projection_changed("yz"))
+        toolbar.projection_quad.clicked.connect(lambda: self._on_projection_changed("quad"))
         toolbar.frame_synodic.clicked.connect(lambda: self._on_frame_changed("synodic"))
         toolbar.frame_inertial.clicked.connect(lambda: self._on_frame_changed("inertial"))
         toolbar.plot_overlay.clicked.connect(lambda: self._on_plot_content_changed("overlay"))
@@ -254,6 +255,7 @@ class MainWindow(QMainWindow):
         toolbar.plot_ephemeris.clicked.connect(lambda: self._on_plot_content_changed("ephemeris"))
         toolbar.show_bodies.toggled.connect(self._on_toggle_bodies)
         toolbar.show_libration.toggled.connect(self._on_toggle_libration)
+        toolbar.equal_aspect.toggled.connect(self._on_toggle_equal_aspect)
         toolbar.export_animation.clicked.connect(self._on_export_animation)
 
         self._log = LogPanel()
@@ -1141,6 +1143,11 @@ class MainWindow(QMainWindow):
         self._canvas_state.show_libration = checked
         self._render_canvas()
 
+    def _on_toggle_equal_aspect(self, checked: bool) -> None:
+        """等比例开关：勾选后 3D/2D 按数据真实比例，否则各轴独立填满。"""
+        self._canvas_state.equal_aspect = checked
+        self._render_canvas()
+
     def _on_frame_changed(self, frame: str) -> None:
         """坐标系切换：会合系（CR3BP 旋转系）/ 惯性系（GCRS/J2000，km）。
 
@@ -1196,11 +1203,13 @@ class MainWindow(QMainWindow):
         tb.projection_xy.setChecked(state.projection == "xy")
         tb.projection_xz.setChecked(state.projection == "xz")
         tb.projection_yz.setChecked(state.projection == "yz")
+        tb.projection_quad.setChecked(state.projection == "quad")
         tb.frame_synodic.setChecked(state.frame == "synodic")
         tb.frame_inertial.setChecked(state.frame == "inertial")
         tb.plot_overlay.setChecked(state.plot_content == "overlay")
         tb.plot_guess.setChecked(state.plot_content == "guess")
         tb.plot_ephemeris.setChecked(state.plot_content == "ephemeris")
+        tb.equal_aspect.setChecked(state.equal_aspect)
 
     def _selected_artifacts_have_initial_guess(self) -> bool:
         """任一当前选中 Artifact 含 CR3BP 初猜（design_orbit 产物）即为 True。"""

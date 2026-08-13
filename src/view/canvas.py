@@ -11,7 +11,7 @@ FigureCanvasQTAgg 嵌入 PyQt6 主窗口，支持 3D 轨道可视化和导航工
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import matplotlib
@@ -39,7 +39,8 @@ class CanvasState:
     """画布渲染状态（architecture.md:247-252）。
 
     Attributes:
-        projection: 投影平面，``"3d" | "xy" | "xz" | "yz"``。
+        projection: 投影平面，``"3d" | "xy" | "xz" | "yz" | "quad"``。``"quad"`` 为四视图
+            布局（2x2 网格同时显示 3D + XY/XZ/YZ），面向大窗口/全屏减少留白。
         visible_artifacts: 当前显示的 artifact_id 列表。
         show_bodies: 是否显示地月标注。
         show_libration: 是否显示 L1-L5 拉格朗日点标注。
@@ -49,6 +50,9 @@ class CanvasState:
         plot_content: 绘制内容（与 frame 正交），``"guess" | "ephemeris" | "overlay"``。
             会合系下三选一可选；惯性系下``"guess"`` 不可用（CR3BP 无量纲无惯性系表示）。
             默认 ``"overlay"``：design_orbit 产物同时画初猜与星历。
+        equal_aspect: 是否等比例显示。``True`` 时 3D 按数据范围设 box_aspect、
+            2D 设 aspect='equal'，如实反映轨道几何（近平面轨道 Z 会被压扁）；
+            ``False``（默认）时各轴独立缩放填满画面，Z 方向细节清晰可见。
     """
 
     projection: str = "3d"
@@ -57,6 +61,7 @@ class CanvasState:
     show_libration: bool = True
     frame: str = "synodic"
     plot_content: str = "overlay"
+    equal_aspect: bool = False
 
     def copy(self) -> CanvasState:
         """返回副本（不可变更新模式：读当前 state → 改字段 → 传新 state）。"""
@@ -67,6 +72,7 @@ class CanvasState:
             show_libration=self.show_libration,
             frame=self.frame,
             plot_content=self.plot_content,
+            equal_aspect=self.equal_aspect,
         )
 
 
@@ -95,7 +101,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
         self._fig = Figure(figsize=(8, 6), dpi=100)
         super().__init__(self._fig)
         self._ax = self._fig.add_subplot(111, projection="3d")
-        self._setup_axes()
+        self._setup_axes(self._ax)
         self.setMinimumSize(400, 300)
 
         # 渲染状态与数据注册表
@@ -117,8 +123,9 @@ class OrbitCanvas(FigureCanvasQTAgg):
         self._family_by_id: dict[str, Any] = {}
         self._artifacts_provider = None
 
-    def _setup_axes(self, projection: str = "3d", *, title: str = "选择一个工件以可视化") -> None:
-        ax = self._ax
+    def _setup_axes(
+        self, ax, projection: str = "3d", *, title: str = "选择一个工件以可视化"
+    ) -> None:
         if projection == "3d":
             ax.set_xlabel("X")
             ax.set_ylabel("Y")
@@ -136,7 +143,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
     def clear(self) -> None:
         self._fig.clear()
         self._ax = self._fig.add_subplot(111, projection="3d")
-        self._setup_axes()
+        self._setup_axes(self._ax)
         self.draw()
 
     # -- 数据提供 ----------------------------------------------------------
@@ -228,10 +235,23 @@ class OrbitCanvas(FigureCanvasQTAgg):
         state = state or self._state
         self._state = state
         self._fig.clear()
-        projection = "3d" if state.projection == "3d" else None
-        ax = self._fig.add_subplot(111, projection=projection)
-        self._ax = ax
+        if state.projection == "quad":
+            # 四视图：2x2 网格（3D + XY/XZ/YZ），充分利用大窗口/全屏空间，
+            # 避免单图等比例缩在中间造成四周大量留白。
+            for i, proj in enumerate(("3d", "xy", "xz", "yz"), start=1):
+                ax = self._fig.add_subplot(2, 2, i, projection="3d" if proj == "3d" else None)
+                sub_state = replace(state, projection=proj)
+                self._render_axes(ax, sub_state)
+        else:
+            projection = "3d" if state.projection == "3d" else None
+            ax = self._fig.add_subplot(111, projection=projection)
+            self._ax = ax
+            self._render_axes(ax, state)
+        self._fig.tight_layout()
+        self.draw()
 
+    def _render_axes(self, ax, state: CanvasState) -> None:
+        """在单个 Axes 上按 state 绘制轨道 + 标注（单视图与四视图共用）。"""
         if state.frame == "inertial":
             # 1. 轨道（ephemeris_position_km）
             if state.projection == "3d":
@@ -264,23 +284,25 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 or bool(self._family_by_id)
             )
         self._setup_axes(
+            ax,
             state.projection,
             title="" if has_orbits else "选择一个工件以可视化",
         )
         if state.projection == "3d":
-            # 3D 等比例 box：按各轴数据范围设 box_aspect。mpl 3D 默认把 Figure
-            # 宽高比塞进 3D 盒子（与数据无关），近平面轨道（DRO 等，Z 振幅远
-            # 小于 XY）的 Z 会被放大约一个数量级，看起来大幅鼓起。
-            ax.set_box_aspect(
-                tuple(np.ptp(lim) for lim in (ax.get_xlim(), ax.get_ylim(), ax.get_zlim()))  # type: ignore[attr-defined, arg-type]
-            )
+            # equal_aspect=True 时按各轴数据范围设 box_aspect。mpl 3D 默认把
+            # Figure 宽高比塞进 3D 盒子（与数据无关），近平面轨道（DRO 等，Z
+            # 振幅远小于 XY）的 Z 会被放大约一个数量级，看起来大幅鼓起。
+            # equal_aspect=False 时保留 mpl 默认（各轴独立填满），Z 细节清晰。
+            if state.equal_aspect:
+                ax.set_box_aspect(
+                    tuple(np.ptp(lim) for lim in (ax.get_xlim(), ax.get_ylim(), ax.get_zlim()))  # type: ignore[attr-defined, arg-type]
+                )
         else:
             # 2D 等比例：mpl 默认 aspect='auto' 让每轴独立填满画面，XZ/YZ 下
             # Z 数据远小于 X/Y 会被拉伸填满画面高度（同样约 9x 放大），与 3D
-            # box_aspect 失真同类。等比例后如实反映轨道几何（DRO 显示为近平面）。
-            ax.set_aspect("equal")
-        self._fig.tight_layout()
-        self.draw()
+            # box_aspect 失真同类。equal_aspect=True 时等比例后如实反映轨道
+            # 几何（DRO 显示为近平面）；False 时各轴独立缩放，Z 细节清晰。
+            ax.set_aspect("equal" if state.equal_aspect else "auto")
 
     # -- 内部绘制 ----------------------------------------------------------
 
