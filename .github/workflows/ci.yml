@@ -20,7 +20,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v7
       - run: git clone --depth 1 https://github.com/cislunarspace/e2m2e.git ../e2m2e
-      - run: uv sync --group dev
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run pyright
+      # --frozen：lock 与 pyproject 一致时跳过解析，也避免 uv 对 calcephpy
+      # direct URL（win_amd64 wheel）做缓存校验请求——该请求在 CI 上偶发
+      # GitHub CDN 瞬时故障（stream refused），与代码无关却会让 lint 误失败。
+      # lock 与 pyproject 不一致时 --frozen 会明确报错（正向约束）。
+      - run: uv sync --group dev --frozen
+      - run: uv run --frozen ruff check .
+      - run: uv run --frozen ruff format --check .
+      - run: uv run --frozen pyright
