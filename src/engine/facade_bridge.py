@@ -125,6 +125,43 @@ def _reconstruct_et_from_utc(eph: Any) -> np.ndarray:
     return et
 
 
+def _coerce_engine_layout(layout: Any, control_mode: int) -> Any:
+    """把面板收集的 engine_layout 规范化为算法层可消费的值。
+
+    - ``control_mode < 4``：角动量管理未启用，engine_layout 无意义；e2m2e
+      虽不使用但会无条件 validate（访问 ``.E_r``），字符串随手输入直接
+      AttributeError，故置 None 忽略。
+    - ``control_mode >= 4``：None 原样（e2m2e 会报"需提供 engine_layout"，
+      经翻译层给出清晰错误）；dict（``positions_m``/``directions``）构造
+      ``EngineLayout``；``EngineLayout`` 实例原样；其余值（如 JSON 文本框
+      里的 "4"）报 INVALID_PARAMS 清晰错误。
+    """
+    from e2m2e.algorithm.station_keeping import EngineLayout
+
+    from src.engine.exceptions import OrbitError
+
+    if control_mode < 4:
+        return None
+    # 空字符串（面板 QLineEdit 未填写）归一为 None：透传空串同样会触发
+    # e2m2e 的 validate（AttributeError），且 None 才能走到"需提供
+    # engine_layout"的清晰报错路径
+    if layout is None or layout == "":
+        return None
+    if isinstance(layout, EngineLayout):
+        return layout
+    if isinstance(layout, dict):
+        try:
+            return EngineLayout(**layout)
+        except (TypeError, ValueError) as exc:
+            raise OrbitError(
+                "INVALID_PARAMS", f"engine_layout 无效: {exc}"
+            ) from exc
+    raise OrbitError(
+        "INVALID_PARAMS",
+        f"engine_layout 需为发动机布局 JSON（positions_m/directions）或留空，当前 {layout!r}",
+    )
+
+
 # ---------------------------------------------------------------------------
 # ToolSpec + TOOL_REGISTRY
 # ---------------------------------------------------------------------------
@@ -349,6 +386,13 @@ class FacadeBridge:
         # DTO 的 mu 由 source_mu 注入（见下方 ControlResultData(mu=source_mu)），
         # 这里剔除，避免 **params 展开时炸。
         params.pop("mu", None)
+        # engine_layout 面板是 JSON 文本框：control_mode < 4（无角动量管理）时
+        # e2m2e 虽不使用但会无条件 validate（访问 .E_r），字符串随手输入直接
+        # AttributeError；置 None 忽略。>= 4 时 dict 构造 EngineLayout，其他
+        # 值报清晰错误（此前 GUI 裸崩 UNKNOWN_ERROR）。
+        layout = params.pop("engine_layout", None)
+        control_mode = params.get("control_mode", 1)
+        params["engine_layout"] = _coerce_engine_layout(layout, control_mode)
         try:
             result = _control(eph, **params)
         except Exception as e:
