@@ -6,11 +6,11 @@
 
 - **参数分组与工具说明**：参数面板按组展示（轨道设计：形状/传播/修正参数；轨道保持：控制/仿真与误差/角动量管理；族生成：族参数），组表头 + 分隔线，轨道类型切换时整组隐藏；工具选择器下方新增工具说明（`ToolSpec.description`）；运行按钮旁新增"重置参数"按钮（重建面板恢复默认值）。
 - **整数枚举改下拉**：`collinear_point`（L1/L2/L3）、`north_south`（北族/南族）、`control_mode`（1-6 带角动量管理语义）、`is_nrho`、`special_mode`、`libration_point` 由裸 spinbox 改为带中文标签的 QComboBox（值存 itemData，收集按数据取值）。
-- **范围占位提示**：数值控件框内文本清空时显示"可填范围: min~max 单位"（placeholder），tooltip 附描述+范围；切单位后提示同步刷新。JSON 文本框（perturbation/dyb/engine_layout）为空时给格式示例提示。模型缺约束的 int 字段（num_controls/num_monte_carlo）用 GUI 临时范围兜底。
+- **范围占位提示**：数值控件框内文本清空时显示约束范围（placeholder），tooltip 附描述+范围；切单位后提示同步刷新。全约束显示 min~max，单侧 `gt/lt` 显示 >/<，无约束字段如实显示"无范围约束"（不拿 Qt 兜底值冒充）。JSON 文本框（perturbation/dyb/engine_layout）为空时给格式示例提示。模型缺上界的 int 字段（num_controls/num_monte_carlo）用 GUI 临时上界兜底并注明。
 - **单位换算全覆盖**：所有可换算参数都提供国际单位与归一化单位切换——距离 km/m/DU（amplitude/amplitude_in/amplitude_out/perilune_height/semi_major_axis/max_amplitude_km）、相位 周期份额/度/弧度、角度 度/rad、时间 duration 年/月/日/时/秒/TU、output_step 秒/时/日/TU、control_interval/feedback_arc/momentum_interval 天/秒/TU、srp_offset_m 列表容器 m/DU；模型外补充字段（control_interval/feedback_arc）收集时也按显示单位换算。多次切单位精确往返（换算缓存，30 天→TU→秒→天无舍入漂移）。
 - **facade 工具清单对齐**：`TOOL_REGISTRY` 从 `e2m2e.api.Facade.mcp_tools()` 自动派生全量清单——已接入的轨道设计/轨道保持/轨道族生成 enabled，e2m2e 已实现但 GUI 未接入的（转移设计/轨道预报/时空坐标转换）与 e2m2e 占位的（转移搜索/小推力设计/不变流形分析/低能转移/相对运动）灰显并附工具说明；e2m2e 新增工具时清单零改动跟随。稳定性分析保持右键入口（下拉灰显）。
 - **新增轨道类型**：轨道设计支持 e2m2e 5.6.8 全部周期轨道类型——新增 DPO、Axial、L4_SPO、L5_SPO、L4_LPO、L5_LPO、L4_HORSESHOE、L5_HORSESHOE（默认值对齐 `DesignOrbitRequest` model_validator）。
-- **补全字段标签**：perturbation/dyb/earth_degree/moon_degree/correction_revolutions/correction_velocity_tolerance 与轨道保持新字段（control_mode/is_nrho/special_mode/num_controls/num_monte_carlo/engine_layout/momentum_interval/srp_offset_m/spacecraft_mass/srp_torque）全部换中文标签（此前裸显字段名）。
+- **补全字段标签与 JSON 接口**：perturbation/dyb/earth_degree/moon_degree/correction_revolutions/correction_velocity_tolerance 与轨道保持新字段（control_mode/is_nrho/special_mode/num_controls/num_monte_carlo/engine_layout/momentum_interval/srp_offset_m/spacecraft_mass/srp_torque）全部换中文标签（此前裸显字段名）。`engine_layout` 的有效 JSON 文本现会解析为 `EngineLayout`，角动量管理模式 4–6 可实际使用；非法 JSON 与非布局 JSON 均给出 `INVALID_PARAMS` 明确错误。
 
 ### 上游问题跟踪
 

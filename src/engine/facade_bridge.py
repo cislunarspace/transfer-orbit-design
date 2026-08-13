@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -145,8 +146,13 @@ def _coerce_engine_layout(layout: Any, control_mode: int) -> Any:
     # 空字符串（面板 QLineEdit 未填写）归一为 None：透传空串同样会触发
     # e2m2e 的 validate（AttributeError），且 None 才能走到"需提供
     # engine_layout"的清晰报错路径
-    if layout is None or layout == "":
+    if layout is None or (isinstance(layout, str) and not layout.strip()):
         return None
+    if isinstance(layout, str):
+        try:
+            layout = json.loads(layout)
+        except json.JSONDecodeError as exc:
+            raise OrbitError("INVALID_PARAMS", f"engine_layout JSON 无效: {exc}") from exc
     if isinstance(layout, EngineLayout):
         return layout
     if isinstance(layout, dict):
@@ -338,7 +344,7 @@ def _build_tool_registry() -> dict[str, ToolSpec]:
             request_model=models.get(model_key) if model_key else None,
             facade_method=name,
             label=meta.get("label", name),
-            description=meta.get("description", "e2m2e facade 工具，GUI 尚未接入"),
+            description=meta.get("description", "该工具暂不可用，当前界面尚未提供入口。"),
             enabled=bool(meta.get("enabled", False)),
         )
     return registry
