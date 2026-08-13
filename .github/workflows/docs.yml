@@ -6,7 +6,6 @@ on:
     paths:
       - "docs/**"
       - "src/**"
-      - "plot/**"
       - "pyproject.toml"
       - "uv.lock"
       - ".github/workflows/docs.yml"

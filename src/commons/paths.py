@@ -73,7 +73,8 @@ def ensure_output_dir(output_dir: str = "output") -> None:
 def detect_kernel_dir() -> str:
     """探测 SPICE 内核目录。
 
-    优先级：``$SPICE_KERNEL_DIR`` -> ``<repo>/../e2m2e/kernels/``；找不到返回空串。
+    优先级：``$SPICE_KERNEL_DIR`` -> ``<repo>/kernels/`` -> ``<repo>/../e2m2e/kernels/``；
+    找不到返回空串。
 
     e2m2e 改为 pip 安装后，其内部闰秒内核（``.tls``）的自动搜索路径按源码仓库
     布局计算父目录（``parents[3]``），在 site-packages 布局下指向错误位置，导致
@@ -84,6 +85,12 @@ def detect_kernel_dir() -> str:
     if env_val and Path(env_val).is_dir():
         return env_val
 
+    # 本项目自带 kernels/（小内核入库，.bsp 由 scripts/download_kernels.py 补）
+    own = _REPO_ROOT / "kernels"
+    if own.is_dir():
+        return str(own)
+
+    # 回退：同父目录的 e2m2e 源码仓库内核（开发机历史布局）
     candidate = _REPO_ROOT.parent / "e2m2e" / "kernels"
     if candidate.is_dir():
         return str(candidate)

@@ -238,24 +238,24 @@ class TestSynodicPlotContentCombinations:
         np.testing.assert_array_equal(np.asarray(zdata), eph_synodic[:, 2])
 
 
-class Test3DDataEqualBoxAspect:
-    """3D 渲染应等比例：box_aspect 按数据范围，而非 matplotlib 默认的 figure 宽高比。
+class Test3DEqualAspectExpandedZRange:
+    """3D 等比（默认）：按显示区间设 box_aspect，且 Z 区间“多取一些”。
 
-    回归 guard：DRO 等近平面轨道（Z 振幅远小于 XY）在 3D 下曾因 mpl 默认
-    box_aspect（源自 Figure 宽高比）把 Z 放大约 9 倍，看起来大幅鼓起；
-    2D 投影因每轴独立 auto-scale 不受影响，故表现为"2D 正确、3D Z 异常"。
+    回归 guard：曾直接按数据范围等比，近平面轨道（DRO 等，Z 振幅远小于 XY）
+    的 Z 被压成一条线（box z/x ≈ 0.08）；现在 Z 区间至少取 XY 的 0.5 倍，
+    box z/x ≈ 0.5，Z 细节可见。
     """
 
-    def test_3d_box_aspect_data_equal_for_flat_orbit(self, qapp):
-        """DRO 形状数据（XY≈0.6、Z≈0.05）：box z/x 比 == 数据 z/x 比。"""
+    def test_3d_equal_aspect_expands_z_range_for_flat_orbit(self, qapp):
+        """默认等比：DRO 形状数据的 Z 区间扩到 XY 的 0.5 倍，box z/x ≈ 0.5。"""
         from src.view.canvas import CanvasState, OrbitCanvas
 
         n = 120
         theta = np.linspace(0, 2 * np.pi, n)
         moon = 1 - _MU
         x = moon + 0.6 * np.cos(theta)
-        y = -0.6 * np.sin(theta)  # 逆行
-        z = 0.05 * np.sin(3 * theta)  # 星历摄动下的小 Z 振幅
+        y = -0.6 * np.sin(theta)
+        z = 0.05 * np.sin(3 * theta)
         eph_syn = np.column_stack([x, y, z])
         ig = np.column_stack([x, y, np.zeros(n), np.zeros((n, 3))])
 
@@ -284,11 +284,59 @@ class Test3DDataEqualBoxAspect:
         canvas.render()
 
         ax = canvas._fig.axes[0]
+        xspan = np.ptp(ax.get_xlim())
+        yspan = np.ptp(ax.get_ylim())
+        zspan = np.ptp(ax.get_zlim())
+        # Z 区间“多取一些”：0.11 → 至少为 XY 较小范围的 0.5 倍
+        assert zspan == pytest.approx(min(xspan, yspan) * 0.5, rel=0.05)
+        bx, by, bz = ax.get_box_aspect()
+        assert bz / bx == pytest.approx(0.5, rel=0.05)
+        assert bz / by == pytest.approx(0.5, rel=0.05)
+
+    def test_3d_non_equal_fills_z(self, qapp):
+        """取消等比（equal_aspect=False）：保留 mpl 默认，各轴独立填满，Z 不被压。"""
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        n = 120
+        theta = np.linspace(0, 2 * np.pi, n)
+        moon = 1 - _MU
+        x = moon + 0.6 * np.cos(theta)
+        y = -0.6 * np.sin(theta)
+        z = 0.05 * np.sin(3 * theta)
+        eph_syn = np.column_stack([x, y, z])
+        ig = np.column_stack([x, y, np.zeros(n), np.zeros((n, 3))])
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "initial_guess_states": ig,
+                        "ephemeris_synodic": eph_syn,
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
+            )
+        )
+        canvas.sync_state(
+            CanvasState(
+                visible_artifacts=["id1"],
+                show_bodies=False,
+                show_libration=False,
+                plot_content="ephemeris",
+                equal_aspect=False,
+            ),
+            ["id1"],
+        )
+        canvas.render()
+
+        ax = canvas._fig.axes[0]
         rx, ry, rz = np.ptp(ax.get_xlim()), np.ptp(ax.get_ylim()), np.ptp(ax.get_zlim())
         bx, by, bz = ax.get_box_aspect()
-        # 等比例：box 分量比 == 数据范围比。Z 数据小，box z 也该小。
-        assert bz / bx == pytest.approx(rz / rx, rel=0.05)
-        assert bz / by == pytest.approx(rz / ry, rel=0.05)
+        # 非等比：box 的 z/x 比大于数据 z/x 比（z 被放大而非压成 0.083）。
+        assert bz / bx > (rz / rx) * 3
+        assert bz / by > (rz / ry) * 3
 
 
 class Test2DProjectionPlaneCorrect:
@@ -324,7 +372,6 @@ class Test2DProjectionPlaneCorrect:
                 }
             )
         )
-        z_range = float(np.ptp(eph_syn[:, 2]))  # 0.1
         for proj in ("xz", "yz"):
             canvas.sync_state(
                 CanvasState(
@@ -339,21 +386,19 @@ class Test2DProjectionPlaneCorrect:
             canvas.render()
             ax = canvas._fig.axes[0]
             ylim_range = float(np.ptp(ax.get_ylim()))
-            # 纵轴是 Z：应反映 Z 数据（~0.1+margin），而非被 L4/L5 的 Y 撑到 ~1.9
-            assert ylim_range < z_range * 3, (
-                f"{proj} 纵轴范围 {ylim_range:.3f} 远大于 Z 数据 {z_range:.3f}，疑被平动点 Y 坐标污染"
+            xlim_range = float(np.ptp(ax.get_xlim()))
+            # 纵轴是 Z：等比默认下被主动扩到横轴的 0.5 倍（~0.6），
+            # 而非被 L4/L5 的 Y 撑到 ~1.9（那会远大于横轴 0.5 倍）
+            assert ylim_range == pytest.approx(xlim_range * 0.5, rel=0.1), (
+                f"{proj} 纵轴范围 {ylim_range:.3f} 非横轴 {xlim_range:.3f} 的 0.5 倍，疑被平动点 Y 坐标污染"
             )
 
 
-class Test2DEqualAspect:
-    """2D 投影应等比例：纵/横每数据单位的像素比≈1（与 3D set_box_aspect 等比例一致）。
+class Test2DAspectModes:
+    """2D 投影的等比（默认，纵轴为 Z 时区间多取）与非等比（auto 填满）两种模式。"""
 
-    回归 guard：mpl 2D 默认 aspect='auto'，每轴独立填满 axes。XZ/YZ 下 Z 数据
-    范围远小于 X/Y，Z 被拉伸填满画面高度（约 9x 放大），与 3D 默认 box_aspect
-    失真同类；XY 因 axes 宽高比也有约 0.7x 偏差。等比例后如实反映轨道几何。
-    """
-
-    def test_2d_projections_have_equal_aspect(self, qapp):
+    def test_2d_equal_aspect_expands_z_axis(self, qapp):
+        """默认等比：XZ/YZ 纵轴（Z）区间扩到横轴的 0.5 倍，等比例下像素比≈1。"""
         from src.view.canvas import CanvasState, OrbitCanvas
 
         n = 120
@@ -378,7 +423,7 @@ class Test2DEqualAspect:
                 }
             )
         )
-        for proj in ("xy", "xz", "yz"):
+        for proj in ("xz", "yz"):
             canvas.sync_state(
                 CanvasState(
                     visible_artifacts=["id1"],
@@ -392,13 +437,67 @@ class Test2DEqualAspect:
             canvas.render()
             canvas._fig.canvas.draw()  # 触发 renderer，拿 axes 像素尺寸
             ax = canvas._fig.axes[0]
+            xrng = float(np.ptp(ax.get_xlim()))
+            yrng = float(np.ptp(ax.get_ylim()))
+            # 纵轴（Z）区间“多取一些”：扩到横轴的 0.5 倍
+            assert yrng == pytest.approx(xrng * 0.5, rel=0.05), (
+                f"{proj} 纵轴范围 {yrng:.3f} 未扩到横轴 {xrng:.3f} 的 0.5 倍"
+            )
+            bbox = ax.get_window_extent()
+            ratio = (bbox.height / yrng) / (bbox.width / xrng)
+            # 等比：纵/横每数据单位像素比≈1
+            assert abs(ratio - 1.0) < 0.1, (
+                f"{proj} 纵/横单位像素比 {ratio:.2f}，非等比例"
+            )
+
+    def test_2d_non_equal_fills_z(self, qapp):
+        """取消等比（equal_aspect=False）：XZ/YZ 纵轴（Z）独立填满，不再压成细条。"""
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        n = 120
+        theta = np.linspace(0, 2 * np.pi, n)
+        moon = 1 - _MU
+        x = moon + 0.6 * np.cos(theta)
+        y = -0.6 * np.sin(theta)
+        z = 0.05 * np.sin(3 * theta)
+        eph_syn = np.column_stack([x, y, z])
+        ig = np.column_stack([x, y, np.zeros(n), np.zeros((n, 3))])
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "initial_guess_states": ig,
+                        "ephemeris_synodic": eph_syn,
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
+            )
+        )
+        for proj in ("xz", "yz"):
+            canvas.sync_state(
+                CanvasState(
+                    visible_artifacts=["id1"],
+                    projection=proj,
+                    show_bodies=False,
+                    show_libration=False,
+                    plot_content="ephemeris",
+                    equal_aspect=False,
+                ),
+                ["id1"],
+            )
+            canvas.render()
+            canvas._fig.canvas.draw()
+            ax = canvas._fig.axes[0]
             bbox = ax.get_window_extent()
             xrng = float(np.ptp(ax.get_xlim()))
             yrng = float(np.ptp(ax.get_ylim()))
-            # 纵/横每数据单位的像素比；等比例时应≈1
             ratio = (bbox.height / yrng) / (bbox.width / xrng)
-            assert abs(ratio - 1.0) < 0.1, (
-                f"{proj} 纵/横单位像素比 {ratio:.2f}，非等比例（轨道形状会被拉伸失真）"
+            # 非等比：Z 数据范围远小于 X/Y，被拉伸填满画面 → 单位像素比 > 1
+            assert ratio > 3.0, (
+                f"{proj} 纵/横单位像素比 {ratio:.2f}，Z 未被放大（细节仍被压缩）"
             )
 
 
@@ -729,3 +828,280 @@ class TestRestoredDesignOrbitArtifact:
         assert data["ephemeris_synodic"] is not None
         assert data["ephemeris_position_km"] is not None
         assert data["ephemeris_times_et"] is not None
+
+
+class TestInertialFamilyApproxView:
+    """惯性系下无 position_km 的纯 CR3BP 产物（轨道族）：旋转近似视图。
+
+    回归 guard：此前轨道族切惯性系只有地球原点一个点（"无法绘图"）；
+    现在会合系数据按 R(θ)·(r+μ)·DU 旋转到 GCRS km，画全族成员 + 月球解析圆。
+    """
+
+    def _family_canvas(self, qapp):
+        from src.view.canvas import OrbitCanvas
+
+        rng = np.random.default_rng(3)
+        m, n = 4, 40
+        family = rng.random((m, n, 6)) * 0.1
+        family[:, :, 0] += 1.15  # 放在 L2 附近
+        times = np.tile(np.linspace(0.0, 2 * np.pi, n), (m, 1))
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "fam": {
+                        "label": "Halo 族",
+                        "mu": _MU,
+                        "family_states": family,
+                        "family_times": times,
+                        "initial_guess_states": None,
+                        "ephemeris_synodic": None,
+                        "ephemeris_position_km": None,
+                        "ephemeris_times_et": None,
+                    }
+                }
+            )
+        )
+        return canvas
+
+    def test_family_inertial_draws_all_members_plus_moon_circle(self, qapp):
+        """惯性系下轨道族：画 m 条成员 + 月球解析圆 + 地球 marker，而非一个点。"""
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        from src.view.canvas import CanvasState
+
+        canvas = self._family_canvas(qapp)
+        canvas.sync_state(
+            CanvasState(
+                visible_artifacts=["fam"],
+                show_bodies=True,
+                show_libration=False,
+                frame="inertial",
+            ),
+            ["fam"],
+        )
+        canvas.render()
+        ax = canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line3D)]
+        # 4 成员 + 月球圆 + 地球 marker = 6
+        assert len(lines) == 6, f"惯性系轨道族应画 6 条线，实际 {len(lines)}"
+
+    def test_family_inertial_positions_are_km_scale(self, qapp):
+        """近似视图坐标应为 km 量级（≈DU 倍），而非无量纲会合系。"""
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        from src.view.canvas import CanvasState
+
+        canvas = self._family_canvas(qapp)
+        canvas.sync_state(
+            CanvasState(
+                visible_artifacts=["fam"],
+                show_bodies=False,
+                show_libration=False,
+                frame="inertial",
+            ),
+            ["fam"],
+        )
+        canvas.render()
+        ax = canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line3D)]
+        xdata = np.asarray(lines[0].get_data_3d()[0])
+        # L2 附近轨道旋转后环绕原点：x 范围 ≈ ±1.15×384400 ≈ ±4.4e5 km
+        assert float(np.ptp(xdata)) > 3e5, f"x 范围 {np.ptp(xdata):.0f} 非 km 量级"
+
+
+class TestCenterView:
+    """中心视图：质心/月球/L1/L2 整体平移。"""
+
+    def test_moon_center_shifts_ephemeris(self, qapp):
+        """center='moon'：星历会合系坐标减月球位置 (1-μ,0,0)。"""
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        n = 40
+        rng = np.random.default_rng(5)
+        eph_syn = rng.random((n, 3))
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "initial_guess_states": None,
+                        "ephemeris_synodic": eph_syn,
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
+            )
+        )
+        canvas.sync_state(
+            CanvasState(
+                visible_artifacts=["id1"],
+                show_bodies=False,
+                show_libration=False,
+                plot_content="ephemeris",
+                center="moon",
+            ),
+            ["id1"],
+        )
+        canvas.render()
+        ax = canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line3D)]
+        xdata = np.asarray(lines[0].get_data_3d()[0])
+        np.testing.assert_allclose(xdata, eph_syn[:, 0] - (1 - _MU), atol=1e-9)
+
+    def test_l2_center_shifts_by_libration_point(self, qapp):
+        """center='L2'：平移量为 e2m2e 解算的 L2 坐标（x≈1.1557）。"""
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        n = 40
+        rng = np.random.default_rng(6)
+        eph_syn = rng.random((n, 3))
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "initial_guess_states": None,
+                        "ephemeris_synodic": eph_syn,
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
+            )
+        )
+        canvas.sync_state(
+            CanvasState(
+                visible_artifacts=["id1"],
+                show_bodies=False,
+                show_libration=False,
+                plot_content="ephemeris",
+                center="L2",
+            ),
+            ["id1"],
+        )
+        canvas.render()
+        ax = canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line3D)]
+        xdata = np.asarray(lines[0].get_data_3d()[0])
+        # L2 x ≈ 1.1557（e2m2e 地月系统解）
+        assert np.allclose(xdata, eph_syn[:, 0] - 1.15568216, atol=1e-4)
+
+
+class TestCenterControlsMainWindow:
+    """main_window 中心按钮：信号 → state → 惯性系下 L1/L2 灰显回退。"""
+
+    def test_center_buttons_update_state(self, qapp):
+        w = _make_window()
+        tb = w._viz.projection_toolbar
+        tb.center_moon.click()
+        assert w._canvas_state.center == "moon"
+        tb.center_l1.click()
+        assert w._canvas_state.center == "L1"
+        tb.center_barycenter.click()
+        assert w._canvas_state.center == "barycenter"
+
+    def test_inertial_disables_l1_l2_and_falls_back(self, qapp):
+        w = _make_window()
+        tb = w._viz.projection_toolbar
+        w._on_center_changed("L2")
+        assert w._canvas_state.center == "L2"
+        w._on_frame_changed("inertial")
+        # 惯性系下 L2 回退质心（地球原点），L1/L2 按钮灰显
+        assert w._canvas_state.center == "barycenter"
+        assert not tb.center_l1.isEnabled()
+        assert not tb.center_l2.isEnabled()
+        # 回会合系恢复
+        w._on_frame_changed("synodic")
+        assert tb.center_l1.isEnabled()
+        assert tb.center_l2.isEnabled()
+
+
+class TestInertialMoonCenterDegradation:
+    """惯性系月球中心：月球位置不可用时降级，杜绝坐标系错位。"""
+
+    def _canvas(self, qapp, times_et=None):
+        from src.view.canvas import OrbitCanvas
+
+        rng = np.random.default_rng(9)
+        pos_km = rng.standard_normal((40, 3)) * 3.8e5
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "label": "受控",
+                        "mu": _MU,
+                        "ephemeris_synodic": pos_km * 1e-5,
+                        "ephemeris_position_km": pos_km,
+                        "ephemeris_times_et": times_et,
+                    }
+                }
+            )
+        )
+        return canvas, pos_km
+
+    def test_moon_center_without_spice_skips_orbit_and_hints(self, qapp):
+        """SPICE 不可用（无 times_et）：轨道跳过、无月球 marker、画布提示。"""
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        from src.view.canvas import CanvasState
+
+        canvas, _ = self._canvas(qapp, times_et=None)
+        canvas.sync_state(
+            CanvasState(
+                visible_artifacts=["id1"],
+                show_bodies=True,
+                frame="inertial",
+                center="moon",
+            ),
+            ["id1"],
+        )
+        canvas.render()
+        ax = canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line3D)]
+        labels = {ln.get_label() for ln in lines}
+        # 轨道与月球 marker 都不画（避免地心/月心坐标同屏错位）
+        assert "受控" not in labels
+        assert "Moon" not in labels
+        assert "月球位置不可用" in ax.get_title()
+
+    def test_moon_center_with_spice_shifts_orbit_and_draws_moon(self, qapp):
+        """SPICE 可用：轨道平移、月球 marker 按设置大小绘制。"""
+        from unittest.mock import patch
+
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        from src.view.canvas import CanvasState
+        from src.view.chart_settings import ChartSettings
+
+        times_et = np.linspace(7.5e8, 7.6e8, 40)
+        canvas, pos_km = self._canvas(qapp, times_et=times_et)
+        fake_moon = pos_km + np.array([[1e4, 2e4, 3e4]])
+        with patch("src.engine.viz_adapter.moon_position_gcrs", return_value=fake_moon):
+            canvas.set_chart_settings(ChartSettings(moon_size=300.0))
+            canvas.sync_state(
+                CanvasState(
+                    visible_artifacts=["id1"],
+                    show_bodies=True,
+                    frame="inertial",
+                    center="moon",
+                ),
+                ["id1"],
+            )
+            canvas.render()
+        ax = canvas._fig.axes[0]
+        lines = [c for c in ax.get_children() if isinstance(c, Line3D)]
+        # 轨道已平移：首点 = pos_km[0] - fake_moon[0]
+        track = next(ln for ln in lines if ln.get_label() == "受控")
+        x0 = np.asarray(track.get_data_3d()[0])[0]
+        assert x0 == pytest.approx(pos_km[0, 0] - fake_moon[0, 0])
+        # 月球 marker 在原点，大小取设置的平方根
+        moon = next(ln for ln in lines if ln.get_label() == "Moon")
+        assert moon.get_markersize() == pytest.approx(300.0**0.5)
+        # 地球轨迹（月球中心视图）= -月球位置
+        earth = next(ln for ln in lines if ln.get_label() == "Earth")
+        assert np.asarray(earth.get_data_3d()[0])[0] == pytest.approx(-fake_moon[0, 0])

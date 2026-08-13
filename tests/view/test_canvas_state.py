@@ -62,6 +62,23 @@ class TestCanvasState:
         state = CanvasState()
         assert state.plot_content == "overlay"
 
+    def test_default_equal_aspect_is_true(self):
+        """默认等比例显示（工具栏“等比”默认勾选）。"""
+        from src.view.canvas import CanvasState
+
+        state = CanvasState()
+        assert state.equal_aspect is True
+
+    def test_copy_carries_equal_aspect(self):
+        """copy 携带 equal_aspect 字段且独立。"""
+        from src.view.canvas import CanvasState
+
+        state = CanvasState(equal_aspect=False)
+        copied = state.copy()
+        assert copied.equal_aspect is False
+        copied.equal_aspect = True
+        assert state.equal_aspect is False
+
     def test_copy_carries_frame(self):
         from src.view.canvas import CanvasState
 
@@ -359,6 +376,45 @@ class TestOrbitCanvasRender:
         canvas.plot_multiple(orbits=[(_random_orbit(), "A"), (_random_orbit(), "B")])
         ax = canvas._fig.axes[0]
         assert "2 条轨道" in ax.get_title()
+
+    def test_render_quad_view_creates_four_axes(self, qapp):
+        """projection='quad' 四视图：2x2 网格 = 1 个 3D + 3 个 2D 投影，各自画轨道。"""
+        from matplotlib.lines import Line2D
+        from mpl_toolkits.mplot3d.art3d import Line3D
+
+        from src.view.canvas import CanvasState, OrbitCanvas
+
+        canvas = OrbitCanvas()
+        canvas.set_artifacts_provider(
+            _make_provider(
+                {
+                    "id1": {
+                        "initial_guess_states": _random_orbit(),
+                        "label": "DRO",
+                        "mu": _MU,
+                    }
+                }
+            )
+        )
+        state = CanvasState(
+            projection="quad",
+            visible_artifacts=["id1"],
+            show_bodies=False,
+            show_libration=False,
+            plot_content="guess",
+        )
+        canvas.sync_state(state, ["id1"])
+        canvas.render()
+
+        axes = canvas._fig.axes
+        assert len(axes) == 4
+        names = [ax.name for ax in axes]
+        assert names.count("3d") == 1
+        assert names.count("rectilinear") == 3
+        # 每个子图都画出轨道（3d 用 Line3D，2d 用 Line2D）
+        for ax in axes:
+            n = len([c for c in ax.get_children() if isinstance(c, (Line3D, Line2D))])
+            assert n >= 1
 
 
 def _random_position_km(n: int = 50) -> np.ndarray:
