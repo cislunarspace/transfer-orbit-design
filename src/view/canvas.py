@@ -27,16 +27,16 @@ from matplotlib.backends.backend_qt import NavigationToolbar2QT  # noqa: E402
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg  # noqa: E402
 from matplotlib.figure import Figure  # noqa: E402
 
+from src.view.chart_settings import ChartSettings
+
 _PROJECTION_PLANE_AXES: dict[str, tuple[int, int]] = {
     "xy": (0, 1),
     "xz": (0, 2),
     "yz": (1, 2),
 }
 
-# 等比模式下 Z 轴区间相对 XY 区间的最小比例：近平面轨道（Z 振幅远小于 XY）
-# 若直接按数据范围等比，Z 会被压成一条线；把 Z 显示区间“多取一些”到 XY 的
-# 该比例（0.5），Z 细节可见，又不至于与 XY 等量。
-_EQUAL_ASPECT_MIN_Z_RATIO = 0.5
+# GUI 内嵌画布固定宽度（cm）相关注释：等比模式 Z 区间比例由 ChartSettings.z_ratio
+# 控制（默认 0.5），见 src/view/chart_settings.py。
 
 
 @dataclass
@@ -57,7 +57,7 @@ class CanvasState:
             默认 ``"overlay"``：design_orbit 产物同时画初猜与星历。
         equal_aspect: 是否等比例显示。``True``（默认）时 3D 按数据范围设 box_aspect、
             2D 设 aspect='equal'，如实反映轨道几何；近平面轨道（Z 振幅远小于 XY）的
-            Z 轴区间会扩大到 XY 的 ``_EQUAL_ASPECT_MIN_Z_RATIO`` 倍，避免压成一条线。
+            Z 轴区间会扩大到 XY 的 ``z_ratio`` 倍（默认 0.5），避免压成一条线。
             ``False`` 时各轴独立缩放填满画面。
         center: 绘图中心，``"barycenter" | "moon" | "L1" | "L2"``（会合系）。
             渲染时整体平移使所选点成为坐标原点。惯性系下 ``"L1"/"L2"`` 无意义
@@ -110,6 +110,9 @@ class OrbitCanvas(FigureCanvasQTAgg):
     ]
 
     def __init__(self, parent=None):
+        # 图表设置（线宽/颜色方案/标注大小/字号/Z 区间比例），
+        # 由 main_window 经 set_chart_settings() 注入；先于 _setup_axes 初始化
+        self._chart = ChartSettings()
         self._fig = Figure(figsize=(8, 6), dpi=100)
         super().__init__(self._fig)
         self._ax = self._fig.add_subplot(111, projection="3d")
@@ -140,19 +143,21 @@ class OrbitCanvas(FigureCanvasQTAgg):
     def _setup_axes(
         self, ax, projection: str = "3d", *, title: str = "选择一个工件以可视化"
     ) -> None:
+        fontsize = self._chart.label_fontsize
         if projection == "3d":
-            ax.set_xlabel("X")
-            ax.set_ylabel("Y")
+            ax.set_xlabel("X", fontsize=fontsize)
+            ax.set_ylabel("Y", fontsize=fontsize)
             # projection=="3d" 时 add_subplot 返回 Axes3D，但 matplotlib
             # stubs 按基类 Axes 推断，无法按字符串收窄，故显式忽略此属性。
-            ax.set_zlabel("Z")  # type: ignore[attr-defined]
+            ax.set_zlabel("Z", fontsize=fontsize)  # type: ignore[attr-defined]
         else:
             # 2D 投影：轴标签与 _PROJECTION_PLANE_AXES 对齐
             labels = {"xy": ("X", "Y"), "xz": ("X", "Z"), "yz": ("Y", "Z")}
             xlabel, ylabel = labels[projection]
-            ax.set_xlabel(xlabel)
-            ax.set_ylabel(ylabel)
-        ax.set_title(title)
+            ax.set_xlabel(xlabel, fontsize=fontsize)
+            ax.set_ylabel(ylabel, fontsize=fontsize)
+        ax.set_title(title, fontsize=fontsize + 2)
+        ax.tick_params(labelsize=fontsize - 1)
 
     def clear(self) -> None:
         self._fig.clear()
@@ -177,6 +182,20 @@ class OrbitCanvas(FigureCanvasQTAgg):
             - ``family_times``: ndarray (m,n) | None          -- 族各成员无量纲时间
         """
         self._artifacts_provider = provider
+
+    def set_chart_settings(self, settings: ChartSettings) -> None:
+        """注入图表设置（线宽/颜色方案/标注大小/字号/Z 区间比例）。"""
+        self._chart = settings
+
+    def _orbit_color(self, index: int) -> Any:
+        """按设置的颜色方案取第 index 条轨道的颜色。"""
+        name = self._chart.colormap
+        if name == "tab10":
+            return self._TAB10_COLORS[index % len(self._TAB10_COLORS)]
+        import matplotlib.cm as cm
+
+        cmap = cm.get_cmap(name)
+        return cmap(index % cmap.N)
 
     def sync_state(
         self,
@@ -330,13 +349,13 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 ax.set_zlim(*self._symmetrize(*ax.get_zlim()))  # type: ignore[attr-defined]
         if state.projection == "3d":
             # 3D 等比例：按各轴显示区间设 box_aspect。Z 区间先“多取一些”
-            # （至少为 XY 较小范围的 _EQUAL_ASPECT_MIN_Z_RATIO 倍），避免近平面
+            # （至少为 XY 较小范围的 z_ratio 倍），避免近平面
             # 轨道（DRO 等，Z 振幅远小于 XY）被压成一条线。
             if state.equal_aspect:
                 xspan = np.ptp(ax.get_xlim())
                 yspan = np.ptp(ax.get_ylim())
                 zlim = ax.get_zlim()  # type: ignore[attr-defined]
-                target = max(np.ptp(zlim), min(xspan, yspan) * _EQUAL_ASPECT_MIN_Z_RATIO)
+                target = max(np.ptp(zlim), min(xspan, yspan) * self._chart.z_ratio)
                 zmid = (zlim[0] + zlim[1]) / 2
                 ax.set_zlim(zmid - target / 2, zmid + target / 2)  # type: ignore[attr-defined]
                 ax.set_box_aspect(
@@ -350,7 +369,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 if plane[1] == 2:
                     xspan = np.ptp(ax.get_xlim())
                     ylim = ax.get_ylim()
-                    target = max(np.ptp(ylim), xspan * _EQUAL_ASPECT_MIN_Z_RATIO)
+                    target = max(np.ptp(ylim), xspan * self._chart.z_ratio)
                     ymid = (ylim[0] + ylim[1]) / 2
                     ax.set_ylim(ymid - target / 2, ymid + target / 2)
                 ax.set_aspect("equal")
@@ -401,8 +420,8 @@ class OrbitCanvas(FigureCanvasQTAgg):
         content = state.plot_content
         for i, aid in enumerate(state.visible_artifacts):
             label = self._labels_by_id.get(aid, "")
-            base_color = self._TAB10_COLORS[(2 * i) % len(self._TAB10_COLORS)]
-            eph_color = self._TAB10_COLORS[(2 * i + 1) % len(self._TAB10_COLORS)]
+            base_color = self._orbit_color(2 * i)
+            eph_color = self._orbit_color(2 * i + 1)
             if aid in self._family_by_id:
                 # 轨道族：m 条成员按 viridis 渐变色逐条绘制，覆盖普通槽。
                 self._draw_family_3d(ax, self._family_by_id[aid], label, center)
@@ -415,7 +434,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                         pos[:, 0],
                         pos[:, 1],
                         pos[:, 2],
-                        linewidth=0.8,
+                        linewidth=self._chart.orbit_linewidth,
                         color=base_color,
                         linestyle="-",
                         label=f"{label}（初猜）" if content == "overlay" else label,
@@ -430,7 +449,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                         pos[:, 0],
                         pos[:, 1],
                         pos[:, 2],
-                        linewidth=0.8,
+                        linewidth=self._chart.orbit_linewidth,
                         color=eph_color,
                         linestyle="--" if content == "overlay" else "-",
                         label=f"{label}{suffix}",
@@ -460,7 +479,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 pos[:, 0],
                 pos[:, 1],
                 pos[:, 2],
-                linewidth=0.7,
+                linewidth=self._chart.orbit_linewidth,
                 color=color,
                 label=label if j == 0 else None,
             )
@@ -484,7 +503,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
             ax.plot(
                 pos[:, plane[0]],
                 pos[:, plane[1]],
-                linewidth=0.7,
+                linewidth=self._chart.orbit_linewidth,
                 color=cmap(norm(j)),
                 label=label if j == 0 else None,
             )
@@ -494,8 +513,8 @@ class OrbitCanvas(FigureCanvasQTAgg):
         content = state.plot_content
         for i, aid in enumerate(state.visible_artifacts):
             label = self._labels_by_id.get(aid, "")
-            base_color = self._TAB10_COLORS[(2 * i) % len(self._TAB10_COLORS)]
-            eph_color = self._TAB10_COLORS[(2 * i + 1) % len(self._TAB10_COLORS)]
+            base_color = self._orbit_color(2 * i)
+            eph_color = self._orbit_color(2 * i + 1)
             if aid in self._family_by_id:
                 # 轨道族：2D 投影逐条绘制
                 self._draw_family_2d(ax, self._family_by_id[aid], label, plane, center)
@@ -507,7 +526,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     ax.plot(
                         pos[:, plane[0]],
                         pos[:, plane[1]],
-                        linewidth=0.8,
+                        linewidth=self._chart.orbit_linewidth,
                         color=base_color,
                         linestyle="-",
                         label=f"{label}（初猜）" if content == "overlay" else label,
@@ -520,7 +539,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     ax.plot(
                         pos[:, plane[0]],
                         pos[:, plane[1]],
-                        linewidth=0.8,
+                        linewidth=self._chart.orbit_linewidth,
                         color=eph_color,
                         linestyle="--" if content == "overlay" else "-",
                         label=f"{label}{suffix}",
@@ -536,7 +555,14 @@ class OrbitCanvas(FigureCanvasQTAgg):
             mu = self._mu_by_id.get(aid)
             if mu is not None:
                 draw_primary_bodies(
-                    ax, mu, is_3d=is_3d, plane=plane, center=tuple(center)
+                    ax,
+                    mu,
+                    is_3d=is_3d,
+                    plane=plane,
+                    center=tuple(center),
+                    earth_size=self._chart.earth_size,
+                    moon_size=self._chart.moon_size,
+                    fontsize=self._chart.label_fontsize,
                 )
                 break  # 只画一次（同一 CR3BP 系统）
 
@@ -549,7 +575,14 @@ class OrbitCanvas(FigureCanvasQTAgg):
             mu = self._mu_by_id.get(aid)
             if mu is not None:
                 draw_libration_points(
-                    ax, mu, is_3d=is_3d, plane=plane, center=tuple(center)
+                    ax,
+                    mu,
+                    is_3d=is_3d,
+                    plane=plane,
+                    center=tuple(center),
+                    color=self._chart.lp_color,
+                    size=self._chart.lp_size,
+                    fontsize=self._chart.label_fontsize,
                 )
                 break
 
@@ -557,7 +590,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
 
     def _draw_3d_inertial_orbits(self, ax, state) -> None:
         for i, aid in enumerate(state.visible_artifacts):
-            color = self._TAB10_COLORS[i % len(self._TAB10_COLORS)]
+            color = self._orbit_color(i)
             label = self._labels_by_id.get(aid, "")
             position_km = self._ephemeris_position_km_by_id.get(aid)
             if position_km is not None:
@@ -572,7 +605,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     pos[:, 0],
                     pos[:, 1],
                     pos[:, 2],
-                    linewidth=0.8,
+                    linewidth=self._chart.orbit_linewidth,
                     color=color,
                     label=label,
                 )
@@ -584,7 +617,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
     def _draw_2d_inertial_orbits(self, ax, state) -> None:
         plane = _PROJECTION_PLANE_AXES[state.projection]
         for i, aid in enumerate(state.visible_artifacts):
-            color = self._TAB10_COLORS[i % len(self._TAB10_COLORS)]
+            color = self._orbit_color(i)
             label = self._labels_by_id.get(aid, "")
             position_km = self._ephemeris_position_km_by_id.get(aid)
             if position_km is not None:
@@ -598,7 +631,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 ax.plot(
                     pos[:, plane[0]],
                     pos[:, plane[1]],
-                    linewidth=0.8,
+                    linewidth=self._chart.orbit_linewidth,
                     color=color,
                     label=label,
                 )
@@ -647,12 +680,12 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 pos = _shift(arr[j][:, :3], t[j])
                 if plane is None:
                     ax.plot(
-                        pos[:, 0], pos[:, 1], pos[:, 2], linewidth=0.7,
+                        pos[:, 0], pos[:, 1], pos[:, 2], linewidth=self._chart.orbit_linewidth,
                         color=cmap(norm(j)), label=label if j == 0 else None,
                     )
                 else:
                     ax.plot(
-                        pos[:, plane[0]], pos[:, plane[1]], linewidth=0.7,
+                        pos[:, plane[0]], pos[:, plane[1]], linewidth=self._chart.orbit_linewidth,
                         color=cmap(norm(j)), label=label if j == 0 else None,
                     )
             return
@@ -662,10 +695,10 @@ class OrbitCanvas(FigureCanvasQTAgg):
             pos = _shift(np.asarray(initial)[:, :3], np.asarray(initial_times))
             label = self._labels_by_id.get(aid, "")
             if plane is None:
-                ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], linewidth=0.8, color=color, label=label)
+                ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], linewidth=self._chart.orbit_linewidth, color=color, label=label)
             else:
                 ax.plot(
-                    pos[:, plane[0]], pos[:, plane[1]], linewidth=0.8, color=color, label=label
+                    pos[:, plane[0]], pos[:, plane[1]], linewidth=self._chart.orbit_linewidth, color=color, label=label
                 )
 
     def _draw_inertial_bodies(self, ax, state) -> None:
@@ -701,10 +734,10 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     # 月球中心：地球相对月球 = -moon_pos(t)，画灰虚线轨迹
                     earth = -moon
                     if is_3d:
-                        ax.plot(earth[:, 0], earth[:, 1], earth[:, 2], linewidth=0.8,
+                        ax.plot(earth[:, 0], earth[:, 1], earth[:, 2], linewidth=self._chart.orbit_linewidth,
                                 color="#2E86AB", linestyle="--", label="Earth")
                     else:
-                        ax.plot(earth[:, plane[0]], earth[:, plane[1]], linewidth=0.8,
+                        ax.plot(earth[:, plane[0]], earth[:, plane[1]], linewidth=self._chart.orbit_linewidth,
                                 color="#2E86AB", linestyle="--", label="Earth")
                 else:
                     draw_moon_gcrs_trajectory(ax, times_et, is_3d=is_3d, plane=plane)
@@ -721,10 +754,10 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 if state.center == "moon":
                     break  # 月球轨迹退化为原点一点，无需画
                 if is_3d:
-                    ax.plot(moon[:, 0], moon[:, 1], moon[:, 2], linewidth=0.8,
+                    ax.plot(moon[:, 0], moon[:, 1], moon[:, 2], linewidth=self._chart.orbit_linewidth,
                             color="gray", linestyle="--", label="Moon")
                 else:
-                    ax.plot(moon[:, plane[0]], moon[:, plane[1]], linewidth=0.8,
+                    ax.plot(moon[:, plane[0]], moon[:, plane[1]], linewidth=self._chart.orbit_linewidth,
                             color="gray", linestyle="--", label="Moon")
                 break
 
@@ -747,7 +780,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
         ax = self._fig.add_subplot(111, projection="3d")
 
         pos = states[:, :3]
-        ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], linewidth=0.8, label=label)
+        ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], linewidth=self._chart.orbit_linewidth, label=label)
 
         # 标记起点
         ax.scatter(*pos[0], s=40, c="green", zorder=5, label="起点")
@@ -777,7 +810,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
 
         for states, orb_label in orbits_data:
             pos = states[:, :3]
-            ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], linewidth=0.5, label=orb_label)
+            ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], linewidth=self._chart.orbit_linewidth, label=orb_label)
 
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
@@ -806,9 +839,9 @@ class OrbitCanvas(FigureCanvasQTAgg):
         ax = self._fig.add_subplot(111, projection="3d")
 
         for i, (states, label) in enumerate(orbits):
-            color = self._TAB10_COLORS[i % len(self._TAB10_COLORS)]
+            color = self._orbit_color(i)
             pos = states[:, :3]
-            ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], linewidth=0.8, color=color, label=label)
+            ax.plot(pos[:, 0], pos[:, 1], pos[:, 2], linewidth=self._chart.orbit_linewidth, color=color, label=label)
             ax.scatter(*pos[0], s=30, c=color, zorder=5)
 
         ax.set_xlabel("X")

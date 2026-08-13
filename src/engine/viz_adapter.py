@@ -87,18 +87,22 @@ def draw_primary_bodies(
     is_3d: bool = True,
     plane: tuple[int, int] | None = None,
     center: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    earth_size: float = 160.0,
+    moon_size: float = 90.0,
+    fontsize: float = 10.0,
 ) -> None:
-    """在 ax 上绘制地球/月球位置标注（自绘，支持中心平移）。
+    """在 ax 上绘制地球/月球位置标注（自绘，支持中心平移与大小配置）。
 
     地球在 (-μ,0,0)，月球在 (1-μ,0,0)（质心归一会合系）；绘制时整体减去
     ``center``，使所选中心点成为坐标原点（如月球中心/L1/L2 中心视图）。
+    ``earth_size``/``moon_size`` 为 2D scatter 面积（3D markersize 取其平方根）。
     """
     if plane is None:
         plane = (0, 1)
     cx, cy, cz = center
-    for name, xpos, color, edge, ms3d, s2d in (
-        ("Earth", -mu, "#2E86AB", "#1A5276", 14.0, 160),
-        ("Moon", 1.0 - mu, "#95A5A6", "#566573", 10.0, 90),
+    for name, xpos, color, edge, size in (
+        ("Earth", -mu, "#2E86AB", "#1A5276", earth_size),
+        ("Moon", 1.0 - mu, "#95A5A6", "#566573", moon_size),
     ):
         x, y, z = xpos - cx, -cy, -cz
         if is_3d:
@@ -108,15 +112,17 @@ def draw_primary_bodies(
                 [z],
                 "o",
                 color=color,
-                markersize=ms3d,
+                markersize=size**0.5,
                 markeredgecolor="black",
                 markeredgewidth=0.8,
                 label=name,
             )
         else:
             px, py = (x, y, z)[plane[0]], (x, y, z)[plane[1]]
-            ax.scatter(px, py, color=color, s=s2d, edgecolors=edge, linewidth=1.2, zorder=10)
-            ax.annotate(name, (px, py), xytext=(6, 6), textcoords="offset points", fontsize=10)
+            ax.scatter(px, py, color=color, s=size, edgecolors=edge, linewidth=1.2, zorder=10)
+            ax.annotate(
+                name, (px, py), xytext=(6, 6), textcoords="offset points", fontsize=fontsize
+            )
 
 
 def draw_libration_points(
@@ -126,8 +132,11 @@ def draw_libration_points(
     is_3d: bool = True,
     plane: tuple[int, int] | None = None,
     center: tuple[float, float, float] = (0.0, 0.0, 0.0),
+    color: str = "#d62728",
+    size: float = 80.0,
+    fontsize: float = 10.0,
 ) -> None:
-    """在 ax 上绘制 L1-L5 拉格朗日点标注（自绘，支持中心平移）。"""
+    """在 ax 上绘制 L1-L5 拉格朗日点标注（自绘，支持中心平移与样式配置）。"""
     from e2m2e.algorithm.dynamics import LibrationPoint
 
     if plane is None:
@@ -141,12 +150,16 @@ def draw_libration_points(
         coord = system.L_points[lp]
         x, y, z = coord[0] - cx, coord[1] - cy, coord[2] - cz
         if is_3d:
-            ax.plot([x], [y], [z], marker="^", color="#d62728", markersize=8.9, linestyle="None")
-            ax.text(x, y, z + 0.02, labels[i], fontsize=12, ha="center")
+            ax.plot(
+                [x], [y], [z], marker="^", color=color, markersize=size**0.5, linestyle="None"
+            )
+            ax.text(x, y, z + 0.02, labels[i], fontsize=fontsize, ha="center")
         else:
             px, py = (x, y, z)[plane[0]], (x, y, z)[plane[1]]
-            ax.scatter(px, py, color="#d62728", marker="^", s=80, zorder=5)
-            ax.annotate(labels[i], (px, py), xytext=(5, 5), textcoords="offset points", fontsize=12)
+            ax.scatter(px, py, color=color, marker="^", s=size, zorder=5)
+            ax.annotate(
+                labels[i], (px, py), xytext=(5, 5), textcoords="offset points", fontsize=fontsize
+            )
 
 
 def draw_earth_origin_marker(

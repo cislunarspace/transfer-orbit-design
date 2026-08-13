@@ -56,6 +56,12 @@ from src.engine.workers import (
 from src.model import Artifact, Project
 from src.model.discovery import discover_artifacts
 from src.view.canvas import OrbitCanvasWithToolbar
+from src.view.chart_settings import (
+    ChartSettings,
+    chart_settings_dialog,
+    load_settings,
+    save_settings,
+)
 from src.view.log_panel import LogPanel
 from src.view.params_panel import (
     ORBIT_TYPE_DEFAULTS,
@@ -155,10 +161,19 @@ class MainWindow(QMainWindow):
         self._canvas_state = CanvasState()
         self._selected_artifact_ids: list[str] = []
 
+        # 图表设置：QSettings 持久化，启动加载后注入画布
+        from PyQt6.QtCore import QSettings
+
+        self._qsettings = QSettings("TransferOrbitDesign", "chart")
+        self._chart_settings = load_settings(self._qsettings)
+
         self.setWindowTitle("Transfer Orbit Design v2")
         self.resize(1400, 900)
 
         self._build_ui()
+        self._build_menu()
+        # 设置注入画布（_build_ui 之后，canvas 已创建）
+        self._viz.canvas.set_chart_settings(self._chart_settings)
 
         self._status_bar = QStatusBar()
         self.setStatusBar(self._status_bar)
@@ -232,6 +247,23 @@ class MainWindow(QMainWindow):
         layout.addWidget(self._tree_view)
 
         return panel
+
+    def _build_menu(self) -> None:
+        """菜单栏：设置 → 图表设置。"""
+        menu = self.menuBar().addMenu("设置")
+        action = menu.addAction("图表设置…")
+        action.triggered.connect(self._open_chart_settings)
+
+    def _open_chart_settings(self) -> None:
+        """弹出图表设置对话框；确认后持久化并重绘画布。"""
+        new_settings = chart_settings_dialog(self, self._chart_settings)
+        if new_settings is None:
+            return
+        self._chart_settings = new_settings
+        save_settings(self._qsettings, new_settings)
+        self._viz.canvas.set_chart_settings(new_settings)
+        self._render_canvas()
+        self._status_bar.showMessage("图表设置已保存", _STATUS_MSG_TIMEOUT_MS)
 
     def _build_center_panel(self) -> QWidget:
         # C: 画布与日志同屏（垂直 splitter），运行时可同时看轨道与日志，
