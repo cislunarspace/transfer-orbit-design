@@ -108,14 +108,15 @@ class TestTooltipFromDescription:
 
         widgets = build_params_from_model(_TooltipModel)
         assert widgets["with_desc"].toolTip().startswith("带描述的字段")
-        assert "可填范围" in widgets["with_desc"].toolTip()
+        # 无约束 float：范围提示如实说明无约束，不拿 Qt 兜底值冒充
+        assert "无范围约束" in widgets["with_desc"].toolTip()
 
-    def test_no_description_tooltip_is_range_only(self, qapp):
-        """字段无 description 时，toolTip 显示范围提示（不再为空）。"""
+    def test_no_description_tooltip_is_hint_only(self, qapp):
+        """字段无 description 时，toolTip 只有范围提示（不再为空）。"""
         from src.view.params_panel import build_params_from_model
 
         widgets = build_params_from_model(_TooltipModel)
-        assert widgets["without_desc"].toolTip().startswith("可填范围")
+        assert widgets["without_desc"].toolTip() == "无范围约束"
 
 
 # ---------------------------------------------------------------------------

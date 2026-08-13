@@ -88,10 +88,10 @@ class TestToolRegistry:
                 return
         pytest.fail("无 enabled 工具")
 
-    def test_facade_methods_defined(self):
-        """每个注册工具都必须有 facade_method。"""
+    def test_facade_method_matches_tool_key(self):
+        """facade_method 是 e2m2e facade 方法名（== 工具 key，与 mcp_tools 对齐）。"""
         for name, spec in TOOL_REGISTRY.items():
-            assert spec.facade_method, f"{name}.facade_method 为空"
+            assert spec.facade_method == name, f"{name}.facade_method != 工具 key"
 
     def test_labels_non_empty(self):
         for name, spec in TOOL_REGISTRY.items():

@@ -58,13 +58,13 @@ class TestRangePlaceholder:
         assert "TU" in hint and "秒" not in hint
 
     def test_tooltip_contains_description_and_range(self, qapp):
-        """tooltip = 字段描述 + 范围提示。"""
+        """tooltip = 字段描述 + 范围提示（spacecraft_mass 模型声明 gt=0，严格下界）。"""
         from src.view.params_panel import build_params_from_model
 
         widgets = build_params_from_model(ControlOrbitRequest)
-        # spacecraft_mass 无单位选项：tooltip = 描述 + 范围
+        # spacecraft_mass 无单位选项：tooltip = 描述 + 仅下界范围提示（gt 严格 >）
         tip = widgets["spacecraft_mass"].toolTip()
-        assert "可填范围" in tip
+        assert "可填范围: > 0" in tip
         assert "航天器质量" in tip
 
     def test_optional_wrapped_spinbox_has_placeholder(self, qapp):
@@ -78,6 +78,32 @@ class TestRangePlaceholder:
         assert sb is not None
         hint = sb.lineEdit().placeholderText()
         assert "可填范围" in hint
+
+    def test_lower_bound_only_shows_gt_hint(self, qapp):
+        """仅下界约束（如 output_step gt=0）提示 > min（Qt 舍入后 min=0 不误导），不显示无上限。"""
+        from PyQt6.QtWidgets import QDoubleSpinBox
+
+        from src.view.params_panel import build_params_from_model
+
+        widgets = build_params_from_model(DesignOrbitRequest)
+        sb = widgets["output_step"]
+        assert isinstance(sb, QDoubleSpinBox)
+        hint = sb.lineEdit().placeholderText()
+        assert hint.startswith("可填范围: > ")
+        assert "秒" in hint
+
+    def test_unconstrained_int_shows_gui_temporary_range(self, qapp):
+        """模型缺上界的 int（num_controls，ge=1 无 le）补 GUI 临时上界并注明。"""
+        from PyQt6.QtWidgets import QSpinBox
+
+        from src.view.params_panel import build_params_from_model
+
+        widgets = build_params_from_model(ControlOrbitRequest)
+        sb = widgets["num_controls"]
+        assert isinstance(sb, QSpinBox)
+        hint = sb.lineEdit().placeholderText()
+        assert "可填范围: 1 ~ 10000" in hint  # min 来自模型 ge=1，max 为 GUI 临时
+        assert "GUI 临时" in hint
 
     def test_json_field_placeholder(self, qapp):
         """JSON 文本框（perturbation/engine_layout）为空时给格式示例提示。"""
@@ -100,6 +126,23 @@ class TestRangePlaceholder:
 # ---------------------------------------------------------------------------
 # 整数枚举下拉
 # ---------------------------------------------------------------------------
+
+
+    def test_int_range_override_respects_model_bounds(self, qapp):
+        """GUI 临时范围只补缺失边界：模型已有 ge 时不被覆盖。"""
+        from pydantic import BaseModel, Field
+
+        from src.view.params_panel import build_params_from_model
+
+        class _Model(BaseModel):
+            # 模型声明 ge=5：override 不得把 min 改成 1
+            num_controls: int = Field(120, ge=5)
+
+        widgets = build_params_from_model(_Model)
+        sb = widgets["num_controls"]
+        assert sb.minimum() == 5
+        assert sb.maximum() == 10000  # 上界缺失仍补 GUI 临时值
+        assert "可填范围: 5 ~ 10000" in sb.lineEdit().placeholderText()
 
 
 class TestIntCombo:
@@ -244,7 +287,8 @@ class TestSupplementalFieldUnits:
         # 显示 10 位小数，2 m ≈ 5.2e-9 DU（collect 走缓存仍精确返回 2.0 m）
         assert children[0].value() * (DU_KM * 1000.0) == pytest.approx(2.0, rel=1e-3)
         hint = children[0].lineEdit().placeholderText()
-        assert "DU" in hint  # 容器子控件提示按容器单位
+        # 容器无模型约束：范围提示如实说明，不拿 Qt 兜底 ±1e12 冒充
+        assert "无范围约束" in hint
 
         params = collect_params(widgets, ControlOrbitRequest)
         assert params["srp_offset_m"] == pytest.approx([2.0, 0.0, 0.0])

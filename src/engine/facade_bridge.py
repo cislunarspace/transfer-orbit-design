@@ -167,13 +167,16 @@ def _coerce_engine_layout(layout: Any, control_mode: int) -> Any:
 
 @dataclass(frozen=True)
 class ToolSpec:
-    """工具描述：绑定 Pydantic Request 模型、FacadeBridge 方法名、UI 标签。"""
+    """工具描述：绑定 Pydantic Request 模型、facade 方法名、UI 标签。"""
 
     request_model: type[BaseModel] | None  # Pydantic 模型（None = 无正式模型）
-    facade_method: str  # FacadeBridge 方法名
+    # e2m2e facade 方法名（== TOOL_REGISTRY 键，与 mcp_tools 清单对齐）。
+    # 注意：FacadeBridge 方法名另见 FacadeBridge 类（design_orbit/control_orbit/
+    # generate_family/analyze_stability），与本字段不一一同名。
+    facade_method: str
     label: str  # UI 显示名
     description: str  # 工具说明（面板顶部展示，用用户概念而非实现术语）
-    enabled: bool  # 是否启用（False = 工具下拉灰显"即将提供"）
+    enabled: bool  # 是否启用（False = 工具下拉灰显，悬停显示工具说明）
 
 
 # ---------------------------------------------------------------------------
@@ -203,7 +206,7 @@ class FamilyGenerationRequest(BaseModel):
 
 
 #: GUI 已接入工具的元数据（label/description/enabled/request_model 绑定）。
-#: 表外 facade 工具自动灰显（label=方法名，"即将提供"），e2m2e 新增工具时
+#: 表外 facade 工具自动灰显（悬停显示工具说明），e2m2e 新增工具时
 #: GUI 清单零改动跟随。facade 工具清单见 ``e2m2e.api.Facade.mcp_tools()``。
 _TOOL_META: dict[str, dict[str, Any]] = {
     "design_orbit": {
@@ -304,9 +307,9 @@ _TOOL_ORDER: tuple[str, ...] = (
 def _build_tool_registry() -> dict[str, ToolSpec]:
     """构建 TOOL_REGISTRY，与 e2m2e facade 工具清单（mcp_tools）对齐。
 
-    e2m2e 更新后新 facade 工具自动出现在清单中（灰显"即将提供"）；本地
-    ``_TOOL_META`` 只维护 GUI 已接入工具的元数据。e2m2e 未安装时退回本地
-    最小清单（仅已接入的 4 个工具，request_model 置 None）。
+    e2m2e 更新后新 facade 工具自动出现在清单中（灰显，悬停显示工具说明）；
+    本地 ``_TOOL_META`` 只维护 GUI 已接入工具的元数据。e2m2e 未安装时退回
+    本地最小清单（仅已接入的 3 个工具，request_model 置 None）。
     """
     facade_names: list[str] = []
     models: dict[str, type[BaseModel] | None] = {

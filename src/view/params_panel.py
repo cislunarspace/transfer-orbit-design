@@ -318,6 +318,12 @@ _DESC_ATTR = "_params_panel_desc"
 #: 存储值，切单位再切回会有累计精度损失（如 30 天→TU→天 变 30.000022 天）；
 #: 自动换算时把精确标准值缓存下来，collect 时若显示值未被用户改动则取缓存。
 _STD_VALUE_ATTR = "_params_panel_std_value"
+#: 范围约束状态：`(has_lower, has_upper, note, strict_lower, strict_upper)`。
+#: 范围提示按此区分"有真实约束（显示 min~max）"与"无约束（显示无范围约束，
+#: 不拿 Qt 兜底值冒充）"；gt/lt 严格约束显示 >/<（Qt 会按 decimals 舍入
+#: minimum，如 gt=0 的 1e-8 舍成 0，直接显示数值会误导为 ≥0 可含 0）。note
+#: 为补充说明（如 GUI 临时范围）。list 容器存在容器上，子控件提示时传入。
+_BOUNDS_ATTR = "_params_panel_bounds"
 
 #: JSON 文本框（str/Any 无约束字段）为空时的占位提示：告知参数可填内容格式。
 #: 数值控件不用此表——它们的占位提示由 `_apply_range_hint` 按 min/max 生成。
@@ -434,8 +440,9 @@ def set_spinbox_unit(widget: QWidget, field_name: str, unit: str) -> None:
         std_min = widget.property(_STD_MIN_ATTR)
         std_max = widget.property(_STD_MAX_ATTR)
         # 先更新容器单位状态，再换算子控件：范围提示按新单位生成。
-        # 子 spinbox 自身无单位属性（状态在容器上），提示单位显式传入。
+        # 子 spinbox 自身无单位/约束属性（状态在容器上），显式传入。
         widget.setProperty(_UNIT_ATTR, new_opt.label)
+        bounds = widget.property(_BOUNDS_ATTR) or (True, True, "", False, False)
         for child in widget.findChildren(QDoubleSpinBox):
             _convert_spinbox(
                 child,
@@ -445,6 +452,7 @@ def set_spinbox_unit(widget: QWidget, field_name: str, unit: str) -> None:
                 std_max,
                 field_name,
                 unit_label=new_opt.label,
+                bounds=bounds,
             )
         return
     old_opt = _current_unit_option(field_name, widget)
@@ -467,12 +475,13 @@ def _convert_spinbox(
     field_name: str,
     *,
     unit_label: str | None = None,
+    bounds: tuple | None = None,
 ) -> None:
     """把单个 spinbox 从 old_opt 显示单位换到 new_opt（范围/步长/小数位/值）。
 
     精确标准值写入 ``_STD_VALUE_ATTR`` 缓存（含换算后显示值），避免多次切单位
-    的舍入误差累积。``unit_label`` 供范围提示使用（list 容器子控件自身无单位
-    属性，由调用方显式传入新单位标签）。
+    的舍入误差累积。``unit_label``/``bounds`` 供范围提示使用（list 容器子控件
+    自身无单位/约束属性，由调用方显式传入）。
     """
     standard = _standard_value_of(sb, old_opt.to_standard)
     sb.setDecimals(new_opt.decimals)
@@ -483,7 +492,7 @@ def _convert_spinbox(
         sb.setMaximum(float(std_max) / new_opt.to_standard)
     sb.setValue(standard / new_opt.to_standard)
     sb.setProperty(_STD_VALUE_ATTR, (float(sb.value()), standard))
-    _apply_range_hint(sb, field_name, unit_label)
+    _apply_range_hint(sb, field_name, unit_label, bounds)
 
 
 def _standard_value_of(sb: QDoubleSpinBox, fallback_factor: float) -> float:
@@ -509,6 +518,8 @@ def attach_unit_state(sb: QDoubleSpinBox, field_name: str) -> None:
     sb.setProperty(_UNIT_ATTR, std.label)
     sb.setDecimals(std.decimals)
     sb.setSingleStep(std.step)
+    # 补充字段无模型约束，范围是 GUI 兜底（e2m2e 未暴露该字段，已提 issue）
+    sb.setProperty(_BOUNDS_ATTR, (True, True, "模型未暴露该字段，GUI 临时", False, False))
     _apply_range_hint(sb, field_name)
 
 
@@ -521,19 +532,24 @@ def _apply_range_hint(
     widget: QWidget,
     field_name: str,
     unit_label: str | None = None,
+    bounds: tuple | None = None,
 ) -> None:
     """给数值控件写范围提示：占位文本 + tooltip。
 
-    - 内部 QLineEdit 设 placeholder：框内文本清空时显示"可填范围 min~max 单位"；
-    - tooltip = 字段描述 + 范围（描述经 ``_DESC_ATTR`` 属性传入）。
-    - list[float] 容器：逐个子 spinbox 应用（单位状态在容器上）。
+    - 内部 QLineEdit 设 placeholder：框内文本清空时显示可填范围，随约束状态
+      区分——有约束显示"可填范围: min ~ max 单位"，仅单侧约束显示 ≥/≤，
+      无约束显示"无范围约束"（不拿 Qt 兜底值冒充真实范围）；
+    - tooltip = 字段描述 + 同样的范围提示（描述经 ``_DESC_ATTR`` 属性传入）；
+    - list[float] 容器：逐个子 spinbox 应用（单位/约束状态在容器上）。
     """
     if widget.property("__params_panel_kind") == "list_float":
         if unit_label is None:
             opt = _current_unit_option(field_name, widget)
             unit_label = opt.label if opt else None
+        if bounds is None:
+            bounds = widget.property(_BOUNDS_ATTR) or (True, True, "", False, False)
         for child in widget.findChildren(QDoubleSpinBox):
-            _apply_range_hint(child, field_name, unit_label)
+            _apply_range_hint(child, field_name, unit_label, bounds)
         return
     if not isinstance(widget, (QDoubleSpinBox, QSpinBox)):
         return
@@ -541,9 +557,25 @@ def _apply_range_hint(
     if unit_label is None:
         opt = _current_unit_option(field_name, widget)
         unit_label = opt.label if opt else None
-    hint = f"可填范围: {widget.minimum():g} ~ {widget.maximum():g}"
-    if unit_label:
-        hint += f" {unit_label}"
+    if bounds is None:
+        bounds = widget.property(_BOUNDS_ATTR)
+    if bounds is None:
+        bounds = (True, True, "", False, False)
+    has_lower, has_upper, note, strict_lower, strict_upper = bounds
+    lo, hi = widget.minimum(), widget.maximum()
+    unit_suffix = f" {unit_label}" if unit_label else ""
+    if not has_lower and not has_upper:
+        hint = "无范围约束"
+    elif not has_upper:
+        prefix = ">" if strict_lower else "≥"
+        hint = f"可填范围: {prefix} {lo:g}{unit_suffix}"
+    elif not has_lower:
+        prefix = "<" if strict_upper else "≤"
+        hint = f"可填范围: {prefix} {hi:g}{unit_suffix}"
+    else:
+        hint = f"可填范围: {lo:g} ~ {hi:g}{unit_suffix}"
+    if note:
+        hint += f"（{note}）"
     line_edit = widget.lineEdit()
     if line_edit is not None:
         line_edit.setPlaceholderText(hint)
@@ -558,11 +590,12 @@ def _apply_range_hint(
 def _make_float_field(field_name: str, field: Any, meta: dict[str, Any]) -> QDoubleSpinBox:
     widget = QDoubleSpinBox()
     widget.setDecimals(4)
+    has_lower = "ge" in meta or "gt" in meta
+    has_upper = "le" in meta or "lt" in meta
     if "ge" in meta:
         widget.setMinimum(float(meta["ge"]))
     elif "gt" in meta:
         widget.setMinimum(float(meta["gt"]) + 1e-8)
-    has_upper = "le" in meta or "lt" in meta
     if "le" in meta:
         widget.setMaximum(float(meta["le"]))
     elif "lt" in meta:
@@ -581,6 +614,9 @@ def _make_float_field(field_name: str, field: Any, meta: dict[str, Any]) -> QDou
     elif widget.minimum() <= 0.0 <= widget.maximum():
         widget.setValue(0.0)
 
+    # 范围约束状态：范围提示据此区分真实约束与 Qt 兜底值；gt/lt 记严格性
+    widget.setProperty(_BOUNDS_ATTR, (has_lower, has_upper, "", "gt" in meta, "lt" in meta))
+
     # 可切换单位字段：写入标准单位下的范围属性 + 默认显示单位（标准单位）
     options = get_field_units(field_name)
     if options is not None:
@@ -595,6 +631,8 @@ def _make_float_field(field_name: str, field: Any, meta: dict[str, Any]) -> QDou
 
 def _make_int_field(field_name: str, field: Any, meta: dict[str, Any]) -> QSpinBox:
     widget = QSpinBox()
+    has_lower = "ge" in meta or "gt" in meta
+    has_upper = "le" in meta or "lt" in meta
     if "ge" in meta:
         widget.setMinimum(int(meta["ge"]))
     elif "gt" in meta:
@@ -603,12 +641,19 @@ def _make_int_field(field_name: str, field: Any, meta: dict[str, Any]) -> QSpinB
         widget.setMaximum(int(meta["le"]))
     elif "lt" in meta:
         widget.setMaximum(int(meta["lt"]) - 1)
-    # 模型缺约束的 int 字段（如 num_controls）用 GUI 临时范围兜底，避免 Qt
-    # 默认 0~99 截断合法默认值（e2m2e 侧缺 Field 约束，已提 issue）。
+    # 模型缺约束的 int 字段（如 num_controls 无上界）用 GUI 临时范围逐边界
+    # 兜底——只补缺失的边界，不覆盖模型已有约束（e2m2e 侧缺 Field 约束，
+    # 已提 issue #408）。
+    note = ""
     override = _INT_RANGE_OVERRIDES.get(field_name)
     if override is not None:
-        widget.setMinimum(override[0])
-        widget.setMaximum(override[1])
+        if not has_lower:
+            widget.setMinimum(override[0])
+            has_lower = True
+        if not has_upper:
+            widget.setMaximum(override[1])
+            has_upper = True
+        note = "部分边界模型未声明，GUI 临时"
     if field.default is not None and field.default is not ...:
         default = int(field.default)
         # 无上界约束时 Qt 默认 max=99，扩到能容纳默认值
@@ -617,6 +662,7 @@ def _make_int_field(field_name: str, field: Any, meta: dict[str, Any]) -> QSpinB
         widget.setValue(default)
     elif widget.minimum() <= 0 <= widget.maximum():
         widget.setValue(0)
+    widget.setProperty(_BOUNDS_ATTR, (has_lower, has_upper, note, False, False))
     return widget
 
 
@@ -705,6 +751,8 @@ def _make_list_float_field(field_name: str, field: Any, meta: dict[str, Any]) ->
         layout.addWidget(sb)
 
     container.setProperty("__params_panel_kind", "list_float")
+    # 容器范围无模型约束（±1e12 仅为 Qt 兜底），范围提示如实显示"无范围约束"
+    container.setProperty(_BOUNDS_ATTR, (False, False, "", False, False))
     options = get_field_units(field_name)
     if options is not None:
         std = options[0]

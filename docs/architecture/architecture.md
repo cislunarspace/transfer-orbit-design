@@ -288,17 +288,18 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
     "control_orbit": ToolSpec(request_model=ControlOrbitRequest, ...),
     "orbit_family_generation": ToolSpec(request_model=FamilyGenerationRequest, ...),
     "orbit_stability": ToolSpec(request_model=None, ...),  # 右键触发，不进工具下拉
-    "transfer_design": ToolSpec(request_model=None, enabled=False, ...),  # 即将提供
+    "transfer_design": ToolSpec(request_model=None, enabled=False, ...),  # 灰显，悬停显示工具说明
     # ... 其余 e2m2e facade 工具同构灰显
 }
 ```
 
 `TOOL_REGISTRY` 从 `e2m2e.api.Facade.mcp_tools()` 自动派生全量清单：已接入的
-工具 enabled；e2m2e 已实现但 GUI 未接入、e2m2e 占位的工具灰显"即将提供"。
-e2m2e 新增工具时 GUI 清单零改动跟随。`ToolSpec.description`（工具说明）展示在
-工具选择器下方。稳定性分析无参数面板（右键轨道触发），`enabled=False` 仅表示
-下拉灰显，右键菜单另行启用。轨道族生成使用本地 `FamilyGenerationRequest` 模型
-（e2m2e 无对应 Request，已提上游 issue）。
+工具 enabled；e2m2e 已实现但 GUI 未接入、e2m2e 占位的工具灰显，悬停显示工具
+说明（区分"GUI 尚未接入"与"e2m2e 占位"）。e2m2e 新增工具时 GUI 清单零改动
+跟随。`ToolSpec.description`（工具说明）展示在工具选择器下方。稳定性分析无
+参数面板（右键轨道触发），`enabled=False` 仅表示下拉灰显，右键菜单另行启用。
+轨道族生成使用本地 `FamilyGenerationRequest` 模型（e2m2e 无对应 Request，
+已提上游 issue）。
 
 ### 日志面板 `log_panel.py`
 
