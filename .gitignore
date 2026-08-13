@@ -1,190 +1,53 @@
-# Python
+# Python 字节码与缓存
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
-.Python
+
+# 构建产物（setuptools / PyInstaller 的 build、dist）
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
 *.egg
+*.egg-info/
+.eggs/
 MANIFEST
 
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-docs/build/
-docs/source/locale/**/LC_MESSAGES/*.mo
-
-# PyBuilder
-.pybuilder/
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# poetry
-#poetry.lock
-
-# pdm
-.pdm.toml
-.pdm-build/
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
+# 虚拟环境与环境变量
+.venv/
 .env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
 
-# Spyder project settings
-.spyderproject
-.spyproject
+# 测试与代码检查缓存
+.pytest_cache/
+.ruff_cache/
 
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# PyCharm
+# 编辑器与 AI 工具
 .idea/
 *.iml
-/.idea
-
-# VS Code
 .vscode/
-
-# Cursor
 .cursor/
 !.cursor/worktrees.json
-
-# Claude Code
 .claude/
-
-# MiMoCode
 .mimocode/
-
-# Reasonix
 .reasonix/
+.zcode/            # ZCode IDE 本地会话计划产物
+MagicMock/         # MagicMock 测试残留
 
-
-# macOS
+# 操作系统
 .DS_Store
-
-# Windows
 Thumbs.db
 ehthumbs.db
 Desktop.ini
-
-# Linux
-*~
-
-# KDE
 .directory
 
-# Temporary files
+# 临时文件与日志
+*~
+*.swp
 *.tmp
 *.temp
-*.swp
-*~
-
-# Log files
 *.log
 *.log.*
 
-# Data files
+# 科学计算数据与图文件
 *.csv
 *.dat
 *.h5
@@ -195,13 +58,7 @@ Desktop.ini
 *.pkl
 *.pickle
 
-# Plot/output files
-# 但保留 docs/source/_static 中的资源文件
-!docs/source/_static/
 *.png
-# 重新取消 _static 目录中 png/ico 的忽略
-!docs/source/_static/*.png
-!docs/source/_static/*.ico
 *.jpg
 *.jpeg
 *.gif
@@ -210,9 +67,10 @@ Desktop.ini
 *.pdf
 *.eps
 *.svg
+# 文档静态资源（logo 等）除外
+!docs/source/_static/*.png
 
-# SPICE kernel files (通常很大，不应该提交到git)
-# 注意：这些文件通常很大，建议通过其他方式分发
+# SPICE 内核文件（体量大，不入库）
 *.bsp
 *.tpc
 *.tf
@@ -221,62 +79,40 @@ Desktop.ini
 *.mk
 *.fk
 
-# 项目特定的忽略
-# 大型数据文件（默认不纳入；CR3BP 种子数据是显式例外，单独保留）
+# 项目数据与输出
+# 大型数据默认不入库；CR3BP 种子数据是显式例外
 /data/**
 !/data/cr3bp_data/
-!/data/cr3bp_data/raw/
-!/data/cr3bp_data/raw/**
-!/data/cr3bp_data/normalized/
-!/data/cr3bp_data/normalized/**
+!/data/cr3bp_data/**
 /output/
 /scripts/output/
 /results/
+/out
 
-# GUI 用户自定义默认值（可能包含本地路径）
-gui_defaults.json
-
-# e2m2e 符号链接（指向 ~/codes/e2m2e/e2m2e，由 setup_symlink.sh 管理）
-e2m2e
-
-# 配置文件（包含敏感信息）
-config.ini
+# GUI 与本地配置
+gui_defaults.json   # 用户自定义默认值（可能含本地路径）
+e2m2e               # 符号链接（指向 ~/codes/e2m2e/e2m2e，由 setup_symlink.sh 管理）
+config.ini          # 含敏感信息
 secrets.json
 *.key
 *.pem
 
-# 备份文件
+# 备份与压缩包
 *.bak
 *.backup
-
-# 压缩文件
 *.zip
 *.tar.gz
 *.tgz
 *.rar
 *.7z
 
-# 文档生成
+# 文档构建产物
 docs/_build/
-docs/_static/
-docs/_templates/
-docs/.docusaurus/
-docs/node_modules/
-docs/superpowers/
+docs/source/locale/**/LC_MESSAGES/*.mo
 
-# 测试相关
+# 测试输出
 test_output/
 test_results/
 
-# 轨道数据
-/out
-# uv virtualenv
-.venv/
-
 # Git worktrees
 .worktrees/
-
-# MagicMock 测试残留
-MagicMock/
-# ZCode IDE 本地会话计划产物
-.zcode/
