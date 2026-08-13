@@ -2,11 +2,10 @@
 """PyInstaller spec for Transfer Orbit Design GUI.
 
 扁平便携布局（contents_directory="."）：sys._MEIPASS == exe 所在目录，
-src/ 源码、plot/ 绘图脚本源码、pyproject.toml、data/ 种子数据与 exe 平级，与开发仓库布局一致。
+src/ 源码、pyproject.toml、data/ 种子数据与 exe 平级，与开发仓库布局一致。
 新 GUI 是进程内 QThread 直接调用 e2m2e 算法层，不依赖磁盘 .py 扫描；
 收集 src/ 只为在 frozen 下保持 src.app.main 的相对导入深度
 （main.py 里 repo_root = here.parent.parent.parent，需 src/ 完整平铺）。
-收集 plot/ 供独立绘图脚本在 frozen 下使用。
 
 onedir 是硬需求：exe 与 kernels/、output/ 等运行时目录共存于同一文件夹。
 
@@ -24,8 +23,6 @@ datas = [
     # src/ 全部源码：新 GUI 在进程内 QThread 直接调 e2m2e 算法层，
     # 收集源码以保持 frozen 下 src/app/main.py 的相对导入深度
     (str(repo_root / "src"), "src"),
-    # plot/ 绘图脚本：独立工具，frozen 下供高级用户使用
-    (str(repo_root / "plot"), "plot"),
     # find_project_root 的项目根标记（frozen 包内没有 .git）
     (str(repo_root / "pyproject.toml"), "."),
     # CR3BP 种子数据（轨道族生成的参考初值，旧 CLI 脚本仍被 e2m2e 使用）
