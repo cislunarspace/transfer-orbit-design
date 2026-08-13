@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QButtonGroup, QCheckBox, QHBoxLayout, QPushButton, QWidget
+from PyQt6.QtWidgets import QButtonGroup, QCheckBox, QGridLayout, QPushButton, QWidget
 
 
 class CanvasToolbar(QWidget):
@@ -94,31 +94,48 @@ class CanvasToolbar(QWidget):
         self.plot_overlay.setChecked(True)
         self.center_barycenter.setChecked(True)
 
-        layout = QHBoxLayout(self)
+        # 工具项按功能分多行。此前所有控件排在一个 QHBoxLayout，累加后的
+        # minimumSizeHint 超过窄屏可用宽度，窗口无法在最大化/全屏间正确切换。
+        layout = QGridLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.projection_3d)
-        layout.addWidget(self.projection_xy)
-        layout.addWidget(self.projection_xz)
-        layout.addWidget(self.projection_yz)
-        layout.addWidget(self.projection_quad)
-        layout.addSpacing(16)
-        layout.addWidget(self.frame_synodic)
-        layout.addWidget(self.frame_inertial)
-        layout.addSpacing(16)
-        layout.addWidget(self.center_barycenter)
-        layout.addWidget(self.center_moon)
-        layout.addWidget(self.center_l1)
-        layout.addWidget(self.center_l2)
-        layout.addSpacing(16)
-        layout.addWidget(self.plot_overlay)
-        layout.addWidget(self.plot_guess)
-        layout.addWidget(self.plot_ephemeris)
-        layout.addSpacing(16)
-        layout.addWidget(self.show_bodies)
-        layout.addWidget(self.show_libration)
-        layout.addWidget(self.equal_aspect)
-        layout.addStretch()
-        layout.addWidget(self.export_animation)
+        layout.setHorizontalSpacing(6)
+        layout.setVerticalSpacing(3)
+
+        for column, button in enumerate(
+            (
+                self.projection_3d,
+                self.projection_xy,
+                self.projection_xz,
+                self.projection_yz,
+                self.projection_quad,
+            )
+        ):
+            layout.addWidget(button, 0, column)
+
+        for column, button in enumerate(
+            (
+                self.frame_synodic,
+                self.frame_inertial,
+                self.center_barycenter,
+                self.center_moon,
+            )
+        ):
+            layout.addWidget(button, 1, column)
+        layout.addWidget(self.center_l1, 2, 0)
+        layout.addWidget(self.center_l2, 2, 1)
+
+        for column, widget in enumerate(
+            (
+                self.plot_overlay,
+                self.plot_guess,
+                self.plot_ephemeris,
+                self.show_bodies,
+            )
+        ):
+            layout.addWidget(widget, 3, column)
+        layout.addWidget(self.show_libration, 4, 0)
+        layout.addWidget(self.equal_aspect, 4, 1)
+        layout.addWidget(self.export_animation, 4, 2)
 
         # 选中态：灰色加深（低调不突兀，仍能看出当前生效项）
         self.setStyleSheet("QPushButton:checked {  background-color: #b0b0b0;}")

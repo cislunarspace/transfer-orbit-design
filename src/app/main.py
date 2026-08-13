@@ -62,7 +62,7 @@ def main() -> None:
     window = MainWindow(project=project)
     if scan_seconds > 0:
         window.show_scan_time(scan_seconds, len(project.artifacts))
-    window.show()
+    window.showMaximized()
     sys.exit(app.exec())
 
 
