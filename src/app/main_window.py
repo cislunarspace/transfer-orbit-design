@@ -251,9 +251,15 @@ class MainWindow(QMainWindow):
 
     def _build_menu(self) -> None:
         """菜单栏：设置 → 图表设置。"""
-        menu = self.menuBar().addMenu("设置")
+        menu_bar = self.menuBar()
+        if menu_bar is None:
+            return
+        menu = menu_bar.addMenu("设置")
+        if menu is None:
+            return
         action = menu.addAction("图表设置…")
-        action.triggered.connect(self._open_chart_settings)
+        if action is not None:
+            action.triggered.connect(self._open_chart_settings)
 
     def _open_chart_settings(self) -> None:
         """弹出图表设置对话框；确认后持久化并重绘画布。"""

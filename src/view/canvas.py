@@ -293,6 +293,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
 
     def _render_axes(self, ax, state: CanvasState) -> None:
         """在单个 Axes 上按 state 绘制轨道 + 标注（单视图与四视图共用）。"""
+        moon_shift: dict[str, Any] = {}
         center = np.zeros(3)
         if state.frame == "synodic" and state.center != "barycenter":
             center = self._center_offset(state)
@@ -812,6 +813,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                         label="Earth",
                     )
                 else:
+                    assert plane is not None
                     ax.plot(
                         earth[:, plane[0]],
                         earth[:, plane[1]],
@@ -833,6 +835,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                         label="Moon",
                     )
                 else:
+                    assert plane is not None
                     ax.plot(
                         moon[:, plane[0]],
                         moon[:, plane[1]],
