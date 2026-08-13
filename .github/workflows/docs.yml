@@ -22,40 +22,30 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v7
-
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y libegl1
-
-      - name: Check out e2m2e source dependency
-        run: git clone https://github.com/cislunarspace/e2m2e.git ../e2m2e
-
       - name: Install dependencies
-        run: uv sync --extra docs
-
+        run: uv sync --extra docs --frozen
       - name: Build Chinese documentation
-        run: uv run sphinx-build -b html -D language=zh docs/source docs/build/html/zh
-
+        run: uv run --frozen --no-sync sphinx-build -b html -D language=zh docs/source docs/build/html/zh
       - name: Build English documentation
-        run: uv run sphinx-build -b html -D language=en docs/source docs/build/html/en
-
+        run: uv run --frozen --no-sync sphinx-build -b html -D language=en docs/source docs/build/html/en
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/build/html
 
   deploy:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

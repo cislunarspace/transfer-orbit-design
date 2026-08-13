@@ -59,9 +59,6 @@ a = Analysis(
         "e2m2e.algorithm.ephemeris_correction",
         "e2m2e.algorithm.transfer.transfer_search",
         "e2m2e.algorithm.coordinate.synodic_j2000",
-        "e2m2e.tools.viz.base",
-        "e2m2e.tools.viz.config",
-        "e2m2e.tools.viz.family",
         # Matplotlib backends commonly needed
         "matplotlib.backends.backend_qtagg",
         # plot_interactive_orbit_inspector 使用，frozen 下需能加载
