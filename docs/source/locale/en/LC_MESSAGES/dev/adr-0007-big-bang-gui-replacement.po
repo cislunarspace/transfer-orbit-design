@@ -1,0 +1,168 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0007-big-bang-gui-replacement.md:2
+#: 2b04a70009e64b488692f6631bfd91f5
+msgid "ADR 0007：大爆炸替换旧 GUI"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:4
+#: 237f87dfd0304aa885b7175765cf2925
+msgid "**状态**：已接受 **日期**：2026-08-04 **关联**：ADR 0006（e2m2e GUI 前端定位）"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:8
+#: 83ecfd443a1f4ffd8f43d3192a3645ca
+msgid "背景"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:10
+#: 8498321cccba4de1b6d975ba9c47a977
+msgid ""
+"现有 GUI（`tod/gui/`）基于 mixin 架构：`MainWindow` 继承 `FileTreeMixin` + "
+"`JobPanelMixin` + `QMainWindow`。通过 QProcess 子进程运行脚本，文件浏览器手动刷新，参数面板从 "
+"SCRIPT_ENTRY 自动生成。"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:12
+#: 2520ae6956114eb98142d255e8d83aea
+msgid "新 GUI 需要根本不同的架构：Project 数据模型、内嵌可视化、Facade 直调。两种架构差异太大，增量改造不可行。"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:14
+#: 97bff62995ae43a2b7bf443c1801f970
+msgid "决策"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:16
+#: fe9aea6b98d94477bca4929a2a2643f7
+msgid "**大爆炸替换**：用新的四层架构（model/engine/view/app）完全替代旧的 `tod/gui/`。不做并行双模式，不做原地重构。"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:18
+#: f495706cda74443ab62e93de586139df
+msgid "理由"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:20
+#: b9b74b5305e74e1ba25435472739ea74
+msgid "**架构差异不可调和**：旧 GUI 的核心假设是\"脚本 = 进程\"，新架构是\"API = 线程\"。这两个假设不兼容。"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:21
+#: 0f67b8ba072b4201854db56fb94460b4
+msgid ""
+"**mixin 限制**：`MainWindow` 的 mixin 链（FileTreeMixin → JobPanelMixin → "
+"QMainWindow）使得替换任一组件都需要重构整条继承链。"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:22
+#: 68a2f2a7d39049f3b64010d5a501689e
+msgid ""
+"**SCRIPT_ENTRY 废弃**：旧 GUI 的参数面板生成依赖 SCRIPT_ENTRY 扫描，新 GUI 从 Pydantic "
+"模型生成。机制完全不同。"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:23
+#: 7672787afbff4f57b47f9b06634427ad
+msgid "**e2m2e_compat 不再需要**：新架构直接调用 e2m2e 的新 API 路径，不需要旧路径兼容层。"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:25
+#: 003a78d8564b47149a6cf2660a137e6c
+msgid "后果"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:27
+#: 844317d3a99b476a91fdd5c643683bae
+msgid "正面"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:29
+#: bb2810783dbf4b3c858aadbfd0096f3c
+msgid "无技术债务继承"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:30
+#: b9ec589d143e4a9392dd19a74d238c17
+msgid "新架构干净，无 mixin 复杂度"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:31
+#: e2710843ffaf4c2ba1bdc639bd30c4c8
+msgid "代码量大幅减少（删除 40+ 脚本 + scripting 框架 + compat 层）"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:33
+#: 52fd954fb5304d9a947aa604600b4cd2
+msgid "负面"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:35
+#: 57b351d79d5244df8b9381c6c90ae68d
+msgid "过渡期旧功能不可用（直到新 GUI 覆盖对应能力）"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:36
+#: d79f639eecc44af3b659d5a4a1b1b730
+msgid "一次性工作量大"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:37
+#: 8de49d2ab871474ba753aceff1212b16
+msgid "需要重新实现文件发现、设置持久化等基础设施"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:39
+#: d15bb366e09a45feb5c82584562b024e
+msgid "过渡策略"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:41
+#: 40c0e576030948069e90d92551beed3f
+msgid "原型阶段：在 `tod/gui/prototype/` 下验证新架构（已完成）"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:42
+#: d8f655e35574474bb9b3808d36d049bc
+msgid ""
+"实现阶段：在 `src/model/`、`src/engine/`、`src/view/`、`src/app/` 下实现最终代码（src "
+"layout）"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:43
+#: acd141cd4ea34b97b892555f1290792c
+msgid "切换：删除 `tod/gui/`，更新 `pyproject.toml` 入口指向 `src.app.main`"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:44
+#: 55f75907837d41b196e863a73d223162
+msgid ""
+"清理：删除 "
+"`tod/generates/`、`tod/transfers/`、`tod/scripting/`、`tod/commons/e2m2e_compat.py`"
+msgstr ""
+
+#: ../../adr/0007-big-bang-gui-replacement.md:45
+#: 433805b0964445cea51f49a693c8971a
+msgid "收尾：`tod/commons/` 迁入 `src/commons/`，`tod/plot/` 提升为顶层 `plot/`"
+msgstr ""
+

@@ -5,31 +5,43 @@
 Transfer Orbit Design 文档
 ==========================
 
-Transfer Orbit Design 提供地月 CR3BP 轨道生成、DRO/RO/GEO/LEO 转移设计、CR3BP 到星历模型修正，以及配套 GUI 和绘图脚本。
+Transfer Orbit Design 是 `e2m2e <https://github.com/cislunarspace/e2m2e>`_ 的
+GUI 前端：e2m2e 提供地月空间轨道设计所需的动力学模型与算法，本仓库把它们封装
+成可视化桌面应用，通过"选工件 → 选操作 → 看结果"的三步交互完成轨道设计、
+轨道族生成、轨道保持与稳定性分析。
 
 .. toctree::
    :maxdepth: 2
-   :caption: 入门与规范
+   :caption: 入门
 
    narrative/readme
+   guide/quickstart
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 使用指南
+
+   guide/gui
+   guide/tools
+   guide/visualization
+   guide/output
+   guide/kernels
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 领域知识
+
+   concepts/orbit-families
+   concepts/ephemeris
+   concepts/station-keeping
+
+.. toctree::
+   :maxdepth: 2
+   :caption: 开发
+
    narrative/development
-   narrative/parameters
-
-.. toctree::
-   :maxdepth: 1
-   :caption: 专题
-
-   narrative/station-keeping
-
-.. toctree::
-   :maxdepth: 1
-   :caption: PRD 文档
-
-   narrative/prd-002-dro-3d-view-center-selection
-   narrative/prd-003-ephemeris-conversion-scripts-redesign
-   narrative/prd-004-gui-script-tab-auto-switch
-   narrative/prd-005-fix-ci-and-release
-   narrative/prd-006-update-sphinx-docs
+   dev/architecture
+   dev/adr
 
 索引
 ====

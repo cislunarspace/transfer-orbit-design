@@ -1,0 +1,398 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:2 73f0541a269f49a2be2df2d42b942860
+msgid "ADR-0002: DRO 参考初值 GUI v1"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:4 a658d21980674f9a81a339930c71d865
+msgid "状态"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:6 ca284ce6b8c0406cb6c2e8205e2a1ec5
+msgid "已接受"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:8 3efad0e1518b4c16a85c6ee87f7436a0
+msgid "上下文"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:10
+#: b73616bb3fc5470481d081a2dada94d1
+msgid ""
+"项目已经将 CR3BP raw xlsx catalog 纳入仓库，并提供 importer 将 raw workbook 规范化为 "
+"normalized catalog。DRO single-orbit Generate 已经有手动初值路径，也已有初步 catalog seed"
+" propagation 能力。用户需要在 GUI 的 Generate 脚本中增加 catalog 初值选项：选择 catalog "
+"中的初值，直接按 catalog 中记录的周期外推，生成现有 plot 流程可读取的 Orbit JSON。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:12
+#: 48c0ac4483c04576bf7b3992aa41a7eb
+msgid "约束条件："
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:14
+#: 23faa696561247e4b83b0faee88342e1
+msgid ""
+"v1 只接入 **DRO single-orbit Generate**，不扩大到其它 CR3BP orbit family，也不改 family"
+" generation。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:15
+#: 284b7616121342fbb3fd32349db111cd
+msgid ""
+"Catalog 模式使用 catalog state 和 catalog period 直接外推，不做 differential "
+"correction，也不重新计算周期。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:16
+#: afbea3468bda4417848243acb00afcb0
+msgid "GUI 默认行为必须保持现有手动 DRO Generate 体验不变。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:17
+#: 51fd98a422574436a88dd4a8fdcc86f0
+msgid ""
+"Normalized catalog 是 raw xlsx 的派生产物，可能不存在；GUI/CLI 需要能按需从 tracked raw xlsx"
+" 生成。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:18
+#: 8d1f7cb84fc147a4a8746075e072e958
+msgid "GUI 的脚本扫描阶段必须保持轻量，不能在 `SCRIPT_ENTRY` 扫描阶段触发 catalog/importer 等重型加载。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:20
+#: 59fd35cbfc7549a48504ebe320e8f593
+msgid "决策"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:22
+#: 74a2e74231e94c43b9f1060df1768cba
+msgid ""
+"采用 DRO Generate 内嵌 catalog seed 模式，而不是新增独立 Generate from Catalog 脚本。GUI "
+"增加可配置的 `Cr3bpCatalogSeedSelector`，v1 只配置 `orbit_type=\"dro\"`。该 selector "
+"负责参考初值模式 UI、按参考记录编号搜索、轻量详情 preview、Jacobi 输入和校验；运行时仍输出 ordinary CLI "
+"args，交给既有 run orchestrator，不改变脚本执行模型。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:24
+#: bf77dbad8184444fa805c91e683e0042
+msgid ""
+"用户界面术语以 `CONTEXT.md` 为准：Reference Catalog 面向用户称为 **参考数据集**，catalog seed "
+"面向用户称为 **参考初值**，Seed ID 面向用户称为 **参考记录编号**；`Seed ID`、`Catalog mode` "
+"等仅作为代码/CLI/ADR 历史术语使用。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:26
+#: 9a721b765ef74255be34a9c008f05e29
+msgid "选择模式"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:28
+#: 69e9b99d3c0e4e058ed307d772f33570
+msgid "参考初值模式提供两种显式选择方式："
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:30
+#: c54588ba5a8f4b3c8838fedc13b0914c
+msgid "**按参考记录编号选择**：用户通过可搜索下拉选择精确 `orbit_id`。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:31
+#: 4557c071bc744cc586609b802c7d119e
+msgid "**按 Jacobi 常数匹配**：用户输入目标 Jacobi，CLI 在 DRO 参考数据集中选择最近参考初值。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:33
+#: 74ea2886efc84bdd8f82f305842866c6
+msgid ""
+"按 Jacobi 常数匹配 v1 不做实时 preview。运行日志和输出 metadata 必须记录目标 Jacobi、matched "
+"seed、matched Jacobi 和 Jacobi delta。默认无 hard tolerance；如果用户填写 "
+"tolerance，则启用 strict tolerance，超过容差时报错。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:35
+#: 7723ce7e339c40d181248612674de24a
+msgid "GUI 行为"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:37
+#: 9d483877c5b542e79d994d9f88dce7a2
+msgid "DRO Generate GUI 新增 “Use Reference Initial Condition” checkbox，默认关闭。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:39
+#: 843fa6130ebd4c279c5ea286bbf27d71
+msgid "checkbox 关闭时，manual `x0/vy0/period` 控件可编辑，参考初值 selector 禁用。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:40
+#: 125b8c22aa9c419e94eb5485479c25ab
+msgid "checkbox 开启时，manual `x0/vy0/period` 控件禁用，参考初值 selector 启用。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:41
+#: d2a471d8ac6a46f687d7c3b406f85752
+msgid ""
+"按参考记录编号选择模式显示可搜索下拉，一次性加载 DRO records，并显示轻量详情 "
+"preview：参考记录编号、Jacobi、period、state、source file、source row。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:42
+#: 7eec6fb86e334cc3ac292d044cf0b468
+msgid "按 Jacobi 常数匹配模式只显示输入和可选 tolerance，不做实时最近邻 preview。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:44
+#: ebe7968ae6c04ea69c52f44aa3c7bea7
+msgid ""
+"参考数据集按需 lazy normalized catalog 加载。normalized catalog 缺失时，首次需要参考数据时从 "
+"tracked raw xlsx 懒构建。该加载不得发生在 `SCRIPT_ENTRY` 扫描阶段。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:46
+#: c31063d2f0e047949e85654a0c843b40
+msgid "CLI 互斥和参数"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:48
+#: b3f33976435546d6ae8a224a961c74da
+msgid "CLI 保留手动模式和参考初值模式，但执行 **manual/reference mutual exclusion**："
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:50
+#: e812876bc93d48ec99335add63c02f2c
+msgid "手动模式使用业务默认或显式 `x0/vy0/period`，走原 fixed-period differential correction。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:51
+#: 21096e73a53e4bbba28323deb4a15f0a
+msgid "参考初值模式使用参考记录编号或 Jacobi selector，直接 propagation。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:52
+#: 2af3db0f9e8b439289e4cb8893c0388e
+msgid "按参考记录编号选择、按 Jacobi 常数匹配、显式 manual `x0/vy0/period` 三类输入互斥。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:53
+#: 9925546f38c1473380b3fbcfc6750432
+msgid ""
+"未显式传入的业务默认值不参与冲突判断；因此 manual 默认值应位于业务层常量或等价解析后逻辑，而不是让 argparse "
+"默认值伪装成用户显式输入。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:55
+#: 67330ca6c4f64aa088927fe522f91e06
+msgid "参考初值 propagation 新增："
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:57
+#: 791d3bc3306a4f7886987a7ce50819af
+msgid "`period multiplier`：默认 `1.0`，必须大于 0。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:58
+#: 4b31b6741e2f43ee86d1fa930f2ca517
+msgid "`num points`：默认 `1000`，高级参数，范围 `2..100000`。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:60
+#: 479d5f5bf11c48f8ae4b8651ee002b87
+msgid "传播和输出"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:62
+#: 99019f3613fa4caf999d9d58b4322cea
+msgid "参考初值模式使用 catalog initial state 和 catalog period，固定数值积分契约："
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:64
+#: 96ab41315ba649fd87517774fcad1711
+msgid "integrator: `DOP853`"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:65
+#: bc314ae89aef4429a52ab64b9086f97f
+msgid "`rtol=atol=1e-12`"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:66
+#: 493ad25cfb0b4ce384cfbfdd85926d72
+msgid "duration = catalog period × period multiplier"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:67
+#: e3445deef1554ebc99ab4f758011b614
+msgid "samples = num points"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:68
+#: 19fad7d230264b3fbd771a9832e249df
+msgid "no differential correction"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:70
+#: 2b507fd36cbd48eb94bf8b2c7f3e3b55
+msgid ""
+"输出仍是 plot-compatible Orbit JSON。Orbit body 保存外推 trajectory 和 "
+"times。metadata 保存完整 provenance，至少包括："
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:72
+#: 0fbca9fa4a57498580270a3d76dd9b69
+msgid "selection mode"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:73
+#: 687d2810c7b24b6d9f07919af4a8f9b3
+msgid "reference record id / matched reference record id"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:74
+#: 90b0d746786c407282151cd716bc4d52
+msgid "catalog initial state"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:75
+#: ad388b08017b4877a94c5fd64184a129
+msgid "catalog period"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:76
+#: b8ff185e2de44e398b6b5035a1a21a92
+msgid "source file / source row"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:77
+#: d834cdba72424e738a9c03e16296436a
+msgid "requested Jacobi、matched Jacobi、Jacobi delta、tolerance（Jacobi 模式）"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:78
+#: 3683b8e2a38d4001a1754a527ecde917
+msgid "period multiplier"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:79
+#: a30b901210af4b77a4b92b92fc444160
+msgid "num points"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:80
+#: 74fe3f8de8f443e2a2152256e8f9782b
+msgid "integrator / rtol / atol"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:81
+#: 2a00e59faafe46d3b986021eb716b780
+msgid "raw/normalized catalog provenance"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:83
+#: 9603e8d3f2f54a748ce69d7aeb10d476
+msgid ""
+"参考初值输出文件名应体现 DRO reference catalog 来源，并对 reference record id 中的文件名不安全字符做 "
+"sanitize，避免与手动 `dro_<timestamp>.json` 混淆。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:85
+#: 8d25848610fa47daacb9d1054f3b152a
+msgid "后果"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:87
+#: 62a11803d0f94edaaa2e81ef93467d5a
+msgid "正面"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:89
+#: 289b3ac5b00245e28d2aa032cfc2ba21
+msgid "DRO 参考初值路径和手动 DRO Generate 路径语义清晰分离。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:90
+#: e87e115c0b9b43298ad4fc563075a8ba
+msgid "GUI 用户可以通过参考记录编号精确选择，也可以通过 Jacobi 常数匹配探索。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:91
+#: d6088daded3e488780b9830eba5dacfc
+msgid "输出 JSON 保持 plot 兼容，同时 metadata 足够复现实验和排查 catalog 来源。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:92
+#: 65af426254be4dcab50f6afcc6326985
+msgid "通用 `Cr3bpCatalogSeedSelector` 未来可扩展到其它 CR3BP orbit type，但 v1 不承担其它轨道族语义。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:94
+#: 3aae420cbe4a478ca6f9b1d6ee9a8bda
+msgid "负面"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:96
+#: deeda4780e9e4c398e9fbc529c8ecb92
+msgid "需要在现有 CLI 参数处理中区分业务默认值和用户显式 manual 输入。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:97
+#: 81121ffbf2fc4721a12c6291c578e077
+msgid "GUI 参数面板需要接入一个专用 selector，而不是只靠现有普通 CLI 参数控件。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:98
+#: eb9e21fc45424c7c96ffc911cd87c83e
+msgid "Seed ID 下拉一次性加载约一万条 DRO records，v1 接受该复杂度；后续如卡顿再引入分页或虚拟列表。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:100
+#: 8bd1ca6bdf944e639730f4a1eed3f832
+msgid "非目标"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:102
+#: 0b455489fc3442cfb237c9bf408e2a95
+msgid "v1 不支持其它 CR3BP orbit family。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:103
+#: 3b5b9ed590df42f39ca2ca4be19d7537
+msgid "v1 不接入 family generation。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:104
+#: efe099cfbd904a2690735c85738d34aa
+msgid "v1 不做完整 catalog table/browser。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:105
+#: 0bd80f996a08477bb6e828c56b0dbad8
+msgid "v1 不做 Jacobi 实时 nearest-neighbor preview。"
+msgstr ""
+
+#: ../../adr/0002-dro-catalog-seed-gui-v1.md:106
+#: 21b55e8a45764759858e84c29cc56810
+msgid "v1 不暴露 integrator、rtol、atol 参数。"
+msgstr ""
+

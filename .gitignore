@@ -103,7 +103,7 @@ secrets.json
 
 # 文档构建产物
 docs/_build/
-docs/source/locale/**/LC_MESSAGES/*.mo
+docs/source/locale/**/*.mo
 
 # 测试输出
 test_output/

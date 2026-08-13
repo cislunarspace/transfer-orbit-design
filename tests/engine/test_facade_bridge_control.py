@@ -319,6 +319,115 @@ class TestControlOrbit:
             )
         assert exc_info.value.code == "INVALID_PARAMS"
 
+    def test_control_orbit_drops_mu_param(self, monkeypatch):
+        """params 携带的 mu 不应透传算法层（函数签名无 mu）。
+
+        回归：面板按 ControlOrbitRequest 字段收集 mu（响应透传字段，非算法
+        参数），facade 以 **params 展开调用 →
+        "control_orbit() got an unexpected keyword argument 'mu'"，GUI 轨道
+        保持报 UNKNOWN_ERROR。DTO 的 mu 由 source_mu 注入，与算法层无关。
+        """
+        received: dict = {}
+
+        def _fake_control(eph, **kwargs):
+            received.update(kwargs)
+            return _FakeControlResult(synodic_position=np.random.randn(5, 3))
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.station_keeping.control_orbit",
+            _fake_control,
+            raising=False,
+        )
+        bridge = FacadeBridge()
+        data = bridge.control_orbit(
+            ephemeris_data=_make_ephemeris_data(5),
+            source_mu=0.0123,
+            mu=None,  # 面板收集的字段
+            control_mode=1,
+        )
+        assert "mu" not in received
+        assert data.mu == pytest.approx(0.0123)
+
+    def test_control_orbit_drops_engine_layout_when_mode_lt_4(self, monkeypatch):
+        """control_mode < 4 时 engine_layout 无意义，不应透传（字符串会炸）。
+
+        回归：面板把 engine_layout 建成 JSON 文本框，用户随手填 "4"，e2m2e
+        对非 None 值无条件 validate（访问 .E_r），字符串直接 AttributeError
+        （GUI 报 UNKNOWN_ERROR）。
+        """
+        received: dict = {}
+
+        def _fake_control(eph, **kwargs):
+            received.update(kwargs)
+            return _FakeControlResult(synodic_position=np.random.randn(5, 3))
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.station_keeping.control_orbit",
+            _fake_control,
+            raising=False,
+        )
+        bridge = FacadeBridge()
+        bridge.control_orbit(
+            ephemeris_data=_make_ephemeris_data(5),
+            source_mu=None,
+            control_mode=1,
+            engine_layout="4",  # 面板 JSON 文本误填
+        )
+        assert received.get("engine_layout") is None
+
+    def test_control_orbit_coerces_engine_layout_dict(self, monkeypatch):
+        """control_mode >= 4 时 dict 布局应构造为 EngineLayout 实例再透传。"""
+        from e2m2e.algorithm.station_keeping import EngineLayout
+
+        received: dict = {}
+
+        def _fake_control(eph, **kwargs):
+            received.update(kwargs)
+            return _FakeControlResult(synodic_position=np.random.randn(5, 3))
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.station_keeping.control_orbit",
+            _fake_control,
+            raising=False,
+        )
+        bridge = FacadeBridge()
+        positions = [[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0],
+                     [0.0, -1.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, -1.0]]
+        directions = [[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0], [0.0, 1.0, 0.0],
+                      [0.0, -1.0, 0.0], [0.0, 0.0, 1.0], [0.0, 0.0, -1.0]]
+        bridge.control_orbit(
+            ephemeris_data=_make_ephemeris_data(5),
+            source_mu=None,
+            control_mode=4,
+            engine_layout={"positions_m": positions, "directions": directions},
+        )
+        layout = received.get("engine_layout")
+        assert isinstance(layout, EngineLayout)
+        assert layout.num_engines == 6
+
+    def test_control_orbit_rejects_invalid_engine_layout(self, monkeypatch):
+        """control_mode >= 4 时无效 engine_layout（如 "4"）应报清晰错误而非裸崩。"""
+        from src.engine.exceptions import OrbitError
+
+        def _fake_control(eph, **kwargs):
+            return _FakeControlResult(synodic_position=np.random.randn(5, 3))
+
+        monkeypatch.setattr(
+            "e2m2e.algorithm.station_keeping.control_orbit",
+            _fake_control,
+            raising=False,
+        )
+        bridge = FacadeBridge()
+        with pytest.raises(OrbitError) as exc_info:
+            bridge.control_orbit(
+                ephemeris_data=_make_ephemeris_data(5),
+                source_mu=None,
+                control_mode=4,
+                engine_layout="4",
+            )
+        assert exc_info.value.code == "INVALID_PARAMS"
+        assert "engine_layout" in exc_info.value.message
+
     @pytest.mark.spice
     def test_ephemeris_table_reconstruction_skips_none_times(self, monkeypatch):
         """times_jd_tdb=None 时 EphemerisTable 重建不崩（走 dataclass 默认）。

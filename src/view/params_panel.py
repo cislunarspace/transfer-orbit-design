@@ -721,10 +721,16 @@ def _read_widget_value(name: str, field: Any, widget: QWidget) -> Any:
 def collect_params(widgets: dict[str, QWidget], model_class: type) -> dict[str, Any]:
     """从控件字典收集参数值，返回可传给 FacadeBridge 的 dict。
 
-    ``model_class`` 用于查找字段类型以做正确转换。
+    ``model_class`` 用于查找字段类型以做正确转换。控件字典可能含模型未暴露
+    的补充字段（如 control_orbit 的 control_interval/feedback_arc，模型是
+    算法函数参数的子集），按控件类型直接取值。
     """
     params: dict[str, Any] = {}
     for name, widget in widgets.items():
-        field = model_class.model_fields[name]
+        field = model_class.model_fields.get(name)
+        if field is None:
+            # 补充字段（模型未暴露）：仅数值控件（control_interval 等）
+            params[name] = widget.value()  # type: ignore[union-attr]
+            continue
         params[name] = _read_widget_value(name, field, widget)
     return params

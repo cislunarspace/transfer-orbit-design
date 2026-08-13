@@ -1,5 +1,35 @@
 # 更新日志
 
+## 3.2.3 (2026-08-13)
+
+GUI 首次启动的 SPICE 内核引导：e2m2e 的 SPICE 内核不随 pip 包分发（大文件托管在 `kernels-v1` release，需宿主自行准备），此前用户只能手动跑下载脚本或设环境变量，否则等到设计轨道才报“SPICE 内核文件未找到”。现在启动时探测不到可用内核（目录存在但缺行星历/闰秒内核也算）会自动弹窗引导。
+
+### 功能
+
+- **启动时内核缺失引导（#366）**：`main()` 启动时探测可用内核目录（`$SPICE_KERNEL_DIR` → 配置记录 → 仓库 `kernels/` → 用户数据目录 → 同级 e2m2e 源码仓库），缺失则弹窗三选一：
+  - **下载内核**：后台线程从 e2m2e `kernels-v1` release 下载到用户数据目录（`~/.local/share/transfer-orbit-design/kernels`，Windows 为 `%LOCALAPPDATA%`，跨版本共享），模态进度条显示逐文件进度，可取消（已下载文件保留，重试幂等续传）；
+  - **指定已有目录**：文件选择对话框选目录，校验含行星历 `.bsp` 与闰秒 `.tls` 后写入配置文件（`~/.config/transfer-orbit-design/kernels_dir.txt`），下次启动自动探测；
+  - **暂时跳过**：本次不准备，功能用时再报错。
+- **下载逻辑抽为 `src/commons/kernels.py`**：`download_kernels`（幂等 + 进度回调）、`kernel_dir_usable`（行星历 `.bsp` + 闰秒 `.tls` 完整性判断）、`user_kernel_dir`；`scripts/download_kernels.py` 改为其 CLI 包装（命令行行为不变）。
+
+### 修复
+
+- **轨道保持 mu 透传崩溃**：参数面板按 `ControlOrbitRequest` 字段收集 `mu`（e2m2e 的响应透传字段，画地月标注用，算法函数签名无此参数），facade 以 `**params` 展开调用 `control_orbit()` 直接 `TypeError`（GUI 报 UNKNOWN_ERROR，轨道保持完全不可用）。修复：面板隐藏 mu（与 `input_ephemeris` 同构，由源 Artifact 注入 `source_mu`），facade 接缝处 `pop("mu")` 防回归。新增 3 项测试（面板不含 mu、params 不含 mu、算法层收不到 mu）。
+- **轨道保持 engine_layout 字符串崩溃**：面板把 `engine_layout` 建成 JSON 文本框（Any 字段），用户随手填 "4"，e2m2e 对非 None 布局无条件 `validate`（访问 `.E_r`），字符串直接 `AttributeError`（GUI 报 UNKNOWN_ERROR）。修复：facade 规范化——`control_mode < 4`（无角动量管理）时忽略置 None；`>= 4` 时 dict 构造 `EngineLayout` 实例、空串归一 None（走 e2m2e 清晰报错）、其余值报 INVALID_PARAMS 明确提示输入格式。新增 3 项测试（低模式忽略、dict 构造实例、无效值清晰报错）。
+- **轨道保持全样本失败（仿真时长超出星历覆盖）**：`ControlOrbitRequest` 模型未暴露 `control_interval`/`feedback_arc`，面板没有这两个字段，e2m2e 默认 30 天/次 × 119 次 + 28 天反馈弧 ≈ 3598 天，而 GUI 设计默认星历仅 30 天——控制律目标点全部超出标称星历覆盖，5 个蒙特卡洛样本必然全部失败（Δv=0、无机动，GUI 无任何提示）。修复：面板补充 `control_interval`/`feedback_arc` 字段（默认对齐 e2m2e 签名，`collect_params` 支持模型外补充字段）；`_run_control` 运行前校验仿真时长 ≤ 星历覆盖，超出则拦截并提示调整参数或延长标称轨道。实测 30 天 Halo 用 0.25 天/次 + 0.125 天反馈弧 → 4/5 样本成功。新增 3 项测试（面板含补充字段、超出拦截、覆盖内放行）。
+
+### 工程
+
+- **新增测试**：下载幂等/进度/资产过滤、可用性判断、用户目录探测、配置读写、弹窗三分支（可用直返/下载/指定/跳过）共 34 项。
+
+## 3.2.2 (2026-08-13)
+
+适配 e2m2e 5.6.8：上游修复 segmented 逐段积分的位置-时间错位（#398）——`ForceModel._prepare_t_eval` 会在 `t_eval` 末尾自动追加段终点，逐段积分把每段多出的端点状态拼进星历，位置数组比时间网格多出段数个点，`batch_j2000_to_synodic` 按索引配对，错位逐段累积，会合系曲线一圈一圈偏离 Halo 轨道（GUI 观感"慢慢发散"）。本项目为 e2m2e 消费方，仅升级依赖下限并同步 uv.lock，无代码改动。
+
+### 工程
+
+- **pin e2m2e>=5.6.8**：含 segmented 星历对齐修复的最低版本（上游 #398，5.6.8 同时收尾圈终点覆盖与 ELFO 截断对齐），uv.lock 同步（5.6.7 → 5.6.8）。
+
 ## 3.2.1 (2026-08-12)
 
 适配 e2m2e 5.6.7：上游删除 `tools/viz` 模块（各自实现绘图）并统一结果契约（#351，`success`/`converged` 方言废除，改 `status`/`cause`/`message`），本项目收编绘图代码、迁移收敛判定，并把新增的类型化异常接入错误翻译层。5.6.6 发布物漏打包 `constants.toml`（安装后 import 即 `FileNotFoundError`），由上游 5.6.7 修复（文件收进 `e2m2e/data/constants/` 包内），故下限直接钉 5.6.7。

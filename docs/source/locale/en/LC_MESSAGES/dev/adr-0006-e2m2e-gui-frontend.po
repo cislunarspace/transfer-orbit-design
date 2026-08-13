@@ -1,0 +1,125 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:2 b2893cd453314a079911ee274e8da776
+msgid "ADR 0006：e2m2e GUI 前端定位"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:4 c188c4db5a8b45ffaadd34c7b2724fe6
+msgid "**状态**：已接受 **日期**：2026-08-04 **关联**：`docs/architecture/architecture.md`"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:8 e4298a8916414ee19c4158d0326bdb0b
+msgid "背景"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:10 43bf885f1ba648a1bca892b4efcd9085
+msgid ""
+"transfer-orbit-design（tod）最初是独立的轨道设计工具集，包含自己的生成脚本、转移搜索脚本、可视化脚本和 GUI。随着 "
+"e2m2e 的成熟，tod 的所有计算能力已被 e2m2e 覆盖。tod 的脚本层变成了 e2m2e 的薄封装 + argparse CLI + "
+"SCRIPT_ENTRY 元数据。"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:12 f047a348fde94d86869de01f8abb2635
+msgid ""
+"当前状态：tod 的 `generates/`、`transfers/`、`plot/` 目录中有 40+ 脚本，每个脚本内部 `import "
+"e2m2e` 调用算法。GUI 通过 QProcess 子进程运行这些脚本。e2m2e 兼容层（`e2m2e_compat.py`）维持旧 "
+"import 路径可用。"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:14 f73282e12b424399b951af136d22f1ca
+msgid "决策"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:16 ae048c73c68d4310996cd88ba8ce4407
+msgid "tod 重新定位为 **e2m2e 的 GUI 前端**，职责仅限于："
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:18 c33a452206904bcd80fc8d2ae01fd375
+msgid "调用 e2m2e 能力（通过算法层 API 直调）"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:19 2c655323f3a64e7d8d74909d98d92b15
+msgid "管理计算产物（Project + Artifact 模型）"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:20 fa2bdf37f31a43afa8fb7bd7b1530bdd
+msgid "可视化呈现（内嵌 matplotlib 画布）"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:22 f4504efd45e840ccb9165bb31ef55f94
+msgid ""
+"删除 tod 中所有\"搬运 e2m2e "
+"能力\"的脚本层（`generates/`、`transfers/`、`commons/e2m2e_compat.py`）。tod 不再有自己的 "
+"CLI 或命令行脚本——命令行用户直接使用 e2m2e 的 CLI。"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:24 c5305eff52ac4bfeafb53d2e6ab3353a
+msgid "理由"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:26 5f9f9a6df0c74145bb7b66a4b97ac616
+msgid "**消除双层封装**：当前 tod 脚本 = argparse + import e2m2e + 调用。这是纯粹的间接层，没有附加价值。"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:27 9a4dddde0d304d48bba87541565f9b8c
+msgid "**单一事实来源**：算法逻辑只在 e2m2e 中维护，不在 tod 中复制。"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:28 ce8e7fd4b75249a880241ca423c54c71
+msgid "**ADR 0014 结果**：e2m2e ADR 0014 已明确\"transfer-orbit-design 保留独立仓库只留 GUI\"。"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:29 249f0ecedde84e2aa10c88387405e3ee
+msgid "**SCRIPT_ENTRY 废弃**：GUI 参数面板改为从 e2m2e Pydantic 模型自动生成，不再需要 CliParam 声明。"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:31 219ebddc7b094eef998f6c62946d3151
+msgid "结果"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:33 51e4c8394db04df48c0b6dc9b36dd1bc
+msgid "删除 `tod/generates/`、`tod/transfers/`（含全部子目录）"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:34 be9172c215b54f1b82634207e4e2e662
+msgid "删除 `tod/scripting/`（SCRIPT_ENTRY 机制）"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:35 6ec8fbf74f164aeda322ef72ba6e97e8
+msgid "删除 `tod/commons/e2m2e_compat.py`"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:36 5279a98713704bb2bee2197271cb0d00
+msgid ""
+"核心代码迁入 `src/`（src "
+"layout）：`src/model/`、`src/engine/`、`src/view/`、`src/app/`、`src/commons/`"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:37 e8b0dd52a8a947e5ba1b0652e04625f8
+msgid "`tod/plot/` 提升为顶层 `plot/`（独立绘图脚本，高级用户可直接使用）"
+msgstr ""
+
+#: ../../adr/0006-e2m2e-gui-frontend.md:38 1f565b898ebd4f17a10b5e7e9b8e5168
+msgid "GUI 改为直接调用 e2m2e 算法层 API"
+msgstr ""
+

@@ -85,6 +85,16 @@ class TestBuildToolParamsControl:
         assert "control_mode" in window._param_widgets
         assert "num_monte_carlo" in window._param_widgets
 
+    def test_control_orbit_hidden_mu_field(self, qapp):
+        """control_orbit 不应在 UI 暴露 mu（由源 Artifact 注入，面板编辑无效）。
+
+        ControlOrbitRequest.mu 是响应透传字段，e2m2e control_orbit 函数签名
+        无 mu；此前面板收集到 mu 后透传，轨道保持直接 TypeError。
+        """
+        window = _make_window(qapp)
+        _select_control_tool(window)
+        assert "mu" not in window._param_widgets
+
 
 class TestRunControlValidation:
     def test_run_control_without_selection_shows_status(self, qapp):
@@ -147,6 +157,59 @@ class TestRunControlDispatch:
             window._on_run()
             _, kwargs = mock_cls.call_args
             assert kwargs["source_mu"] == pytest.approx(EARTH_MOON_MU)
+
+    def test_run_control_params_exclude_mu(self, qapp):
+        """传给 ControlOrbitWorker 的 params 不应含 mu（否则透传给 e2m2e 报 TypeError）。
+
+        回归：面板曾按 ControlOrbitRequest 字段收集 mu 进 params，facade 用
+        **params 展开调用 control_orbit()，函数签名无 mu →
+        "control_orbit() got an unexpected keyword argument 'mu'"。
+        """
+        window = _make_window(qapp)
+        _select_control_tool(window)
+        _make_orbit_artifact(window, with_ephemeris=True, mu=EARTH_MOON_MU)
+
+        with patch("src.app.main_window.ControlOrbitWorker") as mock_cls:
+            window._on_run()
+            _, kwargs = mock_cls.call_args
+            assert "mu" not in kwargs["params"]
+
+    def test_run_control_blocks_when_sim_exceeds_ephemeris(self, qapp):
+        """仿真总时长超出源星历覆盖时应拦截并提示，不启动 worker。
+
+        回归：e2m2e 默认控制间隔 30 天/次 × 119 次 ≈ 3570 天，而 GUI 设计
+        的 Halo 星历默认只有 30 天——控制律目标点全部超出星历覆盖，5 个
+        蒙特卡洛样本必然全部失败（Δv=0、无机动）。
+        """
+        window = _make_window(qapp)
+        _select_control_tool(window)
+        artifact = _make_orbit_artifact(window, with_ephemeris=True, mu=EARTH_MOON_MU)
+        # 给星历注入真实时间轴：30 天覆盖
+        n = 721
+        et = np.linspace(7.5e8, 7.5e8 + 30 * 86400, n)
+        artifact.extra["ephemeris"]["times_et"] = et
+
+        with patch("src.app.main_window.ControlOrbitWorker") as mock_cls:
+            window._on_run()
+            mock_cls.assert_not_called()
+        log_text = window._log.toPlainText()
+        assert "超出" in log_text and "控制间隔" in log_text
+
+    def test_run_control_allows_params_within_ephemeris(self, qapp):
+        """控制间隔/次数与星历覆盖匹配时正常启动 worker。"""
+        window = _make_window(qapp)
+        _select_control_tool(window)
+        artifact = _make_orbit_artifact(window, with_ephemeris=True, mu=EARTH_MOON_MU)
+        n = 721
+        et = np.linspace(7.5e8, 7.5e8 + 30 * 86400, n)
+        artifact.extra["ephemeris"]["times_et"] = et
+        # 覆盖内参数：0.25 天/次 × 119 + 0.125 天反馈 ≈ 29.9 天 < 30 天
+        window._param_widgets["control_interval"].setValue(0.25)
+        window._param_widgets["feedback_arc"].setValue(0.125)
+
+        with patch("src.app.main_window.ControlOrbitWorker") as mock_cls:
+            window._on_run()
+            mock_cls.assert_called_once()
 
 
 class TestOnControlFinished:

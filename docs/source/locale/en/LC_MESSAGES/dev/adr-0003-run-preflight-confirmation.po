@@ -1,0 +1,204 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0003-run-preflight-confirmation.md:2
+#: 947164b9894044bfbea94581ee526353
+msgid "ADR-0003: GUI 运行前确认集中化"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:4
+#: 46d721ec40454a679b53a07638d8cfb9
+msgid "状态"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:6
+#: a99efe769ad940b9b06224de6e5517d1
+msgid "已接受"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:8
+#: 0ab7a448f115404eb4c796d0e6329cc1
+msgid "上下文"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:10
+#: 666e8b689bee4f49944c17b4a24bcb94
+msgid ""
+"`CONTEXT.md` 对 GUI "
+"的「当前选择文件」「批量运行」「覆盖结果」有明确约束：支持文件输入的工具可以使用文件树里的当前选择文件，但运行前必须让用户看见并确认；运行前确认用于避免隐式输入、意外批量运行或覆盖结果；发生覆盖结果前，GUI"
+" 应显示将被覆盖的文件。"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:12
+#: abade1c89ff843988c3d68b10356760c
+msgid "实现层原有三处分散的\"事实\"："
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:14
+#: d6964632fddf4becb632346e319d9614
+msgid "`_run_from_tab` 在参数校验后直接 `build_run_specs` + `dispatch`（无确认环节）"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:15
+#: f251fd1826ef4ecea78d06a0a8fce6d1
+msgid "`file_arg` 在 MainWindow 层静默构造并直接前置到 `extra_args`"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:16
+#: 93a30527fe0b492eaf23f8fc183899fa
+msgid ""
+"chip 多选通过 `itertools.product` 展开为多个 RunSpec，但用户点击\"运行\"前看不到「将创建 N "
+"个任务」的确认摘要"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:18
+#: 77289ae0b78d449981cf880f31a64a17
+msgid "修复目标：在 dispatch 前集中展示工具名、当前选择文件、任务数量/分组、覆盖目标；用户取消时 0 个 Job 创建。"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:20
+#: fdb37071392642bab4b2f9b93e2d1225
+msgid "决策"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:22
+#: 798f2891e8864bcca1739d4aa909b3f1
+msgid "1. 引入 `RunPlan` 数据结构 + `RunConfirmationDialog` 独立类"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:24
+#: 895bea0e8050423298e67bd2b6a849c5
+msgid ""
+"不在 `_run_from_tab` 内直接弹 `QMessageBox`。`RunOrchestrator.build_run_plan` 在 "
+"`build_run_specs` 之上叠加覆盖检测与 chip 分组，返回不可变 "
+"`RunPlan`；`RunConfirmationDialog.show_and_confirm(plan, parent) -> bool` "
+"是 UI 入口，与 orchestrator 完全解耦。"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:26
+#: 2553e9b644714f9480ae2b678974dfa2
+msgid ""
+"`RunPlan` / `OverwriteTarget` / `ChipGroup` 全部 `frozen=True` "
+"dataclass。`RunPlan` 包含 `entry: ScriptEntry`，避免 dialog 同时依赖 plan + tab。"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:28
+#: b70d8e696177459b8e0a5871eb4ffa4d
+msgid "2. `CliParam.kind` 声明式字段"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:30
+#: effd7154b9d44099ac695f6d1827f7b9
+msgid ""
+"orchestrator 识别输出文件参数不靠 hardcode `\"--output-file\"` 字符串。新增 `kind: str = "
+"\"\"` 字段；`\"file_output\"` 表示该参数的值是输出目标。6 处 `--output-file` 注册点加 "
+"`kind=\"file_output\"`。"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:32
+#: 649741685fdc4a0b9578b0eb1079cede
+msgid ""
+"未来若脚本同时支持 `--log-file`、`--export-image` 等输出 flag，只需在注册点标 "
+"`kind=\"file_output\"`，orchestrator 零改动。"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:34
+#: 945d87c657e84350bbdc75e8fb2b79c9
+msgid "3. `dispatch` 签名保持不变"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:36
+#: 193ea8e046794eaeb789e4ac189f5f72
+msgid ""
+"`build_run_specs` 与 `dispatch` 保留原签名 + 行为；`build_run_plan` 是高层包装，**不**取代 "
+"`build_run_specs`。现有 11 个 `test_run_orchestrator.py` 测试在 PR1 后继续 100% 通过。"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:38
+#: a4a3022b5d534dfaad13af5fcef3d222
+msgid ""
+"覆盖目标路径解析：`(repo_root / p).expanduser().is_file()`，不 `resolve()`，与子进程 cwd "
+"行为一致。`--output-file` 为空字符串/纯空白视为\"未指定输出文件\"，触发「无输出文件参数」提示而非\"覆盖目标\"。"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:40
+#: 98734115ecc34228a81309ba90f99c93
+msgid "后果"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:42
+#: e16f6007106541a99bf5944c22b1a30e
+msgid "正面"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:44
+#: 83e28aabc2bc450f88a2671c850d2bc5
+msgid "GUI 运行路径在 dispatch 前有显式确认环节，与 `CONTEXT.md` 领域约束一致"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:45
+#: 6319f1806b0b42aca8ff0ca38b07e9ab
+msgid "覆盖检测、chip 分组逻辑集中在 `RunOrchestrator`，UI 端不持有算法"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:46
+#: ea68d10319344017af3750abac396408
+msgid "`RunPlan` frozen dataclass 让 dialog 单元测试可独立进行（widget tree 文本断言）"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:47
+#: 150a069682ec4627af0d402fd30cafea
+msgid "现有 GUI 测试套件（PR1 后 461+8 + 8 个新测试）零回归"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:49
+#: c63cf33355b140a2a5f8e24576bface6
+msgid "负面"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:51
+#: 33385696e3424b1a821e2e70f0b4b540
+msgid ""
+"`MainWindow._run_from_tab` 路径多了一处\"plan 构造 + "
+"确认回调\"，调用方需理解\"build_run_plan 替代 build_run_specs\"的新入口"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:52
+#: 355e11cc126845f189e6b79c629416c2
+msgid "`RunConfirmationDialog` 是新组件，未来如果 dialog 还要支持更复杂的 spec 编辑，会变成新的耦合点"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:54
+#: 5273218c7ba74eceb5fb28c4dfeb715d
+msgid "后续"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:56
+#: e0e67d9a116c4ab5965bc9c78eb7b5bc
+msgid "`_confirm_run_provider` 注入点已就位，但目前没有调用方注入；保留以便未来按工具类别提供不同确认策略"
+msgstr ""
+
+#: ../../adr/0003-run-preflight-confirmation.md:57
+#: 4451c451582e498c8e57dbabb03b20f0
+msgid "「按 Jacobi 常数匹配 + 批量展开」场景的摘要可视化（如任务组下挂每个 Jacobi 值的预览）属后续 issue"
+msgstr ""
+

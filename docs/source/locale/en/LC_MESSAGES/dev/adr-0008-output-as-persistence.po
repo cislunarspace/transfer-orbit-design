@@ -1,0 +1,128 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0008-output-as-persistence.md:2 758cc2da5f1b46e091e2b1d8a88170ca
+msgid "ADR 0008：output/ 目录作为数据持久化源"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:4 f22ea388bae14ecabe2191988dd878dc
+msgid ""
+"**状态**：已接受 **日期**：2026-08-04 "
+"**关联**：`docs/architecture/architecture.md`（第1层 数据层）"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:8 a78dc881475e4714a79399db697be3b8
+msgid "背景"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:10 4a6d6a2adf0c49f1991afad7aa126c74
+msgid "GUI 需要持久化计算结果，使用户关闭并重新打开应用后不丢失工作成果。"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:12 990799d89d8449de9fe71c67c8212804
+msgid "方案选项："
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:13 54965bbbf3c84d9a9cba6ac44f28109f
+msgid "A. 自定义项目文件格式（.todproj JSON/binary）"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:14 a78cc79fed574d7881f20d599071aa5c
+msgid "B. 以 output/ 目录为事实来源，GUI 启动时扫描重建"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:15 2d4624d40b1e48138c220fa49e719e18
+msgid "C. SQLite 数据库"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:17 ee80ef0b8b23426ab329363c5b35c7dd
+msgid "决策"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:19 8cd8b104725349e3af31fe9c2f75e521
+msgid ""
+"**以 `output/` 目录为事实来源**（方案 B）。每次计算结果自动写入 `output/` 对应子目录，GUI 启动时扫描并重建 "
+"Project。"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:21 94fb1baeaa9a442c9af427e1cf518285
+msgid "文件命名约定保持与现有 output/ 结构兼容："
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:33 ff80e1c6968b40eb9062e7138fd52cc8
+msgid "理由"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:35 5da88fe419aa4895bde2528e1e661459
+msgid ""
+"**零额外持久化层**：e2m2e 算法层已有 `write_ephemeris()` / `save_to_file()` "
+"方法，结果本来就要落盘。不需要再发明格式。"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:36 3f93365ff4344be5991fb92c37911976
+msgid "**CLI 用户友好**：用户也可以直接用 e2m2e CLI 生成 output/ 文件，GUI 能自动发现。"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:37 819b47dcf92c4802a9424504a2d66570
+msgid "**无锁定**：数据以标准 JSON 格式存储，不依赖 tod 的专有格式。"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:38 449ba2e40d63417abc92710752ab6dbd
+msgid "**现有 output/ 兼容**：用户已有的 output/ 文件自动出现在新 GUI 中。"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:40 d4fa3076b29040049e8071b5fdb25db8
+msgid "后果"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:42 496415b46992409d95708fb60aea5f8f
+msgid "正面"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:44 0e8e572d1579405cb9f41b0bbd344b68
+msgid "不需要实现项目文件读写"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:45 a8fdd3ba000c478a8127440f7c109728
+msgid "e2m2e CLI 和 GUI 共享同一数据目录"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:46 6bdb0820ec034969ab720d5a53e1b592
+msgid "用户可手动管理 output/（复制、备份、分享）"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:48 65b50bf8ce834850955bdc02ad5a3abc
+msgid "负面"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:50 595f62fbe3734b7da49631bf935f7de0
+msgid "内存中未落盘的 Artifact（正在计算中的中间结果）关窗即丢失"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:51 90f32d3c467f46bbb6dd9e3a186dc3be
+msgid "文件命名冲突需要处理（时间戳方案已足够）"
+msgstr ""
+
+#: ../../adr/0008-output-as-persistence.md:52 0030fe1813a14a9caed51b7a2a5a13e5
+msgid "没有\"撤销\"能力（删除是永久的）"
+msgstr ""
+

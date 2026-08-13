@@ -2,8 +2,17 @@
 
 from pathlib import Path
 
+import pytest
+
 import src.commons.paths as paths_module
 from src.commons.paths import OUTPUT_DIR, detect_kernel_dir
+
+
+@pytest.fixture(autouse=True)
+def _isolate_user_paths(monkeypatch, tmp_path):
+    """隔离真实用户配置/数据目录，探测链只走 tmp_path 内的路径。"""
+    monkeypatch.setattr(paths_module, "user_config_dir", lambda: tmp_path / "config")
+    monkeypatch.setattr(paths_module, "user_kernel_dir", lambda: tmp_path / "user-kernels")
 
 
 class TestOutputDir:
@@ -37,3 +46,49 @@ class TestDetectKernelDir:
         default.mkdir(parents=True)
         monkeypatch.setattr(paths_module, "_REPO_ROOT", tmp_path / "repo")
         assert detect_kernel_dir() == str(default)
+
+    def test_configured_dir_beats_repo_kernels(self, monkeypatch, tmp_path):
+        # 配置文件记录的用户目录优先于仓库根 kernels/
+        monkeypatch.delenv("SPICE_KERNEL_DIR", raising=False)
+        configured = tmp_path / "config" / "kernels_dir.txt"
+        configured.parent.mkdir(parents=True)
+        chosen = tmp_path / "my-kernels"
+        chosen.mkdir()
+        configured.write_text(str(chosen), encoding="utf-8")
+        monkeypatch.setattr(paths_module, "_REPO_ROOT", tmp_path / "repo")
+        (tmp_path / "repo" / "kernels").mkdir(parents=True)
+        assert detect_kernel_dir() == str(chosen)
+
+    def test_user_data_dir_found(self, monkeypatch, tmp_path):
+        # 用户数据目录（GUI 下载落点）可被探测到
+        monkeypatch.delenv("SPICE_KERNEL_DIR", raising=False)
+        user_dir = tmp_path / "user-kernels"
+        user_dir.mkdir(parents=True)
+        monkeypatch.setattr(paths_module, "_REPO_ROOT", tmp_path / "repo")
+        assert detect_kernel_dir() == str(user_dir)
+
+    def test_stale_configured_dir_ignored(self, monkeypatch, tmp_path):
+        # 配置指向已删除目录时忽略，继续回退
+        monkeypatch.delenv("SPICE_KERNEL_DIR", raising=False)
+        configured = tmp_path / "config" / "kernels_dir.txt"
+        configured.parent.mkdir(parents=True)
+        configured.write_text(str(tmp_path / "gone"), encoding="utf-8")
+        default = tmp_path / "e2m2e" / "kernels"
+        default.mkdir(parents=True)
+        monkeypatch.setattr(paths_module, "_REPO_ROOT", tmp_path / "repo")
+        assert detect_kernel_dir() == str(default)
+
+
+class TestConfiguredKernelDir:
+    def test_roundtrip(self, tmp_path):
+        target = tmp_path / "chosen" / "kernels"
+        target.mkdir(parents=True)
+        paths_module.save_configured_kernel_dir(target)
+        assert paths_module.load_configured_kernel_dir() == str(target.resolve())
+
+    def test_missing_returns_empty(self):
+        assert paths_module.load_configured_kernel_dir() == ""
+
+    def test_stale_path_returns_empty(self, tmp_path):
+        paths_module.save_configured_kernel_dir(tmp_path / "gone")
+        assert paths_module.load_configured_kernel_dir() == ""

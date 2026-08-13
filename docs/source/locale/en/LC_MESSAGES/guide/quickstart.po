@@ -1,0 +1,109 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../source/guide/quickstart.md:1 a1028c00c90c45dba6788b77b2fcf0b7
+msgid "快速上手"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:3 90ee61c03a30477a95004108141c3d9b
+msgid "安装"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:5 81ea05a555bf4405a16408e76df32e85
+msgid "项目要求 Python >= 3.13。用 [uv](https://docs.astral.sh/uv/) 安装："
+msgstr ""
+
+#: ../../source/guide/quickstart.md:11 0737021da73244759b08027748c365fc
+msgid "`uv sync` 一次完成解释器准备、虚拟环境创建与全部依赖安装（含核心算法库 `e2m2e>=5.6.8`）。"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:14 3855f5e3affe47859b5dff042866f1e6
+msgid ""
+"Windows 用户也可从 [GitHub Releases](https://github.com/cislunarspace"
+"/transfer-orbit-design/releases) 下载便携包 `TransferOrbitDesign-"
+"windows.zip`，解压即用，无需安装 Python。"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:18 add7ee34d1cb467e9c3bc55cec747f8c
+msgid "启动"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:24 eb0e414a263244dc8eab0f19c7b9ecb9
+#, python-brace-format
+msgid "首次启动时，程序会探测 SPICE 内核是否可用（见 {doc}`kernels`）。未找到可用 内核会自动弹窗引导，三种选择："
+msgstr ""
+
+#: ../../source/guide/quickstart.md:27 3c21af94c88a4232819630cec1677cf9
+msgid "**下载内核**：从 e2m2e 的 `kernels-v1` release 一键下载（带进度条）， 下载到用户数据目录，跨版本共享；"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:29 d64ec998a863408dbaebdf818a01eb64
+msgid "**指定已有目录**：选择你已有的内核目录（含行星历 `.bsp` 与闰秒 `.tls`）， 选择后自动记忆，下次启动直接使用；"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:31 5960d8df237041efb62e3b5eed6d4059
+msgid "**暂时跳过**：本次不准备，用到星历功能时再报错提示。"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:33 a6260860b4cc472797a74c15620a8e63
+msgid "一次轨道设计操作"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:35 0f9a23bca4254a16b781f7ae29bff3fe
+msgid "界面为三栏布局：左侧项目树、中间可视化画布与日志标签页、右侧工具选择器与 参数面板。"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:38 841a322165c445c78179584acbf45f3c
+msgid ""
+"右侧工具选择器选**轨道设计**，选轨道类型（DRO / Halo / NRHO / Lissajous / L4 / L5 / "
+"ELFO）并填参数。"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:40 1643b48394ff4c15898ee9a0398c2eba
+msgid "点击**运行**，计算在后台线程执行，日志面板逐条输出进度。"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:41 9880b8df24004edc849b3f8691658d5a
+msgid "完成后结果以 JSON + NPZ 双文件落盘 `output/`，轨道随即叠加显示在画布上。"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:43 39079a557f764717b7e72352ba20c15b
+msgid "从已有结果继续"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:45 f84e96bdbcfb4a7396b528a7cb88ae2c
+msgid "启动时会自动扫描 `output/` 目录，把历史结果重建为**工件**（Artifact）显示在 左侧项目树中。右键选中工件即可发起后续操作："
+msgstr ""
+
+#: ../../source/guide/quickstart.md:48 9794168453924d8790007f6188dfee92
+msgid "对单条轨道：**轨道保持**（以选中轨道星历为输入做蒙特卡洛仿真）、 **稳定性分析**（Floquet 乘子 / 稳定性指数）；"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:50 ef5fcb8eb8b5432ea0f6f5913012247e
+msgid "Ctrl+点击多选轨道可叠加对比。"
+msgstr ""
+
+#: ../../source/guide/quickstart.md:52 d042efb091d34c49bf05800b5e90373f
+#, python-brace-format
+msgid "四个工具的完整参数说明见 {doc}`tools`。"
+msgstr ""
+

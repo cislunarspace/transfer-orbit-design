@@ -110,6 +110,9 @@ _DESIGN_ORBIT_LABELS: dict[str, str] = {
     "inclination": "倾角 (度)",
     "arg_of_pericenter": "近月点幅角 (度)",
     "semi_major_axis": "半长轴 (km)",
+    # 轨道保持补充字段（ControlOrbitRequest 模型未暴露，算法必需）
+    "control_interval": "控制间隔 (天)",
+    "feedback_arc": "反馈弧段 (天)",
     # 轨道族生成参数（FamilyGenerationRequest）
     "max_amplitude_km": "最大面外振幅 (km)",
     "n_orbits": "族成员数",
@@ -410,6 +413,20 @@ class MainWindow(QMainWindow):
         # 生成控件
         self._param_widgets = build_params_from_model(spec.request_model)
 
+        # control_orbit：ControlOrbitRequest 模型是算法函数参数的子集，
+        # control_interval/feedback_arc（默认 30/28 天）未暴露——缺了它们用户
+        # 无法配出与源星历覆盖匹配的参数（默认值下仿真时长 ≈ 3570 天，30 天
+        # 星历必然全样本失败）。作为补充字段加入面板。
+        if tool_key == "control_orbit":
+            for name, default in (("control_interval", 30.0), ("feedback_arc", 28.0)):
+                if name in self._param_widgets:
+                    continue
+                sb = QDoubleSpinBox()
+                sb.setRange(1e-3, 1e4)
+                sb.setDecimals(3)
+                sb.setValue(default)
+                self._param_widgets[name] = sb
+
         # G3: orbit_type -> QComboBox（若字段存在且有 description）
         if "orbit_type" in self._param_widgets:
             self._replace_orbit_type_with_combo(spec.request_model)
@@ -443,10 +460,14 @@ class MainWindow(QMainWindow):
             self._param_rows[name] = (label_widget, widget, unit_combo)
             row += 1
 
-        # control_orbit 的 input_ephemeris 由选中 Artifact 注入，不在 UI 暴露
-        if tool_key == "control_orbit" and "input_ephemeris" in self._param_widgets:
-            old = self._param_widgets.pop("input_ephemeris")
-            self._remove_widget_and_label(old)
+        # control_orbit 的 input_ephemeris 由选中 Artifact 注入，不在 UI 暴露；
+        # mu 同样由源 Artifact 注入（source_mu），面板编辑无效（ControlOrbitRequest
+        # 的 mu 仅为响应透传字段，算法层不消费）
+        if tool_key == "control_orbit":
+            for hidden in ("input_ephemeris", "mu"):
+                if hidden in self._param_widgets:
+                    old = self._param_widgets.pop(hidden)
+                    self._remove_widget_and_label(old)
 
         # design_orbit：按 orbit_type 分支填默认值 + 只显示相关字段
         if tool_key == "design_orbit":
@@ -696,6 +717,27 @@ class MainWindow(QMainWindow):
             return
         params = collect_params(self._param_widgets, model)
         params.pop("input_ephemeris", None)  # 防御：理论上已隐藏
+
+        # 校验仿真时长不超出源星历覆盖：控制律的目标点/反馈弧都取自标称星历，
+        # 超出覆盖时控制律无解（默认 30 天/次 × 119 次 + 28 天反馈 ≈ 3598 天，
+        # 而 GUI 设计默认星历仅 30 天 → 蒙特卡洛样本必然全部失败、Δv=0）。
+        times_et = ephemeris_data.get("times_et")
+        if times_et is not None and len(times_et) > 1:
+            span_days = float(times_et[-1] - times_et[0]) / 86400.0
+            interval = float(params.get("control_interval", 30.0))
+            feedback = float(params.get("feedback_arc", 28.0))
+            n_ctrl = int(params.get("num_controls", 120))
+            sim_days = (n_ctrl - 2) * interval + feedback
+            if sim_days > span_days:
+                msg = (
+                    f"仿真时长 {sim_days:.1f} 天（{n_ctrl - 2} 次机动 × "
+                    f"{interval} 天/次 + 反馈弧 {feedback} 天）超出源星历覆盖 "
+                    f"{span_days:.1f} 天，轨道保持必然全部失败。"
+                    f"请减小控制间隔/次数，或设计更长时长的标称轨道。"
+                )
+                self._status_bar.showMessage(msg, _STATUS_MSG_TIMEOUT_MS)
+                self._log.append_log(f"参数错误: {msg}")
+                return
 
         kernel_dir = self._detect_kernel_dir() or None
         self._log.clear()

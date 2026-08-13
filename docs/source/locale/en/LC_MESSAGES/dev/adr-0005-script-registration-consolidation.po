@@ -1,0 +1,190 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0005-script-registration-consolidation.md:2
+#: 08a902971d8b47abb3ef4a15741b7797
+msgid "ADR-0005: 脚本注册前后端合并"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:4
+#: 578cff27c05a485291bb72f216fdb981
+msgid "状态"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:6
+#: 34c064bae53c4963a6b528388435958f
+msgid "已接受"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:8
+#: 28ffdaa3883a4d90a990a01214c282cb
+msgid "上下文"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:10
+#: 349ed499b39f40f980f937a5004a0385
+msgid ""
+"每个 GUI 可运行脚本在 `tod/gui/scripts/` 下有镜像文件，只声明 `SCRIPT_ENTRY`（含 `CliParam` "
+"列表）。实现脚本的 argparse 参数和镜像文件的 `CliParam` "
+"描述同一批参数（flag、type、default、help），手动保持同步。"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:12
+#: 4a64e969b0db4065adc3f63e003e1176
+msgid ""
+"这是典型的 shotgun surgery：新增一个 CLI "
+"参数需要编辑两个文件。`test_cli_default_consistency.py` 只覆盖 dropdown 参数的默认值漂移，非 "
+"dropdown 参数（如 `--x0`、`--vy0`）无自动检测。"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:14
+#: 1cd30a02310b48509b633c2d25b39caa
+msgid ""
+"镜像目录存在的原因是 ADR-0002 的约束：GUI 扫描阶段不能触发重型依赖（scipy、e2m2e）。镜像文件只导入轻量的 "
+"`script_registry.py`，避免在扫描时 import 实现脚本。"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:16
+#: 384afe6b857047c781c1666125dd2dfb
+msgid "决策"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:18
+#: 626e8c008c144cc598381b82056be5f5
+msgid ""
+"将 `SCRIPT_ENTRY` 搬到实现脚本底部，删除镜像目录 `tod/gui/scripts/` 下的全部 47 "
+"个文件。扫描器改为扫描实现目录（`tod/generates/`、`tod/plot/`、`tod/transfers/`）。"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:20
+#: af6e5a954a6a43199b7569485f186abc
+msgid "关键设计选择："
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:22
+#: f5f618815858454cb0c812cf03c78976
+msgid ""
+"**启动时间不重要**：扫描时 import "
+"实现脚本会触发重型依赖加载，但计算本身才是耗时的。可以做加载界面告知用户进度，不需要为启动速度维护重复文件。"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:24
+#: d5671eef3ba84ce8964833fab0242ead
+msgid ""
+"**SCRIPT_ENTRY 放在实现脚本底部**：`if __name__ == \"__main__\"` "
+"块之后。参数定义（argparse）和 GUI 元数据（CliParam）在同一文件，新增参数只改一处。"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:26
+#: d96819fd7cc54acebdbab2437b7c2657
+msgid "**扫描器跳过加载失败的文件**：实现脚本可能因依赖缺失（如 e2m2e 版本不匹配）无法加载。扫描器捕获异常并静默跳过，不影响其余脚本的注册。"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:28
+#: 92680b774ee6489e88ecb695c570e899
+msgid ""
+"**`importlib` 加载需注册 `sys.modules`**：实现脚本中的 `@dataclass` 装饰器需要模块在 "
+"`sys.modules` 中。扫描器在执行前注册临时模块名，执行后清理。"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:30
+#: 30f605ef0ae846fdb39468ca0f118ef8
+msgid ""
+"**保留 `_ScanEntry` 轻量包装**：虽然启动时间不再约束，但 `_ScanEntry` 作为扫描器的内部类型仍有价值——它只读取 "
+"`ScriptEntry` 的字段，不持有对重型模块的引用。"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:32
+#: 9b8d0fec54f54df0902740a837294bc6
+msgid "后果"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:34
+#: 669857d31b8a4e5fb178b2fbd3e0a7e5
+msgid "正面"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:36
+#: 99009287f3f747369b048da281d800ad
+msgid "删除 47 个镜像文件 + 1 个辅助文件，消除 shotgun surgery"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:37
+#: 951fb71e291a4c0fa73e673f960c5872
+msgid "参数定义和 GUI 元数据在同一文件（**locality**）"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:38
+#: b1530c32978e4b1c84451af1ecd7029f
+msgid "新增轨道类型或参数只需编辑一处"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:39
+#: 4546f4a3a3634ab9bd4d37a32b947732
+msgid "`test_cli_default_consistency.py` 的意义下降（不再有两处默认值需要同步）"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:40
+#: 92ba85823b03435e9cba3876084ed901
+msgid "扫描器逻辑简化：不再需要镜像目录回退"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:42
+#: 0795034ea8e54800a71de374ffadae30
+msgid "负面"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:44
+#: e46c8341d1c74750863f9488e8653ec5
+msgid "实现脚本底部出现 GUI 概念（`CliParam`、`unit_group`、`advanced`）"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:45
+#: 19382e1d9dd74420b44748695127c42c
+msgid "扫描时 import 实现脚本触发重型依赖加载，启动变慢（可通过加载界面缓解）"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:46
+#: 16bc64766cc64218be09ebde7b8d5dfc
+msgid "加载失败的脚本被静默跳过，用户可能不知道某个工具不可用（可通过日志或 UI 提示改善）"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:48
+#: 6ede454f2c914dfc946756270a7fee35
+msgid "后续"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:50
+#: 68458e7952bc4ba7a73bbb80604ae85e
+msgid "可考虑将 `_ScanEntry` 简化为直接使用 `ScriptEntry`（启动时间不再约束）"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:51
+#: 86b347981559437db516acf0189f442c
+msgid "可考虑为加载失败的脚本在 GUI 中显示提示"
+msgstr ""
+
+#: ../../adr/0005-script-registration-consolidation.md:52
+#: a59f7ec986024800befd60c8882dcd1c
+msgid "`optimize_dro_to_ro.py` 的 e2m2e 依赖缺失问题需要单独修复"
+msgstr ""
+

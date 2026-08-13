@@ -1,0 +1,322 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0001-ui-i18n-zh-en.md:2 f173f9f9a9a646ec8617d49ed4921f41
+msgid "ADR-0001: 界面中英文切换方案"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:4 51eac473cb24446d94bf1eab2e46b1c5
+msgid "状态"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:6 a2a84fe10df44ca2b179fde96506859f
+msgid "已接受"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:8 7cd986a933c043d6b22b6ca43122a07c
+msgid "上下文"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:10 29366f8652e544d4a5a863af199f8529
+msgid ""
+"本项目为 PyQt6 桌面应用，目标用户为中文航天研究人员。自创建以来，所有 GUI "
+"文本、脚本描述、用户文档均为中文硬编码。随着用户群体扩大，需要提供英文界面支持。"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:12 96ba1c88684e49a5bc1a12faa73e07d1
+msgid "约束条件："
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:13 0f4cc3351c7a447682e643f66e00665c
+msgid "必须保持向后兼容，现有中文用户无感知"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:14 9a6fff9a7bab405092a1afa5bc3d5851
+msgid "技术栈为 PyQt6，不可引入重型 Web 框架"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:15 cfec627885a74768826c4c0f0cd4c94e
+msgid "GUI 文本、脚本描述/help 文本、Sphinx 用户文档均需提供英文版"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:16 bc4654a814ba472a85165bc0ed003e21
+msgid "维护者自行承担翻译工作"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:18 fc40f62325724d31a2d8ba5db3408992
+msgid "决策"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:20 fd466b207a194c0d901d235926469000
+msgid "采用**三套机制并行**的方案："
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 14b2981a1d3949c6a5e18502c444d553
+msgid "内容类型"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 5aeeaae895824017b8b2cb5bf3134c42
+msgid "机制"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: ebe973d9a88a449db870653c4baef3ad
+msgid "源文件"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: bf68e3d05f9742a8b598fe033e0c5350
+msgid "运行时行为"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 7fd2452334c94bec96aa10afb225a9db
+msgid "GUI 文本"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 8765cd1a619f4b9bb87823c27e666b1f
+msgid "PyQt6 `QTranslator` + `.ts → .qm`"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 8283fbc4690d4e808a6c9ca0ad0362db
+msgid "`tod/gui/i18n/gui.en.ts`"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 694bad974406402594a6a49afc19a0ab
+msgid "启动时按配置加载对应 `.qm`，`tr()` 自动拦截替换"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: acd9d80c13e94ce0aa5295ce0af5abb1
+msgid "脚本描述/help"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 3674f981478f4deeb6210dda2c4734d1
+msgid "自定义 JSON 翻译表"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 3d4b8ae9565d4872ae2d0d6cba647639
+msgid "`tod/gui/i18n/scripts.en.json`"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 8edb76a9e4de445993c05ace20473395
+msgid "启动时加载 JSON，脚本注册时按语言查表替换"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: b0e78c47658649ca9c26ef0ca1ca5779
+msgid "Sphinx 用户文档"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 62bddffc1e5c4cdb8a5ce38d862abc7e
+msgid "Sphinx 标准 `gettext`/`sphinx-intl`"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 433ee4b353a345c885376bc33eb483c2
+msgid "`docs/source/` 中文 `.rst` 为源"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 8b7fef26276e48f29ec88a2033f28a63
+msgid "构建时按 `language` 配置生成对应语言版本"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:28 70b643a0f9a147628dfbd2795e007a09
+msgid "关键设计选择："
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:30 4e77b28a6cc9498b91c93ef162516de7
+msgid ""
+"**源语言为中文**：代码中 `tr()` "
+"包裹中文文本，从中文翻译到英文。这与大多数项目（英文为源）相反，但符合本项目历史（全中文起步）和主要用户群。"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:32 e082b12cf7064f6ab61cd066b774d084
+msgid ""
+"**两套翻译机制并存而非统一**：GUI 文本用 Qt 原生 `QTranslator`，脚本描述用自定义 JSON。三套内容的形态不同（框架控件"
+" / 运行时字符串 / 静态文档），强求统一机制反而增加复杂度。Qt 翻译器对控件布局自适应、快捷键处理有原生支持，不可替代。"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:34 13a7ab707ab94b9584ec585f48808c3a
+msgid "**重启生效，非热切换**：热切换需遍历所有控件重新设置文本，参数面板动态生成处理尤其复杂。科研工具切换语言的频率极低，重启生效成本可忽略。"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:36 cca7784126644b69a2d55b4f1326b282
+msgid "**翻译缺失回退到中文**：科研工具的可理解性优先于翻译完整性。缺失翻译时用户至少能读懂。"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:38 0e31641e89da4136b932f1e48c95c87e
+msgid ""
+"**动态文本用 `%1`/`%2` 占位符**：`f-string` 无法被 `pylupdate6` 提取，需改写为 Qt 占位符格式 "
+"`self.tr(\"任务 %1 完成\").arg(job_id)`。"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:40 854e971919d849b4bc82888707e07198
+msgid ""
+"**预留多语言扩展**：文件命名采用 `gui.<lang>.ts` / `scripts.<lang>.json` 格式，语言配置读取自 "
+"`gui_defaults.json` 的 `settings.language`，未设置时默认 `\"zh\"`。"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:42 d3e924fe6d054d199371263e13bd3ef3
+msgid "后果"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:44 8309e5d6131146e09e889f2f541350d7
+msgid "正面"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:46 d0b79b32c4fc46c4b0f64f73434f0a0d
+msgid "GUI 文本翻译利用 PyQt 原生机制，对控件布局、快捷键、文本方向等处理最可靠"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:47 271453cf56c74e16810fe92c7d3325fb
+msgid "脚本描述 JSON 表与 `SCRIPT_ENTRY` 结构天然对齐，维护直观"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:48 20604a5ac2b44a138db665a233c932bf
+msgid "Sphinx 标准 gettext 与 GUI 方案\"源语言中文 + 提取翻译\"思路一致"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:49 263ec3d3c9f44827913973158b5859db
+msgid "默认中文，现有用户完全无感知"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:51 9055330010fa481998cd9e2e5dbcad5c
+msgid "负面"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:53 57f51272478d47d68728d741a7d63ffa
+msgid "**大规模代码改动**：所有 GUI 文件中的硬编码中文需替换为 `self.tr(\"...\")`，约 15–20 个文件受影响"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:54 c8e5fc44c6e64139b358fee9bc5ce6fa
+msgid "**动态文本需改写**：所有 `f-string` / `.format()` 格式化的中文文本需改为 `%1` 占位符形式"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:55 6a7de1761ce24aa6b44e0f474a922133
+msgid "**现有英文文本需\"逆向翻译\"**：代码中已有的英文（如 `\"Copy All\"`）在中文版中需通过 `.qm` 翻译为中文，实现统一"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:56 e08ec5b376e74590b20739da15fb8932
+msgid "**两套翻译文件需分别维护**：`.ts` 走 Qt Linguist 工具链，`.json` 手动编辑"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:58 01df875e4bf641d1a325ab2ad06dea1a
+msgid "备选方案"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 53c11602104c4b5db8315eed11373448
+msgid "方案"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 9a25ffc9af7c4b1c942e2f4d1c271bd1
+msgid "未选原因"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 7d0a49c2cdf245e5ad6a11b76fe465b3
+msgid "统一用 gettext/babel"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: e3cfab5007824365b8317e96b3b85343
+msgid "PyQt GUI 文本需手动调用翻译函数，失去控件布局自适应等原生支持"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: bed1deced56144fda5c60620f63c5c16
+msgid "纯自定义 JSON 字典"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 1f6bffc48a654656b48bbd2d1691d1d6
+msgid "完全自研，工作量更大，无法利用 Qt Linguist 可视化翻译"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: dc3c29a053354262b50a5aff2e139034
+msgid "运行时热切换"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 30875326677f44ba8630869407e157ed
+msgid "动态参数面板刷新逻辑过于复杂，收益与成本不成正比"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 7044a56afe7442889ecc745a70f7cbf7
+msgid "英文作为源语言"
+msgstr ""
+
+#: ../../source/dev/adr-0001-ui-i18n-zh-en.md:1
+#: 38ac4de886df444aa47a69b5e8db5517
+msgid "需先将全部中文重构为英文，再翻译回中文，改动量翻倍"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:67 76207827266f428fb55a3ce16049a967
+msgid "实施状态与覆盖边界"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:69 d2e9e5baf3cd4eeeaa8f0fc404ca0f10
+msgid "截至 issue #190 / #234，三套机制的落地状态如下："
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:71 1ccbdda0f36942daaf29046ed7f42300
+msgid ""
+"**GUI 文本**：主要界面文本已通过 `tod/gui/i18n/gui.en.ts` 与编译后的 `gui.en.qm` 覆盖。运行时按 "
+"`gui_defaults.json` 的 `settings.language` 加载对应 Qt 翻译文件；未设置时默认中文。"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:72 45b4658abb8b4667b664fe9fdf9c9d8b
+msgid ""
+"**脚本描述/help**：`tod/gui/i18n/scripts.en.json` 当前翻译数据仅填充脚本 "
+"`description`。翻译加载代码已支持 `group_label`、`cli_params`、`env_params` 的 `label`"
+" / `help` 字段，但这些字段的英文数据尚未全量补齐；缺失翻译时继续显示中文源文本。"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:73 af66285577cc4c548a917dff39747c37
+msgid ""
+"**Sphinx 用户文档**：文档国际化基础设施已采用 Sphinx `gettext` / `sphinx-intl`。中文 `.rst` /"
+" `.md` 为源文档，英文 `.po` 位于 `docs/source/locale/en/LC_MESSAGES/`，初始条目可以保持空 "
+"`msgstr`；未翻译条目在英文构建中回退显示中文源文。"
+msgstr ""
+
+#: ../../adr/0001-ui-i18n-zh-en.md:74 2b28e05e421c4ae9b0a403b4b15e8530
+msgid ""
+"**API 参考正文**：Sphinx gettext 会处理整棵 `docs/source/` 文档树，因此英文 `.po` 中可能出现 API"
+" `.rst` 壳文件文本，也可能出现 `autodoc` 从 Python docstring "
+"动态生成的正文。当前工作只落地可维护的翻译基础设施，不承诺完成 API 正文英文翻译；缺失翻译时仍以中文 docstring "
+"为源文回退显示。API 参考正文的术语梳理和英文翻译需作为后续独立工作处理。"
+msgstr ""
+

@@ -23,7 +23,7 @@ Windows 用户也可从 [GitHub Releases](https://github.com/cislunarspace/trans
 
 ## SPICE 内核
 
-星历动力学需要 NASA SPICE 内核文件。全部必需内核打包在 [e2m2e 的 `kernels-v1` release](https://github.com/cislunarspace/e2m2e/releases) 中。三种配置方式：
+星历动力学需要 NASA SPICE 内核文件。全部必需内核打包在 [e2m2e 的 `kernels-v1` release](https://github.com/cislunarspace/e2m2e/releases) 中。**GUI 启动时若未找到可用内核，会自动弹窗引导**：一键下载（带进度条，下载到用户数据目录，跨版本共享）或指定已有内核目录（选择后自动记忆）。命令行/脚本场景可用以下三种方式之一：
 
 - **自动下载（推荐）**：`python scripts/download_kernels.py`，幂等地拉取全部内核到 `kernels/`。
 - **手动下载**：从上述 release 下载解压到 `kernels/` 目录。
@@ -45,7 +45,7 @@ uv run transfer-orbit-design
 2. 点击运行，计算在后台线程执行，日志面板逐条输出进度。
 3. 完成后结果以 JSON + NPZ 双文件落盘 `output/`，轨道随即叠加显示在画布上。
 
-画布工具栏可切换 3D / XY / XZ / YZ 投影，开关地月天体与 L1-L5 平动点标注；Ctrl+点击项目树可多选轨道叠加对比。在项目树右键轨道可发起轨道保持与稳定性分析。
+画布工具栏可切换 3D / XY / XZ / YZ / 四视图投影，会合系与惯性系（GCRS）双坐标系，开关地月天体与 L1-L5 平动点标注，并支持初猜/星历绘制内容切换与 GIF 动画导出；菜单"设置 → 图表设置"可调线宽、颜色方案、标注大小与 Z 区间比例。Ctrl+点击项目树可多选轨道叠加对比。在项目树右键轨道可发起轨道保持与稳定性分析。
 
 ## 能力
 
@@ -61,7 +61,7 @@ uv run transfer-orbit-design
 
 **可视化**
 
-- 多轨道可视化：3D / XY / XZ / YZ 投影、地月与 L1-L5 标注、多轨道叠加。
+- 多轨道可视化：3D / XY / XZ / YZ / 四视图投影、会合系 / 惯性系切换、地月与 L1-L5 标注、多轨道叠加、图表设置（线宽/配色/字号/Z 比例）、GIF 动画导出。
 
 需要脚本化工作流（CR3BP 轨道生成、转移搜索、星历修正、绘图）时，使用 [e2m2e CLI](https://github.com/cislunarspace/e2m2e)，详见 [Sphinx 文档](https://cislunarspace.github.io/e2m2e/)。
 
