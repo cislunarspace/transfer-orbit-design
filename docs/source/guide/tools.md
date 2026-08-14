@@ -51,9 +51,8 @@ L4_HORSESHOE / L5_HORSESHOE / ELFO**。选择类型后面板只显示该类型�
 | `epoch` | 2024-01-01 | 起始历元：6 个输入框（年/月/日/时/分/秒）或 ISO 字符串 |
 | `duration` | 1 个月 | 传播时长（可切 年/月/日/时/秒/TU。轨道保持以它为输入，建议 ≥ 保持总时长） |
 | `output_step` | 3600 s | 星历输出步长（可切 秒/时/日/TU） |
-| `correction_method` | two_level | 星历修正方法：`standard` / `two_level` / `homotopy`。Halo/NRHO 由算法自动改走 `segmented`（见 {doc}`../concepts/ephemeris`），无需手选 |
+| `correction_method` | two_level | 星历修正方法：`standard` / `two_level`。Halo/NRHO 由算法自动改走 `segmented`（见 {doc}`../concepts/ephemeris`），无需手选 |
 | `correction_revolutions` | 1 | 修正圈数 |
-| `correction_velocity_tolerance` | 0.1 | 速度连续性容差 |
 | `earth_degree` / `moon_degree` | 10 | 地球 / 月球引力位阶数 |
 | `perturbation` / `dyb` | 空 | 可选摄动项（太阳引力等）/ DYB 面质比系数（9 分量，dyb[0] 为等效面质比 m²/kg；空框时显示 JSON 格式示例） |
 

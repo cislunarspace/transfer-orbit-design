@@ -124,8 +124,8 @@ class TestRangePlaceholder:
         """JSON 文本框（perturbation/engine_layout）为空时给可解析格式示例。"""
         import json
 
-        from PyQt6.QtWidgets import QLineEdit
         from e2m2e.algorithm.station_keeping import EngineLayout
+        from PyQt6.QtWidgets import QLineEdit
 
         from src.view.params_panel import build_params_from_model
 
@@ -236,28 +236,19 @@ class TestIntCombo:
 
 
 # ---------------------------------------------------------------------------
-# 单位换算全覆盖：模型外补充字段与 list 容器
+# 单位换算全覆盖：轨道保持模型字段与 list 容器
 # ---------------------------------------------------------------------------
 
 
-class TestSupplementalFieldUnits:
+class TestControlFieldUnits:
     def _control_widgets(self, qapp):
-        """构造 control_orbit 面板控件（含补充字段 control_interval/feedback_arc）。"""
-        from PyQt6.QtWidgets import QDoubleSpinBox
+        """构造 5.6.9 ControlOrbitRequest 自动生成的控件。"""
+        from src.view.params_panel import build_params_from_model
 
-        from src.view.params_panel import attach_unit_state, build_params_from_model
-
-        widgets = build_params_from_model(ControlOrbitRequest)
-        for name, default in (("control_interval", 30.0), ("feedback_arc", 28.0)):
-            sb = QDoubleSpinBox()
-            sb.setRange(1e-3, 1e4)
-            sb.setValue(default)
-            attach_unit_state(sb, name)
-            widgets[name] = sb
-        return widgets
+        return build_params_from_model(ControlOrbitRequest)
 
     def test_control_interval_unit_switch_roundtrip(self, qapp):
-        """补充字段切 天→TU→秒→天 精确往返（舍入缓存）。"""
+        """模型字段切 天→TU→秒→天 精确往返（舍入缓存）。"""
         from src.view.params_panel import (
             collect_params,
             set_spinbox_unit,

@@ -66,7 +66,7 @@ class _FakeControlledEphemeris:
         self.position_km = position_km
         if times is None:
             times = [(2024, 1, 1, 0, 0, float(k)) for k in range(n)]
-        year, month, day, hour, minute, second = zip(*times)
+        year, month, day, hour, minute, second = zip(*times, strict=True)
         self.year = np.array(year, dtype=int)
         self.month = np.array(month, dtype=int)
         self.day = np.array(day, dtype=int)

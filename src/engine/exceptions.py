@@ -36,7 +36,6 @@ def translate_exception(e: Exception) -> OrbitError:
       前缀匹配的类型化传播失败，上游 #349）
     - RustExtensionUnavailableError -> BACKEND_UNAVAILABLE（5.6.6 起禁止
       Rust 缺失静默回退 Python，上游 #378）
-    - UnsupportedCorrectorMethodError -> INVALID_CORRECTION_METHOD
     - FileNotFoundError         -> KERNEL_NOT_FOUND
     - NotImplementedError        -> NOT_IMPLEMENTED
     - ValueError                -> INVALID_PARAMS
@@ -70,20 +69,6 @@ def translate_exception(e: Exception) -> OrbitError:
             return OrbitError(
                 code="BACKEND_UNAVAILABLE",
                 message=f"e2m2e Rust 计算内核不可用: {e}",
-                cause=e,
-            )
-    except ImportError:
-        pass
-
-    try:
-        from e2m2e.algorithm.ephemeris_correction.types import (
-            UnsupportedCorrectorMethodError,
-        )
-
-        if isinstance(e, UnsupportedCorrectorMethodError):
-            return OrbitError(
-                code="INVALID_CORRECTION_METHOD",
-                message=f"不支持的修正方法: {e}",
                 cause=e,
             )
     except ImportError:

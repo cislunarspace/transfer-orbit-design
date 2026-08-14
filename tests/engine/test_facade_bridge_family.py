@@ -26,27 +26,25 @@ from src.engine.facade_bridge import (
 
 
 class TestFamilyGenerationRequest:
-    def test_defaults(self):
-        req = FamilyGenerationRequest()
+    def test_halo_defaults(self):
+        req = FamilyGenerationRequest(orbit_type="HALO")
         assert req.libration_point == 2
         assert req.max_amplitude_km == 30000.0
-        assert req.n_orbits == 20
+        assert req.n_orbits == 50
 
     def test_constraints(self):
         with pytest.raises(ValidationError):
-            FamilyGenerationRequest(libration_point=3)  # le=2
+            FamilyGenerationRequest(orbit_type="HALO", libration_point=3)
         with pytest.raises(ValidationError):
-            FamilyGenerationRequest(libration_point=0)  # ge=1
+            FamilyGenerationRequest(orbit_type="HALO", max_amplitude_km=0.0)
         with pytest.raises(ValidationError):
-            FamilyGenerationRequest(max_amplitude_km=100.0)  # ge=1000
+            FamilyGenerationRequest(orbit_type="HALO", max_amplitude_km=60000.0)
         with pytest.raises(ValidationError):
-            FamilyGenerationRequest(max_amplitude_km=100000.0)  # le=57000
-        with pytest.raises(ValidationError):
-            FamilyGenerationRequest(n_orbits=1)  # ge=2
+            FamilyGenerationRequest(orbit_type="HALO", n_orbits=0)
 
     def test_extra_forbidden(self):
         with pytest.raises(ValidationError):
-            FamilyGenerationRequest(orbit_type="HALO")  # 未知字段
+            FamilyGenerationRequest(orbit_type="HALO", unexpected=True)
 
 
 # ---------------------------------------------------------------------------
@@ -55,67 +53,40 @@ class TestFamilyGenerationRequest:
 
 
 class _FakeSystem:
-    """Fake CR3BP_System（earth_moon_system 的替身）。"""
+    """Fake CR3BP_System。"""
 
     mu = EARTH_MOON_MU
-    characteristic_length = 384400.0
-
-
-class _FakeContinuation:
-    """Fake Continuation（generate_halo_seed_orbit / generate_halo_family 替身）。"""
-
-    def __init__(self, corrector=None) -> None:
-        self.calls: dict = {}
-
-    def generate_halo_seed_orbit(self, *args, **kwargs) -> object:
-        self.calls["seed"] = (args, kwargs)
-        return SimpleNamespace(
-            states=np.random.randn(100, 6),
-            times=np.linspace(0, 1, 100),
-        )
-
-    def generate_halo_family(self, seed, **kwargs) -> list[object]:
-        self.calls["family"] = kwargs
-        n = kwargs.get("n_orbits", 3)
-        return [
-            SimpleNamespace(
-                states=np.random.randn(100, 6),
-                times=np.linspace(0, 1, 100),
-            )
-            for _ in range(n)
-        ]
 
 
 @pytest.fixture()
-def mock_family_stack(monkeypatch):
-    """把 generate_family 的算法调用全部桩掉，返回可断言调用的 fake。"""
-    fake_cont = _FakeContinuation()
+def mock_family_design(monkeypatch):
+    """桩掉上游 Halo 族生成入口，记录桥接层传参。"""
+    calls: dict[str, object] = {}
+
+    def _design_halo_family(libration_point, max_amplitude_km, *, n_orbits=50, dynamics=None):
+        calls["args"] = (libration_point, max_amplitude_km)
+        calls["n_orbits"] = n_orbits
+        return SimpleNamespace(
+            system=_FakeSystem(),
+            orbits=[
+                SimpleNamespace(
+                    states=np.full((100, 6), float(index)),
+                    times=np.linspace(0, 1, 100),
+                )
+                for index in range(n_orbits)
+            ],
+        )
 
     monkeypatch.setattr(
-        "e2m2e.algorithm.family.cr3bp_orbits.earth_moon_system",
-        lambda: _FakeSystem(),
+        "e2m2e.algorithm.family.cr3bp_orbits.design_halo_family",
+        _design_halo_family,
         raising=False,
     )
-    monkeypatch.setattr(
-        "e2m2e.algorithm.dynamics.CR3BP_Dynamics",
-        lambda system: object(),
-        raising=False,
-    )
-    monkeypatch.setattr(
-        "e2m2e.algorithm.solver.differential_correction.DifferentialCorrection",
-        lambda dynamics: object(),
-        raising=False,
-    )
-    monkeypatch.setattr(
-        "e2m2e.algorithm.solver.continuation.Continuation",
-        lambda corrector: fake_cont,
-        raising=False,
-    )
-    return fake_cont
+    return calls
 
 
 class TestGenerateFamily:
-    def test_returns_dto(self, mock_family_stack):
+    def test_returns_dto_and_delegates_to_upstream(self, mock_family_design):
         data = FacadeBridge().generate_family(
             libration_point=2, max_amplitude_km=20000.0, n_orbits=5
         )
@@ -126,31 +97,27 @@ class TestGenerateFamily:
         assert data.times.shape == (5, 100)
         assert data.z0s.shape == (5,)
         assert data.mu == pytest.approx(EARTH_MOON_MU)
+        assert mock_family_design == {"args": (2, 20000.0), "n_orbits": 5}
 
-    def test_seed_uses_small_amplitude(self, mock_family_stack):
-        """种子振幅必须取 0.001 DU（Richardson 收敛域），不得透传用户振幅。"""
+    def test_defaults_to_halo(self, mock_family_design):
         FacadeBridge().generate_family(libration_point=1, max_amplitude_km=10000.0, n_orbits=3)
-        _, seed_kwargs = mock_family_stack.calls["seed"]
-        assert seed_kwargs["amplitude_z"] == pytest.approx(0.001)
-        assert seed_kwargs["halo_class"] == 0
+        assert mock_family_design["args"] == (1, 10000.0)
+        assert mock_family_design["n_orbits"] == 3
 
-    def test_z_range_derived_from_km(self, mock_family_stack):
-        """max_amplitude_km 应换算为无量纲 z_range，且含种子端点。"""
-        FacadeBridge().generate_family(libration_point=2, max_amplitude_km=38440.0, n_orbits=4)
-        kwargs = mock_family_stack.calls["family"]
-        z_min, z_max = kwargs["z_range"]
-        assert z_min == pytest.approx(0.001)
-        assert z_max == pytest.approx(0.1)  # 38440 / 384400
-        assert kwargs["direction"] == "positive"
-        assert kwargs["n_orbits"] == 4
-
-    def test_invalid_params_translated(self, mock_family_stack):
+    def test_invalid_params_translated(self, mock_family_design):
         """非法参数经 FamilyGenerationRequest 校验 → OrbitError(INVALID_PARAMS)。"""
         from src.engine.exceptions import OrbitError
 
         with pytest.raises(OrbitError) as exc_info:
             FacadeBridge().generate_family(libration_point=9, max_amplitude_km=20000.0, n_orbits=5)
         assert exc_info.value.code == "INVALID_PARAMS"
+
+    def test_unimplemented_family_translated(self, mock_family_design):
+        from src.engine.exceptions import OrbitError
+
+        with pytest.raises(OrbitError) as exc_info:
+            FacadeBridge().generate_family(orbit_type="NRHO", libration_point=2)
+        assert exc_info.value.code == "NOT_IMPLEMENTED"
 
 
 # ---------------------------------------------------------------------------

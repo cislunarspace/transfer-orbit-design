@@ -390,7 +390,8 @@ class Test2DProjectionPlaneCorrect:
             # 纵轴是 Z：等比默认下被主动扩到横轴的 0.5 倍（~0.6），
             # 而非被 L4/L5 的 Y 撑到 ~1.9（那会远大于横轴 0.5 倍）
             assert ylim_range == pytest.approx(xlim_range * 0.5, rel=0.1), (
-                f"{proj} 纵轴范围 {ylim_range:.3f} 非横轴 {xlim_range:.3f} 的 0.5 倍，疑被平动点 Y 坐标污染"
+                f"{proj} 纵轴范围 {ylim_range:.3f} 非横轴 "
+                f"{xlim_range:.3f} 的 0.5 倍，疑被平动点 Y 坐标污染"
             )
 
 

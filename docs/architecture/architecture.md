@@ -293,13 +293,13 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
 }
 ```
 
-`TOOL_REGISTRY` 从 `e2m2e.api.Facade.mcp_tools()` 自动派生全量清单：已接入的
-工具 enabled；e2m2e 已实现但 GUI 未接入、e2m2e 占位的工具灰显，悬停显示工具
-说明（区分"GUI 尚未接入"与"e2m2e 占位"）。e2m2e 新增工具时 GUI 清单零改动
-跟随。`ToolSpec.description`（工具说明）展示在工具选择器下方。稳定性分析无
-参数面板（右键轨道触发），`enabled=False` 仅表示下拉灰显，右键菜单另行启用。
-轨道族生成使用本地 `FamilyGenerationRequest` 模型（e2m2e 无对应 Request，
-已提上游 issue）。
+`TOOL_REGISTRY` 从 `e2m2e.api.tool_inventory()` 自动派生全量清单及实现状态：
+已接入的工具 enabled；e2m2e 已实现但 GUI 未接入、e2m2e 占位的工具灰显，悬停
+显示相应状态。e2m2e 新增工具时 GUI 清单零改动跟随。`ToolSpec.description`
+（工具说明）展示在工具选择器下方。稳定性分析无参数面板（右键轨道触发），
+`enabled=False` 仅表示下拉灰显，右键菜单另行启用。轨道族生成使用 e2m2e
+公开的 `FamilyGenerationRequest` 模型，GUI 固定 Halo 入口并委托
+`design_halo_family` 完成延拓。
 
 ### 日志面板 `log_panel.py`
 
