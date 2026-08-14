@@ -584,7 +584,7 @@ class MainWindow(QMainWindow):
     def _on_stop_run(self) -> None:
         """请求停止当前任务；同步算法调用返回前不会强制终止线程。"""
         worker = self._worker
-        if worker is None or not worker.isRunning():
+        if worker is None or not self._stop_btn.isEnabled():
             return
         worker.requestInterruption()
         self._stop_requested = True

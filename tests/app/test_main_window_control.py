@@ -274,6 +274,32 @@ class TestStopRun:
         assert window._run_btn.text() == "停止中..."
         assert not window._stop_btn.isEnabled()
 
+    def test_stop_after_worker_exit_drops_pending_control_result(self, qapp):
+        """worker 已退出、完成信号待处理时，停止仍应拦截结果。"""
+        window = _make_window(qapp)
+        worker = MagicMock()
+        worker.isRunning.return_value = False
+        window._worker = worker
+        window._run_btn.setEnabled(False)
+        window._run_btn.setText("运行中...")
+        window._stop_btn.setEnabled(True)
+
+        result = ControlResultData(
+            num_failed=1,
+            sk_statistic_rows=np.empty((0, 3)),
+            maneuvers_mjd_tdb=np.array([]),
+            maneuvers_delta_v_mps=np.array([]),
+            controlled_states=None,
+            controlled_times=None,
+        )
+        window._on_stop_run()
+        with patch("src.app.main_window.save_control_result") as mock_save:
+            window._on_control_finished(result)
+
+        worker.requestInterruption.assert_called_once()
+        mock_save.assert_not_called()
+        assert "运行已停止" in window._status_bar.currentMessage()
+
 
 class TestControlWorkerCancellation:
     def test_cancelled_control_worker_drops_completed_result(self, qapp):
