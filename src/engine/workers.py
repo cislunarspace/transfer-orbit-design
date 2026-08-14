@@ -16,7 +16,19 @@ from src.engine.exceptions import OrbitError
 from src.engine.facade_bridge import FacadeBridge
 
 
-class OrbitDesignWorker(QThread):
+class _CancellableWorker(QThread):
+    """为同步算法调用提供安全的协作式取消边界。"""
+
+    cancelled = pyqtSignal()
+
+    def _emit_cancelled_if_requested(self) -> bool:
+        if not self.isInterruptionRequested():
+            return False
+        self.cancelled.emit()
+        return True
+
+
+class OrbitDesignWorker(_CancellableWorker):
     """在后台线程中执行 e2m2e 轨道设计。
 
     Signals:
@@ -51,6 +63,8 @@ class OrbitDesignWorker(QThread):
                 orbit_type=self._orbit_type,
                 **self._params,
             )
+            if self._emit_cancelled_if_requested():
+                return
 
             self.log.emit(
                 f"设计完成: {data.orbit_type}, "
@@ -61,14 +75,16 @@ class OrbitDesignWorker(QThread):
             self.finished.emit(data)
 
         except OrbitError as e:
-            self.error.emit(f"[{e.code}] {e.message}")
+            if not self._emit_cancelled_if_requested():
+                self.error.emit(f"[{e.code}] {e.message}")
         except Exception as e:
-            # Defensive fallback: FacadeBridge translates all exceptions to OrbitError,
-            # so this branch should theoretically never execute.
-            self.error.emit(f"[UNKNOWN_ERROR] {e}")
+            if not self._emit_cancelled_if_requested():
+                # Defensive fallback: FacadeBridge translates all exceptions to OrbitError,
+                # so this branch should theoretically never execute.
+                self.error.emit(f"[UNKNOWN_ERROR] {e}")
 
 
-class ControlOrbitWorker(QThread):
+class ControlOrbitWorker(_CancellableWorker):
     """后台执行 e2m2e 轨道保持（蒙特卡洛仿真）。
 
     Signals:
@@ -105,6 +121,8 @@ class ControlOrbitWorker(QThread):
                 source_mu=self._source_mu,
                 **self._params,
             )
+            if self._emit_cancelled_if_requested():
+                return
             total_dv = float(np.sum(data.maneuvers_delta_v_mps))
             self.log.emit(
                 f"保持完成: 总Δv={total_dv:.2f} m/s, "
@@ -113,12 +131,14 @@ class ControlOrbitWorker(QThread):
             )
             self.finished.emit(data)
         except OrbitError as e:
-            self.error.emit(f"[{e.code}] {e.message}")
+            if not self._emit_cancelled_if_requested():
+                self.error.emit(f"[{e.code}] {e.message}")
         except Exception as e:
-            self.error.emit(f"[UNKNOWN_ERROR] {e}")
+            if not self._emit_cancelled_if_requested():
+                self.error.emit(f"[UNKNOWN_ERROR] {e}")
 
 
-class FamilyOrbitWorker(QThread):
+class FamilyOrbitWorker(_CancellableWorker):
     """后台执行 e2m2e Halo 轨道族生成（CR3BP 纯计算，无需 SPICE）。
 
     Signals:
@@ -145,6 +165,8 @@ class FamilyOrbitWorker(QThread):
             self.log.emit(f"参数: {self._params}")
             bridge = FacadeBridge()
             data = bridge.generate_family(**self._params)
+            if self._emit_cancelled_if_requested():
+                return
             self.log.emit(
                 f"轨道族生成完成: {data.n_orbits} 条 Halo 轨道"
                 f"（L{data.libration_point}，z 振幅 {data.z0s.min() * DU_KM:.0f}–"
@@ -152,12 +174,14 @@ class FamilyOrbitWorker(QThread):
             )
             self.finished.emit(data)
         except OrbitError as e:
-            self.error.emit(f"[{e.code}] {e.message}")
+            if not self._emit_cancelled_if_requested():
+                self.error.emit(f"[{e.code}] {e.message}")
         except Exception as e:
-            self.error.emit(f"[UNKNOWN_ERROR] {e}")
+            if not self._emit_cancelled_if_requested():
+                self.error.emit(f"[UNKNOWN_ERROR] {e}")
 
 
-class StabilityWorker(QThread):
+class StabilityWorker(_CancellableWorker):
     """后台执行 e2m2e 轨道稳定性分析（CR3BP 纯计算，无需 SPICE）。
 
     Signals:
@@ -187,9 +211,13 @@ class StabilityWorker(QThread):
             self.log.emit("开始稳定性分析...")
             bridge = FacadeBridge()
             data = bridge.analyze_stability(self._states, self._times, self._mu)
+            if self._emit_cancelled_if_requested():
+                return
             self.log.emit("稳定性分析完成")
             self.finished.emit(data)
         except OrbitError as e:
-            self.error.emit(f"[{e.code}] {e.message}")
+            if not self._emit_cancelled_if_requested():
+                self.error.emit(f"[{e.code}] {e.message}")
         except Exception as e:
-            self.error.emit(f"[UNKNOWN_ERROR] {e}")
+            if not self._emit_cancelled_if_requested():
+                self.error.emit(f"[UNKNOWN_ERROR] {e}")

@@ -295,6 +295,8 @@ class MainWindow(QMainWindow):
         self._param_container_layout: QGridLayout | None = None
         self._param_scroll: QScrollArea | None = None
         self._run_btn = QPushButton("运行")  # G1: 非 Optional，_build_right_panel 中配置
+        self._stop_btn = QPushButton("停止")
+        self._stop_btn.setEnabled(False)
         self._reset_btn = QPushButton("重置参数")
 
         # Issue #339: 画布渲染状态（CanvasState）与当前选中 Artifact 集合
@@ -509,12 +511,19 @@ class MainWindow(QMainWindow):
             "QPushButton:hover { background-color: #45a049; }"
         )
         self._run_btn.clicked.connect(self._on_run)
+        self._stop_btn.setStyleSheet(
+            "QPushButton { background-color: #d9534f; color: white; "
+            "font-weight: bold; padding: 8px; border-radius: 4px; }"
+            "QPushButton:hover { background-color: #c9302c; }"
+        )
+        self._stop_btn.clicked.connect(self._on_stop_run)
         # 重置按钮：重建当前工具参数面板（恢复模型默认值 + 轨道类型默认值）
         self._reset_btn.clicked.connect(self._on_reset_params)
         btn_row = QHBoxLayout()
         btn_row.setContentsMargins(0, 0, 0, 0)
         btn_row.addWidget(self._reset_btn, 1)
         btn_row.addWidget(self._run_btn, 2)
+        btn_row.addWidget(self._stop_btn, 1)
         layout.addLayout(btn_row)
 
         # 默认选中第一个 enabled 工具
@@ -547,6 +556,44 @@ class MainWindow(QMainWindow):
         """重置参数：重建当前工具面板（恢复模型默认值 + 轨道类型分支默认值）。"""
         if self._current_tool_key is not None:
             self._build_tool_params(self._current_tool_key)
+
+    def _set_run_controls(self, *, running: bool, stopping: bool = False) -> None:
+        """同步运行、停止、重置和工具选择控件的可用状态。"""
+        self._run_btn.setEnabled(not running)
+        self._run_btn.setText("停止中..." if stopping else "运行中..." if running else "运行")
+        self._stop_btn.setEnabled(running and not stopping)
+        self._reset_btn.setEnabled(not running)
+        self._tool_combo.setEnabled(not running)
+
+    def _apply_control_special_mode(self) -> None:
+        """按当前选中轨道设置特征点模式，Halo/NRHO 使用 xdot=zdot=0。"""
+        source = self._selected_orbit_artifact()
+        widget = self._param_widgets.get("special_mode")
+        if source is None or not isinstance(widget, QComboBox):
+            return
+        orbit_type = str(source.orbit_type or source.extra.get("orbit_type", "")).upper()
+        mode = 2 if orbit_type in {"HALO", "NRHO"} else 1
+        widget.setEnabled(False)
+        index = widget.findData(mode)
+        if index >= 0:
+            widget.setCurrentIndex(index)
+
+    def _on_stop_run(self) -> None:
+        """请求停止当前任务；同步算法调用返回前不会强制终止线程。"""
+        worker = self._worker
+        if worker is None or not worker.isRunning():
+            return
+        worker.requestInterruption()
+        self._set_run_controls(running=True, stopping=True)
+        self._log.append_log("已请求停止，等待当前数值调用返回...")
+        self._status_bar.showMessage("正在停止运行...", _STATUS_MSG_TIMEOUT_MS)
+
+    def _on_worker_cancelled(self) -> None:
+        """当前数值调用返回后丢弃已取消任务的结果。"""
+        self._set_run_controls(running=False)
+        self._worker = None
+        self._log.append_log("运行已停止，结果未保存")
+        self._status_bar.showMessage("运行已停止", _STATUS_MSG_TIMEOUT_MS)
 
     def _add_group_header(self, layout: QGridLayout, title: str, row: int) -> int:
         """在参数面板插入组表头（加粗标题 + 分隔线），返回下一行号。"""
@@ -588,14 +635,15 @@ class MainWindow(QMainWindow):
         if tool_key == "control_orbit":
             # input_ephemeris 由选中 Artifact 注入，不在 UI 暴露；mu 同样由源
             # Artifact 注入（source_mu），面板编辑无效（ControlOrbitRequest 的
-            # mu 仅为响应透传字段，算法层不消费）。control_interval/feedback_arc
-            # 自 e2m2e 5.6.9 起由 Request 模型公开，直接走自动生成路径。
+            # mu 仅为响应透传字段，算法层不消费）。上游默认控制时长面向多年
+            # 星历，覆盖不了 GUI 默认设计的短弧，故在 GUI 层覆盖为短弧默认值。
             for hidden in ("input_ephemeris", "mu"):
                 self._param_widgets.pop(hidden, None)
             for name, default in _CONTROL_ORBIT_GUI_DEFAULTS.items():
                 widget = self._param_widgets.get(name)
                 if isinstance(widget, QDoubleSpinBox):
                     widget.setValue(default)
+            self._apply_control_special_mode()
         elif tool_key == "orbit_family_generation":
             # GUI 当前仅提供 Halo 入口；桥接层会注入 orbit_type="HALO"，避免
             # 复用 design_orbit 的类型下拉把未实现族暴露给用户。
@@ -863,8 +911,7 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage(f"正在设计 {orbit_type}...")
 
         # G1: 运行按钮状态管理
-        self._run_btn.setEnabled(False)
-        self._run_btn.setText("运行中...")
+        self._set_run_controls(running=True)
 
         self._worker = OrbitDesignWorker(
             orbit_type=orbit_type,
@@ -875,6 +922,7 @@ class MainWindow(QMainWindow):
         self._worker.log.connect(self._on_worker_log)
         self._worker.finished.connect(self._on_design_finished)
         self._worker.error.connect(self._on_design_error)
+        self._worker.cancelled.connect(self._on_worker_cancelled)
         self._worker.start()
 
     def _run_control_orbit(self) -> None:
@@ -893,6 +941,7 @@ class MainWindow(QMainWindow):
         model = spec.request_model
         if model is None:
             return
+        self._apply_control_special_mode()
         params = collect_params(self._param_widgets, model)
         params.pop("input_ephemeris", None)  # 防御：理论上已隐藏
 
@@ -921,8 +970,7 @@ class MainWindow(QMainWindow):
         self._log.clear()
         self._log.append_log(f"轨道保持: 源 {source.label}")
         self._status_bar.showMessage("正在仿真轨道保持（蒙特卡洛）...")
-        self._run_btn.setEnabled(False)
-        self._run_btn.setText("运行中...")
+        self._set_run_controls(running=True)
 
         self._worker = ControlOrbitWorker(
             ephemeris_data=ephemeris_data,
@@ -934,6 +982,7 @@ class MainWindow(QMainWindow):
         self._worker.log.connect(self._on_worker_log)
         self._worker.finished.connect(self._on_control_finished)
         self._worker.error.connect(self._on_control_error)
+        self._worker.cancelled.connect(self._on_worker_cancelled)
         self._worker.start()
 
     def _run_family_generation(self) -> None:
@@ -951,19 +1000,18 @@ class MainWindow(QMainWindow):
 
         self._log.clear()
         self._status_bar.showMessage("正在生成 Halo 轨道族...")
-        self._run_btn.setEnabled(False)
-        self._run_btn.setText("运行中...")
+        self._set_run_controls(running=True)
 
         self._worker = FamilyOrbitWorker(params=params, parent=self)
         self._worker.log.connect(self._on_worker_log)
         self._worker.finished.connect(self._on_family_finished)
         self._worker.error.connect(self._on_family_error)
+        self._worker.cancelled.connect(self._on_worker_cancelled)
         self._worker.start()
 
     def _on_family_finished(self, result: FamilyResultData) -> None:
         """族生成完成：落盘 + 建 family Artifact + 画布叠加显示。"""
-        self._run_btn.setEnabled(True)
-        self._run_btn.setText("运行")
+        self._set_run_controls(running=False)
 
         json_path: Path | None = None
         try:
@@ -1002,8 +1050,7 @@ class MainWindow(QMainWindow):
             self._status_bar.showMessage("轨道族生成完成", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_family_error(self, error_msg: str) -> None:
-        self._run_btn.setEnabled(True)
-        self._run_btn.setText("运行")
+        self._set_run_controls(running=False)
         self._log.append_log(f"错误:\n{error_msg}")
         self._status_bar.showMessage("轨道族生成失败", _STATUS_MSG_TIMEOUT_MS)
 
@@ -1100,6 +1147,7 @@ class MainWindow(QMainWindow):
         self._stability_source_label = artifact.label
         self._log.append_log(f"稳定性分析: {artifact.label}")
         self._status_bar.showMessage("正在分析稳定性...")
+        self._set_run_controls(running=True)
         self._worker = StabilityWorker(
             states=artifact.state_data,
             times=artifact.times,
@@ -1109,10 +1157,12 @@ class MainWindow(QMainWindow):
         self._worker.log.connect(self._on_worker_log)
         self._worker.finished.connect(self._on_stability_finished)
         self._worker.error.connect(self._on_stability_error)
+        self._worker.cancelled.connect(self._on_worker_cancelled)
         self._worker.start()
 
     def _on_stability_finished(self, result: StabilityResultData) -> None:
         """稳定性分析完成：落盘 JSON + 弹结果对话框。"""
+        self._set_run_controls(running=False)
         label = getattr(self, "_stability_source_label", "orbit")
         try:
             json_path = save_stability_result(result, OUTPUT_DIR, orbit_label=label)
@@ -1123,6 +1173,7 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage("稳定性分析完成", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_stability_error(self, error_msg: str) -> None:
+        self._set_run_controls(running=False)
         self._log.append_log(f"错误:\n{error_msg}")
         self._status_bar.showMessage("稳定性分析失败", _STATUS_MSG_TIMEOUT_MS)
 
@@ -1213,8 +1264,7 @@ class MainWindow(QMainWindow):
 
     def _on_design_finished(self, result: OrbitDesignResultData) -> None:
         # G1: 恢复按钮状态
-        self._run_btn.setEnabled(True)
-        self._run_btn.setText("运行")
+        self._set_run_controls(running=False)
 
         # Issue #338: 计算结果落盘（JSON 元数据 + NPZ 数组）
         json_path: Path | None = None
@@ -1263,15 +1313,13 @@ class MainWindow(QMainWindow):
 
     def _on_design_error(self, error_msg: str) -> None:
         # G1: 恢复按钮状态
-        self._run_btn.setEnabled(True)
-        self._run_btn.setText("运行")
+        self._set_run_controls(running=False)
 
         self._log.append_log(f"错误:\n{error_msg}")
         self._status_bar.showMessage("设计失败", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_control_finished(self, result: ControlResultData) -> None:
-        self._run_btn.setEnabled(True)
-        self._run_btn.setText("运行")
+        self._set_run_controls(running=False)
 
         json_path: Path | None = None
         try:
@@ -1314,8 +1362,7 @@ class MainWindow(QMainWindow):
             self._status_bar.showMessage("轨道保持完成", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_control_error(self, error_msg: str) -> None:
-        self._run_btn.setEnabled(True)
-        self._run_btn.setText("运行")
+        self._set_run_controls(running=False)
         self._log.append_log(f"错误:\n{error_msg}")
         self._status_bar.showMessage("轨道保持失败", _STATUS_MSG_TIMEOUT_MS)
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -33,7 +33,13 @@ def _make_window(qapp):
         return MainWindow()
 
 
-def _make_orbit_artifact(window, *, with_ephemeris: bool = True, mu: float | None = 0.0123):
+def _make_orbit_artifact(
+    window,
+    *,
+    with_ephemeris: bool = True,
+    mu: float | None = 0.0123,
+    orbit_type: str = "DRO",
+):
     """向 window._project 注入一个 orbit Artifact 并选中它。"""
     from src.model import Artifact
 
@@ -55,6 +61,7 @@ def _make_orbit_artifact(window, *, with_ephemeris: bool = True, mu: float | Non
     artifact = Artifact(
         artifact_type="orbit",
         label="测试 DRO",
+        orbit_type=orbit_type,
         source_tool="design_orbit",
         state_data=np.random.randn(n, 6),
         times=np.linspace(0, 1, n),
@@ -94,6 +101,20 @@ class TestBuildToolParamsControl:
         window = _make_window(qapp)
         _select_control_tool(window)
         assert "mu" not in window._param_widgets
+    @pytest.mark.parametrize(
+        ("orbit_type", "expected_mode"),
+        [("Halo", 2), ("NRHO", 2), ("DRO", 1)],
+    )
+    def test_control_special_mode_matches_selected_orbit_type(
+        self, qapp, orbit_type, expected_mode
+    ):
+        """特征点模式应随选中轨道类型自动设置。"""
+        window = _make_window(qapp)
+        _make_orbit_artifact(window, orbit_type=orbit_type)
+        _select_control_tool(window)
+        widget = window._param_widgets["special_mode"]
+        assert widget.currentData() == expected_mode
+        assert not widget.isEnabled()
 
 
 class TestRunControlValidation:
@@ -177,8 +198,8 @@ class TestRunControlDispatch:
     def test_run_control_blocks_when_sim_exceeds_ephemeris(self, qapp):
         """仿真总时长超出源星历覆盖时应拦截并提示，不启动 worker。
 
-        回归：e2m2e 默认控制间隔 30 天/次 × 119 次 ≈ 3570 天，而 GUI 设计
-        的 Halo 星历默认只有 30 天——控制律目标点全部超出星历覆盖，5 个
+        回归：用户指定上游的多年仿真参数（30 天/次、28 天反馈弧）时，
+        30 天 Halo 星历的控制律目标点会全部超出标称轨道，5 个
         蒙特卡洛样本必然全部失败（Δv=0、无机动）。
         """
         window = _make_window(qapp)
@@ -188,6 +209,8 @@ class TestRunControlDispatch:
         n = 721
         et = np.linspace(7.5e8, 7.5e8 + 30 * 86400, n)
         artifact.extra["ephemeris"]["times_et"] = et
+        window._param_widgets["control_interval"].setValue(30.0)
+        window._param_widgets["feedback_arc"].setValue(28.0)
 
         with patch("src.app.main_window.ControlOrbitWorker") as mock_cls:
             window._on_run()
@@ -210,6 +233,57 @@ class TestRunControlDispatch:
             _, kwargs = mock_cls.call_args
             assert kwargs["params"]["control_interval"] == pytest.approx(0.25)
             assert kwargs["params"]["feedback_arc"] == pytest.approx(0.125)
+
+
+class TestStopRun:
+    def test_stop_run_requests_worker_interruption(self, qapp):
+        """停止按钮应请求当前 worker 中断，并切换为停止中状态。"""
+        window = _make_window(qapp)
+        worker = MagicMock()
+        worker.isRunning.return_value = True
+        window._worker = worker
+        window._run_btn.setEnabled(False)
+        window._run_btn.setText("运行中...")
+        window._stop_btn.setEnabled(True)
+
+        window._on_stop_run()
+
+        worker.requestInterruption.assert_called_once()
+        assert window._run_btn.text() == "停止中..."
+        assert not window._stop_btn.isEnabled()
+
+
+class TestControlWorkerCancellation:
+    def test_cancelled_control_worker_drops_completed_result(self, qapp):
+        """运行中请求停止后，算法返回只发取消信号、不发完成信号。"""
+        from threading import Event
+
+        from src.engine.workers import ControlOrbitWorker
+
+        entered = Event()
+        release = Event()
+        worker = ControlOrbitWorker({}, {}, None)
+        cancelled: list[bool] = []
+        finished: list[object] = []
+        worker.cancelled.connect(lambda: cancelled.append(True))
+        worker.finished.connect(finished.append)
+
+        def control_orbit(*_args, **_kwargs):
+            entered.set()
+            assert release.wait(timeout=1)
+            return MagicMock()
+
+        with patch("src.engine.workers.FacadeBridge") as bridge_cls:
+            bridge_cls.return_value.control_orbit.side_effect = control_orbit
+            worker.start()
+            assert entered.wait(timeout=1)
+            worker.requestInterruption()
+            release.set()
+            assert worker.wait(1000)
+
+        qapp.processEvents()
+        assert cancelled == [True]
+        assert finished == []
 
 
 class TestOnControlFinished:
