@@ -195,21 +195,21 @@ class TestRunControlDispatch:
         log_text = window._log.toPlainText()
         assert "超出" in log_text and "控制间隔" in log_text
 
-    def test_run_control_allows_params_within_ephemeris(self, qapp):
-        """控制间隔/次数与星历覆盖匹配时正常启动 worker。"""
+    def test_run_control_defaults_support_short_ephemeris(self, qapp):
+        """GUI 短弧默认值应让 30 天标称星历直接启动控制仿真。"""
         window = _make_window(qapp)
         _select_control_tool(window)
         artifact = _make_orbit_artifact(window, with_ephemeris=True, mu=EARTH_MOON_MU)
         n = 721
         et = np.linspace(7.5e8, 7.5e8 + 30 * 86400, n)
         artifact.extra["ephemeris"]["times_et"] = et
-        # 覆盖内参数：0.25 天/次 × 119 + 0.125 天反馈 ≈ 29.9 天 < 30 天
-        window._param_widgets["control_interval"].setValue(0.25)
-        window._param_widgets["feedback_arc"].setValue(0.125)
 
         with patch("src.app.main_window.ControlOrbitWorker") as mock_cls:
             window._on_run()
             mock_cls.assert_called_once()
+            _, kwargs = mock_cls.call_args
+            assert kwargs["params"]["control_interval"] == pytest.approx(0.25)
+            assert kwargs["params"]["feedback_arc"] == pytest.approx(0.125)
 
 
 class TestOnControlFinished:

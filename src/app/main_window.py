@@ -82,6 +82,13 @@ _RIGHT_PANEL_TOOL_COMBO_LABEL = "选择工具"
 # 状态栏消息自动消失时长（毫秒）
 _STATUS_MSG_TIMEOUT_MS = 5000
 
+# 上游控制器默认覆盖多年星历；GUI 的轨道设计默认输出短弧，因此首次轨道保持
+# 使用已验证可覆盖 30 天标称星历的参数。用户仍可在面板中按任务需求调整。
+_CONTROL_ORBIT_GUI_DEFAULTS = {
+    "control_interval": 0.25,
+    "feedback_arc": 0.125,
+}
+
 
 def _get_default_tool_key() -> str | None:
     """返回第一个 enabled 工具的 key，若无则 None。"""
@@ -585,6 +592,10 @@ class MainWindow(QMainWindow):
             # 自 e2m2e 5.6.9 起由 Request 模型公开，直接走自动生成路径。
             for hidden in ("input_ephemeris", "mu"):
                 self._param_widgets.pop(hidden, None)
+            for name, default in _CONTROL_ORBIT_GUI_DEFAULTS.items():
+                widget = self._param_widgets.get(name)
+                if isinstance(widget, QDoubleSpinBox):
+                    widget.setValue(default)
         elif tool_key == "orbit_family_generation":
             # GUI 当前仅提供 Halo 入口；桥接层会注入 orbit_type="HALO"，避免
             # 复用 design_orbit 的类型下拉把未实现族暴露给用户。

@@ -185,14 +185,14 @@ class TestResetButton:
         assert params["amplitude"] == pytest.approx(60000.0)
 
     def test_reset_control_restores_interval(self, qapp):
-        """control_orbit 面板重置后补充字段恢复默认（30/28 天）。"""
+        """control_orbit 面板重置后恢复 GUI 短弧默认（0.25/0.125 天）。"""
         window = _make_window(qapp)
         idx = window._tool_combo.findData("control_orbit")
         window._tool_combo.setCurrentIndex(idx)
-        sb = window._param_rows["control_interval"][1]
-        sb.setValue(1.0)
+        window._param_rows["control_interval"][1].setValue(1.0)
+        window._param_rows["feedback_arc"][1].setValue(2.0)
 
         window._on_reset_params()
 
-        sb = window._param_rows["control_interval"][1]
-        assert sb.value() == pytest.approx(30.0)
+        assert window._param_rows["control_interval"][1].value() == pytest.approx(0.25)
+        assert window._param_rows["feedback_arc"][1].value() == pytest.approx(0.125)
