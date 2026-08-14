@@ -381,6 +381,20 @@ class OrbitCanvas(FigureCanvasQTAgg):
             else:
                 # 非等比：每轴独立 autoscale 填满画面，Z 细节清晰可见。
                 ax.set_aspect("auto")
+        self._add_legend(ax)
+
+    def _add_legend(self, ax) -> None:
+        """为已标记的轨迹和天体自动生成图例。"""
+        handles, labels = ax.get_legend_handles_labels()
+        if not handles:
+            return
+        ax.legend(
+            handles,
+            labels,
+            loc="upper left",
+            fontsize=max(self._chart.label_fontsize - 1, 6),
+            ncol=2 if len(labels) > 4 else 1,
+        )
 
     # -- 内部绘制 ----------------------------------------------------------
 

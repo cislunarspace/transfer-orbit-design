@@ -150,6 +150,9 @@ class TestOrbitCanvasRender:
         ax = canvas._fig.axes[0]
         lines = [c for c in ax.get_children() if isinstance(c, Line3D)]
         assert len(lines) == 1
+        legend = ax.get_legend()
+        assert legend is not None
+        assert [text.get_text() for text in legend.get_texts()] == ["DRO"]
 
     def test_render_multiple_artifacts_tab10_colors(self, qapp):
         """两条轨道颜色不同（tab10 分配）。"""
