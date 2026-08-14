@@ -116,6 +116,17 @@ class TestBuildToolParamsControl:
         assert widget.currentData() == expected_mode
         assert not widget.isEnabled()
 
+    def test_context_control_updates_special_mode(self, qapp):
+        """已在轨道保持工具时，右键切换 Halo 也应立即更新模式。"""
+        window = _make_window(qapp)
+        _select_control_tool(window)
+        halo = _make_orbit_artifact(window, orbit_type="Halo")
+
+        window._trigger_control_orbit_from_tree([halo.artifact_id])
+
+        assert window._selected_artifact_ids == [halo.artifact_id]
+        assert window._param_widgets["special_mode"].currentData() == 2
+
     def test_artifact_click_updates_control_special_mode(self, qapp):
         """控制面板已打开时，单击 Halo 应立即更新特征点模式。"""
         window = _make_window(qapp)

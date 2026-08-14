@@ -1141,6 +1141,8 @@ class MainWindow(QMainWindow):
             if self._tool_combo.itemData(i) == "control_orbit":
                 self._tool_combo.setCurrentIndex(i)
                 break
+        if self._current_tool_key == "control_orbit":
+            self._apply_control_special_mode()
         self._status_bar.showMessage("已选中轨道，调整参数后点运行", _STATUS_MSG_TIMEOUT_MS)
 
     def _trigger_stability_from_tree(self, artifact_ids: list[str]) -> None:
