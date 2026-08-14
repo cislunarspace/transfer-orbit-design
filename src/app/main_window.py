@@ -285,6 +285,7 @@ class MainWindow(QMainWindow):
         self._worker: (
             OrbitDesignWorker | ControlOrbitWorker | FamilyOrbitWorker | StabilityWorker | None
         ) = None
+        self._stop_requested = False
         self._current_tool_key: str | None = None
         self._param_widgets: dict[str, QWidget] = {}
         self._param_rows: dict[str, tuple[QLabel, QWidget, QComboBox | None]] = {}
@@ -559,6 +560,8 @@ class MainWindow(QMainWindow):
 
     def _set_run_controls(self, *, running: bool, stopping: bool = False) -> None:
         """同步运行、停止、重置和工具选择控件的可用状态。"""
+        if running and not stopping:
+            self._stop_requested = False
         self._run_btn.setEnabled(not running)
         self._run_btn.setText("停止中..." if stopping else "运行中..." if running else "运行")
         self._stop_btn.setEnabled(running and not stopping)
@@ -584,12 +587,21 @@ class MainWindow(QMainWindow):
         if worker is None or not worker.isRunning():
             return
         worker.requestInterruption()
+        self._stop_requested = True
         self._set_run_controls(running=True, stopping=True)
         self._log.append_log("已请求停止，等待当前数值调用返回...")
         self._status_bar.showMessage("正在停止运行...", _STATUS_MSG_TIMEOUT_MS)
 
+    def _consume_stop_request(self) -> bool:
+        """在完成或报错信号处理前消费停止请求，阻止结果副作用。"""
+        if not self._stop_requested:
+            return False
+        self._on_worker_cancelled()
+        return True
+
     def _on_worker_cancelled(self) -> None:
         """当前数值调用返回后丢弃已取消任务的结果。"""
+        self._stop_requested = False
         self._set_run_controls(running=False)
         self._worker = None
         self._log.append_log("运行已停止，结果未保存")
@@ -853,6 +865,8 @@ class MainWindow(QMainWindow):
             self._warn_missing_mu(artifact)
             self._warn_missing_ephemeris(artifact)
             self._selected_artifact_ids = [artifact_id]
+            if self._current_tool_key == "control_orbit":
+                self._apply_control_special_mode()
             self._update_plot_content_controls()
             self._render_canvas()
 
@@ -1011,6 +1025,8 @@ class MainWindow(QMainWindow):
 
     def _on_family_finished(self, result: FamilyResultData) -> None:
         """族生成完成：落盘 + 建 family Artifact + 画布叠加显示。"""
+        if self._consume_stop_request():
+            return
         self._set_run_controls(running=False)
 
         json_path: Path | None = None
@@ -1050,6 +1066,8 @@ class MainWindow(QMainWindow):
             self._status_bar.showMessage("轨道族生成完成", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_family_error(self, error_msg: str) -> None:
+        if self._consume_stop_request():
+            return
         self._set_run_controls(running=False)
         self._log.append_log(f"错误:\n{error_msg}")
         self._status_bar.showMessage("轨道族生成失败", _STATUS_MSG_TIMEOUT_MS)
@@ -1162,6 +1180,8 @@ class MainWindow(QMainWindow):
 
     def _on_stability_finished(self, result: StabilityResultData) -> None:
         """稳定性分析完成：落盘 JSON + 弹结果对话框。"""
+        if self._consume_stop_request():
+            return
         self._set_run_controls(running=False)
         label = getattr(self, "_stability_source_label", "orbit")
         try:
@@ -1173,6 +1193,8 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage("稳定性分析完成", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_stability_error(self, error_msg: str) -> None:
+        if self._consume_stop_request():
+            return
         self._set_run_controls(running=False)
         self._log.append_log(f"错误:\n{error_msg}")
         self._status_bar.showMessage("稳定性分析失败", _STATUS_MSG_TIMEOUT_MS)
@@ -1263,6 +1285,8 @@ class MainWindow(QMainWindow):
         self._log.append_log(msg)
 
     def _on_design_finished(self, result: OrbitDesignResultData) -> None:
+        if self._consume_stop_request():
+            return
         # G1: 恢复按钮状态
         self._set_run_controls(running=False)
 
@@ -1312,6 +1336,8 @@ class MainWindow(QMainWindow):
             self._status_bar.showMessage(f"{result.orbit_type} 设计完成", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_design_error(self, error_msg: str) -> None:
+        if self._consume_stop_request():
+            return
         # G1: 恢复按钮状态
         self._set_run_controls(running=False)
 
@@ -1319,6 +1345,8 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage("设计失败", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_control_finished(self, result: ControlResultData) -> None:
+        if self._consume_stop_request():
+            return
         self._set_run_controls(running=False)
 
         json_path: Path | None = None
@@ -1362,6 +1390,8 @@ class MainWindow(QMainWindow):
             self._status_bar.showMessage("轨道保持完成", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_control_error(self, error_msg: str) -> None:
+        if self._consume_stop_request():
+            return
         self._set_run_controls(running=False)
         self._log.append_log(f"错误:\n{error_msg}")
         self._status_bar.showMessage("轨道保持失败", _STATUS_MSG_TIMEOUT_MS)

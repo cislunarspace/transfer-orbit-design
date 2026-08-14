@@ -116,6 +116,17 @@ class TestBuildToolParamsControl:
         assert widget.currentData() == expected_mode
         assert not widget.isEnabled()
 
+    def test_artifact_click_updates_control_special_mode(self, qapp):
+        """控制面板已打开时，单击 Halo 应立即更新特征点模式。"""
+        window = _make_window(qapp)
+        _make_orbit_artifact(window, orbit_type="DRO")
+        _select_control_tool(window)
+        halo = _make_orbit_artifact(window, orbit_type="Halo")
+
+        window._on_artifact_clicked(halo.artifact_id)
+
+        assert window._param_widgets["special_mode"].currentData() == 2
+
 
 class TestRunControlValidation:
     def test_run_control_without_selection_shows_status(self, qapp):
@@ -315,6 +326,18 @@ class TestOnControlFinished:
         assert a.extra["num_failed"] == 1
         assert a.extra["n_maneuvers"] == 2
         assert a.extra["total_delta_v_mps"] == pytest.approx(0.8)
+
+    def test_on_control_finished_after_stop_drops_result(self, qapp):
+        """停止请求先到达时，迟到的完成信号不得落盘或注册结果。"""
+        window = _make_window(qapp)
+        window._stop_requested = True
+
+        with patch("src.app.main_window.save_control_result") as mock_save:
+            window._on_control_finished(self._make_result())
+
+        mock_save.assert_not_called()
+        assert not [a for a in window._project.artifacts if a.artifact_type == "ephemeris"]
+        assert "运行已停止" in window._status_bar.currentMessage()
 
     def test_on_control_finished_extra_contains_position_and_times_et(self, qapp):
         """_on_control_finished 应把 result.position_km/times_et 写入 Artifact.extra。"""
