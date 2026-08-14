@@ -607,6 +607,21 @@ class MainWindow(QMainWindow):
         self._log.append_log("运行已停止，结果未保存")
         self._status_bar.showMessage("运行已停止", _STATUS_MSG_TIMEOUT_MS)
 
+    def _has_active_task(self) -> bool:
+        """任务尚在运行、停止等待或完成信号排队时均视为活跃。"""
+        worker = self._worker
+        return worker is not None and (
+            worker.isRunning() or self._stop_requested or self._stop_btn.isEnabled()
+        )
+
+    def _reject_if_task_active(self) -> bool:
+        if not self._has_active_task():
+            return False
+        self._status_bar.showMessage(
+            "已有任务运行，请等待完成或停止当前任务", _STATUS_MSG_TIMEOUT_MS
+        )
+        return True
+
     def _add_group_header(self, layout: QGridLayout, title: str, row: int) -> int:
         """在参数面板插入组表头（加粗标题 + 分隔线），返回下一行号。"""
         header = QLabel(title)
@@ -885,6 +900,8 @@ class MainWindow(QMainWindow):
         self._render_canvas()
 
     def _on_run(self) -> None:
+        if self._reject_if_task_active():
+            return
         tool_key = self._current_tool_key
         spec = TOOL_REGISTRY.get(tool_key) if tool_key else None
         if spec is None or not spec.enabled or spec.request_model is None:
@@ -1128,7 +1145,7 @@ class MainWindow(QMainWindow):
 
         不自动运行（给用户在参数面板调参的机会），与 #348 工具选择器范式一致。
         """
-        if not artifact_ids:
+        if self._reject_if_task_active() or not artifact_ids:
             return
         orbit_id = artifact_ids[0]
         artifact = self._project.get_by_id(orbit_id)
@@ -1151,7 +1168,7 @@ class MainWindow(QMainWindow):
         稳定性分析用 CR3BP 周期轨道（Artifact.state_data），无需 SPICE。
         mu 缺失（旧 Artifact）时由 FacadeBridge 用默认地月系统兜底。
         """
-        if not artifact_ids:
+        if self._reject_if_task_active() or not artifact_ids:
             return
         orbit_id = artifact_ids[0]
         artifact = self._project.get_by_id(orbit_id)

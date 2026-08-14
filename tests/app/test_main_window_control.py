@@ -300,6 +300,22 @@ class TestStopRun:
         mock_save.assert_not_called()
         assert "运行已停止" in window._status_bar.currentMessage()
 
+    def test_stability_does_not_overwrite_active_worker(self, qapp):
+        """已有任务运行时，右键稳定性分析不得覆盖当前 worker。"""
+        window = _make_window(qapp)
+        artifact = _make_orbit_artifact(window, with_ephemeris=False)
+        active_worker = MagicMock()
+        active_worker.isRunning.return_value = True
+        window._worker = active_worker
+        window._stop_btn.setEnabled(True)
+
+        with patch("src.app.main_window.StabilityWorker") as stability_cls:
+            window._trigger_stability_from_tree([artifact.artifact_id])
+
+        stability_cls.assert_not_called()
+        assert window._worker is active_worker
+        assert "已有任务运行" in window._status_bar.currentMessage()
+
 
 class TestControlWorkerCancellation:
     def test_cancelled_control_worker_drops_completed_result(self, qapp):
