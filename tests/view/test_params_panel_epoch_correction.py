@@ -4,7 +4,7 @@
 元组默认值 str() 成 "(2024, 1, 1, 0, 0, 0.0)"，收集时按字符串传给 e2m2e 的
 spice.str2et 导致解析失败（所有轨道类型设计失败）。修复为 6 个 spinbox，
 收集成 [年,月,日,时,分,秒] list，可直接被 _epoch_to_iso 格式化。
-correction_method 由 str 文本框改为 QComboBox 下拉（standard/two_level/homotopy）。
+correction_method 由 str 文本框改为 QComboBox 下拉（standard/two_level）。
 """
 
 from __future__ import annotations
@@ -150,13 +150,13 @@ class TestCorrectionMethod:
         assert isinstance(widgets["correction_method"], QComboBox)
 
     def test_correction_method_options(self, qapp):
-        """下拉项应为 standard / two_level / homotopy。"""
+        """下拉项应为 standard / two_level。"""
         from src.view.params_panel import build_params_from_model
 
         widgets = build_params_from_model(DesignOrbitRequest)
         combo = widgets["correction_method"]
         items = [combo.itemText(i) for i in range(combo.count())]
-        assert items == ["standard", "two_level", "homotopy"]
+        assert items == ["standard", "two_level"]
 
     def test_correction_method_default(self, qapp):
         """默认选中 two_level。"""

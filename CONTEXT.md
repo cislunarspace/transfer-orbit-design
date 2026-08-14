@@ -49,7 +49,7 @@ _Avoid_: 每轨道分散输出、只保存成功项
 当前支持的星历转换方法类型：
 - **标准多重打靶** (`standard`)：单层多重打靶修正，直接以完整星历模型为约束进行迭代。
 - **两级多重打靶** (`two_level`)：先修正位置使位置约束满足，再进行第二阶段修正使位置和速度同时满足约束（默认方法，GUI 显示为"两阶段法"）。
-- **同伦过渡** (`homotopy`)：通过天体分组策略逐步引入摄动，构造从简化模型到完整星历模型的光滑过渡路径。
+- **分段打靶拼接** (`segmented`)：对 Halo/NRHO 由算法自动选用，逐段修正并拼接，避免不稳定轨道自由外推发散。
 
 _Avoid_: 星历数据源、目标天体历表、固定不可选算法
 
@@ -70,7 +70,7 @@ GUI 中用户可以直接运行的一项操作入口，例如轨道设计、轨�
 _Avoid_: 脚本（实现细节）、模块（代码结构）、命令（只描述执行形式）
 
 **工具注册**:
-`src/engine/facade_bridge.py` 中 `TOOL_REGISTRY` 字典声明的工具元数据（`ToolSpec`：绑定的 Pydantic Request 模型、facade 方法名、UI 标签、工具说明、启用状态）。工具清单从 e2m2e facade 的 `mcp_tools()` 自动派生：已接入的工具启用，e2m2e 已实现但 GUI 未接入、e2m2e 占位的工具灰显（悬停显示工具说明，区分"GUI 尚未接入"与"e2m2e 占位"），e2m2e 新增工具时清单零改动跟随。GUI 启动时按注册表渲染工具选择器与参数面板。
+`src/engine/facade_bridge.py` 中 `TOOL_REGISTRY` 字典声明的工具元数据（`ToolSpec`：绑定的 Pydantic Request 模型、facade 方法名、UI 标签、工具说明、启用状态）。工具清单与实现状态从 e2m2e facade 的 `tool_inventory()` 自动派生：已接入的工具启用，e2m2e 已实现但 GUI 未接入、e2m2e 占位的工具灰显并在悬停时说明状态。e2m2e 新增工具时 GUI 清单零改动跟随。GUI 启动时按注册表渲染工具选择器与参数面板。
 _Avoid_: 脚本（实现细节）、镜像文件、脚本入口（容易与 `if __name__ == "__main__"` 混淆）
 
 **轨道设计** (`design_orbit`):
@@ -82,7 +82,7 @@ _Avoid_: 生成单条轨道（CLI 脚本概念）、脚本
 _Avoid_: 轨道设计、脚本
 
 **轨道族生成** (`orbit_family_generation`):
-新 GUI 的轨道族生成工具，经 `TOOL_REGISTRY` 注册并绑定本地 `FamilyGenerationRequest` 模型（e2m2e 无对应 Request）。第一版仅支持 Halo 北族：从 0.001 DU 小振幅种子出发，固定 z0 逐步修正延拓到目标最大面外振幅（L2 折叠点前自动终止）；其余轨道类型在 e2m2e 只有单条设计函数、无族延拓接口，故不提供族类型选择。结果以 family Artifact（`output/family/`，NPZ 存 `(m, n, 6)` 三维数组）落盘，画布按成员逐条叠加渲染。
+新 GUI 的轨道族生成工具，经 `TOOL_REGISTRY` 注册并绑定 e2m2e 公开的 `FamilyGenerationRequest` 模型。GUI 固定 Halo 北族入口，桥接层补入 `orbit_type="HALO"`，再委托 e2m2e `design_halo_family` 从小振幅种子延拓到目标振幅或折叠点；上游模型按平动点校验振幅范围。其余族类型在上游模型中预留但尚未实现，GUI 不提供选择。结果以 family Artifact（`output/family/`，NPZ 存 `(m, n, 6)` 三维数组）落盘，画布按成员逐条叠加渲染。
 _Avoid_: 单条轨道设计（那是 `design_orbit`）、批量并发跑多条单轨道
 
 **稳定性分析** (`orbit_stability`):

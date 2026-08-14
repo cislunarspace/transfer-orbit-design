@@ -66,17 +66,6 @@ class TestTranslatePropagationNewContract:
         assert "STAGNATION_DETECTED" in err.message
 
 
-class TestTranslateUnsupportedCorrectorMethod:
-    def test_translate_unsupported_corrector(self):
-        from e2m2e.algorithm.ephemeris_correction.types import (
-            UnsupportedCorrectorMethodError,
-        )
-
-        raw = UnsupportedCorrectorMethodError("bad_method", ["two_level", "simple"])
-        err = translate_exception(raw)
-        assert err.code == "INVALID_CORRECTION_METHOD"
-        assert err.cause is raw
-
 
 class TestTranslateBuiltins:
     def test_translate_value_error(self):

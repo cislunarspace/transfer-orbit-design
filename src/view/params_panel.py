@@ -128,11 +128,10 @@ ORBIT_TYPE_FIELDS: dict[str, set[str]] = {
 #: 避免误伤其它 Any 字段（如 control_orbit 的 input_ephemeris）。
 _EPOCH_FIELD = "epoch"
 
-#: correction_method 下拉取值，须对齐 e2m2e
-#: ``algorithm/ephemeris_correction/__init__.py::_REGISTRY`` 的键。
-#: 注：segmented 由 e2m2e 对 Halo/NRHO 自动选用（design_orbit 内部路径），
-#: 不在此暴露——用户选 two_level/standard 时不稳定轨道会被自动重定向。
-CORRECTION_METHOD_OPTIONS: tuple[str, ...] = ("standard", "two_level", "homotopy")
+#: correction_method 下拉取值，对齐 e2m2e DesignOrbitRequest 的公开契约。
+#: segmented 由 e2m2e 对 Halo/NRHO 自动选用（design_orbit 内部路径），不在此
+#: 暴露；用户选 two_level/standard 时不稳定轨道会被自动重定向。
+CORRECTION_METHOD_OPTIONS: tuple[str, ...] = ("standard", "two_level")
 
 #: str 枚举类字段 -> 下拉选项（现仅 correction_method）。
 _STR_ENUM_FIELDS: dict[str, tuple[str, ...]] = {
@@ -163,6 +162,7 @@ _INT_COMBO_OPTIONS: dict[str, tuple[tuple[int, str], ...]] = {
 _INT_RANGE_OVERRIDES: dict[str, tuple[int, int]] = {
     "num_controls": (1, 10000),
     "num_monte_carlo": (1, 1000),
+    "n_orbits": (1, 100),
 }
 
 #: epoch 6 个 spinbox 的取值范围；is_int=True -> QSpinBox，False -> QDoubleSpinBox。
@@ -302,8 +302,12 @@ FIELD_UNIT_OPTIONS: dict[str, tuple[UnitOption, ...]] = {
 #: 填秒级默认）；GUI 仍展示 1 年短弧默认（issue #355），main_window 再覆盖到 1 月。
 #: 此处默认值单位为年（FIELD_UNIT_OPTIONS["duration"] 的标准单位），facade
 #: 构造 request 时换算成秒。
-_OPTIONAL_FIELD_GUI_DEFAULTS: dict[str, float] = {
+_OPTIONAL_FIELD_GUI_DEFAULTS: dict[str, float | int] = {
     "duration": 1.0,
+    # FamilyGenerationRequest 的 Halo 默认值由上游模型在 None 时填充；GUI 直接
+    # 展示同一组默认值，避免 Optional 包装把常用参数显示为空。
+    "libration_point": 2,
+    "max_amplitude_km": 30000.0,
 }
 
 # Qt 动态属性名：控件用 setProperty 存单位状态。拼错会静默破坏换算，故提为常量。
@@ -506,26 +510,6 @@ def _standard_value_of(sb: QDoubleSpinBox, fallback_factor: float) -> float:
     return float(sb.value()) * fallback_factor
 
 
-def attach_unit_state(sb: QDoubleSpinBox, field_name: str) -> None:
-    """给模型外补充字段（如 control_interval）的 spinbox 写入单位状态。
-
-    补充字段由调用方（main_window）手工创建，未经模型自动生成路径，故需手动
-    记录标准单位范围/当前单位并生成范围占位提示，collect 时才能按显示单位换算。
-    """
-    options = get_field_units(field_name)
-    if options is None:
-        return
-    std = options[0]
-    sb.setProperty(_STD_MIN_ATTR, float(sb.minimum()))
-    sb.setProperty(_STD_MAX_ATTR, float(sb.maximum()))
-    sb.setProperty(_UNIT_ATTR, std.label)
-    sb.setDecimals(std.decimals)
-    sb.setSingleStep(std.step)
-    # 补充字段无模型约束，范围是 GUI 兜底（e2m2e 未暴露该字段，已提 issue）
-    sb.setProperty(_BOUNDS_ATTR, (True, True, "模型未暴露该字段，GUI 临时", False, False))
-    _apply_range_hint(sb, field_name)
-
-
 # ---------------------------------------------------------------------------
 # 范围占位提示
 # ---------------------------------------------------------------------------
@@ -609,14 +593,14 @@ def _make_float_field(field_name: str, field: Any, meta: dict[str, Any]) -> QDou
     elif "lt" in meta:
         widget.setMaximum(float(meta["lt"]) - 1e-8)
     widget.setSingleStep(1.0)
-    if field.default is not None and field.default is not ...:
+    # 无上界约束时 Qt 默认 max=99.99 过小；Optional 字段也可能在 GUI 填入
+    # 默认值或用户值，故不能只在模型 default 非 None 时扩上界。
+    if not has_upper:
+        widget.setMaximum(1e12)
+    if not field.is_required() and field.default is not None:
         default = float(field.default)
-        # 无上界约束时 Qt 默认 max=99.99 过小：用大值（与 _make_list_float_field
-        # 的 ±1e12 一致），仅在默认值更大时再扩（实际不会触发）。
         # 有上界约束时仍保留"扩 max 容纳默认值"的兜底。
-        if not has_upper:
-            widget.setMaximum(max(1e12, default))
-        elif default > widget.maximum():
+        if has_upper and default > widget.maximum():
             widget.setMaximum(default)
         widget.setValue(default)
     elif widget.minimum() <= 0.0 <= widget.maximum():
@@ -662,7 +646,7 @@ def _make_int_field(field_name: str, field: Any, meta: dict[str, Any]) -> QSpinB
             widget.setMaximum(override[1])
             has_upper = True
         note = "部分边界模型未声明，GUI 临时"
-    if field.default is not None and field.default is not ...:
+    if not field.is_required() and field.default is not None:
         default = int(field.default)
         # 无上界约束时 Qt 默认 max=99，扩到能容纳默认值
         if default > widget.maximum():
@@ -679,7 +663,7 @@ def _make_int_combo(field: Any, options: tuple[tuple[int, str], ...]) -> QComboB
     combo = QComboBox()
     for value, text in options:
         combo.addItem(text, value)
-    if field.default is not None and field.default is not ...:
+    if not field.is_required() and field.default is not None:
         idx = combo.findData(int(field.default))
         if idx >= 0:
             combo.setCurrentIndex(idx)
@@ -688,7 +672,7 @@ def _make_int_combo(field: Any, options: tuple[tuple[int, str], ...]) -> QComboB
 
 def _make_str_field(field: Any) -> QLineEdit:
     widget = QLineEdit()
-    if field.default is not None and field.default is not ...:
+    if not field.is_required() and field.default is not None:
         widget.setText(str(field.default))
     return widget
 
@@ -697,7 +681,7 @@ def _make_combo_from_literal(tp: Any, field: Any) -> QComboBox:
     widget = QComboBox()
     values = [str(v) for v in typing.get_args(tp)]
     widget.addItems(values)
-    if field.default is not None and field.default is not ...:
+    if not field.is_required() and field.default is not None:
         idx = values.index(str(field.default)) if str(field.default) in values else 0
         widget.setCurrentIndex(idx)
     return widget
@@ -809,7 +793,7 @@ def _make_str_enum_combo(field: Any, options: tuple[str, ...]) -> QComboBox:
     """str 枚举字段 -> QComboBox，选中项对齐字段默认值。"""
     combo = QComboBox()
     combo.addItems(list(options))
-    if field.default is not None and field.default is not ...:
+    if not field.is_required() and field.default is not None:
         default = str(field.default)
         if default in options:
             combo.setCurrentIndex(options.index(default))
@@ -862,7 +846,7 @@ def _make_field_widget(field_name: str, field: Any) -> QWidget | None:
         # 无注解局部变量承接：pyright 对 PyQt6 类型不做赋值收窄（已知限制），
         # 带 `| None` 注解的 base_widget 赋值后仍视为可为 None，故换名新建。
         line_edit = QLineEdit()
-        if field.default is not None and field.default is not ...:
+        if not field.is_required() and field.default is not None:
             line_edit.setText(str(field.default))
         base_widget = line_edit
 
@@ -879,6 +863,12 @@ def _make_field_widget(field_name: str, field: Any) -> QWidget | None:
         if gui_default is not None:
             if isinstance(base_widget, QDoubleSpinBox):
                 base_widget.setValue(float(gui_default))
+            elif isinstance(base_widget, QSpinBox):
+                base_widget.setValue(int(gui_default))
+            elif isinstance(base_widget, QComboBox):
+                index = base_widget.findData(int(gui_default))
+                if index >= 0:
+                    base_widget.setCurrentIndex(index)
             return base_widget
         return _make_optional_wrapper(base_widget, field)
 
@@ -1105,16 +1095,15 @@ def _read_widget_value(name: str, field: Any, widget: QWidget) -> Any:
 def collect_params(widgets: dict[str, QWidget], model_class: type) -> dict[str, Any]:
     """从控件字典收集参数值，返回可传给 FacadeBridge 的 dict。
 
-    ``model_class`` 用于查找字段类型以做正确转换。控件字典可能含模型未暴露
-    的补充字段（如 control_orbit 的 control_interval/feedback_arc，模型是
-    算法函数参数的子集），按控件类型直接取值。
+    ``model_class`` 用于查找字段类型以做正确转换。控件字典若含模型外字段，
+    按控件类型直接取值。
     """
     params: dict[str, Any] = {}
     for name, widget in widgets.items():
         field = model_class.model_fields.get(name)
         if field is None:
-            # 补充字段（模型未暴露，如 control_interval/feedback_arc）：按控件
-            # 类型取值；可切换单位字段按 FIELD_UNIT_OPTIONS 换算为标准单位。
+            # 模型外字段按控件类型取值；可切换单位字段按 FIELD_UNIT_OPTIONS
+            # 换算为标准单位。
             opt = _current_unit_option(name, widget)
             if isinstance(widget, QDoubleSpinBox) and opt is not None:
                 params[name] = _standard_value_of(widget, opt.to_standard)

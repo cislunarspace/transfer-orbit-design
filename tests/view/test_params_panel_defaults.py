@@ -86,7 +86,7 @@ _EXPECTED_FIELDS: dict[str, set[str]] = {
 
 # 所有类型共享的通用字段（模型自带默认值，不属于任何 orbit_type 分支）。
 # 5.6.5 新增一批通用修正/摄动参数（earth_degree/moon_degree/perturbation/dyb/
-# correction_revolutions/correction_velocity_tolerance），它们不随 orbit_type 变化，
+# correction_revolutions；5.6.9 已删除 correction_velocity_tolerance），它们不随 orbit_type 变化，
 # 归入此处由守卫排除；duration 5.6.5 改 Optional 但仍是通用字段。
 _COMMON_FIELDS = {
     "orbit_type",
@@ -99,7 +99,6 @@ _COMMON_FIELDS = {
     "perturbation",
     "dyb",
     "correction_revolutions",
-    "correction_velocity_tolerance",
 }
 
 

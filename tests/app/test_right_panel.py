@@ -95,11 +95,19 @@ class TestParamGroups:
         assert set(window._group_headers) == {"形状参数", "传播参数", "修正参数"}
 
     def test_control_groups(self, qapp):
-        """control_orbit 面板含 控制参数/仿真与误差/角动量管理 组表头。"""
+        """control_orbit 面板按控制、误差、力模型与角动量管理分组。"""
         window = _make_window(qapp)
         idx = window._tool_combo.findData("control_orbit")
         window._tool_combo.setCurrentIndex(idx)
-        assert set(window._group_headers) == {"控制参数", "仿真与误差", "角动量管理"}
+        assert set(window._group_headers) == {"控制参数", "仿真与误差", "力模型", "角动量管理"}
+
+    def test_family_hides_unimplemented_orbit_type(self, qapp):
+        """上游模型虽预留多族类型，GUI 只展示已接入的 Halo 参数。"""
+        window = _make_window(qapp)
+        idx = window._tool_combo.findData("orbit_family_generation")
+        window._tool_combo.setCurrentIndex(idx)
+        assert set(window._param_widgets) == {"libration_point", "max_amplitude_km", "n_orbits"}
+        assert set(window._group_headers) == {"族参数"}
 
     def test_group_header_hidden_when_branch_fields_hidden(self, qapp):
         """ELFO 分支：形状参数组只剩 ELFO 字段（其余分支字段隐藏），组表头仍可见；

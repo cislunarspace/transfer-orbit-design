@@ -69,7 +69,6 @@ from src.view.params_panel import (
     ORBIT_TYPE_DEFAULTS,
     ORBIT_TYPE_FIELDS,
     apply_orbit_type_defaults,
-    attach_unit_state,
     build_params_from_model,
     collect_params,
     get_field_units,
@@ -112,7 +111,6 @@ _DESIGN_ORBIT_LABELS: dict[str, str] = {
     "output_step": "输出步长 (秒)",
     "correction_method": "修正方法",
     "correction_revolutions": "修正圈数",
-    "correction_velocity_tolerance": "速度连续性容差",
     "inclination": "倾角 (度)",
     "arg_of_pericenter": "近月点幅角 (度)",
     "semi_major_axis": "半长轴 (km)",
@@ -124,16 +122,33 @@ _DESIGN_ORBIT_LABELS: dict[str, str] = {
     "control_mode": "控制模式",
     "is_nrho": "目标为 NRHO",
     "special_mode": "特征点模式",
+    "control_interval": "控制间隔 (天)",
+    "feedback_arc": "反馈弧段 (天)",
+    "special_crossings": "特征点穿越次数",
     "num_controls": "控制次数",
     "num_monte_carlo": "蒙特卡洛样本数",
+    "position_accuracy": "测定轨位置误差 (m)",
+    "velocity_accuracy": "测定轨速度误差 (m/s)",
+    "thrust_angle_err": "推力方向角误差 (度)",
+    "thrust_mean": "推力中点值 (m/s)",
+    "thrust_rel_err": "推力相对误差",
+    "thrust_abs_err": "推力绝对误差 (m/s)",
+    "thrust_min": "最小开机推力 (m/s)",
+    "thrust_max": "最大开机推力 (m/s)",
+    "thrust_total": "累计推力上限 (m/s)",
+    "srp_error_level": "光压弧段随机误差",
+    "real_perturbation": "真实力模型摄动开关 (JSON)",
+    "real_dyb": "真实力模型 DYB 面质比 (JSON)",
+    "real_earth_degree": "真实地球引力位阶数",
+    "real_moon_degree": "真实月球引力位阶数",
     "engine_layout": "发动机布局 (JSON)",
     "momentum_interval": "角动量卸载间隔 (天)",
     "srp_offset_m": "SRP 压心偏移 (m)",
     "spacecraft_mass": "航天器质量 (kg)",
     "srp_torque": "SRP 力矩 (N·m)",
-    # 轨道保持补充字段（ControlOrbitRequest 模型未暴露，算法必需）
-    "control_interval": "控制间隔 (天)",
-    "feedback_arc": "反馈弧段 (天)",
+    "tight_tolerance_km": "严格控制位置容差 (km)",
+    "tight_max_iter": "严格控制迭代上限",
+    "special_damping_factor": "特征点迭代阻尼因子",
     # 轨道族生成参数（FamilyGenerationRequest）
     "libration_point": "共线平动点",
     "max_amplitude_km": "最大面外振幅 (km)",
@@ -174,14 +189,7 @@ _PARAM_GROUPS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
                 "moon_degree",
             ),
         ),
-        (
-            "修正参数",
-            (
-                "correction_method",
-                "correction_revolutions",
-                "correction_velocity_tolerance",
-            ),
-        ),
+        ("修正参数", ("correction_method", "correction_revolutions")),
     ),
     "control_orbit": (
         (
@@ -192,7 +200,11 @@ _PARAM_GROUPS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
                 "special_mode",
                 "control_interval",
                 "feedback_arc",
+                "special_crossings",
                 "num_controls",
+                "tight_tolerance_km",
+                "tight_max_iter",
+                "special_damping_factor",
             ),
         ),
         (
@@ -200,9 +212,32 @@ _PARAM_GROUPS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
             (
                 "num_monte_carlo",
                 "output_step",
+                "position_accuracy",
+                "velocity_accuracy",
+                "thrust_angle_err",
+                "thrust_mean",
+                "thrust_rel_err",
+                "thrust_abs_err",
+                "thrust_min",
+                "thrust_max",
+                "thrust_total",
+                "srp_error_level",
                 "spacecraft_mass",
                 "srp_offset_m",
                 "srp_torque",
+            ),
+        ),
+        (
+            "力模型",
+            (
+                "perturbation",
+                "dyb",
+                "earth_degree",
+                "moon_degree",
+                "real_perturbation",
+                "real_dyb",
+                "real_earth_degree",
+                "real_moon_degree",
             ),
         ),
         ("角动量管理", ("engine_layout", "momentum_interval")),
@@ -543,27 +578,22 @@ class MainWindow(QMainWindow):
         # 生成控件
         self._param_widgets = build_params_from_model(spec.request_model)
 
-        # control_orbit：ControlOrbitRequest 模型是算法函数参数的子集，
-        # control_interval/feedback_arc（默认 30/28 天）未暴露——缺了它们用户
-        # 无法配出与源星历覆盖匹配的参数（默认值下仿真时长 ≈ 3570 天，30 天
-        # 星历必然全样本失败）。作为补充字段加入面板（带单位状态，可切 天/秒/TU）。
         if tool_key == "control_orbit":
-            for name, default in (("control_interval", 30.0), ("feedback_arc", 28.0)):
-                if name in self._param_widgets:
-                    continue
-                sb = QDoubleSpinBox()
-                sb.setRange(1e-3, 1e4)
-                sb.setValue(default)
-                attach_unit_state(sb, name)
-                self._param_widgets[name] = sb
             # input_ephemeris 由选中 Artifact 注入，不在 UI 暴露；mu 同样由源
             # Artifact 注入（source_mu），面板编辑无效（ControlOrbitRequest 的
-            # mu 仅为响应透传字段，算法层不消费）
+            # mu 仅为响应透传字段，算法层不消费）。control_interval/feedback_arc
+            # 自 e2m2e 5.6.9 起由 Request 模型公开，直接走自动生成路径。
             for hidden in ("input_ephemeris", "mu"):
                 self._param_widgets.pop(hidden, None)
+        elif tool_key == "orbit_family_generation":
+            # GUI 当前仅提供 Halo 入口；桥接层会注入 orbit_type="HALO"，避免
+            # 复用 design_orbit 的类型下拉把未实现族暴露给用户。
+            orbit_type = self._param_widgets.pop("orbit_type", None)
+            if orbit_type is not None:
+                orbit_type.setParent(None)
 
-        # G3: orbit_type -> QComboBox（若字段存在且有 description）
-        if "orbit_type" in self._param_widgets:
+        # G3: design_orbit 的 orbit_type -> QComboBox
+        if tool_key == "design_orbit" and "orbit_type" in self._param_widgets:
             self._replace_orbit_type_with_combo(spec.request_model)
 
         # 分组顺序：_PARAM_GROUPS 声明顺序 + 未分组字段归入"其他"

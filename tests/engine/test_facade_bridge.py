@@ -102,6 +102,26 @@ class TestToolRegistry:
         for name, spec in TOOL_REGISTRY.items():
             assert spec.description, f"{name}.description 为空"
 
+    def test_disabled_tool_descriptions_follow_inventory_status(self):
+        """非 GUI 工具的“已实现/占位”说明以 e2m2e 清单为准。"""
+        from e2m2e.api import Facade, tool_inventory
+
+        status_notes = {
+            "implemented": "e2m2e 已实现，GUI 尚未接入",
+            "placeholder": "e2m2e 占位，未实现",
+        }
+        inventory = {info.name: info for info in tool_inventory(Facade())}
+        gui_integrated = {
+            "design_orbit",
+            "control_orbit",
+            "orbit_family_generation",
+            "orbit_stability",
+        }
+        for name, info in inventory.items():
+            if name in gui_integrated:
+                continue
+            assert status_notes[info.status] in TOOL_REGISTRY[name].description
+
 
 class TestFacadeBridgeDesignOrbit:
     def test_returns_dto(self, mock_design_orbit):

@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
-from pydantic import BaseModel, Field
+from e2m2e.api.models import FamilyGenerationRequest
+from pydantic import BaseModel
 
 # ---------------------------------------------------------------------------
 # DTO
@@ -59,7 +60,7 @@ class FamilyResultData:
     mu: float
     states: Any  # (m, n, 6) -- 各族成员 CR3BP 状态
     times: Any  # (m, n) -- 各族成员时间序列（无量纲 TU）
-    z0s: Any  # (m,) -- 各族成员面外振幅 z0（无量纲，北族为正）
+    z0s: Any  # (m,) -- 各族成员面外振幅 z0（无量纲，北族为正、南族为负）
 
 
 @dataclass
@@ -185,32 +186,6 @@ class ToolSpec:
     enabled: bool  # 是否启用（False = 工具下拉灰显，悬停显示工具说明）
 
 
-# ---------------------------------------------------------------------------
-# 本地请求模型（e2m2e 无对应 Request，GUI 参数面板按此生成控件）
-# ---------------------------------------------------------------------------
-
-
-class FamilyGenerationRequest(BaseModel):
-    """轨道族生成参数（第一版仅支持 Halo 北族，见 README 能力表）。
-
-    e2m2e 的族延拓（``generate_halo_family``）只对 Halo 成熟：从小子种子
-    （z0=0.001 DU）固定 z0 逐步修正，直到最大面外振幅（折叠点前自动终止）。
-    其余轨道类型（DRO/NRHO/...）在 e2m2e 只有单条设计函数，无族延拓接口，
-    故参数面板不提供族类型选择。
-    """
-
-    model_config = {"extra": "forbid"}
-
-    libration_point: int = Field(2, ge=1, le=2, description="共线平动点（1=L1，2=L2）")
-    max_amplitude_km: float = Field(
-        30000.0,
-        ge=1000.0,
-        le=57000.0,
-        description="最大面外振幅 (km)，族延拓到该振幅或折叠点自动停止",
-    )
-    n_orbits: int = Field(20, ge=2, le=100, description="族成员数（含种子，实际以延拓结果为准）")
-
-
 #: GUI 已接入工具的元数据（label/description/enabled/request_model 绑定）。
 #: 表外 facade 工具自动灰显（悬停显示工具说明），e2m2e 新增工具时
 #: GUI 清单零改动跟随。facade 工具清单见 ``e2m2e.api.Facade.mcp_tools()``。
@@ -234,7 +209,7 @@ _TOOL_META: dict[str, dict[str, Any]] = {
         "description": "从 Halo 小振幅种子出发延拓生成轨道族（第一版仅支持"
         "Halo 北族），画布按成员逐条叠加渲染。",
         "enabled": True,
-        "model": "FamilyGenerationRequest",  # 本地模型（e2m2e 无对应 Request）
+        "model": "FamilyGenerationRequest",
     },
     "orbit_stability": {
         "label": "稳定性分析",
@@ -245,49 +220,49 @@ _TOOL_META: dict[str, dict[str, Any]] = {
     },
     "transfer_design": {
         "label": "转移设计",
-        "description": "转移轨道设计（e2m2e 已实现，GUI 尚未接入）。",
+        "description": "转移轨道设计",
         "enabled": False,
         "model": None,
     },
     "orbit_propagation": {
         "label": "轨道预报",
-        "description": "轨道预报（e2m2e 已实现，GUI 尚未接入）。",
+        "description": "轨道预报",
         "enabled": False,
         "model": None,
     },
     "spacetime_transform": {
         "label": "时空坐标转换",
-        "description": "时空坐标转换（e2m2e 已实现，GUI 尚未接入）。",
+        "description": "时空坐标转换",
         "enabled": False,
         "model": None,
     },
     "transfer_search": {
         "label": "转移搜索",
-        "description": "转移网格搜索（e2m2e 占位，未实现）。",
+        "description": "转移网格搜索",
         "enabled": False,
         "model": None,
     },
     "low_thrust_design": {
         "label": "小推力设计",
-        "description": "小推力转移设计（e2m2e 占位，未实现）。",
+        "description": "小推力转移设计",
         "enabled": False,
         "model": None,
     },
     "manifold_analysis": {
         "label": "不变流形分析",
-        "description": "不变流形分析（e2m2e 占位，未实现）。",
+        "description": "不变流形分析",
         "enabled": False,
         "model": None,
     },
     "low_energy_transfer": {
         "label": "低能转移",
-        "description": "低能转移（e2m2e 占位，未实现）。",
+        "description": "低能转移",
         "enabled": False,
         "model": None,
     },
     "relative_motion": {
         "label": "相对运动",
-        "description": "相对运动（e2m2e 占位，未实现）。",
+        "description": "相对运动",
         "enabled": False,
         "model": None,
     },
@@ -310,41 +285,59 @@ _TOOL_ORDER: tuple[str, ...] = (
 )
 
 
-def _build_tool_registry() -> dict[str, ToolSpec]:
-    """构建 TOOL_REGISTRY，与 e2m2e facade 工具清单（mcp_tools）对齐。
+_GUI_INTEGRATED_TOOLS = frozenset(
+    {"design_orbit", "control_orbit", "orbit_family_generation", "orbit_stability"}
+)
+_TOOL_STATUS_DESCRIPTIONS = {
+    "implemented": "e2m2e 已实现，GUI 尚未接入",
+    "placeholder": "e2m2e 占位，未实现",
+}
 
-    e2m2e 更新后新 facade 工具自动出现在清单中（灰显，悬停显示工具说明）；
-    本地 ``_TOOL_META`` 只维护 GUI 已接入工具的元数据。e2m2e 未安装时退回
-    本地最小清单（仅已接入的 3 个工具，request_model 置 None）。
+
+def _build_tool_registry() -> dict[str, ToolSpec]:
+    """构建 TOOL_REGISTRY，与 e2m2e facade 工具清单及实现状态对齐。
+
+    e2m2e 更新后新 facade 工具自动出现在清单中（灰显，悬停显示实现状态）；
+    已接入 GUI 的工具仍由本地元数据定义标签与说明。
     """
-    facade_names: list[str] = []
+    inventory: dict[str, Any] = {}
     models: dict[str, type[BaseModel] | None] = {
         "DesignOrbitRequest": None,
         "ControlOrbitRequest": None,
         "FamilyGenerationRequest": FamilyGenerationRequest,
     }
     try:
-        from e2m2e.api import Facade, mcp_tools
-        from e2m2e.api.models import ControlOrbitRequest, DesignOrbitRequest
+        from e2m2e.api import Facade, tool_inventory
 
-        models["DesignOrbitRequest"] = DesignOrbitRequest
-        models["ControlOrbitRequest"] = ControlOrbitRequest
-        facade_names = mcp_tools(Facade())
-    except Exception:  # noqa: BLE001 -- e2m2e 缺失/异常时退回本地最小清单
-        facade_names = ["design_orbit", "control_orbit", "orbit_family_generation"]
+        inventory = {info.name: info for info in tool_inventory(Facade())}
+        for info in inventory.values():
+            if info.request_model is not None:
+                models[info.request_model.__name__] = info.request_model
+    except Exception:  # noqa: BLE001 -- facade 异常时退回本地最小清单
+        inventory = {
+            name: None for name in ("design_orbit", "control_orbit", "orbit_family_generation")
+        }
 
+    facade_names = list(inventory)
     ordered = [n for n in _TOOL_ORDER if n in facade_names]
     ordered += sorted(set(facade_names) - set(ordered))
 
     registry: dict[str, ToolSpec] = {}
     for name in ordered:
         meta = _TOOL_META.get(name, {})
+        description = meta.get("description", "该工具")
+        info = inventory.get(name)
+        if name not in _GUI_INTEGRATED_TOOLS and info is not None:
+            status = _TOOL_STATUS_DESCRIPTIONS.get(info.status, "当前状态未知")
+            description = f"{description}（{status}）。"
+        elif "description" not in meta:
+            description = "该工具暂不可用，当前界面尚未提供入口。"
         model_key = meta.get("model")
         registry[name] = ToolSpec(
             request_model=models.get(model_key) if model_key else None,
             facade_method=name,
             label=meta.get("label", name),
-            description=meta.get("description", "该工具暂不可用，当前界面尚未提供入口。"),
+            description=description,
             enabled=bool(meta.get("enabled", False)),
         )
     return registry
@@ -541,71 +534,42 @@ class FacadeBridge:
     def generate_family(self, **kwargs: Any) -> FamilyResultData:
         """生成 Halo 轨道族，返回跨线程 DTO。
 
-        调 e2m2e ``algorithm/family`` 的 Halo 自然参数延拓：小振幅种子
-        （z0=0.001 DU，Richardson 近似收敛域内）出发，固定 z0 逐步修正，
-        到 ``max_amplitude_km`` 或折叠点自动终止。纯 CR3BP 计算，不需要
-        SPICE 内核。
+        轨道族参数及其平动点相关振幅范围由 e2m2e 的公开
+        ``FamilyGenerationRequest`` 校验，随后委托 ``design_halo_family``
+        完成种子生成与自然参数延拓。纯 CR3BP 计算，不需要 SPICE 内核。
 
-        Args:
-            **kwargs: ``FamilyGenerationRequest`` 字段
-                （libration_point / max_amplitude_km / n_orbits）。
-
-        Returns:
-            FamilyResultData -- 族成员等长 states/times 三维数组。
-
-        Raises:
-            OrbitError: 经翻译的结构化错误。
+        GUI 当前只提供 Halo 族入口，故缺省注入 ``orbit_type="HALO"``；
+        直接调用本桥接层仍可传入其它族类型，并得到明确的未实现错误。
         """
-        from e2m2e.algorithm.dynamics import CR3BP_Dynamics
-        from e2m2e.algorithm.family.cr3bp_orbits import earth_moon_system
-        from e2m2e.algorithm.solver.continuation import Continuation
-        from e2m2e.algorithm.solver.differential_correction import DifferentialCorrection
+        from e2m2e.algorithm.family.cr3bp_orbits import design_halo_family
 
-        from src.commons.units import DU_KM
         from src.engine.exceptions import translate_exception
 
-        # Halo 种子振幅（DU）：Richardson 三阶近似的收敛域，与 e2m2e
-        # cr3bp_orbits 的 ``_HALO_SEED_Z0`` 一致（0.001）。传大振幅种子
-        # 会使微分修正发散（实测 0.05 时残差不降）。
-        _SEED_AMPLITUDE_DU = 0.001
-
         try:
+            kwargs.setdefault("orbit_type", "HALO")
             request = FamilyGenerationRequest(**kwargs)
-            libration_point = request.libration_point
-            z_max = request.max_amplitude_km / DU_KM
-
-            system = earth_moon_system()
-            mu = system.mu
-            dyn = CR3BP_Dynamics(system)
-            cont = Continuation(corrector=DifferentialCorrection(dyn))
-
-            seed = cont.generate_halo_seed_orbit(  # type: ignore[attr-defined]
-                libration_point, amplitude_z=_SEED_AMPLITUDE_DU, halo_class=0
-            )
-            if seed is None:
-                raise ValueError(f"Halo 种子轨道生成失败（L{libration_point} 微分修正不收敛）")
-
-            # 步长 = 目标振幅范围 / 成员数，让族均匀覆盖 [种子, z_max]；
-            # 夹在 generate_halo_family 内部步长边界 [1e-4, 0.05] 内。
-            step_size = min(max(z_max / request.n_orbits, 1e-4), 0.05)
-            family = cont.generate_halo_family(  # type: ignore[attr-defined]
-                seed,
+            if request.orbit_type.upper() != "HALO":
+                raise NotImplementedError(
+                    f"orbit_type={request.orbit_type} 族生成尚未实现（当前仅支持 HALO）"
+                )
+            if request.libration_point is None or request.max_amplitude_km is None:
+                raise ValueError("HALO 轨道族缺少平动点或最大振幅")
+            family = design_halo_family(
+                request.libration_point,
+                request.max_amplitude_km,
                 n_orbits=request.n_orbits,
-                direction="positive",
-                z_range=(_SEED_AMPLITUDE_DU, z_max),
-                step_size=step_size,
             )
         except Exception as e:
             raise translate_exception(e) from e
 
-        states = np.stack([np.asarray(o.states) for o in family])
-        times = np.stack([np.asarray(o.times) for o in family])
-        z0s = np.array([float(np.asarray(o.states)[0, 2]) for o in family])
+        states = np.stack([np.asarray(orbit.states) for orbit in family.orbits])
+        times = np.stack([np.asarray(orbit.times) for orbit in family.orbits])
+        z0s = np.array([float(np.asarray(orbit.states)[0, 2]) for orbit in family.orbits])
         return FamilyResultData(
             orbit_type="Halo",
-            libration_point=libration_point,
-            n_orbits=len(family),
-            mu=mu,
+            libration_point=request.libration_point,
+            n_orbits=len(family.orbits),
+            mu=family.system.mu,
             states=states,
             times=times,
             z0s=z0s,
