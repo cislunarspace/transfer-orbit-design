@@ -11,6 +11,7 @@ e2m2e 升级（如 5.6.5 改 design_orbit 签名 / duration 单位）后，mock 
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 
 from src.commons.paths import detect_kernel_dir
@@ -38,3 +39,31 @@ def test_design_orbit_dro_real_pipeline_converges():
     assert data.correction_converged is True
     assert data.ephemeris is not None
     assert len(data.ephemeris["position_km"]) > 1
+
+
+@pytest.mark.spice
+@pytest.mark.slow
+def test_design_orbit_lissajous_default_reference_stays_bounded():
+    """默认 Lissajous 真路径的星历参考轨道应保持在地月尺度内。"""
+    kernel_dir = detect_kernel_dir()
+    if not kernel_dir:
+        pytest.skip("无 SPICE 内核（detect_kernel_dir 返回空）")
+
+    from src.engine.facade_bridge import FacadeBridge
+
+    bridge = FacadeBridge(kernel_dir=kernel_dir)
+    data = bridge.design_orbit(
+        orbit_type="Lissajous",
+        collinear_point=2,
+        amplitude_in=2500.0,
+        amplitude_out=7500.0,
+        phase_in=0.01,
+        phase_out=0.55,
+        duration=1.0 / 12.0,
+    )
+
+    assert data.correction_converged is True
+    assert data.ephemeris is not None
+    radii_km = np.linalg.norm(data.ephemeris["position_km"], axis=1)
+    assert radii_km.max() < 500_000.0
+    assert radii_km[-1] < 500_000.0
