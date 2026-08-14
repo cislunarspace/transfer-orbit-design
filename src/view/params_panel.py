@@ -129,8 +129,9 @@ ORBIT_TYPE_FIELDS: dict[str, set[str]] = {
 _EPOCH_FIELD = "epoch"
 
 #: correction_method 下拉取值，对齐 e2m2e DesignOrbitRequest 的公开契约。
-#: segmented 由 e2m2e 对 Halo/NRHO 自动选用（design_orbit 内部路径），不在此
-#: 暴露；用户选 two_level/standard 时不稳定轨道会被自动重定向。
+#: segmented 由 e2m2e 对 Halo/NRHO 自动选用；GUI 桥接层也会为不稳定的
+#: Lissajous 强制选用。该选项不在面板暴露，用户选择 two_level/standard 时
+#: 对这些不稳定轨道会被自动重定向。
 CORRECTION_METHOD_OPTIONS: tuple[str, ...] = ("standard", "two_level")
 
 #: str 枚举类字段 -> 下拉选项（现仅 correction_method）。

@@ -245,6 +245,48 @@ class TestFacadeBridgeDesignOrbit:
         bridge.design_orbit(orbit_type="DRO", duration=0.5)
         assert captured["duration"] == pytest.approx(0.5 * SECONDS_PER_YEAR)
 
+    @pytest.mark.parametrize(
+        ("orbit_type", "correction_method", "expected_method"),
+        [
+            ("Lissajous", "two_level", "segmented"),
+            ("LISSAJOUS", "standard", "segmented"),
+            ("DRO", "standard", "standard"),
+        ],
+    )
+    def test_lissajous_uses_segmented_correction(
+        self, monkeypatch, orbit_type, correction_method, expected_method
+    ):
+        """Lissajous 不得走一圈修正后自由外推的常规修正路径。"""
+        captured: dict = {}
+
+        def _capture(request, *, spice=None, kernel_dir=None, verbose=False):
+            captured["correction_method"] = request.correction_method
+            from types import SimpleNamespace
+
+            orbit = SimpleNamespace(
+                states=np.zeros((2, 6)),
+                times=np.array([0.0, 1.0]),
+            )
+            correction = SimpleNamespace(status=ConvergenceState.CONVERGED, iterations=1)
+            return SimpleNamespace(
+                orbit_type=orbit_type,
+                epoch_utc="2024-01-01T00:00:00",
+                duration_day=1.0,
+                initial_state=np.zeros(6),
+                cr3bp_jacobi=3.0,
+                cr3bp_orbit=orbit,
+                correction=correction,
+            )
+
+        monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _capture, raising=False)
+
+        FacadeBridge().design_orbit(
+            orbit_type=orbit_type,
+            correction_method=correction_method,
+        )
+
+        assert captured["correction_method"] == expected_method
+
     def test_orbit_error_translated(self, monkeypatch):
         """e2m2e 异常应被翻译为 OrbitError。"""
         from src.engine.exceptions import OrbitError
