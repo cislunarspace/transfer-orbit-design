@@ -399,6 +399,13 @@ class FacadeBridge:
         # GUI duration 单位年 -> e2m2e duration 单位秒
         if kwargs.get("duration") is not None:
             kwargs["duration"] = float(kwargs["duration"]) * SECONDS_PER_YEAR
+        # Lissajous 与 Halo/NRHO 同为不稳定轨道。e2m2e 5.6.9 仅自动把
+        # Halo/NRHO 重定向到 segmented；Lissajous 若沿用 standard/two_level，
+        # 一圈修正后的自由外推会沿不稳定流形发散。GUI 不暴露 segmented，
+        # 因此在此固定走分段修正，保持整段标称星历有界。
+        orbit_type = kwargs.get("orbit_type")
+        if isinstance(orbit_type, str) and orbit_type.upper() == "LISSAJOUS":
+            kwargs["correction_method"] = "segmented"
         try:
             request = DesignOrbitRequest(**kwargs)
             result = design_orbit(request, kernel_dir=kernel_dir)
