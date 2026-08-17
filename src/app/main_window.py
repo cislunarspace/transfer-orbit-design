@@ -66,11 +66,15 @@ from src.view.chart_settings import (
 )
 from src.view.log_panel import LogPanel
 from src.view.params_panel import (
+    FAMILY_TYPE_FIELDS,
+    FAMILY_TYPES,
     ORBIT_TYPE_DEFAULTS,
     ORBIT_TYPE_FIELDS,
+    apply_family_type_defaults,
     apply_orbit_type_defaults,
     build_params_from_model,
     collect_params,
+    family_libration_points,
     get_field_units,
     set_spinbox_unit,
 )
@@ -157,8 +161,14 @@ _DESIGN_ORBIT_LABELS: dict[str, str] = {
     "tight_max_iter": "严格控制迭代上限",
     "special_damping_factor": "特征点迭代阻尼因子",
     # 轨道族生成参数（FamilyGenerationRequest）
-    "libration_point": "共线平动点",
-    "max_amplitude_km": "最大面外振幅 (km)",
+    "libration_point": "平动点",
+    "max_amplitude_km": "最大振幅 (km)",
+    "min_amplitude_km": "最小振幅 (km)",
+    "perilune_height_max_km": "近月点高度上限 (km)",
+    "amplitude_in_km": "面内振幅上限 (km)",
+    "amplitude_out_km": "面外振幅上限 (km)",
+    "continuation_direction": "延拓方向",
+    "match_tolerance_km": "振幅匹配容差 (km)",
     "n_orbits": "族成员数",
 }
 
@@ -249,11 +259,45 @@ _PARAM_GROUPS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         ),
         ("角动量管理", ("engine_layout", "momentum_interval")),
     ),
-    "orbit_family_generation": (("族参数", ("libration_point", "max_amplitude_km", "n_orbits")),),
+    "orbit_family_generation": (
+        (
+            "族参数",
+            (
+                "orbit_type",
+                "libration_point",
+                "n_orbits",
+                "max_amplitude_km",
+                "min_amplitude_km",
+                "north_south",
+                "perilune_height_max_km",
+                "amplitude_in_km",
+                "amplitude_out_km",
+                "phase_in",
+                "phase_out",
+                "continuation_direction",
+                "match_tolerance_km",
+            ),
+        ),
+    ),
 }
 
 #: design_orbit 所有分支字段的并集（不在其中的字段视为通用字段，始终显示）
 _ORBIT_TYPE_ALL_BRANCH_FIELDS: set[str] = set().union(*ORBIT_TYPE_FIELDS.values())
+
+
+#: 族生成公共参数字段（任何族都可传给 FamilyGenerationRequest）。
+_FAMILY_COMMON_PARAMS = frozenset({"orbit_type", "libration_point", "n_orbits"})
+
+
+def _family_request_params(params: dict, family_type: str) -> dict:
+    """过滤面板收集的族生成参数，只留当前族适用字段。
+
+    e2m2e 5.7.1 起 FamilyGenerationRequest 按 model_fields_set 拒绝跨族字段
+    （None 也算已设置）：隐藏分支的残留值与未勾选 Optional 的 None 都不能
+    进入 request，由模型填族默认。
+    """
+    allowed = FAMILY_TYPE_FIELDS.get(family_type, set()) | _FAMILY_COMMON_PARAMS
+    return {k: v for k, v in params.items() if k in allowed and v is not None}
 
 
 def _base_field_label(name: str) -> str:
@@ -672,15 +716,16 @@ class MainWindow(QMainWindow):
                     widget.setValue(default)
             self._apply_control_special_mode()
         elif tool_key == "orbit_family_generation":
-            # GUI 当前仅提供 Halo 入口；桥接层会注入 orbit_type="HALO"，避免
-            # 复用 design_orbit 的类型下拉把未实现族暴露给用户。
-            orbit_type = self._param_widgets.pop("orbit_type", None)
-            if orbit_type is not None:
-                orbit_type.setParent(None)
+            # sampling_mode 各族首版只有唯一规则，不暴露（模型自动填默认）。
+            sampling_mode = self._param_widgets.pop("sampling_mode", None)
+            if sampling_mode is not None:
+                sampling_mode.setParent(None)
 
         # G3: design_orbit 的 orbit_type -> QComboBox
         if tool_key == "design_orbit" and "orbit_type" in self._param_widgets:
             self._replace_orbit_type_with_combo(spec.request_model)
+        elif tool_key == "orbit_family_generation" and "orbit_type" in self._param_widgets:
+            self._replace_family_orbit_type_with_combo(spec.request_model)
 
         # 分组顺序：_PARAM_GROUPS 声明顺序 + 未分组字段归入"其他"
         group_specs = _PARAM_GROUPS.get(tool_key, ())
@@ -737,6 +782,12 @@ class MainWindow(QMainWindow):
             # duration GUI 默认下调至 1 个月（issue #355）：模型 default=1.0 年不动，
             # 仅在 GUI 层把单位切到"月"、值设为 1，让短弧设计更顺手。
             self._apply_duration_default_month()
+        elif tool_key == "orbit_family_generation":
+            family_widget = self._param_widgets.get("orbit_type")
+            if isinstance(family_widget, QComboBox):
+                family_combo: QComboBox = family_widget
+                family_combo.currentIndexChanged.connect(self._on_family_type_changed)
+                self._on_family_type_changed(family_combo.currentIndex())
 
         layout.setRowStretch(row, 1)
 
@@ -782,6 +833,65 @@ class MainWindow(QMainWindow):
             return
         apply_orbit_type_defaults(self._param_widgets, orbit_type)
         self._sync_visible_fields(orbit_type)
+
+    def _replace_family_orbit_type_with_combo(self, model_class: type) -> None:
+        """族生成工具的 orbit_type 替换为七族下拉（机制同 design_orbit 的 G3）。"""
+        field = model_class.model_fields.get("orbit_type")
+        if field is None:
+            return
+        combo = QComboBox()
+        combo.addItems(list(FAMILY_TYPES))
+        if field.description:
+            combo.setToolTip(field.description)
+        old = self._param_widgets.get("orbit_type")
+        self._param_widgets["orbit_type"] = combo
+        if old is not None:
+            old.setParent(None)
+
+    def _on_family_type_changed(self, index: int) -> None:
+        """切族类型：重建平动点下拉 + 填该族默认值 + 只显示该族参数字段。"""
+        if self._current_tool_key != "orbit_family_generation":
+            return
+        orbit_type_widget = self._param_widgets.get("orbit_type")
+        if not isinstance(orbit_type_widget, QComboBox):
+            return
+        family_combo: QComboBox = orbit_type_widget
+        family_type = family_combo.currentText()
+        self._rebuild_family_libration_points(family_type)
+        apply_family_type_defaults(self._param_widgets, family_type)
+        self._sync_family_visible_fields(family_type)
+
+    def _rebuild_family_libration_points(self, family_type: str) -> None:
+        """按族重建 libration_point 下拉项（共线族 L1/L2，Lissajous 加 L3，三角族 L4/L5）。"""
+        widget = self._param_widgets.get("libration_point")
+        if not isinstance(widget, QComboBox):
+            return
+        point_combo: QComboBox = widget
+        point_combo.blockSignals(True)
+        point_combo.clear()
+        for point in family_libration_points(family_type):
+            point_combo.addItem(f"L{point}", point)
+        point_combo.blockSignals(False)
+
+    def _sync_family_visible_fields(self, family_type: str) -> None:
+        """按族显示/隐藏族参数字段，并把解包后的控件同步进布局。
+
+        公共字段（orbit_type/libration_point/n_orbits）始终显示；不同族共用
+        同名字段（如 Halo/Axial 与三角族共用 max_amplitude_km）时保持可见。
+        """
+        branch_fields = FAMILY_TYPE_FIELDS.get(family_type, set())
+        always_visible = {"orbit_type", "libration_point", "n_orbits"}
+        for name in list(self._param_rows):
+            label, widget, unit_combo = self._param_rows[name]
+            current = self._param_widgets.get(name)
+            if current is not None and current is not widget:
+                self._replace_row_widget(name, current)
+                label, widget, unit_combo = self._param_rows[name]
+            visible = name in always_visible or name in branch_fields
+            label.setVisible(visible)
+            widget.setVisible(visible)
+            if unit_combo is not None:
+                unit_combo.setVisible(visible)
 
     def _sync_visible_fields(self, orbit_type: str) -> None:
         """按分支字段集显示/隐藏参数行，并把解包后的控件同步进布局。
@@ -1017,20 +1127,27 @@ class MainWindow(QMainWindow):
         self._worker.start()
 
     def _run_family_generation(self) -> None:
-        """运行 Halo 轨道族生成（工具选择器入口，参数来自面板）。"""
+        """运行轨道族生成（工具选择器入口，参数来自面板）。"""
         spec = TOOL_REGISTRY["orbit_family_generation"]
         model = spec.request_model
         if model is None:
             return
+        family_widget = self._param_widgets.get("orbit_type")
+        family_type = (
+            family_widget.currentText() if isinstance(family_widget, QComboBox) else "Halo"
+        )
         try:
             params = collect_params(self._param_widgets, model)
         except ValueError as exc:
             self._status_bar.showMessage(str(exc), _STATUS_MSG_TIMEOUT_MS)
             self._log.append_log(f"参数错误: {exc}")
             return
+        # 5.7.1 起 FamilyGenerationRequest 拒绝跨族字段（含 None），过滤到当前族
+        params = _family_request_params(params, family_type)
+        params["orbit_type"] = family_type
 
         self._log.clear()
-        self._status_bar.showMessage("正在生成 Halo 轨道族...")
+        self._status_bar.showMessage(f"正在生成 {family_type} 轨道族...")
         self._set_run_controls(running=True)
 
         self._worker = FamilyOrbitWorker(params=params, parent=self)
@@ -1056,7 +1173,7 @@ class MainWindow(QMainWindow):
 
         artifact = Artifact(
             artifact_type="family",
-            label=f"Halo 族 (L{result.libration_point}, {result.n_orbits} 条)",
+            label=f"{result.orbit_type} 族 (L{result.libration_point}, {result.n_orbits} 条)",
             orbit_type=result.orbit_type,
             source_tool="orbit_family_generation",
             state_data=result.states,  # (m, n, 6)
@@ -1065,10 +1182,14 @@ class MainWindow(QMainWindow):
             extra={
                 "mu": result.mu,
                 "libration_point": result.libration_point,
-                "z0s": result.z0s,
+                "family_type": result.family_type,
+                "periodicity": result.periodicity,
+                "member_parameters": result.member_parameters,
                 "arrays_file": json_path.name if json_path else None,
             },
         )
+        if result.z0s is not None:
+            artifact.extra["z0s"] = result.z0s
         self._project.add(artifact)
         self._refresh_project_tree()
 
@@ -1076,9 +1197,14 @@ class MainWindow(QMainWindow):
             self._selected_artifact_ids = [artifact.artifact_id]
             self._render_canvas()
 
-        self._log.append_log(
-            f"轨道族生成完成: {result.n_orbits} 条 Halo 轨道（L{result.libration_point}）"
+        completion = (
+            f"轨道族生成完成: {result.n_orbits} 条 {result.orbit_type} 轨道"
+            f"（L{result.libration_point}）"
         )
+        if result.status_message:
+            # 软失败（部分族）：展示上游状态消息说明未满额原因
+            completion += f"；{result.status_message}"
+        self._log.append_log(completion)
         if json_path is not None:
             self._status_bar.showMessage("轨道族生成完成", _STATUS_MSG_TIMEOUT_MS)
 

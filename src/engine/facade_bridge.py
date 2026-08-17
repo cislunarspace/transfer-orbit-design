@@ -1,14 +1,16 @@
 """FacadeBridge -- e2m2e 算法层直调的薄封装。
 
-直接调用 algorithm 层而非 Facade 门面，因为 Facade 返回的 DesignOrbitResponse
-剥离了轨道数据（只返回标量汇总），而 GUI 需要完整的 Orbit 对象用于可视化。
-详见 docs/adr/0011-algorithm-layer-direct-call.md。
+design_orbit/control_orbit 直接调用 algorithm 层而非 Facade 门面，因为 Facade
+返回的 DesignOrbitResponse 剥离了轨道数据（只返回标量汇总），而 GUI 需要完整
+的 Orbit 对象用于可视化（docs/adr/0011-algorithm-layer-direct-call.md）。
+轨道族生成例外：e2m2e 5.7.1 起 Facade 响应（FamilyGenerationResponse）携带
+完整 Orbit 成员与状态三元组，且七族统一入口，故 generate_family 走 Facade。
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
@@ -49,18 +51,22 @@ class OrbitDesignResultData:
 class FamilyResultData:
     """跨线程传递的轨道族生成结果 DTO。纯数据类，不含 e2m2e 对象引用。
 
-    族成员为等长周期轨道（``states``/``times`` 均为 ``(m, n, ...)`` 三维数组，
-    由 ``generate_halo_family`` 的固定采样点数保证；形状不一致时构造方
-    已用 np.stack 统一）。
+    族成员轨迹为等长采样（``states``/``times`` 均为 ``(m, n, ...)`` 三维数组）。
+    5.7.1 起周期族成员只携带初态与周期（Rust 单次调用契约），桥接层按周期
+    重采样到固定点数；Lissajous 拟周期成员本身边带等长完整轨迹。
     """
 
-    orbit_type: str  # "Halo"
+    orbit_type: str  # 显示名（"Halo"/"NRHO"/"Axial"/"Lissajous"/"SPO"/"LPO"/"Horseshoe"）
     libration_point: int
-    n_orbits: int  # 实际生成的成员数（含种子，可能少于请求数——延拓在折叠点前终止）
+    n_orbits: int  # 实际生成的成员数（可能少于请求数——延拓终止或软失败保留部分族）
     mu: float
     states: Any  # (m, n, 6) -- 各族成员 CR3BP 状态
     times: Any  # (m, n) -- 各族成员时间序列（无量纲 TU）
-    z0s: Any  # (m,) -- 各族成员面外振幅 z0（无量纲，北族为正、南族为负）
+    z0s: Any = None  # (m,)，仅 Halo：各族成员面外振幅 z0（北族为正、南族为负）；其它族 None
+    family_type: str = "halo"  # e2m2e 规范族标识（小写）
+    periodicity: str = "periodic"  # "periodic" / "quasi-periodic"（Lissajous）
+    status_message: str = ""  # 软失败（部分族）时的上游状态消息；全量收敛为 ""
+    member_parameters: list = field(default_factory=list)  # 各族成员的族参数 dict
 
 
 @dataclass
@@ -206,8 +212,8 @@ _TOOL_META: dict[str, dict[str, Any]] = {
     },
     "orbit_family_generation": {
         "label": "轨道族生成",
-        "description": "从 Halo 小振幅种子出发延拓生成轨道族（第一版仅支持"
-        "Halo 北族），画布按成员逐条叠加渲染。",
+        "description": "生成 CR3BP 轨道族：Halo/NRHO/Axial/SPO/LPO/Horseshoe 为周期"
+        "延拓族，Lissajous 为拟周期轨迹参数采样；画布按成员逐条叠加渲染。",
         "enabled": True,
         "model": "FamilyGenerationRequest",
     },
@@ -344,6 +350,21 @@ def _build_tool_registry() -> dict[str, ToolSpec]:
 
 
 TOOL_REGISTRY: dict[str, ToolSpec] = _build_tool_registry()
+
+
+#: 周期族成员重采样点数（5.7.1 起周期族成员只携带初态与周期）。
+_FAMILY_MEMBER_SAMPLES = 200
+
+#: e2m2e 规范族标识（小写）-> GUI 显示名。
+_FAMILY_DISPLAY_NAMES = {
+    "halo": "Halo",
+    "nrho": "NRHO",
+    "axial": "Axial",
+    "lissajous": "Lissajous",
+    "spo": "SPO",
+    "lpo": "LPO",
+    "horseshoe": "Horseshoe",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -539,47 +560,82 @@ class FacadeBridge:
         )
 
     def generate_family(self, **kwargs: Any) -> FamilyResultData:
-        """生成 Halo 轨道族，返回跨线程 DTO。
+        """生成轨道族（七族），返回跨线程 DTO。
 
-        轨道族参数及其平动点相关振幅范围由 e2m2e 的公开
-        ``FamilyGenerationRequest`` 校验，随后委托 ``design_halo_family``
-        完成种子生成与自然参数延拓。纯 CR3BP 计算，不需要 SPICE 内核。
+        走 ``Facade.orbit_family_generation``：e2m2e 5.7.1 起 Facade 响应
+        （``FamilyGenerationResponse``）携带完整 Orbit 成员与状态三元组，软失败
+        保留部分族，七族统一入口省去桥接层自行分派。纯 CR3BP 计算，不需要
+        SPICE 内核。
 
-        GUI 当前只提供 Halo 族入口，故缺省注入 ``orbit_type="HALO"``；
-        直接调用本桥接层仍可传入其它族类型，并得到明确的未实现错误。
+        两个 5.7.1 适配点：
+
+        - ``FamilyGenerationRequest`` 按 ``model_fields_set`` 拒绝跨族字段，
+          None 值也算已设置——面板对未勾选的 Optional 字段会传 None（语义为
+          "用模型默认"），故入参先剔除 None。
+        - 周期族成员只携带初态（``states (1,6)``）与周期，画布需要整条
+          轨迹，在此按周期重采样到固定点数；Lissajous 拟周期成员已携带
+          等长完整轨迹，原样堆叠。
         """
-        from e2m2e.algorithm.family.cr3bp_orbits import design_halo_family
+        from e2m2e.api import Facade
+        from e2m2e.data.templates import ConvergenceState
 
-        from src.engine.exceptions import translate_exception
+        from src.engine.exceptions import OrbitError, translate_exception
 
+        params = {k: v for k, v in kwargs.items() if v is not None}
+        params.setdefault("orbit_type", "HALO")
         try:
-            kwargs.setdefault("orbit_type", "HALO")
-            request = FamilyGenerationRequest(**kwargs)
-            if request.orbit_type.upper() != "HALO":
-                raise NotImplementedError(
-                    f"orbit_type={request.orbit_type} 族生成尚未实现（当前仅支持 HALO）"
-                )
-            if request.libration_point is None or request.max_amplitude_km is None:
-                raise ValueError("HALO 轨道族缺少平动点或最大振幅")
-            family = design_halo_family(
-                request.libration_point,
-                request.max_amplitude_km,
-                n_orbits=request.n_orbits,
-            )
+            response = Facade().orbit_family_generation(**params)
         except Exception as e:
             raise translate_exception(e) from e
 
-        states = np.stack([np.asarray(orbit.states) for orbit in family.orbits])
-        times = np.stack([np.asarray(orbit.times) for orbit in family.orbits])
-        z0s = np.array([float(np.asarray(orbit.states)[0, 2]) for orbit in family.orbits])
+        orbits = list(response.orbits)
+        if not orbits:
+            raise OrbitError("FAMILY_FAILED", f"轨道族生成未产出成员: {response.message}")
+
+        family_type = str(response.family_type or params["orbit_type"]).lower()
+        periodicity = str(response.metadata.get("periodicity", "periodic"))
+        # 周期族成员只携带初态与周期：按周期重采样供画布渲染（传播走 Rust
+        # 后端，50 条成员为毫秒级）。成员携带多点轨迹时（Lissajous）原样采用。
+        need_sampling = any(
+            np.asarray(o.states).shape[0] == 1 and getattr(o, "period", None) for o in orbits
+        )
+        dynamics = None
+        if need_sampling:
+            from e2m2e.algorithm.dynamics import CR3BP_Dynamics
+
+            dynamics = CR3BP_Dynamics(response.system)
+        states_list: list[Any] = []
+        times_list: list[Any] = []
+        for orbit in orbits:
+            raw = np.asarray(orbit.states)
+            period = getattr(orbit, "period", None)
+            if dynamics is not None and raw.shape[0] == 1 and period:
+                t_eval = np.linspace(0.0, float(period), _FAMILY_MEMBER_SAMPLES)
+                propagated = dynamics.propagate(raw[0], (0.0, float(period)), t_eval=t_eval)
+                states_list.append(np.asarray(propagated["states"]))
+                times_list.append(t_eval)
+            else:
+                states_list.append(raw)
+                times_list.append(np.asarray(orbit.times))
+
+        status_message = ""
+        if response.status is not ConvergenceState.CONVERGED:
+            status_message = str(response.message)
+        z0s = None
+        if family_type == "halo":
+            z0s = np.array([float(np.asarray(o.states)[0, 2]) for o in orbits])
         return FamilyResultData(
-            orbit_type="Halo",
-            libration_point=request.libration_point,
-            n_orbits=len(family.orbits),
-            mu=family.system.mu,
-            states=states,
-            times=times,
+            orbit_type=_FAMILY_DISPLAY_NAMES.get(family_type, family_type),
+            libration_point=int(orbits[0].parameters["libration_point"]),
+            n_orbits=len(orbits),
+            mu=float(response.system.mu),
+            states=np.stack(states_list),
+            times=np.stack(times_list),
             z0s=z0s,
+            family_type=family_type,
+            periodicity=periodicity,
+            status_message=status_message,
+            member_parameters=[dict(getattr(o, "parameters", None) or {}) for o in orbits],
         )
 
     def analyze_stability(self, states: Any, times: Any, mu: float | None) -> StabilityResultData:

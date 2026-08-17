@@ -84,6 +84,12 @@ class TestFieldUnitOptions:
             "amplitude_out",
             "semi_major_axis",
             "max_amplitude_km",
+            # 轨道族生成（5.7.1 七族）距离字段
+            "min_amplitude_km",
+            "perilune_height_max_km",
+            "amplitude_in_km",
+            "amplitude_out_km",
+            "match_tolerance_km",
             # 相位（周期份额/度/弧度）
             "phase",
             "phase_in",

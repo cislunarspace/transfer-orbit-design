@@ -82,7 +82,7 @@ _Avoid_: 生成单条轨道（CLI 脚本概念）、脚本
 _Avoid_: 轨道设计、脚本
 
 **轨道族生成** (`orbit_family_generation`):
-新 GUI 的轨道族生成工具，经 `TOOL_REGISTRY` 注册并绑定 e2m2e 公开的 `FamilyGenerationRequest` 模型。GUI 固定 Halo 北族入口，桥接层补入 `orbit_type="HALO"`，再委托 e2m2e `design_halo_family` 从小振幅种子延拓到目标振幅或折叠点；上游模型按平动点校验振幅范围。其余族类型在上游模型中预留但尚未实现，GUI 不提供选择。结果以 family Artifact（`output/family/`，NPZ 存 `(m, n, 6)` 三维数组）落盘，画布按成员逐条叠加渲染。
+新 GUI 的轨道族生成工具，经 `TOOL_REGISTRY` 注册并绑定 e2m2e 公开的 `FamilyGenerationRequest` 模型。GUI 暴露七族下拉（Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe），按族显示对应参数；桥接层走 `Facade.orbit_family_generation`（5.7.1 起响应 `FamilyGenerationResponse` 携带完整轨道成员与状态三元组，软失败保留部分族）。周期族成员只携带初态与周期，桥接层按周期重采样后以 family Artifact（`output/family/`，NPZ 存 `(m, n, 6)` 三维数组）落盘，画布按成员逐条叠加渲染；Lissajous 为拟周期参数采样。范围与默认由上游模型 `valid_ranges` / model_validator 决定。
 _Avoid_: 单条轨道设计（那是 `design_orbit`）、批量并发跑多条单轨道
 
 **稳定性分析** (`orbit_stability`):

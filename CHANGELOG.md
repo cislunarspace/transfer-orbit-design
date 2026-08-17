@@ -2,6 +2,14 @@
 
 ## 未发布
 
+### e2m2e 5.7.1 适配
+
+- **升级依赖**：最低版本升为 `e2m2e>=5.7.1`，`uv.lock` 同步。获得七族统一轨道族生成（#428）与多项数值内核下沉 Rust。
+- **轨道族生成接入七族**：GUI 暴露 Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe 下拉，按族显示对应参数（振幅、近月点、相位、延拓方向等）；`sampling_mode` 各族首版只有唯一规则，不进面板。桥接层改走 `Facade.orbit_family_generation`（响应 `FamilyGenerationResponse` 携带完整轨道成员与状态三元组，软失败保留部分族）；5.7.1 起请求按 `model_fields_set` 拒绝跨族字段，面板收集后只传当前族适用字段，None 一并剔除。周期族成员只携带初态与周期，桥接层按周期重采样到固定点数供画布渲染；Lissajous 拟周期成员自带等长完整轨迹。
+- **结果契约泛化**：`FamilyResultData` 增加 `family_type` / `periodicity` / `member_parameters` / `status_message`；`z0s` 仅 Halo 保留。落盘 JSON 同步写入成员参数；完成日志按族报告标志性几何量（z 振幅 / 近月点高度 / 径向振幅等）。
+- **轨道设计默认对齐**：Horseshoe 振幅默认 150000 → 100000 km（上游默认与可达包络收口至 110000 km）；范围以 `DesignOrbitRequest.valid_ranges()` 为准，GUI 不另维护一份。
+- **异常翻译**：`e2m2e.api.OrbitError`（Facade 接缝）透传错误码与消息。
+
 ## 3.2.3 (2026-08-14)
 
 ### 修复

@@ -139,7 +139,7 @@ def discover_artifacts(output_dir: Path) -> list[Artifact]:
 | 子目录 | 文件名模式 | Artifact 类型 |
 |---|---|---|
 | `output/<type>/`（dro/halo/nrho/lissajous/l4/l5） | `<type>_<14位时间戳>.json` | orbit |
-| `output/family/` | `family_<ts>.json` | family（Halo 族） |
+| `output/family/` | `family_<ts>.json` | family（七族） |
 | `output/ephemeris/` | `orbit_ephemeris_<ts>.json` | ephemeris（轨道保持） |
 | `output/stability/` | `<label>_stability_<ts>.json` | 不进项目树（对话框展示） |
 | `output/dro/` | `dro_*_family_*.json`（遗留） | family（旧 GUI 的 DRO 族，兼容识别） |
@@ -165,10 +165,11 @@ class FacadeBridge:
 
 **关键设计**：
 
-- **直接调用 algorithm 层，不经过 Facade 门面**。原因：`Facade.design_orbit()` 返回的 `DesignOrbitResponse` 剥离了轨道数据（只返回标量汇总），而 GUI 需要完整的 `OrbitDesignResult`（含 `cr3bp_orbit`、`ephemeris`）用于可视化。Facade 门面是 MCP/CLI 的接口层，GUI 作为 e2m2e 的深度集成者直接使用算法层（ADR-0011）。
+- **`design_orbit` / `control_orbit` 直调 algorithm 层，不经过 Facade 门面**。原因：`Facade.design_orbit()` 返回的 `DesignOrbitResponse` 剥离了轨道数据（只返回标量汇总），而 GUI 需要完整的 `OrbitDesignResult`（含 `cr3bp_orbit`、`ephemeris`）用于可视化。Facade 门面是 MCP/CLI 的接口层，GUI 作为 e2m2e 的深度集成者直接使用算法层（ADR-0011）。
+- **`generate_family` 走 Facade**（e2m2e 5.7.1 起）：`FamilyGenerationResponse` 携带完整 `Orbit` 成员与状态三元组，七族统一入口；周期族成员只携带初态与周期，桥接层按周期重采样供画布渲染。
 - **e2m2e 5.6.5 起 `design_orbit` 首参为 `DesignOrbitRequest`**（散字段不再支持），facade 把 GUI 收集的 kwargs 包成 request 再调用；`duration` 由面板年单位换算为秒。
 - **结果 DTO（Data Transfer Object）**：可跨线程边界传递的纯数据类，不持有 e2m2e 对象引用。包含 numpy 数组（状态矩阵、时间向量）和标量元数据。
-- **异常翻译**：e2m2e 异常 → 结构化错误码 + 用户友好消息（`src/engine/exceptions.py`）。
+- **异常翻译**：e2m2e 异常 → 结构化错误码 + 用户友好消息（`src/engine/exceptions.py`）；Facade 接缝的 `e2m2e.api.OrbitError` 透传错误码。
 
 ### Workers
 
@@ -298,8 +299,8 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
 显示相应状态。e2m2e 新增工具时 GUI 清单零改动跟随。`ToolSpec.description`
 （工具说明）展示在工具选择器下方。稳定性分析无参数面板（右键轨道触发），
 `enabled=False` 仅表示下拉灰显，右键菜单另行启用。轨道族生成使用 e2m2e
-公开的 `FamilyGenerationRequest` 模型，GUI 固定 Halo 入口并委托
-`design_halo_family` 完成延拓。
+公开的 `FamilyGenerationRequest` 模型，GUI 暴露七族下拉，桥接层走
+`Facade.orbit_family_generation` 完成延拓/采样。
 
 ### 日志面板 `log_panel.py`
 

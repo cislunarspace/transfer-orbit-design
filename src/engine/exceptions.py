@@ -36,6 +36,8 @@ def translate_exception(e: Exception) -> OrbitError:
       前缀匹配的类型化传播失败，上游 #349）
     - RustExtensionUnavailableError -> BACKEND_UNAVAILABLE（5.6.6 起禁止
       Rust 缺失静默回退 Python，上游 #378）
+    - e2m2e.api OrbitError        -> 透传（Facade 接缝的结构化错误，码与消息
+      已是用户可读契约，如族生成的 INVALID_PARAMS/DESIGN_FAILED）
     - FileNotFoundError         -> KERNEL_NOT_FOUND
     - NotImplementedError        -> NOT_IMPLEMENTED
     - ValueError                -> INVALID_PARAMS
@@ -71,6 +73,16 @@ def translate_exception(e: Exception) -> OrbitError:
                 message=f"e2m2e Rust 计算内核不可用: {e}",
                 cause=e,
             )
+    except ImportError:
+        pass
+
+    try:
+        # e2m2e api 边界的结构化错误（Facade 接缝抛出，如族生成的
+        # INVALID_PARAMS/DESIGN_FAILED）：错误码与消息已是用户可读契约，透传。
+        from e2m2e.api.models import OrbitError as E2M2EOrbitError
+
+        if isinstance(e, E2M2EOrbitError):
+            return OrbitError(code=e.code, message=e.message, cause=e)
     except ImportError:
         pass
 
