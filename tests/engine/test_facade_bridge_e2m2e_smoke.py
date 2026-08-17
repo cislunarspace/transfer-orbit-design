@@ -67,3 +67,41 @@ def test_design_orbit_lissajous_default_reference_stays_bounded():
     radii_km = np.linalg.norm(data.ephemeris["position_km"], axis=1)
     assert radii_km.max() < 500_000.0
     assert radii_km[-1] < 500_000.0
+
+
+@pytest.mark.spice
+@pytest.mark.slow
+def test_design_orbit_nrho_default_converges_with_ephemeris():
+    """GUI 默认量级 NRHO 真路径应收敛并产出标称星历（e2m2e 5.7.2 / #463）。
+
+    依赖上游删近月点采样；本守卫防止再退回「旁路只交 CR3BP」或算法不收敛。
+    """
+    kernel_dir = detect_kernel_dir()
+    if not kernel_dir:
+        # 本仓 kernels/ 可能缺 de440；回退到 e2m2e 仓库内核（开发机常见布局）。
+        from pathlib import Path
+
+        alt = Path(__file__).resolve().parents[2].parent / "e2m2e" / "kernels"
+        if not alt.is_dir():
+            alt = Path("/home/ouyangjiahong/codes/e2m2e/kernels")
+        kernel_dir = str(alt) if alt.is_dir() else None
+    if not kernel_dir:
+        pytest.skip("无 SPICE 内核（detect_kernel_dir 返回空）")
+
+    from src.engine.facade_bridge import FacadeBridge
+
+    bridge = FacadeBridge(kernel_dir=kernel_dir)
+    data = bridge.design_orbit(
+        orbit_type="NRHO",
+        collinear_point=2,
+        north_south=2,
+        perilune_height=5000.0,
+        phase=0.5,
+        duration=1.0 / 12.0,
+    )
+
+    assert str(data.orbit_type).upper() == "NRHO"
+    assert data.correction_converged is True
+    assert data.ephemeris is not None
+    assert len(data.ephemeris["position_km"]) > 1
+    assert data.states is not None and len(data.states) > 1
