@@ -82,8 +82,8 @@ ORBIT_TYPE_DEFAULTS: dict[str, dict[str, float | int]] = {
     "L5_SPO": {"amplitude": 10000.0, "phase": 0.0},
     "L4_LPO": {"amplitude": 50000.0, "phase": 0.0},
     "L5_LPO": {"amplitude": 50000.0, "phase": 0.0},
-    "L4_HORSESHOE": {"amplitude": 150000.0, "phase": 0.0},
-    "L5_HORSESHOE": {"amplitude": 150000.0, "phase": 0.0},
+    "L4_HORSESHOE": {"amplitude": 100000.0, "phase": 0.0},
+    "L5_HORSESHOE": {"amplitude": 100000.0, "phase": 0.0},
     # ELFO（月心冻结轨道）形状参数。semi_major_axis 模型必填，GUI 取近月冻结
     # 代表值 6500 km；其余对齐 DesignOrbitRequest model_validator 的 ELFO 默认
     # （inclination=75、arg_of_pericenter=270、perilune_height=200）。
@@ -121,6 +121,46 @@ ORBIT_TYPE_FIELDS: dict[str, set[str]] = {
 }
 
 # ---------------------------------------------------------------------------
+# 轨道族生成（FamilyGenerationRequest，e2m2e 5.7.1 起七族）
+# ---------------------------------------------------------------------------
+
+#: 族类型下拉显示名（display.upper() == FamilyGenerationRequest 接受的 token）。
+FAMILY_TYPES: tuple[str, ...] = ("Halo", "NRHO", "Axial", "Lissajous", "SPO", "LPO", "Horseshoe")
+
+#: 每族分支应显示的族参数字段（公共字段 orbit_type/libration_point/n_orbits
+#: 始终显示；sampling_mode 各族首版只有唯一规则，不进面板）。
+#: 默认值与平动点域不在此表维护——apply_family_type_defaults /
+#: family_libration_points 从 FamilyGenerationRequest 读取。
+FAMILY_TYPE_FIELDS: dict[str, set[str]] = {
+    "Halo": {"max_amplitude_km"},
+    "NRHO": {"north_south", "perilune_height_max_km"},
+    "Axial": {"max_amplitude_km"},
+    "Lissajous": {"amplitude_in_km", "amplitude_out_km", "phase_in", "phase_out"},
+    "SPO": {"min_amplitude_km", "max_amplitude_km", "continuation_direction", "match_tolerance_km"},
+    "LPO": {"min_amplitude_km", "max_amplitude_km", "continuation_direction", "match_tolerance_km"},
+    "Horseshoe": {
+        "min_amplitude_km",
+        "max_amplitude_km",
+        "continuation_direction",
+        "match_tolerance_km",
+    },
+}
+
+
+def family_libration_points(family_type: str) -> tuple[int, ...]:
+    """返回指定族可选平动点（从 FamilyGenerationRequest.valid_ranges 读取）。"""
+    from e2m2e.api.models import FamilyGenerationRequest
+
+    ranges = FamilyGenerationRequest.valid_ranges(family_type.upper())
+    point_range = ranges["libration_point"]
+    lo = point_range.minimum
+    hi = point_range.maximum
+    if lo is None or hi is None:
+        raise ValueError(f"{family_type} 未声明平动点范围")
+    return tuple(range(int(lo), int(hi) + 1))
+
+
+# ---------------------------------------------------------------------------
 # 特殊字段：epoch 6-spinbox 与 correction_method 下拉
 # ---------------------------------------------------------------------------
 
@@ -134,9 +174,12 @@ _EPOCH_FIELD = "epoch"
 #: 对这些不稳定轨道会被自动重定向。
 CORRECTION_METHOD_OPTIONS: tuple[str, ...] = ("standard", "two_level")
 
-#: str 枚举类字段 -> 下拉选项（现仅 correction_method）。
+#: str 枚举类字段 -> 下拉选项（correction_method 与族延拓方向）。
+#: continuation_direction 仅三角族（SPO/LPO/Horseshoe）有两个选项；
+#: NRHO/Axial 的唯一固定方向不暴露（字段隐藏，模型自动填默认）。
 _STR_ENUM_FIELDS: dict[str, tuple[str, ...]] = {
     "correction_method": CORRECTION_METHOD_OPTIONS,
+    "continuation_direction": ("decrease-x0", "increase-x0"),
 }
 
 #: 整数枚举字段 -> (值, 显示名) 下拉选项。模型里这些字段是无语义的 int
@@ -226,6 +269,32 @@ FIELD_UNIT_OPTIONS: dict[str, tuple[UnitOption, ...]] = {
         UnitOption("DU", DU_KM, decimals=10, step=0.001),
     ),
     "max_amplitude_km": (
+        UnitOption("km", 1.0),
+        UnitOption("m", 1e-3, decimals=0, step=1000.0),
+        UnitOption("DU", DU_KM, decimals=10, step=0.001),
+    ),
+    # 轨道族生成（FamilyGenerationRequest）的其余距离字段（标准 km）
+    "min_amplitude_km": (
+        UnitOption("km", 1.0),
+        UnitOption("m", 1e-3, decimals=0, step=1000.0),
+        UnitOption("DU", DU_KM, decimals=10, step=0.001),
+    ),
+    "perilune_height_max_km": (
+        UnitOption("km", 1.0),
+        UnitOption("m", 1e-3, decimals=0, step=1000.0),
+        UnitOption("DU", DU_KM, decimals=10, step=0.001),
+    ),
+    "amplitude_in_km": (
+        UnitOption("km", 1.0),
+        UnitOption("m", 1e-3, decimals=0, step=1000.0),
+        UnitOption("DU", DU_KM, decimals=10, step=0.001),
+    ),
+    "amplitude_out_km": (
+        UnitOption("km", 1.0),
+        UnitOption("m", 1e-3, decimals=0, step=1000.0),
+        UnitOption("DU", DU_KM, decimals=10, step=0.001),
+    ),
+    "match_tolerance_km": (
         UnitOption("km", 1.0),
         UnitOption("m", 1e-3, decimals=0, step=1000.0),
         UnitOption("DU", DU_KM, decimals=10, step=0.001),
@@ -950,20 +1019,14 @@ def _unwrap_optional_widget(widget: QWidget) -> QWidget:
     return widget
 
 
-def apply_orbit_type_defaults(
-    widgets: dict[str, QWidget],
-    orbit_type: str,
-) -> None:
-    """把 orbit_type 分支的默认值填入 widgets 对应控件。
+def _apply_branch_defaults(widgets: dict[str, QWidget], defaults: dict[str, Any]) -> None:
+    """把分支默认值填入 widgets 对应控件。
 
     分支字段若是 Optional 容器（QCheckBox + 内部控件），解包为内部控件并
-    用分支默认值 setValue（去掉勾选框，直接可调）。未知 orbit_type 或字段
-    缺失时静默跳过（无分支则不做任何事）。按控件类型而非模型字段类型设值
-    （int 默认值 -> QSpinBox，float 默认值 -> QDoubleSpinBox）。
+    用分支默认值 setValue（去掉勾选框，直接可调）。字段缺失时静默跳过。
+    按控件类型而非模型字段类型设值（int 默认值 -> QSpinBox，float 默认值
+    -> QDoubleSpinBox，str 默认值 -> QComboBox/QLineEdit）。
     """
-    defaults = ORBIT_TYPE_DEFAULTS.get(orbit_type)
-    if not defaults:
-        return
     for field_name, value in defaults.items():
         widget = widgets.get(field_name)
         if widget is None:
@@ -972,14 +1035,14 @@ def apply_orbit_type_defaults(
         widget.setEnabled(True)
         widgets[field_name] = widget
         if isinstance(widget, QDoubleSpinBox):
-            value_f = float(value)
+            value_f = float(value)  # type: ignore[arg-type]
             # 标准单位默认值 -> 当前显示单位
             opt = _current_unit_option(field_name, widget)
             if opt is not None:
                 value_f /= opt.to_standard
             widget.setValue(value_f)
         elif isinstance(widget, QSpinBox):
-            widget.setValue(int(value))
+            widget.setValue(int(value))  # type: ignore[arg-type]
         elif isinstance(widget, QComboBox):
             if isinstance(value, int):
                 # 整数枚举下拉：按 itemData（int）选中
@@ -992,6 +1055,47 @@ def apply_orbit_type_defaults(
                 widget.setCurrentText(str(value))
         elif isinstance(widget, QLineEdit):
             widget.setText(str(value))
+
+
+def apply_orbit_type_defaults(
+    widgets: dict[str, QWidget],
+    orbit_type: str,
+) -> None:
+    """把 orbit_type 分支的默认值填入 widgets 对应控件。
+
+    未知 orbit_type 或字段缺失时静默跳过（无分支则不做任何事）。
+    解包/设值机制见 ``_apply_branch_defaults``。
+    """
+    defaults = ORBIT_TYPE_DEFAULTS.get(orbit_type)
+    if not defaults:
+        return
+    _apply_branch_defaults(widgets, defaults)
+
+
+def apply_family_type_defaults(
+    widgets: dict[str, QWidget],
+    family_type: str,
+) -> None:
+    """把轨道族分支的默认值填入 widgets。
+
+    默认值直接从 ``FamilyGenerationRequest(orbit_type=...)`` 构造结果读取，
+    不在 GUI 维护第二份默认表——上游改默认时面板自动跟随。
+    """
+    from e2m2e.api.models import FamilyGenerationRequest
+
+    try:
+        request = FamilyGenerationRequest(orbit_type=family_type)
+    except Exception:  # noqa: BLE001 -- 未知族类型静默跳过
+        return
+    fields = FAMILY_TYPE_FIELDS.get(family_type, set()) | {"libration_point", "n_orbits"}
+    defaults: dict[str, Any] = {}
+    for name in fields:
+        value = getattr(request, name, None)
+        if value is not None:
+            defaults[name] = value
+    if not defaults:
+        return
+    _apply_branch_defaults(widgets, defaults)
 
 
 # ---------------------------------------------------------------------------

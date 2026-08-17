@@ -39,7 +39,7 @@ L4_HORSESHOE / L5_HORSESHOE / ELFO**。选择类型后面板只显示该类型�
 | L4 / L5 | `phase_in` / `phase_out` | 相位（默认 0） |
 | L4_SPO / L5_SPO | `amplitude` / `phase` | 短周期族（默认 10000 km / 0） |
 | L4_LPO / L5_LPO | `amplitude` / `phase` | 长周期族（默认 50000 km / 0） |
-| L4_HORSESHOE / L5_HORSESHOE | `amplitude` / `phase` | 马蹄形族（默认 150000 km / 0） |
+| L4_HORSESHOE / L5_HORSESHOE | `amplitude` / `phase` | 马蹄形族（默认 100000 km / 0） |
 | ELFO | `semi_major_axis` | 月心半长轴（km，必填，默认 6500） |
 | ELFO | `inclination` / `arg_of_pericenter` | 倾角 / 近月点幅角（度，默认 75 / 270；可切 rad） |
 | ELFO | `perilune_height` | 近月点高度（km，默认 200） |
@@ -94,14 +94,24 @@ GUI 默认设计的短弧；较长任务可按星历覆盖时长调整参数。
 
 ## 轨道族生成（orbit_family_generation）
 
-从 Halo 小振幅种子出发，固定面外振幅逐步延拓，生成一族轨道。第一版仅支持
-**Halo 北族**（其余轨道类型在 e2m2e 只有单条设计函数，无族延拓接口）。
+生成 CR3BP 轨道族。七族均已接入：Halo / NRHO / Axial / SPO / LPO / Horseshoe
+为周期延拓族，Lissajous 为拟周期轨迹参数采样。选择族类型后面板只显示该族
+相关参数；`sampling_mode` 各族首版只有唯一规则，不暴露。范围与默认由 e2m2e
+`FamilyGenerationRequest` 的 `valid_ranges` / model_validator 决定。
 
-| 参数 | 默认值 | 说明 |
+| 参数 | 适用族 | 说明 |
 |------|--------|------|
-| `libration_point` | 2 | 共线平动点（L1/L2 下拉） |
-| `max_amplitude_km` | 30000 | 最大面外振幅（km，范围 1000–57000；可切 km/m/DU）；延拓到该振幅或折叠点自动停止 |
-| `n_orbits` | 20 | 族成员数（含种子，实际以延拓结果为准） |
+| `orbit_type` | 全部 | 族类型下拉（Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe） |
+| `libration_point` | 全部 | 平动点（共线族 L1/L2，Lissajous 加 L3，三角族 L4/L5） |
+| `n_orbits` | 全部 | 族成员数上限（实际以延拓/采样结果为准） |
+| `max_amplitude_km` | Halo / Axial / SPO / LPO / Horseshoe | 振幅上限（km；Halo/Axial 带符号区分北南或上下族） |
+| `min_amplitude_km` | SPO / LPO / Horseshoe | 振幅下限（km） |
+| `north_south` | NRHO | 北族 / 南族 |
+| `perilune_height_max_km` | NRHO | 近月点高度上限（km） |
+| `amplitude_in_km` / `amplitude_out_km` | Lissajous | 面内 / 面外振幅上限（km） |
+| `phase_in` / `phase_out` | Lissajous | 面内 / 面外初始相位（周期份额） |
+| `continuation_direction` | SPO / LPO / Horseshoe | 延拓方向（`decrease-x0` / `increase-x0`） |
+| `match_tolerance_km` | SPO / LPO / Horseshoe | 振幅匹配容差（km） |
 
 纯 CR3BP 计算，不需要 SPICE 内核。结果写入 `output/family/`，画布按成员
 逐条叠加渲染。

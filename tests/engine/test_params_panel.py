@@ -224,14 +224,29 @@ class TestOptionalFieldCheckbox:
 
 
 class TestFamilyGenerationParams:
-    """FamilyGenerationRequest → 参数面板控件（轨道族生成工具）。"""
+    """FamilyGenerationRequest → 参数面板控件（轨道族生成工具，5.7.1 起七族字段）。"""
 
     def test_builds_upstream_model_widgets(self, qapp):
         from src.engine.facade_bridge import FamilyGenerationRequest
         from src.view.params_panel import build_params_from_model
 
         widgets = build_params_from_model(FamilyGenerationRequest)
-        assert set(widgets) == {"orbit_type", "libration_point", "max_amplitude_km", "n_orbits"}
+        assert set(widgets) == {
+            "orbit_type",
+            "libration_point",
+            "n_orbits",
+            "max_amplitude_km",
+            "min_amplitude_km",
+            "north_south",
+            "perilune_height_max_km",
+            "amplitude_in_km",
+            "amplitude_out_km",
+            "phase_in",
+            "phase_out",
+            "continuation_direction",
+            "sampling_mode",
+            "match_tolerance_km",
+        }
 
     def test_collect_defaults(self, qapp):
         from src.engine.facade_bridge import FamilyGenerationRequest
@@ -244,6 +259,18 @@ class TestFamilyGenerationParams:
             "libration_point": 2,
             "max_amplitude_km": 30000.0,
             "n_orbits": 50,
+            # 未勾选的 Optional 字段返回 None（桥接层/主窗口负责剔除）
+            "min_amplitude_km": None,
+            "north_south": None,
+            "perilune_height_max_km": None,
+            "amplitude_in_km": None,
+            "amplitude_out_km": None,
+            "phase_in": None,
+            "phase_out": None,
+            "sampling_mode": None,
+            "match_tolerance_km": None,
+            # str 枚举下拉无 Optional 包装，始终返回当前选项
+            "continuation_direction": "decrease-x0",
         }
 
     def test_collect_edited_values(self, qapp):
@@ -261,9 +288,7 @@ class TestFamilyGenerationParams:
         widgets["max_amplitude_km"].setValue(15000.0)
         widgets["n_orbits"].setValue(30)
         params = collect_params(widgets, FamilyGenerationRequest)
-        assert params == {
-            "orbit_type": "HALO",
-            "libration_point": 1,
-            "max_amplitude_km": 15000.0,
-            "n_orbits": 30,
-        }
+        assert params["orbit_type"] == "HALO"
+        assert params["libration_point"] == 1
+        assert params["max_amplitude_km"] == 15000.0
+        assert params["n_orbits"] == 30

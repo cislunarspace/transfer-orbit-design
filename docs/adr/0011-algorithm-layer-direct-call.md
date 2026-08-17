@@ -50,3 +50,11 @@ result = design_orbit("DRO", amplitude=40000, kernel_dir="...")
 - FacadeBridge 薄封装：集中处理异常翻译和结果 DTO 转换
 - e2m2e 算法层签名相对稳定（已被其自身测试套件覆盖）
 - 如果 Facade 未来补全返回完整数据，可切换回 Facade 路径
+
+## 修订（2026-08-17，e2m2e 5.7.1）
+
+轨道族生成改走 `Facade.orbit_family_generation`：5.7.1 起 Facade 响应
+（`FamilyGenerationResponse`）携带完整 `Orbit` 成员与状态三元组，软失败
+保留部分族，七族统一入口。本 ADR 的前提（Facade 剥离轨道数据）对族生成
+已不再成立；`design_orbit` / `control_orbit` 仍直调算法层（对应响应仍只
+返回标量汇总）。

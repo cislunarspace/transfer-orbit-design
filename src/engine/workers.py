@@ -138,8 +138,34 @@ class ControlOrbitWorker(_CancellableWorker):
                 self.error.emit(f"[UNKNOWN_ERROR] {e}")
 
 
+#: 各族成员的标志性几何量（用于完成日志）：
+#: family_type -> (member_parameters 键, 显示标签, 是否需 DU→km 换算)。
+_FAMILY_MEMBER_METRIC = {
+    "halo": ("amplitude_z", "z 振幅", True),
+    "nrho": ("perilune_height_km", "近月点高度", False),
+    "axial": ("amplitude_z_km", "z 振幅", False),
+    "lissajous": ("amplitude_out_km", "面外振幅", False),
+    "spo": ("amplitude_km", "振幅", False),
+    "lpo": ("amplitude_km", "振幅", False),
+    "horseshoe": ("amplitude_km", "振幅", False),
+}
+
+
+def _family_metric_summary(data: Any) -> str:
+    """从成员参数提取族标志性几何量的范围摘要（如 "，z 振幅 385–19245 km"）。"""
+    metric = _FAMILY_MEMBER_METRIC.get(getattr(data, "family_type", ""))
+    if metric is None or not data.member_parameters:
+        return ""
+    key, label, to_km = metric
+    values = [float(p[key]) for p in data.member_parameters if key in p]
+    if not values:
+        return ""
+    scale = DU_KM if to_km else 1.0
+    return f"，{label} {min(values) * scale:.0f}–{max(values) * scale:.0f} km"
+
+
 class FamilyOrbitWorker(_CancellableWorker):
-    """后台执行 e2m2e Halo 轨道族生成（CR3BP 纯计算，无需 SPICE）。
+    """后台执行 e2m2e 轨道族生成（七族；CR3BP 纯计算，无需 SPICE）。
 
     Signals:
         log(str):                     进度/信息日志。
@@ -161,17 +187,20 @@ class FamilyOrbitWorker(_CancellableWorker):
 
     def run(self) -> None:
         try:
-            self.log.emit("开始生成 Halo 轨道族...")
+            self.log.emit(f"开始生成 {self._params.get('orbit_type', 'HALO')} 轨道族...")
             self.log.emit(f"参数: {self._params}")
             bridge = FacadeBridge()
             data = bridge.generate_family(**self._params)
             if self._emit_cancelled_if_requested():
                 return
-            self.log.emit(
-                f"轨道族生成完成: {data.n_orbits} 条 Halo 轨道"
-                f"（L{data.libration_point}，z 振幅 {data.z0s.min() * DU_KM:.0f}–"
-                f"{data.z0s.max() * DU_KM:.0f} km）"
+            message = (
+                f"轨道族生成完成: {data.n_orbits} 条 {data.orbit_type} 轨道"
+                f"（L{data.libration_point}{_family_metric_summary(data)}）"
             )
+            if data.status_message:
+                # 软失败（部分族）：上游状态消息告知为何未满额
+                message += f"；{data.status_message}"
+            self.log.emit(message)
             self.finished.emit(data)
         except OrbitError as e:
             if not self._emit_cancelled_if_requested():

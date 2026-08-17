@@ -101,13 +101,70 @@ class TestParamGroups:
         window._tool_combo.setCurrentIndex(idx)
         assert set(window._group_headers) == {"控制参数", "仿真与误差", "力模型", "角动量管理"}
 
-    def test_family_hides_unimplemented_orbit_type(self, qapp):
-        """上游模型虽预留多族类型，GUI 只展示已接入的 Halo 参数。"""
+    def test_family_panel_seven_families(self, qapp):
+        """5.7.1 起族生成面板暴露七族下拉，sampling_mode 不进面板。"""
         window = _make_window(qapp)
         idx = window._tool_combo.findData("orbit_family_generation")
         window._tool_combo.setCurrentIndex(idx)
-        assert set(window._param_widgets) == {"libration_point", "max_amplitude_km", "n_orbits"}
         assert set(window._group_headers) == {"族参数"}
+        assert "sampling_mode" not in window._param_widgets
+        orbit_combo = window._param_widgets["orbit_type"]
+        assert [orbit_combo.itemText(i) for i in range(orbit_combo.count())] == [
+            "Halo",
+            "NRHO",
+            "Axial",
+            "Lissajous",
+            "SPO",
+            "LPO",
+            "Horseshoe",
+        ]
+
+    def test_family_field_visibility_follows_type(self, qapp):
+        """按族显示参数字段：Halo 只显示振幅上限；切三角族换成范围+延拓方向+容差。"""
+        window = _make_window(qapp)
+        idx = window._tool_combo.findData("orbit_family_generation")
+        window._tool_combo.setCurrentIndex(idx)
+        # 默认 Halo：max_amplitude_km 可见，三角族字段隐藏
+        assert not window._param_rows["max_amplitude_km"][0].isHidden()
+        assert window._param_rows["min_amplitude_km"][0].isHidden()
+        assert window._param_rows["north_south"][0].isHidden()
+        orbit_combo = window._param_widgets["orbit_type"]
+        orbit_combo.setCurrentText("SPO")
+        assert not window._param_rows["min_amplitude_km"][0].isHidden()
+        assert not window._param_rows["match_tolerance_km"][0].isHidden()
+        assert not window._param_rows["continuation_direction"][0].isHidden()
+        assert window._param_rows["perilune_height_max_km"][0].isHidden()
+        # 三角族平动点下拉为 L4/L5，且默认值已填入
+        point_combo = window._param_widgets["libration_point"]
+        assert [point_combo.itemData(i) for i in range(point_combo.count())] == [4, 5]
+        assert point_combo.currentData() == 4
+        # 切回 Halo：平动点回到 L1/L2
+        orbit_combo.setCurrentText("Halo")
+        point_combo = window._param_widgets["libration_point"]
+        assert [point_combo.itemData(i) for i in range(point_combo.count())] == [1, 2]
+
+    def test_family_request_params_filter(self, qapp):
+        """族生成参数过滤：只留当前族适用字段，剔除隐藏分支残留值与 None。"""
+        from src.app.main_window import _family_request_params
+
+        params = {
+            "orbit_type": "NRHO",
+            "libration_point": 2,
+            "n_orbits": 50,
+            "north_south": 2,
+            "perilune_height_max_km": 20000.0,
+            # Halo 分支残留值与未勾选 Optional 的 None 都应被过滤
+            "max_amplitude_km": 30000.0,
+            "amplitude_in_km": None,
+            "phase_in": None,
+        }
+        assert _family_request_params(params, "NRHO") == {
+            "orbit_type": "NRHO",
+            "libration_point": 2,
+            "n_orbits": 50,
+            "north_south": 2,
+            "perilune_height_max_km": 20000.0,
+        }
 
     def test_group_header_hidden_when_branch_fields_hidden(self, qapp):
         """ELFO 分支：形状参数组只剩 ELFO 字段（其余分支字段隐藏），组表头仍可见；

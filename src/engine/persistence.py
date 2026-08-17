@@ -230,8 +230,9 @@ def save_family_result(
     """将轨道族生成结果写入 output/family/，返回 ``(json_path, npz_path)``。
 
     文件名 ``family_<ts>``，与 discovery 的 family 识别约定兼容。
-    NPZ 存各族成员的三维数组：``states (m,n,6)`` / ``times (m,n)`` /
-    ``z0s (m,)``。
+    NPZ 存各族成员的三维数组：``states (m,n,6)`` / ``times (m,n)``；
+    ``z0s (m,)`` 仅 Halo 族有（其它族为 None，不写入）。成员级族参数
+    （近月点高度/振幅等，按族不同）写入 JSON 的 ``member_parameters``。
     """
     output_dir = Path(output_dir)
     family_dir = output_dir / "family"
@@ -242,20 +243,24 @@ def save_family_result(
     json_path = family_dir / f"{stem}.json"
     npz_path = family_dir / f"{stem}.npz"
 
-    np.savez_compressed(
-        npz_path,  # type: ignore[call-arg]
-        states=result_data.states,
-        times=result_data.times,
-        z0s=result_data.z0s,
-    )
+    arrays: dict[str, Any] = {
+        "states": result_data.states,
+        "times": result_data.times,
+    }
+    if result_data.z0s is not None:
+        arrays["z0s"] = result_data.z0s
+    np.savez_compressed(npz_path, **arrays)  # type: ignore[call-arg]
 
     meta = {
         "artifact_type": "family",
         "source_tool": "orbit_family_generation",
         "orbit_type": result_data.orbit_type,
+        "family_type": result_data.family_type,
+        "periodicity": result_data.periodicity,
         "libration_point": result_data.libration_point,
         "n_orbits": result_data.n_orbits,
         "mu": result_data.mu,
+        "member_parameters": result_data.member_parameters,
         "states_shape": list(result_data.states.shape),
         "arrays_file": npz_path.name,
     }

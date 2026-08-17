@@ -48,8 +48,8 @@ _EXPECTED_DEFAULTS: dict[str, dict[str, float | int]] = {
     "L5_SPO": {"amplitude": 10000.0, "phase": 0.0},
     "L4_LPO": {"amplitude": 50000.0, "phase": 0.0},
     "L5_LPO": {"amplitude": 50000.0, "phase": 0.0},
-    "L4_HORSESHOE": {"amplitude": 150000.0, "phase": 0.0},
-    "L5_HORSESHOE": {"amplitude": 150000.0, "phase": 0.0},
+    "L4_HORSESHOE": {"amplitude": 100000.0, "phase": 0.0},
+    "L5_HORSESHOE": {"amplitude": 100000.0, "phase": 0.0},
     # ELFO 形状参数：semi_major_axis 为 GUI 选定的近月冻结代表值，其余对齐
     # DesignOrbitRequest model_validator 的 ELFO 默认。
     "ELFO": {
