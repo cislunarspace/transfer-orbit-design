@@ -330,7 +330,7 @@ class TestFacadeBridgeDesignOrbit:
                 ephemeris=None,
             )
 
-        monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _capture, raising=False)
+        monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _capture, raising=True)
 
         data = FacadeBridge(kernel_dir="/tmp/kernels").design_orbit(
             orbit_type="NRHO",

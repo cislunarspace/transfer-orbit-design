@@ -72,19 +72,12 @@ def test_design_orbit_lissajous_default_reference_stays_bounded():
 @pytest.mark.spice
 @pytest.mark.slow
 def test_design_orbit_nrho_default_converges_with_ephemeris():
-    """GUI 默认量级 NRHO 真路径应收敛并产出标称星历（e2m2e 5.7.2 / #463）。
+    """GUI 默认量级 NRHO 真路径应收敛并产出对齐的标称星历（e2m2e 5.7.3 / #473）。
 
-    依赖上游删近月点采样；本守卫防止再退回「旁路只交 CR3BP」或算法不收敛。
+    依赖上游等时间采样 + 1 圈/段；本守卫防止再退回「旁路只交 CR3BP」或
+    算法不收敛，并锁星历各槽等长（5.7.2 曾因采样未钉历元而错位）。
     """
     kernel_dir = detect_kernel_dir()
-    if not kernel_dir:
-        # 本仓 kernels/ 可能缺 de440；回退到 e2m2e 仓库内核（开发机常见布局）。
-        from pathlib import Path
-
-        alt = Path(__file__).resolve().parents[2].parent / "e2m2e" / "kernels"
-        if not alt.is_dir():
-            alt = Path("/home/ouyangjiahong/codes/e2m2e/kernels")
-        kernel_dir = str(alt) if alt.is_dir() else None
     if not kernel_dir:
         pytest.skip("无 SPICE 内核（detect_kernel_dir 返回空）")
 
@@ -103,5 +96,11 @@ def test_design_orbit_nrho_default_converges_with_ephemeris():
     assert str(data.orbit_type).upper() == "NRHO"
     assert data.correction_converged is True
     assert data.ephemeris is not None
-    assert len(data.ephemeris["position_km"]) > 1
+    eph = data.ephemeris
+    # 星历各槽等长（位置/速度/时间一一对应），并覆盖整个设计弧
+    assert len(eph["position_km"]) == len(eph["velocity_mps"])
+    assert len(eph["position_km"]) == len(eph["year"])
+    assert len(eph["position_km"]) > 1
+    # 真物理时间覆盖整个设计弧：1/12 年 ≈ 2.63e6 s，断言不短于 1.5e6 s
+    assert eph["times_et"][-1] - eph["times_et"][0] > 1.5e6
     assert data.states is not None and len(data.states) > 1

@@ -2,7 +2,7 @@
 
 来源：服务器 `~/Downloads/all.zip` 中 OCR 文稿（`nrho_lit_extract/`）。
 目的：解释 GUI 默认 NRHO 为何极慢，以及上游 e2m2e 可借鉴的改法。
-**不是**实现规格；GUI 止血见 `FacadeBridge.design_orbit` 的 NRHO 分支。
+**不是**实现规格；与 GUI 侧的对应实现在 `FacadeBridge.design_orbit`（NRHO 走完整 `design_orbit`，无旁路）。
 
 ## 现象（本仓库实测）
 
