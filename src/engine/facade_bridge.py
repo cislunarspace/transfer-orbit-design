@@ -424,6 +424,8 @@ class FacadeBridge:
         # Halo/NRHO 重定向到 segmented；Lissajous 若沿用 standard/two_level，
         # 一圈修正后的自由外推会沿不稳定流形发散。GUI 不暴露 segmented，
         # 因此在此固定走分段修正，保持整段标称星历有界。
+        # e2m2e 5.7.3 起 NRHO 默认等时间采样 + 1 圈/段（上游 #473），完整
+        # design_orbit 路径在 GUI 默认量级收敛，与 Halo 一样走本入口（无旁路）。
         orbit_type = kwargs.get("orbit_type")
         if isinstance(orbit_type, str) and orbit_type.upper() == "LISSAJOUS":
             kwargs["correction_method"] = "segmented"

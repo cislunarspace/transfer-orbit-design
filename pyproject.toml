@@ -25,7 +25,7 @@ dependencies = [
     "tqdm>=4.66",
     "PyQt6>=6.6.0",
     "PyQt6-WebEngine>=6.6.0",
-    "e2m2e>=5.7.1",  # 5.7.1 七族统一轨道族生成（FamilyGenerationResponse 携带完整轨道数据），按族拒绝跨族字段，新增 valid_options
+    "e2m2e>=5.7.3",  # 5.7.3 NRHO 星历修正默认路径收敛（#473：等时间 + 1 圈/段 + 历元钉点）；5.7.1 七族统一轨道族生成
     "pillow>=10.0.0",  # GIF 合成；matplotlib 的既有传递依赖，显式声明本仓库使用
     "calcephpy==5.0.0",  # 经 e2m2e→r2s2 传递依赖；显式声明以使 [tool.uv.sources] 生效（uv sources 仅覆盖直接依赖）
 ]

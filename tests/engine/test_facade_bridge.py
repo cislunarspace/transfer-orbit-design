@@ -300,3 +300,49 @@ class TestFacadeBridgeDesignOrbit:
             # amplitude=50 < DRO 下限 1737 km，触发 model_validator ValueError
             bridge.design_orbit(orbit_type="DRO", amplitude=50.0)
         assert exc_info.value.code == "INVALID_PARAMS"
+
+    def test_nrho_uses_full_design_orbit_pipeline(self, monkeypatch):
+        """e2m2e 5.7.3 起 NRHO 走完整 design_orbit（不再旁路只交 CR3BP）。"""
+        captured: dict = {}
+
+        def _capture(request, *, spice=None, kernel_dir=None, verbose=False):
+            captured["orbit_type"] = request.orbit_type
+            captured["kernel_dir"] = kernel_dir
+            from types import SimpleNamespace
+
+            system = SimpleNamespace(mu=0.01215)
+            orbit = SimpleNamespace(
+                states=np.zeros((4, 6)),
+                times=np.linspace(0.0, 1.0, 4),
+                system=system,
+            )
+            correction = SimpleNamespace(
+                status=ConvergenceState.CONVERGED, iterations=5
+            )
+            return SimpleNamespace(
+                orbit_type="NRHO",
+                epoch_utc="2024-01-01T00:00:00",
+                duration_day=30.0,
+                initial_state=np.zeros(6),
+                cr3bp_jacobi=3.03,
+                cr3bp_orbit=orbit,
+                correction=correction,
+                ephemeris=None,
+            )
+
+        monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _capture, raising=True)
+
+        data = FacadeBridge(kernel_dir="/tmp/kernels").design_orbit(
+            orbit_type="NRHO",
+            collinear_point=2,
+            north_south=2,
+            perilune_height=5000.0,
+            phase=0.5,
+            duration=1.0 / 12.0,
+        )
+
+        assert captured["orbit_type"].upper() == "NRHO"
+        assert captured["kernel_dir"] == "/tmp/kernels"
+        assert data.orbit_type == "NRHO"
+        assert data.correction_converged is True
+        assert data.correction_iterations == 5
