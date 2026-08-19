@@ -939,9 +939,7 @@ class MainWindow(QMainWindow):
             return
         family_widget = self._param_widgets.get("orbit_type")
         point_widget = self._param_widgets.get("libration_point")
-        if not isinstance(family_widget, QComboBox) or not isinstance(
-            point_widget, QComboBox
-        ):
+        if not isinstance(family_widget, QComboBox) or not isinstance(point_widget, QComboBox):
             return
         point = point_widget.itemData(index)
         if not isinstance(point, int):

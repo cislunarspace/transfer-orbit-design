@@ -1161,9 +1161,7 @@ def sync_family_point_params(
     from e2m2e.api.models import FamilyGenerationRequest
 
     try:
-        request = FamilyGenerationRequest(
-            orbit_type=family_type, libration_point=libration_point
-        )
+        request = FamilyGenerationRequest(orbit_type=family_type, libration_point=libration_point)
         ranges = FamilyGenerationRequest.valid_ranges(
             family_type.upper(), libration_point=libration_point
         )
