@@ -41,7 +41,15 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libegl1
+        # runner 镜像通常已预装 libEGL，先探测，缺失才走 apt；apt 加超时与
+        # 重试，防止镜像源卡住时 apt-get update 无限挂起（曾致 CI 卡 10+ 分钟）
+        run: |
+          if ldconfig -p | grep -q 'libEGL\.so\.1'; then
+            echo "libEGL 已预装，跳过 apt"
+          else
+            sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+            sudo apt-get install -y --no-install-recommends libegl1
+          fi
       - run: uv sync --extra test --frozen
       - name: Run tests
         env:
