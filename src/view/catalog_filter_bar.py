@@ -114,13 +114,16 @@ class CatalogFilterBar(QWidget):
         grid.addWidget(export_btn, 2, 2, 1, 2)
 
         # 任一控件变化即重查（SQLite 索引查询为毫秒级，不需要"应用"按钮）
-        for combo in (self._family_combo, self._point_combo, self._cr3bp_combo,
-                      self._ephemeris_combo):
+        for combo in (
+            self._family_combo,
+            self._point_combo,
+            self._cr3bp_combo,
+            self._ephemeris_combo,
+        ):
             combo.currentIndexChanged.connect(lambda _idx: self._emit())
         for check in (self._jacobi_check, self._amplitude_check):
             check.toggled.connect(lambda _checked: self._emit())
-        for spin in (self._jacobi_min, self._jacobi_max, self._amplitude_min,
-                     self._amplitude_max):
+        for spin in (self._jacobi_min, self._jacobi_max, self._amplitude_min, self._amplitude_max):
             spin.valueChanged.connect(lambda _value: self._emit())
 
     # -- 公共 API -----------------------------------------------------------

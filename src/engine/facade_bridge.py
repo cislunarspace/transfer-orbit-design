@@ -673,9 +673,7 @@ class FacadeBridge:
             raw = np.asarray(orbit.states)
             period = getattr(orbit, "period", None)
             if dynamics is not None and raw.shape[0] == 1 and period:
-                sampled_states, sampled_times = resample_periodic_member(
-                    dynamics, raw[0], period
-                )
+                sampled_states, sampled_times = resample_periodic_member(dynamics, raw[0], period)
                 states_list.append(sampled_states)
                 times_list.append(sampled_times)
             else:

@@ -97,7 +97,7 @@ def record_to_artifact(summary: Any) -> Artifact:
 
 def _eph_segment(arrays: dict) -> dict:
     """星历段数组（eph/ 前缀剥离）+ 重建的 times_et（ADR 0013 四槽位数据源）。"""
-    eph = {k[len("eph/"):]: np.asarray(v) for k, v in arrays.items() if k.startswith("eph/")}
+    eph = {k[len("eph/") :]: np.asarray(v) for k, v in arrays.items() if k.startswith("eph/")}
     eph["times_et"] = _reconstruct_et_from_utc(_ephemeris_table_from_mapping(eph))
     return eph
 

@@ -360,8 +360,14 @@ class MainWindow(QMainWindow):
         # Issue #375: 轨道库 catalog -- 产物清单 / 过滤 / 谱系 / 标注 / 导出。
         # 库目录 QSettings 可改，默认仓库根 catalog/（与 output/ 平级）。
         self._catalog_dir = self._load_catalog_dir()
-        self._catalog: CatalogService = catalog if catalog is not None else CatalogService(
-            FacadeBridge(kernel_dir=detect_kernel_dir() or None, catalog_dir=str(self._catalog_dir))
+        self._catalog: CatalogService = (
+            catalog
+            if catalog is not None
+            else CatalogService(
+                FacadeBridge(
+                    kernel_dir=detect_kernel_dir() or None, catalog_dir=str(self._catalog_dir)
+                )
+            )
         )
         self._catalog_filters: dict = {}
         # catalog 分类体系之外的遗留分区（transfer）：目录扫描过渡，不参与过滤
@@ -411,9 +417,7 @@ class MainWindow(QMainWindow):
         if self._catalog_filters:
             try:
                 self._project.known_record_ids = {
-                    a.record_id
-                    for a in self._catalog.query_artifacts(None)
-                    if a.record_id
+                    a.record_id for a in self._catalog.query_artifacts(None) if a.record_id
                 }
             except Exception as exc:  # noqa: BLE001
                 self._log.append_log(f"读取轨道库全量清单失败: {exc}")
@@ -1035,8 +1039,10 @@ class MainWindow(QMainWindow):
 
     def _ensure_arrays_loaded(self, artifact: Artifact) -> None:
         """catalog 记录懒加载（完整内容经 catalog_get 取回，失败仅记日志）。"""
-        if artifact.state_data is None and artifact.record_id and not self._catalog.load_arrays(
-            artifact
+        if (
+            artifact.state_data is None
+            and artifact.record_id
+            and not self._catalog.load_arrays(artifact)
         ):
             self._log.append_log(f"记录数据加载失败: {artifact.label}（记录缺失或损坏）")
 
@@ -1278,9 +1284,7 @@ class MainWindow(QMainWindow):
         if record_id is None:
             self._log.append_log(fallback_log)
         elif self._catalog_filters:
-            self._log.append_log(
-                f"新记录 {record_id} 不满足当前过滤条件，未在项目树中显示"
-            )
+            self._log.append_log(f"新记录 {record_id} 不满足当前过滤条件，未在项目树中显示")
 
     def _on_family_error(self, error_msg: str) -> None:
         if self._consume_stop_request():
@@ -1332,7 +1336,8 @@ class MainWindow(QMainWindow):
         if not artifact_ids:
             return
         record_backed = [
-            aid for aid in artifact_ids
+            aid
+            for aid in artifact_ids
             if (a := self._project.get_by_id(aid)) is not None and a.record_id
         ]
         if record_backed:
@@ -1359,9 +1364,7 @@ class MainWindow(QMainWindow):
                 except OrbitError as exc:
                     self._log.append_log(f"删除记录失败 {artifact.label}: {exc.message}")
             else:
-                self._legacy_artifacts = [
-                    a for a in self._legacy_artifacts if a.artifact_id != aid
-                ]
+                self._legacy_artifacts = [a for a in self._legacy_artifacts if a.artifact_id != aid]
                 removed += 1
         self._reload_from_catalog()
         # 从画布选中集剔除已删项
@@ -1622,9 +1625,7 @@ class MainWindow(QMainWindow):
             f"轨道保持完成: 总Δv={total_dv:.2f} m/s, 失败 {result.num_failed} 样本"
         )
         self._reload_from_catalog()
-        self._select_record_after_run(
-            result.record_id, fallback_log="站保全样本失败，未产生库记录"
-        )
+        self._select_record_after_run(result.record_id, fallback_log="站保全样本失败，未产生库记录")
         self._status_bar.showMessage("轨道保持完成", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_control_error(self, error_msg: str) -> None:
@@ -1650,10 +1651,7 @@ class MainWindow(QMainWindow):
         正常总会产出星历，此分支仅防御异常/旧产物；catalog_promote 提升的
         族成员天然只有 CR3BP 段（无星历），同样适用。
         """
-        if (
-            artifact.source_tool in _CR3BP_ORBIT_TOOLS
-            and not artifact.extra.get("ephemeris")
-        ):
+        if artifact.source_tool in _CR3BP_ORBIT_TOOLS and not artifact.extra.get("ephemeris"):
             self._log.append_log(f"该轨道无标称星历，画布只能画初猜: {artifact.label}")
 
     def _artifact_for_id(self, artifact_id: str) -> dict | None:
