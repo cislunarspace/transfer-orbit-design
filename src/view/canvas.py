@@ -337,9 +337,9 @@ class OrbitCanvas(FigureCanvasQTAgg):
         elif has_orbits:
             title = ""
         elif state.frame == "inertial":
-            title = "该 Artifact 无惯性系星历数据"
+            title = "所选记录没有惯性系星历数据"
         else:
-            title = "选择一个工件以可视化"
+            title = "在左侧项目树中选择一条记录以显示轨道"
         self._setup_axes(ax, state.projection, title=title)
         # 自定义中心视图（月球/L1/L2；惯性系月球中心）：坐标轴范围对称于
         # 中心点（平移后即原点），使所选中心位于画面正中央。否则 mpl
@@ -888,7 +888,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
             ax.set_title(label)
 
         if label:
-            ax.legend(loc="upper left", fontsize=8)
+            ax.legend(loc="upper left", fontsize=max(self._chart.label_fontsize - 1, 6))
 
         self._fig.tight_layout()
         self.draw()
@@ -919,7 +919,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
             ax.set_title(label)
 
         if orbits_data:
-            ax.legend(loc="upper left", fontsize=7, ncol=2)
+            ax.legend(loc="upper left", fontsize=max(self._chart.label_fontsize - 1, 6), ncol=2)
 
         self._fig.tight_layout()
         self.draw()
@@ -957,7 +957,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
         ax.set_title(f"叠加显示 ({len(orbits)} 条轨道)")
 
         if orbits:
-            ax.legend(loc="upper left", fontsize=8)
+            ax.legend(loc="upper left", fontsize=max(self._chart.label_fontsize - 1, 6))
         self._fig.tight_layout()
         self.draw()
 

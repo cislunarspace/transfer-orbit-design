@@ -39,10 +39,9 @@ class RecordDetailPanel(QWidget):
         self._current_record_id: str | None = None
         self._current_member_count = 0
 
-        self._info_label = QLabel("未选中记录")
+        self._info_label = QLabel("未选择记录")
         self._info_label.setWordWrap(True)
         self._info_label.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
-        self._info_label.setStyleSheet("color: #444; font-size: 11px;")
 
         # 教学标注：tags 逗号分隔，note 多行
         self._tags_edit = QLineEdit()
@@ -118,7 +117,7 @@ class RecordDetailPanel(QWidget):
         if source_id is None:
             pass  # 无谱系不显示
         elif broken_lineage:
-            lines.append(f"谱系: ⚠ 断链（上游 {source_id} 已删，产物仍可用）")
+            lines.append("谱系: ⚠ 上游记录已删除，本记录仍可使用")
         else:
             lines.append(f"谱系: ← {upstream_label or source_id}")
         self._info_label.setText("<br>".join(lines))
@@ -130,7 +129,7 @@ class RecordDetailPanel(QWidget):
         """清空面板（未选中 / 非 catalog 产物）。"""
         self._current_record_id = None
         self._current_member_count = 0
-        self._info_label.setText("未选中记录")
+        self._info_label.setText("未选择记录")
         self._tags_edit.clear()
         self._note_edit.clear()
         self._member_row.setVisible(False)

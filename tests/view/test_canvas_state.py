@@ -735,7 +735,7 @@ class TestMainWindowCanvasStateFlow:
         )
         w._project.add(a)
         w._on_artifact_clicked(a.artifact_id)
-        assert "无 mu" in w._log.toPlainText()
+        assert "缺少 mu 参数" in w._log.toPlainText()
 
     def test_click_artifact_renders_orbit_on_canvas(self, qapp):
         """点击 artifact 后画布上确实画出轨道（Line3D）。
@@ -904,7 +904,7 @@ class TestMainWindowCanvasStateFlow:
         w._on_artifact_clicked(a.artifact_id)
         w._on_frame_changed("inertial")
         assert w._canvas_state.frame == "inertial"
-        assert "无星历惯性数据" in w._status_bar.currentMessage()
+        assert "没有惯性系星历数据" in w._status_bar.currentMessage()
 
     def test_frame_inertial_with_ephemeris_no_hint(self, qapp):
         """inertial 切换时若 Artifact 有 position_km/times_et，状态栏无降级提示。"""

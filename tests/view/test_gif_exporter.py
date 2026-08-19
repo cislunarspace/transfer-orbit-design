@@ -289,7 +289,7 @@ class TestExportAnimationEndToEnd:
                 }  # 无 ephemeris_times_et
             }
         )
-        with pytest.raises(ValueError, match="ephemeris_times_et"):
+        with pytest.raises(ValueError, match="缺少时间数据"):
             export_animation(
                 canvas,
                 canvas._artifacts_provider("a"),
@@ -313,7 +313,7 @@ class TestExportAnimationEndToEnd:
                 }
             }
         )
-        with pytest.raises(ValueError, match="ephemeris_position_km"):
+        with pytest.raises(ValueError, match="惯性系星历数据"):
             export_animation(
                 canvas,
                 canvas._artifacts_provider("a"),
@@ -419,7 +419,7 @@ class TestMainWindowExportAnimationSlot:
     def test_no_selection_shows_hint(self, qapp):
         w = _make_window()
         w._on_export_animation()
-        assert "请先选中" in w._status_bar.currentMessage()
+        assert "请先在左侧项目树中选择" in w._status_bar.currentMessage()
 
     def test_synodic_export_via_dialog(self, qapp, tmp_path, monkeypatch):
         """选中带 ephemeris_times_et 的 Artifact → 弹对话框(自动 accept) → 选路径 → 导出。"""

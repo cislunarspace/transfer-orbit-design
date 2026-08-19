@@ -13,6 +13,14 @@ def main() -> None:
 
     app = QApplication(sys.argv)
 
+    # 界面设置（字号/主题）：须在创建主窗口前应用，修改重启后生效
+    from PyQt6.QtCore import QSettings
+
+    from src.view.chart_settings import APP_NAME, ORG_NAME
+    from src.view.ui_settings import apply_ui_settings, load_ui_settings
+
+    apply_ui_settings(app, load_ui_settings(QSettings(ORG_NAME, APP_NAME)))
+
     # e2m2e pip 安装后闰秒内核自动搜索路径失效（见 detect_kernel_dir），
     # 必须在任何 import e2m2e 之前写入 SPICE_KERNEL_DIR，否则轨道设计报
     # SPICE(NOLEAPSECONDS)。缺失可用内核时弹窗引导：下载（带进度）或指定

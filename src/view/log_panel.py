@@ -14,7 +14,10 @@ class LogPanel(QPlainTextEdit):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setReadOnly(True)
-        self.setFont(QFont("Consolas", 9))
+        # 等宽字族便于对齐时间戳；字号跟随全局基准（界面设置可调），不再偏小
+        font = QFont("Consolas")
+        font.setPointSize(self.font().pointSize())
+        self.setFont(font)
 
     def append_log(self, message: str) -> None:
         """追加带时间戳的日志消息。"""

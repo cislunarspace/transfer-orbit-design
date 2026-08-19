@@ -186,7 +186,7 @@ class TestRunControlValidation:
         _select_control_tool(window)
         window._selected_artifact_ids = []
         window._on_run()
-        assert "请先选中" in window._status_bar.currentMessage()
+        assert "请先在左侧项目树中选择" in window._status_bar.currentMessage()
         assert window._worker is None
 
     def test_run_control_with_old_artifact_without_ephemeris_blocked(self, qapp):
@@ -195,7 +195,7 @@ class TestRunControlValidation:
         _select_control_tool(window)
         _make_orbit_artifact(window, with_ephemeris=False)
         window._on_run()
-        assert "无星历数据" in window._status_bar.currentMessage()
+        assert "没有星历数据" in window._status_bar.currentMessage()
         assert window._worker is None
 
     def test_run_control_with_non_orbit_artifact_blocked(self, qapp):
@@ -213,7 +213,7 @@ class TestRunControlValidation:
         window._project.add(eph_artifact)
         window._selected_artifact_ids = [eph_artifact.artifact_id]
         window._on_run()
-        assert "请先选中" in window._status_bar.currentMessage()
+        assert "请先在左侧项目树中选择" in window._status_bar.currentMessage()
 
 
 class TestRunControlDispatch:
@@ -487,7 +487,7 @@ class TestControlInputRecordId:
         _select_control_tool(window)
         _make_orbit_artifact(window, with_ephemeris=False, record_id="rec-src")
         window._on_run()
-        assert "无星历数据" in window._status_bar.currentMessage()
+        assert "没有星历数据" in window._status_bar.currentMessage()
         assert window._worker is None
 
     def test_run_control_in_memory_artifact_without_record_id(self, qapp):

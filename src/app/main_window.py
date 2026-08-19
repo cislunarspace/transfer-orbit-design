@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QByteArray, Qt
 from PyQt6.QtGui import QStandardItemModel
 from PyQt6.QtWidgets import (
     QComboBox,
@@ -342,7 +342,9 @@ class MainWindow(QMainWindow):
         self._param_container_layout: QGridLayout | None = None
         self._param_scroll: QScrollArea | None = None
         self._run_btn = QPushButton("运行")  # G1: 非 Optional，_build_right_panel 中配置
+        self._run_btn.setObjectName("runButton")  # 挂钩全局样式表
         self._stop_btn = QPushButton("停止")
+        self._stop_btn.setObjectName("stopButton")
         self._stop_btn.setEnabled(False)
         self._reset_btn = QPushButton("重置参数")
 
@@ -429,15 +431,10 @@ class MainWindow(QMainWindow):
     # -- UI 构建 -----------------------------------------------------------
 
     def _build_ui(self) -> None:
-        # 分隔条可见性：默认 QSplitter handle 过细难以发现/抓住，着色 + hover
-        # 加深；宽度用 setHandleWidth 设置（QSS 的 width 对 handle 不生效）。
-        self.setStyleSheet(
-            "QSplitter::handle { background-color: #c8c8c8; }"
-            "QSplitter::handle:hover { background-color: #8f8f8f; }"
-        )
-
+        # 分隔条着色等全局样式集中在 ui_settings.build_app_stylesheet（启动时应用）
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(6)
+        self._main_splitter = splitter
 
         splitter.addWidget(self._build_left_panel())
         splitter.addWidget(self._build_center_panel())
@@ -447,7 +444,13 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 0)
-        splitter.setSizes([260, 820, 320])
+        # 禁止拖没：任一栏都可拖宽拖窄，但不允许完全收起导致功能消失
+        for i in range(3):
+            splitter.setCollapsible(i, False)
+        # 分隔条位置持久化：有存档用存档，否则用默认；「重置布局」可恢复默认
+        saved = self._qsettings.value("ui/splitter/main")
+        if not isinstance(saved, QByteArray) or not splitter.restoreState(saved):
+            splitter.setSizes([260, 820, 320])
 
         self.setCentralWidget(splitter)
 
@@ -480,7 +483,7 @@ class MainWindow(QMainWindow):
         return panel
 
     def _build_menu(self) -> None:
-        """菜单栏：设置 → 图表设置 / 库目录。"""
+        """菜单栏：设置 → 图表设置 / 界面设置 / 轨道库目录 / 重置布局。"""
         menu_bar = self.menuBar()
         if menu_bar is None:
             return
@@ -490,9 +493,43 @@ class MainWindow(QMainWindow):
         action = menu.addAction("图表设置…")
         if action is not None:
             action.triggered.connect(self._open_chart_settings)
+        ui_action = menu.addAction("界面设置…")
+        if ui_action is not None:
+            ui_action.triggered.connect(self._open_ui_settings)
         catalog_action = menu.addAction("轨道库目录…")
         if catalog_action is not None:
             catalog_action.triggered.connect(self._open_catalog_dir_settings)
+        layout_action = menu.addAction("重置布局")
+        if layout_action is not None:
+            layout_action.triggered.connect(self._reset_layout)
+
+    def _open_ui_settings(self) -> None:
+        """弹出界面设置对话框（字号/主题）；确认后持久化，重启后生效。"""
+        from src.view.ui_settings import (
+            load_ui_settings,
+            save_ui_settings,
+            ui_settings_dialog,
+        )
+
+        new_settings = ui_settings_dialog(self, load_ui_settings(self._qsettings))
+        if new_settings is None:
+            return
+        save_ui_settings(self._qsettings, new_settings)
+        self._status_bar.showMessage("界面设置已保存，将在下次启动时生效", _STATUS_MSG_TIMEOUT_MS)
+
+    def _reset_layout(self) -> None:
+        """恢复默认分栏布局，并清除持久化的分隔条位置。"""
+        self._qsettings.remove("ui/splitter/main")
+        self._qsettings.remove("ui/splitter/center")
+        self._main_splitter.setSizes([260, 820, 320])
+        self._center_splitter.setSizes([560, 160])
+        self._status_bar.showMessage("布局已恢复默认", _STATUS_MSG_TIMEOUT_MS)
+
+    def closeEvent(self, a0) -> None:  # noqa: N802, ANN001 - Qt 覆盖方法签名
+        """关闭时记住分隔条位置，下次启动恢复原布局。"""
+        self._qsettings.setValue("ui/splitter/main", self._main_splitter.saveState())
+        self._qsettings.setValue("ui/splitter/center", self._center_splitter.saveState())
+        super().closeEvent(a0)
 
     def _open_catalog_dir_settings(self) -> None:
         """切换轨道库目录（QSettings 持久化；清单从新库重读，新计算写入新库）。"""
@@ -565,7 +602,12 @@ class MainWindow(QMainWindow):
         splitter.addWidget(log_widget)
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 1)
-        splitter.setSizes([560, 160])
+        splitter.setCollapsible(0, False)
+        splitter.setCollapsible(1, False)
+        saved = self._qsettings.value("ui/splitter/center")
+        if not isinstance(saved, QByteArray) or not splitter.restoreState(saved):
+            splitter.setSizes([560, 160])
+        self._center_splitter = splitter
 
         return splitter
 
@@ -591,10 +633,10 @@ class MainWindow(QMainWindow):
         self._tool_combo.currentIndexChanged.connect(self._on_tool_changed)
         layout.addWidget(self._tool_combo)
 
-        # 工具说明：灰色小字，切换工具时同步（帮助用户理解工具用途与输入要求）
+        # 工具说明：切换工具时同步（帮助用户理解工具用途与输入要求）；
+        # 字号颜色与正文一致，不再用灰色小字
         self._tool_desc_label = QLabel("")
         self._tool_desc_label.setWordWrap(True)
-        self._tool_desc_label.setStyleSheet("color: #666; font-size: 11px; padding: 2px;")
         layout.addWidget(self._tool_desc_label)
 
         # 参数容器：QScrollArea + QGridLayout（label 与控件同行、单位下拉并入
@@ -609,18 +651,9 @@ class MainWindow(QMainWindow):
         self._param_scroll.setWidget(self._param_container)
         layout.addWidget(self._param_scroll)
 
-        # G1: 配置运行按钮（已在 __init__ 中创建）
-        self._run_btn.setStyleSheet(
-            "QPushButton { background-color: #4CAF50; color: white; "
-            "font-weight: bold; padding: 8px; border-radius: 4px; }"
-            "QPushButton:hover { background-color: #45a049; }"
-        )
+        # G1: 配置运行按钮（已在 __init__ 中创建）；样式经 objectName 挂钩全局
+        # 样式表（ui_settings.build_app_stylesheet），不在此内联
         self._run_btn.clicked.connect(self._on_run)
-        self._stop_btn.setStyleSheet(
-            "QPushButton { background-color: #d9534f; color: white; "
-            "font-weight: bold; padding: 8px; border-radius: 4px; }"
-            "QPushButton:hover { background-color: #c9302c; }"
-        )
         self._stop_btn.clicked.connect(self._on_stop_run)
         # 重置按钮：重建当前工具参数面板（恢复模型默认值 + 轨道类型默认值）
         self._reset_btn.clicked.connect(self._on_reset_params)
@@ -729,11 +762,10 @@ class MainWindow(QMainWindow):
     def _add_group_header(self, layout: QGridLayout, title: str, row: int) -> int:
         """在参数面板插入组表头（加粗标题 + 分隔线），返回下一行号。"""
         header = QLabel(title)
-        header.setStyleSheet("font-weight: bold; color: #2c3e50; margin-top: 6px; font-size: 12px;")
+        header.setStyleSheet("font-weight: bold; margin-top: 6px;")
         layout.addWidget(header, row, 0, 1, 3)
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setStyleSheet("color: #d8d8d8;")
         layout.addWidget(sep, row + 1, 0, 1, 3)
         self._group_headers[title] = (header, sep)
         return row + 2
@@ -1184,7 +1216,7 @@ class MainWindow(QMainWindow):
     def _run_control_orbit(self) -> None:
         source = self._selected_orbit_artifact()
         if source is None:
-            self._status_bar.showMessage("请先选中一条轨道 Artifact", _STATUS_MSG_TIMEOUT_MS)
+            self._status_bar.showMessage("请先在左侧项目树中选择一条轨道", _STATUS_MSG_TIMEOUT_MS)
             return
         # 记录懒加载（谱系输入与时长校验都需要星历段时间轴）
         self._ensure_arrays_loaded(source)
@@ -1204,9 +1236,7 @@ class MainWindow(QMainWindow):
         if source.record_id and source.extra.get("has_ephemeris"):
             params["input_record_id"] = source.record_id
         elif not ephemeris_data:
-            self._status_bar.showMessage(
-                "该 Artifact 无星历数据，需重新设计", _STATUS_MSG_TIMEOUT_MS
-            )
+            self._status_bar.showMessage("所选轨道没有星历数据，需重新设计", _STATUS_MSG_TIMEOUT_MS)
             return
 
         # 校验仿真时长不超出源星历覆盖：控制律的目标点/反馈弧都取自标称星历，
@@ -1488,11 +1518,11 @@ class MainWindow(QMainWindow):
         orbit_id = artifact_ids[0]
         artifact = self._project.get_by_id(orbit_id)
         if artifact is None or artifact.artifact_type != "orbit":
-            self._status_bar.showMessage("请选中一条轨道 Artifact", _STATUS_MSG_TIMEOUT_MS)
+            self._status_bar.showMessage("请先在左侧项目树中选择一条轨道", _STATUS_MSG_TIMEOUT_MS)
             return
         self._ensure_arrays_loaded(artifact)
         if artifact.state_data is None:
-            self._status_bar.showMessage("该 Artifact 无轨道数据", _STATUS_MSG_TIMEOUT_MS)
+            self._status_bar.showMessage("所选记录没有轨道数据", _STATUS_MSG_TIMEOUT_MS)
             return
 
         self._stability_source_label = artifact.label
@@ -1667,7 +1697,7 @@ class MainWindow(QMainWindow):
     def _warn_missing_mu(self, artifact: Artifact) -> None:
         """旧 Artifact 无 mu 时提示：地月/L 点标注不可用（计划决策 3）。"""
         if artifact.state_data is not None and artifact.extra.get("mu") is None:
-            self._log.append_log(f"旧 Artifact 无 mu，跳过地月标注: {artifact.label}")
+            self._log.append_log(f"{artifact.label} 缺少 mu 参数，跳过地月标注")
 
     def _warn_missing_ephemeris(self, artifact: Artifact) -> None:
         """轨道设计产物（design_orbit）无标称星历时提示：画布只能画初猜。
@@ -1782,7 +1812,7 @@ class MainWindow(QMainWindow):
         self._update_center_controls()
         if frame == "inertial" and not self._selected_artifacts_have_inertial():
             self._status_bar.showMessage(
-                "该 Artifact 无星历惯性数据，显示会合系旋转近似视图", _STATUS_MSG_TIMEOUT_MS
+                "所选记录没有惯性系星历数据，显示会合系旋转近似视图", _STATUS_MSG_TIMEOUT_MS
             )
         self._render_canvas()
 
@@ -1885,7 +1915,9 @@ class MainWindow(QMainWindow):
         """
         artifact = self._selected_exportable_artifact()
         if artifact is None or artifact.state_data is None:
-            self._status_bar.showMessage("请先选中一条星历 Artifact", _STATUS_MSG_TIMEOUT_MS)
+            self._status_bar.showMessage(
+                "请先在左侧项目树中选择一条星历记录", _STATUS_MSG_TIMEOUT_MS
+            )
             return
 
         # 初猜模式无物理时间轴，明确拒绝（不进入对话框）
@@ -1898,7 +1930,7 @@ class MainWindow(QMainWindow):
 
         artifact_data = self._artifact_for_id(artifact.artifact_id)
         if artifact_data is None:
-            self._status_bar.showMessage("该 Artifact 数据不可用", _STATUS_MSG_TIMEOUT_MS)
+            self._status_bar.showMessage("所选记录的数据不可用", _STATUS_MSG_TIMEOUT_MS)
             return
 
         has_inertial = (
@@ -1911,7 +1943,7 @@ class MainWindow(QMainWindow):
         )
         if not (has_inertial or has_synodic):
             self._status_bar.showMessage(
-                "该 Artifact 无星历时间数据，无法导出动画", _STATUS_MSG_TIMEOUT_MS
+                "所选记录没有星历时间数据，无法导出动画", _STATUS_MSG_TIMEOUT_MS
             )
             return
 

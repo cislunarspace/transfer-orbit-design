@@ -148,12 +148,12 @@ def export_animation(
     # 数据完备性校验（降级由调用方提示，本层直接报错以便测试覆盖）
     times_et = artifact_data.get("ephemeris_times_et")
     if times_et is None:
-        raise ValueError("该 Artifact 无 ephemeris_times_et，无法按物理时间导出动画")
+        raise ValueError("该记录缺少时间数据，无法按物理时间导出动画")
     times_et = np.asarray(times_et, dtype=float)
     if frame == "synodic" and artifact_data.get("ephemeris_synodic") is None:
-        raise ValueError("该 Artifact 无 ephemeris_synodic 数据")
+        raise ValueError("该记录没有会合系星历数据")
     if frame == "inertial" and artifact_data.get("ephemeris_position_km") is None:
-        raise ValueError("该 Artifact 无 ephemeris_position_km 数据，惯性系不可导出")
+        raise ValueError("该记录没有惯性系星历数据，惯性系不可导出")
 
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
