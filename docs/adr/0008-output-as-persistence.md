@@ -50,12 +50,15 @@ output/
 - 文件命名冲突需要处理（时间戳方案已足够）
 - 没有"撤销"能力（删除是永久的）
 
-## 修订（2026-08-19，issue #375）
+## 修订（2026-08-19，issue #375，关联 e2m2e ADR 0031）
 
-e2m2e 5.8.0 落地轨道库 catalog（上游 #475 / ADR 0031）后，产物持久化的职责上收：
+e2m2e 5.8.0 落地轨道库 catalog（上游 #475 / ADR 0031）后，产物持久化的职责上收：记录格式、存储引擎与查询接口归 e2m2e 数据层与接口层，本篇决策的适用面相应收窄。
 
-- **决策变更**：orbit / family / ephemeris 产物的清单与持久化改经 e2m2e Facade 的 catalog（`catalog_query` 供数、`catalog_get` 懒加载），design_orbit / orbit_family_generation / control_orbit 的产物由 Facade 自动入库；本仓 persistence.py 的手写 JSON+NPZ 落盘与 discovery.py 的「子目录名 + 文件名正则」分类退役。文件命名不再承载分类语义——多维分类（族、平动点、Jacobi、振幅、段存在性）在产物生成时由上游写入记录。
+- **决策变更**：orbit / family / ephemeris 产物的清单与持久化改经 e2m2e Facade 的 catalog（`catalog_query` 供数、`catalog_get` 懒加载），design_orbit / orbit_family_generation / control_orbit 的产物由 Facade 自动入库；本仓 persistence.py 的手写 JSON+NPZ 落盘与 discovery.py 的「子目录名 + 文件名正则」分类退役。文件命名不再承载分类语义——多维分类（族、平动点、Jacobi、振幅、段存在性）与 `source_record_id` 由上游在生成时写入记录，不再依赖 GUI 内存与文件名推断；上文「文件命名约定」表移交 e2m2e ADR 0031 维护。
+- **「文件是事实来源」不变**：catalog 的记录文件（JSON + NPZ）是唯一持久化，SQLite 索引是派生物，删除后可扫描记录文件全量重建。当年未选的方案 C 指以数据库为持久化层；派生索引不构成格式锁定，与理由 3（无锁定）不冲突。
 - **库目录**：默认钉在仓库根 `catalog/`（与 output/ 平级，GUI 场景 cwd 不稳定，不能依赖上游的相对默认），可在 GUI 设置中改指其他目录（QSettings 持久化）。
 - **谱系**：站保产物的 `source_record_id` 由 Facade 写入（`input_record_id` 输入），重启后经 catalog_query 重建因果链；上游记录被删时项目树显示断链降级标记，不阻止产物使用。
 - **过渡**：transfer（转移轨道）等 catalog 分类体系之外的产物沿用 output/ 目录扫描（仅限这些目录），待上游对相应产物入库立项后退役。
-- **旧产物**：output/ 旧格式不迁移（上游 ADR 0031 决策 9），需要时重算。
+- **旧产物**：output/ 旧格式不迁移（上游 ADR 0031 决策 9），需要时重算——理由 4「现有 output/ 兼容」随之失效。
+
+其余部分（Project 不做持久化、删除无撤销）不变。
