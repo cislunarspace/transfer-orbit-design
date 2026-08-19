@@ -407,6 +407,18 @@ class MainWindow(QMainWindow):
             self._project.add(artifact)
         for artifact in self._legacy_artifacts:
             self._project.add(artifact)
+        # 断链判定依据全库（未过滤视图），过滤把上游筛出清单不算断链
+        if self._catalog_filters:
+            try:
+                self._project.known_record_ids = {
+                    a.record_id
+                    for a in self._catalog.query_artifacts(None)
+                    if a.record_id
+                }
+            except Exception as exc:  # noqa: BLE001
+                self._log.append_log(f"读取轨道库全量清单失败: {exc}")
+        else:
+            self._project.known_record_ids = {a.record_id for a in artifacts if a.record_id}
         self._refresh_project_tree()
 
     # -- UI 构建 -----------------------------------------------------------
@@ -1021,6 +1033,13 @@ class MainWindow(QMainWindow):
 
     # -- 信号槽 -------------------------------------------------------------
 
+    def _ensure_arrays_loaded(self, artifact: Artifact) -> None:
+        """catalog 记录懒加载（完整内容经 catalog_get 取回，失败仅记日志）。"""
+        if artifact.state_data is None and artifact.record_id and not self._catalog.load_arrays(
+            artifact
+        ):
+            self._log.append_log(f"记录数据加载失败: {artifact.label}（记录缺失或损坏）")
+
     def _on_artifact_clicked(self, artifact_id: str) -> None:
         artifact = self._project.get_by_id(artifact_id)
         if artifact is None:
@@ -1033,10 +1052,7 @@ class MainWindow(QMainWindow):
         if artifact is None:
             return
         # Issue #375: catalog 记录懒加载（完整内容经 catalog_get 取回）
-        if artifact.state_data is None and artifact.record_id:
-            loaded = self._catalog.load_arrays(artifact)
-            if not loaded:
-                self._log.append_log(f"记录数据加载失败: {artifact.label}（记录缺失或损坏）")
+        self._ensure_arrays_loaded(artifact)
         if artifact.state_data is not None:
             self._warn_missing_mu(artifact)
             self._warn_missing_ephemeris(artifact)
@@ -1066,8 +1082,7 @@ class MainWindow(QMainWindow):
             artifact = self._project.get_by_id(aid)
             if artifact is None:
                 continue
-            if artifact.state_data is None and artifact.record_id:
-                self._catalog.load_arrays(artifact)
+            self._ensure_arrays_loaded(artifact)
             self._warn_missing_mu(artifact)
             self._warn_missing_ephemeris(artifact)
         self._selected_artifact_ids = list(artifact_ids)
@@ -1141,8 +1156,7 @@ class MainWindow(QMainWindow):
             self._status_bar.showMessage("请先选中一条轨道 Artifact", _STATUS_MSG_TIMEOUT_MS)
             return
         # 记录懒加载（谱系输入与时长校验都需要星历段时间轴）
-        if source.state_data is None and source.record_id:
-            self._catalog.load_arrays(source)
+        self._ensure_arrays_loaded(source)
         ephemeris_data = source.extra.get("ephemeris")
 
         spec = TOOL_REGISTRY["control_orbit"]
@@ -1263,6 +1277,10 @@ class MainWindow(QMainWindow):
             return
         if record_id is None:
             self._log.append_log(fallback_log)
+        elif self._catalog_filters:
+            self._log.append_log(
+                f"新记录 {record_id} 不满足当前过滤条件，未在项目树中显示"
+            )
 
     def _on_family_error(self, error_msg: str) -> None:
         if self._consume_stop_request():
@@ -1310,9 +1328,25 @@ class MainWindow(QMainWindow):
             self._trigger_stability_from_tree(artifact_ids)
 
     def _delete_artifacts(self, artifact_ids: list[str]) -> None:
-        """删除 Artifact：库记录走 catalog_delete，遗留分区仅移出内存。"""
+        """删除 Artifact：库记录走 catalog_delete（不可撤销，先确认），遗留分区仅移出内存。"""
         if not artifact_ids:
             return
+        record_backed = [
+            aid for aid in artifact_ids
+            if (a := self._project.get_by_id(aid)) is not None and a.record_id
+        ]
+        if record_backed:
+            from PyQt6.QtWidgets import QMessageBox
+
+            answer = QMessageBox.question(
+                self,
+                "删除记录",
+                f"将永久删除 {len(record_backed)} 条轨道库记录（含数据文件，不可撤销）。继续？",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
         removed = 0
         for aid in artifact_ids:
             artifact = self._project.get_by_id(aid)
@@ -1405,8 +1439,7 @@ class MainWindow(QMainWindow):
         artifact = self._project.get_by_id(orbit_id)
         if artifact is None or artifact.artifact_type != "orbit":
             return
-        if artifact.state_data is None and artifact.record_id:
-            self._catalog.load_arrays(artifact)
+        self._ensure_arrays_loaded(artifact)
         self._selected_artifact_ids = [orbit_id]
         for i in range(self._tool_combo.count()):
             if self._tool_combo.itemData(i) == "control_orbit":
@@ -1429,8 +1462,7 @@ class MainWindow(QMainWindow):
         if artifact is None or artifact.artifact_type != "orbit":
             self._status_bar.showMessage("请选中一条轨道 Artifact", _STATUS_MSG_TIMEOUT_MS)
             return
-        if artifact.state_data is None and artifact.record_id:
-            self._catalog.load_arrays(artifact)
+        self._ensure_arrays_loaded(artifact)
         if artifact.state_data is None:
             self._status_bar.showMessage("该 Artifact 无轨道数据", _STATUS_MSG_TIMEOUT_MS)
             return

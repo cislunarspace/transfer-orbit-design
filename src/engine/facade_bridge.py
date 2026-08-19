@@ -118,6 +118,18 @@ class ControlResultData:
 _FAMILY_MEMBER_SAMPLES = 200
 
 
+def centroid_normalized_states(synodic_position: Any, mu: float | None) -> Any:
+    """会合系位置（地心归一，月球在 +1）→ 画布质心归一状态 (n,6)（月球在 1−μ）。
+
+    站保响应与 catalog 记录懒加载共用；mu 为 None（旧产物无 μ）时不偏移
+    （保留旧行为，画布跳过标注）。速度列补零。
+    """
+    syn = np.asarray(synodic_position, dtype=float)
+    states = np.zeros((syn.shape[0], 6))
+    states[:, :3] = syn - (mu or 0.0)
+    return states
+
+
 def _ephemeris_table_from_mapping(mapping: dict) -> Any:
     """从 Facade 响应的星历 dict（JSON 兼容，值为 list/ndarray）重建 EphemerisTable。
 
@@ -430,15 +442,14 @@ class FacadeBridge:
     - Artifact 语义（由 catalog 模块处理）
 
     kernel_dir / catalog_dir 经 ``e2m2e.api.config.Config`` 注入 Facade
-    （request 模型不接受这两个字段）。``facade`` 参数仅供测试注入桩对象，
-    生产路径按需惰性构造 Facade（catalog 首次使用才产生目录副作用）。
+    （request 模型不接受这两个字段）；Facade 按需惰性构造（catalog 首次
+    使用才产生目录副作用）。
     """
 
     def __init__(
         self,
         kernel_dir: str | None = None,
         catalog_dir: str | None = None,
-        facade: Any | None = None,
     ) -> None:
         self._kernel_dir = kernel_dir
         if catalog_dir is None:
@@ -446,7 +457,7 @@ class FacadeBridge:
 
             catalog_dir = str(CATALOG_DIR)
         self._catalog_dir = catalog_dir
-        self._facade_obj = facade
+        self._facade_obj: Any | None = None
 
     def _facade(self) -> Any:
         """按需构造 Facade（Config 注入 kernel_dir / catalog_dir）。"""
@@ -461,6 +472,15 @@ class FacadeBridge:
                 config.catalog_dir = self._catalog_dir
             self._facade_obj = Facade(config=config)
         return self._facade_obj
+
+    def _translated(self, call: Any) -> Any:
+        """执行 Facade 调用并把异常翻译为 OrbitError（catalog 接缝统一出口）。"""
+        from src.engine.exceptions import translate_exception
+
+        try:
+            return call()
+        except Exception as e:
+            raise translate_exception(e) from e
 
     def design_orbit(self, **kwargs: Any) -> OrbitDesignResultData:
         """经 Facade 调用 design_orbit，返回跨线程 DTO（产物自动入库）。
@@ -577,12 +597,9 @@ class FacadeBridge:
         controlled = response.controlled_ephemeris
         mu = response.mu
         if controlled is not None and controlled.get("synodic_position") is not None:
-            syn = np.asarray(controlled["synodic_position"], dtype=float)
-            states = np.zeros((syn.shape[0], 6))
-            # 会合系原点偏移：synodic_position 是地心归一（月球在 +1），画布
-            # 地月标注是质心归一（月球在 1−μ）。减 source_mu 后两者对齐。mu 为
-            # None（旧 Artifact 无 μ）时不偏移（保留旧行为，画布跳过标注）。
-            states[:, :3] = syn - (mu or 0.0)
+            # 会合系原点偏移：减 source_mu 对齐画布质心归一（见
+            # centroid_normalized_states；控制律在算法层内部用地心归一）
+            states = centroid_normalized_states(controlled["synodic_position"], mu)
             # 真物理时间：替代旧 np.arange(n) 索引，供坐标切换/帧动画定位真时刻
             times_et = _reconstruct_et_from_utc(_ephemeris_table_from_mapping(controlled))
             times = times_et
@@ -694,61 +711,33 @@ class FacadeBridge:
         过滤字段见 ``e2m2e.api.models.CatalogQueryRequest``（族 / 平动点 /
         Jacobi 区间 / 振幅区间 / 段存在性 / status / tags，逻辑与组合）。
         """
-        from src.engine.exceptions import translate_exception
-
-        try:
-            response = self._facade().catalog_query(**params)
-        except Exception as e:
-            raise translate_exception(e) from e
+        response = self._translated(lambda: self._facade().catalog_query(**params))
         return list(response.records)
 
     def catalog_get(self, record_id: str) -> Any:
         """按 record_id 取完整记录（含数组段）；不存在抛 RECORD_NOT_FOUND。"""
-        from src.engine.exceptions import translate_exception
-
-        try:
-            return self._facade().catalog_get(record_id=record_id)
-        except Exception as e:
-            raise translate_exception(e) from e
+        return self._translated(lambda: self._facade().catalog_get(record_id=record_id))
 
     def catalog_delete(self, record_id: str) -> None:
         """删除记录（文件与索引条目），不可撤销。"""
-        from src.engine.exceptions import translate_exception
-
-        try:
-            self._facade().catalog_delete(record_id=record_id)
-        except Exception as e:
-            raise translate_exception(e) from e
+        self._translated(lambda: self._facade().catalog_delete(record_id=record_id))
 
     def catalog_tag(self, record_id: str, tags: list[str], note: str | None = None) -> None:
         """写教学标注（tags 整体替换，note=None 保留原注释）。"""
-        from src.engine.exceptions import translate_exception
-
-        try:
-            self._facade().catalog_tag(record_id=record_id, tags=list(tags), note=note)
-        except Exception as e:
-            raise translate_exception(e) from e
+        self._translated(
+            lambda: self._facade().catalog_tag(record_id=record_id, tags=list(tags), note=note)
+        )
 
     def catalog_promote(self, record_id: str, member_index: int) -> str:
         """把族成员提升为独立记录（source_record_id 指向所属族），返回新 record_id。"""
-        from src.engine.exceptions import translate_exception
-
-        try:
-            response = self._facade().catalog_promote(
-                record_id=record_id, member_index=member_index
-            )
-        except Exception as e:
-            raise translate_exception(e) from e
+        response = self._translated(
+            lambda: self._facade().catalog_promote(record_id=record_id, member_index=member_index)
+        )
         return response.record.record_id
 
     def catalog_export(self, dest: str, **filters: Any) -> int:
         """把过滤子集打包导出（dest 以 .zip 结尾出 zip，否则出目录），返回条数。"""
-        from src.engine.exceptions import translate_exception
-
-        try:
-            response = self._facade().catalog_export(dest=dest, **filters)
-        except Exception as e:
-            raise translate_exception(e) from e
+        response = self._translated(lambda: self._facade().catalog_export(dest=dest, **filters))
         return int(response.exported_count)
 
     def analyze_stability(self, states: Any, times: Any, mu: float | None) -> StabilityResultData:

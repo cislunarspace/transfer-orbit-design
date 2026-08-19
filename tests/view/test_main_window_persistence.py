@@ -27,15 +27,21 @@ _RNG = np.random.default_rng(seed=42)
 
 
 class _StubCatalog:
-    """CatalogService 桩：清单 / 懒加载全在内存，不触真实库。"""
+    """CatalogService 桩：清单 / 懒加载全在内存，不触真实库。
 
-    def __init__(self, artifacts=None, records=None) -> None:
+    all_artifacts 模拟全库（未过滤查询）；未设置时与过滤视图一致。
+    """
+
+    def __init__(self, artifacts=None, records=None, all_artifacts=None) -> None:
         self.artifacts = list(artifacts or [])
+        self.all_artifacts = all_artifacts
         self.records = records or {}
         self.calls: list = []
 
     def query_artifacts(self, filters=None):
         self.calls.append(("query", filters))
+        if filters is None and self.all_artifacts is not None:
+            return list(self.all_artifacts)
         return list(self.artifacts)
 
     def load_arrays(self, artifact):
@@ -233,15 +239,32 @@ class TestTagPromoteExport:
 
 
 class TestDeleteArtifacts:
-    def test_delete_record_backed_calls_catalog_delete(self, qapp):
+    def test_delete_record_backed_asks_and_deletes(self, qapp):
+        """库记录删除前弹确认；确认后走 catalog_delete 并重查清单。"""
+        from PyQt6.QtWidgets import QMessageBox
+
         catalog = _StubCatalog(artifacts=[_catalog_artifact("rec-1")])
         window = _make_window(qapp, catalog)
 
-        window._delete_artifacts(["rec-1"])
+        with patch("PyQt6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.Yes):
+            window._delete_artifacts(["rec-1"])
 
         assert ("delete", "rec-1") in catalog.calls
 
-    def test_delete_legacy_artifact_removes_from_memory(self, qapp):
+    def test_delete_record_backed_cancelled(self, qapp):
+        """确认框选"否"时不删除。"""
+        from PyQt6.QtWidgets import QMessageBox
+
+        catalog = _StubCatalog(artifacts=[_catalog_artifact("rec-1")])
+        window = _make_window(qapp, catalog)
+
+        with patch("PyQt6.QtWidgets.QMessageBox.question", return_value=QMessageBox.StandardButton.No):
+            window._delete_artifacts(["rec-1"])
+
+        assert ("delete", "rec-1") not in catalog.calls
+
+    def test_delete_legacy_artifact_no_prompt(self, qapp):
+        """遗留分区（非库记录）删除不弹确认，仅移出内存。"""
         from src.model.artifact import Artifact
 
         catalog = _StubCatalog()
@@ -250,7 +273,38 @@ class TestDeleteArtifacts:
         window._project.add(legacy)
         window._legacy_artifacts.append(legacy)
 
-        window._delete_artifacts([legacy.artifact_id])
+        with patch("PyQt6.QtWidgets.QMessageBox.question") as mock_question:
+            window._delete_artifacts([legacy.artifact_id])
 
+        mock_question.assert_not_called()
         assert window._project.get_by_id(legacy.artifact_id) is None
         assert ("delete", legacy.artifact_id) not in catalog.calls
+
+
+class TestLineageUnderFilter:
+    """issue #375 US6：断链按全库判定，过滤把上游筛出清单不算断链。"""
+
+    def test_filtered_out_upstream_not_marked_broken(self, qapp):
+        upstream = _catalog_artifact("rec-src")
+        downstream = _catalog_artifact("rec-ctl", artifact_type="ephemeris")
+        downstream.extra["source_record_id"] = "rec-src"
+        downstream.extra["has_cr3bp"] = False
+
+        # 当前过滤视图只剩下游；全库（未过滤）两条都在
+        catalog = _StubCatalog(artifacts=[downstream], all_artifacts=[upstream, downstream])
+        window = _make_window(qapp, catalog)
+        window._catalog_filters = {"has_ephemeris": True}
+        window._reload_from_catalog()
+
+        assert window._project.known_record_ids == {"rec-src", "rec-ctl"}
+        assert window._project.has_broken_lineage(downstream) is False
+
+    def test_deleted_upstream_marked_broken(self, qapp):
+        downstream = _catalog_artifact("rec-ctl", artifact_type="ephemeris")
+        downstream.extra["source_record_id"] = "rec-gone"
+
+        catalog = _StubCatalog(artifacts=[downstream])
+        window = _make_window(qapp, catalog)
+        window._reload_from_catalog()
+
+        assert window._project.has_broken_lineage(downstream) is True

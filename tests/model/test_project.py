@@ -151,3 +151,17 @@ class TestLineage:
     ) -> None:
         project.add(orbit_artifact)
         assert project.has_broken_lineage(orbit_artifact) is False
+
+    def test_known_record_ids_judge_against_full_library(
+        self,
+        project: Project,
+        orbit_artifact: Artifact,
+        family_artifact: Artifact,
+    ) -> None:
+        """断链按全库判定：过滤视图不含上游（但库里有）不算断链。"""
+        project.add(family_artifact)  # 清单里只有下游
+        project.known_record_ids = {"aaaa1111", "bbbb2222"}  # 全库两条都在
+        assert project.has_broken_lineage(family_artifact) is False
+
+        project.known_record_ids = {"bbbb2222"}  # 全库里上游确实没了
+        assert project.has_broken_lineage(family_artifact) is True

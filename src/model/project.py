@@ -9,6 +9,10 @@ class Project:
     def __init__(self, name: str) -> None:
         self.name: str = name
         self._artifacts: list[Artifact] = []
+        # 全库记录 id 集合（未过滤视图）。断链的判定依据是"上游记录是否还
+        # 存在于库"，不是"是否在当前过滤视图里"——过滤把上游筛出清单时，
+        # 下游不应被误标断链。None = 调用方未提供，退化为清单内查找。
+        self.known_record_ids: set[str] | None = None
 
     def add(self, artifact: Artifact) -> None:
         """Add an artifact to the project."""
@@ -54,6 +58,14 @@ class Project:
         return self.get_by_id(source_id)
 
     def has_broken_lineage(self, artifact: Artifact) -> bool:
-        """谱系断链：记录指向的上游已不存在（上游被删，产物本身仍可用）。"""
+        """谱系断链：记录指向的上游已不存在（上游被删，产物本身仍可用）。
+
+        有全库 id 集合时按集合判定（过滤视图不含上游不算断链）；否则退化为
+        清单内查找（测试 / 无库场景）。
+        """
         source_id = artifact.extra.get("source_record_id")
-        return source_id is not None and self.get_by_id(source_id) is None
+        if source_id is None:
+            return False
+        if self.known_record_ids is not None:
+            return source_id not in self.known_record_ids
+        return self.get_by_id(source_id) is None

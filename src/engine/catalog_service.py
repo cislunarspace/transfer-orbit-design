@@ -23,6 +23,7 @@ from src.engine.facade_bridge import (
     FacadeBridge,
     _ephemeris_table_from_mapping,
     _reconstruct_et_from_utc,
+    centroid_normalized_states,
     resample_periodic_member,
 )
 from src.model.artifact import Artifact
@@ -56,16 +57,18 @@ def record_to_artifact(summary: Any) -> Artifact:
     tool = summary.source_tool
     atype = _ARTIFACT_TYPE_BY_TOOL.get(tool, "orbit")
     lp = summary.libration_point
+    lp_txt = f"L{lp}" if lp else ""
     if atype == "family":
-        lp_txt = f"L{lp}, " if lp else ""
-        label = f"{display} 族 ({lp_txt}{summary.member_count} 条)"
+        prefix = f"{lp_txt}, " if lp_txt else ""
+        label = f"{display} 族 ({prefix}{summary.member_count} 条)"
     elif atype == "ephemeris":
-        label = f"受控星历（{display} L{lp}）" if family else "受控星历"
+        scope = f"{display} {lp_txt}" if family and lp_txt else (family or "")
+        label = f"受控星历（{scope}）" if scope else "受控星历"
     else:
-        lp_txt = f"L{lp}, " if lp else ""
+        prefix = f"{lp_txt}, " if lp_txt else ""
         jacobi = summary.jacobi[0] if summary.jacobi else None
         label = (
-            f"{display} ({lp_txt}C_J={jacobi:.4f})" if jacobi is not None else display or record_id
+            f"{display} ({prefix}C_J={jacobi:.4f})" if jacobi is not None else display or record_id
         )
     return Artifact(
         artifact_id=record_id,
@@ -159,12 +162,7 @@ def _fill_control(artifact: Artifact, arrays: dict, scalars: dict) -> None:
     syn = arrays.get("eph/synodic_position")
     mu = scalars.get("mu")
     if syn is not None:
-        syn = np.asarray(syn, dtype=float)
-        states = np.zeros((syn.shape[0], 6))
-        # 记录的 synodic_position 是地心归一（月球在 +1），画布地月标注是质心
-        # 归一（月球在 1−μ），减 μ 对齐；mu 缺失时不偏移（画布跳过标注）。
-        states[:, :3] = syn - (mu or 0.0)
-        artifact.state_data = states
+        artifact.state_data = centroid_normalized_states(syn, mu)
         eph = _eph_segment(arrays)
         artifact.times = eph["times_et"]
         artifact.extra["times_et"] = eph["times_et"]
@@ -206,11 +204,10 @@ class CatalogService:
 
         失败不抛异常（记录被并发删除、文件损坏等），返回 False 由调用方降级。
         """
-        record_id = artifact.record_id or artifact.extra.get("record_id")
-        if not record_id:
+        if not artifact.record_id:
             return False
         try:
-            response = self._bridge.catalog_get(record_id)
+            response = self._bridge.catalog_get(artifact.record_id)
         except OrbitError:
             return False
         _fill_artifact_from_record(artifact, response)

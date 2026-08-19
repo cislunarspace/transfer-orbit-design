@@ -288,3 +288,25 @@ class TestDesignOrbitCatalogIngest:
         data = catalog_bridge.design_orbit(orbit_type="DRO")
         record = catalog_bridge.catalog_get(data.record_id)
         assert record.arrays["cr3bp/states"].shape[0] == data.states.shape[0]
+
+    def test_export_package_contains_records_and_manifest(
+        self, mock_design_orbit, catalog_bridge, tmp_path
+    ):
+        """教学案例包内容：records/<id>.json/.npz + manifest.json（Testing Decisions）。"""
+        import json
+        import zipfile
+
+        data = catalog_bridge.design_orbit(orbit_type="DRO")
+        dest = tmp_path / "cases.zip"
+        count = catalog_bridge.catalog_export(dest=str(dest), orbit_family="dro")
+        assert count == 1
+        with zipfile.ZipFile(dest) as bundle:
+            names = bundle.namelist()
+            assert f"records/{data.record_id}.json" in names
+            assert f"records/{data.record_id}.npz" in names
+            manifest = json.loads(bundle.read("manifest.json"))
+        assert manifest == {
+            "schema_version": 1,
+            "record_ids": [data.record_id],
+            "exported_count": 1,
+        }
