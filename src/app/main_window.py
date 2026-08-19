@@ -32,22 +32,19 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from src.commons.paths import OUTPUT_DIR, detect_kernel_dir
+from src.commons.paths import CATALOG_DIR, OUTPUT_DIR, detect_kernel_dir
+from src.engine.catalog_service import CatalogService
+from src.engine.exceptions import OrbitError
 from src.engine.facade_bridge import (
     TOOL_REGISTRY,
     ControlResultData,
+    FacadeBridge,
     FamilyResultData,
     OrbitDesignResultData,
     StabilityResultData,
     ToolSpec,
 )
-from src.engine.persistence import (
-    load_artifact_arrays,
-    save_artifact,
-    save_control_result,
-    save_family_result,
-    save_stability_result,
-)
+from src.engine.persistence import save_stability_result
 from src.engine.workers import (
     ControlOrbitWorker,
     FamilyOrbitWorker,
@@ -82,6 +79,10 @@ from src.view.params_panel import (
 # G4+G5: 工具选择器 + 灰色占位
 
 _RIGHT_PANEL_TOOL_COMBO_LABEL = "选择工具"
+
+#: CR3BP 周期轨道产物（初猜槽位）：design_orbit 设计结果与 catalog_promote
+#: 提升的族成员（后者天然只有 CR3BP 段）。
+_CR3BP_ORBIT_TOOLS = frozenset({"design_orbit", "catalog_promote"})
 
 # 状态栏消息自动消失时长（毫秒）
 _STATUS_MSG_TIMEOUT_MS = 5000
@@ -323,9 +324,9 @@ class MainWindow(QMainWindow):
         右侧 (25%): 工具选择器 + 参数面板 + 运行按钮
     """
 
-    def __init__(self, parent=None, *, project: Project | None = None) -> None:
+    def __init__(self, parent=None, *, catalog: CatalogService | None = None) -> None:
         super().__init__(parent)
-        self._project = project if project is not None else Project(name="Transfer Orbit Design")
+        self._project = Project(name="Transfer Orbit Design")
         self._worker: (
             OrbitDesignWorker | ControlOrbitWorker | FamilyOrbitWorker | StabilityWorker | None
         ) = None
@@ -333,7 +334,7 @@ class MainWindow(QMainWindow):
         self._current_tool_key: str | None = None
         self._param_widgets: dict[str, QWidget] = {}
         self._param_rows: dict[str, tuple[QLabel, QWidget, QComboBox | None]] = {}
-        # 参数分组：组标题 -> (QLabel 表头, QFrame 分隔线)；组标题 -> 组内字段名
+        # 参数分组：组标题 -> (QLabel 表头, QFrame 分隔线)；组标题 -> 组内字段
         self._group_headers: dict[str, tuple[QLabel, QFrame]] = {}
         self._group_fields: dict[str, list[str]] = {}
         self._param_container: QWidget | None = None
@@ -356,6 +357,16 @@ class MainWindow(QMainWindow):
         self._qsettings = QSettings(ORG_NAME, APP_NAME)
         self._chart_settings = load_settings(self._qsettings)
 
+        # Issue #375: 轨道库 catalog -- 产物清单 / 过滤 / 谱系 / 标注 / 导出。
+        # 库目录 QSettings 可改，默认仓库根 catalog/（与 output/ 平级）。
+        self._catalog_dir = self._load_catalog_dir()
+        self._catalog: CatalogService = catalog if catalog is not None else CatalogService(
+            FacadeBridge(kernel_dir=detect_kernel_dir() or None, catalog_dir=str(self._catalog_dir))
+        )
+        self._catalog_filters: dict = {}
+        # catalog 分类体系之外的遗留分区（transfer）：目录扫描过渡，不参与过滤
+        self._legacy_artifacts: list[Artifact] = []
+
         self.setWindowTitle("Transfer Orbit Design v2")
         self.resize(1400, 900)
 
@@ -368,34 +379,37 @@ class MainWindow(QMainWindow):
         self.setStatusBar(self._status_bar)
         self._status_bar.showMessage("就绪")
 
-        # Issue #338: 启动时从 OUTPUT_DIR 恢复已有 Artifact
-        # PR #345: 也允许 caller 传入预先填充的 Project（避免重复扫描）
-        if not self._project.artifacts:
-            self._restore_artifacts_from_disk()
-        else:
-            self._refresh_project_tree()
+        # 启动恢复：产物清单经 catalog_query 重建（含 transfer 遗留分区）
+        self._reload_from_catalog()
 
-    def _restore_artifacts_from_disk(self) -> None:
-        """扫描 OUTPUT_DIR 并将历史 Artifact 加入 Project。"""
+    def _load_catalog_dir(self) -> Path:
+        """读库目录设置（QSettings）；未设置或目录已不存在时用仓库根默认。"""
+        value = self._qsettings.value("catalog/dir", "")
+        if value and Path(value).is_dir():
+            return Path(value)
+        return CATALOG_DIR
+
+    def _reload_from_catalog(self) -> None:
+        """按当前过滤条件重查轨道库并重建 Project（清单单一来源）。"""
         try:
-            artifacts = discover_artifacts(OUTPUT_DIR)
+            artifacts = self._catalog.query_artifacts(self._catalog_filters)
         except Exception as exc:  # noqa: BLE001
-            self._log.append_log(f"恢复历史 Artifact 失败: {exc}")
+            self._log.append_log(f"读取轨道库失败: {exc}")
+            self._status_bar.showMessage("读取轨道库失败", _STATUS_MSG_TIMEOUT_MS)
             return
-        if not artifacts:
-            return
+        if not self._legacy_artifacts:
+            try:
+                self._legacy_artifacts = discover_artifacts(OUTPUT_DIR)
+            except Exception as exc:  # noqa: BLE001
+                self._log.append_log(f"扫描遗留 transfer 分区失败: {exc}")
+        self._project = Project(name="Transfer Orbit Design")
         for artifact in artifacts:
             self._project.add(artifact)
+        for artifact in self._legacy_artifacts:
+            self._project.add(artifact)
         self._refresh_project_tree()
-        self._status_bar.showMessage(
-            f"已恢复 {len(artifacts)} 个历史 Artifact", _STATUS_MSG_TIMEOUT_MS
-        )
 
     # -- UI 构建 -----------------------------------------------------------
-
-    def show_scan_time(self, seconds: float, count: int) -> None:
-        """Display artifact scan timing in the status bar."""
-        self._status_bar.showMessage(f"启动扫描: {count} 个 Artifact, 耗时 {seconds:.2f}s")
 
     def _build_ui(self) -> None:
         # 分隔条可见性：默认 QSplitter handle 过细难以发现/抓住，着色 + hover
@@ -421,7 +435,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(splitter)
 
     def _build_left_panel(self) -> QWidget:
+        from src.view.catalog_filter_bar import CatalogFilterBar
         from src.view.project_tree import ProjectTreeView
+        from src.view.record_detail_panel import RecordDetailPanel
 
         panel = QWidget()
         panel.setMinimumWidth(200)
@@ -429,16 +445,25 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(4, 4, 4, 4)
 
         layout.addWidget(QLabel("项目"))
+        # Issue #375: 过滤栏（多维组合，直接驱动 catalog_query）+ 记录详情
+        self._filter_bar = CatalogFilterBar()
+        self._filter_bar.filters_changed.connect(self._on_filters_changed)
+        self._filter_bar.export_requested.connect(self._on_export_requested)
+        layout.addWidget(self._filter_bar)
         self._tree_view = ProjectTreeView()
         self._tree_view.artifact_selected.connect(self._on_artifact_clicked)
         self._tree_view.artifacts_selected.connect(self._on_artifacts_multi_selected)
         self._tree_view.context_action.connect(self._on_context_action)
-        layout.addWidget(self._tree_view)
+        layout.addWidget(self._tree_view, 3)
+        self._detail_panel = RecordDetailPanel()
+        self._detail_panel.tag_requested.connect(self._on_tag_requested)
+        self._detail_panel.promote_requested.connect(self._on_promote_requested)
+        layout.addWidget(self._detail_panel, 2)
 
         return panel
 
     def _build_menu(self) -> None:
-        """菜单栏：设置 → 图表设置。"""
+        """菜单栏：设置 → 图表设置 / 库目录。"""
         menu_bar = self.menuBar()
         if menu_bar is None:
             return
@@ -448,6 +473,24 @@ class MainWindow(QMainWindow):
         action = menu.addAction("图表设置…")
         if action is not None:
             action.triggered.connect(self._open_chart_settings)
+        catalog_action = menu.addAction("轨道库目录…")
+        if catalog_action is not None:
+            catalog_action.triggered.connect(self._open_catalog_dir_settings)
+
+    def _open_catalog_dir_settings(self) -> None:
+        """切换轨道库目录（QSettings 持久化；清单从新库重读，新计算写入新库）。"""
+        directory = QFileDialog.getExistingDirectory(self, "选择轨道库目录", str(self._catalog_dir))
+        if not directory:
+            return
+        self._qsettings.setValue("catalog/dir", directory)
+        self._catalog_dir = Path(directory)
+        self._catalog = CatalogService(
+            FacadeBridge(kernel_dir=detect_kernel_dir() or None, catalog_dir=str(directory))
+        )
+        self._reload_from_catalog()
+        self._status_bar.showMessage(
+            f"轨道库已切换到 {directory}（后续计算写入新库）", _STATUS_MSG_TIMEOUT_MS
+        )
 
     def _open_chart_settings(self) -> None:
         """弹出图表设置对话框；确认后持久化并重绘画布。"""
@@ -704,11 +747,12 @@ class MainWindow(QMainWindow):
         self._param_widgets = build_params_from_model(spec.request_model)
 
         if tool_key == "control_orbit":
-            # input_ephemeris 由选中 Artifact 注入，不在 UI 暴露；mu 同样由源
-            # Artifact 注入（source_mu），面板编辑无效（ControlOrbitRequest 的
-            # mu 仅为响应透传字段，算法层不消费）。上游默认控制时长面向多年
-            # 星历，覆盖不了 GUI 默认设计的短弧，故在 GUI 层覆盖为短弧默认值。
-            for hidden in ("input_ephemeris", "mu"):
+            # input_ephemeris / input_record_id 由选中 Artifact 注入（后者
+            # issue #375 谱系直连），不在 UI 暴露；mu 同样由源 Artifact 注入
+            # （source_mu），面板编辑无效（ControlOrbitRequest 的 mu 仅为响应
+            # 透传字段，算法层不消费）。上游默认控制时长面向多年星历，覆盖
+            # 不了 GUI 默认设计的短弧，故在 GUI 层覆盖为短弧默认值。
+            for hidden in ("input_ephemeris", "input_record_id", "mu"):
                 self._param_widgets.pop(hidden, None)
             for name, default in _CONTROL_ORBIT_GUI_DEFAULTS.items():
                 widget = self._param_widgets.get(name)
@@ -981,19 +1025,40 @@ class MainWindow(QMainWindow):
         artifact = self._project.get_by_id(artifact_id)
         if artifact is None:
             return
-        # Issue #338: 历史 Artifact 的 NPZ 数组懒加载（逻辑移至 persistence.load_artifact_arrays）
-        if artifact.state_data is None and artifact.output_path is not None:
-            loaded = load_artifact_arrays(artifact)
+        self._select_artifact(artifact_id, render=True)
+
+    def _select_artifact(self, artifact_id: str, *, render: bool = True) -> None:
+        """选中单个 Artifact：记录懒加载 → 详情面板 → 画布。"""
+        artifact = self._project.get_by_id(artifact_id)
+        if artifact is None:
+            return
+        # Issue #375: catalog 记录懒加载（完整内容经 catalog_get 取回）
+        if artifact.state_data is None and artifact.record_id:
+            loaded = self._catalog.load_arrays(artifact)
             if not loaded:
-                self._log.append_log(f"NPZ 懒加载失败: {artifact.label}（文件缺失或元数据缺失）")
+                self._log.append_log(f"记录数据加载失败: {artifact.label}（记录缺失或损坏）")
         if artifact.state_data is not None:
             self._warn_missing_mu(artifact)
             self._warn_missing_ephemeris(artifact)
-            self._selected_artifact_ids = [artifact_id]
-            if self._current_tool_key == "control_orbit":
-                self._apply_control_special_mode()
-            self._update_plot_content_controls()
+        self._selected_artifact_ids = [artifact_id]
+        if self._current_tool_key == "control_orbit":
+            self._apply_control_special_mode()
+        self._update_plot_content_controls()
+        self._update_detail_panel(artifact)
+        if render and artifact.state_data is not None:
             self._render_canvas()
+
+    def _update_detail_panel(self, artifact: Artifact | None) -> None:
+        """刷新记录详情面板（谱系解析：上游标签 + 断链标记）。"""
+        if artifact is None or not artifact.record_id:
+            self._detail_panel.clear()
+            return
+        upstream = self._project.find_upstream(artifact)
+        self._detail_panel.show_record(
+            artifact,
+            upstream_label=upstream.label if upstream is not None else None,
+            broken_lineage=self._project.has_broken_lineage(artifact),
+        )
 
     def _on_artifacts_multi_selected(self, artifact_ids: list[str]) -> None:
         # Issue #339: 多选分支补上懒加载（现状缺失，见审查意见）
@@ -1001,12 +1066,15 @@ class MainWindow(QMainWindow):
             artifact = self._project.get_by_id(aid)
             if artifact is None:
                 continue
-            if artifact.state_data is None and artifact.output_path is not None:
-                load_artifact_arrays(artifact)
+            if artifact.state_data is None and artifact.record_id:
+                self._catalog.load_arrays(artifact)
             self._warn_missing_mu(artifact)
             self._warn_missing_ephemeris(artifact)
         self._selected_artifact_ids = list(artifact_ids)
         self._update_plot_content_controls()
+        if artifact_ids:
+            first = self._project.get_by_id(artifact_ids[0])
+            self._update_detail_panel(first)
         self._render_canvas()
 
     def _on_run(self) -> None:
@@ -1058,6 +1126,7 @@ class MainWindow(QMainWindow):
             orbit_type=orbit_type,
             params=params,
             kernel_dir=kernel_dir,
+            catalog_dir=str(self._catalog_dir),
             parent=self,
         )
         self._worker.log.connect(self._on_worker_log)
@@ -1071,12 +1140,10 @@ class MainWindow(QMainWindow):
         if source is None:
             self._status_bar.showMessage("请先选中一条轨道 Artifact", _STATUS_MSG_TIMEOUT_MS)
             return
+        # 记录懒加载（谱系输入与时长校验都需要星历段时间轴）
+        if source.state_data is None and source.record_id:
+            self._catalog.load_arrays(source)
         ephemeris_data = source.extra.get("ephemeris")
-        if not ephemeris_data:
-            self._status_bar.showMessage(
-                "该 Artifact 无星历数据，需重新设计", _STATUS_MSG_TIMEOUT_MS
-            )
-            return
 
         spec = TOOL_REGISTRY["control_orbit"]
         model = spec.request_model
@@ -1085,11 +1152,22 @@ class MainWindow(QMainWindow):
         self._apply_control_special_mode()
         params = collect_params(self._param_widgets, model)
         params.pop("input_ephemeris", None)  # 防御：理论上已隐藏
+        params.pop("input_record_id", None)
+        # Issue #375: 库中记录直连站保输入（Facade 取星历段并写谱系
+        # source_record_id，design→control 链式不经文件倒手）；无记录的产物
+        # 回退 input_ephemeris（内存星历重建 EphemerisTable）。
+        if source.record_id and source.extra.get("has_ephemeris"):
+            params["input_record_id"] = source.record_id
+        elif not ephemeris_data:
+            self._status_bar.showMessage(
+                "该 Artifact 无星历数据，需重新设计", _STATUS_MSG_TIMEOUT_MS
+            )
+            return
 
         # 校验仿真时长不超出源星历覆盖：控制律的目标点/反馈弧都取自标称星历，
         # 超出覆盖时控制律无解（默认 30 天/次 × 119 次 + 28 天反馈 ≈ 3598 天，
         # 而 GUI 设计默认星历仅 30 天 → 蒙特卡洛样本必然全部失败、Δv=0）。
-        times_et = ephemeris_data.get("times_et")
+        times_et = (ephemeris_data or {}).get("times_et")
         if times_et is not None and len(times_et) > 1:
             span_days = float(times_et[-1] - times_et[0]) / 86400.0
             interval = float(params.get("control_interval", 30.0))
@@ -1118,6 +1196,7 @@ class MainWindow(QMainWindow):
             params=params,
             source_mu=source.extra.get("mu"),
             kernel_dir=kernel_dir,
+            catalog_dir=str(self._catalog_dir),
             parent=self,
         )
         self._worker.log.connect(self._on_worker_log)
@@ -1150,7 +1229,9 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage(f"正在生成 {family_type} 轨道族...")
         self._set_run_controls(running=True)
 
-        self._worker = FamilyOrbitWorker(params=params, parent=self)
+        self._worker = FamilyOrbitWorker(
+            params=params, catalog_dir=str(self._catalog_dir), parent=self
+        )
         self._worker.log.connect(self._on_worker_log)
         self._worker.finished.connect(self._on_family_finished)
         self._worker.error.connect(self._on_family_error)
@@ -1158,44 +1239,10 @@ class MainWindow(QMainWindow):
         self._worker.start()
 
     def _on_family_finished(self, result: FamilyResultData) -> None:
-        """族生成完成：落盘 + 建 family Artifact + 画布叠加显示。"""
+        """族生成完成：产物已自动入库，重查清单并选中新记录。"""
         if self._consume_stop_request():
             return
         self._set_run_controls(running=False)
-
-        json_path: Path | None = None
-        try:
-            json_path, _ = save_family_result(result, OUTPUT_DIR)
-            self._log.append_log(f"结果已保存: {json_path.name}")
-        except Exception as exc:  # noqa: BLE001
-            self._log.append_log(f"持久化失败: {exc}（结果仅保留在内存中）")
-            self._status_bar.showMessage("持久化失败", _STATUS_MSG_TIMEOUT_MS)
-
-        artifact = Artifact(
-            artifact_type="family",
-            label=f"{result.orbit_type} 族 (L{result.libration_point}, {result.n_orbits} 条)",
-            orbit_type=result.orbit_type,
-            source_tool="orbit_family_generation",
-            state_data=result.states,  # (m, n, 6)
-            times=result.times,  # (m, n)
-            output_path=json_path,
-            extra={
-                "mu": result.mu,
-                "libration_point": result.libration_point,
-                "family_type": result.family_type,
-                "periodicity": result.periodicity,
-                "member_parameters": result.member_parameters,
-                "arrays_file": json_path.name if json_path else None,
-            },
-        )
-        if result.z0s is not None:
-            artifact.extra["z0s"] = result.z0s
-        self._project.add(artifact)
-        self._refresh_project_tree()
-
-        if artifact.state_data is not None:
-            self._selected_artifact_ids = [artifact.artifact_id]
-            self._render_canvas()
 
         completion = (
             f"轨道族生成完成: {result.n_orbits} 条 {result.orbit_type} 轨道"
@@ -1205,8 +1252,17 @@ class MainWindow(QMainWindow):
             # 软失败（部分族）：展示上游状态消息说明未满额原因
             completion += f"；{result.status_message}"
         self._log.append_log(completion)
-        if json_path is not None:
-            self._status_bar.showMessage("轨道族生成完成", _STATUS_MSG_TIMEOUT_MS)
+        self._reload_from_catalog()
+        self._select_record_after_run(result.record_id, fallback_log="族记录未入库")
+        self._status_bar.showMessage("轨道族生成完成", _STATUS_MSG_TIMEOUT_MS)
+
+    def _select_record_after_run(self, record_id: str | None, *, fallback_log: str) -> None:
+        """计算完成后选中新入库的记录（清单已重查，record_id 即主键）。"""
+        if record_id and self._project.get_by_id(record_id) is not None:
+            self._select_artifact(record_id)
+            return
+        if record_id is None:
+            self._log.append_log(fallback_log)
 
     def _on_family_error(self, error_msg: str) -> None:
         if self._consume_stop_request():
@@ -1254,17 +1310,89 @@ class MainWindow(QMainWindow):
             self._trigger_stability_from_tree(artifact_ids)
 
     def _delete_artifacts(self, artifact_ids: list[str]) -> None:
-        """从 Project 移除 Artifact 并刷新树与画布。"""
+        """删除 Artifact：库记录走 catalog_delete，遗留分区仅移出内存。"""
         if not artifact_ids:
             return
-        removed = sum(1 for aid in artifact_ids if self._project.remove(aid))
+        removed = 0
+        for aid in artifact_ids:
+            artifact = self._project.get_by_id(aid)
+            if artifact is None:
+                continue
+            if artifact.record_id:
+                try:
+                    self._catalog.delete(artifact.record_id)
+                    removed += 1
+                except OrbitError as exc:
+                    self._log.append_log(f"删除记录失败 {artifact.label}: {exc.message}")
+            else:
+                self._legacy_artifacts = [
+                    a for a in self._legacy_artifacts if a.artifact_id != aid
+                ]
+                removed += 1
+        self._reload_from_catalog()
         # 从画布选中集剔除已删项
         self._selected_artifact_ids = [
             aid for aid in self._selected_artifact_ids if aid not in artifact_ids
         ]
-        self._refresh_project_tree()
+        self._update_detail_panel(None)
         self._render_canvas()
-        self._status_bar.showMessage(f"已删除 {removed} 个 Artifact", _STATUS_MSG_TIMEOUT_MS)
+        self._status_bar.showMessage(f"已删除 {removed} 条记录", _STATUS_MSG_TIMEOUT_MS)
+
+    # -- 轨道库交互（过滤 / 标注 / 提升 / 导出，issue #375）-----------------
+
+    def _on_filters_changed(self, filters: dict) -> None:
+        """过滤栏变化：重查库并重建树（选中集随之失效，画布清空）。"""
+        self._catalog_filters = dict(filters)
+        self._selected_artifact_ids = []
+        self._reload_from_catalog()
+        self._update_detail_panel(None)
+        self._render_canvas()
+
+    def _on_tag_requested(self, record_id: str, tags: list, note: str) -> None:
+        """详情面板保存标注：catalog_tag 落库后重查清单并保持选中。"""
+        try:
+            self._catalog.tag(record_id, tags, note)
+        except OrbitError as exc:
+            self._log.append_log(f"标注保存失败: {exc.message}")
+            self._status_bar.showMessage("标注保存失败", _STATUS_MSG_TIMEOUT_MS)
+            return
+        self._reload_from_catalog()
+        self._select_artifact(record_id, render=False)
+        self._status_bar.showMessage("标注已保存", _STATUS_MSG_TIMEOUT_MS)
+
+    def _on_promote_requested(self, record_id: str, member_index: int) -> None:
+        """详情面板提升族成员：catalog_promote 生成独立记录并选中。"""
+        try:
+            new_record_id = self._catalog.promote_member(record_id, member_index)
+        except OrbitError as exc:
+            self._log.append_log(f"成员提升失败: {exc.message}")
+            self._status_bar.showMessage("成员提升失败", _STATUS_MSG_TIMEOUT_MS)
+            return
+        self._reload_from_catalog()
+        self._select_artifact(new_record_id)
+        self._status_bar.showMessage(
+            f"成员 {member_index} 已提升为独立记录", _STATUS_MSG_TIMEOUT_MS
+        )
+
+    def _on_export_requested(self) -> None:
+        """导出教学案例包：当前过滤子集经 catalog_export 打包（zip 或目录）。"""
+        dest, selected = QFileDialog.getSaveFileName(
+            self,
+            "导出教学案例包",
+            "orbit_cases.zip",
+            "案例包 zip (*.zip);;案例包目录 (*)",
+        )
+        if not dest:
+            return
+        try:
+            count = self._catalog.export(self._catalog_filters, dest)
+        except OrbitError as exc:
+            self._log.append_log(f"导出失败: {exc.message}")
+            self._status_bar.showMessage("导出失败", _STATUS_MSG_TIMEOUT_MS)
+            return
+        kind = "zip 包" if selected.startswith("案例包 zip") else "目录"
+        self._log.append_log(f"教学案例包已导出（{kind}）: {dest}，共 {count} 条记录")
+        self._status_bar.showMessage(f"已导出 {count} 条记录 → {dest}", _STATUS_MSG_TIMEOUT_MS)
 
     def _trigger_control_orbit_from_tree(self, artifact_ids: list[str]) -> None:
         """右键 orbit → 轨道保持：选中该 Artifact + 切到 control_orbit 工具。
@@ -1277,8 +1405,8 @@ class MainWindow(QMainWindow):
         artifact = self._project.get_by_id(orbit_id)
         if artifact is None or artifact.artifact_type != "orbit":
             return
-        if artifact.state_data is None and artifact.output_path is not None:
-            load_artifact_arrays(artifact)
+        if artifact.state_data is None and artifact.record_id:
+            self._catalog.load_arrays(artifact)
         self._selected_artifact_ids = [orbit_id]
         for i in range(self._tool_combo.count()):
             if self._tool_combo.itemData(i) == "control_orbit":
@@ -1301,8 +1429,8 @@ class MainWindow(QMainWindow):
         if artifact is None or artifact.artifact_type != "orbit":
             self._status_bar.showMessage("请选中一条轨道 Artifact", _STATUS_MSG_TIMEOUT_MS)
             return
-        if artifact.state_data is None and artifact.output_path is not None:
-            load_artifact_arrays(artifact)
+        if artifact.state_data is None and artifact.record_id:
+            self._catalog.load_arrays(artifact)
         if artifact.state_data is None:
             self._status_bar.showMessage("该 Artifact 无轨道数据", _STATUS_MSG_TIMEOUT_MS)
             return
@@ -1430,55 +1558,17 @@ class MainWindow(QMainWindow):
         self._log.append_log(msg)
 
     def _on_design_finished(self, result: OrbitDesignResultData) -> None:
+        """设计完成：产物已自动入库，重查清单并选中新记录。"""
         if self._consume_stop_request():
             return
-        # G1: 恢复按钮状态
         self._set_run_controls(running=False)
 
-        # Issue #338: 计算结果落盘（JSON 元数据 + NPZ 数组）
-        json_path: Path | None = None
-        npz_name = ""
-        try:
-            json_path, npz_path = save_artifact(result, OUTPUT_DIR)
-            npz_name = npz_path.name
-            self._log.append_log(f"结果已保存: {json_path.name}")
-        except Exception as exc:  # noqa: BLE001
-            # S4: 持久化失败也要保证 in-memory Artifact 可用；明确告知用户
-            self._log.append_log(f"持久化失败: {exc}（结果仅保留在内存中）")
-            self._status_bar.showMessage("持久化失败", _STATUS_MSG_TIMEOUT_MS)
-
-        artifact = Artifact(
-            artifact_type="orbit",
-            label=f"{result.orbit_type} (C_J={result.cr3bp_jacobi:.4f})",
-            orbit_type=result.orbit_type,
-            source_tool="design_orbit",
-            state_data=result.states,
-            times=result.times,
-            output_path=json_path,
-            extra={
-                # 元数据键与 persistence.save_artifact 写入磁盘 JSON 的键保持一致
-                "cr3bp_jacobi": result.cr3bp_jacobi,
-                "mu": result.mu,
-                "epoch_utc": result.epoch_utc,
-                "correction_converged": result.correction_converged,
-                "correction_iterations": result.correction_iterations,
-                "arrays_file": npz_name,
-                "ephemeris": result.ephemeris,  # 内存直通，control_orbit 即可用
-            },
-        )
-        self._project.add(artifact)
-        self._refresh_project_tree()
-
-        if artifact.state_data is not None:
-            self._selected_artifact_ids = [artifact.artifact_id]
-            self._render_canvas()
-
         self._log.append_log(f"设计完成: {result.orbit_type}, C_J={result.cr3bp_jacobi:.6f}")
-        # S4: 若持久化失败，最终状态栏提示优先告知错误（避免被"完成"覆盖）
-        if json_path is None:
-            self._status_bar.showMessage("设计完成但持久化失败", _STATUS_MSG_TIMEOUT_MS)
-        else:
-            self._status_bar.showMessage(f"{result.orbit_type} 设计完成", _STATUS_MSG_TIMEOUT_MS)
+        if result.record_id:
+            self._log.append_log(f"已入轨道库: {result.record_id}")
+        self._reload_from_catalog()
+        self._select_record_after_run(result.record_id, fallback_log="产物未入轨道库")
+        self._status_bar.showMessage(f"{result.orbit_type} 设计完成", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_design_error(self, error_msg: str) -> None:
         if self._consume_stop_request():
@@ -1490,49 +1580,20 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage("设计失败", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_control_finished(self, result: ControlResultData) -> None:
+        """站保完成：产物已自动入库（谱系指向被控记录），重查清单并选中新记录。"""
         if self._consume_stop_request():
             return
         self._set_run_controls(running=False)
 
-        json_path: Path | None = None
-        try:
-            json_path, _ = save_control_result(result, OUTPUT_DIR)
-            self._log.append_log(f"结果已保存: {json_path.name}")
-        except Exception as exc:  # noqa: BLE001
-            self._log.append_log(f"持久化失败: {exc}（结果仅保留在内存中）")
-            self._status_bar.showMessage("持久化失败", _STATUS_MSG_TIMEOUT_MS)
-
         total_dv = float(np.sum(result.maneuvers_delta_v_mps))
-        artifact = Artifact(
-            artifact_type="ephemeris",
-            label=f"受控星历 (Δv={total_dv:.1f} m/s)",
-            source_tool="control_orbit",
-            state_data=result.controlled_states,
-            times=result.controlled_times,
-            output_path=json_path,
-            extra={
-                "mu": result.mu,
-                "num_failed": result.num_failed,
-                "total_delta_v_mps": total_dv,
-                "n_maneuvers": int(len(result.maneuvers_mjd_tdb)),
-                # 真物理时间（ET 秒）+ GCRS 惯性 km 位置：P1 坐标系切换、
-                # P2 帧动画所需，P0 画布不读。
-                "times_et": result.times_et,
-                "position_km": result.position_km,
-            },
-        )
-        self._project.add(artifact)
-        self._refresh_project_tree()
-
-        if artifact.state_data is not None:
-            self._selected_artifact_ids = [artifact.artifact_id]
-            self._render_canvas()
-
         self._log.append_log(
             f"轨道保持完成: 总Δv={total_dv:.2f} m/s, 失败 {result.num_failed} 样本"
         )
-        if json_path is not None:
-            self._status_bar.showMessage("轨道保持完成", _STATUS_MSG_TIMEOUT_MS)
+        self._reload_from_catalog()
+        self._select_record_after_run(
+            result.record_id, fallback_log="站保全样本失败，未产生库记录"
+        )
+        self._status_bar.showMessage("轨道保持完成", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_control_error(self, error_msg: str) -> None:
         if self._consume_stop_request():
@@ -1554,9 +1615,13 @@ class MainWindow(QMainWindow):
         """轨道设计产物（design_orbit）无标称星历时提示：画布只能画初猜。
 
         #359 US 10：星历缺失要明确告知，而非画布静默只画初猜。design_orbit
-        正常总会产出星历，此分支仅防御异常/旧产物。
+        正常总会产出星历，此分支仅防御异常/旧产物；catalog_promote 提升的
+        族成员天然只有 CR3BP 段（无星历），同样适用。
         """
-        if artifact.source_tool == "design_orbit" and not artifact.extra.get("ephemeris"):
+        if (
+            artifact.source_tool in _CR3BP_ORBIT_TOOLS
+            and not artifact.extra.get("ephemeris")
+        ):
             self._log.append_log(f"该轨道无标称星历，画布只能画初猜: {artifact.label}")
 
     def _artifact_for_id(self, artifact_id: str) -> dict | None:
@@ -1595,8 +1660,9 @@ class MainWindow(QMainWindow):
             "family_states": None,
             "family_times": None,
         }
-        if a.source_tool == "design_orbit":
+        if a.source_tool in _CR3BP_ORBIT_TOOLS:
             # CR3BP 周期轨道作为初猜；标称星历四件套来自 extra["ephemeris"]
+            # （catalog_promote 提升的成员无星历段，仅初猜）
             eph = a.extra.get("ephemeris") or {}
             data["initial_guess_states"] = a.state_data
             data["initial_guess_times"] = a.times
@@ -1728,12 +1794,12 @@ class MainWindow(QMainWindow):
         tb.equal_aspect.setChecked(state.equal_aspect)
 
     def _selected_artifacts_have_initial_guess(self) -> bool:
-        """任一当前选中 Artifact 含 CR3BP 初猜（design_orbit 产物）即为 True。"""
+        """任一当前选中 Artifact 含 CR3BP 初猜（design_orbit / 提升成员）即为 True。"""
         for aid in self._selected_artifact_ids:
             a = self._project.get_by_id(aid)
             if a is None:
                 continue
-            if a.source_tool == "design_orbit" and a.state_data is not None:
+            if a.source_tool in _CR3BP_ORBIT_TOOLS and a.state_data is not None:
                 return True
         return False
 
@@ -1744,7 +1810,7 @@ class MainWindow(QMainWindow):
             if a is None:
                 continue
             # design_orbit 的星历在 extra["ephemeris"]，control_orbit 在 extra 顶层
-            if a.source_tool == "design_orbit":
+            if a.source_tool in _CR3BP_ORBIT_TOOLS:
                 eph = a.extra.get("ephemeris") or {}
                 if eph.get("position_km") is not None and eph.get("times_et") is not None:
                     return True

@@ -1,8 +1,7 @@
-"""tests for MainWindow control_orbit dispatch + handlers (issue #348)。"""
+"""tests for MainWindow control_orbit dispatch + handlers (issue #348/#375)。"""
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -25,12 +24,48 @@ def qapp():
         pytest.skip("QApplication 不可用")
 
 
-def _make_window(qapp):
-    """创建 MainWindow，mock 掉 discover_artifacts 避免扫描真实 output/。"""
+class _StubCatalog:
+    """CatalogService 桩：清单 / 懒加载 / 写操作全在内存，不触真实库。"""
+
+    def __init__(self) -> None:
+        self.artifacts: list = []
+        self.records: dict = {}
+        self.calls: list = []
+
+    def query_artifacts(self, filters=None):
+        self.calls.append(("query", filters))
+        return list(self.artifacts)
+
+    def load_arrays(self, artifact):
+        stored = self.records.get(artifact.record_id)
+        if stored is not None:
+            artifact.state_data = stored.state_data
+            artifact.times = stored.times
+            artifact.extra.update(stored.extra)
+        return artifact.state_data is not None or stored is None
+
+    def tag(self, record_id, tags, note=None):
+        self.calls.append(("tag", record_id, tags, note))
+
+    def delete(self, record_id):
+        self.calls.append(("delete", record_id))
+
+    def promote_member(self, record_id, member_index):
+        self.calls.append(("promote", record_id, member_index))
+        return "rec-promoted"
+
+    def export(self, filters, dest):
+        self.calls.append(("export", filters, dest))
+        return 0
+
+
+def _make_window(qapp, catalog: _StubCatalog | None = None):
+    """创建 MainWindow，注入桩 catalog（不扫描 output/ 也不触真实库）。"""
     from src.app.main_window import MainWindow
 
+    stub = catalog if catalog is not None else _StubCatalog()
     with patch("src.app.main_window.discover_artifacts", return_value=[]):
-        return MainWindow()
+        return MainWindow(catalog=stub)
 
 
 def _make_orbit_artifact(
@@ -39,6 +74,7 @@ def _make_orbit_artifact(
     with_ephemeris: bool = True,
     mu: float | None = 0.0123,
     orbit_type: str = "DRO",
+    record_id: str | None = None,
 ):
     """向 window._project 注入一个 orbit Artifact 并选中它。"""
     from src.model import Artifact
@@ -58,15 +94,19 @@ def _make_orbit_artifact(
             "synodic_position": np.random.randn(n, 3),
             "times_jd_tdb": None,
         }
+        extra["has_ephemeris"] = True
     artifact = Artifact(
         artifact_type="orbit",
         label="测试 DRO",
         orbit_type=orbit_type,
         source_tool="design_orbit",
+        record_id=record_id,
         state_data=np.random.randn(n, 6),
         times=np.linspace(0, 1, n),
         extra=extra,
     )
+    if record_id is not None:
+        artifact.artifact_id = record_id
     window._project.add(artifact)
     window._selected_artifact_ids = [artifact.artifact_id]
     return artifact
@@ -293,11 +333,9 @@ class TestStopRun:
             controlled_times=None,
         )
         window._on_stop_run()
-        with patch("src.app.main_window.save_control_result") as mock_save:
-            window._on_control_finished(result)
+        window._on_control_finished(result)
 
         worker.requestInterruption.assert_called_once()
-        mock_save.assert_not_called()
         assert "运行已停止" in window._status_bar.currentMessage()
 
     def test_stability_does_not_overwrite_active_worker(self, qapp):
@@ -351,7 +389,7 @@ class TestControlWorkerCancellation:
 
 
 class TestOnControlFinished:
-    def _make_result(self, n: int = 30) -> ControlResultData:
+    def _make_result(self, n: int = 30, record_id: str | None = None) -> ControlResultData:
         return ControlResultData(
             num_failed=1,
             sk_statistic_rows=np.array([[1.0, 2.0, 3.0]]),
@@ -360,82 +398,57 @@ class TestOnControlFinished:
             controlled_states=np.random.randn(n, 6),
             controlled_times=np.arange(n),
             mu=EARTH_MOON_MU,
+            record_id=record_id,
         )
 
-    def test_on_control_finished_registers_ephemeris_artifact(self, qapp):
-        """_on_control_finished 应在 Project 注册 artifact_type="ephemeris"。"""
-        window = _make_window(qapp)
-        result = self._make_result()
+    def _control_artifact(self, record_id: str):
+        from src.model.artifact import Artifact
 
-        with patch("src.app.main_window.save_control_result") as mock_save:
-            mock_save.return_value = (Path("/fake/eph.json"), Path("/fake/eph.npz"))
-            window._on_control_finished(result)
+        return Artifact(
+            artifact_id=record_id,
+            record_id=record_id,
+            artifact_type="ephemeris",
+            label="受控星历（Halo L2）",
+            source_tool="control_orbit",
+            extra={"record_id": record_id, "source_record_id": None, "tags": [], "note": ""},
+        )
 
-        eph_artifacts = [a for a in window._project.artifacts if a.artifact_type == "ephemeris"]
-        assert len(eph_artifacts) == 1
-        a = eph_artifacts[0]
-        assert a.state_data is not None
-        assert a.state_data.shape == (30, 6)
-        assert a.extra["num_failed"] == 1
-        assert a.extra["n_maneuvers"] == 2
-        assert a.extra["total_delta_v_mps"] == pytest.approx(0.8)
+    def test_on_control_finished_selects_new_record(self, qapp):
+        """站保完成：清单重查并选中新入库记录（issue #375 US8）。"""
+        catalog = _StubCatalog()
+        filled = self._control_artifact("rec-c")
+        filled.state_data = np.zeros((30, 6))
+        filled.times = np.arange(30)
+        catalog.artifacts.append(self._control_artifact("rec-c"))
+        catalog.records["rec-c"] = filled
+        window = _make_window(qapp, catalog)
+
+        window._on_control_finished(self._make_result(record_id="rec-c"))
+
+        assert window._selected_artifact_ids == ["rec-c"]
+        artifact = window._project.get_by_id("rec-c")
+        assert artifact is not None
+        assert artifact.state_data is not None
+        assert ("query", {}) in catalog.calls
+        assert "轨道保持完成" in window._status_bar.currentMessage()
 
     def test_on_control_finished_after_stop_drops_result(self, qapp):
-        """停止请求先到达时，迟到的完成信号不得落盘或注册结果。"""
-        window = _make_window(qapp)
+        """停止请求先到达时，迟到的完成信号不得重查清单或选中记录。"""
+        catalog = _StubCatalog()
+        window = _make_window(qapp, catalog)
         window._stop_requested = True
+        calls_before = list(catalog.calls)
 
-        with patch("src.app.main_window.save_control_result") as mock_save:
-            window._on_control_finished(self._make_result())
+        window._on_control_finished(self._make_result(record_id="rec-c"))
 
-        mock_save.assert_not_called()
-        assert not [a for a in window._project.artifacts if a.artifact_type == "ephemeris"]
+        assert catalog.calls == calls_before  # 停止后不再重查
+        assert window._selected_artifact_ids == []
         assert "运行已停止" in window._status_bar.currentMessage()
 
-    def test_on_control_finished_extra_contains_position_and_times_et(self, qapp):
-        """_on_control_finished 应把 result.position_km/times_et 写入 Artifact.extra。"""
-        window = _make_window(qapp)
-        n = 5
-        position_km = np.random.randn(n, 3)
-        times_et = np.linspace(7.5e8, 7.6e8, n)
-        result = ControlResultData(
-            num_failed=0,
-            sk_statistic_rows=np.array([[1.0, 2.0, 3.0]]),
-            maneuvers_mjd_tdb=np.array([60000.0]),
-            maneuvers_delta_v_mps=np.array([0.5]),
-            controlled_states=np.random.randn(n, 6),
-            controlled_times=times_et,
-            mu=EARTH_MOON_MU,
-            position_km=position_km,
-            times_et=times_et,
-        )
-
-        with patch("src.app.main_window.save_control_result") as mock_save:
-            mock_save.return_value = (Path("/fake/eph.json"), Path("/fake/eph.npz"))
-            window._on_control_finished(result)
-
-        eph_artifacts = [a for a in window._project.artifacts if a.artifact_type == "ephemeris"]
-        assert len(eph_artifacts) == 1
-        a = eph_artifacts[0]
-        np.testing.assert_array_equal(a.extra["position_km"], position_km)
-        np.testing.assert_array_equal(a.extra["times_et"], times_et)
-
-    def test_on_control_finished_save_failure_keeps_artifact(self, qapp):
-        """持久化失败时 in-memory Artifact 仍可用。"""
-        window = _make_window(qapp)
-        result = self._make_result()
-
-        with patch("src.app.main_window.save_control_result", side_effect=OSError("disk full")):
-            window._on_control_finished(result)
-
-        eph_artifacts = [a for a in window._project.artifacts if a.artifact_type == "ephemeris"]
-        assert len(eph_artifacts) == 1
-        assert eph_artifacts[0].state_data is not None
-        assert "持久化失败" in window._status_bar.currentMessage()
-
-    def test_on_control_finished_all_failed_no_state_data(self, qapp):
-        """全失败（controlled_states=None）时 Artifact 仍注册但无 state_data。"""
-        window = _make_window(qapp)
+    def test_on_control_finished_all_failed_logs_no_record(self, qapp):
+        """全样本失败无记录（controlled_states=None 且 record_id=None）时仅提示。"""
+        catalog = _StubCatalog()
+        window = _make_window(qapp, catalog)
         result = ControlResultData(
             num_failed=5,
             sk_statistic_rows=np.empty((0, 3)),
@@ -446,13 +459,49 @@ class TestOnControlFinished:
             mu=None,
         )
 
-        with patch("src.app.main_window.save_control_result") as mock_save:
-            mock_save.return_value = (Path("/fake/eph.json"), Path("/fake/eph.npz"))
-            window._on_control_finished(result)
+        window._on_control_finished(result)
 
-        eph_artifacts = [a for a in window._project.artifacts if a.artifact_type == "ephemeris"]
-        assert len(eph_artifacts) == 1
-        assert eph_artifacts[0].state_data is None
+        assert window._selected_artifact_ids == []
+        assert "未产生库记录" in window._log.toPlainText()
+
+
+class TestControlInputRecordId:
+    """issue #375 US9：站保以库中记录为输入（input_record_id），链式不经文件。"""
+
+    def test_run_control_uses_input_record_id(self, qapp):
+        """选中的 catalog 记录含星历段时，params 注入 input_record_id。"""
+        window = _make_window(qapp)
+        _select_control_tool(window)
+        _make_orbit_artifact(window, with_ephemeris=True, record_id="rec-src")
+
+        with patch("src.app.main_window.ControlOrbitWorker") as mock_cls:
+            window._on_run()
+            mock_cls.assert_called_once()
+            _, kwargs = mock_cls.call_args
+            assert kwargs["params"]["input_record_id"] == "rec-src"
+            assert "input_ephemeris" not in kwargs["params"]
+
+    def test_run_control_record_without_ephemeris_falls_back(self, qapp):
+        """记录无星历段（如提升成员）时回退内存星历；无星历则拦截。"""
+        window = _make_window(qapp)
+        _select_control_tool(window)
+        _make_orbit_artifact(window, with_ephemeris=False, record_id="rec-src")
+        window._on_run()
+        assert "无星历数据" in window._status_bar.currentMessage()
+        assert window._worker is None
+
+    def test_run_control_in_memory_artifact_without_record_id(self, qapp):
+        """非 catalog 产物（无 record_id）回退 input_ephemeris 路径。"""
+        window = _make_window(qapp)
+        _select_control_tool(window)
+        _make_orbit_artifact(window, with_ephemeris=True, record_id=None)
+
+        with patch("src.app.main_window.ControlOrbitWorker") as mock_cls:
+            window._on_run()
+            mock_cls.assert_called_once()
+            _, kwargs = mock_cls.call_args
+            assert "input_record_id" not in kwargs["params"]
+            assert kwargs["ephemeris_data"] is not None
 
 
 class TestArtifactForIdControlFields:

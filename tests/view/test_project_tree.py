@@ -123,6 +123,37 @@ class TestProjectTreeViewRefresh:
         group = tree._tree.topLevelItem(0)
         assert group.childCount() == 2
 
+    def test_broken_lineage_marks_label(self, qapp):
+        """issue #375 US6：谱系断链的记录显示 ⚠ 降级标记，不改 artifact_id。"""
+        from src.model import Project
+        from src.view.project_tree import ProjectTreeView
+
+        project = Project("test")
+        project.add(_make_artifact("orbit", "Halo (L2)", "src-1"))
+        orphan = _make_artifact("ephemeris", "受控星历", "ctl-1")
+        orphan.extra["source_record_id"] = "deleted-id"
+        project.add(orphan)
+
+        tree = ProjectTreeView()
+        tree.refresh(project)
+
+        labels = []
+        for i in range(tree._tree.topLevelItemCount()):
+            group = tree._tree.topLevelItem(i)
+            for j in range(group.childCount()):
+                labels.append(group.child(j).text(0))
+
+        assert any("⚠" in t for t in labels)
+        assert all("⚠" not in t or "受控星历" in t for t in labels)
+        # 断链产物本身仍可用：UserRole 仍是 record_id（可选中送画布）
+        orphan_item = None
+        for i in range(tree._tree.topLevelItemCount()):
+            group = tree._tree.topLevelItem(i)
+            for j in range(group.childCount()):
+                if group.child(j).data(0, Qt.ItemDataRole.UserRole) == "ctl-1":
+                    orphan_item = group.child(j)
+        assert orphan_item is not None
+
 
 class TestProjectTreeViewSignals:
     def test_single_click_emits_artifact_selected(self, qapp):

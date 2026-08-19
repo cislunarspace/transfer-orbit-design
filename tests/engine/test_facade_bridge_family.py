@@ -118,6 +118,7 @@ def _fake_response(params: dict, *, n: int, states_shape: tuple = (100, 6)) -> S
         metadata={"periodicity": "periodic"},
         requested_members=n,
         generated_members=n,
+        record_id=None,
     )
 
 
@@ -188,6 +189,7 @@ class TestGenerateFamily:
             metadata={"periodicity": "periodic"},
             requested_members=3,
             generated_members=3,
+            record_id=None,
         )
         monkeypatch.setattr(
             "e2m2e.api.Facade.orbit_family_generation", lambda self, **p: response
@@ -218,6 +220,7 @@ class TestGenerateFamily:
             metadata={"periodicity": "periodic"},
             requested_members=5,
             generated_members=0,
+            record_id=None,
         )
         monkeypatch.setattr(
             "e2m2e.api.Facade.orbit_family_generation", lambda self, **p: response
@@ -335,15 +338,26 @@ class TestAnalyzeStability:
 # ---------------------------------------------------------------------------
 
 
-def test_generate_family_real_pipeline():
-    """真 e2m2e：小 Halo 族应返回等长三维 states（周期族成员由桥接层按周期重采样）。"""
-    data = FacadeBridge().generate_family(libration_point=2, max_amplitude_km=5000.0, n_orbits=3)
+def test_generate_family_real_pipeline(tmp_path):
+    """真 e2m2e：小 Halo 族应返回等长三维 states（周期族成员由桥接层按周期重采样）。
+
+    5.8.0 起族自动入库（一族一条记录），record_id 为入库回执。
+    """
+    from src.engine.facade_bridge import FacadeBridge
+
+    bridge = FacadeBridge(catalog_dir=str(tmp_path / "catalog"))
+    data = bridge.generate_family(libration_point=2, max_amplitude_km=5000.0, n_orbits=3)
     assert data.orbit_type == "Halo"
     assert data.n_orbits >= 2
     assert data.states.ndim == 3
     assert data.states.shape[0] == data.n_orbits
     # 北族 z 振幅单调递增（从种子往大振幅延拓）
     assert data.z0s[0] < data.z0s[-1]
+    # 产物入库：一族一条记录，成员参数在记录内（issue #375 US3/US8）
+    assert data.record_id is not None
+    record = bridge.catalog_get(data.record_id)
+    assert record.source_tool == "orbit_family_generation"
+    assert record.member_count == data.n_orbits
 
 
 def test_generate_nrho_family_real_pipeline():

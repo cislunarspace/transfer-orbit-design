@@ -13,9 +13,10 @@ class Artifact:
     """Represents a computed orbital artifact (orbit, family, transfer, ephemeris).
 
     Mutable for in-place lazy-load performance -- ``state_data`` / ``times``
-    may be populated after construction by ``persistence.load_artifact_arrays``,
-    because Qt-bound UI models trigger expensive refreshes on full object
-    replacement. Callers that need a snapshot should ``copy.deepcopy`` first.
+    may be populated after construction (catalog 记录懒加载，见
+    ``engine.catalog_service``), because Qt-bound UI models trigger expensive
+    refreshes on full object replacement. Callers that need a snapshot should
+    ``copy.deepcopy`` first.
     """
 
     artifact_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
@@ -23,6 +24,9 @@ class Artifact:
     label: str = ""
     orbit_type: str = ""  # DRO / Halo / NRHO / ...
     source_tool: str = ""
+    # 轨道库记录 id（e2m2e catalog，issue #375）：catalog 产物的主键，
+    # 此时 artifact_id 与之相同；非 catalog 产物（transfer 遗留分区）为 None。
+    record_id: str | None = None
     state_data: ndarray | None = None  # (n, 6) state matrix
     times: ndarray | None = None  # (n,) time vector
     output_path: Path | None = None
@@ -37,6 +41,7 @@ class Artifact:
             "label": self.label,
             "orbit_type": self.orbit_type,
             "source_tool": self.source_tool,
+            "record_id": self.record_id,
             "output_path": str(self.output_path) if self.output_path else None,
             "extra": self.extra,
             "created_at": self.created_at.isoformat(),

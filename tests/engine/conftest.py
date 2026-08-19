@@ -1,10 +1,16 @@
-"""测试 fixtures -- mock e2m2e 算法层调用。"""
+"""测试 fixtures -- mock e2m2e 算法层调用。
+
+design_orbit / control_orbit 经 Facade 门面（issue #375），桩打在算法层模块
+函数上：请求校验、响应翻译、产物自动入库仍走真 Facade，fake 只需提供翻译
+所需的完整结果形状（status/cause/message/force_config/drift 等）。
+"""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
-from e2m2e.data.templates import ConvergenceState
+from e2m2e.data.templates import ConvergenceState, FailureCause
+from e2m2e.data.types import EphemerisTable
 
 
 class _FakeCorrection:
@@ -37,7 +43,11 @@ class _FakeOrbit:
 
 
 class _FakeDesignResult:
-    """Fake OrbitDesignResult（e2m2e.algorithm.design.design_orbit）。"""
+    """Fake OrbitDesignResult（e2m2e.algorithm.design.design_orbit）。
+
+    字段须覆盖 Facade 响应翻译（_design_result_to_response）与产物入库
+    （catalog_ingest.build_design_record）访问的全部属性。
+    """
 
     def __init__(
         self,
@@ -51,21 +61,32 @@ class _FakeDesignResult:
         converged: bool = True,
         iterations: int = 3,
         system: object | None = None,
+        ephemeris: EphemerisTable | None = None,
     ) -> None:
         n = 8761 if states is None else states.shape[0]
+        self.status = ConvergenceState.CONVERGED if converged else ConvergenceState.DIVERGED
+        self.cause = FailureCause.NONE
+        self.message = "设计完成"
         self.orbit_type = orbit_type
         self.epoch_utc = epoch_utc
         self.duration_day = duration_day
+        self.output_step_sec = 86400.0
         self.initial_state = (
             initial_state if initial_state is not None else np.zeros(6)
         )
         self.cr3bp_jacobi = cr3bp_jacobi
+        self.force_config: dict = {}
+        self.drift_e = None
+        self.drift_aop_deg = None
+        self.drift_rp_km = None
+        self.secular_aop_rate_deg_per_year = None
         self.cr3bp_orbit = _FakeOrbit(
             states=states if states is not None else np.random.randn(n, 6),
             times=times if times is not None else np.linspace(0, 1, n),
             system=system,
         )
         self.correction = _FakeCorrection(converged=converged, iterations=iterations)
+        self.ephemeris = ephemeris
 
 
 @pytest.fixture()
@@ -78,8 +99,8 @@ def fake_design_result() -> _FakeDesignResult:
 def mock_design_orbit(monkeypatch, fake_design_result):
     """Monkeypatch e2m2e.algorithm.design.design_orbit，返回 fake_design_result。
 
-    签名对齐 e2m2e 5.6.5：``design_orbit(request, *, spice, kernel_dir, verbose)``。
-    若 FacadeBridge 改回散字段转发，此处会 TypeError，守住接缝。
+    桩在算法层（Facade 内部延迟 import 同一模块属性），Facade 的请求校验 /
+    响应翻译 / 自动入库仍走真路径。duration 单位换算等接缝由真 request 承载。
     """
 
     def _fake_design_orbit(request, *, spice=None, kernel_dir=None, verbose=False):
@@ -91,3 +112,71 @@ def mock_design_orbit(monkeypatch, fake_design_result):
         raising=False,
     )
     return _fake_design_orbit
+
+
+def make_ephemeris_table(n: int = 10, *, start_second: float = 0.0) -> EphemerisTable:
+    """构造真 EphemerisTable（dataclass，供 Facade 翻译与入库访问全字段）。"""
+    return EphemerisTable(
+        year=np.full(n, 2024, dtype=int),
+        month=np.ones(n, dtype=int),
+        day=np.ones(n, dtype=int),
+        hour=np.zeros(n, dtype=int),
+        minute=np.zeros(n, dtype=int),
+        second=np.arange(n, dtype=float) + start_second,
+        position_km=np.random.randn(n, 3),
+        velocity_mps=np.random.randn(n, 3),
+        synodic_position=np.random.randn(n, 3),
+    )
+
+
+class _FakeSKStatistic:
+    def __init__(self) -> None:
+        self.rows = np.array([[1.0, 2.0, 3.0]])
+        self.num_failed = 0
+
+
+class _FakeManeuverTable:
+    def __init__(self) -> None:
+        self.mjd_tdb = np.array([60000.0, 60030.0])
+        self.delta_v_mps = np.array([0.5, 0.3])
+
+
+class _FakeControlResult:
+    """Fake ControlOrbitResult（字段覆盖 Facade 翻译与入库访问）。"""
+
+    def __init__(
+        self,
+        synodic_position: np.ndarray | None = None,
+        ephemeris: EphemerisTable | None = None,
+    ) -> None:
+        self.status = ConvergenceState.CONVERGED
+        self.cause = FailureCause.NONE
+        self.message = "轨道保持完成"
+        self.num_failed = 0
+        self.sk_statistic = _FakeSKStatistic()
+        self.maneuvers = _FakeManeuverTable()
+        if ephemeris is not None:
+            self.controlled_ephemeris = ephemeris
+        elif synodic_position is not None:
+            n = synodic_position.shape[0]
+            self.controlled_ephemeris = EphemerisTable(
+                year=np.full(n, 2024, dtype=int),
+                month=np.ones(n, dtype=int),
+                day=np.ones(n, dtype=int),
+                hour=np.zeros(n, dtype=int),
+                minute=np.zeros(n, dtype=int),
+                second=np.arange(n, dtype=float),
+                position_km=np.random.randn(n, 3),
+                velocity_mps=np.random.randn(n, 3),
+                synodic_position=synodic_position,
+            )
+        else:
+            self.controlled_ephemeris = None
+
+
+@pytest.fixture()
+def catalog_bridge(tmp_path):
+    """指向 tmp 库目录的 FacadeBridge（产物自动入库不污染真实库）。"""
+    from src.engine.facade_bridge import FacadeBridge
+
+    return FacadeBridge(catalog_dir=str(tmp_path / "catalog"))

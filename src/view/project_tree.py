@@ -66,7 +66,7 @@ class ProjectTreeView(QWidget):
     # -- 公共 API -----------------------------------------------------------
 
     def refresh(self, project: Project) -> None:
-        """从 Project 重建树结构。"""
+        """从 Project 重建树结构（谱系断链的记录带 ⚠ 降级标记）。"""
         self._tree.clear()
         self._id_to_type = {}
         type_groups: dict[str, list[Artifact]] = {}
@@ -80,7 +80,12 @@ class ProjectTreeView(QWidget):
             group.setExpanded(True)
             group.setFlags(group.flags() & ~Qt.ItemFlag.ItemIsSelectable)
             for artifact in items:
-                child = QTreeWidgetItem(group, [artifact.label])
+                text = artifact.label
+                if project.has_broken_lineage(artifact):
+                    # 上游记录已删（谱系断链）：产物本身仍可用，仅标降级
+                    text = f"{artifact.label} ⚠断链"
+                child = QTreeWidgetItem(group, [text])
+                child.setToolTip(0, artifact.label)
                 child.setData(0, Qt.ItemDataRole.UserRole, artifact.artifact_id)
 
     def selected_artifact_ids(self) -> list[str]:

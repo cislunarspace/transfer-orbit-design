@@ -43,8 +43,17 @@ class Project:
         return [a for a in self._artifacts if a.orbit_type == orbit_type]
 
     def find_upstream(self, artifact: Artifact) -> Artifact | None:
-        """Find the upstream artifact referenced by extra['source_artifact_id']."""
-        source_id = artifact.extra.get("source_artifact_id")
+        """Find the upstream artifact referenced by extra['source_record_id'].
+
+        谱系指针来自轨道库记录（站保产物指向被控轨道，提升成员指向所属族），
+        重启后经 catalog_query 重建清单仍然成立；上游被删时返回 None。
+        """
+        source_id = artifact.extra.get("source_record_id")
         if source_id is None:
             return None
         return self.get_by_id(source_id)
+
+    def has_broken_lineage(self, artifact: Artifact) -> bool:
+        """谱系断链：记录指向的上游已不存在（上游被删，产物本身仍可用）。"""
+        source_id = artifact.extra.get("source_record_id")
+        return source_id is not None and self.get_by_id(source_id) is None

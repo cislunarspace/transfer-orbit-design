@@ -18,7 +18,7 @@ tod 是 **e2m2e 的 GUI 前端**。它不实现任何轨道力学算法，只做
 
 | 层级 | 名称 | 职责 |
 |:---|:---|:---|
-| 第1层 | 数据层 `src/model/` | Project、Artifact、output/ 扫描、元数据 |
+| 第1层 | 数据层 `src/model/` | Project、Artifact、transfer 遗留分区扫描、元数据 |
 | 第2层 | 执行层 `src/engine/` | Facade/算法层调用（QThread 工作线程）、结果落盘 |
 | 第3层 | 表现层 `src/view/` | Qt 控件：项目树、可视化画布、参数面板、日志 |
 | 第4层 | 入口 `src/app/` | 主窗口组装、设置、国际化、主题 |
@@ -37,15 +37,18 @@ transfer-orbit-design/
 ├── src/                   # 核心代码（src layout）
 │   ├── model/             # 第1层 数据层
 │   │   ├── project.py     # Project 容器
-│   │   ├── artifact.py    # Artifact 数据类
-│   │   └── discovery.py   # output/ 扫描与 Artifact 重建
+│   │   ├── artifact.py    # Artifact 数据类（record_id 对齐 catalog 记录）
+│   │   └── discovery.py   # transfer 遗留分区扫描（catalog 分类体系之外）
 │   ├── engine/            # 第2层 执行层
-│   │   ├── facade_bridge.py # Facade API 桥接（薄封装）
+│   │   ├── facade_bridge.py # Facade API 桥接（计算 + catalog 薄封装）
+│   │   ├── catalog_service.py # 轨道库语义层（清单映射 / 懒加载 / 标注 / 导出）
 │   │   ├── workers.py     # QThread 工作线程（设计/保持/族生成/稳定性）
-│   │   ├── persistence.py # 结果落盘（写 output/ + 元数据 JSON）
+│   │   ├── persistence.py # 稳定性分析落盘（catalog 之外的产物）
 │   │   └── viz_adapter.py # 画布绘图适配（地月/L 点/坐标系变换）
 │   ├── view/              # 第3层 表现层
-│   │   ├── project_tree.py  # 项目树（Artifact 分组展示 + 右键操作）
+│   │   ├── project_tree.py  # 项目树（Artifact 分组展示 + 谱系断链标记 + 右键操作）
+│   │   ├── catalog_filter_bar.py # 库过滤栏（多维组合，驱动 catalog_query）
+│   │   ├── record_detail_panel.py # 记录详情面板（分类/谱系/tags/note/成员提升）
 │   │   ├── canvas.py      # 内嵌 matplotlib 画布（FigureCanvasQTAgg）
 │   │   ├── canvas_toolbar.py # 可视化工具栏（投影/坐标系/图层/动画）
 │   │   ├── params_panel.py # 参数面板（从 Pydantic 模型自动生成）
@@ -54,14 +57,14 @@ transfer-orbit-design/
 │   │   └── log_panel.py   # 日志面板（结构化输出）
 │   ├── app/               # 第4层 入口
 │   │   ├── main.py        # QApplication 启动 + SPICE 内核引导 + 窗口组装
-│   │   ├── main_window.py # 主窗口（三栏 Splitter 布局 + 工具调度）
+│   │   ├── main_window.py # 主窗口（三栏 Splitter 布局 + 工具调度 + catalog 重载）
 │   │   ├── kernel_setup.py # 首次启动内核缺失弹窗引导（下载/指定/跳过）
 │   │   └── i18n/          # 国际化资源（尚未接入，界面固定中文）
 │   ├── commons/           # 跨层常量与共享工具
 │   │   ├── constants.py   # DU/TU/物理常量
 │   │   ├── units.py       # 单位换算（年/月/日/TU、km/DU）
 │   │   ├── kernels.py     # 内核下载/可用性判断（CLI 与 GUI 共用）
-│   │   ├── paths.py       # 内核目录探测与配置持久化
+│   │   ├── paths.py       # 内核/库目录探测与配置持久化
 │   │   ├── orbits.py      # GEO/LEO 轨道几何
 │   │   └── viz/           # 收编自 e2m2e tools/viz 的绘图组件（自维护）
 │   └── __init__.py
@@ -71,7 +74,7 @@ transfer-orbit-design/
 │   └── source/            # Sphinx 源（docs/README.md 说明维护流程）
 ├── tests/                 # 测试（app/commons/engine/model/view 分层）
 ├── scripts/               # 独立工具脚本（download_kernels.py）
-├── output/                # 运行时输出（数据持久化源）
+├── catalog/               # 轨道库（e2m2e catalog，产物持久化源；设置可改指）
 └── pyproject.toml
 ```
 
@@ -95,21 +98,22 @@ transfer-orbit-design/
 ```python
 @dataclass
 class Artifact:
-    artifact_id: str        # UUID 前 8 位
+    artifact_id: str        # catalog 产物取 record_id；非 catalog 产物为 UUID 前 8 位
     artifact_type: str      # "orbit" | "family" | "transfer" | "ephemeris"
     label: str              # 用户可见名称
     orbit_type: str         # DRO/Halo/NRHO/...
-    source_tool: str        # 产生此 Artifact 的 Facade 方法名
-    state_data: ndarray     # 状态矩阵 (n, 6)，用于可视化
+    source_tool: str        # 产生此 Artifact 的 Facade 方法名（catalog_promote 为提升成员）
+    record_id: str | None   # 轨道库记录 id（e2m2e catalog，issue #375）
+    state_data: ndarray     # 状态矩阵 (n, 6)，用于可视化（catalog_get 懒加载填充）
     times: ndarray          # 时间向量 (n,)
-    output_path: Path | None # 对应的 output/ 文件（自动落盘后填入）
-    extra: dict             # 元数据（Jacobi、收敛信息、初始状态等）
+    output_path: Path | None # 仅 transfer 遗留分区使用（指向 output/ JSON）
+    extra: dict             # 元数据（分类、谱系指针、tags/note、星历四件套等）
     created_at: datetime    # 创建时间
 ```
 
 ### Project
 
-管理一次工作会话的全部 Artifact。**Project 不做持久化**——持久化由 `output/` 目录承担。
+管理一次工作会话的全部 Artifact。**Project 不做持久化**——清单由轨道库 catalog 承担（`catalog_query` 供数）。
 
 ```python
 class Project:
@@ -121,55 +125,55 @@ class Project:
     def get_by_id(artifact_id) -> Artifact | None
     def get_by_type(type) -> list[Artifact]
     def get_by_orbit_type(orbit_type) -> list[Artifact]
-    def find_upstream(artifact) -> Artifact | None  # 按 output_path 因果链追溯
+    def find_upstream(artifact) -> Artifact | None  # 读 extra["source_record_id"] 谱系追溯
+    def has_broken_lineage(artifact) -> bool        # 上游已删（断链降级标记）
 ```
 
-### Discovery
+### Discovery（遗留分区扫描）
 
-GUI 启动时扫描 `output/` 目录，重建 Project。
+转移轨道是 catalog 分类体系之外的产物（上游入库另行立项），过渡期沿用 `output/transfer/` 目录扫描；轨道 / 族 / 星历的文件名分类正则已随 catalog 接入删除（ADR 0008 修订 2026-08-19）。
 
 ```python
 def discover_artifacts(output_dir: Path) -> list[Artifact]:
-    """扫描 output/ 下所有 JSON，按文件名约定识别类型，
-    读取元数据，构建 Artifact 列表。"""
+    """扫描 output/transfer/ 下的 JSON（corrected_transfer_* / optimization_*），
+    构建 transfer Artifact 列表。"""
 ```
-
-文件命名约定（与现有 output/ 结构兼容）：
-
-| 子目录 | 文件名模式 | Artifact 类型 |
-|---|---|---|
-| `output/<type>/`（dro/halo/nrho/lissajous/l4/l5） | `<type>_<14位时间戳>.json` | orbit |
-| `output/family/` | `family_<ts>.json` | family（七族） |
-| `output/ephemeris/` | `orbit_ephemeris_<ts>.json` | ephemeris（轨道保持） |
-| `output/stability/` | `<label>_stability_<ts>.json` | 不进项目树（对话框展示） |
-| `output/dro/` | `dro_*_family_*.json`（遗留） | family（旧 GUI 的 DRO 族，兼容识别） |
 
 ## 第2层 执行层 `src/engine/`
 
 ### FacadeBridge
 
-e2m2e Facade API 的薄封装。处理配置注入、异常翻译、结果落盘。
+e2m2e Facade API 的薄封装。处理配置注入（kernel_dir / catalog_dir 经 `Config`）、异常翻译、catalog 读写转发。
 
 ```python
 class FacadeBridge:
-    def __init__(self, config: Config): ...
+    def __init__(self, kernel_dir=None, catalog_dir=None, facade=None): ...
 
     def design_orbit(self, **params) -> OrbitDesignResultData:
-        """调 e2m2e.algorithm.design.design_orbit，
-        返回可跨线程传递的结果 DTO，同时写 output/。"""
+        """经 Facade 调用 design_orbit，返回可跨线程传递的结果 DTO；
+        产物自动入轨道库（record_id 回执）。"""
 
     def generate_family(self, **params) -> FamilyResultData: ...
     def analyze_stability(self, **params) -> StabilityResultData: ...
-    def control_orbit(self, **params) -> ControlResultData: ...
+    def control_orbit(self, ephemeris_data, source_mu, **params) -> ControlResultData:
+        """input_record_id 直连库中记录（Facade 解析星历段并写谱系），
+        无记录时回退内存星历重建 EphemerisTable。"""
+
+    # catalog 薄封装：catalog_query / catalog_get / catalog_tag /
+    # catalog_delete / catalog_promote / catalog_export
 ```
 
 **关键设计**：
 
-- **`design_orbit` / `control_orbit` 直调 algorithm 层，不经过 Facade 门面**。原因：`Facade.design_orbit()` 返回的 `DesignOrbitResponse` 剥离了轨道数据（只返回标量汇总），而 GUI 需要完整的 `OrbitDesignResult`（含 `cr3bp_orbit`、`ephemeris`）用于可视化。Facade 门面是 MCP/CLI 的接口层，GUI 作为 e2m2e 的深度集成者直接使用算法层（ADR-0011）。
-- **`generate_family` 走 Facade**（e2m2e 5.7.1 起）：`FamilyGenerationResponse` 携带完整 `Orbit` 成员与状态三元组，七族统一入口；周期族成员只携带初态与周期，桥接层按周期重采样供画布渲染。
-- **e2m2e 5.6.5 起 `design_orbit` 首参为 `DesignOrbitRequest`**（散字段不再支持），facade 把 GUI 收集的 kwargs 包成 request 再调用；`duration` 由面板年单位换算为秒。
-- **结果 DTO（Data Transfer Object）**：可跨线程边界传递的纯数据类，不持有 e2m2e 对象引用。包含 numpy 数组（状态矩阵、时间向量）和标量元数据。
+- **三个计算工具统一走 Facade 门面**（issue #375，完成 ADR 0011 缓解措施 3 的既定清理）：#312 起 Facade 响应携带完整几何字段（states/times/mu/ephemeris），#475（e2m2e 5.8.0）起产物自动入轨道库、`control_orbit` 支持 `input_record_id` 谱系输入。GUI 不再绕过门面直调算法层。
+- **周期族成员只携带初态与周期**，桥接层按周期重采样供画布渲染（catalog 族记录懒加载复用同一辅助函数）。
+- **e2m2e 5.6.5 起 `design_orbit` 首参为 `DesignOrbitRequest`**（散字段不再支持），Facade 校验请求；`duration` 由面板年单位换算为秒，Lissajous 固定注入 segmented 修正。
+- **结果 DTO（Data Transfer Object）**：可跨线程边界传递的纯数据类，不持有 e2m2e 对象引用。包含 numpy 数组（状态矩阵、时间向量）、标量元数据与 `record_id`（入库回执）。
 - **异常翻译**：e2m2e 异常 → 结构化错误码 + 用户友好消息（`src/engine/exceptions.py`）；Facade 接缝的 `e2m2e.api.OrbitError` 透传错误码。
+
+### CatalogService
+
+轨道库的 GUI 语义层（`catalog_service.py`）：摘要 → Artifact 映射（清单）、`catalog_get` 懒加载填充（design 双段 / family 成员堆叠与重采样 / control 星历减 μ）、标注 / 提升 / 导出 / 删除转发。GUI 测试用桩 bridge 或小型真实库，不重测上游。
 
 ### Workers
 
@@ -184,31 +188,34 @@ class OrbitDesignWorker(QThread):
 
 Workers 是**执行层与表现层的边界**：它们使用 PyQt6 的 QThread 和 pyqtSignal，因此在技术上依赖 Qt。这是有意的设计选择——避免引入额外的线程-通信抽象层。
 
-### Persistence
+### Persistence（catalog 之外）
 
-结果落盘。利用 e2m2e 算法层自身的 `write_ephemeris()` / `save_to_file()` 方法。
+稳定性分析结果落盘（只写 JSON 到 `output/stability/`，不进项目树）。
 
 ```python
-def save_artifact(result_data, output_dir: Path) -> Path:
-    """将计算结果写入 output/ 对应子目录，
-    返回文件路径。同时生成元数据 JSON。"""
+def save_stability_result(result_data, output_dir: Path, *, orbit_label: str) -> Path:
+    """将稳定性分析结果写入 output/stability/，返回 json_path。"""
 ```
 
 ## 第3层 表现层 `src/view/`
 
 ### 项目树 `project_tree.py`
 
-主窗口左侧。**项目主导**：按 Artifact 类型分组展示，右键菜单暴露可用操作。
+主窗口左侧。**catalog 浏览器**（issue #375）：顶部过滤栏（族 / 平动点 / Jacobi 区间 / 振幅区间 / 段存在性组合，取值域经 e2m2e Pydantic 模型公开接口生成）驱动 `catalog_query`；按 Artifact 类型分组展示，谱系断链的记录带 ⚠ 降级标记；底部记录详情面板显示分类 / 谱系 / tags / note（可编辑）与族成员提升。
 
 ```
-📁 项目: Transfer Orbit Design
+📁 项目
+│  [过滤栏: 族▾ 平动点▾ Jacobi☐ 振幅☐ 段▾ | 重置 | 导出案例包]
 ├─ 🪐 轨道
-│  ├─ DRO (20260813...)        ← 点击 → 渲染到画布
-│  └─ Halo (20260813...)
+│  ├─ Halo (L2, C_J=3.0500)     ← 点击 → catalog_get 懒加载 → 渲染到画布
+│  └─ DRO (C_J=3.0058)
 ├─ 🌀 轨道族
-│  └─ Halo Family (20 orbits)
-└─ 📡 星历
-   └─ orbit_ephemeris_...
+│  └─ Halo 族 (L2, 50 条)
+├─ 📡 星历
+│  └─ 受控星历（Halo L2） ⚠断链  ← 上游记录已删，产物仍可用
+└─ 🚀 转移                       ← catalog 之外，目录扫描过渡
+   └─ corrected_transfer_001
+│  [记录详情: 分类 / 谱系 / tags / note / 成员提升]
 ```
 
 右键菜单上下文感知：
@@ -354,9 +361,8 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
 def main():
     app = QApplication(sys.argv)
     # 1. 探测 SPICE 内核（缺失时弹窗引导下载/指定/跳过）
-    # 2. 扫描 output/ 重建 Project (Discovery)
-    # 3. 创建 MainWindow (组装 project_tree + canvas + params + log)
-    # 4. show()
+    # 2. 创建 MainWindow（启动时经 catalog_query 恢复产物清单）
+    # 3. showMaximized()
     sys.exit(app.exec())
 ```
 
@@ -420,17 +426,18 @@ FigureCanvasQTAgg
 
 用户操作一个 Artifact 后，项目树的右键菜单展示可用的下一步操作。
 
-**因果链**：
+**因果链**（谱系持久化，重启不断）：
 
 ```
-Artifact A (DRO orbit, 含星历)
-  → 右键 → "轨道保持" → 调 control_orbit(ephemeris=A.extra["ephemeris"])
-    → 注册 Artifact B (ephemeris)
+Artifact A (DRO orbit, 含星历段, record_id=R1)
+  → 右键 → "轨道保持" → 调 control_orbit(input_record_id=R1)
+    → 产物自动入库为 Artifact B (ephemeris)，source_record_id=R1
+    → R1 被删后项目树显示 "受控星历 ⚠断链"，B 仍可用
   → 右键 → "稳定性分析" → 调 analyze_stability(states=A.state_data)
     → 显示结果弹窗 + 落盘 output/stability/
 ```
 
-**数据流**：Artifact 的 `state_data` / 星历数组在内存中传递（numpy 数组引用），不经过文件 I/O。落盘是并行行为（Persistence 模块异步写 output/）。
+**数据流**：Artifact 的 `state_data` / 星历数组在内存中传递（numpy 数组引用），不经过文件 I/O。持久化是并行行为——计算产物经 Facade 自动入轨道库（重启后由 `catalog_query` + `catalog_get` 懒加载恢复）。
 
 ## 工具范围（当前）
 
