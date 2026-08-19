@@ -766,15 +766,19 @@ class TestMainWindowCanvasStateFlow:
 
         回归 guard：若 _on_design_finished 调 _render_artifact（阻塞 #2），
         _selected_artifact_ids 不更新、画布上无轨道。
+        issue #375：产物入库后经 catalog 重查 + 懒加载渲染。
         """
-        from pathlib import Path
+        from datetime import UTC, datetime
         from unittest.mock import patch
 
         from mpl_toolkits.mplot3d.art3d import Line3D
 
         from src.engine.facade_bridge import OrbitDesignResultData
+        from src.model.artifact import Artifact
 
         rng = np.random.default_rng(42)
+        states = rng.standard_normal((50, 6))
+        times = np.linspace(0, 365.25, 50)
         result = OrbitDesignResultData(
             orbit_type="DRO",
             epoch_utc="2024-01-01T00:00:00",
@@ -782,16 +786,37 @@ class TestMainWindowCanvasStateFlow:
             initial_state=np.zeros(6),
             cr3bp_jacobi=3.0058,
             mu=_MU,
-            states=rng.standard_normal((50, 6)),
-            times=np.linspace(0, 365.25, 50),
+            states=states,
+            times=times,
             correction_converged=True,
             correction_iterations=3,
+            record_id="rec-new",
         )
 
+        artifact = Artifact(
+            artifact_id="rec-new",
+            record_id="rec-new",
+            artifact_type="orbit",
+            label="DRO",
+            orbit_type="DRO",
+            source_tool="design_orbit",
+            created_at=datetime.now(UTC),
+            extra={"record_id": "rec-new", "tags": [], "note": ""},
+        )
+
+        class _StubCatalog:
+            def query_artifacts(self, filters=None):
+                return [artifact]
+
+            def load_arrays(self, a):
+                a.state_data = states
+                a.times = times
+                a.extra["mu"] = _MU
+                return True
+
         w = _make_window()
-        with patch("src.app.main_window.save_artifact") as mock_save:
-            mock_save.return_value = (Path("/fake/dro.json"), Path("/fake/dro.npz"))
-            w._on_design_finished(result)
+        w._catalog = _StubCatalog()
+        w._on_design_finished(result)
 
         # _selected_artifact_ids 已更新
         assert len(w._selected_artifact_ids) == 1
@@ -802,44 +827,55 @@ class TestMainWindowCanvasStateFlow:
         assert len(lines) >= 1
 
     def test_render_reuses_in_memory_arrays(self, qapp, tmp_path):
-        """切换投影不触发 NPZ 重读——懒加载仅一次，投影切换复用内存（验收 #5）。
+        """切换投影不触发记录重读——懒加载仅一次，投影切换复用内存（验收 #5）。
 
-        走 MainWindow 集成路径：点击触发一次 load_artifact_arrays，
-        随后多次切换投影，断言调用计数仍为 1。
+        走 MainWindow 集成路径（issue #375：catalog 懒加载）：
+        点击触发一次 catalog.load_arrays，随后多次切换投影，断言调用计数仍为 1。
         """
+        from datetime import UTC, datetime
         from unittest.mock import patch
 
-        from src.engine.facade_bridge import OrbitDesignResultData
-        from src.engine.persistence import load_artifact_arrays as _real_load
-        from src.engine.persistence import save_artifact
-        from src.model.discovery import discover_artifacts
+        from src.model.artifact import Artifact
 
         rng = np.random.default_rng(42)
-        result = OrbitDesignResultData(
+        states = rng.standard_normal((50, 6))
+        times = np.linspace(0, 365.25, 50)
+        artifact = Artifact(
+            artifact_id="rec-1",
+            record_id="rec-1",
+            artifact_type="orbit",
+            label="DRO",
             orbit_type="DRO",
-            epoch_utc="2024-01-01T00:00:00",
-            duration_day=365.25,
-            initial_state=np.zeros(6),
-            cr3bp_jacobi=3.0058,
-            mu=_MU,
-            states=rng.standard_normal((50, 6)),
-            times=np.linspace(0, 365.25, 50),
-            correction_converged=True,
-            correction_iterations=3,
+            source_tool="design_orbit",
+            created_at=datetime.now(UTC),
+            extra={"record_id": "rec-1", "tags": [], "note": ""},
         )
-        save_artifact(result, tmp_path)
-        artifacts = discover_artifacts(tmp_path)
-        assert len(artifacts) == 1
-        a = artifacts[0]
-        assert a.state_data is None  # discovery 不加载数组
 
+        class _StubCatalog:
+            def __init__(self) -> None:
+                self.load_calls = 0
+
+            def query_artifacts(self, filters=None):
+                return [artifact]
+
+            def load_arrays(self, a):
+                self.load_calls += 1
+                a.state_data = states
+                a.times = times
+                a.extra["mu"] = _MU
+                return True
+
+        stub = _StubCatalog()
         w = _make_window()
-        w._project.add(a)
+        w._catalog = stub
+        w._reload_from_catalog()
+        a = w._project.get_by_id("rec-1")
+        assert a is not None and a.state_data is None  # 清单不含数组段
 
-        with patch("src.app.main_window.load_artifact_arrays", wraps=_real_load) as mock_load:
-            w._on_artifact_clicked(a.artifact_id)
+        with patch.object(w._catalog, "load_arrays", wraps=stub.load_arrays) as mock_load:
+            w._on_artifact_clicked("rec-1")
             assert mock_load.call_count == 1  # 点击时懒加载一次
-            # 多次切换投影，不应再次读盘
+            # 多次切换投影，不应再次读记录
             w._on_projection_changed("xy")
             w._on_projection_changed("yz")
             w._on_projection_changed("3d")

@@ -46,19 +46,21 @@ class OrbitDesignWorker(_CancellableWorker):
         orbit_type: str,
         params: dict[str, Any],
         kernel_dir: str | None = None,
+        catalog_dir: str | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self._orbit_type = orbit_type
         self._params = params
         self._kernel_dir = kernel_dir
+        self._catalog_dir = catalog_dir
 
     def run(self) -> None:
         try:
             self.log.emit(f"开始设计 {self._orbit_type} 轨道...")
             self.log.emit(f"参数: {self._params}")
 
-            bridge = FacadeBridge(kernel_dir=self._kernel_dir)
+            bridge = FacadeBridge(kernel_dir=self._kernel_dir, catalog_dir=self._catalog_dir)
             data = bridge.design_orbit(
                 orbit_type=self._orbit_type,
                 **self._params,
@@ -99,10 +101,11 @@ class ControlOrbitWorker(_CancellableWorker):
 
     def __init__(
         self,
-        ephemeris_data: dict,
+        ephemeris_data: dict | None,
         params: dict[str, Any],
         source_mu: float | None,
         kernel_dir: str | None = None,
+        catalog_dir: str | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -110,12 +113,13 @@ class ControlOrbitWorker(_CancellableWorker):
         self._params = params
         self._source_mu = source_mu
         self._kernel_dir = kernel_dir
+        self._catalog_dir = catalog_dir
 
     def run(self) -> None:
         try:
             self.log.emit("开始轨道保持仿真...")
             self.log.emit(f"参数: {self._params}")
-            bridge = FacadeBridge(kernel_dir=self._kernel_dir)
+            bridge = FacadeBridge(kernel_dir=self._kernel_dir, catalog_dir=self._catalog_dir)
             data = bridge.control_orbit(
                 ephemeris_data=self._ephemeris_data,
                 source_mu=self._source_mu,
@@ -180,16 +184,18 @@ class FamilyOrbitWorker(_CancellableWorker):
     def __init__(
         self,
         params: dict[str, Any],
+        catalog_dir: str | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
         self._params = params
+        self._catalog_dir = catalog_dir
 
     def run(self) -> None:
         try:
             self.log.emit(f"开始生成 {self._params.get('orbit_type', 'HALO')} 轨道族...")
             self.log.emit(f"参数: {self._params}")
-            bridge = FacadeBridge()
+            bridge = FacadeBridge(catalog_dir=self._catalog_dir)
             data = bridge.generate_family(**self._params)
             if self._emit_cancelled_if_requested():
                 return

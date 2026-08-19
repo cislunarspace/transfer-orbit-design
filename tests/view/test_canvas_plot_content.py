@@ -777,47 +777,68 @@ class TestRestoredDesignOrbitArtifact:
     初猜与星历两槽错位。
     """
 
+    @pytest.mark.spice
     def test_restored_design_orbit_exposes_both_tracks(self, qapp, tmp_path):
-        """save → discover → load → _artifact_for_id 暴露初猜 + 标称星历两份。"""
-        from src.engine.facade_bridge import OrbitDesignResultData
-        from src.engine.persistence import load_artifact_arrays, save_artifact
-        from src.model.discovery import discover_artifacts
+        """catalog 记录 → 摘要清单 → 懒加载 → _artifact_for_id 暴露初猜 + 标称星历两份。
+
+        issue #375：重启恢复走 catalog_get（星历段 times_et 经 SPICE 重建，
+        故 spice marker）。
+        """
+        from types import SimpleNamespace
+
+        from src.engine.catalog_service import CatalogService, record_to_artifact
 
         n = 30
         rng = np.random.default_rng(11)
-        result = OrbitDesignResultData(
-            orbit_type="DRO",
-            epoch_utc="2024-01-01T00:00:00",
-            duration_day=30.0,
-            initial_state=np.zeros(6),
-            cr3bp_jacobi=3.0058,
-            mu=_MU,
-            states=rng.standard_normal((n, 6)),
-            times=np.linspace(0, 30, n),
-            correction_converged=True,
-            correction_iterations=3,
-            ephemeris={
-                "year": np.full(n, 2024),
-                "month": np.ones(n, dtype=int),
-                "day": np.ones(n, dtype=int),
-                "hour": np.zeros(n, dtype=int),
-                "minute": np.zeros(n, dtype=int),
-                "second": np.zeros(n, dtype=float),
-                "position_km": rng.standard_normal((n, 3)) * 1e5,
-                "velocity_mps": rng.standard_normal((n, 3)),
-                "synodic_position": rng.standard_normal((n, 3)) + 1.0,
-                "times_jd_tdb": None,
-                "times_et": np.linspace(7.5e8, 7.6e8, n),
+        states = rng.standard_normal((n, 6))
+        synodic_position = rng.standard_normal((n, 3)) + 1.0
+        position_km = rng.standard_normal((n, 3)) * 1e5
+        record = SimpleNamespace(
+            source_tool="design_orbit",
+            jacobi=[3.0058, 3.0058],
+            arrays={
+                "cr3bp/states": states,
+                "cr3bp/times": np.linspace(0, 30, n),
+                "eph/year": np.full(n, 2024),
+                "eph/month": np.ones(n, dtype=int),
+                "eph/day": np.ones(n, dtype=int),
+                "eph/hour": np.zeros(n, dtype=int),
+                "eph/minute": np.zeros(n, dtype=int),
+                "eph/second": np.zeros(n, dtype=float),
+                "eph/position_km": position_km,
+                "eph/velocity_mps": rng.standard_normal((n, 3)),
+                "eph/synodic_position": synodic_position,
             },
+            scalars={"mu": _MU, "epoch_utc": "2024-01-01T00:00:00"},
         )
-        save_artifact(result, tmp_path)
-        artifacts = discover_artifacts(tmp_path)
-        assert len(artifacts) == 1
-        a = artifacts[0]
-        # discovery 推断 source_tool
+
+        class _StubBridge:
+            def catalog_get(self, record_id):
+                return record
+
+        # 清单 Artifact（source_tool 来自记录，无数组段）→ 懒加载填四槽位数据源
+        a = record_to_artifact(
+            SimpleNamespace(
+                record_id="rec-1",
+                created_at="2026-08-19T10:00:00+00:00",
+                source_tool="design_orbit",
+                source_record_id=None,
+                orbit_family="dro",
+                libration_point=None,
+                jacobi=[3.0058, 3.0058],
+                amplitude=None,
+                has_cr3bp=True,
+                has_ephemeris=True,
+                status="converged",
+                cause="none",
+                message="",
+                member_count=1,
+                tags=[],
+                note="",
+            )
+        )
         assert a.source_tool == "design_orbit"
-        # 懒加载 NPZ → extra["ephemeris"] 全字段
-        assert load_artifact_arrays(a) is True
+        assert CatalogService(_StubBridge()).load_arrays(a) is True
         assert "ephemeris" in a.extra
 
         w = _make_window()

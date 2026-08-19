@@ -2,6 +2,16 @@
 
 ## 未发布
 
+### 库浏览器改造（issue #375）
+
+- **升级依赖**：最低版本升为 `e2m2e>=5.8.0`，`uv.lock` 同步。获得轨道库 catalog（上游 #475 / ADR 0031）：多维分类、谱系指针、教学标注、子集导出与产物自动入库。
+- **项目树接 catalog**：产物清单与多维过滤（族 / 平动点 / Jacobi 区间 / 振幅区间 / 段存在性组合）来自 Facade `catalog_query`；单条产物经 `catalog_get` 懒加载（CR3BP 段 + 星历段双段，四槽位可视化契约不变）。过滤栏取值域经 e2m2e Pydantic 模型公开接口生成（ADR 0009 范式）。discovery.py 的轨道 / 族 / 星历文件名分类正则删除；transfer 分区过渡期沿用目录扫描。
+- **谱系持久化**：轨道保持以库中记录直连输入（`input_record_id`），站保产物自动记录 `source_record_id`，重启后因果链不断；上游被删显示 ⚠ 断链降级标记，产物仍可用。
+- **切回 Facade**：`design_orbit` / `control_orbit` 从算法层直调切回 Facade 门面（完成 ADR 0011 缓解措施 3 的既定清理），产物随计算自动入库；persistence.py 的手写落盘（save_artifact / save_control_result / save_family_result）退役，仅保留稳定性分析落盘。
+- **教学视图**：记录详情面板显示分类与谱系，tags / note 可查看编辑（`catalog_tag` 落库）；族成员可提升为独立记录（`catalog_promote`）进入下游；过滤子集可打包导出案例包（`catalog_export`，zip 或目录，包可直接作为库打开）。
+- **库目录设置**：默认仓库根 `catalog/`（与 output/ 平级），菜单「设置 → 轨道库目录…」可改（QSettings 持久化）。
+- **旧产物**：output/ 旧格式不迁移（ADR 0008 修订 2026-08-19），需要时重算。
+
 ### e2m2e 5.7.3 适配
 
 - **升级依赖**：最低版本升为 `e2m2e>=5.7.3`，`uv.lock` 同步。获得 NRHO 星历修正默认路径在 GUI 默认量级收敛（上游 #473：NRHO 等时间采样 + `revs_per_group=1` + 删近月点采样钉历元 `t=0`；另放宽 NRHO 相位到 0~1）。

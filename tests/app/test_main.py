@@ -14,15 +14,12 @@ def test_main_shows_window_maximized():
     app = Mock()
     app.exec.return_value = 0
     window = Mock()
-    project = Mock()
-    project.artifacts = []
 
     with (
         patch("PyQt6.QtWidgets.QApplication", return_value=app),
         patch("src.commons.font_config.apply_cjk_font_fallback"),
         patch("src.commons.paths.detect_kernel_dir", return_value="/kernels"),
         patch("src.commons.kernels.kernel_dir_usable", return_value=True),
-        patch.object(app_main, "_build_project_from_output", return_value=(project, 0.0)),
         patch("src.app.main_window.MainWindow", return_value=window),
         patch("sys.exit"),
     ):
@@ -30,6 +27,8 @@ def test_main_shows_window_maximized():
 
     window.showMaximized.assert_called_once_with()
     window.show.assert_not_called()
+    # issue #375：产物清单由 MainWindow 经 catalog_query 恢复，启动无预扫描
+    window.show_scan_time.assert_not_called()
 
 
 @pytest.fixture()
@@ -46,6 +45,8 @@ def test_main_window_minimum_width_fits_960px_screen(qapp):
     阈值 960px：常见最小屏幕宽度为 1024px，需预留
     系统边框、字体度量与 DPI 缩放的余量。
     """
+    from unittest.mock import patch
+
     from src.app.main_window import MainWindow
 
     with patch("src.app.main_window.discover_artifacts", return_value=[]):

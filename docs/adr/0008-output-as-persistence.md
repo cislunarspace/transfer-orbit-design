@@ -49,3 +49,13 @@ output/
 - 内存中未落盘的 Artifact（正在计算中的中间结果）关窗即丢失
 - 文件命名冲突需要处理（时间戳方案已足够）
 - 没有"撤销"能力（删除是永久的）
+
+## 修订（2026-08-19，issue #375）
+
+e2m2e 5.8.0 落地轨道库 catalog（上游 #475 / ADR 0031）后，产物持久化的职责上收：
+
+- **决策变更**：orbit / family / ephemeris 产物的清单与持久化改经 e2m2e Facade 的 catalog（`catalog_query` 供数、`catalog_get` 懒加载），design_orbit / orbit_family_generation / control_orbit 的产物由 Facade 自动入库；本仓 persistence.py 的手写 JSON+NPZ 落盘与 discovery.py 的「子目录名 + 文件名正则」分类退役。文件命名不再承载分类语义——多维分类（族、平动点、Jacobi、振幅、段存在性）在产物生成时由上游写入记录。
+- **库目录**：默认钉在仓库根 `catalog/`（与 output/ 平级，GUI 场景 cwd 不稳定，不能依赖上游的相对默认），可在 GUI 设置中改指其他目录（QSettings 持久化）。
+- **谱系**：站保产物的 `source_record_id` 由 Facade 写入（`input_record_id` 输入），重启后经 catalog_query 重建因果链；上游记录被删时项目树显示断链降级标记，不阻止产物使用。
+- **过渡**：transfer（转移轨道）等 catalog 分类体系之外的产物沿用 output/ 目录扫描（仅限这些目录），待上游对相应产物入库立项后退役。
+- **旧产物**：output/ 旧格式不迁移（上游 ADR 0031 决策 9），需要时重算。

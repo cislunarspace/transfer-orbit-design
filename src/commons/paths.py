@@ -10,9 +10,15 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 OUTPUT_DIR: Path = _REPO_ROOT / "output"
 
+# 轨道库 catalog 默认目录（e2m2e 5.8.0，issue #375）：与 output/ 平级。
+# GUI 场景 cwd 不稳定，不能依赖 e2m2e Config 的相对默认（./catalog）；
+# 用户可在 GUI 设置中改指其他目录（QSettings 持久化）。
+CATALOG_DIR: Path = _REPO_ROOT / "catalog"
+
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    "CATALOG_DIR",
     "OUTPUT_DIR",
     "detect_kernel_dir",
     "ensure_output_dir",

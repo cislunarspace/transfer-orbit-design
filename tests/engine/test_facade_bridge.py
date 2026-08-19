@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
-from e2m2e.data.templates import ConvergenceState
 from e2m2e.data.templates.seed import EARTH_MOON_MU
 
 from src.engine.facade_bridge import (
@@ -13,6 +14,7 @@ from src.engine.facade_bridge import (
     OrbitDesignResultData,
     ToolSpec,
 )
+from tests.engine.conftest import _FakeDesignResult
 
 
 class TestOrbitDesignResultData:
@@ -23,20 +25,23 @@ class TestOrbitDesignResultData:
             "DTO 不应包含 cr3bp_orbit 字段（e2m2e Orbit 对象引用）"
         )
 
-    def test_dto_numpy_fields(self, mock_design_orbit):
+    def test_dto_numpy_fields(self, mock_design_orbit, catalog_bridge):
         """states/times 应为 numpy ndarray。"""
-        bridge = FacadeBridge()
-        data = bridge.design_orbit(orbit_type="DRO")
+        data = catalog_bridge.design_orbit(orbit_type="DRO")
         assert isinstance(data.states, np.ndarray)
         assert isinstance(data.times, np.ndarray)
 
     def test_dto_field_count(self):
         """DTO 字段数稳定（防止意外增减）。"""
-        assert len(OrbitDesignResultData.__dataclass_fields__) == 11
+        assert len(OrbitDesignResultData.__dataclass_fields__) == 12
 
     def test_dto_has_mu_field(self):
-        """DTO 应包含 mu 字段（issue #339 地月标注数据流）。"""
+        """DTO 应包含 mu 字段（issue #339 地月月标注数据流）。"""
         assert "mu" in OrbitDesignResultData.__dataclass_fields__
+
+    def test_dto_has_record_id_field(self):
+        """DTO 应包含 record_id 字段（issue #375 产物入库回执）。"""
+        assert "record_id" in OrbitDesignResultData.__dataclass_fields__
 
 
 class TestToolSpec:
@@ -124,125 +129,64 @@ class TestToolRegistry:
 
 
 class TestFacadeBridgeDesignOrbit:
-    def test_returns_dto(self, mock_design_orbit):
-        bridge = FacadeBridge()
-        data = bridge.design_orbit(orbit_type="DRO")
+    def test_returns_dto(self, mock_design_orbit, catalog_bridge):
+        data = catalog_bridge.design_orbit(orbit_type="DRO")
         assert isinstance(data, OrbitDesignResultData)
 
-    def test_mu_extracted_from_orbit_system(self, monkeypatch):
+    def test_mu_extracted_from_orbit_system(self, monkeypatch, catalog_bridge):
         """mu 应从 cr3bp_orbit.system.mu 提取（issue #339 实测路径）。"""
-        from types import SimpleNamespace
-
-        n = 10
-        orbit = SimpleNamespace(
-            states=np.random.randn(n, 6),
-            times=np.linspace(0, 1, n),
-            system=SimpleNamespace(mu=EARTH_MOON_MU),
-        )
-        correction = SimpleNamespace(status=ConvergenceState.CONVERGED, iterations=1)
-        result = SimpleNamespace(
-            orbit_type="DRO",
-            epoch_utc="2024-01-01T00:00:00",
-            duration_day=1.0,
-            initial_state=np.zeros(6),
-            cr3bp_jacobi=3.0,
-            cr3bp_orbit=orbit,
-            correction=correction,
-        )
-
-        def _fake_design_orbit(request, *, spice=None, kernel_dir=None, verbose=False):
-            return result
+        result = _FakeDesignResult(system=SimpleNamespace(mu=EARTH_MOON_MU))
 
         monkeypatch.setattr(
             "e2m2e.algorithm.design.design_orbit",
-            _fake_design_orbit,
+            lambda request, *, spice=None, kernel_dir=None, verbose=False: result,
             raising=False,
         )
-        bridge = FacadeBridge()
-        data = bridge.design_orbit(orbit_type="DRO")
+        data = catalog_bridge.design_orbit(orbit_type="DRO")
         assert data.mu == pytest.approx(EARTH_MOON_MU)
 
-    def test_mu_is_none_when_orbit_has_no_system(self, mock_design_orbit):
+    def test_mu_is_none_when_orbit_has_no_system(self, mock_design_orbit, catalog_bridge):
         """system 缺失（旧 fake / 无上下文）时 mu 为 None，不崩溃。"""
-        bridge = FacadeBridge()
-        data = bridge.design_orbit(orbit_type="DRO")
+        data = catalog_bridge.design_orbit(orbit_type="DRO")
         assert data.mu is None
 
-    def test_states_shape(self, mock_design_orbit, fake_design_result):
-        bridge = FacadeBridge()
-        data = bridge.design_orbit(orbit_type="DRO")
+    def test_states_shape(self, mock_design_orbit, catalog_bridge, fake_design_result):
+        data = catalog_bridge.design_orbit(orbit_type="DRO")
         assert data.states.shape == fake_design_result.cr3bp_orbit.states.shape
 
-    def test_kernel_dir_forwarded(self, monkeypatch):
-        """kernel_dir 应作为 design_orbit 的关键字参数注入；request 为位置参数。"""
-        from e2m2e.api.models import DesignOrbitRequest
-
+    def test_kernel_dir_forwarded(self, monkeypatch, tmp_path):
+        """kernel_dir 经 Config 注入 Facade，转发到算法层调用。"""
         captured: dict = {}
 
         def _capture(request, *, spice=None, kernel_dir=None, verbose=False):
-            captured["request"] = request
             captured["kernel_dir"] = kernel_dir
-            from types import SimpleNamespace
-
-            n = 10
-            orbit = SimpleNamespace(
-                states=np.random.randn(n, 6),
-                times=np.linspace(0, 1, n),
-            )
-            correction = SimpleNamespace(status=ConvergenceState.CONVERGED, iterations=1)
-            return SimpleNamespace(
-                orbit_type="DRO",
-                epoch_utc="2024-01-01T00:00:00",
-                duration_day=1.0,
-                initial_state=np.zeros(6),
-                cr3bp_jacobi=3.0,
-                cr3bp_orbit=orbit,
-                correction=correction,
-            )
+            return _FakeDesignResult(states=np.random.randn(10, 6),
+                                     times=np.linspace(0, 1, 10))
 
         monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _capture, raising=False)
-        bridge = FacadeBridge(kernel_dir="/tmp/kernels")
+        bridge = FacadeBridge(kernel_dir="/tmp/kernels", catalog_dir=str(tmp_path / "c"))
         bridge.design_orbit(orbit_type="DRO")
-        # 守住接缝：facade 必须构造 DesignOrbitRequest 并以位置参传入，
-        # kernel_dir 以关键字参传入（非 request 字段）。
-        assert isinstance(captured.get("request"), DesignOrbitRequest)
-        assert captured["request"].orbit_type == "DRO"
+        # 守住接缝：kernel_dir 经 Config 注入（非 request 字段），算法层收到
         assert captured.get("kernel_dir") == "/tmp/kernels"
 
-    def test_duration_converts_years_to_seconds(self, monkeypatch):
-        """GUI duration 单位年，e2m2e 5.6.5 duration 单位秒；facade 做换算。"""
+    def test_duration_converts_years_to_seconds(self, monkeypatch, catalog_bridge):
+        """GUI duration 单位年，e2m2e duration 单位秒；facade 做换算。"""
 
         captured: dict = {}
 
         def _capture(request, *, spice=None, kernel_dir=None, verbose=False):
             captured["duration"] = request.duration
-            from types import SimpleNamespace
-
-            n = 10
-            orbit = SimpleNamespace(
-                states=np.random.randn(n, 6),
-                times=np.linspace(0, 1, n),
-            )
-            correction = SimpleNamespace(status=ConvergenceState.CONVERGED, iterations=1)
-            return SimpleNamespace(
-                orbit_type="DRO",
-                epoch_utc="2024-01-01T00:00:00",
-                duration_day=1.0,
-                initial_state=np.zeros(6),
-                cr3bp_jacobi=3.0,
-                cr3bp_orbit=orbit,
-                correction=correction,
-            )
+            return _FakeDesignResult(states=np.random.randn(10, 6),
+                                     times=np.linspace(0, 1, 10))
 
         monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _capture, raising=False)
-        bridge = FacadeBridge()
         # 1 年（GUI 标准单位）应被换算成 1 年的秒数
-        bridge.design_orbit(orbit_type="DRO", duration=1.0)
+        catalog_bridge.design_orbit(orbit_type="DRO", duration=1.0)
         from src.commons.units import SECONDS_PER_YEAR
 
         assert captured["duration"] == pytest.approx(SECONDS_PER_YEAR)
         # 0.5 年 -> 半年秒数
-        bridge.design_orbit(orbit_type="DRO", duration=0.5)
+        catalog_bridge.design_orbit(orbit_type="DRO", duration=0.5)
         assert captured["duration"] == pytest.approx(0.5 * SECONDS_PER_YEAR)
 
     @pytest.mark.parametrize(
@@ -254,40 +198,27 @@ class TestFacadeBridgeDesignOrbit:
         ],
     )
     def test_lissajous_uses_segmented_correction(
-        self, monkeypatch, orbit_type, correction_method, expected_method
+        self, monkeypatch, catalog_bridge, orbit_type, correction_method, expected_method
     ):
         """Lissajous 不得走一圈修正后自由外推的常规修正路径。"""
         captured: dict = {}
 
         def _capture(request, *, spice=None, kernel_dir=None, verbose=False):
             captured["correction_method"] = request.correction_method
-            from types import SimpleNamespace
-
-            orbit = SimpleNamespace(
-                states=np.zeros((2, 6)),
-                times=np.array([0.0, 1.0]),
-            )
-            correction = SimpleNamespace(status=ConvergenceState.CONVERGED, iterations=1)
-            return SimpleNamespace(
-                orbit_type=orbit_type,
-                epoch_utc="2024-01-01T00:00:00",
-                duration_day=1.0,
-                initial_state=np.zeros(6),
-                cr3bp_jacobi=3.0,
-                cr3bp_orbit=orbit,
-                correction=correction,
-            )
+            return _FakeDesignResult(orbit_type=orbit_type,
+                                     states=np.zeros((2, 6)),
+                                     times=np.array([0.0, 1.0]))
 
         monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _capture, raising=False)
 
-        FacadeBridge().design_orbit(
+        catalog_bridge.design_orbit(
             orbit_type=orbit_type,
             correction_method=correction_method,
         )
 
         assert captured["correction_method"] == expected_method
 
-    def test_orbit_error_translated(self, monkeypatch):
+    def test_orbit_error_translated(self, monkeypatch, catalog_bridge):
         """e2m2e 异常应被翻译为 OrbitError。"""
         from src.engine.exceptions import OrbitError
 
@@ -295,44 +226,31 @@ class TestFacadeBridgeDesignOrbit:
             raise ValueError("bad amplitude")
 
         monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _fail, raising=False)
-        bridge = FacadeBridge()
         with pytest.raises(OrbitError) as exc_info:
             # amplitude=50 < DRO 下限 1737 km，触发 model_validator ValueError
-            bridge.design_orbit(orbit_type="DRO", amplitude=50.0)
+            catalog_bridge.design_orbit(orbit_type="DRO", amplitude=50.0)
         assert exc_info.value.code == "INVALID_PARAMS"
 
-    def test_nrho_uses_full_design_orbit_pipeline(self, monkeypatch):
+    def test_nrho_uses_full_design_orbit_pipeline(self, monkeypatch, tmp_path):
         """e2m2e 5.7.3 起 NRHO 走完整 design_orbit（不再旁路只交 CR3BP）。"""
         captured: dict = {}
 
         def _capture(request, *, spice=None, kernel_dir=None, verbose=False):
             captured["orbit_type"] = request.orbit_type
             captured["kernel_dir"] = kernel_dir
-            from types import SimpleNamespace
-
-            system = SimpleNamespace(mu=0.01215)
-            orbit = SimpleNamespace(
+            return _FakeDesignResult(
+                orbit_type="NRHO",
                 states=np.zeros((4, 6)),
                 times=np.linspace(0.0, 1.0, 4),
-                system=system,
-            )
-            correction = SimpleNamespace(
-                status=ConvergenceState.CONVERGED, iterations=5
-            )
-            return SimpleNamespace(
-                orbit_type="NRHO",
-                epoch_utc="2024-01-01T00:00:00",
+                system=SimpleNamespace(mu=0.01215),
+                iterations=5,
                 duration_day=30.0,
-                initial_state=np.zeros(6),
-                cr3bp_jacobi=3.03,
-                cr3bp_orbit=orbit,
-                correction=correction,
-                ephemeris=None,
             )
 
         monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _capture, raising=True)
 
-        data = FacadeBridge(kernel_dir="/tmp/kernels").design_orbit(
+        bridge = FacadeBridge(kernel_dir="/tmp/kernels", catalog_dir=str(tmp_path / "c"))
+        data = bridge.design_orbit(
             orbit_type="NRHO",
             collinear_point=2,
             north_south=2,
@@ -346,3 +264,49 @@ class TestFacadeBridgeDesignOrbit:
         assert data.orbit_type == "NRHO"
         assert data.correction_converged is True
         assert data.correction_iterations == 5
+
+
+class TestDesignOrbitCatalogIngest:
+    """issue #375 US8：design_orbit 经 Facade 调用且产物自动入库。"""
+
+    def test_computation_leaves_record_in_catalog(self, mock_design_orbit, catalog_bridge):
+        """计算成功后库中出现对应记录（record_id 即主键）。"""
+        data = catalog_bridge.design_orbit(orbit_type="DRO")
+        assert data.record_id is not None
+        records = catalog_bridge.catalog_query()
+        assert [r.record_id for r in records] == [data.record_id]
+        assert records[0].source_tool == "design_orbit"
+
+    def test_query_filters_by_family(self, mock_design_orbit, catalog_bridge):
+        """catalog_query 多维过滤生效（族维度）。"""
+        catalog_bridge.design_orbit(orbit_type="DRO")
+        assert catalog_bridge.catalog_query(orbit_family="dro")
+        assert not catalog_bridge.catalog_query(orbit_family="halo")
+
+    def test_catalog_get_returns_arrays(self, mock_design_orbit, catalog_bridge):
+        """catalog_get 返回完整记录（含 CR3BP 段数组）。"""
+        data = catalog_bridge.design_orbit(orbit_type="DRO")
+        record = catalog_bridge.catalog_get(data.record_id)
+        assert record.arrays["cr3bp/states"].shape[0] == data.states.shape[0]
+
+    def test_export_package_contains_records_and_manifest(
+        self, mock_design_orbit, catalog_bridge, tmp_path
+    ):
+        """教学案例包内容：records/<id>.json/.npz + manifest.json（Testing Decisions）。"""
+        import json
+        import zipfile
+
+        data = catalog_bridge.design_orbit(orbit_type="DRO")
+        dest = tmp_path / "cases.zip"
+        count = catalog_bridge.catalog_export(dest=str(dest), orbit_family="dro")
+        assert count == 1
+        with zipfile.ZipFile(dest) as bundle:
+            names = bundle.namelist()
+            assert f"records/{data.record_id}.json" in names
+            assert f"records/{data.record_id}.npz" in names
+            manifest = json.loads(bundle.read("manifest.json"))
+        assert manifest == {
+            "schema_version": 1,
+            "record_ids": [data.record_id],
+            "exported_count": 1,
+        }

@@ -1,10 +1,14 @@
-"""FacadeBridge -- e2m2e 算法层直调的薄封装。
+"""FacadeBridge -- e2m2e Facade 门面的薄封装（issue #375）。
 
-design_orbit/control_orbit 直接调用 algorithm 层而非 Facade 门面，因为 Facade
-返回的 DesignOrbitResponse 剥离了轨道数据（只返回标量汇总），而 GUI 需要完整
-的 Orbit 对象用于可视化（docs/adr/0011-algorithm-layer-direct-call.md）。
-轨道族生成例外：e2m2e 5.7.1 起 Facade 响应（FamilyGenerationResponse）携带
-完整 Orbit 成员与状态三元组，且七族统一入口，故 generate_family 走 Facade。
+三个计算工具（design_orbit / control_orbit / orbit_family_generation）统一走
+Facade（ADR 0011 缓解措施 3 的既定清理）：#312 起 Facade 响应携带完整几何
+字段，#475（e2m2e 5.8.0）起产物自动入轨道库 catalog 并返回 record_id，
+control_orbit 支持 input_record_id 直连库中记录（Facade 解析星历并写谱系）。
+轨道库读写（catalog_query/get/tag/promote/export/delete）也经本桥接层转发，
+保持 e2m2e 接缝收敛到一处。
+
+库目录：Config.catalog_dir 注入（默认仓库根 catalog/，见 commons.paths）；
+kernel_dir 经 Config 注入（request 模型不接受该字段）。
 """
 
 from __future__ import annotations
@@ -43,8 +47,11 @@ class OrbitDesignResultData:
     # design_orbit 产出的 GCRS 星历（control_orbit 的标准输入）。
     # None 表示算法层未返回 ephemeris（理论上不会，defensive）。
     ephemeris: dict | None = None  # {year, month, ..., times_jd_tdb}，值均为 ndarray
+    # 产物入库后的轨道库记录 id（e2m2e 5.8.0 自动入库；None = 未入库）。
+    record_id: str | None = None
 
-    # 注意：mu / ephemeris 带默认值放在末尾，保证旧代码按位置/关键字构造 DTO 时不传也能工作。
+    # 注意：mu / ephemeris / record_id 带默认值放在末尾，保证旧代码按位置/关键字
+    # 构造 DTO 时不传也能工作。
 
 
 @dataclass
@@ -67,6 +74,7 @@ class FamilyResultData:
     periodicity: str = "periodic"  # "periodic" / "quasi-periodic"（Lissajous）
     status_message: str = ""  # 软失败（部分族）时的上游状态消息；全量收敛为 ""
     member_parameters: list = field(default_factory=list)  # 各族成员的族参数 dict
+    record_id: str | None = None  # 产物入库后的轨道库记录 id（未入库为 None）
 
 
 @dataclass
@@ -103,6 +111,57 @@ class ControlResultData:
     # 与 controlled_times 同源；分两字段是为了让画布 times（任意单调数组）与
     # 物理时间解耦：P0 画布不读 times_et，但帧动画/GIF 需要它定位真时刻。
     times_et: Any = None
+    record_id: str | None = None  # 产物入库后的轨道库记录 id（全失败无记录为 None）
+
+
+#: 周期族成员重采样点数（5.7.1 起周期族成员只携带初态与周期）。
+_FAMILY_MEMBER_SAMPLES = 200
+
+
+def centroid_normalized_states(synodic_position: Any, mu: float | None) -> Any:
+    """会合系位置（地心归一，月球在 +1）→ 画布质心归一状态 (n,6)（月球在 1−μ）。
+
+    站保响应与 catalog 记录懒加载共用；mu 为 None（旧产物无 μ）时不偏移
+    （保留旧行为，画布跳过标注）。速度列补零。
+    """
+    syn = np.asarray(synodic_position, dtype=float)
+    states = np.zeros((syn.shape[0], 6))
+    states[:, :3] = syn - (mu or 0.0)
+    return states
+
+
+def _ephemeris_table_from_mapping(mapping: dict) -> Any:
+    """从 Facade 响应的星历 dict（JSON 兼容，值为 list/ndarray）重建 EphemerisTable。
+
+    仅取 EphemerisTable 实际拥有的字段，忽略 times_et 等额外键与 None 值
+    （times_jd_tdb 设计链路不填）。
+    """
+    from dataclasses import fields as dc_fields
+
+    from e2m2e.data.types import EphemerisTable
+
+    valid_keys = {f.name for f in dc_fields(EphemerisTable)}
+    fields: dict[str, Any] = {
+        k: np.asarray(v) for k, v in mapping.items() if k in valid_keys and v is not None
+    }
+    return EphemerisTable(**fields)
+
+
+def resample_periodic_member(
+    dynamics: Any,
+    initial_state: Any,
+    period: float,
+    samples: int = _FAMILY_MEMBER_SAMPLES,
+) -> tuple[Any, Any]:
+    """按周期把单初态族成员重采样为整条轨迹（画布渲染契约）。
+
+    5.7.1 起周期族成员只携带初态 (1,6) 与周期（Rust 单次调用契约），catalog
+    族记录与 Facade 族响应同为该形态，画布需要整条轨迹，传播走 Rust 后端
+    （毫秒级）。返回 ``(states (n,6), times (n,))``。
+    """
+    t_eval = np.linspace(0.0, float(period), samples)
+    propagated = dynamics.propagate(np.asarray(initial_state), (0.0, float(period)), t_eval=t_eval)
+    return np.asarray(propagated["states"]), t_eval
 
 
 def _reconstruct_et_from_utc(eph: Any) -> np.ndarray:
@@ -352,9 +411,6 @@ def _build_tool_registry() -> dict[str, ToolSpec]:
 TOOL_REGISTRY: dict[str, ToolSpec] = _build_tool_registry()
 
 
-#: 周期族成员重采样点数（5.7.1 起周期族成员只携带初态与周期）。
-_FAMILY_MEMBER_SAMPLES = 200
-
 #: e2m2e 规范族标识（小写）-> GUI 显示名。
 _FAMILY_DISPLAY_NAMES = {
     "halo": "Halo",
@@ -373,31 +429,73 @@ _FAMILY_DISPLAY_NAMES = {
 
 
 class FacadeBridge:
-    """e2m2e 算法层的薄封装。
+    """e2m2e Facade 的薄封装。
 
     职责：
-    - 接收 GUI 参数，调用 e2m2e 算法层
-    - 将算法层返回的富对象转换为跨线程 DTO
+    - 接收 GUI 参数，经 Facade 调用 e2m2e（产物自动入轨道库）
+    - 将 Facade 响应转换为跨线程 DTO
+    - 轨道库读写转发（catalog_query/get/tag/promote/export/delete）
     - 异常翻译（e2m2e 异常 -> 结构化错误消息）
 
     不负责：
     - 线程管理（由 QThread Worker 处理）
-    - 结果持久化（由 persistence 模块处理）
+    - Artifact 语义（由 catalog 模块处理）
+
+    kernel_dir / catalog_dir 经 ``e2m2e.api.config.Config`` 注入 Facade
+    （request 模型不接受这两个字段）；Facade 按需惰性构造（catalog 首次
+    使用才产生目录副作用）。
     """
 
-    def __init__(self, kernel_dir: str | None = None) -> None:
+    def __init__(
+        self,
+        kernel_dir: str | None = None,
+        catalog_dir: str | None = None,
+    ) -> None:
         self._kernel_dir = kernel_dir
+        if catalog_dir is None:
+            from src.commons.paths import CATALOG_DIR
+
+            catalog_dir = str(CATALOG_DIR)
+        self._catalog_dir = catalog_dir
+        self._facade_obj: Any | None = None
+
+    def _facade(self) -> Any:
+        """按需构造 Facade（Config 注入 kernel_dir / catalog_dir）。"""
+        if self._facade_obj is None:
+            from e2m2e.api import Facade
+            from e2m2e.api.config import Config
+
+            config = Config()
+            if self._kernel_dir:
+                config.kernel_dir = self._kernel_dir
+            if self._catalog_dir:
+                config.catalog_dir = self._catalog_dir
+            self._facade_obj = Facade(config=config)
+        return self._facade_obj
+
+    def _translated(self, call: Any) -> Any:
+        """执行 Facade 调用并把异常翻译为 OrbitError（catalog 接缝统一出口）。"""
+        from src.engine.exceptions import translate_exception
+
+        try:
+            return call()
+        except Exception as e:
+            raise translate_exception(e) from e
 
     def design_orbit(self, **kwargs: Any) -> OrbitDesignResultData:
-        """调用 e2m2e.algorithm.design.design_orbit，返回跨线程 DTO。
+        """经 Facade 调用 design_orbit，返回跨线程 DTO（产物自动入库）。
 
-        e2m2e 5.6.5 起 ``design_orbit`` 第一个参数为 ``DesignOrbitRequest``
-        （散字段不再支持），本方法把 GUI 收集的 kwargs 包成 request 再调用。
-        ``kernel_dir`` 不是 request 字段（``extra="forbid"``），单独传入。
+        ``kernel_dir`` 不是 request 字段（``extra="forbid"``），经 Config 注入；
+        其余 kwargs 是 collect_params 按 model_fields 收集的合法 request 字段。
 
         单位换算：GUI ``duration`` 标准单位为年（见
-        ``params_panel.FIELD_UNIT_OPTIONS``），e2m2e 5.6.5 起 ``duration`` 字段
-        单位为秒，本方法做年→秒换算（``* SECONDS_PER_YEAR``）。
+        ``params_panel.FIELD_UNIT_OPTIONS``），e2m2e 的 ``duration`` 字段单位为秒，
+        本方法做年→秒换算（``* SECONDS_PER_YEAR``）。
+
+        Lissajous 与 Halo/NRHO 同为不稳定轨道，e2m2e 仅自动把 Halo/NRHO 重定向
+        到 segmented；Lissajous 若沿用 standard/two_level，一圈修正后的自由外推
+        会沿不稳定流形发散。GUI 不暴露 segmented，因此在此固定走分段修正，
+        保持整段标称星历有界。
 
         异常经 translate_exception() 翻译为 OrbitError 后抛出。
 
@@ -407,117 +505,83 @@ class FacadeBridge:
         Raises:
             OrbitError: 经翻译的结构化错误。
         """
-        from e2m2e.algorithm.design import design_orbit
-        from e2m2e.api.models import DesignOrbitRequest
         from e2m2e.data.templates import ConvergenceState
 
         from src.commons.units import SECONDS_PER_YEAR
         from src.engine.exceptions import translate_exception
 
-        # kernel_dir 不是 DesignOrbitRequest 字段（extra="forbid"），单独拎出。
-        # 其余 kwargs 都是 collect_params 按 model_fields 收集的合法 request 字段。
-        kernel_dir = kwargs.pop("kernel_dir", self._kernel_dir)
+        # 兼容旧调用习惯：kwargs 携带 kernel_dir 时丢弃（经 Config 注入）
+        kwargs.pop("kernel_dir", None)
         # GUI duration 单位年 -> e2m2e duration 单位秒
         if kwargs.get("duration") is not None:
             kwargs["duration"] = float(kwargs["duration"]) * SECONDS_PER_YEAR
-        # Lissajous 与 Halo/NRHO 同为不稳定轨道。e2m2e 5.6.9 仅自动把
-        # Halo/NRHO 重定向到 segmented；Lissajous 若沿用 standard/two_level，
-        # 一圈修正后的自由外推会沿不稳定流形发散。GUI 不暴露 segmented，
-        # 因此在此固定走分段修正，保持整段标称星历有界。
-        # e2m2e 5.7.3 起 NRHO 默认等时间采样 + 1 圈/段（上游 #473），完整
-        # design_orbit 路径在 GUI 默认量级收敛，与 Halo 一样走本入口（无旁路）。
         orbit_type = kwargs.get("orbit_type")
         if isinstance(orbit_type, str) and orbit_type.upper() == "LISSAJOUS":
             kwargs["correction_method"] = "segmented"
         try:
-            request = DesignOrbitRequest(**kwargs)
-            result = design_orbit(request, kernel_dir=kernel_dir)
+            response = self._facade().design_orbit(**kwargs)
         except Exception as e:
             raise translate_exception(e) from e
 
-        cr3bp_orbit = result.cr3bp_orbit
-        if cr3bp_orbit is None:
+        if not response.states:
             # ELFO 场景无 CR3BP 周期轨道（设计结果不携带），GUI 用不到
             raise translate_exception(
                 ValueError("设计结果不含 CR3BP 轨道（ELFO 场景不支持 GUI 可视化）")
             ) from None
-        # mu 从 cr3bp_orbit.system.mu 提取（design_orbit.py 构造 Orbit 时绑定了
-        # CR3BP_System）；三重 getattr 防御 system 缺失或未绑定。
-        mu = getattr(getattr(cr3bp_orbit, "system", None), "mu", None)
-        eph = getattr(result, "ephemeris", None)
+        # Facade 的星历 dict 是 JSON 兼容形态（list），重建 EphemerisTable 后
+        # 统一经 _reconstruct_et_from_utc 补 times_et（星历段不落盘该字段）
         ephemeris_dict = None
-        if eph is not None:
+        if response.ephemeris:
             ephemeris_dict = {
-                "year": np.asarray(eph.year),
-                "month": np.asarray(eph.month),
-                "day": np.asarray(eph.day),
-                "hour": np.asarray(eph.hour),
-                "minute": np.asarray(eph.minute),
-                "second": np.asarray(eph.second),
-                "position_km": np.asarray(eph.position_km),
-                "velocity_mps": np.asarray(eph.velocity_mps),
-                "synodic_position": np.asarray(eph.synodic_position),
-                # times_jd_tdb 当前版本不存在，getattr 防御；未来版本若有则存入
-                "times_jd_tdb": np.asarray(tjd)
-                if (tjd := getattr(eph, "times_jd_tdb", None)) is not None
-                else None,
-                # 真物理时间（ET 秒）：从 UTC 拆分用 SPICE str2et 重建。
-                # control_orbit 用其做会合→惯性坐标转换；帧动画也用它定位真时刻。
-                "times_et": _reconstruct_et_from_utc(eph),
+                k: np.asarray(v) for k, v in response.ephemeris.items() if v is not None
             }
-        # e2m2e 5.6.6 起 EphemerisCorrectionResult 废除 converged 方言，
-        # 收敛判定走统一结果契约 status == ConvergenceState.CONVERGED
-        # （上游 #351）。correction 为 None 是 ELFO 场景（无星历修正），视为未收敛。
-        correction = result.correction
-        correction_converged = (
-            correction is not None and correction.status is ConvergenceState.CONVERGED
-        )
+            ephemeris_dict["times_et"] = _reconstruct_et_from_utc(
+                _ephemeris_table_from_mapping(response.ephemeris)
+            )
+        # 5.6.6 起收敛判定走统一结果契约 status == ConvergenceState.CONVERGED
         return OrbitDesignResultData(
-            orbit_type=result.orbit_type,
-            epoch_utc=result.epoch_utc,
-            duration_day=result.duration_day,
-            initial_state=result.initial_state,
-            cr3bp_jacobi=result.cr3bp_jacobi,
-            mu=mu,
-            states=np.asarray(cr3bp_orbit.states),
-            times=np.asarray(cr3bp_orbit.times),
-            correction_converged=correction_converged,
-            correction_iterations=correction.iterations if correction is not None else 0,
+            orbit_type=response.orbit_type,
+            epoch_utc=response.epoch_utc,
+            duration_day=response.duration_day,
+            initial_state=np.asarray(response.initial_state, dtype=float),
+            cr3bp_jacobi=response.cr3bp_jacobi,
+            mu=response.mu,
+            states=np.asarray(response.states, dtype=float),
+            times=np.asarray(response.times, dtype=float),
+            correction_converged=response.status is ConvergenceState.CONVERGED,
+            correction_iterations=response.correction_iterations,
             ephemeris=ephemeris_dict,
+            record_id=response.record_id,
         )
 
     def control_orbit(
-        self, ephemeris_data: dict, source_mu: float | None, **params: Any
+        self, ephemeris_data: dict | None, source_mu: float | None, **params: Any
     ) -> ControlResultData:
-        """调用 e2m2e.algorithm.station_keeping.control_orbit，返回跨线程 DTO。
+        """经 Facade 调用 control_orbit，返回跨线程 DTO（产物自动入库）。
 
         Args:
             ephemeris_data: 来自 orbit Artifact 的 extra["ephemeris"]，
-                含重建 EphemerisTable 所需的全字段 ndarray。
+                含重建 EphemerisTable 所需的全字段 ndarray。仅在
+                ``input_record_id`` 未提供时使用（None 允许）。
             source_mu: 源 orbit Artifact 的 CR3BP 质量比（extra["mu"]）。
-                ControlOrbitResult 不暴露 mu，受控星历画地月标注所需，
-                由调用方注入，直接写入 DTO（见 plan §5.1）。
+                经 request.mu 透传到响应（画地月标注所需，算法层不消费）。
             **params: ControlOrbitRequest 的标量字段（control_mode 等），
-                由参数面板收集。input_ephemeris 不在其中（由本方法注入）。
+                由参数面板收集；``input_record_id`` 由调用方注入（库中记录
+                直连，Facade 解析星历段并写谱系 source_record_id）。
         """
-        from dataclasses import fields as dc_fields
+        from src.engine.exceptions import OrbitError, translate_exception
 
-        from e2m2e.algorithm.station_keeping import control_orbit as _control
-        from e2m2e.data.types import EphemerisTable
-
-        from src.engine.exceptions import translate_exception
-
-        # 仅传入 EphemerisTable 实际拥有的字段，排除 times_jd_tdb 等额外键
-        valid_keys = {f.name for f in dc_fields(EphemerisTable)}
-        eph = EphemerisTable(
-            **{k: v for k, v in ephemeris_data.items() if k in valid_keys and v is not None}
-        )
-        params.setdefault("kernel_dir", self._kernel_dir)
-        # ControlOrbitRequest.mu 是响应透传字段（画地月/L 点标注用），算法层
-        # control_orbit() 函数签名无 mu；面板收集的 mu 若展开传入会 TypeError。
-        # DTO 的 mu 由 source_mu 注入（见下方 ControlResultData(mu=source_mu)），
-        # 这里剔除，避免 **params 展开时炸。
-        params.pop("mu", None)
+        params.pop("kernel_dir", None)  # 经 Config 注入，request 不接受
+        if params.get("input_record_id"):
+            # 记录直连：Facade 负责取星历段与写谱系，ephemeris_data 不用
+            params.setdefault("mu", source_mu)
+        else:
+            if not ephemeris_data:
+                raise OrbitError(
+                    "INVALID_PARAMS", "缺少站保输入：既无 input_record_id 也无星历数据"
+                )
+            params["input_ephemeris"] = _ephemeris_table_from_mapping(ephemeris_data)
+            params["mu"] = source_mu
         # engine_layout 面板是 JSON 文本框：control_mode < 4（无角动量管理）时
         # e2m2e 虽不使用但会无条件 validate（访问 .E_r），字符串随手输入直接
         # AttributeError；置 None 忽略。>= 4 时 dict 构造 EngineLayout，其他
@@ -526,23 +590,20 @@ class FacadeBridge:
         control_mode = params.get("control_mode", 1)
         params["engine_layout"] = _coerce_engine_layout(layout, control_mode)
         try:
-            result = _control(eph, **params)
+            response = self._facade().control_orbit(**params)
         except Exception as e:
             raise translate_exception(e) from e
 
-        controlled = result.controlled_ephemeris
-        if controlled is not None and controlled.synodic_position is not None:
-            n = len(controlled)
-            states = np.zeros((n, 6))
-            # 会合系原点偏移：controlled.synodic_position 是地心归一（月球在 +1），
-            # 画布地月标注是质心归一（月球在 1−μ）。减 source_mu 后两者对齐，
-            # 轨迹与月球标记不再差 μ·DU ≈ 4690 km。source_mu 为 None（旧 Artifact
-            # 无 μ）时不偏移（保留旧行为，画布跳过标注）。
-            states[:, :3] = controlled.synodic_position - (source_mu or 0.0)
-            # 真物理时间：替代旧 np.arange(n) 索引，供坐标切换/帧动画定位真时刻。
-            times_et = _reconstruct_et_from_utc(controlled)
+        controlled = response.controlled_ephemeris
+        mu = response.mu
+        if controlled is not None and controlled.get("synodic_position") is not None:
+            # 会合系原点偏移：减 source_mu 对齐画布质心归一（见
+            # centroid_normalized_states；控制律在算法层内部用地心归一）
+            states = centroid_normalized_states(controlled["synodic_position"], mu)
+            # 真物理时间：替代旧 np.arange(n) 索引，供坐标切换/帧动画定位真时刻
+            times_et = _reconstruct_et_from_utc(_ephemeris_table_from_mapping(controlled))
             times = times_et
-            position_km = np.asarray(controlled.position_km)
+            position_km = np.asarray(controlled["position_km"], dtype=float)
         else:
             states = None
             times = None
@@ -550,24 +611,25 @@ class FacadeBridge:
             position_km = None
 
         return ControlResultData(
-            num_failed=result.num_failed,
-            sk_statistic_rows=np.asarray(result.sk_statistic.rows),
-            maneuvers_mjd_tdb=np.asarray(result.maneuvers.mjd_tdb),
-            maneuvers_delta_v_mps=np.asarray(result.maneuvers.delta_v_mps),
+            num_failed=response.num_failed,
+            sk_statistic_rows=np.asarray(response.sk_statistic["rows"]),
+            maneuvers_mjd_tdb=np.asarray(response.maneuvers["mjd_tdb"]),
+            maneuvers_delta_v_mps=np.asarray(response.maneuvers["delta_v_mps"]),
             controlled_states=states,
             controlled_times=times,
-            mu=source_mu,
+            mu=mu,
             position_km=position_km,
             times_et=times_et,
+            record_id=response.record_id,
         )
 
     def generate_family(self, **kwargs: Any) -> FamilyResultData:
-        """生成轨道族（七族），返回跨线程 DTO。
+        """生成轨道族（七族），返回跨线程 DTO（产物自动入库）。
 
         走 ``Facade.orbit_family_generation``：e2m2e 5.7.1 起 Facade 响应
         （``FamilyGenerationResponse``）携带完整 Orbit 成员与状态三元组，软失败
         保留部分族，七族统一入口省去桥接层自行分派。纯 CR3BP 计算，不需要
-        SPICE 内核。
+        SPICE 内核；5.8.0 起族记录自动入轨道库（一族一条，成员参数在记录内）。
 
         两个 5.7.1 适配点：
 
@@ -578,7 +640,6 @@ class FacadeBridge:
           轨迹，在此按周期重采样到固定点数；Lissajous 拟周期成员已携带
           等长完整轨迹，原样堆叠。
         """
-        from e2m2e.api import Facade
         from e2m2e.data.templates import ConvergenceState
 
         from src.engine.exceptions import OrbitError, translate_exception
@@ -586,7 +647,7 @@ class FacadeBridge:
         params = {k: v for k, v in kwargs.items() if v is not None}
         params.setdefault("orbit_type", "HALO")
         try:
-            response = Facade().orbit_family_generation(**params)
+            response = self._facade().orbit_family_generation(**params)
         except Exception as e:
             raise translate_exception(e) from e
 
@@ -612,10 +673,9 @@ class FacadeBridge:
             raw = np.asarray(orbit.states)
             period = getattr(orbit, "period", None)
             if dynamics is not None and raw.shape[0] == 1 and period:
-                t_eval = np.linspace(0.0, float(period), _FAMILY_MEMBER_SAMPLES)
-                propagated = dynamics.propagate(raw[0], (0.0, float(period)), t_eval=t_eval)
-                states_list.append(np.asarray(propagated["states"]))
-                times_list.append(t_eval)
+                sampled_states, sampled_times = resample_periodic_member(dynamics, raw[0], period)
+                states_list.append(sampled_states)
+                times_list.append(sampled_times)
             else:
                 states_list.append(raw)
                 times_list.append(np.asarray(orbit.times))
@@ -638,7 +698,45 @@ class FacadeBridge:
             periodicity=periodicity,
             status_message=status_message,
             member_parameters=[dict(getattr(o, "parameters", None) or {}) for o in orbits],
+            record_id=response.record_id,
         )
+
+    # ---- 轨道库 catalog（e2m2e 5.8.0，ADR 0031 接缝）------------------------
+
+    def catalog_query(self, **params: Any) -> list[Any]:
+        """多维过滤查询，返回 ``CatalogRecordSummary`` 列表（轻量，不含数组段）。
+
+        过滤字段见 ``e2m2e.api.models.CatalogQueryRequest``（族 / 平动点 /
+        Jacobi 区间 / 振幅区间 / 段存在性 / status / tags，逻辑与组合）。
+        """
+        response = self._translated(lambda: self._facade().catalog_query(**params))
+        return list(response.records)
+
+    def catalog_get(self, record_id: str) -> Any:
+        """按 record_id 取完整记录（含数组段）；不存在抛 RECORD_NOT_FOUND。"""
+        return self._translated(lambda: self._facade().catalog_get(record_id=record_id))
+
+    def catalog_delete(self, record_id: str) -> None:
+        """删除记录（文件与索引条目），不可撤销。"""
+        self._translated(lambda: self._facade().catalog_delete(record_id=record_id))
+
+    def catalog_tag(self, record_id: str, tags: list[str], note: str | None = None) -> None:
+        """写教学标注（tags 整体替换，note=None 保留原注释）。"""
+        self._translated(
+            lambda: self._facade().catalog_tag(record_id=record_id, tags=list(tags), note=note)
+        )
+
+    def catalog_promote(self, record_id: str, member_index: int) -> str:
+        """把族成员提升为独立记录（source_record_id 指向所属族），返回新 record_id。"""
+        response = self._translated(
+            lambda: self._facade().catalog_promote(record_id=record_id, member_index=member_index)
+        )
+        return response.record.record_id
+
+    def catalog_export(self, dest: str, **filters: Any) -> int:
+        """把过滤子集打包导出（dest 以 .zip 结尾出 zip，否则出目录），返回条数。"""
+        response = self._translated(lambda: self._facade().catalog_export(dest=dest, **filters))
+        return int(response.exported_count)
 
     def analyze_stability(self, states: Any, times: Any, mu: float | None) -> StabilityResultData:
         """对 CR3BP 周期轨道做稳定性分析，返回跨线程 DTO。
