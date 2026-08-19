@@ -74,6 +74,7 @@ from src.view.params_panel import (
     family_libration_points,
     get_field_units,
     set_spinbox_unit,
+    sync_family_point_params,
 )
 
 # G4+G5: 工具选择器 + 灰色占位
@@ -848,6 +849,11 @@ class MainWindow(QMainWindow):
                 family_combo: QComboBox = family_widget
                 family_combo.currentIndexChanged.connect(self._on_family_type_changed)
                 self._on_family_type_changed(family_combo.currentIndex())
+            # 切平动点时同步族参数范围约束与默认值（如 Halo L2 默认 30000 超出 L1 范围）
+            point_widget = self._param_widgets.get("libration_point")
+            if isinstance(point_widget, QComboBox):
+                point_combo: QComboBox = point_widget
+                point_combo.currentIndexChanged.connect(self._on_family_point_changed)
 
         layout.setRowStretch(row, 1)
 
@@ -919,7 +925,26 @@ class MainWindow(QMainWindow):
         family_type = family_combo.currentText()
         self._rebuild_family_libration_points(family_type)
         apply_family_type_defaults(self._param_widgets, family_type)
+        # 切族但平动点未变时下拉不发信号，这里补一次约束/默认同步（幂等）
+        point_widget = self._param_widgets.get("libration_point")
+        if isinstance(point_widget, QComboBox):
+            point = point_widget.currentData()
+            if isinstance(point, int):
+                sync_family_point_params(self._param_widgets, family_type, point)
         self._sync_family_visible_fields(family_type)
+
+    def _on_family_point_changed(self, index: int) -> None:
+        """族面板切平动点：刷新范围约束，超范围的当前值替换为该点默认值。"""
+        if self._current_tool_key != "orbit_family_generation":
+            return
+        family_widget = self._param_widgets.get("orbit_type")
+        point_widget = self._param_widgets.get("libration_point")
+        if not isinstance(family_widget, QComboBox) or not isinstance(point_widget, QComboBox):
+            return
+        point = point_widget.itemData(index)
+        if not isinstance(point, int):
+            return
+        sync_family_point_params(self._param_widgets, family_widget.currentText(), point)
 
     def _rebuild_family_libration_points(self, family_type: str) -> None:
         """按族重建 libration_point 下拉项（共线族 L1/L2，Lissajous 加 L3，三角族 L4/L5）。"""

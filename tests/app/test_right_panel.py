@@ -143,6 +143,28 @@ class TestParamGroups:
         point_combo = window._param_widgets["libration_point"]
         assert [point_combo.itemData(i) for i in range(point_combo.count())] == [1, 2]
 
+    def test_family_point_switch_refreshes_default_amplitude(self, qapp):
+        """族面板切平动点到 L1 后，L2 默认振幅 30000 应刷新为 L1 默认值。
+
+        回归：L1 Halo 以默认参数提交时被上游校验拒绝（±26908 km 折叠点）。
+        """
+        from e2m2e.api.models import FamilyGenerationRequest
+
+        window = _make_window(qapp)
+        idx = window._tool_combo.findData("orbit_family_generation")
+        window._tool_combo.setCurrentIndex(idx)
+        amp = window._param_widgets["max_amplitude_km"]
+        assert amp.value() == 30000.0
+        point_combo = window._param_widgets["libration_point"]
+        point_combo.setCurrentIndex(point_combo.findData(1))
+        assert amp.value() == 25000.0
+        # 带符号范围放开负值：南族可输入
+        assert amp.minimum() < 0.0
+        # 面板参数直接通过上游校验
+        FamilyGenerationRequest(
+            orbit_type="HALO", libration_point=1, max_amplitude_km=amp.value()
+        )
+
     def test_family_request_params_filter(self, qapp):
         """族生成参数过滤：只留当前族适用字段，剔除隐藏分支残留值与 None。"""
         from src.app.main_window import _family_request_params
