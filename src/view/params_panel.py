@@ -1098,6 +1098,98 @@ def apply_family_type_defaults(
     _apply_branch_defaults(widgets, defaults)
 
 
+def _apply_numeric_range(
+    widget: QDoubleSpinBox | QSpinBox,
+    field_name: str,
+    numeric_range: Any,
+) -> None:
+    """把上游 ``NumericRange``（标准单位）写成控件的 Qt 范围、约束状态与提示。
+
+    Qt 上下限按当前显示单位换算；标准单位范围同步写进 ``_STD_MIN_ATTR`` /
+    ``_STD_MAX_ATTR``，保证后续单位切换不丢约束。严格边界（开区间）按既有
+    gt/lt 惯例内缩 1e-8；排除值（如 Halo 振幅不含 0）Qt 表达不了，写进
+    提示说明，留给模型校验拦截。
+    """
+    lo, hi = numeric_range.minimum, numeric_range.maximum
+    std_lo = float(lo) if lo is not None else -1e12
+    std_hi = float(hi) if hi is not None else 1e12
+    if isinstance(widget, QDoubleSpinBox):
+        if lo is not None and not numeric_range.minimum_inclusive:
+            std_lo += 1e-8
+        if hi is not None and not numeric_range.maximum_inclusive:
+            std_hi -= 1e-8
+    opt = _current_unit_option(field_name, widget)
+    factor = opt.to_standard if opt is not None else 1.0
+    if isinstance(widget, QSpinBox):
+        widget.setMinimum(int(std_lo))
+        widget.setMaximum(int(std_hi))
+    else:
+        widget.setMinimum(std_lo / factor)
+        widget.setMaximum(std_hi / factor)
+    widget.setProperty(_STD_MIN_ATTR, std_lo)
+    widget.setProperty(_STD_MAX_ATTR, std_hi)
+    excluded = getattr(numeric_range, "excluded_values", ())
+    note = "不含 " + "/".join(f"{v:g}" for v in excluded) if excluded else ""
+    widget.setProperty(
+        _BOUNDS_ATTR,
+        (
+            lo is not None,
+            hi is not None,
+            note,
+            not numeric_range.minimum_inclusive,
+            not numeric_range.maximum_inclusive,
+        ),
+    )
+    _apply_range_hint(widget, field_name)
+
+
+def sync_family_point_params(
+    widgets: dict[str, QWidget],
+    family_type: str,
+    libration_point: int,
+) -> None:
+    """平动点切换后同步族参数：刷新范围约束（Qt 上下限 + 提示），再把超出
+    新点合法范围的当前值替换为该点默认值。
+
+    合法范围与该点默认值都从 ``FamilyGenerationRequest`` 读取（valid_ranges /
+    按点构造的模型实例），不在 GUI 维护第二份表。当前值仍在新点范围内的
+    用户输入保持不变——例如 Halo 默认 30000 km 是 L2 默认值，切到 L1 后
+    超出 L1 折叠点范围（±26908 km），刷新为 L1 默认 25000 km；而用户手输
+    的 20000 km 在两点范围内，原样保留。带符号范围（Halo/Axial 负值表
+    南族/下族）同步后 Qt 下限放开，负振幅可输入。
+    """
+    from e2m2e.api.models import FamilyGenerationRequest
+
+    try:
+        request = FamilyGenerationRequest(
+            orbit_type=family_type, libration_point=libration_point
+        )
+        ranges = FamilyGenerationRequest.valid_ranges(
+            family_type.upper(), libration_point=libration_point
+        )
+    except Exception:  # noqa: BLE001 -- 未知族/点组合静默跳过
+        return
+    for name in FAMILY_TYPE_FIELDS.get(family_type, set()):
+        numeric_range = ranges.get(name)
+        widget = widgets.get(name)
+        if numeric_range is None or widget is None:
+            continue
+        widget = _unwrap_optional_widget(widget)
+        if not isinstance(widget, (QDoubleSpinBox, QSpinBox)):
+            continue
+        # 先取当前值（标准单位）：刷新 Qt 范围可能钳位显示值
+        current = float(widget.value())
+        opt = _current_unit_option(name, widget)
+        if opt is not None:
+            current *= opt.to_standard
+        _apply_numeric_range(widget, name, numeric_range)
+        if numeric_range.contains(current):
+            continue
+        default = getattr(request, name, None)
+        if default is not None:
+            _apply_branch_defaults(widgets, {name: default})
+
+
 # ---------------------------------------------------------------------------
 # 值读取
 # ---------------------------------------------------------------------------

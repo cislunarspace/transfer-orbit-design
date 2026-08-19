@@ -292,3 +292,108 @@ class TestFamilyGenerationParams:
         assert params["libration_point"] == 1
         assert params["max_amplitude_km"] == 15000.0
         assert params["n_orbits"] == 30
+
+    def test_point_switch_refreshes_out_of_range_default(self, qapp):
+        """切平动点后，超出新点合法范围的默认值应刷新为该点默认值。
+
+        回归：Halo 面板默认 max_amplitude_km=30000（L2 默认值），切到 L1
+        后超出 L1 折叠点 ±26908 km，提交被上游校验拒绝（INVALID_PARAMS）。
+        """
+        from src.engine.facade_bridge import FamilyGenerationRequest
+        from src.view.params_panel import (
+            sync_family_point_params,
+            apply_family_type_defaults,
+            build_params_from_model,
+            collect_params,
+        )
+
+        widgets = build_params_from_model(FamilyGenerationRequest)
+        apply_family_type_defaults(widgets, "Halo")
+        assert widgets["max_amplitude_km"].value() == 30000.0
+        sync_family_point_params(widgets, "Halo", 1)
+        params = collect_params(widgets, FamilyGenerationRequest)
+        assert params["max_amplitude_km"] == 25000.0
+        # 收集到的参数必须能直接通过上游校验
+        FamilyGenerationRequest(
+            orbit_type="HALO",
+            libration_point=1,
+            max_amplitude_km=params["max_amplitude_km"],
+            n_orbits=params["n_orbits"],
+        )
+
+    def test_point_switch_keeps_in_range_user_value(self, qapp):
+        """用户手输的值若仍在新点范围内，切点时不应被覆盖。"""
+        from src.engine.facade_bridge import FamilyGenerationRequest
+        from src.view.params_panel import (
+            sync_family_point_params,
+            apply_family_type_defaults,
+            build_params_from_model,
+        )
+
+        widgets = build_params_from_model(FamilyGenerationRequest)
+        apply_family_type_defaults(widgets, "Halo")
+        widgets["max_amplitude_km"].setValue(20000.0)
+        sync_family_point_params(widgets, "Halo", 1)
+        assert widgets["max_amplitude_km"].value() == 20000.0
+
+    def test_point_sync_opens_signed_range(self, qapp):
+        """同步后 Qt 范围放开负值：南族（负振幅）可输入且通过上游校验。"""
+        from src.engine.facade_bridge import FamilyGenerationRequest
+        from src.view.params_panel import (
+            apply_family_type_defaults,
+            build_params_from_model,
+            collect_params,
+            sync_family_point_params,
+        )
+
+        widgets = build_params_from_model(FamilyGenerationRequest)
+        apply_family_type_defaults(widgets, "Halo")
+        sync_family_point_params(widgets, "Halo", 1)
+        amp = widgets["max_amplitude_km"]
+        assert amp.minimum() < 0.0
+        amp.setValue(-20000.0)
+        assert amp.value() == -20000.0
+        params = collect_params(widgets, FamilyGenerationRequest)
+        FamilyGenerationRequest(
+            orbit_type="HALO",
+            libration_point=1,
+            max_amplitude_km=params["max_amplitude_km"],
+        )
+
+    def test_point_sync_updates_range_hint(self, qapp):
+        """同步后范围提示随平动点更新：L1 Halo 显示 ±26908 km（含排除值 0）。"""
+        from src.engine.facade_bridge import FamilyGenerationRequest
+        from src.view.params_panel import (
+            apply_family_type_defaults,
+            build_params_from_model,
+            sync_family_point_params,
+        )
+
+        widgets = build_params_from_model(FamilyGenerationRequest)
+        apply_family_type_defaults(widgets, "Halo")
+        sync_family_point_params(widgets, "Halo", 1)
+        hint = widgets["max_amplitude_km"].lineEdit().placeholderText()
+        assert "-26908" in hint and "26908" in hint and "km" in hint
+        assert "不含 0" in hint
+
+    def test_point_sync_bounds_follow_unit_switch(self, qapp):
+        """同步后的范围随单位切换换算：切到 DU 后上下限按比例缩放。"""
+        from src.commons.units import DU_KM
+        from src.engine.facade_bridge import FamilyGenerationRequest
+        from src.view.params_panel import (
+            apply_family_type_defaults,
+            build_params_from_model,
+            set_spinbox_unit,
+            sync_family_point_params,
+        )
+
+        widgets = build_params_from_model(FamilyGenerationRequest)
+        apply_family_type_defaults(widgets, "Halo")
+        sync_family_point_params(widgets, "Halo", 1)
+        amp = widgets["max_amplitude_km"]
+        std_max = amp.maximum()
+        set_spinbox_unit(amp, "max_amplitude_km", "DU")
+        assert amp.maximum() == pytest.approx(std_max / DU_KM)
+        assert amp.minimum() == pytest.approx(-std_max / DU_KM)
+        # 当前值也换算且保持有效
+        assert amp.value() == pytest.approx(25000.0 / DU_KM)
