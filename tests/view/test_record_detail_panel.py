@@ -85,8 +85,9 @@ class TestShowRecord:
 
         panel = RecordDetailPanel()
         panel.show_record(panel_artifact, broken_lineage=True)
-        assert "断链" in panel._info_label.text()
-        assert "gone-id" in panel._info_label.text()
+        assert "上游记录已删除" in panel._info_label.text()
+        # 内部 record id 不展示给用户
+        assert "gone-id" not in panel._info_label.text()
 
     def test_lineage_intact_shows_upstream_label(self, qapp):
         from src.view.record_detail_panel import RecordDetailPanel
@@ -136,7 +137,7 @@ class TestShowRecord:
         panel.show_record(_make_artifact())
         panel.clear()
         assert panel._current_record_id is None
-        assert panel._info_label.text() == "未选中记录"
+        assert panel._info_label.text() == "未选择记录"
 
 
 class TestSignals:

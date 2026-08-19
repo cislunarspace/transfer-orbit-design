@@ -53,6 +53,7 @@ transfer-orbit-design/
 │   │   ├── canvas_toolbar.py # 可视化工具栏（投影/坐标系/图层/动画）
 │   │   ├── params_panel.py # 参数面板（从 Pydantic 模型自动生成）
 │   │   ├── chart_settings.py # 图表设置（QSettings 持久化）
+│   │   ├── ui_settings.py # 界面设置（字号/主题 + 全局样式表，QSettings 持久化）
 │   │   ├── gif_exporter.py # GIF 动画导出
 │   │   └── log_panel.py   # 日志面板（结构化输出）
 │   ├── app/               # 第4层 入口
@@ -353,6 +354,7 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
 |---|---|---|
 | SPICE 内核目录 | 配置文件 `kernels_dir.txt`（`~/.config/transfer-orbit-design/`） | 首次启动缺失内核时弹窗引导（下载/指定/跳过），探测顺序见 `src/commons/paths.py` |
 | 图表设置（线宽/颜色/标注/字号/Z 比例） | QSettings | `src/view/chart_settings.py`，菜单"设置 → 图表设置…" |
+| 界面设置（字号/主题）、分栏布局 | QSettings | `src/view/ui_settings.py`，菜单"设置 → 界面设置…"，重启后生效；分隔条位置关闭时自动保存，"设置 → 重置布局"恢复默认 |
 | 界面语言 | — | i18n 基础设施已就位但未接入，界面固定中文 |
 
 ### 入口 `main.py`
