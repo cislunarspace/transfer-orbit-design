@@ -515,9 +515,7 @@ class MainWindow(QMainWindow):
         if new_settings is None:
             return
         save_ui_settings(self._qsettings, new_settings)
-        self._status_bar.showMessage(
-            "界面设置已保存，将在下次启动时生效", _STATUS_MSG_TIMEOUT_MS
-        )
+        self._status_bar.showMessage("界面设置已保存，将在下次启动时生效", _STATUS_MSG_TIMEOUT_MS)
 
     def _reset_layout(self) -> None:
         """恢复默认分栏布局，并清除持久化的分隔条位置。"""
@@ -1238,9 +1236,7 @@ class MainWindow(QMainWindow):
         if source.record_id and source.extra.get("has_ephemeris"):
             params["input_record_id"] = source.record_id
         elif not ephemeris_data:
-            self._status_bar.showMessage(
-                "所选轨道没有星历数据，需重新设计", _STATUS_MSG_TIMEOUT_MS
-            )
+            self._status_bar.showMessage("所选轨道没有星历数据，需重新设计", _STATUS_MSG_TIMEOUT_MS)
             return
 
         # 校验仿真时长不超出源星历覆盖：控制律的目标点/反馈弧都取自标称星历，
