@@ -82,8 +82,10 @@ def build_app_stylesheet(theme: str) -> str:
     """生成全局 QSS：分隔条、运行/停止按钮为两主题通用；深色另加底色覆盖。
 
     浅色主题用 Qt 默认底色（白底深色文字），不另设文字颜色——辅助说明文字
-    与正文同色，不再用低对比的灰色小字。
+    与正文同色，不再用低对比的灰色小字。两主题统一收紧按钮 padding（Qt
+    默认按钮内边距偏大，紧凑布局下工具栏按钮过高）。
     """
+    # 紧凑按钮：两主题共用的内边距
     if theme == "dark":
         handle, handle_hover = "#555555", "#888888"
         base = (
@@ -92,7 +94,7 @@ def build_app_stylesheet(theme: str) -> str:
             " QTreeWidget, QAbstractItemView {"
             " background-color: #3a3a3a; color: #e8e8e8; border: 1px solid #555555; }"
             "QPushButton { background-color: #3a3a3a; border: 1px solid #555555;"
-            " padding: 4px 8px; }"
+            " padding: 2px 8px; }"
             "QPushButton:hover { background-color: #4a4a4a; }"
             "QMenuBar, QMenu { background-color: #2b2b2b; color: #e8e8e8; }"
             "QMenu::item:selected { background-color: #4a4a4a; }"
@@ -100,16 +102,16 @@ def build_app_stylesheet(theme: str) -> str:
         )
     else:
         handle, handle_hover = "#c8c8c8", "#8f8f8f"
-        base = ""
+        base = "QPushButton { padding: 2px 8px; }"
     # 分隔条着色：默认 handle 过细难抓，着色 + hover 加深；按钮经 objectName 挂钩
     return base + (
         f"QSplitter::handle {{ background-color: {handle}; }}"
         f"QSplitter::handle:hover {{ background-color: {handle_hover}; }}"
         "QPushButton#runButton { background-color: #4CAF50; color: white;"
-        " font-weight: bold; padding: 6px; border-radius: 4px; }"
+        " font-weight: bold; padding: 4px 6px; border-radius: 4px; }"
         "QPushButton#runButton:hover { background-color: #45a049; }"
         "QPushButton#stopButton { background-color: #d9534f; color: white;"
-        " font-weight: bold; padding: 6px; border-radius: 4px; }"
+        " font-weight: bold; padding: 4px 6px; border-radius: 4px; }"
         "QPushButton#stopButton:hover { background-color: #c9302c; }"
     )
 

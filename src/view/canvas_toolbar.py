@@ -94,12 +94,14 @@ class CanvasToolbar(QWidget):
         self.plot_overlay.setChecked(True)
         self.center_barycenter.setChecked(True)
 
-        # 工具项按功能分多行。此前所有控件排在一个 QHBoxLayout，累加后的
-        # minimumSizeHint 超过窄屏可用宽度，窗口无法在最大化/全屏间正确切换。
+        # 工具项按功能分行。此前所有控件排在一个 QHBoxLayout，累加后的
+        # minimumSizeHint 超过窄屏可用宽度，窗口无法在最大化/全屏间正确切换；
+        # 分行时最宽行（投影 5 按钮）决定工具栏最小宽度，并入更多按钮会
+        # 推高主窗口 minimumSizeHint（960px 窄屏守护，见 tests/app/test_main.py）。
         layout = QGridLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setHorizontalSpacing(6)
-        layout.setVerticalSpacing(3)
+        layout.setHorizontalSpacing(4)
+        layout.setVerticalSpacing(2)
 
         for column, button in enumerate(
             (
@@ -121,21 +123,24 @@ class CanvasToolbar(QWidget):
             )
         ):
             layout.addWidget(button, 1, column)
-        layout.addWidget(self.center_l1, 2, 0)
-        layout.addWidget(self.center_l2, 2, 1)
 
-        for column, widget in enumerate(
+        # L1/L2 并入绘制内容行：单独一行浪费纵向空间，并入行 1（坐标系行）
+        # 又会以 8 按钮的最小宽度撑破 960px 窄屏
+        for column, button in enumerate(
             (
+                self.center_l1,
+                self.center_l2,
                 self.plot_overlay,
                 self.plot_guess,
                 self.plot_ephemeris,
-                self.show_bodies,
             )
         ):
-            layout.addWidget(widget, 3, column)
-        layout.addWidget(self.show_libration, 4, 0)
-        layout.addWidget(self.equal_aspect, 4, 1)
-        layout.addWidget(self.export_animation, 4, 2)
+            layout.addWidget(button, 2, column)
+        # 标注开关（地月/L1-L5）与等比、导出同排
+        layout.addWidget(self.show_bodies, 3, 0)
+        layout.addWidget(self.show_libration, 3, 1)
+        layout.addWidget(self.equal_aspect, 3, 2)
+        layout.addWidget(self.export_animation, 3, 3)
 
         # 选中态：灰色加深（低调不突兀，仍能看出当前生效项）
         self.setStyleSheet("QPushButton:checked {  background-color: #b0b0b0;}")

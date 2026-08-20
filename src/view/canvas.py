@@ -966,23 +966,28 @@ class OrbitCanvasWithToolbar:
     """画布 + 导航工具栏 + 投影/标注工具栏的组合控件。"""
 
     def __init__(self, parent=None):
-        from PyQt6.QtCore import Qt
-        from PyQt6.QtWidgets import QVBoxLayout, QWidget
+        from PyQt6.QtCore import QSize
+        from PyQt6.QtWidgets import QSizePolicy, QVBoxLayout, QWidget
 
         from src.view.canvas_toolbar import CanvasToolbar
 
         self.widget = QWidget(parent)
         layout = QVBoxLayout(self.widget)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
 
         self.canvas = OrbitCanvas(self.widget)
+        # FigureCanvas 默认 Preferred 策略（停在 sizeHint 800x600），显式
+        # Expanding 才能随面板拉伸填满——固定尺寸居中会在大窗口四周留白
+        self.canvas.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.toolbar = NavigationToolbar2QT(self.canvas, self.widget)
+        # 默认 24x24 图标偏大，收紧到 16x16 与紧凑按钮密度一致
+        self.toolbar.setIconSize(QSize(16, 16))
         self.projection_toolbar = CanvasToolbar(self.widget)
 
         layout.addWidget(self.toolbar)
         layout.addWidget(self.projection_toolbar)
-        # 画布水平居中（工具栏仍横跨整行）
-        layout.addWidget(self.canvas, alignment=Qt.AlignmentFlag.AlignHCenter)
+        layout.addWidget(self.canvas)
 
     def plot_orbit(self, **kwargs) -> None:
         self.canvas.plot_orbit(**kwargs)

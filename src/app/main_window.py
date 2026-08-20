@@ -12,7 +12,9 @@ import numpy as np
 from PyQt6.QtCore import QByteArray, Qt
 from PyQt6.QtGui import QStandardItemModel
 from PyQt6.QtWidgets import (
+    QAbstractSpinBox,
     QComboBox,
+    QDateTimeEdit,
     QDialog,
     QDialogButtonBox,
     QDoubleSpinBox,
@@ -22,6 +24,7 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QPushButton,
     QScrollArea,
@@ -88,6 +91,23 @@ _CR3BP_ORBIT_TOOLS = frozenset({"design_orbit", "catalog_promote"})
 # 状态栏消息自动消失时长（毫秒）
 _STATUS_MSG_TIMEOUT_MS = 5000
 
+#: 主分栏默认宽度：左栏（项目树）/ 中栏（画布）/ 右栏（参数面板）。
+#: 右栏 370：贴合三列参数行（最长标签+数字框+单位下拉）的内容宽度，
+#: 数字框不拉长；240+778+370+2×6px 分隔条=1400 铺满默认窗口。
+_MAIN_SPLITTER_SIZES = (240, 778, 370)
+
+#: 中栏纵向分栏默认高度（画布/日志）
+_CENTER_SPLITTER_SIZES = (560, 160)
+
+#: 分栏默认值版本：默认宽度重设计时递增，升级后首次启动丢弃旧存档改用
+#: 新默认（否则 restoreState 会永远恢复用户按旧默认拖出的位置）
+_SPLITTER_DEFAULTS_VERSION = 3
+
+#: 参数面板数字框（QSpinBox/QDoubleSpinBox）最大宽度：sizeHint 按兜底范围
+#: （±1e12）+ 小数位计算可达 150px+，实际数字就几位，收紧到贴内容。
+#: QDateTimeEdit（历元）不设限，日期时间串需要完整宽度。
+_PARAM_SPINBOX_MAX_WIDTH = 110
+
 # 上游控制器默认覆盖多年星历；GUI 的轨道设计默认输出短弧，因此首次轨道保持
 # 使用已验证可覆盖 30 天标称星历的参数。用户仍可在面板中按任务需求调整。
 _CONTROL_ORBIT_GUI_DEFAULTS = {
@@ -119,7 +139,7 @@ _DESIGN_ORBIT_LABELS: dict[str, str] = {
     "amplitude_out": "面外振幅 (km)",
     "phase_in": "面内相位 (周期份额)",
     "phase_out": "面外相位 (周期份额)",
-    "epoch": "历元 (年/月/日 时:分:秒)",
+    "epoch": "历元",
     "duration": "持续时间 (年)",
     "output_step": "输出步长 (秒)",
     "correction_method": "修正方法",
@@ -432,6 +452,15 @@ class MainWindow(QMainWindow):
 
     def _build_ui(self) -> None:
         # 分隔条着色等全局样式集中在 ui_settings.build_app_stylesheet（启动时应用）
+        # 一次性迁移：分栏默认值升版后丢弃按旧默认拖出的存档，首次启动套用新默认
+        if (
+            self._qsettings.value("ui/splitter/defaults_version", 0, type=int)
+            < _SPLITTER_DEFAULTS_VERSION
+        ):
+            self._qsettings.remove("ui/splitter/main")
+            self._qsettings.remove("ui/splitter/center")
+            self._qsettings.setValue("ui/splitter/defaults_version", _SPLITTER_DEFAULTS_VERSION)
+
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setHandleWidth(6)
         self._main_splitter = splitter
@@ -450,7 +479,7 @@ class MainWindow(QMainWindow):
         # 分隔条位置持久化：有存档用存档，否则用默认；「重置布局」可恢复默认
         saved = self._qsettings.value("ui/splitter/main")
         if not isinstance(saved, QByteArray) or not splitter.restoreState(saved):
-            splitter.setSizes([260, 820, 320])
+            splitter.setSizes(_MAIN_SPLITTER_SIZES)
 
         self.setCentralWidget(splitter)
 
@@ -521,8 +550,8 @@ class MainWindow(QMainWindow):
         """恢复默认分栏布局，并清除持久化的分隔条位置。"""
         self._qsettings.remove("ui/splitter/main")
         self._qsettings.remove("ui/splitter/center")
-        self._main_splitter.setSizes([260, 820, 320])
-        self._center_splitter.setSizes([560, 160])
+        self._main_splitter.setSizes(_MAIN_SPLITTER_SIZES)
+        self._center_splitter.setSizes(_CENTER_SPLITTER_SIZES)
         self._status_bar.showMessage("布局已恢复默认", _STATUS_MSG_TIMEOUT_MS)
 
     def closeEvent(self, a0) -> None:  # noqa: N802, ANN001 - Qt 覆盖方法签名
@@ -606,7 +635,7 @@ class MainWindow(QMainWindow):
         splitter.setCollapsible(1, False)
         saved = self._qsettings.value("ui/splitter/center")
         if not isinstance(saved, QByteArray) or not splitter.restoreState(saved):
-            splitter.setSizes([560, 160])
+            splitter.setSizes(_CENTER_SPLITTER_SIZES)
         self._center_splitter = splitter
 
         return splitter
@@ -786,6 +815,8 @@ class MainWindow(QMainWindow):
         new_container = QWidget()
         new_layout = QGridLayout(new_container)
         new_layout.setContentsMargins(0, 0, 0, 0)
+        # 多余宽度归标签列：数字框/下拉保持内容宽度（数字就几位，拉长了空）
+        new_layout.setColumnStretch(0, 1)
         self._param_container = new_container
         self._param_container_layout = new_layout
         if self._param_scroll is not None:
@@ -847,7 +878,16 @@ class MainWindow(QMainWindow):
                 )
                 label_widget = QLabel(label_text)
                 layout.addWidget(label_widget, row, 0)
-                layout.addWidget(widget, row, 1)
+                # 宽控件（历元/JSON 文本/轨道类型下拉/Optional 包装行）跨列
+                # 1-2：标签列与单位下拉列占去大半宽度后，列 1 剩余预算放不下
+                # 它们的完整文本；这些行都没有单位下拉（options 为空），跨列
+                # 无冲突。竖排数字框（list_float）不跨——跨了会被拉宽。
+                spans_two_cols = options is None and (
+                    isinstance(widget, (QDateTimeEdit, QLineEdit))
+                    or widget.property("__params_panel_kind") == "optional"
+                    or name == "orbit_type"
+                )
+                layout.addWidget(widget, row, 1, 1, 2 if spans_two_cols else 1)
                 unit_combo: QComboBox | None = None
                 if options:
                     # 无注解局部变量承接：pyright 对 PyQt6 类型不做 isinstance/赋值收窄
@@ -886,6 +926,12 @@ class MainWindow(QMainWindow):
             if isinstance(point_widget, QComboBox):
                 point_combo: QComboBox = point_widget
                 point_combo.currentIndexChanged.connect(self._on_family_point_changed)
+
+        # 数字框收紧宽度（见 _PARAM_SPINBOX_MAX_WIDTH）；历元 QDateTimeEdit
+        # 不是"数字没那么长"的场景，保持完整日期时间宽度
+        for sb in new_container.findChildren(QAbstractSpinBox):
+            if not isinstance(sb, QDateTimeEdit):
+                sb.setMaximumWidth(_PARAM_SPINBOX_MAX_WIDTH)
 
         layout.setRowStretch(row, 1)
 
