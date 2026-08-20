@@ -80,7 +80,8 @@ Desktop.ini
 !/data/cr3bp_data/
 !/data/cr3bp_data/**
 /output/
-/catalog/            # 轨道库（e2m2e catalog，issue #375）：本地数据不入库
+# 轨道库（e2m2e catalog，issue #375）：本地数据不入库
+/catalog/
 /scripts/output/
 /results/
 /out
