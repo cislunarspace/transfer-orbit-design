@@ -110,6 +110,9 @@ def test_design_orbit_nrho_default_converges_with_ephemeris():
 @pytest.mark.slow
 @pytest.mark.xfail(
     strict=True,
+    # match 锁住失败模式：只有打靶未收敛才允许 xfail；e2m2e 再变签名
+    # （本文件头注释声明要防的断裂）抛 TypeError，不匹配则测试 FAIL 而非静默 xfail。
+    match="未收敛",
     reason="e2m2e 5.8.0 默认 Axial 星历修正不收敛：Axial 未列入上游固定时刻打靶族，"
     "自由时间打靶因 1:1 共振简并停滞（STAGNATION_DETECTED）；上游 master 已修，"
     "发版前 GUI 不能把该默认路径标成可用",
