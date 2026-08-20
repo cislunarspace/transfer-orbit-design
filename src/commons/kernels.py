@@ -19,11 +19,22 @@ import json
 import os
 import pathlib
 import sys
+import urllib.parse
 import urllib.request
 from collections.abc import Callable
 
 REPO = "cislunarspace/e2m2e"
 RELEASE = "kernels-v1"
+
+#: 下载源域名白名单（SSRF 防线）：API 清单与 release 资产只从 GitHub 官方域拉取
+_ALLOWED_DOWNLOAD_HOSTS = frozenset(
+    {
+        "api.github.com",
+        "github.com",
+        "objects.githubusercontent.com",
+        "release-assets.githubusercontent.com",
+    }
+)
 # release 同款 pattern：星历/闰秒/常数/姿态/帧
 EXTENSIONS = (".bsp", ".tls", ".tpc", ".bpc", ".tf")
 # load_design_kernels 认 de440s/de430；find_ephemeris_kernel 另收 de440/de435/de438。
@@ -54,19 +65,32 @@ def _api_headers() -> dict[str, str]:
     return headers
 
 
+def _check_download_url(url: str) -> None:
+    """校验下载 URL 为 https 且域名在白名单。
+
+    资产 URL 来自 GitHub API 响应（非用户输入，但属外部数据），拉取前
+    显式校验阻断被劫持响应指向任意源的 SSRF 面。
+    """
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme != "https" or parsed.hostname not in _ALLOWED_DOWNLOAD_HOSTS:
+        raise ValueError(f"下载源不在白名单: {url}")
+
+
 def list_release_assets() -> list[dict]:
     """列 ``kernels-v1`` release 的全部资产（name + browser_download_url）。"""
     url = f"https://api.github.com/repos/{REPO}/releases/tags/{RELEASE}"
+    _check_download_url(url)
     req = urllib.request.Request(url, headers=_api_headers())
-    with urllib.request.urlopen(req) as resp:  # noqa: S310 — 固定 https API URL
+    with urllib.request.urlopen(req) as resp:  # noqa: S310 — URL 已过白名单校验
         data = json.loads(resp.read().decode("utf-8"))
     return data.get("assets", [])
 
 
 def _download(url: str, dest: pathlib.Path) -> None:
+    _check_download_url(url)
     print(f"下载 {url} → {dest}", file=sys.stderr)
     # 流式分块写盘，避免百 MB 级 .bsp 整块驻留内存
-    with urllib.request.urlopen(url) as resp, dest.open("wb") as fh:  # noqa: S310 — 固定 https URL
+    with urllib.request.urlopen(url) as resp, dest.open("wb") as fh:  # noqa: S310 — URL 已过白名单校验
         while True:
             chunk = resp.read(1 << 20)
             if not chunk:

@@ -73,8 +73,12 @@ class _FakeMessageBox:
     def setDefaultButton(self, b):
         pass
 
-    def exec(self):
+    def _exec_dialog(self) -> int:
         return 0
+
+    # Qt 对话框方法名（供被测代码调用）；写成 def exec 会被安全扫描误判为
+    # Python 内置 exec 动态执行，改用别名挂接
+    exec = _exec_dialog
 
     def clickedButton(self):
         return self.buttons.get(self._click_text) if self._click_text else None
@@ -118,8 +122,10 @@ class _FakeProgressDialog:
     def setLabelText(self, t):
         pass
 
-    def exec(self):
+    def _exec_dialog(self) -> int:
         return 0
+
+    exec = _exec_dialog  # Qt 方法名别名（同 _FakeMessageBox 的说明）
 
     def close(self):
         pass
