@@ -492,7 +492,7 @@ class FacadeBridge:
         ``params_panel.FIELD_UNIT_OPTIONS``），e2m2e 的 ``duration`` 字段单位为秒，
         本方法做年→秒换算（``* SECONDS_PER_YEAR``）。
 
-        Lissajous 与 Halo/NRHO 同为不稳定轨道，e2m2e 仅自动把 Halo/NRHO 重定向
+        Lissajous 与 Halo/NRHO/DPO 同为不稳定轨道，e2m2e 仅自动把 Halo/NRHO/DPO 重定向
         到 segmented；Lissajous 若沿用 standard/two_level，一圈修正后的自由外推
         会沿不稳定流形发散。GUI 不暴露 segmented，因此在此固定走分段修正，
         保持整段标称星历有界。
