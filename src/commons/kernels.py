@@ -68,8 +68,9 @@ def _api_headers() -> dict[str, str]:
 def _check_download_url(url: str) -> None:
     """校验下载 URL 为 https 且域名在白名单。
 
-    资产 URL 来自 GitHub API 响应（非用户输入，但属外部数据），拉取前
-    显式校验阻断被劫持响应指向任意源的 SSRF 面。
+    资产 URL 来自 GitHub API 响应（非用户输入，但属外部数据）。urlopen
+    会自动跟随重定向，故调用方须在 urlopen 前校验初始 URL、在打开后用
+    ``resp.geturl()`` 再校验重定向终点。
     """
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "https" or parsed.hostname not in _ALLOWED_DOWNLOAD_HOSTS:
@@ -79,9 +80,11 @@ def _check_download_url(url: str) -> None:
 def list_release_assets() -> list[dict]:
     """列 ``kernels-v1`` release 的全部资产（name + browser_download_url）。"""
     url = f"https://api.github.com/repos/{REPO}/releases/tags/{RELEASE}"
+    # 对本函数拼出的字面量也校验：与 _download 对称的纵深防御
     _check_download_url(url)
     req = urllib.request.Request(url, headers=_api_headers())
-    with urllib.request.urlopen(req) as resp:  # noqa: S310 — URL 已过白名单校验
+    with urllib.request.urlopen(req) as resp:  # noqa: S310 — 初始与终点 URL 均过白名单
+        _check_download_url(resp.geturl())
         data = json.loads(resp.read().decode("utf-8"))
     return data.get("assets", [])
 
@@ -90,7 +93,9 @@ def _download(url: str, dest: pathlib.Path) -> None:
     _check_download_url(url)
     print(f"下载 {url} → {dest}", file=sys.stderr)
     # 流式分块写盘，避免百 MB 级 .bsp 整块驻留内存
-    with urllib.request.urlopen(url) as resp, dest.open("wb") as fh:  # noqa: S310 — URL 已过白名单校验
+    with urllib.request.urlopen(url) as resp, dest.open("wb") as fh:  # noqa: S310 — 初始与终点 URL 均过白名单
+        # 首个 chunk 写盘前校验重定向终点，不通过则不落任何数据
+        _check_download_url(resp.geturl())
         while True:
             chunk = resp.read(1 << 20)
             if not chunk:

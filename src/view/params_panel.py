@@ -212,7 +212,8 @@ _INT_RANGE_OVERRIDES: dict[str, tuple[int, int]] = {
     "n_orbits": (1, 100),
 }
 
-#: epoch 编辑范围（QDateTimeEdit 的 dateTimeRange）。秒段含毫秒（.zzz）。
+#: epoch 编辑范围（QDateTimeEdit 的 dateTimeRange）。整秒精度（显示格式
+#: 不含 .zzz——毫秒历元无输入需求，省 23px 宽度）。
 _EPOCH_MIN = QDateTime(QDate(1900, 1, 1), QTime(0, 0, 0))
 _EPOCH_MAX = QDateTime(QDate(2100, 12, 31), QTime(23, 59, 59, 999))
 
@@ -834,14 +835,16 @@ def _is_epoch_default(value: Any) -> bool:
 
 
 def _make_epoch_field(field: Any) -> QWidget:
-    """epoch -> QDateTimeEdit（一行日期时间编辑，毫秒精度）。
+    """epoch -> QDateTimeEdit（一行日期时间编辑，整秒精度）。
 
     调用方（``_make_field_widget``）仅在 ``_is_epoch_default(field.default)``
     为真时路由进来，故此处 default 必为 6 元序列，无需兜底。
     此前是 6 个 spinbox 水平排列，sizeHint 超 300px 把参数表单的控件列
     顶宽（所有数字框跟着变长）；QDateTimeEdit 一行约 150px 解决。
     """
-    y, mo, d, h, mi, s = (int(v) for v in field.default)
+    y, mo, d, h, mi = (int(v) for v in field.default[:5])
+    # 控件为整秒精度：模型默认为整秒，非整默认就近取整而非截断
+    s = round(float(field.default[5]))
     edit = QDateTimeEdit(QDateTime(QDate(y, mo, d), QTime(h, mi, s)))
     # 不带 .zzz：毫秒在本工具无输入需求，省 23px 宽度（表单紧凑的关键）
     edit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
