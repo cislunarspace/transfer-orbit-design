@@ -104,3 +104,38 @@ def test_design_orbit_nrho_default_converges_with_ephemeris():
     # 真物理时间覆盖整个设计弧：1/12 年 ≈ 2.63e6 s，断言不短于 1.5e6 s
     assert eph["times_et"][-1] - eph["times_et"][0] > 1.5e6
     assert data.states is not None and len(data.states) > 1
+
+
+@pytest.mark.spice
+@pytest.mark.slow
+@pytest.mark.xfail(
+    strict=True,
+    reason="e2m2e 5.8.0 默认 Axial 星历修正不收敛：Axial 未列入上游固定时刻打靶族，"
+    "自由时间打靶因 1:1 共振简并停滞（STAGNATION_DETECTED）；上游 master 已修，"
+    "发版前 GUI 不能把该默认路径标成可用",
+)
+def test_design_orbit_axial_default_real_pipeline_converges():
+    """GUI 默认 Axial 真路径应在上游 e2m2e 修复发版后收敛。
+
+    当前 strict xfail 锁住已知缺口：一旦上游修复随 release 生效，本测试会因
+    XPASS 报错，提醒移除 xfail 并恢复 GUI 对默认 Axial 的支持承诺。
+    """
+    kernel_dir = detect_kernel_dir()
+    if not kernel_dir:
+        pytest.skip("无 SPICE 内核（detect_kernel_dir 返回空）")
+
+    from src.engine.facade_bridge import FacadeBridge
+
+    bridge = FacadeBridge(kernel_dir=kernel_dir)
+    data = bridge.design_orbit(
+        orbit_type="Axial",
+        collinear_point=2,
+        amplitude=5000.0,
+        phase=0.0,
+        duration=1.0 / 12.0,
+    )
+
+    assert str(data.orbit_type).upper() == "AXIAL"
+    assert data.correction_converged is True
+    assert data.ephemeris is not None
+    assert len(data.ephemeris["position_km"]) > 1
