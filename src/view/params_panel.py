@@ -6,7 +6,7 @@ Pydantic -> Qt 映射：
 - str   + Literal        -> QComboBox
 - str   无约束            -> QLineEdit
 - Optional[T]            -> QCheckBox + 对应控件（未勾选返回 None）
-- list[float]            -> N 个 QDoubleSpinBox（水平排列）
+- list[float]            -> N 个 QDoubleSpinBox（竖排）
 - Any                    -> QLineEdit（JSON 文本）
 
 约束语义差异：
@@ -22,13 +22,16 @@ import types
 import typing
 from typing import Any
 
+from PyQt6.QtCore import QDate, QDateTime, QTime
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDateTimeEdit,
     QDoubleSpinBox,
     QHBoxLayout,
     QLineEdit,
     QSpinBox,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -209,15 +212,10 @@ _INT_RANGE_OVERRIDES: dict[str, tuple[int, int]] = {
     "n_orbits": (1, 100),
 }
 
-#: epoch 6 个 spinbox 的取值范围；is_int=True -> QSpinBox，False -> QDoubleSpinBox。
-_EPOCH_SPINBOX_SPECS: tuple[tuple[str, float, float, bool], ...] = (
-    ("年", 1900, 2100, True),
-    ("月", 1, 12, True),
-    ("日", 1, 31, True),
-    ("时", 0, 23, True),
-    ("分", 0, 59, True),
-    ("秒", 0.0, 59.0, False),
-)
+#: epoch 编辑范围（QDateTimeEdit 的 dateTimeRange）。整秒精度（显示格式
+#: 不含 .zzz——毫秒历元无输入需求，省 23px 宽度）。
+_EPOCH_MIN = QDateTime(QDate(1900, 1, 1), QTime(0, 0, 0))
+_EPOCH_MAX = QDateTime(QDate(2100, 12, 31), QTime(23, 59, 59, 999))
 
 # ---------------------------------------------------------------------------
 # 可切换显示单位（对齐 e2m2e 参数的标准单位，见 src/commons/units.py）
@@ -787,7 +785,10 @@ def _make_optional_wrapper(
 
 
 def _make_list_float_field(field_name: str, field: Any, meta: dict[str, Any]) -> QWidget:
-    """list[float] -> 水平排列的 N 个 QDoubleSpinBox。
+    """list[float] -> 竖排的 N 个 QDoubleSpinBox。
+
+    此前水平排列，N 个 spinbox 的 sizeHint 之和把参数表单的控件列顶宽
+    （所有数字框跟着变长）；竖排后容器宽度与单个 spinbox 一致。
 
     可切换单位字段（如 srp_offset_m）的单位状态存在容器上
     （``_UNIT_ATTR``/``_STD_MIN_ATTR``/``_STD_MAX_ATTR``），换算时全部子
@@ -797,8 +798,9 @@ def _make_list_float_field(field_name: str, field: Any, meta: dict[str, Any]) ->
     n = args[1] if len(args) > 1 and isinstance(args[1], int) else 3
 
     container = QWidget()
-    layout = QHBoxLayout(container)
+    layout = QVBoxLayout(container)
     layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(2)
 
     defaults: list[float] = list(field.default) if field.default is not None else [0.0] * n
 
@@ -833,30 +835,23 @@ def _is_epoch_default(value: Any) -> bool:
 
 
 def _make_epoch_field(field: Any) -> QWidget:
-    """epoch -> 水平排列的 6 个 spinbox（年/月/日/时/分 整数，秒浮点）。
+    """epoch -> QDateTimeEdit（一行日期时间编辑，整秒精度）。
 
     调用方（``_make_field_widget``）仅在 ``_is_epoch_default(field.default)``
     为真时路由进来，故此处 default 必为 6 元序列，无需兜底。
+    此前是 6 个 spinbox 水平排列，sizeHint 超 300px 把参数表单的控件列
+    顶宽（所有数字框跟着变长）；QDateTimeEdit 一行约 150px 解决。
     """
-    defaults = [float(v) for v in field.default]
-    container = QWidget()
-    layout = QHBoxLayout(container)
-    layout.setContentsMargins(0, 0, 0, 0)
-
-    for (_, lo, hi, is_int), default in zip(_EPOCH_SPINBOX_SPECS, defaults, strict=True):
-        if is_int:
-            sb = QSpinBox()
-            sb.setRange(int(lo), int(hi))
-            sb.setValue(int(default))
-        else:
-            sb = QDoubleSpinBox()
-            sb.setDecimals(3)
-            sb.setRange(float(lo), float(hi))
-            sb.setValue(float(default))
-        layout.addWidget(sb)
-
-    container.setProperty("__params_panel_kind", "epoch")
-    return container
+    y, mo, d, h, mi = (int(v) for v in field.default[:5])
+    # 控件为整秒精度：模型默认为整秒，非整默认就近取整而非截断
+    s = round(float(field.default[5]))
+    edit = QDateTimeEdit(QDateTime(QDate(y, mo, d), QTime(h, mi, s)))
+    # 不带 .zzz：毫秒在本工具无输入需求，省 23px 宽度（表单紧凑的关键）
+    edit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
+    edit.setCalendarPopup(True)
+    edit.setDateTimeRange(_EPOCH_MIN, _EPOCH_MAX)
+    edit.setProperty("__params_panel_kind", "epoch")
+    return edit
 
 
 def _make_str_enum_combo(field: Any, options: tuple[str, ...]) -> QComboBox:
@@ -1201,32 +1196,22 @@ def _read_list_float(widget: QWidget) -> list[float]:
     return result
 
 
-def _read_epoch(widget: QWidget) -> list[float]:
-    """从 epoch 容器按布局顺序读取 6 个 spinbox 值，返回 [年,月,日,时,分,秒]。
+def _read_epoch(widget: QDateTimeEdit) -> list[float]:
+    """从 QDateTimeEdit 读取 [年,月,日,时,分,秒]。
 
-    对日历合法性做校验（挡 Feb 30 等 spinbox 范围挡不住的非法日期），
-    让收集阶段立即报友好错误，而非等到 SPICE str2et 解析失败。
+    QDateTimeEdit 只产出日历合法的日期时间，旧 6-spinbox 时代的
+    Feb 30 手工校验不再需要。
     """
-    import datetime
-
-    values: list[float] = []
-    layout = widget.layout()
-    if layout is not None:
-        for i in range(layout.count()):
-            item = layout.itemAt(i)
-            if item is None:
-                continue
-            w = item.widget()
-            if isinstance(w, (QSpinBox, QDoubleSpinBox)):
-                values.append(float(w.value()))
-
-    if len(values) == 6:
-        y, mo, d, h, mi, s = (int(v) for v in values)
-        try:
-            datetime.datetime(y, mo, d, h, mi, s)
-        except ValueError as exc:
-            raise ValueError(f"非法历元: {exc}") from exc
-    return values
+    dt = widget.dateTime()
+    t = dt.time()
+    return [
+        float(dt.date().year()),
+        float(dt.date().month()),
+        float(dt.date().day()),
+        float(t.hour()),
+        float(t.minute()),
+        float(t.second()),
+    ]
 
 
 def _read_widget_value(name: str, field: Any, widget: QWidget) -> Any:
@@ -1243,8 +1228,9 @@ def _read_widget_value(name: str, field: Any, widget: QWidget) -> Any:
         if inner is not None:
             return _read_widget_value(name, field, inner)
 
-    # epoch 容器（6 个 spinbox）
+    # epoch -> QDateTimeEdit
     if widget.property("__params_panel_kind") == "epoch":
+        assert isinstance(widget, QDateTimeEdit)
         return _read_epoch(widget)
 
     # G6: list[float] 容器
