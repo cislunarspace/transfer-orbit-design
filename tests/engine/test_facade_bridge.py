@@ -194,7 +194,8 @@ class TestFacadeBridgeDesignOrbit:
         [
             ("Lissajous", "two_level", "segmented"),
             ("LISSAJOUS", "standard", "segmented"),
-            ("DRO", "standard", "standard"),
+            ("DRO", "two_level", "two_level"),
+            ("DPO", "two_level", "two_level"),
         ],
     )
     def test_lissajous_uses_segmented_correction(

@@ -150,13 +150,13 @@ class TestCorrectionMethod:
         assert isinstance(widgets["correction_method"], QComboBox)
 
     def test_correction_method_options(self, qapp):
-        """下拉项应为 standard / two_level。"""
+        """e2m2e 5.8.0 起 standard/two_level 指向同一条 Rust 路径，只暴露一个选项。"""
         from src.view.params_panel import build_params_from_model
 
         widgets = build_params_from_model(DesignOrbitRequest)
         combo = widgets["correction_method"]
         items = [combo.itemText(i) for i in range(combo.count())]
-        assert items == ["standard", "two_level"]
+        assert items == ["two_level"]
 
     def test_correction_method_default(self, qapp):
         """默认选中 two_level。"""
@@ -174,15 +174,15 @@ class TestCorrectionMethod:
         assert params["correction_method"] == "two_level"
 
     def test_correction_method_collect_after_switch(self, qapp):
-        """切到 standard 后 collect_params 应返回 standard。"""
+        """唯一公开选项保持稳定路径名 two_level。"""
         from src.view.params_panel import build_params_from_model, collect_params
 
         widgets = build_params_from_model(DesignOrbitRequest)
         combo = widgets["correction_method"]
-        combo.setCurrentIndex(0)  # standard
+        combo.setCurrentIndex(0)
 
         params = collect_params(widgets, DesignOrbitRequest)
-        assert params["correction_method"] == "standard"
+        assert params["correction_method"] == "two_level"
 
 
 # ---------------------------------------------------------------------------
