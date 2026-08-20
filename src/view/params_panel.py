@@ -172,10 +172,15 @@ def family_libration_points(family_type: str) -> tuple[int, ...]:
 _EPOCH_FIELD = "epoch"
 
 #: correction_method 下拉取值，对齐 e2m2e DesignOrbitRequest 的公开契约。
-#: segmented 由 e2m2e 对 Halo/NRHO 自动选用；GUI 桥接层也会为不稳定的
+#: segmented 由 e2m2e 对 Halo/NRHO/DPO 自动选用；GUI 桥接层也会为不稳定的
 #: Lissajous 强制选用。该选项不在面板暴露，用户选择 two_level/standard 时
 #: 对这些不稳定轨道会被自动重定向。
-CORRECTION_METHOD_OPTIONS: tuple[str, ...] = ("standard", "two_level")
+#:
+#: e2m2e 5.8.0 已删除旧的 Python ``TwoLevelMultipleShooting``，稳定轨道路径中
+#: ``standard`` 与 ``two_level`` 是同一 Rust 多重打靶实现的两个公开别名，
+#: 不再是两种不同修正策略。界面只暴露唯一的稳定轨道方法，避免把同一算法
+#: 显示成两个互斥选项。
+CORRECTION_METHOD_OPTIONS: tuple[str, ...] = ("two_level",)
 
 #: str 枚举类字段 -> 下拉选项（correction_method 与族延拓方向）。
 #: continuation_direction 仅三角族（SPO/LPO/Horseshoe）有两个选项；

@@ -43,6 +43,34 @@ def test_design_orbit_dro_real_pipeline_converges():
 
 @pytest.mark.spice
 @pytest.mark.slow
+def test_design_orbit_dpo_default_real_pipeline_converges():
+    """GUI 默认 DPO 真路径应收敛并产出标称星历（e2m2e 5.8.1 / #484）。
+
+    e2m2e 5.8.0 及以前 DPO 被误归为稳定轨道走单圈修正+自由外推，默认参数必不收敛
+    （位置残差 10^3 km 量级）；5.8.1 起 DPO 列入不稳定族，自动重定向 segmented。
+    本守卫防止上游回退，也锁住 GUI 默认参数（amplitude=20000 / phase=0.5001）可用。
+    """
+    kernel_dir = detect_kernel_dir()
+    if not kernel_dir:
+        pytest.skip("无 SPICE 内核（detect_kernel_dir 返回空）")
+
+    from src.engine.facade_bridge import FacadeBridge
+
+    bridge = FacadeBridge(kernel_dir=kernel_dir)
+    data = bridge.design_orbit(
+        orbit_type="DPO",
+        amplitude=20000.0,
+        phase=0.5001,
+        duration=1.0 / 365.25,
+    )
+
+    assert data.orbit_type == "DPO"
+    assert data.correction_converged is True
+    assert data.ephemeris is not None
+
+
+@pytest.mark.spice
+@pytest.mark.slow
 def test_design_orbit_lissajous_default_reference_stays_bounded():
     """默认 Lissajous 真路径的星历参考轨道应保持在地月尺度内。"""
     kernel_dir = detect_kernel_dir()
