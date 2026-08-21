@@ -821,9 +821,7 @@ class MainWindow(QMainWindow):
             pos = eph.get("position_km")
             velocity_mps = eph.get("velocity_mps")
             vel = (
-                np.asarray(velocity_mps, dtype=float) / 1000.0
-                if velocity_mps is not None
-                else None
+                np.asarray(velocity_mps, dtype=float) / 1000.0 if velocity_mps is not None else None
             )
             times = eph.get("times_et")
         elif artifact.source_tool in ("control_orbit", "orbit_propagation"):
@@ -957,7 +955,7 @@ class MainWindow(QMainWindow):
                 unwrapped = _unwrap_optional_widget(fc_widget)
                 assert isinstance(unwrapped, QLineEdit)
                 unwrapped.setPlaceholderText(
-                    'JSON 力模型配置（留空 = 默认三体：地球点质量 + 月球/太阳第三体）'
+                    "JSON 力模型配置（留空 = 默认三体：地球点质量 + 月球/太阳第三体）"
                 )
                 self._param_widgets["force_config"] = unwrapped
 
@@ -1489,9 +1487,7 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage("正在轨道预报...")
         self._set_run_controls(running=True)
 
-        self._worker = PropagationWorker(
-            params=params, kernel_dir=kernel_dir, parent=self
-        )
+        self._worker = PropagationWorker(params=params, kernel_dir=kernel_dir, parent=self)
         self._worker.log.connect(self._on_worker_log)
         self._worker.finished.connect(self._on_propagation_finished)
         self._worker.error.connect(self._on_propagation_error)

@@ -831,9 +831,7 @@ def _make_list_float_field(field_name: str, field: Any, meta: dict[str, Any]) ->
     layout.setSpacing(2)
 
     defaults: list[float] = (
-        list(field.default)
-        if isinstance(field.default, (list, tuple))
-        else [0.0] * n
+        list(field.default) if isinstance(field.default, (list, tuple)) else [0.0] * n
     )
 
     for i in range(n):
@@ -912,9 +910,7 @@ def _make_field_widget(field_name: str, field: Any) -> QWidget | None:
     # 字段（如 control_orbit 的 input_ephemeris）。
     if field_name == _EPOCH_FIELD and inner_tp is Any:
         default = (
-            tuple(field.default)
-            if _is_epoch_default(field.default)
-            else (2024, 1, 1, 0, 0, 0.0)
+            tuple(field.default) if _is_epoch_default(field.default) else (2024, 1, 1, 0, 0, 0.0)
         )
         epoch_field: Any = types.SimpleNamespace(default=default)
         return _make_epoch_field(epoch_field)
