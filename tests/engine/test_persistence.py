@@ -6,8 +6,9 @@ import json
 
 import numpy as np
 
-from src.engine.facade_bridge import StabilityResultData
-from src.engine.persistence import save_stability_result
+from src.engine.facade_bridge import PropagationResultData, StabilityResultData
+from src.engine.persistence import save_propagation_result, save_stability_result
+from src.model.discovery import discover_artifacts
 
 
 class TestSaveStabilityResult:
@@ -49,3 +50,39 @@ class TestSaveStabilityResult:
         # complex128 数组 tolist 后全为复数 → [real, imag]
         assert meta["eigenvalues"][0] == [1.0, 0.0]
         assert meta["eigenvalues"][2] == [0.5, 0.5]
+
+
+class TestSavePropagationResult:
+    def _propagation_dto(self) -> PropagationResultData:
+        return PropagationResultData(
+            epoch_utc="2026-01-01T00:00:00.000",
+            duration_sec=86400.0,
+            n_points=2,
+            times_et=np.array([0.0, 3600.0]),
+            position_km=np.tile([6793.0, 0.0, 0.0], (2, 1)),
+            velocity_km_s=np.tile([0.0, 7.5, 3.0], (2, 1)),
+            synodic_position=np.array([[0.01, 0.0, 0.0], [0.01, 0.01, 0.0]]),
+            final_state=np.array([6793.0, 0, 0, 0, 7.5, 3.0]),
+            mu=0.012150585,
+        )
+
+    def test_creates_propagation_json(self, tmp_path):
+        json_path = save_propagation_result(self._propagation_dto(), tmp_path)
+        assert json_path.parent.name == "propagation"
+        assert json_path.name.startswith("propagation_")
+        payload = json.loads(json_path.read_text(encoding="utf-8"))
+        assert payload["source_tool"] == "orbit_propagation"
+        assert payload["label"] == "轨道预报 2026-01-01T00:00:00.000"
+        assert payload["times_et"] == [0.0, 3600.0]
+        assert len(payload["synodic_position"]) == 2
+
+    def test_roundtrip_through_discovery(self, tmp_path):
+        """落盘 → discovery 扫描恢复为 ephemeris Artifact（#389 重启恢复链路）。"""
+        json_path = save_propagation_result(self._propagation_dto(), tmp_path)
+        artifacts = discover_artifacts(tmp_path)
+        assert len(artifacts) == 1
+        assert artifacts[0].artifact_id == json_path.stem
+        np.testing.assert_allclose(
+            artifacts[0].state_data,
+            np.array([[0.01, 0.0, 0.0], [0.01, 0.01, 0.0]]),
+        )

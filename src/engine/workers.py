@@ -142,6 +142,49 @@ class ControlOrbitWorker(_CancellableWorker):
                 self.error.emit(f"[UNKNOWN_ERROR] {e}")
 
 
+class PropagationWorker(_CancellableWorker):
+    """后台执行 e2m2e 轨道预报（高精度力模型外推，需 SPICE 内核）。
+
+    Signals:
+        log(str):                         进度/信息日志。
+        finished(PropagationResultData):  成功结果。
+        error(str):                       错误消息（含错误码前缀）。
+    """
+
+    log = pyqtSignal(str)
+    finished = pyqtSignal(object)
+    error = pyqtSignal(str)
+
+    def __init__(
+        self,
+        params: dict[str, Any],
+        kernel_dir: str | None = None,
+        parent=None,
+    ) -> None:
+        super().__init__(parent)
+        self._params = params
+        self._kernel_dir = kernel_dir
+
+    def run(self) -> None:
+        try:
+            self.log.emit("开始轨道预报...")
+            self.log.emit(f"参数: {self._params}")
+            bridge = FacadeBridge(kernel_dir=self._kernel_dir)
+            data = bridge.orbit_propagation(**self._params)
+            if self._emit_cancelled_if_requested():
+                return
+            self.log.emit(
+                f"轨道预报完成: {data.n_points} 点，时长 {data.duration_sec / 86400.0:.2f} 天"
+            )
+            self.finished.emit(data)
+        except OrbitError as e:
+            if not self._emit_cancelled_if_requested():
+                self.error.emit(f"[{e.code}] {e.message}")
+        except Exception as e:
+            if not self._emit_cancelled_if_requested():
+                self.error.emit(f"[UNKNOWN_ERROR] {e}")
+
+
 #: 各族成员的标志性几何量（用于完成日志）：
 #: family_type -> (member_parameters 键, 显示标签, 是否需 DU→km 换算)。
 _FAMILY_MEMBER_METRIC = {

@@ -5,11 +5,12 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
 import numpy as np
-from PyQt6.QtCore import QByteArray, Qt
+from PyQt6.QtCore import QByteArray, QDateTime, Qt
 from PyQt6.QtGui import QStandardItemModel
 from PyQt6.QtWidgets import (
     QAbstractSpinBox,
@@ -44,14 +45,16 @@ from src.engine.facade_bridge import (
     FacadeBridge,
     FamilyResultData,
     OrbitDesignResultData,
+    PropagationResultData,
     StabilityResultData,
     ToolSpec,
 )
-from src.engine.persistence import save_stability_result
+from src.engine.persistence import save_propagation_result, save_stability_result
 from src.engine.workers import (
     ControlOrbitWorker,
     FamilyOrbitWorker,
     OrbitDesignWorker,
+    PropagationWorker,
     StabilityWorker,
 )
 from src.model import Artifact, Project
@@ -70,6 +73,7 @@ from src.view.params_panel import (
     FAMILY_TYPES,
     ORBIT_TYPE_DEFAULTS,
     ORBIT_TYPE_FIELDS,
+    _unwrap_optional_widget,
     apply_family_type_defaults,
     apply_orbit_type_defaults,
     build_params_from_model,
@@ -182,6 +186,9 @@ _DESIGN_ORBIT_LABELS: dict[str, str] = {
     "tight_tolerance_km": "严格控制位置容差 (km)",
     "tight_max_iter": "严格控制迭代上限",
     "special_damping_factor": "特征点迭代阻尼因子",
+    # 轨道预报字段（PropagationRequest，#389）
+    "initial_state": "初值 (GCRS km, km/s)",
+    "force_config": "力模型配置 (JSON)",
     # 轨道族生成参数（FamilyGenerationRequest）
     "libration_point": "平动点",
     "max_amplitude_km": "最大振幅 (km)",
@@ -281,6 +288,23 @@ _PARAM_GROUPS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         ),
         ("角动量管理", ("engine_layout", "momentum_interval")),
     ),
+    "orbit_propagation": (
+        (
+            "初值",
+            (
+                "initial_state",
+                "epoch",
+            ),
+        ),
+        (
+            "预报参数",
+            (
+                "duration",
+                "output_step",
+                "force_config",
+            ),
+        ),
+    ),
     "orbit_family_generation": (
         (
             "族参数",
@@ -354,7 +378,12 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self._project = Project(name="Transfer Orbit Design")
         self._worker: (
-            OrbitDesignWorker | ControlOrbitWorker | FamilyOrbitWorker | StabilityWorker | None
+            OrbitDesignWorker
+            | ControlOrbitWorker
+            | FamilyOrbitWorker
+            | StabilityWorker
+            | PropagationWorker
+            | None
         ) = None
         self._stop_requested = False
         self._current_tool_key: str | None = None
@@ -753,6 +782,74 @@ class MainWindow(QMainWindow):
         if index >= 0:
             widget.setCurrentIndex(index)
 
+    def _apply_propagation_defaults(self) -> None:
+        """轨道预报初值预填：选中含 GCRS 星历的工件末端状态（#389）。
+
+        initial_state 预填为末端 [位置; 速度]（km, km/s），epoch 预填为末端
+        时刻；无选中或所选工件无星历时保持面板当前值（可纯手填）。
+        """
+        end = self._selected_ephemeris_end_state()
+        if end is None:
+            return
+        state, epoch_dt = end
+        widget = self._param_widgets.get("initial_state")
+        if widget is not None and widget.property("__params_panel_kind") == "list_float":
+            for sb, v in zip(widget.findChildren(QDoubleSpinBox), state, strict=False):
+                sb.setValue(float(v))
+        epoch_widget = self._param_widgets.get("epoch")
+        if isinstance(epoch_widget, QDateTimeEdit):
+            if epoch_dt is None:
+                self._log.append_log("历元预填失败（SPICE 时间换算不可用），请手填起始历元")
+            else:
+                epoch_widget.setDateTime(epoch_dt)
+
+    def _selected_ephemeris_end_state(self) -> tuple[list[float], Any] | None:
+        """返回选中工件的星历末端 (6 维状态, QDateTime) | None。
+
+        支持三类源：design_orbit（extra["ephemeris"]，速度存 m/s）、
+        control_orbit（extra 顶层，速度 km/s）、orbit_propagation（自身可继续
+        向后预报）。坐标序不一致或数据不全时返回 None。
+        """
+        if len(self._selected_artifact_ids) != 1:
+            return None
+        artifact = self._project.get_by_id(self._selected_artifact_ids[0])
+        if artifact is None:
+            return None
+        pos = vel = times = None
+        if artifact.source_tool in _CR3BP_ORBIT_TOOLS:
+            eph = artifact.extra.get("ephemeris") or {}
+            pos = eph.get("position_km")
+            velocity_mps = eph.get("velocity_mps")
+            vel = (
+                np.asarray(velocity_mps, dtype=float) / 1000.0 if velocity_mps is not None else None
+            )
+            times = eph.get("times_et")
+        elif artifact.source_tool in ("control_orbit", "orbit_propagation"):
+            pos = artifact.extra.get("position_km")
+            vel = artifact.extra.get("velocity_km_s")
+            times = artifact.extra.get("times_et")
+        if pos is None or vel is None or times is None or len(times) == 0:
+            return None
+        pos = np.asarray(pos, dtype=float)
+        vel = np.asarray(vel, dtype=float)
+        if pos.ndim != 2 or vel.shape != pos.shape:
+            return None
+        epoch_dt = self._et_to_qdatetime(float(np.asarray(times)[-1]))
+        return list(pos[-1]) + list(vel[-1]), epoch_dt
+
+    @staticmethod
+    def _et_to_qdatetime(et: float):
+        """ET 秒 → QDateTime；SPICE 不可用（内核缺失等）时返回 None。"""
+        try:
+            from e2m2e.data.kernels._spice_loader import get_spiceypy
+            from e2m2e.data.kernels.manager import SPICEManager
+
+            SPICEManager()._ensure_leapseconds()
+            iso = get_spiceypy().et2utc(et, "ISOC", 0)
+            return QDateTime.fromString(iso, "yyyy-MM-ddTHH:mm:ss")
+        except Exception:  # noqa: BLE001 -- 历元预填失败不阻断预报（可手填）
+            return None
+
     def _on_stop_run(self) -> None:
         """请求停止当前任务；同步算法调用返回前不会强制终止线程。"""
         worker = self._worker
@@ -850,6 +947,17 @@ class MainWindow(QMainWindow):
             sampling_mode = self._param_widgets.pop("sampling_mode", None)
             if sampling_mode is not None:
                 sampling_mode.setParent(None)
+        elif tool_key == "orbit_propagation":
+            # force_config：预设（留空=默认三体）+ 可选 JSON 文本框，不做勾选式
+            # Optional 包装与结构化表单（#389 决策）；非法 JSON 在运行前拦截。
+            fc_widget = self._param_widgets.get("force_config")
+            if isinstance(fc_widget, QWidget):
+                unwrapped = _unwrap_optional_widget(fc_widget)
+                assert isinstance(unwrapped, QLineEdit)
+                unwrapped.setPlaceholderText(
+                    "JSON 力模型配置（留空 = 默认三体：地球点质量 + 月球/太阳第三体）"
+                )
+                self._param_widgets["force_config"] = unwrapped
 
         # G3: design_orbit 的 orbit_type -> QComboBox
         if tool_key == "design_orbit" and "orbit_type" in self._param_widgets:
@@ -921,6 +1029,10 @@ class MainWindow(QMainWindow):
             # duration GUI 默认下调至 1 个月（issue #355）：模型 default=1.0 年不动，
             # 仅在 GUI 层把单位切到"月"、值设为 1，让短弧设计更顺手。
             self._apply_duration_default_month()
+        elif tool_key == "orbit_propagation":
+            # duration 默认 30 天（对齐设计短弧）；初值预填选中星历工件的末端状态
+            self._set_duration_display("日", 30.0)
+            self._apply_propagation_defaults()
         elif tool_key == "orbit_family_generation":
             family_widget = self._param_widgets.get("orbit_type")
             if isinstance(family_widget, QComboBox):
@@ -1133,6 +1245,10 @@ class MainWindow(QMainWindow):
         此处仅在 GUI 层覆盖显示，让短弧设计更顺手。duration 不在
         ``ORBIT_TYPE_DEFAULTS``，切轨道类型不会重置该覆盖。
         """
+        self._set_duration_display("月", 1.0)
+
+    def _set_duration_display(self, unit_label: str, value: float) -> None:
+        """把 duration 控件切到指定显示单位并设值（值按该单位解释）。"""
         row = self._param_rows.get("duration")
         if row is None:
             return
@@ -1140,12 +1256,11 @@ class MainWindow(QMainWindow):
         sb = widget if isinstance(widget, QDoubleSpinBox) else widget.findChild(QDoubleSpinBox)
         if unit_combo is None or sb is None:
             return
-        idx = unit_combo.findText("月")
+        idx = unit_combo.findText(unit_label)
         if idx < 0:
             return
-        # 切单位触发 _on_unit_combo_changed：换算值（1 年 -> 12 月）+ 更新 label 后缀
         unit_combo.setCurrentIndex(idx)
-        sb.setValue(1.0)  # 1 个月（= 1/12 年标准值）
+        sb.setValue(value)
 
     # -- 信号槽 -------------------------------------------------------------
 
@@ -1177,6 +1292,8 @@ class MainWindow(QMainWindow):
         self._selected_artifact_ids = [artifact_id]
         if self._current_tool_key == "control_orbit":
             self._apply_control_special_mode()
+        elif self._current_tool_key == "orbit_propagation":
+            self._apply_propagation_defaults()
         self._update_plot_content_controls()
         self._update_detail_panel(artifact)
         if render and artifact.state_data is not None:
@@ -1223,6 +1340,8 @@ class MainWindow(QMainWindow):
             self._run_control_orbit()
         elif tool_key == "orbit_family_generation":
             self._run_family_generation()
+        elif tool_key == "orbit_propagation":
+            self._run_propagation()
 
     def _run_design_orbit(self) -> None:
         spec = TOOL_REGISTRY["design_orbit"]
@@ -1334,6 +1453,74 @@ class MainWindow(QMainWindow):
         self._worker.error.connect(self._on_control_error)
         self._worker.cancelled.connect(self._on_worker_cancelled)
         self._worker.start()
+
+    def _run_propagation(self) -> None:
+        """运行轨道预报（#389）：面板收集参数，JSON 力模型配置运行前拦截。"""
+        spec = TOOL_REGISTRY["orbit_propagation"]
+        model = spec.request_model
+        if model is None:
+            return
+        try:
+            params = collect_params(self._param_widgets, model)
+        except ValueError as exc:
+            self._status_bar.showMessage(str(exc), _STATUS_MSG_TIMEOUT_MS)
+            self._log.append_log(f"参数错误: {exc}")
+            return
+        force_config = params.get("force_config")
+        if isinstance(force_config, str):
+            text = force_config.strip()
+            if not text:
+                params.pop("force_config", None)  # 留空 = 默认三体
+            else:
+                try:
+                    params["force_config"] = json.loads(text)
+                except json.JSONDecodeError as exc:
+                    msg = f"力模型配置 JSON 无效: {exc}"
+                    self._status_bar.showMessage(msg, _STATUS_MSG_TIMEOUT_MS)
+                    self._log.append_log(f"参数错误: {msg}")
+                    return
+        elif force_config is None:
+            params.pop("force_config", None)
+
+        kernel_dir = self._detect_kernel_dir() or None
+        self._log.clear()
+        self._status_bar.showMessage("正在轨道预报...")
+        self._set_run_controls(running=True)
+
+        self._worker = PropagationWorker(params=params, kernel_dir=kernel_dir, parent=self)
+        self._worker.log.connect(self._on_worker_log)
+        self._worker.finished.connect(self._on_propagation_finished)
+        self._worker.error.connect(self._on_propagation_error)
+        self._worker.cancelled.connect(self._on_worker_cancelled)
+        self._worker.start()
+
+    def _on_propagation_finished(self, result: PropagationResultData) -> None:
+        """预报完成：星历落盘 output/propagation/ 后重扫非 catalog 分区并选中。"""
+        if self._consume_stop_request():
+            return
+        self._set_run_controls(running=False)
+        try:
+            json_path = save_propagation_result(result, OUTPUT_DIR)
+        except Exception as exc:  # noqa: BLE001 -- 落盘失败给明确提示，不崩
+            self._log.append_log(f"预报结果落盘失败: {exc}")
+            self._status_bar.showMessage("轨道预报失败", _STATUS_MSG_TIMEOUT_MS)
+            return
+        self._log.append_log(
+            f"轨道预报完成: {result.n_points} 点，"
+            f"时长 {result.duration_sec / 86400.0:.2f} 天（{json_path.name}）"
+        )
+        self._reload_from_catalog()
+        # discovery 用文件名茎作 artifact_id，落盘后即可按 id 选中
+        if self._project.get_by_id(json_path.stem) is not None:
+            self._select_artifact(json_path.stem)
+        self._status_bar.showMessage("轨道预报完成", _STATUS_MSG_TIMEOUT_MS)
+
+    def _on_propagation_error(self, error_msg: str) -> None:
+        if self._consume_stop_request():
+            return
+        self._set_run_controls(running=False)
+        self._log.append_log(f"错误:\n{error_msg}")
+        self._status_bar.showMessage("轨道预报失败", _STATUS_MSG_TIMEOUT_MS)
 
     def _run_family_generation(self) -> None:
         """运行轨道族生成（工具选择器入口，参数来自面板）。"""
