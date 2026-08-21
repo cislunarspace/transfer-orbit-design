@@ -167,20 +167,33 @@ def test_delete_multiple_artifacts(qapp):
     assert window._project.get_by_id(a2.artifact_id) is None
 
 
-def test_control_orbit_action_selects_orbit_and_switches_tool(qapp):
+def test_control_orbit_action_selects_orbit_and_opens_dialog(qapp):
+    """右键轨道保持：选中该 Artifact 并弹 ControlOrbitDialog（patch exec 防阻塞）。"""
     window = _make_window(qapp)
     a = _add_artifact(window, artifact_type="orbit", label="co1")
     window._refresh_project_tree()
 
-    window._on_context_action("control_orbit", [a.artifact_id])
+    with patch("src.view.control_orbit_dialog.ControlOrbitDialog.exec", return_value=0):
+        window._on_context_action("control_orbit", [a.artifact_id])
 
     assert window._selected_artifact_ids == [a.artifact_id]
-    assert window._current_tool_key == "control_orbit"
 
 
-def test_control_orbit_action_ignores_non_orbit(qapp):
+def test_control_orbit_action_opens_dialog_for_ephemeris(qapp):
+    """星历产物（站保结果）也可作输入：链式站保。"""
     window = _make_window(qapp)
     a = _add_artifact(window, artifact_type="ephemeris", label="eph1")
+    window._refresh_project_tree()
+
+    with patch("src.view.control_orbit_dialog.ControlOrbitDialog.exec", return_value=0):
+        window._on_context_action("control_orbit", [a.artifact_id])
+
+    assert window._selected_artifact_ids == [a.artifact_id]
+
+
+def test_control_orbit_action_ignores_non_controllable(qapp):
+    window = _make_window(qapp)
+    a = _add_artifact(window, artifact_type="family", label="fam1")
     window._refresh_project_tree()
     window._selected_artifact_ids = []
 
