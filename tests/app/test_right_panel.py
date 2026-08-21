@@ -189,6 +189,29 @@ class TestParamGroups:
             "perilune_height_max_km": 20000.0,
         }
 
+    def test_family_request_params_dro_no_libration_point(self, qapp):
+        """DRO 月心族不绑定平动点：过滤须剔除 libration_point，避免空字符串触发 int 解析错误。"""
+        from e2m2e.api.models import FamilyGenerationRequest
+        from src.app.main_window import _family_request_params
+
+        params = {
+            "orbit_type": "DRO",
+            "libration_point": "",  # 面板隐藏/清空后的残留空字符串
+            "n_orbits": 50,
+            "min_amplitude_km": 2000.0,
+            "max_amplitude_km": 60000.0,
+            "north_south": None,
+        }
+        filtered = _family_request_params(params, "DRO")
+        assert filtered == {
+            "orbit_type": "DRO",
+            "n_orbits": 50,
+            "min_amplitude_km": 2000.0,
+            "max_amplitude_km": 60000.0,
+        }
+        # 过滤后的参数必须能通过上游校验
+        FamilyGenerationRequest(**filtered)
+
     def test_group_header_hidden_when_branch_fields_hidden(self, qapp):
         """ELFO 分支：形状参数组只剩 ELFO 字段（其余分支字段隐藏），组表头仍可见；
         切到 DRO 后形状参数组同样可见（含 amplitude/phase）。"""

@@ -308,7 +308,7 @@ _ORBIT_TYPE_ALL_BRANCH_FIELDS: set[str] = set().union(*ORBIT_TYPE_FIELDS.values(
 
 
 #: 族生成公共参数字段（任何族都可传给 FamilyGenerationRequest）。
-_FAMILY_COMMON_PARAMS = frozenset({"orbit_type", "libration_point", "n_orbits"})
+_FAMILY_COMMON_PARAMS = frozenset({"orbit_type", "n_orbits"})
 
 
 def _family_request_params(params: dict, family_type: str) -> dict:
@@ -317,8 +317,13 @@ def _family_request_params(params: dict, family_type: str) -> dict:
     e2m2e 5.7.1 起 FamilyGenerationRequest 按 model_fields_set 拒绝跨族字段
     （None 也算已设置）：隐藏分支的残留值与未勾选 Optional 的 None 都不能
     进入 request，由模型填族默认。
+
+    5.8.2 起 DRO 为月心族、不绑定平动点：平动点下拉被清空/隐藏后，收集到的
+    空字符串必须被过滤掉，否则会触发 ``libration_point`` 的 int 解析错误。
     """
     allowed = FAMILY_TYPE_FIELDS.get(family_type, set()) | _FAMILY_COMMON_PARAMS
+    if family_libration_points(family_type):
+        allowed = allowed | {"libration_point"}
     return {k: v for k, v in params.items() if k in allowed and v is not None}
 
 
