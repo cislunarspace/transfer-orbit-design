@@ -293,6 +293,35 @@ class TestFamilyGenerationParams:
         assert params["max_amplitude_km"] == 15000.0
         assert params["n_orbits"] == 30
 
+    def test_dro_family_has_no_libration_points(self):
+        """DRO（月心族，e2m2e 5.8.2）进族下拉且无平动点；有平动点的族不受影响。"""
+        from src.view.params_panel import FAMILY_TYPES, family_libration_points
+
+        assert "DRO" in FAMILY_TYPES
+        assert family_libration_points("DRO") == ()
+        assert family_libration_points("Halo") == (1, 2)
+
+    def test_dro_family_defaults(self, qapp):
+        """DRO 分支默认值从上游读取；收集结果（无平动点）直接通过上游校验。"""
+        from src.engine.facade_bridge import FamilyGenerationRequest
+        from src.view.params_panel import (
+            apply_family_type_defaults,
+            build_params_from_model,
+            collect_params,
+        )
+
+        widgets = build_params_from_model(FamilyGenerationRequest)
+        apply_family_type_defaults(widgets, "DRO")
+        assert widgets["min_amplitude_km"].value() == 2000.0
+        assert widgets["max_amplitude_km"].value() == 60000.0
+        params = collect_params(widgets, FamilyGenerationRequest)
+        FamilyGenerationRequest(
+            orbit_type="DRO",
+            min_amplitude_km=params["min_amplitude_km"],
+            max_amplitude_km=params["max_amplitude_km"],
+            n_orbits=params["n_orbits"],
+        )
+
     def test_point_switch_refreshes_out_of_range_default(self, qapp):
         """切平动点后，超出新点合法范围的默认值应刷新为该点默认值。
 

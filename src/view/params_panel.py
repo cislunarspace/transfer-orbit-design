@@ -128,7 +128,17 @@ ORBIT_TYPE_FIELDS: dict[str, set[str]] = {
 # ---------------------------------------------------------------------------
 
 #: 族类型下拉显示名（display.upper() == FamilyGenerationRequest 接受的 token）。
-FAMILY_TYPES: tuple[str, ...] = ("Halo", "NRHO", "Axial", "Lissajous", "SPO", "LPO", "Horseshoe")
+#: DRO 为月心族、不绑定平动点（e2m2e 5.8.2，#502）。
+FAMILY_TYPES: tuple[str, ...] = (
+    "Halo",
+    "NRHO",
+    "Axial",
+    "Lissajous",
+    "SPO",
+    "LPO",
+    "Horseshoe",
+    "DRO",
+)
 
 #: 每族分支应显示的族参数字段（公共字段 orbit_type/libration_point/n_orbits
 #: 始终显示；sampling_mode 各族首版只有唯一规则，不进面板）。
@@ -147,15 +157,22 @@ FAMILY_TYPE_FIELDS: dict[str, set[str]] = {
         "continuation_direction",
         "match_tolerance_km",
     },
+    "DRO": {"min_amplitude_km", "max_amplitude_km"},
 }
 
 
 def family_libration_points(family_type: str) -> tuple[int, ...]:
-    """返回指定族可选平动点（从 FamilyGenerationRequest.valid_ranges 读取）。"""
+    """返回指定族可选平动点（从 FamilyGenerationRequest.valid_ranges 读取）。
+
+    DRO 是月心族、不绑定平动点（valid_ranges 无该字段），返回空元组，
+    调用方据此隐藏平动点下拉。
+    """
     from e2m2e.api.models import FamilyGenerationRequest
 
     ranges = FamilyGenerationRequest.valid_ranges(family_type.upper())
-    point_range = ranges["libration_point"]
+    point_range = ranges.get("libration_point")
+    if point_range is None:
+        return ()
     lo = point_range.minimum
     hi = point_range.maximum
     if lo is None or hi is None:

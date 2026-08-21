@@ -63,8 +63,8 @@ class FamilyResultData:
     重采样到固定点数；Lissajous 拟周期成员本身边带等长完整轨迹。
     """
 
-    orbit_type: str  # 显示名（"Halo"/"NRHO"/"Axial"/"Lissajous"/"SPO"/"LPO"/"Horseshoe"）
-    libration_point: int
+    orbit_type: str  # 显示名（"Halo"/"NRHO"/"Axial"/"Lissajous"/"SPO"/"LPO"/"Horseshoe"/"DRO"）
+    libration_point: int | None  # None = 月心族（DRO），不绑定平动点
     n_orbits: int  # 实际生成的成员数（可能少于请求数——延拓终止或软失败保留部分族）
     mu: float
     states: Any  # (m, n, 6) -- 各族成员 CR3BP 状态
@@ -271,8 +271,9 @@ _TOOL_META: dict[str, dict[str, Any]] = {
     },
     "orbit_family_generation": {
         "label": "轨道族生成",
-        "description": "生成 CR3BP 轨道族：Halo/NRHO/Axial/SPO/LPO/Horseshoe 为周期"
-        "延拓族，Lissajous 为拟周期轨迹参数采样；画布按成员逐条叠加渲染。",
+        "description": "生成 CR3BP 轨道族：Halo/NRHO/Axial/SPO/LPO/Horseshoe/DRO 为周期"
+        "延拓族（DRO 为月心族、不绑定平动点），Lissajous 为拟周期轨迹参数采样；"
+        "画布按成员逐条叠加渲染。",
         "enabled": True,
         "model": "FamilyGenerationRequest",
     },
@@ -420,6 +421,7 @@ _FAMILY_DISPLAY_NAMES = {
     "spo": "SPO",
     "lpo": "LPO",
     "horseshoe": "Horseshoe",
+    "dro": "DRO",
 }
 
 
@@ -688,7 +690,12 @@ class FacadeBridge:
             z0s = np.array([float(np.asarray(o.states)[0, 2]) for o in orbits])
         return FamilyResultData(
             orbit_type=_FAMILY_DISPLAY_NAMES.get(family_type, family_type),
-            libration_point=int(orbits[0].parameters["libration_point"]),
+            # DRO 月心族成员参数无 libration_point
+            libration_point=(
+                int(orbits[0].parameters["libration_point"])
+                if "libration_point" in orbits[0].parameters
+                else None
+            ),
             n_orbits=len(orbits),
             mu=float(response.system.mu),
             states=np.stack(states_list),

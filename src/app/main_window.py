@@ -1039,11 +1039,14 @@ class MainWindow(QMainWindow):
     def _sync_family_visible_fields(self, family_type: str) -> None:
         """按族显示/隐藏族参数字段，并把解包后的控件同步进布局。
 
-        公共字段（orbit_type/libration_point/n_orbits）始终显示；不同族共用
-        同名字段（如 Halo/Axial 与三角族共用 max_amplitude_km）时保持可见。
+        公共字段（orbit_type/n_orbits）始终显示；平动点字段仅共线/三角族
+        （DRO 为月心族、无平动点，行隐藏）。不同族共用同名字段（如 Halo/Axial
+        与三角族共用 max_amplitude_km）时保持可见。
         """
         branch_fields = FAMILY_TYPE_FIELDS.get(family_type, set())
-        always_visible = {"orbit_type", "libration_point", "n_orbits"}
+        always_visible = {"orbit_type", "n_orbits"}
+        if family_libration_points(family_type):
+            always_visible.add("libration_point")
         for name in list(self._param_rows):
             label, widget, unit_combo = self._param_rows[name]
             current = self._param_widgets.get(name)
@@ -1367,7 +1370,7 @@ class MainWindow(QMainWindow):
 
         completion = (
             f"轨道族生成完成: {result.n_orbits} 条 {result.orbit_type} 轨道"
-            f"（L{result.libration_point}）"
+            + (f"（L{result.libration_point}）" if result.libration_point else "")
         )
         if result.status_message:
             # 软失败（部分族）：展示上游状态消息说明未满额原因

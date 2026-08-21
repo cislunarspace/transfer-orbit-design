@@ -63,6 +63,15 @@ class TestFamilyGenerationRequest:
         with pytest.raises(ValidationError):
             FamilyGenerationRequest(orbit_type="SPO", max_amplitude_km=60000.0, amplitude_in_km=1.0)
 
+    def test_dro_family_defaults(self):
+        """5.8.2 起 DRO（月心族）为合法 orbit_type：不绑定平动点，振幅区间默认 2000–60000 km。"""
+        req = FamilyGenerationRequest(orbit_type="DRO")
+        assert req.libration_point is None
+        assert req.min_amplitude_km == 2000.0
+        assert req.max_amplitude_km == 60000.0
+        with pytest.raises(ValidationError):
+            FamilyGenerationRequest(orbit_type="DRO", liberation_point=2)
+
     def test_per_family_defaults(self):
         nrho = FamilyGenerationRequest(orbit_type="NRHO")
         assert nrho.north_south == 2
@@ -96,10 +105,18 @@ class _FakeDynamics:
         return {"states": np.tile(np.asarray(state0), (len(t_eval), 1)), "time": t_eval}
 
 
-def _fake_response(params: dict, *, n: int, states_shape: tuple = (100, 6)) -> SimpleNamespace:
+def _fake_response(
+    params: dict,
+    *,
+    n: int,
+    states_shape: tuple = (100, 6),
+    member_parameters: dict | None = None,
+) -> SimpleNamespace:
     """构造 FamilyGenerationResponse 形状的假响应（默认携带完整轨迹的成员）。"""
     from e2m2e.data.templates import ConvergenceState, FailureCause
 
+    if member_parameters is None:
+        member_parameters = {"liberation_point": params.get("liberation_point", 2)}
     return SimpleNamespace(
         status=ConvergenceState.CONVERGED,
         cause=FailureCause.NONE,
@@ -109,7 +126,7 @@ def _fake_response(params: dict, *, n: int, states_shape: tuple = (100, 6)) -> S
                 states=np.full(states_shape, float(index)),
                 times=np.linspace(0, 1, states_shape[0]),
                 period=None,
-                parameters={"libration_point": params.get("libration_point", 2)},
+                parameters=dict(member_parameters),
             )
             for index in range(n)
         ],
@@ -229,6 +246,22 @@ class TestGenerateFamily:
             FacadeBridge().generate_family(orbit_type="SPO", libration_point=4)
         assert exc_info.value.code == "FAMILY_FAILED"
         assert "延拓未命中任何成员" in exc_info.value.message
+
+    def test_dro_family_libration_point_none(self, monkeypatch):
+        """DRO 月心族成员参数无 libration_point：DTO 该字段为 None，显示名照常映射。"""
+        response = _fake_response(
+            {"orbit_type": "DRO"}, n=2, member_parameters={"amplitude_km": 20000.0}
+        )
+        monkeypatch.setattr(
+            "e2m2e.api.Facade.orbit_family_generation", lambda self, **p: response
+        )
+        data = FacadeBridge().generate_family(
+            orbit_type="DRO", min_amplitude_km=2000.0, max_amplitude_km=60000.0, n_orbits=2
+        )
+        assert data.orbit_type == "DRO"
+        assert data.family_type == "dro"
+        assert data.libration_point is None
+        assert data.member_parameters == [{"amplitude_km": 20000.0}] * 2
 
     def test_invalid_params_translated(self):
         """非法参数经真 Facade 的 FamilyGenerationRequest 校验 → OrbitError(INVALID_PARAMS)。"""
@@ -390,6 +423,25 @@ def test_generate_lissajous_family_real_pipeline():
     # 采样分数 1/3、2/3、1：面外振幅上限线性递增
     amps = [p["amplitude_out_km"] for p in data.member_parameters]
     assert amps == sorted(amps) and amps[-1] == pytest.approx(6000.0)
+
+
+def test_generate_dro_family_real_pipeline(tmp_path):
+    """真 e2m2e：DRO 族（5.8.2，#502）为月心族——无平动点，成员参数为 amplitude_km。"""
+    bridge = FacadeBridge(catalog_dir=str(tmp_path / "catalog"))
+    data = bridge.generate_family(
+        orbit_type="DRO", min_amplitude_km=2000.0, max_amplitude_km=20000.0, n_orbits=3
+    )
+    assert data.orbit_type == "DRO"
+    assert data.family_type == "dro"
+    assert data.libration_point is None
+    assert data.n_orbits >= 1
+    assert data.z0s is None
+    assert data.states.ndim == 3 and data.states.shape[2] == 6
+    amps = [p["amplitude_km"] for p in data.member_parameters]
+    assert all(2000.0 <= a <= 20000.0 for a in amps)
+    assert data.record_id is not None
+    record = bridge.catalog_get(data.record_id)
+    assert record.source_tool == "orbit_family_generation"
 
 
 def test_analyze_stability_real_pipeline():
