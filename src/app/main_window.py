@@ -51,7 +51,6 @@ from src.engine.facade_bridge import (
 )
 from src.engine.persistence import save_propagation_result, save_stability_result
 from src.engine.workers import (
-    ControlOrbitWorker,
     FamilyOrbitWorker,
     OrbitDesignWorker,
     PropagationWorker,
@@ -113,11 +112,8 @@ _SPLITTER_DEFAULTS_VERSION = 3
 _PARAM_SPINBOX_MAX_WIDTH = 110
 
 # 上游控制器默认覆盖多年星历；GUI 的轨道设计默认输出短弧，因此首次轨道保持
-# 使用已验证可覆盖 30 天标称星历的参数。用户仍可在面板中按任务需求调整。
-_CONTROL_ORBIT_GUI_DEFAULTS = {
-    "control_interval": 0.25,
-    "feedback_arc": 0.125,
-}
+# 使用已验证可覆盖 30 天标称星历的参数（常量已随运行逻辑迁至
+# ControlOrbitDialog）。
 
 
 def _get_default_tool_key() -> str | None:
@@ -155,37 +151,6 @@ _DESIGN_ORBIT_LABELS: dict[str, str] = {
     "dyb": "DYB 面质比 (JSON)",
     "earth_degree": "地球引力位阶数",
     "moon_degree": "月球引力位阶数",
-    # 轨道保持字段（ControlOrbitRequest）
-    "control_mode": "控制模式",
-    "is_nrho": "目标为 NRHO",
-    "special_mode": "特征点模式",
-    "control_interval": "控制间隔 (天)",
-    "feedback_arc": "反馈弧段 (天)",
-    "special_crossings": "特征点穿越次数",
-    "num_controls": "控制次数",
-    "num_monte_carlo": "蒙特卡洛样本数",
-    "position_accuracy": "测定轨位置误差 (m)",
-    "velocity_accuracy": "测定轨速度误差 (m/s)",
-    "thrust_angle_err": "推力方向角误差 (度)",
-    "thrust_mean": "推力中点值 (m/s)",
-    "thrust_rel_err": "推力相对误差",
-    "thrust_abs_err": "推力绝对误差 (m/s)",
-    "thrust_min": "最小开机推力 (m/s)",
-    "thrust_max": "最大开机推力 (m/s)",
-    "thrust_total": "累计推力上限 (m/s)",
-    "srp_error_level": "光压弧段随机误差",
-    "real_perturbation": "真实力模型摄动开关 (JSON)",
-    "real_dyb": "真实力模型 DYB 面质比 (JSON)",
-    "real_earth_degree": "真实地球引力位阶数",
-    "real_moon_degree": "真实月球引力位阶数",
-    "engine_layout": "发动机布局 (JSON)",
-    "momentum_interval": "角动量卸载间隔 (天)",
-    "srp_offset_m": "SRP 压心偏移 (m)",
-    "spacecraft_mass": "航天器质量 (kg)",
-    "srp_torque": "SRP 力矩 (N·m)",
-    "tight_tolerance_km": "严格控制位置容差 (km)",
-    "tight_max_iter": "严格控制迭代上限",
-    "special_damping_factor": "特征点迭代阻尼因子",
     # 轨道预报字段（PropagationRequest，#389）
     "initial_state": "初值 (GCRS km, km/s)",
     "force_config": "力模型配置 (JSON)",
@@ -203,6 +168,7 @@ _DESIGN_ORBIT_LABELS: dict[str, str] = {
 
 #: 参数分组：工具 -> ((组标题, 字段元组), ...)。未分组的字段归入自动追加的
 #: "其他" 组（e2m2e 新增字段不会被遗漏）。轨道类型切换时整组隐藏。
+#: （轨道保持已迁至 ControlOrbitDialog，分组随迁。）
 _PARAM_GROUPS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
     "design_orbit": (
         (
@@ -237,95 +203,48 @@ _PARAM_GROUPS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         ),
         ("修正参数", ("correction_method", "correction_revolutions")),
     ),
-    "control_orbit": (
-        (
-            "控制参数",
-            (
-                "control_mode",
-                "is_nrho",
-                "special_mode",
-                "control_interval",
-                "feedback_arc",
-                "special_crossings",
-                "num_controls",
-                "tight_tolerance_km",
-                "tight_max_iter",
-                "special_damping_factor",
-            ),
-        ),
-        (
-            "仿真与误差",
-            (
-                "num_monte_carlo",
-                "output_step",
-                "position_accuracy",
-                "velocity_accuracy",
-                "thrust_angle_err",
-                "thrust_mean",
-                "thrust_rel_err",
-                "thrust_abs_err",
-                "thrust_min",
-                "thrust_max",
-                "thrust_total",
-                "srp_error_level",
-                "spacecraft_mass",
-                "srp_offset_m",
-                "srp_torque",
-            ),
-        ),
-        (
-            "力模型",
-            (
-                "perturbation",
-                "dyb",
-                "earth_degree",
-                "moon_degree",
-                "real_perturbation",
-                "real_dyb",
-                "real_earth_degree",
-                "real_moon_degree",
-            ),
-        ),
-        ("角动量管理", ("engine_layout", "momentum_interval")),
-    ),
-    "orbit_propagation": (
-        (
-            "初值",
-            (
-                "initial_state",
-                "epoch",
-            ),
-        ),
-        (
-            "预报参数",
-            (
-                "duration",
-                "output_step",
-                "force_config",
-            ),
-        ),
-    ),
-    "orbit_family_generation": (
-        (
-            "族参数",
-            (
-                "orbit_type",
-                "libration_point",
-                "n_orbits",
-                "max_amplitude_km",
-                "min_amplitude_km",
-                "north_south",
-                "perilune_height_max_km",
-                "amplitude_in_km",
-                "amplitude_out_km",
-                "phase_in",
-                "phase_out",
-                "continuation_direction",
-                "match_tolerance_km",
-            ),
-        ),
-    ),
 }
+
+#: 轨道族生成分组（轨道保持已迁至 ControlOrbitDialog，分组随迁）
+_PARAM_GROUPS["orbit_family_generation"] = (
+    (
+        "族参数",
+        (
+            "orbit_type",
+            "libration_point",
+            "n_orbits",
+            "max_amplitude_km",
+            "min_amplitude_km",
+            "north_south",
+            "perilune_height_max_km",
+            "amplitude_in_km",
+            "amplitude_out_km",
+            "phase_in",
+            "phase_out",
+            "continuation_direction",
+            "match_tolerance_km",
+        ),
+    ),
+)
+
+#: 轨道预报分组（轨道保持分组已迁至 ControlOrbitDialog）
+_PARAM_GROUPS["orbit_propagation"] = (
+    (
+        "初值",
+        (
+            "initial_state",
+            "epoch",
+        ),
+    ),
+    (
+        "预报参数",
+        (
+            "duration",
+            "output_step",
+            "force_config",
+        ),
+    ),
+)
 
 #: design_orbit 所有分支字段的并集（不在其中的字段视为通用字段，始终显示）
 _ORBIT_TYPE_ALL_BRANCH_FIELDS: set[str] = set().union(*ORBIT_TYPE_FIELDS.values())
@@ -378,13 +297,10 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self._project = Project(name="Transfer Orbit Design")
         self._worker: (
-            OrbitDesignWorker
-            | ControlOrbitWorker
-            | FamilyOrbitWorker
-            | StabilityWorker
-            | PropagationWorker
-            | None
+            OrbitDesignWorker | FamilyOrbitWorker | StabilityWorker | PropagationWorker | None
         ) = None
+        # 轨道保持弹窗（模态 exec 期间非 None，供任务互斥检查）
+        self._control_dialog = None
         self._stop_requested = False
         self._current_tool_key: str | None = None
         self._param_widgets: dict[str, QWidget] = {}
@@ -541,6 +457,7 @@ class MainWindow(QMainWindow):
         self._detail_panel = RecordDetailPanel()
         self._detail_panel.tag_requested.connect(self._on_tag_requested)
         self._detail_panel.promote_requested.connect(self._on_promote_requested)
+        self._detail_panel.control_requested.connect(self._on_control_requested)
         layout.addWidget(self._detail_panel, 2)
 
         return panel
@@ -685,6 +602,10 @@ class MainWindow(QMainWindow):
         layout.addWidget(QLabel(_RIGHT_PANEL_TOOL_COMBO_LABEL))
         self._tool_combo = QComboBox()
         for key, spec in TOOL_REGISTRY.items():
+            # 轨道保持不再走工具选择器：入口在选中轨道后（详情面板按钮 /
+            # 项目树右键），由 ControlOrbitDialog 独立执行（避免双入口困惑）
+            if key == "control_orbit":
+                continue
             idx = self._tool_combo.count()
             self._tool_combo.addItem(spec.label, key)
             if not spec.enabled:
@@ -768,19 +689,6 @@ class MainWindow(QMainWindow):
         self._stop_btn.setEnabled(running and not stopping)
         self._reset_btn.setEnabled(not running)
         self._tool_combo.setEnabled(not running)
-
-    def _apply_control_special_mode(self) -> None:
-        """按当前选中轨道设置特征点模式，Halo/NRHO 使用 xdot=zdot=0。"""
-        source = self._selected_orbit_artifact()
-        widget = self._param_widgets.get("special_mode")
-        if source is None or not isinstance(widget, QComboBox):
-            return
-        orbit_type = str(source.orbit_type or source.extra.get("orbit_type", "")).upper()
-        mode = 2 if orbit_type in {"HALO", "NRHO"} else 1
-        widget.setEnabled(False)
-        index = widget.findData(mode)
-        if index >= 0:
-            widget.setCurrentIndex(index)
 
     def _apply_propagation_defaults(self) -> None:
         """轨道预报初值预填：选中含 GCRS 星历的工件末端状态（#389）。
@@ -877,7 +785,10 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage("运行已停止", _STATUS_MSG_TIMEOUT_MS)
 
     def _has_active_task(self) -> bool:
-        """任务尚在运行、停止等待或完成信号排队时均视为活跃。"""
+        """任务尚在运行、停止等待或完成信号排队时均视为活跃（含站保弹窗）。"""
+        dialog = self._control_dialog
+        if dialog is not None and dialog.is_busy():
+            return True
         worker = self._worker
         return worker is not None and (
             worker.isRunning() or self._stop_requested or self._stop_btn.isEnabled()
@@ -929,20 +840,7 @@ class MainWindow(QMainWindow):
         # 生成控件
         self._param_widgets = build_params_from_model(spec.request_model)
 
-        if tool_key == "control_orbit":
-            # input_ephemeris / input_record_id 由选中 Artifact 注入（后者
-            # issue #375 谱系直连），不在 UI 暴露；mu 同样由源 Artifact 注入
-            # （source_mu），面板编辑无效（ControlOrbitRequest 的 mu 仅为响应
-            # 透传字段，算法层不消费）。上游默认控制时长面向多年星历，覆盖
-            # 不了 GUI 默认设计的短弧，故在 GUI 层覆盖为短弧默认值。
-            for hidden in ("input_ephemeris", "input_record_id", "mu"):
-                self._param_widgets.pop(hidden, None)
-            for name, default in _CONTROL_ORBIT_GUI_DEFAULTS.items():
-                widget = self._param_widgets.get(name)
-                if isinstance(widget, QDoubleSpinBox):
-                    widget.setValue(default)
-            self._apply_control_special_mode()
-        elif tool_key == "orbit_family_generation":
+        if tool_key == "orbit_family_generation":
             # sampling_mode 各族首版只有唯一规则，不暴露（模型自动填默认）。
             sampling_mode = self._param_widgets.pop("sampling_mode", None)
             if sampling_mode is not None:
@@ -1290,9 +1188,7 @@ class MainWindow(QMainWindow):
             self._warn_missing_mu(artifact)
             self._warn_missing_ephemeris(artifact)
         self._selected_artifact_ids = [artifact_id]
-        if self._current_tool_key == "control_orbit":
-            self._apply_control_special_mode()
-        elif self._current_tool_key == "orbit_propagation":
+        if self._current_tool_key == "orbit_propagation":
             self._apply_propagation_defaults()
         self._update_plot_content_controls()
         self._update_detail_panel(artifact)
@@ -1336,8 +1232,6 @@ class MainWindow(QMainWindow):
             return
         if tool_key == "design_orbit":
             self._run_design_orbit()
-        elif tool_key == "control_orbit":
-            self._run_control_orbit()
         elif tool_key == "orbit_family_generation":
             self._run_family_generation()
         elif tool_key == "orbit_propagation":
@@ -1384,73 +1278,6 @@ class MainWindow(QMainWindow):
         self._worker.log.connect(self._on_worker_log)
         self._worker.finished.connect(self._on_design_finished)
         self._worker.error.connect(self._on_design_error)
-        self._worker.cancelled.connect(self._on_worker_cancelled)
-        self._worker.start()
-
-    def _run_control_orbit(self) -> None:
-        source = self._selected_orbit_artifact()
-        if source is None:
-            self._status_bar.showMessage("请先在左侧项目树中选择一条轨道", _STATUS_MSG_TIMEOUT_MS)
-            return
-        # 记录懒加载（谱系输入与时长校验都需要星历段时间轴）
-        self._ensure_arrays_loaded(source)
-        ephemeris_data = source.extra.get("ephemeris")
-
-        spec = TOOL_REGISTRY["control_orbit"]
-        model = spec.request_model
-        if model is None:
-            return
-        self._apply_control_special_mode()
-        params = collect_params(self._param_widgets, model)
-        params.pop("input_ephemeris", None)  # 防御：理论上已隐藏
-        params.pop("input_record_id", None)
-        # Issue #375: 库中记录直连站保输入（Facade 取星历段并写谱系
-        # source_record_id，design→control 链式不经文件倒手）；无记录的产物
-        # 回退 input_ephemeris（内存星历重建 EphemerisTable）。
-        if source.record_id and source.extra.get("has_ephemeris"):
-            params["input_record_id"] = source.record_id
-        elif not ephemeris_data:
-            self._status_bar.showMessage("所选轨道没有星历数据，需重新设计", _STATUS_MSG_TIMEOUT_MS)
-            return
-
-        # 校验仿真时长不超出源星历覆盖：控制律的目标点/反馈弧都取自标称星历，
-        # 超出覆盖时控制律无解（默认 30 天/次 × 119 次 + 28 天反馈 ≈ 3598 天，
-        # 而 GUI 设计默认星历仅 30 天 → 蒙特卡洛样本必然全部失败、Δv=0）。
-        times_et = (ephemeris_data or {}).get("times_et")
-        if times_et is not None and len(times_et) > 1:
-            span_days = float(times_et[-1] - times_et[0]) / 86400.0
-            interval = float(params.get("control_interval", 30.0))
-            feedback = float(params.get("feedback_arc", 28.0))
-            n_ctrl = int(params.get("num_controls", 120))
-            sim_days = (n_ctrl - 2) * interval + feedback
-            if sim_days > span_days:
-                msg = (
-                    f"仿真时长 {sim_days:.1f} 天（{n_ctrl - 2} 次机动 × "
-                    f"{interval} 天/次 + 反馈弧 {feedback} 天）超出源星历覆盖 "
-                    f"{span_days:.1f} 天，轨道保持必然全部失败。"
-                    f"请减小控制间隔/次数，或设计更长时长的标称轨道。"
-                )
-                self._status_bar.showMessage(msg, _STATUS_MSG_TIMEOUT_MS)
-                self._log.append_log(f"参数错误: {msg}")
-                return
-
-        kernel_dir = self._detect_kernel_dir() or None
-        self._log.clear()
-        self._log.append_log(f"轨道保持: 源 {source.label}")
-        self._status_bar.showMessage("正在仿真轨道保持（蒙特卡洛）...")
-        self._set_run_controls(running=True)
-
-        self._worker = ControlOrbitWorker(
-            ephemeris_data=ephemeris_data,
-            params=params,
-            source_mu=source.extra.get("mu"),
-            kernel_dir=kernel_dir,
-            catalog_dir=str(self._catalog_dir),
-            parent=self,
-        )
-        self._worker.log.connect(self._on_worker_log)
-        self._worker.finished.connect(self._on_control_finished)
-        self._worker.error.connect(self._on_control_error)
         self._worker.cancelled.connect(self._on_worker_cancelled)
         self._worker.start()
 
@@ -1590,11 +1417,15 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage("轨道族生成失败", _STATUS_MSG_TIMEOUT_MS)
 
     def _selected_orbit_artifact(self) -> Artifact | None:
-        """返回当前选中的单个 orbit 类型 Artifact，否则 None。"""
+        """返回当前选中的单个可作轨道保持输入的 Artifact（orbit/ephemeris）。
+
+        ephemeris 类型为站保产物，允许链式站保；族（family）与转移
+        （transfer）不可作输入。
+        """
         if len(self._selected_artifact_ids) != 1:
             return None
         a = self._project.get_by_id(self._selected_artifact_ids[0])
-        if a is None or a.artifact_type != "orbit":
+        if a is None or a.artifact_type not in ("orbit", "ephemeris"):
             return None
         return a
 
@@ -1728,25 +1559,56 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage(f"已导出 {count} 条记录 → {dest}", _STATUS_MSG_TIMEOUT_MS)
 
     def _trigger_control_orbit_from_tree(self, artifact_ids: list[str]) -> None:
-        """右键 orbit → 轨道保持：选中该 Artifact + 切到 control_orbit 工具。
-
-        不自动运行（给用户在参数面板调参的机会），与 #348 工具选择器范式一致。
-        """
+        """右键 orbit → 轨道保持：选中该 Artifact 并弹 ControlOrbitDialog。"""
         if self._reject_if_task_active() or not artifact_ids:
             return
-        orbit_id = artifact_ids[0]
-        artifact = self._project.get_by_id(orbit_id)
-        if artifact is None or artifact.artifact_type != "orbit":
+        artifact = self._project.get_by_id(artifact_ids[0])
+        if artifact is None or artifact.artifact_type not in ("orbit", "ephemeris"):
             return
-        self._ensure_arrays_loaded(artifact)
-        self._selected_artifact_ids = [orbit_id]
-        for i in range(self._tool_combo.count()):
-            if self._tool_combo.itemData(i) == "control_orbit":
-                self._tool_combo.setCurrentIndex(i)
-                break
-        if self._current_tool_key == "control_orbit":
-            self._apply_control_special_mode()
-        self._status_bar.showMessage("已选中轨道，调整参数后点运行", _STATUS_MSG_TIMEOUT_MS)
+        self._select_artifact(artifact.artifact_id)
+        self._open_control_dialog(artifact)
+
+    def _on_control_requested(self) -> None:
+        """详情面板“轨道保持”按钮：对当前选中产物弹 ControlOrbitDialog。"""
+        if self._reject_if_task_active():
+            return
+        source = self._selected_orbit_artifact()
+        if source is None:
+            return
+        self._open_control_dialog(source)
+
+    def _open_control_dialog(self, source: Artifact) -> None:
+        """弹出轨道保持模态对话框，独立调参/运行（结果照常入库并选中）。"""
+        from src.view.control_orbit_dialog import ControlOrbitDialog
+
+        # 懒加载（谱系输入与时长校验都需要星历段时间轴）
+        self._ensure_arrays_loaded(source)
+        dialog = ControlOrbitDialog(
+            source=source,
+            kernel_dir=self._detect_kernel_dir() or None,
+            catalog_dir=str(self._catalog_dir),
+            parent=self,
+        )
+        self._control_dialog = dialog
+        dialog.control_finished.connect(self._on_control_dialog_finished)
+        dialog.control_failed.connect(self._on_control_dialog_failed)
+        dialog.exec()
+        self._control_dialog = None
+
+    def _on_control_dialog_finished(self, result: ControlResultData) -> None:
+        """弹窗仿真完成：重查清单并选中新记录（对话框保持打开显示摘要）。"""
+        total_dv = float(np.sum(result.maneuvers_delta_v_mps))
+        self._log.append_log(
+            f"轨道保持完成: 总Δv={total_dv:.2f} m/s, 失败 {result.num_failed} 样本"
+        )
+        self._reload_from_catalog()
+        self._select_record_after_run(result.record_id, fallback_log="站保全样本失败，未产生库记录")
+        self._status_bar.showMessage("轨道保持完成", _STATUS_MSG_TIMEOUT_MS)
+
+    def _on_control_dialog_failed(self, error_msg: str) -> None:
+        summary = error_msg.strip().splitlines()[-1] if error_msg.strip() else "未知错误"
+        self._log.append_log(f"轨道保持失败: {summary}")
+        self._status_bar.showMessage("轨道保持失败", _STATUS_MSG_TIMEOUT_MS)
 
     def _trigger_stability_from_tree(self, artifact_ids: list[str]) -> None:
         """右键 orbit → 查看稳定性：后台分析选中轨道，结果弹对话框 + 落盘。
@@ -1909,27 +1771,6 @@ class MainWindow(QMainWindow):
 
         self._log.append_log(f"错误:\n{error_msg}")
         self._status_bar.showMessage("设计失败", _STATUS_MSG_TIMEOUT_MS)
-
-    def _on_control_finished(self, result: ControlResultData) -> None:
-        """站保完成：产物已自动入库（谱系指向被控记录），重查清单并选中新记录。"""
-        if self._consume_stop_request():
-            return
-        self._set_run_controls(running=False)
-
-        total_dv = float(np.sum(result.maneuvers_delta_v_mps))
-        self._log.append_log(
-            f"轨道保持完成: 总Δv={total_dv:.2f} m/s, 失败 {result.num_failed} 样本"
-        )
-        self._reload_from_catalog()
-        self._select_record_after_run(result.record_id, fallback_log="站保全样本失败，未产生库记录")
-        self._status_bar.showMessage("轨道保持完成", _STATUS_MSG_TIMEOUT_MS)
-
-    def _on_control_error(self, error_msg: str) -> None:
-        if self._consume_stop_request():
-            return
-        self._set_run_controls(running=False)
-        self._log.append_log(f"错误:\n{error_msg}")
-        self._status_bar.showMessage("轨道保持失败", _STATUS_MSG_TIMEOUT_MS)
 
     # -- 渲染 ---------------------------------------------------------------
 

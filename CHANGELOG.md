@@ -2,6 +2,11 @@
 
 ## 未发布
 
+### 轨道保持交互重构
+
+- **选中后弹窗独立执行**：轨道保持（control_orbit）从右侧工具选择器移除，改为「选中轨道 → 详情面板“轨道保持…”按钮 / 项目树右键」弹模态对话框（`ControlOrbitDialog`），对话框内调参、运行/停止、看日志与结果摘要。参数构建仍复用 `build_params_from_model` / `collect_params`（ADR 0009 范式不变），运行逻辑（参数注入、时长校验、Worker 生命周期）自主窗口迁入，算法层与产物入库不变。
+- **入口可用性**：按钮仅对可作输入的产物（orbit/ephemeris 且有星历段）可用，提升的族成员（仅 CR3BP 段）置灰并 tooltip 说明；星历产物可链式站保。运行中关闭弹窗视为取消（等同停止，结果不落库）；弹窗仿真与主窗口任务互斥。
+
 ### 轨道预报接入（issue #389）
 
 - **工具启用**：「轨道预报」（e2m2e 5.8.2 `orbit_propagation`）进入工具下拉，经 Facade 调用（Config 注入 kernel_dir，同 design_orbit 范式）；duration 沿用 GUI 标准单位年，桥接层换算为秒。

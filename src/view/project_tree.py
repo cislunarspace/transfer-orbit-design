@@ -25,6 +25,9 @@ _ORBIT_MENU_ITEMS: list[tuple[str, str, bool, str]] = [
     ("generate_family", "生成轨道族", False, "请从右侧工具选择器使用「轨道族生成」"),
     ("analyze_stability", "查看稳定性", True, ""),
 ]
+_EPHEMERIS_MENU_ITEMS: list[tuple[str, str, bool, str]] = [
+    ("control_orbit", "轨道保持", True, ""),
+]
 _FAMILY_MENU_ITEMS: list[tuple[str, str, bool, str]] = [
     ("expand_members", "展开/折叠成员", False, "待轨道族生成实现"),
 ]
@@ -143,12 +146,15 @@ class ProjectTreeView(QWidget):
         """按 artifact_type 填充类型专属菜单项（删除由调用方统一加）。"""
         if atype == "orbit":
             items = _ORBIT_MENU_ITEMS
+        elif atype == "ephemeris":
+            # 星历产物（站保结果）可链式站保：轨道保持入口与 orbit 同一弹窗
+            items = _EPHEMERIS_MENU_ITEMS
         elif atype == "family":
             items = _FAMILY_MENU_ITEMS
         elif atype == "transfer":
             items = _TRANSFER_MENU_ITEMS
         else:
-            return  # ephemeris 等无类型专属动作，仅有删除
+            return  # 其他类型无专属动作，仅有删除
 
         for action_key, text, enabled, tip in items:
             act = QAction(text, menu)
