@@ -619,6 +619,7 @@ class MainWindow(QMainWindow):
         toolbar.show_libration.toggled.connect(self._on_toggle_libration)
         toolbar.equal_aspect.toggled.connect(self._on_toggle_equal_aspect)
         toolbar.export_animation.clicked.connect(self._on_export_animation)
+        toolbar.fit_view.clicked.connect(self._viz.canvas.fit_to_data)
 
         self._log = LogPanel()
         self._log.setMinimumHeight(80)
