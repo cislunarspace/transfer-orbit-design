@@ -45,7 +45,13 @@ def _orbit_xy(x_half: float = 0.5, n: int = 50) -> np.ndarray:
 
 
 def _make_canvas(
-    qapp, projection: str = "3d", *, show_bodies: bool = False, center: str = "barycenter"
+    qapp,
+    projection: str = "3d",
+    *,
+    show_bodies: bool = False,
+    show_libration: bool = False,
+    frame: str = "synodic",
+    center: str = "barycenter",
 ):
     from src.view.canvas import CanvasState, OrbitCanvas
 
@@ -53,6 +59,7 @@ def _make_canvas(
     canvas.set_artifacts_provider(
         lambda _aid: {
             "initial_guess_states": _orbit_xy(),
+            "initial_guess_times": np.linspace(0.0, 2.0 * np.pi, 50),
             "label": "id1",
             "mu": _MU,
         }
@@ -61,8 +68,9 @@ def _make_canvas(
         projection=projection,
         visible_artifacts=["id1"],
         show_bodies=show_bodies,
-        show_libration=False,
+        show_libration=show_libration,
         plot_content="guess",
+        frame=frame,
         center=center,
     )
     canvas.sync_state(state.copy(), ["id1"])
@@ -120,6 +128,60 @@ class TestFitToData:
 
         assert np.ptp(canvas._ax.get_xlim()) == pytest.approx(1.05, rel=1e-2)
         assert np.ptp(canvas._ax.get_ylim()) == pytest.approx(1.05, rel=1e-2)
+
+    def test_fit_ignores_libration_points(self, qapp):
+        """平动点（L1-L5）不参与：开关后适配结果一致。"""
+        canvas = _make_canvas(qapp, show_libration=True)
+        assert any(line.get_gid() != "orbit" for line in canvas._ax.lines)
+
+        canvas._ax.set_xlim(-0.01, 0.01)
+        canvas.fit_to_data()
+
+        assert np.ptp(canvas._ax.get_xlim()) == pytest.approx(1.05, rel=1e-2)
+
+    def test_fit_ignores_inertial_moon_trajectory(self, qapp):
+        """惯性系月球轨迹（灰色虚线）不参与：适配只按轨道线。"""
+        canvas = _make_canvas(qapp, frame="inertial", show_bodies=True)
+        # 近似视图下有月球轨迹（无 gid）与轨道（有 gid）两种线
+        gids = {line.get_gid() for line in canvas._ax.lines}
+        assert None in gids and "orbit" in gids
+
+        # 只按带 gid 的轨道线适配：轴范围 ≈ 轨道数据范围 × 1.05
+        orbit_pts = np.vstack(
+            [np.asarray(line.get_data_3d()).T for line in canvas._ax.lines if line.get_gid()]
+        )
+        span = orbit_pts[:, 0].max() - orbit_pts[:, 0].min()
+        canvas.fit_to_data()
+
+        assert np.ptp(canvas._ax.get_xlim()) == pytest.approx(span * 1.05, rel=1e-6)
+
+    def test_fit_3d_recomputes_zlim(self, qapp):
+        """3D 非自定义中心：Z 轴也按数据重算（不残留用户缩放窗口）。"""
+        canvas = _make_canvas(qapp)
+        canvas._ax.set_zlim(-0.001, 0.001)  # 模拟用户把 Z 缩到极小
+
+        canvas.fit_to_data()
+
+        pos = _orbit_xy()[:, :3]
+        span_z = pos[:, 2].max() - pos[:, 2].min()
+        # equal_aspect 下 z_ratio 会再扩（见下一条测试），但至少回到数据量级
+        assert np.ptp(canvas._ax.get_zlim()) >= span_z
+
+    def test_fit_applies_z_ratio_for_near_planar_orbit(self, qapp):
+        """等比约束：近平面轨道的 Z 窗口扩到 min(xspan,yspan)×z_ratio。"""
+        canvas = _make_canvas(qapp)  # z 振幅 0.1，z_ratio 默认 0.5
+        canvas._ax.set_zlim(-0.001, 0.001)
+
+        canvas.fit_to_data()
+
+        # zspan(≈0.21) < min(xspan,yspan) × 0.5 → zlim 扩到该值
+        pos = _orbit_xy()[:, :3]
+        xspan = (pos[:, 0].max() - pos[:, 0].min()) * 1.05
+        yspan = (pos[:, 1].max() - pos[:, 1].min()) * 1.05
+        assert np.ptp(canvas._ax.get_zlim()) == pytest.approx(min(xspan, yspan) * 0.5, rel=1e-6)
+        # 扩展对称于 Z 数据中点（≈0）
+        zlo, zhi = canvas._ax.get_zlim()
+        assert zlo == pytest.approx(-zhi, abs=1e-3)
 
     def test_fit_custom_center_symmetrizes(self, qapp):
         """自定义中心（moon）：适配后范围对称于原点（平移后中心）。"""
