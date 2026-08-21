@@ -195,7 +195,8 @@ class TestFacadeBridgeDesignOrbit:
             ("Lissajous", "two_level", "segmented"),
             ("LISSAJOUS", "standard", "segmented"),
             ("DRO", "two_level", "two_level"),
-            ("DPO", "two_level", "two_level"),
+            # e2m2e 5.8.1 起 DPO 列入不稳定轨道族，two_level 被上游重定向 segmented
+            ("DPO", "two_level", "segmented"),
         ],
     )
     def test_lissajous_uses_segmented_correction(

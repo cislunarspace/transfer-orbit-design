@@ -60,6 +60,7 @@ class _FakeDesignResult:
         times: np.ndarray | None = None,
         converged: bool = True,
         iterations: int = 3,
+        correction_method: str = "segmented",
         system: object | None = None,
         ephemeris: EphemerisTable | None = None,
     ) -> None:
@@ -86,6 +87,8 @@ class _FakeDesignResult:
             system=system,
         )
         self.correction = _FakeCorrection(converged=converged, iterations=iterations)
+        # e2m2e 5.8.2 起 #492：修正方法按族分派上提，设计结果记录实际方法
+        self.correction_method = correction_method
         self.ephemeris = ephemeris
 
 

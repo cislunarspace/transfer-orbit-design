@@ -101,8 +101,8 @@ class TestParamGroups:
         window._tool_combo.setCurrentIndex(idx)
         assert set(window._group_headers) == {"控制参数", "仿真与误差", "力模型", "角动量管理"}
 
-    def test_family_panel_seven_families(self, qapp):
-        """5.7.1 起族生成面板暴露七族下拉，sampling_mode 不进面板。"""
+    def test_family_panel_family_types(self, qapp):
+        """族生成面板暴露各族下拉（5.8.2 起含月心族 DRO），sampling_mode 不进面板。"""
         window = _make_window(qapp)
         idx = window._tool_combo.findData("orbit_family_generation")
         window._tool_combo.setCurrentIndex(idx)
@@ -117,6 +117,7 @@ class TestParamGroups:
             "SPO",
             "LPO",
             "Horseshoe",
+            "DRO",
         ]
 
     def test_family_field_visibility_follows_type(self, qapp):

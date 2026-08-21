@@ -136,20 +136,11 @@ def test_design_orbit_nrho_default_converges_with_ephemeris():
 
 @pytest.mark.spice
 @pytest.mark.slow
-@pytest.mark.xfail(
-    strict=True,
-    # match 锁住失败模式：只有打靶未收敛才允许 xfail；e2m2e 再变签名
-    # （本文件头注释声明要防的断裂）抛 TypeError，不匹配则测试 FAIL 而非静默 xfail。
-    match="未收敛",
-    reason="e2m2e 5.8.0 默认 Axial 星历修正不收敛：Axial 未列入上游固定时刻打靶族，"
-    "自由时间打靶因 1:1 共振简并停滞（STAGNATION_DETECTED）；上游 master 已修，"
-    "发版前 GUI 不能把该默认路径标成可用",
-)
 def test_design_orbit_axial_default_real_pipeline_converges():
-    """GUI 默认 Axial 真路径应在上游 e2m2e 修复发版后收敛。
+    """GUI 默认 Axial 真路径应收敛。
 
-    当前 strict xfail 锁住已知缺口：一旦上游修复随 release 生效，本测试会因
-    XPASS 报错，提醒移除 xfail 并恢复 GUI 对默认 Axial 的支持承诺。
+    e2m2e 5.8.0 默认 Axial 星历修正不收敛（自由时间打靶因 1:1 共振简并停滞），
+    曾以 strict xfail 锁住缺口；上游修复已随 5.8.2 发布，移除 xfail 恢复承诺。
     """
     kernel_dir = detect_kernel_dir()
     if not kernel_dir:
