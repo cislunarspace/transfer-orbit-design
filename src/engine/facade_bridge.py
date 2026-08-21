@@ -78,6 +78,25 @@ class FamilyResultData:
 
 
 @dataclass
+class PropagationResultData:
+    """跨线程传递的轨道预报结果 DTO。纯数据类，不含 e2m2e 对象引用。
+
+    轨道预报产物不入轨道库（e2m2e 未提供该工具的入库），落盘走
+    ``persistence.save_propagation_result``（output/propagation/）。
+    """
+
+    epoch_utc: str  # 起始历元 ISO（epoch 为列表时由桥接层格式化）
+    duration_sec: float
+    n_points: int
+    times_et: Any  # (n,) ET 秒（times_jd_tdb − J2000 JD）× 86400，ADR 0013
+    position_km: Any  # (n,3) GCRS km
+    velocity_km_s: Any  # (n,3) GCRS km/s
+    synodic_position: Any  # (n,3) 质心归一脉动会合系（画布槽位契约）
+    final_state: Any  # (6,) 末端 [r; v]（km, km/s）
+    mu: float = 0.0  # 会合系转换所用质量比（默认地月）
+
+
+@dataclass
 class StabilityResultData:
     """跨线程传递的稳定性分析结果 DTO。纯数据，不含 e2m2e 对象引用。
 
@@ -116,6 +135,57 @@ class ControlResultData:
 
 #: 周期族成员重采样点数（5.7.1 起周期族成员只携带初态与周期）。
 _FAMILY_MEMBER_SAMPLES = 200
+
+
+#: SPICE ET 定义：J2000 历元（JD TDB 2451545.0）起的 TDB 秒。
+_J2000_JD_TDB = 2451545.0
+
+#: 地月系统默认特征时间（秒）——SynodicJ2000System 在 CR3BP 系统未携带
+#: characteristic_time 时使用同一默认值。
+_TU_SECONDS_FALLBACK = 4.34811305 * 86400.0
+
+
+def _epoch_list_to_iso(epoch: Any) -> str | None:
+    """[年,月,日,时,分,秒] → ISO 字符串；非 6 元序列返回 None。"""
+    if not isinstance(epoch, (list, tuple)) or len(epoch) != 6:
+        return None
+    y, mo, d, h, mi, s = epoch
+    return f"{int(y):04d}-{int(mo):02d}-{int(d):02d}T{int(h):02d}:{int(mi):02d}:{float(s):06.3f}"
+
+
+def gcrs_to_synodic(
+    position_km: Any,
+    velocity_km_s: Any,
+    times_et: Any,
+    mu: float | None = None,
+    kernel_dir: str | None = None,
+) -> Any:
+    """GCRS km 状态序列 → 质心归一脉动会合系位置 (n,3)（画布槽位契约，ADR 0013）。
+
+    复用 e2m2e ``SynodicJ2000System`` 的批量 Rust 转换：输出原点在质心
+    （地球 −μ、月球 1−μ），与 ``centroid_normalized_states`` 同一约定。
+    需要行星历内核：先经 ``load_design_kernels`` 确保 SPICEManager 已加载
+    （预报链路通常已加载，重复调用由 SPICEManager 去重）。
+    """
+    from e2m2e.algorithm.coordinate.synodic_j2000 import SynodicJ2000System
+    from e2m2e.algorithm.design.design_orbit import load_design_kernels
+    from e2m2e.data.kernels.manager import SPICEManager
+    from e2m2e.data.templates.seed import EARTH_MOON_MU
+
+    from src.engine.viz_adapter import build_cr3bp_system
+
+    spice = SPICEManager()
+    load_design_kernels(spice, kernel_dir)
+    cr3bp = build_cr3bp_system(EARTH_MOON_MU if mu is None else float(mu))
+    system = SynodicJ2000System(cr3bp, spice)
+    tu = cr3bp.characteristic_time or _TU_SECONDS_FALLBACK
+    et = np.asarray(times_et, dtype=float)
+    t_syn = (et - et[0]) / tu
+    states = np.hstack(
+        [np.asarray(position_km, dtype=float), np.asarray(velocity_km_s, dtype=float)]
+    )
+    syn = system.batch_j2000_to_synodic(states, t_syn, float(et[0]))
+    return np.asarray(syn, dtype=float)[:, :3]
 
 
 def centroid_normalized_states(synodic_position: Any, mu: float | None) -> Any:
@@ -292,9 +362,11 @@ _TOOL_META: dict[str, dict[str, Any]] = {
     },
     "orbit_propagation": {
         "label": "轨道预报",
-        "description": "轨道预报",
-        "enabled": False,
-        "model": None,
+        "description": "以 GCRS 初值做高精度力模型数值外推（默认三体），"
+        "输出星历轨迹，惯性系/会合系叠加显示在画布；选中星历工件时初值"
+        "预填为其末端状态。",
+        "enabled": True,
+        "model": "PropagationRequest",
     },
     "spacetime_transform": {
         "label": "时空坐标转换",
@@ -352,7 +424,13 @@ _TOOL_ORDER: tuple[str, ...] = (
 
 
 _GUI_INTEGRATED_TOOLS = frozenset(
-    {"design_orbit", "control_orbit", "orbit_family_generation", "orbit_stability"}
+    {
+        "design_orbit",
+        "control_orbit",
+        "orbit_family_generation",
+        "orbit_stability",
+        "orbit_propagation",
+    }
 )
 _TOOL_STATUS_DESCRIPTIONS = {
     "implemented": "e2m2e 已实现，GUI 尚未接入",
@@ -623,6 +701,57 @@ class FacadeBridge:
             position_km=position_km,
             times_et=times_et,
             record_id=response.record_id,
+        )
+
+    def orbit_propagation(self, **params: Any) -> PropagationResultData:
+        """经 Facade 调用 orbit_propagation，返回跨线程 DTO。
+
+        换算与接缝：GUI duration 标准单位年（``params_panel.FIELD_UNIT_OPTIONS``）
+        → e2m2e 秒；force_config 为 None 时剔除（走模型默认三体），dict 由
+        调用方解析 JSON。会合系位置由 GCRS km 经 ``gcrs_to_synodic`` 转换
+        （产物不入轨道库，落盘走 persistence）。
+        """
+        from e2m2e.data.templates import ConvergenceState
+        from e2m2e.data.templates.seed import EARTH_MOON_MU
+
+        from src.commons.units import SECONDS_PER_YEAR
+        from src.engine.exceptions import OrbitError, translate_exception
+
+        params.pop("kernel_dir", None)  # 经 Config 注入，request 不接受
+        if params.get("force_config") is None:
+            params.pop("force_config", None)
+        # GUI duration 单位年 -> e2m2e duration 单位秒
+        if params.get("duration") is not None:
+            params["duration"] = float(params["duration"]) * SECONDS_PER_YEAR
+        epoch = params.get("epoch")
+        epoch_iso = epoch if isinstance(epoch, str) else _epoch_list_to_iso(epoch)
+        try:
+            response = self._facade().orbit_propagation(**params)
+        except Exception as e:
+            raise translate_exception(e) from e
+
+        if response.status is not ConvergenceState.CONVERGED:
+            raise OrbitError("PROPAGATION_FAILED", response.message or "轨道预报未收敛")
+
+        # times_et 重建：ADR 0013 决策 5 的"后续"路径——算法层已填 times_jd_tdb，
+        # 直读换算（SPICE ET ≡ J2000 JD TDB 2451545.0 起的 TDB 秒），与 str2et
+        # 等价且免去闰秒换算；不修改上游。
+        jd = np.asarray(response.times_jd_tdb, dtype=float)
+        times_et = (jd - _J2000_JD_TDB) * 86400.0
+        position_km = np.asarray(response.position_km, dtype=float)
+        velocity_km_s = np.asarray(response.velocity_km_s, dtype=float)
+        mu = EARTH_MOON_MU
+        synodic = gcrs_to_synodic(position_km, velocity_km_s, times_et, mu, self._kernel_dir)
+        return PropagationResultData(
+            epoch_utc=epoch_iso or "",
+            duration_sec=float(response.duration_sec),
+            n_points=int(response.n_points),
+            times_et=times_et,
+            position_km=position_km,
+            velocity_km_s=velocity_km_s,
+            synodic_position=synodic,
+            final_state=np.asarray(response.final_state, dtype=float),
+            mu=mu,
         )
 
     def generate_family(self, **kwargs: Any) -> FamilyResultData:
