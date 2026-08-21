@@ -365,6 +365,9 @@ class TestExportAnimationEndToEnd:
         assert canvas._artifacts_provider is saved_provider
         assert list(canvas._state.visible_artifacts) == saved_visible
         assert canvas._state.plot_content == saved_content
+        # 导出过程覆盖了 Axes（自动缩放）：视图标记失效，后续渲染按数据
+        # 自动缩放，而非“保持”用户从未交互过的导出末帧窗口
+        assert canvas._view_valid is False
 
     def test_progress_callback_invoked(self, qapp, tmp_path):
         from src.view.gif_exporter import export_animation

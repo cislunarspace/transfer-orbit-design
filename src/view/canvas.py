@@ -7,6 +7,8 @@ FigureCanvasQTAgg 嵌入 PyQt6 主窗口，支持 3D 轨道可视化和导航工
 - 投影切换（3d/xy/xz/yz）会重建 Axes，无法增量，故全量重绘。
 - 轨道数组复用内存注册表（``_initial_guess_by_id`` 等），切换投影/开关时
   不从磁盘/NPZ 重读——验收标准 #5（数据复用）的可测形式。
+- 视图保持：布局（投影 × 坐标系 × 中心）不变的重绘（如增添/移除轨道
+  条目、开关标注）在重建前后捕获/恢复用户视角与坐标范围，不重置窗口。
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ apply_cjk_font_fallback()
 from matplotlib.backends.backend_qt import NavigationToolbar2QT  # noqa: E402
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg  # noqa: E402
 from matplotlib.figure import Figure  # noqa: E402
+from mpl_toolkits.mplot3d import Axes3D  # noqa: E402
 
 from src.view.chart_settings import ChartSettings  # noqa: E402
 
@@ -136,6 +139,11 @@ class OrbitCanvas(FigureCanvasQTAgg):
         self._initial_guess_times_by_id: dict[str, Any] = {}
         self._family_times_by_id: dict[str, Any] = {}
         self._artifacts_provider = None
+        # 视图保持：_layout_key 记录上次渲染的 (projection, frame, center)，
+        # _view_valid 标记当前 Axes 是否承载过数据。main_window 原地修改
+        # CanvasState，布局变化只能靠 render 末尾记录的键识别。
+        self._layout_key: tuple[str, str, str] | None = None
+        self._view_valid = False
 
     def _setup_axes(
         self, ax, projection: str = "3d", *, title: str = "选择一个工件以可视化"
@@ -160,6 +168,8 @@ class OrbitCanvas(FigureCanvasQTAgg):
         self._fig.clear()
         self._ax = self._fig.add_subplot(111, projection="3d")
         self._setup_axes(self._ax)
+        self._layout_key = None
+        self._view_valid = False
         self.draw()
 
     # -- 数据提供 ----------------------------------------------------------
@@ -252,7 +262,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
 
     # -- 渲染入口 ----------------------------------------------------------
 
-    def render(self, state: CanvasState | None = None) -> None:
+    def render(self, state: CanvasState | None = None, *, preserve_view: bool = True) -> None:
         """根据 CanvasState 全量重绘画布。
 
         调用方（main_window）在 CanvasState 变化时调此方法。
@@ -270,9 +280,25 @@ class OrbitCanvas(FigureCanvasQTAgg):
           切到 ``"ephemeris"``，本层不再单独分支。
 
         投影（3d/xy/xz/yz）与 frame × plot_content 正交。
+
+        视图保持：布局（projection × frame × center）不变且当前 Axes 承载过
+        数据时，重建前捕获各 Axes 的视角与坐标范围、绘制后恢复——增添/移除
+        轨道条目、开关标注等重绘不重置窗口；布局切换改变视图空间，仍走
+        自动缩放与居中调整。
+
+        Args:
+            state: 新渲染状态；None 沿用当前。
+            preserve_view: False 时关闭视图保持，每帧按自身数据自动缩放
+                （GIF 导出逐帧渲染用，各帧数据是增长前缀/滑动窗口）。
         """
         state = state or self._state
         self._state = state
+        layout_key = (state.projection, state.frame, state.center)
+        views = (
+            [self._capture_view(ax) for ax in self._fig.axes]
+            if preserve_view and self._view_valid and self._layout_key == layout_key
+            else None
+        )
         self._fig.clear()
         if state.projection == "quad":
             # 四视图：2x2 网格（3D + XY/XZ/YZ），充分利用大窗口/全屏空间，
@@ -286,8 +312,50 @@ class OrbitCanvas(FigureCanvasQTAgg):
             ax = self._fig.add_subplot(111, projection=projection)
             self._ax = ax
             self._render_axes(ax, state)
+        if views is not None:
+            # 布局不变：恢复用户视角与坐标范围（覆盖 _render_axes 的自动
+            # 缩放/居中/等比调整——用户的窗口是最终裁决）
+            for ax, view in zip(self._fig.axes, views, strict=True):
+                self._restore_view(ax, state, view)
         self._fig.tight_layout()
+        # 记录本次布局与数据状态，供下次 render 判断是否保持视图
+        self._layout_key = layout_key
+        self._view_valid = (
+            bool(self._ephemeris_position_km_by_id)
+            or bool(self._initial_guess_by_id)
+            or bool(self._ephemeris_synodic_by_id)
+            or bool(self._family_by_id)
+        )
         self.draw()
+
+    def _capture_view(self, ax) -> dict[str, Any]:
+        """捕获单个 Axes 的视图快照（用户旋转/缩放后的窗口状态）。
+
+        3D：相机角（elev/azim/roll）+ 三轴范围；2D：两轴范围。mpl 3.10 起
+        3D 的缩放/平移都落在轴范围上（相机距离 dist 已移除），故范围加
+        相机角即完整视图状态。
+        """
+        view: dict[str, Any] = {"xlim": ax.get_xlim(), "ylim": ax.get_ylim()}
+        if isinstance(ax, Axes3D):
+            view["zlim"] = ax.get_zlim()
+            view["elev"] = ax.elev
+            view["azim"] = ax.azim
+            view["roll"] = ax.roll
+        return view
+
+    def _restore_view(self, ax, state: CanvasState, view: dict[str, Any]) -> None:
+        """把视图快照恢复到重建后的 Axes。"""
+        ax.set_xlim(view["xlim"])
+        ax.set_ylim(view["ylim"])
+        if isinstance(ax, Axes3D):
+            ax.set_zlim(view["zlim"])
+            ax.view_init(elev=view["elev"], azim=view["azim"], roll=view["roll"])
+            if state.equal_aspect:
+                # 等比例的 box_aspect 在 _render_axes 按自动缩放范围计算，
+                # 恢复用户范围后须按恢复范围重设，否则几何失真
+                ax.set_box_aspect(
+                    tuple(np.ptp(lim) for lim in (view["xlim"], view["ylim"], view["zlim"]))
+                )
 
     def _render_axes(self, ax, state: CanvasState) -> None:
         """在单个 Axes 上按 state 绘制轨道 + 标注（单视图与四视图共用）。"""
