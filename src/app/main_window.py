@@ -211,21 +211,21 @@ _PARAM_GROUPS["orbit_family_generation"] = (
         "族参数",
         (
             "orbit_type",
-                "libration_point",
-                "n_orbits",
-                "max_amplitude_km",
-                "min_amplitude_km",
-                "north_south",
-                "perilune_height_max_km",
-                "amplitude_in_km",
-                "amplitude_out_km",
-                "phase_in",
-                "phase_out",
-                "continuation_direction",
-                "match_tolerance_km",
-            ),
+            "libration_point",
+            "n_orbits",
+            "max_amplitude_km",
+            "min_amplitude_km",
+            "north_south",
+            "perilune_height_max_km",
+            "amplitude_in_km",
+            "amplitude_out_km",
+            "phase_in",
+            "phase_out",
+            "continuation_direction",
+            "match_tolerance_km",
         ),
-    )
+    ),
+)
 
 #: 轨道预报分组（轨道保持分组已迁至 ControlOrbitDialog）
 _PARAM_GROUPS["orbit_propagation"] = (
@@ -1602,9 +1602,7 @@ class MainWindow(QMainWindow):
             f"轨道保持完成: 总Δv={total_dv:.2f} m/s, 失败 {result.num_failed} 样本"
         )
         self._reload_from_catalog()
-        self._select_record_after_run(
-            result.record_id, fallback_log="站保全样本失败，未产生库记录"
-        )
+        self._select_record_after_run(result.record_id, fallback_log="站保全样本失败，未产生库记录")
         self._status_bar.showMessage("轨道保持完成", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_control_dialog_failed(self, error_msg: str) -> None:
