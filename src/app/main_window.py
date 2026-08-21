@@ -1368,9 +1368,8 @@ class MainWindow(QMainWindow):
             return
         self._set_run_controls(running=False)
 
-        completion = (
-            f"轨道族生成完成: {result.n_orbits} 条 {result.orbit_type} 轨道"
-            + (f"（L{result.libration_point}）" if result.libration_point else "")
+        completion = f"轨道族生成完成: {result.n_orbits} 条 {result.orbit_type} 轨道" + (
+            f"（L{result.libration_point}）" if result.libration_point else ""
         )
         if result.status_message:
             # 软失败（部分族）：展示上游状态消息说明未满额原因
