@@ -1423,7 +1423,8 @@ class MainWindow(QMainWindow):
         self._status_bar.showMessage("轨道保持完成", _STATUS_MSG_TIMEOUT_MS)
 
     def _on_control_dialog_failed(self, error_msg: str) -> None:
-        self._log.append_log(f"轨道保持失败:\n{error_msg}")
+        summary = error_msg.strip().splitlines()[-1] if error_msg.strip() else "未知错误"
+        self._log.append_log(f"轨道保持失败: {summary}")
         self._status_bar.showMessage("轨道保持失败", _STATUS_MSG_TIMEOUT_MS)
 
     def _trigger_stability_from_tree(self, artifact_ids: list[str]) -> None:

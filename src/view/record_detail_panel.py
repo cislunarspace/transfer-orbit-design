@@ -97,14 +97,13 @@ class RecordDetailPanel(QWidget):
         self._member_row.setVisible(artifact.artifact_type == "family")
         self._member_spin.setMaximum(max(self._current_member_count - 1, 0))
 
-        # 轨道保持按钮：orbit/ephemeris 可见；无星历输入（如提升的族成员
-        # 只有 CR3BP 段）置灰并说明原因
+        # 轨道保持按钮：可用性判据与 ControlOrbitDialog 一致（单一来源），
+        # 无星历输入（如提升的族成员只有 CR3BP 段）置灰并说明原因
+        from src.view.control_orbit_dialog import can_control_artifact
+
         controllable = artifact.artifact_type in ("orbit", "ephemeris")
         self._control_btn.setVisible(controllable)
-        has_input = bool(
-            (artifact.record_id and extra.get("has_ephemeris"))
-            or extra.get("ephemeris")
-        )
+        has_input = can_control_artifact(artifact)
         self._control_btn.setEnabled(has_input)
         self._control_btn.setToolTip(
             "" if has_input else "该记录无星历段，无法轨道保持（可重新设计带星历的轨道）"

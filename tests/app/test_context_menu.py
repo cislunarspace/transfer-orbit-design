@@ -83,6 +83,20 @@ def test_orbit_menu_control_enabled_others_disabled(qapp):
     assert acts[2].isEnabled() is True  # analyze_stability 已接入 e2m2e
 
 
+def test_ephemeris_menu_has_control_entry(qapp):
+    """星历产物右键也有轨道保持入口（链式站保，与 orbit 同一弹窗）。"""
+    from PyQt6.QtWidgets import QMenu
+
+    view = _make_view(_project_with())
+
+    menu = QMenu()
+    view._populate_type_actions(menu, "ephemeris", ["e1"])
+    acts = menu.actions()
+
+    assert [a.text() for a in acts] == ["轨道保持"]
+    assert acts[0].isEnabled() is True
+
+
 def test_family_menu_single_disabled_item(qapp):
     from PyQt6.QtWidgets import QMenu
 
@@ -116,6 +130,7 @@ def test_transfer_menu_optimize_disabled(qapp):
 
 
 def test_ephemeris_has_no_type_actions(qapp):
+    """星历产物仅有轨道保持入口（站保链式），无生成族/稳定性等轨道动作。"""
     from PyQt6.QtWidgets import QMenu
 
     from src.model import Artifact
@@ -127,7 +142,7 @@ def test_ephemeris_has_no_type_actions(qapp):
     menu = QMenu()
     view._populate_type_actions(menu, "ephemeris", ["e1"])
 
-    assert menu.actions() == []  # 仅删除（由调用方统一加），无类型专属动作
+    assert [a.text() for a in menu.actions()] == ["轨道保持"]
 
 
 def _project_with(*artifacts):
