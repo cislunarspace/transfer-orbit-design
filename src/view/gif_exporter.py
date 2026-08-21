@@ -206,7 +206,7 @@ def export_animation(
                 plot_content=canvas._state.plot_content,
             )
             canvas.sync_state(frame_state, [artifact_id])
-            canvas.render()
+            canvas.render(preserve_view=False)
             _annotate_timestamp(canvas, _utc_label(float(ti)))
             canvas.draw_idle()
             canvas.flush_events() if hasattr(canvas, "flush_events") else None
@@ -219,7 +219,7 @@ def export_animation(
     finally:
         canvas.set_artifacts_provider(saved_provider)
         canvas.sync_state(saved_state, list(saved_state.visible_artifacts))
-        canvas.render()
+        canvas.render(preserve_view=False)
 
     if len(frames) < 2:
         raise ValueError(f"帧数不足 2，无法合成 GIF（{len(frames)} 帧）")
