@@ -455,6 +455,7 @@ class ControlOrbitDialog(QDialog):
             if not self._stop_requested:
                 self._on_stop_run()
             self._pending_close = True
-            a0.ignore()
+            if a0 is not None:
+                a0.ignore()
             return
         super().closeEvent(a0)
