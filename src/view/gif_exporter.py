@@ -220,6 +220,9 @@ def export_animation(
         canvas.set_artifacts_provider(saved_provider)
         canvas.sync_state(saved_state, list(saved_state.visible_artifacts))
         canvas.render(preserve_view=False)
+        # 导出过程已覆盖 Axes（自动缩放），恢复渲染后的窗口不是用户交互
+        # 结果；失效视图标记，下次渲染按数据自动缩放而非“保持”陌生窗口
+        canvas._view_valid = False
 
     if len(frames) < 2:
         raise ValueError(f"帧数不足 2，无法合成 GIF（{len(frames)} 帧）")

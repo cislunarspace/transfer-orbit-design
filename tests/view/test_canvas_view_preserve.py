@@ -140,6 +140,22 @@ class TestViewPreservation:
         assert canvas._ax.get_xlim() != pytest.approx((-0.001, 0.001))
         assert canvas._ax.get_xlim()[1] > 0.3
 
+    def test_toggling_annotations_preserves_view(self, qapp):
+        """开关地月/平动点标注的同一坐标系重绘：视角与范围保持。"""
+        canvas = _make_canvas(qapp, "id1")
+        canvas._ax.view_init(elev=30.0, azim=90.0)
+        canvas._ax.set_xlim(-0.05, 0.05)
+
+        state = canvas._state.copy()
+        state.show_bodies = True
+        state.show_libration = True
+        canvas.sync_state(state, ["id1"])
+        canvas.render(state)
+
+        assert canvas._ax.elev == pytest.approx(30.0)
+        assert canvas._ax.azim == pytest.approx(90.0)
+        assert canvas._ax.get_xlim() == pytest.approx((-0.05, 0.05))
+
     def test_inplace_state_mutation_still_detects_layout_change(self, qapp):
         """main_window 原地修改 CanvasState（同一对象）：投影切换仍须识别为
         布局变化并重置视图，不能因新旧 state 同一对象而误保持。"""
