@@ -144,6 +144,9 @@ class OrbitCanvas(FigureCanvasQTAgg):
         # CanvasState，布局变化只能靠 render 末尾记录的键识别。
         self._layout_key: tuple[str, str, str] | None = None
         self._view_valid = False
+        # 各 Axes 对应的投影（单视图一个元素；四视图 ["3d","xy","xz","yz"]），
+        # fit_to_data 按子图投影应用等比/z_ratio 约束
+        self._axes_projections: list[str] = ["3d"]
 
     def _setup_axes(
         self, ax, projection: str = "3d", *, title: str = "选择一个工件以可视化"
@@ -307,11 +310,14 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 ax = self._fig.add_subplot(2, 2, i, projection="3d" if proj == "3d" else None)
                 sub_state = replace(state, projection=proj)
                 self._render_axes(ax, sub_state)
+            # 供 fit_to_data 区分四视图各子图的投影（等比/z_ratio 逻辑依赖）
+            self._axes_projections = ["3d", "xy", "xz", "yz"]
         else:
             projection = "3d" if state.projection == "3d" else None
             ax = self._fig.add_subplot(111, projection=projection)
             self._ax = ax
             self._render_axes(ax, state)
+            self._axes_projections = [state.projection]
         if views is not None:
             # 布局不变：恢复用户视角与坐标范围（覆盖 _render_axes 的自动
             # 缩放/居中/等比调整——用户的窗口是最终裁决）
@@ -420,6 +426,15 @@ class OrbitCanvas(FigureCanvasQTAgg):
             ax.set_ylim(*self._symmetrize(*ax.get_ylim()))
             if state.projection == "3d":
                 ax.set_zlim(*self._symmetrize(*ax.get_zlim()))  # type: ignore[attr-defined]
+        self._adjust_axes_limits(ax, state)
+        self._add_legend(ax)
+
+    def _adjust_axes_limits(self, ax, state: CanvasState) -> None:
+        """按当前轴范围应用等比/z_ratio 约束（渲染与视图适配共用）。
+
+        调用前提：轴范围已由 autoscale 或 fit_to_data 按数据设好；
+        自定义中心的对称化由调用方先行处理。
+        """
         if state.projection == "3d":
             # 3D 等比例：按各轴显示区间设 box_aspect。Z 区间先“多取一些”
             # （至少为 XY 较小范围的 z_ratio 倍），避免近平面
@@ -449,7 +464,49 @@ class OrbitCanvas(FigureCanvasQTAgg):
             else:
                 # 非等比：每轴独立 autoscale 填满画面，Z 细节清晰可见。
                 ax.set_aspect("auto")
-        self._add_legend(ax)
+
+    def fit_to_data(self) -> None:
+        """视图适配：按当前可见轨道轨迹的坐标范围重设各轴显示窗口。
+
+        轴范围 = 轨道数据范围 + 每轴 5% 余量（对称展开）；标注
+        （地月/平动点/月球轨迹，未打 gid="orbit" 标记）不参与。
+        不重建 Figure、不清 3D 相机角；适配结果成为后续 render 的
+        视图保持基准。无轨道数据时不做任何事。
+        """
+        for ax, proj in zip(self._fig.axes, self._axes_projections, strict=True):
+            stacked: list[np.ndarray] = []
+            for line in ax.lines:
+                if line.get_gid() != "orbit":
+                    continue
+                if isinstance(ax, Axes3D):
+                    # Line3D 才有 get_data_3d；stubs 按基类 Line2D 推断
+                    stacked.append(np.asarray(line.get_data_3d()).T)  # type: ignore[attr-defined]
+                else:
+                    xdata, ydata = line.get_data()
+                    stacked.append(np.column_stack((xdata, ydata)))
+            if not stacked:
+                continue
+            pts = np.vstack(stacked)
+            lo = pts.min(axis=0)
+            hi = pts.max(axis=0)
+            # 5% 余量：每轴总跨度 × 1.05，对称展开
+            mids = (lo + hi) / 2
+            half = (hi - lo) * 1.05 / 2
+            lims = [(m - h, m + h) for m, h in zip(mids, half, strict=True)]
+            ax.set_xlim(*lims[0])
+            ax.set_ylim(*lims[1])
+            # 与 _render_axes 末尾同一套收尾：自定义中心对称化 + 等比/z_ratio
+            sub_state = replace(self._state, projection=proj)
+            is_custom_center = (
+                sub_state.frame == "synodic" and sub_state.center != "barycenter"
+            ) or (sub_state.frame == "inertial" and sub_state.center == "moon")
+            if is_custom_center:
+                ax.set_xlim(*self._symmetrize(*ax.get_xlim()))
+                ax.set_ylim(*self._symmetrize(*ax.get_ylim()))
+                if proj == "3d":
+                    ax.set_zlim(*self._symmetrize(*ax.get_zlim()))  # type: ignore[attr-defined]
+            self._adjust_axes_limits(ax, sub_state)
+        self.draw()
 
     def _add_legend(self, ax) -> None:
         """为已标记的轨迹和天体自动生成图例。"""
@@ -524,6 +581,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                         linewidth=self._chart.orbit_linewidth,
                         color=base_color,
                         linestyle="-",
+                        gid="orbit",
                         label=f"{label}（初猜）" if content == "overlay" else label,
                     )
                     ax.scatter(*pos[0], s=30, c=base_color, zorder=5)
@@ -539,6 +597,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                         linewidth=self._chart.orbit_linewidth,
                         color=eph_color,
                         linestyle="--" if content == "overlay" else "-",
+                        gid="orbit",
                         label=f"{label}{suffix}",
                     )
                     if content == "ephemeris":
@@ -567,6 +626,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 pos[:, 2],
                 linewidth=self._chart.orbit_linewidth,
                 color=color,
+                gid="orbit",
                 label=label if j == 0 else None,
             )
         ax.scatter(*(arr[0][0, :3] - center), s=20, color=cmap(norm(0)), zorder=5)
@@ -590,6 +650,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 pos[:, plane[1]],
                 linewidth=self._chart.orbit_linewidth,
                 color=cmap(norm(j)),
+                gid="orbit",
                 label=label if j == 0 else None,
             )
 
@@ -613,6 +674,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                         pos[:, plane[1]],
                         linewidth=self._chart.orbit_linewidth,
                         color=base_color,
+                        gid="orbit",
                         linestyle="-",
                         label=f"{label}（初猜）" if content == "overlay" else label,
                     )
@@ -626,6 +688,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                         pos[:, plane[1]],
                         linewidth=self._chart.orbit_linewidth,
                         color=eph_color,
+                        gid="orbit",
                         linestyle="--" if content == "overlay" else "-",
                         label=f"{label}{suffix}",
                     )
@@ -692,6 +755,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     pos[:, 2],
                     linewidth=self._chart.orbit_linewidth,
                     color=color,
+                    gid="orbit",
                     label=label,
                 )
                 ax.scatter(*pos[0], s=30, c=color, zorder=5)
@@ -718,6 +782,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     pos[:, plane[1]],
                     linewidth=self._chart.orbit_linewidth,
                     color=color,
+                    gid="orbit",
                     label=label,
                 )
                 continue
@@ -785,6 +850,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                         pos[:, 2],
                         linewidth=self._chart.orbit_linewidth,
                         color=cmap(norm(j)),
+                        gid="orbit",
                         label=label if j == 0 else None,
                     )
                 else:
@@ -793,6 +859,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                         pos[:, plane[1]],
                         linewidth=self._chart.orbit_linewidth,
                         color=cmap(norm(j)),
+                        gid="orbit",
                         label=label if j == 0 else None,
                     )
             return
@@ -808,6 +875,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     pos[:, 2],
                     linewidth=self._chart.orbit_linewidth,
                     color=color,
+                    gid="orbit",
                     label=label,
                 )
             else:
@@ -816,6 +884,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     pos[:, plane[1]],
                     linewidth=self._chart.orbit_linewidth,
                     color=color,
+                    gid="orbit",
                     label=label,
                 )
 
