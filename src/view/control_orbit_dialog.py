@@ -449,12 +449,12 @@ class ControlOrbitDialog(QDialog):
 
     # -- 关闭 ----------------------------------------------------------------
 
-    def closeEvent(self, event) -> None:
+    def closeEvent(self, a0) -> None:  # noqa: N802, ANN001 - Qt 覆盖方法签名（同 MainWindow）
         """运行中关闭视为取消任务：请求停止，待取消信号到达后再关。"""
         if self.is_busy():
             if not self._stop_requested:
                 self._on_stop_run()
             self._pending_close = True
-            event.ignore()
+            a0.ignore()
             return
-        super().closeEvent(event)
+        super().closeEvent(a0)
