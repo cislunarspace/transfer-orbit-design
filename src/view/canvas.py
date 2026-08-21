@@ -428,9 +428,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
         self._adjust_axes_limits(ax, state, symmetrize=is_custom_center)
         self._add_legend(ax)
 
-    def _adjust_axes_limits(
-        self, ax, state: CanvasState, *, symmetrize: bool = False
-    ) -> None:
+    def _adjust_axes_limits(self, ax, state: CanvasState, *, symmetrize: bool = False) -> None:
         """按当前轴范围应用对称居中/等比/z_ratio 约束（渲染与视图适配共用）。
 
         调用前提：轴范围已由 autoscale 或 fit_to_data 按数据设好。
