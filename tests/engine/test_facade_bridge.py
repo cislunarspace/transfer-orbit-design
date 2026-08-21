@@ -67,6 +67,7 @@ class TestToolRegistry:
             "design_orbit",
             "control_orbit",
             "orbit_family_generation",
+            "orbit_propagation",
         } == {n for n, s in TOOL_REGISTRY.items() if not s.enabled}
 
     def test_design_orbit_enabled(self):
@@ -121,6 +122,7 @@ class TestToolRegistry:
             "control_orbit",
             "orbit_family_generation",
             "orbit_stability",
+            "orbit_propagation",
         }
         for name, info in inventory.items():
             if name in gui_integrated:

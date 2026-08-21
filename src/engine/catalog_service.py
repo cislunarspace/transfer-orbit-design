@@ -167,6 +167,11 @@ def _fill_control(artifact: Artifact, arrays: dict, scalars: dict) -> None:
         artifact.times = eph["times_et"]
         artifact.extra["times_et"] = eph["times_et"]
         artifact.extra["position_km"] = eph.get("position_km")
+        # GCRS 速度（km/s）：轨道预报初值预填需要末端速度（#389）；记录里存的是 m/s
+        velocity_mps = eph.get("velocity_mps")
+        artifact.extra["velocity_km_s"] = (
+            np.asarray(velocity_mps, dtype=float) / 1000.0 if velocity_mps is not None else None
+        )
     artifact.extra["num_failed"] = scalars.get("num_failed")
     artifact.extra["total_delta_v_mps"] = scalars.get("delta_v_total_mps")
     maneuvers = arrays.get("result/maneuvers_mjd_tdb")
