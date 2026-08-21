@@ -626,7 +626,7 @@ class FacadeBridge:
         )
 
     def generate_family(self, **kwargs: Any) -> FamilyResultData:
-        """生成轨道族（七族），返回跨线程 DTO（产物自动入库）。
+        """生成轨道族（各族统一入口），返回跨线程 DTO（产物自动入库）。
 
         走 ``Facade.orbit_family_generation``：e2m2e 5.7.1 起 Facade 响应
         （``FamilyGenerationResponse``）携带完整 Orbit 成员与状态三元组，软失败

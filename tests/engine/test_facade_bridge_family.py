@@ -70,7 +70,7 @@ class TestFamilyGenerationRequest:
         assert req.min_amplitude_km == 2000.0
         assert req.max_amplitude_km == 60000.0
         with pytest.raises(ValidationError):
-            FamilyGenerationRequest(orbit_type="DRO", liberation_point=2)
+            FamilyGenerationRequest(orbit_type="DRO", libration_point=2)
 
     def test_per_family_defaults(self):
         nrho = FamilyGenerationRequest(orbit_type="NRHO")
@@ -116,7 +116,7 @@ def _fake_response(
     from e2m2e.data.templates import ConvergenceState, FailureCause
 
     if member_parameters is None:
-        member_parameters = {"liberation_point": params.get("liberation_point", 2)}
+        member_parameters = {"libration_point": params.get("libration_point", 2)}
     return SimpleNamespace(
         status=ConvergenceState.CONVERGED,
         cause=FailureCause.NONE,
