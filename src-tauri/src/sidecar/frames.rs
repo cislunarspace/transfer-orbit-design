@@ -136,7 +136,7 @@ impl StreamParser {
         Self { buf: Vec::new(), pending_frames: 0, scanned: 0 }
     }
 
-    pub fn push(&mut self, chunk: &[u8]) -> Vec<ProtocolEvent> {
+    pub fn push(&mut self, chunk: &[u8]) -> Result<Vec<ProtocolEvent>, ProtocolError> {
         self.buf.extend_from_slice(chunk);
         let mut events = Vec::new();
         loop {
@@ -149,9 +149,9 @@ impl StreamParser {
                     }
                     Err(ProtocolError::Truncated(_)) => break,
                     Err(e) => {
-                        // 坏帧（magic/dtype/长度非法）无法恢复，直接上抛，
-                        // 由调用方处置子进程
-                        panic!("sidecar 协议帧非法：{e}");
+                        // 坏帧（magic/dtype/长度非法）无法恢复：上抛给读循环，
+                        // 由它唤醒等待者并终止（调用方重建 sidecar）
+                        return Err(e);
                     }
                 }
                 continue;
@@ -188,7 +188,7 @@ impl StreamParser {
             self.buf.drain(..self.scanned);
             self.scanned = 0;
         }
-        events
+        Ok(events)
     }
 
     pub fn finish(&self) -> Result<(), ProtocolError> {
@@ -282,7 +282,7 @@ mod tests {
         // 逐字节喂入，模拟任意切分
         let mut events = Vec::new();
         for b in &stream {
-            events.extend(parser.push(&[*b]));
+            events.extend(parser.push(&[*b]).unwrap());
         }
         parser.finish().unwrap();
         assert_eq!(events.len(), 3);
@@ -292,10 +292,25 @@ mod tests {
     }
 
     #[test]
+    fn parser_returns_err_on_bad_frame() {
+        let mut bad = Vec::new();
+        bad.extend_from_slice(br#"{"status":"ok","binary_frames":1}
+"#);
+        let mut frame = make_frame(0, &[1], &[1.0], &[]);
+        frame[3] ^= 0xFF; // 破坏 magic
+        bad.extend_from_slice(&frame);
+        let mut parser = StreamParser::new();
+        let first = parser.push(&bad);
+        // 一次性喂入时信封行与坏帧同批，直接 BadFrame（事件丢弃是可接受的：
+        // 读循环对 Err 的处置是终止并重建，不消费部分事件）
+        assert!(matches!(first, Err(ProtocolError::BadFrame(_))));
+    }
+
+    #[test]
     fn parser_finish_rejects_hanging_stream() {
         let mut parser = StreamParser::new();
-        parser.push(b"{\"binary_frames\":2}\n");
-        parser.push(&make_frame(0, &[1], &[1.0], &[]));
+        parser.push(b"{\"binary_frames\":2}\n").unwrap();
+        parser.push(&make_frame(0, &[1], &[1.0], &[])).unwrap();
         assert!(parser.finish().is_err());
     }
 }

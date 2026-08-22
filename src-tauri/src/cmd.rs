@@ -55,6 +55,20 @@ pub async fn generate_family(
     // ≥5.8.5，#525）。轨迹重采样在前端 CR3BP 传播器做（与 CSV 原型同源）。
     let orbits = result.data["orbits"].as_array().cloned().unwrap_or_default();
     let mu = result.data["mu"].as_f64();
+    // binary_dtype=f32 是本命令固定的，f64 帧是协议违约：结构化拒绝
+    if result.frames.iter().any(|f| matches!(f, crate::sidecar::FrameArray::F64 { .. })) {
+        return Ok(FamilyResponse {
+            record_id: String::new(),
+            family_type: String::new(),
+            generated_members: 0,
+            mu: None,
+            members: vec![],
+            error: Some(serde_json::json!({
+                "code": "PROTOCOL_VIOLATION",
+                "message": "binary_dtype=f32 请求收到 f64 帧",
+            })),
+        });
+    }
     let members = result
         .frames
         .iter()
@@ -62,8 +76,7 @@ pub async fn generate_family(
         .map(|(frame, orbit)| {
             let initial = match frame {
                 crate::sidecar::FrameArray::F32 { data, .. } => data,
-                // binary_dtype=f32 是本命令固定的，出现 f64 是协议违约
-                crate::sidecar::FrameArray::F64 { .. } => unreachable!("f32 请求收到 f64 帧"),
+                crate::sidecar::FrameArray::F64 { .. } => unreachable!("已在上方排除"),
             };
             let states = initial.to_vec();
             let times = orbit["times"].as_array().cloned().unwrap_or_default()
@@ -87,7 +100,7 @@ pub async fn generate_family(
             orbit_type: family_type.clone(),
             source_tool: "orbit_family_generation".into(),
             record_id: Some(record_id.clone()),
-            created_at: chrono_iso_now(),
+            created_at: unix_seconds_now(),
         }).await;
     }
     Ok(FamilyResponse {
@@ -100,7 +113,7 @@ pub async fn generate_family(
     })
 }
 
-fn chrono_iso_now() -> String {
+fn unix_seconds_now() -> String {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs().to_string())

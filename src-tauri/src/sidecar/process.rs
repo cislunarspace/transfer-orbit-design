@@ -22,7 +22,6 @@ pub struct JobResult {
 }
 
 enum Cmd {
-    /// 空工具名 = shutdown 信号。
     Request {
         tool: String,
         arguments: Value,
@@ -75,6 +74,9 @@ impl SidecarHandle {
     }
 
     /// 发起一个工具调用，等待最终信封。
+    ///
+    /// 单任务串行：已有任务在执行时立即拒绝（不排队、不覆盖——覆盖会丢
+    /// 前一任务的回复且错误信息误导）。并发需求出现时再加队列。
     pub async fn request(
         &self,
         tool: &str,
@@ -91,6 +93,11 @@ impl SidecarHandle {
         reply_rx
             .await
             .map_err(|_| anyhow::anyhow!("sidecar 读循环已退出（子进程可能已崩溃）"))
+    }
+
+    /// 读循环是否仍在运行（探活：死句柄判定）。
+    pub fn is_alive(&self) -> bool {
+        !self.tx.is_closed()
     }
 
     /// 订阅进度行（可丢弃事件）。每次调用替换订阅者。
@@ -132,7 +139,6 @@ async fn reader_loop(
             cmd = rx.recv() => {
                 match cmd {
                     Some(Cmd::Request { tool, arguments, binary_dtype, reply }) => {
-                        if tool.is_empty() { break; } // shutdown 信号
                         let mut req = json!({"tool": tool, "arguments": arguments});
                         if let Some(dt) = binary_dtype {
                             req["binary_dtype"] = json!(dt);
@@ -155,9 +161,22 @@ async fn reader_loop(
             }
             n = stdout.read_buf(&mut buf) => {
                 match n {
-                    Ok(0) | Err(_) => break, // EOF / IO 错误
+                    Ok(0) | Err(_) => {
+                        // EOF / IO 错误：子进程已死。若请求刚进来还没写出去（或
+                        // 写出去了但等不到回复），唤醒等待者走自愈路径。
+                        pending.take();
+                        break;
+                    }
                     Ok(_) => {
-                        let events = parser.push(&buf);
+                        let events = match parser.push(&buf) {
+                            Ok(ev) => ev,
+                            Err(e) => {
+                                // 坏帧：协议流不可恢复。唤醒等待者（SIDECAR_EXIT
+                                // 错误码走 state 层自愈重建），终止读循环。
+                                eprintln!("sidecar 协议错误，终止读循环：{e}");
+                                break;
+                            }
+                        };
                         for ev in events {
                             match ev {
                                 ProtocolEvent::Line(v) => {

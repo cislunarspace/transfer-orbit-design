@@ -11,7 +11,7 @@ fn load_fixture(name: &str) -> Vec<u8> {
 fn family_ok_f32_stream_parses_end_to_end() {
     let raw = load_fixture("family_ok_f32.bin");
     let mut parser = StreamParser::new();
-    let events = parser.push(&raw);
+    let events = parser.push(&raw).unwrap();
     parser.finish().unwrap();
 
     // 事件序：progress 行 → ok 信封行 → 3 帧
@@ -51,7 +51,7 @@ fn family_f32_values_match_python_reference() {
     // 夹具首帧首点来自 e2m2e 侧参考输出（f32 精度）
     let raw = load_fixture("family_ok_f32.bin");
     let mut parser = StreamParser::new();
-    let events = parser.push(&raw);
+    let events = parser.push(&raw).unwrap();
     match &events[2] {
         ProtocolEvent::Frame(FrameArray::F32 { data, .. }) => {
             assert!((data[0] - 0.854_806_07).abs() < 1e-6, "首帧 x0 = {}", data[0]);
@@ -64,7 +64,7 @@ fn family_f32_values_match_python_reference() {
 fn unknown_tool_error_envelope_parses() {
     let raw = load_fixture("unknown_tool.bin");
     let mut parser = StreamParser::new();
-    let events = parser.push(&raw);
+    let events = parser.push(&raw).unwrap();
     parser.finish().unwrap();
     assert_eq!(events.len(), 1);
     match &events[0] {

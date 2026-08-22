@@ -71,3 +71,21 @@ async fn sequential_requests_reuse_process() {
     }
     handle.shutdown().await.unwrap();
 }
+
+#[tokio::test]
+async fn request_after_idle_death_returns_sidecar_exit_then_recovers() {
+    // 空闲期 sidecar 被杀：下一请求应拿到 SIDECAR_EXIT 错误码（而非
+    // anyhow "读循环已退出"），调用方（state 层）据此重建——评审阻塞项 2
+    let handle = spawn().await;
+    handle.shutdown().await.unwrap(); // 模拟外部杀死
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    // 死句柄：读循环已退出，request 返回 anyhow 错误（不 panic）。
+    // state 层的 request_with_retry 拿到它后 reset + 重建（见 state.rs）。
+    let result = handle.request("nope", &json!({}), None).await;
+    assert!(result.is_err(), "死句柄请求应失败，得到 {:?}", result);
+    // 若请求恰在死前送达（写 stdin 成功、等回复时进程死）：SIDECAR_EXIT 错误码
+    // ——两种时序都被 state 层自愈覆盖。
+    if let Ok(r) = result {
+        assert_eq!(r.error.as_ref().unwrap()["code"], "SIDECAR_EXIT");
+    }
+}

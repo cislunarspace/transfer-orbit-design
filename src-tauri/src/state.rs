@@ -68,21 +68,39 @@ impl SidecarState {
     }
 }
 
-/// 请求 + SIDECAR_EXIT 一次重试（sidecar 空闲过期/崩溃后自愈）。
+/// 请求 + 崩溃自愈重试一次。覆盖三种死亡时序：请求中崩溃（SIDECAR_EXIT
+/// 错误码）、空闲期崩溃/坏帧后（读循环退出 → anyhow 错误 + 死句柄残留）。
+/// 两条路径都先 reset 再重拉 sidecar；再失败则上抛（连续两次崩溃不是
+/// 瞬态问题）。
 pub async fn request_with_retry(
     state: &SidecarState,
     tool: &str,
     arguments: serde_json::Value,
     binary_dtype: Option<&'static str>,
 ) -> anyhow::Result<JobResult> {
-    let handle = state.get_or_spawn().await?;
-    let result = handle.request(tool, &arguments, binary_dtype).await?;
+    let result = match try_request(state, tool, &arguments, binary_dtype).await {
+        Ok(r) => r,
+        Err(_) => {
+            // anyhow 错误 = 读循环已退出（死句柄），重建后重试
+            state.reset().await;
+            return try_request(state, tool, &arguments, binary_dtype).await;
+        }
+    };
     if result.error.as_ref().and_then(|e| e.get("code"))
         == Some(&serde_json::json!("SIDECAR_EXIT"))
     {
         state.reset().await;
-        let handle = state.get_or_spawn().await?;
-        return handle.request(tool, &arguments, binary_dtype).await;
+        return try_request(state, tool, &arguments, binary_dtype).await;
     }
     Ok(result)
+}
+
+async fn try_request(
+    state: &SidecarState,
+    tool: &str,
+    arguments: &serde_json::Value,
+    binary_dtype: Option<&'static str>,
+) -> anyhow::Result<JobResult> {
+    let handle = state.get_or_spawn().await?;
+    handle.request(tool, arguments, binary_dtype).await
 }
