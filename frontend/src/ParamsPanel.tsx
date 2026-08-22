@@ -40,11 +40,16 @@ function Field({ name, prop, value, onChange }: FieldProps) {
         />
       );
     }
+    const isArray = inner.type === "array" || inner.type === "object" || !inner.type;
     return (
       <input
         type="text"
-        value={value === null || value === undefined ? "" : String(value)}
-        onChange={(e) => onChange(e.target.value)}
+        value={value === null || value === undefined ? "" : isArray ? JSON.stringify(value) : String(value)}
+        placeholder={isArray ? "JSON" : undefined}
+        onChange={(e) => {
+          if (!isArray) return onChange(e.target.value);
+          try { onChange(JSON.parse(e.target.value)); } catch { onChange(e.target.value); }
+        }}
       />
     );
   })();
@@ -81,11 +86,13 @@ export interface ParamsPanelProps {
 
 /** orbit_type 切换时裁剪字段（不适用的字段剔除，与 e2m2e 校验规则一致）。 */
 export function ParamsPanel({ schema, params, onParamsChange }: ParamsPanelProps) {
+  const isFamily = Boolean(schema.properties.orbit_type);
   const orbitType = String(params.orbit_type ?? "HALO");
   const fields = useMemo(() => applicableFields(schema, orbitType), [schema, orbitType]);
 
   return (
     <div>
+      {isFamily && <>
       {/* orbit_type 单独渲染为下拉（驱动字段裁剪） */}
       <label style={{ display: "block", marginBottom: 8, fontSize: 12 }}>
         <span style={{ display: "inline-block", minWidth: 140 }}>orbit_type</span>
@@ -107,6 +114,7 @@ export function ParamsPanel({ schema, params, onParamsChange }: ParamsPanelProps
           ))}
         </select>
       </label>
+      </>}
       {fields
         .filter((f) => f !== "orbit_type")
         .map((f) => (

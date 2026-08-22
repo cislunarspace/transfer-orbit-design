@@ -31,6 +31,84 @@ pub struct FamilyResponse {
     pub error: Option<serde_json::Value>,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FrameResponse {
+    pub dtype: &'static str,
+    pub shape: Vec<u32>,
+    pub data: serde_json::Value,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolResponse {
+    pub data: serde_json::Value,
+    pub frames: Vec<FrameResponse>,
+    pub error: Option<serde_json::Value>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtifactMetadata {
+    pub artifact_type: String,
+    pub label: String,
+    #[serde(default)]
+    pub orbit_type: String,
+}
+
+/// 通用工具执行通道。sidecar 负责工具分派；Rust 只做协议校验和会话产物登记。
+#[tauri::command]
+pub async fn run_tool(
+    state: State<'_, SidecarState>,
+    project: State<'_, ProjectState>,
+    tool: String,
+    arguments: serde_json::Value,
+    binary_dtype: Option<String>,
+    artifact: Option<ArtifactMetadata>,
+) -> Result<ToolResponse, String> {
+    let dtype = binary_dtype.as_deref().map(|v| match v {
+        "f32" => Ok("f32"),
+        "f64" => Ok("f64"),
+        _ => Err(anyhow::anyhow!("binary_dtype 必须是 f32 或 f64")),
+    }).transpose().map_err(|e: anyhow::Error| e.to_string())?;
+    let result = request_with_retry(&state, &tool, arguments, dtype)
+        .await.map_err(|e| e.to_string())?;
+    if result.status != "ok" {
+        return Ok(ToolResponse { data: result.data, frames: vec![], error: result.error });
+    }
+    let frames: Vec<FrameResponse> = result.frames.iter().map(|frame| match frame {
+        crate::sidecar::FrameArray::F32 { shape, data } => FrameResponse {
+            dtype: "f32", shape: shape.clone(), data: serde_json::json!(data),
+        },
+        crate::sidecar::FrameArray::F64 { shape, data } => FrameResponse {
+            dtype: "f64", shape: shape.clone(), data: serde_json::json!(data),
+        },
+    }).collect();
+    if let Some(expected) = dtype {
+        let mismatch = frames.iter().any(|f| f.dtype != expected);
+        if mismatch {
+            return Ok(ToolResponse {
+                data: serde_json::Value::Null,
+                frames: vec![],
+                error: Some(serde_json::json!({
+                    "code": "PROTOCOL_VIOLATION",
+                    "message": format!("binary_dtype={expected} 请求收到不同 dtype 帧"),
+                })),
+            });
+        }
+    }
+    if let (Some(meta), Some(record_id)) = (artifact, result.data.get("record_id").and_then(|v| v.as_str())) {
+        if !record_id.is_empty() {
+            project.add(ArtifactSummary {
+                artifact_id: String::new(), artifact_type: meta.artifact_type,
+                label: meta.label, orbit_type: meta.orbit_type, source_tool: tool,
+                record_id: Some(record_id.to_string()), created_at: unix_seconds_now(),
+            }).await;
+        }
+    }
+    Ok(ToolResponse { data: result.data, frames, error: None })
+}
+
 /// 生成轨道族（首个打通的工具；参数结构与 FamilyGenerationRequest 对齐）。
 #[tauri::command]
 pub async fn generate_family(

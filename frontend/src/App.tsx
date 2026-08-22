@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { OrbitCanvas, type CanvasApi } from "./OrbitCanvas";
 import { propagate, librationPoint } from "./cr3bp";
-import { generateFamily, getArtifact, type FamilyResponse } from "./sidecarApi";
+import { getArtifact, runTool, type FamilyResponse, type ToolResponse } from "./sidecarApi";
 import { listArtifacts, removeArtifact, type ArtifactSummary } from "./projectApi";
 import { ParamsPanel } from "./ParamsPanel";
 import { ProjectTree } from "./ProjectTree";
-import { familyGenerationSchema } from "./schema";
+import { TOOL_REGISTRY, toolEntry } from "./schema";
 import { CatalogFilterBar } from "./CatalogFilterBar";
 import { useTranslation } from "./i18n";
 import { useChartSettings, DEFAULT_CHART_SETTINGS, type ChartSettings } from "./chartSettings";
@@ -26,6 +26,8 @@ export default function App() {
   const [mu, setMu] = useState(EARTH_MOON_MU);
   const [api, setApi] = useState<CanvasApi | null>(null);
   const [family, setFamily] = useState<FamilyResponse | null>(null);
+  const [toolResult, setToolResult] = useState<ToolResponse | null>(null);
+  const [selectedTool, setSelectedTool] = useState(TOOL_REGISTRY[0].name);
   const [busy, setBusy] = useState(false);
   const [artifacts, setArtifacts] = useState<ArtifactSummary[]>([]);
   const [params, setParams] = useState<Record<string, unknown>>(DEFAULT_PARAMS);
@@ -87,11 +89,22 @@ export default function App() {
       const cleaned = Object.fromEntries(
         Object.entries(params).filter(([, v]) => v !== null && v !== undefined && v !== ""),
       );
-      const resp = await generateFamily(cleaned);
-      setFamily(resp);
-      if (resp.mu) setMu(resp.mu);
+      const entry = toolEntry(selectedTool);
+      const resp = await runTool(selectedTool, cleaned, entry.binaryDtype, entry.artifactType ? {
+        artifactType: entry.artifactType, label: entry.title, orbitType: String(cleaned.orbit_type ?? ""),
+      } : undefined);
+      setToolResult(resp);
+      if (selectedTool === "orbit_family_generation" && !resp.error) {
+        const data = resp.data;
+        const orbits = Array.isArray(data.orbits) ? data.orbits as Record<string, unknown>[] : [];
+        const members = resp.frames.map((frame, i) => ({ states: frame.data, times: Array.isArray(orbits[i]?.times) ? orbits[i].times as number[] : [], period: typeof orbits[i]?.period === "number" ? orbits[i].period as number : null }));
+        const next: FamilyResponse = { recordId: String(data.record_id ?? ""), familyType: String(data.family_type ?? ""), generatedMembers: Number(data.generated_members ?? members.length), mu: typeof data.mu === "number" ? data.mu : null, members, error: null };
+        setFamily(next); if (next.mu) setMu(next.mu);
+      }
       setArtifacts(await listArtifacts());
     } catch (e) {
+      const error = { code: "INVOKE", message: String(e) };
+      setToolResult({ data: {}, frames: [], error });
       setFamily({
         recordId: "",
         familyType: "",
@@ -124,7 +137,19 @@ export default function App() {
             );
           })
       : [];
-  const canvasTrajectories = [...familyPoints, ...catalogPoints];
+  const genericPoints = toolResult && !toolResult.error && selectedTool !== "orbit_family_generation" ? (() => {
+    const d = toolResult.data;
+    const states = Array.isArray(d.states) ? d.states : Array.isArray(d.position_km) ? d.position_km : Array.isArray(d.trajectory) ? d.trajectory : [];
+    const jsonPoints = Array.isArray(states) && states.length && Array.isArray(states[0]) ? [states.map((s) => [Number(s[0]), Number(s[1]), Number(s[2])])] : [];
+    const framePoints = toolResult.frames.filter((frame) => frame.shape.length >= 2 && frame.shape[frame.shape.length - 1] >= 3).map((frame) => {
+      const stride = frame.shape[frame.shape.length - 1];
+      const points: number[][] = [];
+      for (let i = 0; i + 2 < frame.data.length; i += stride) points.push([frame.data[i], frame.data[i + 1], frame.data[i + 2]]);
+      return points;
+    });
+    return jsonPoints.length ? jsonPoints : framePoints;
+  })() : [];
+  const canvasTrajectories = [...familyPoints, ...genericPoints, ...catalogPoints];
 
   // 首次数据到达时视图适配一次；此后保持（视图保持语义）
   const [firstFit, setFirstFit] = useState(true);
@@ -188,23 +213,26 @@ export default function App() {
         />
       </div>
       <div style={{ width: 300, borderRight: "1px solid #333", overflowY: "auto", padding: 8 }}>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>轨道族生成</div>
-        <ParamsPanel schema={familyGenerationSchema()} params={params} onParamsChange={setParams} />
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>工具面板</div>
+        <select value={selectedTool} onChange={(e) => { setSelectedTool(e.target.value); setParams(e.target.value === "orbit_family_generation" ? DEFAULT_PARAMS : {}); setFamily(null); setToolResult(null); }} style={{ width: "100%", marginBottom: 8 }}>
+          {TOOL_REGISTRY.map((entry) => <option key={entry.name} value={entry.name}>{entry.title}</option>)}
+        </select>
+        <ParamsPanel schema={toolEntry(selectedTool).schema} params={params} onParamsChange={setParams} />
         <button onClick={onGenerate} disabled={busy} style={{ width: "100%", marginTop: 8 }}>
-          {busy ? "生成中…" : "生成"}
+          {busy ? "执行中…" : "执行"}
         </button>
-        {family && (
+        {(family || toolResult) && (
           <div
             style={{
               fontSize: 12,
               marginTop: 8,
-              color: family.error ? "#e57373" : "#81c784",
+              color: toolResult?.error ? "#e57373" : "#81c784",
               wordBreak: "break-all",
             }}
           >
-            {family.error
-              ? `${family.error.code}: ${family.error.message}`
-              : `record ${family.recordId}（${family.generatedMembers} 成员）`}
+            {toolResult?.error
+              ? `${toolResult.error.code}: ${toolResult.error.message}`
+              : family ? `record ${family.recordId}（${family.generatedMembers} 成员）` : `工具 ${selectedTool} 执行成功`}
           </div>
         )}
       </div>
