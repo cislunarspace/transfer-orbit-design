@@ -172,6 +172,24 @@ pub async fn get_artifact(
     })
 }
 
+#[tauri::command]
+pub async fn catalog_query(
+    state: State<'_, SidecarState>,
+    arguments: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let result = request_with_retry(&state, "catalog_query", arguments, None)
+        .await
+        .map_err(|e| e.to_string())?;
+    if result.status != "ok" {
+        return Ok(serde_json::json!({"records": [], "message": result.error
+            .and_then(|e| e.get("message").cloned()).unwrap_or_default()}));
+    }
+    Ok(serde_json::json!({
+        "records": result.data["records"].clone(),
+        "message": result.data["message"].clone(),
+    }))
+}
+
 /// 项目内 Artifact 摘要列表（项目树数据源）。
 #[tauri::command]
 pub async fn list_artifacts(

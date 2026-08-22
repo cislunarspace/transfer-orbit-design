@@ -36,7 +36,8 @@ pub fn run() {
             cmd::generate_family,
             cmd::list_artifacts,
             cmd::remove_artifact,
-            cmd::get_artifact
+            cmd::get_artifact,
+            cmd::catalog_query
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -6,6 +6,8 @@ import { listArtifacts, removeArtifact, type ArtifactSummary } from "./projectAp
 import { ParamsPanel } from "./ParamsPanel";
 import { ProjectTree } from "./ProjectTree";
 import { familyGenerationSchema } from "./schema";
+import { CatalogFilterBar } from "./CatalogFilterBar";
+import { useTranslation } from "./i18n";
 
 const DEFAULT_PARAMS: Record<string, unknown> = {
   orbit_type: "HALO",
@@ -17,6 +19,8 @@ const DEFAULT_PARAMS: Record<string, unknown> = {
 const EARTH_MOON_MU = 0.01215058560962404;
 
 export default function App() {
+  const { lang, setLang, t } = useTranslation();
+  const [leftTab, setLeftTab] = useState<"project" | "catalog">("project");
   const [mu, setMu] = useState(EARTH_MOON_MU);
   const [api, setApi] = useState<CanvasApi | null>(null);
   const [family, setFamily] = useState<FamilyResponse | null>(null);
@@ -109,7 +113,29 @@ export default function App() {
   return (
     <div style={{ display: "flex", height: "100%" }}>
       <div style={{ width: 230, borderRight: "1px solid #333", overflowY: "auto", padding: 8 }}>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>项目</div>
+        <div style={{ display: "flex", marginBottom: 8, gap: 8, alignItems: "center" }}>
+          <button
+            onClick={() => setLeftTab("project")}
+            style={{ fontWeight: leftTab === "project" ? 600 : 400, flex: 1 }}
+          >
+            {t("project.title")}
+          </button>
+          <button
+            onClick={() => setLeftTab("catalog")}
+            style={{ fontWeight: leftTab === "catalog" ? 600 : 400, flex: 1 }}
+          >
+            {t("catalog.title")}
+          </button>
+          <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ width: 44 }}>
+            <option value="zh">中</option>
+            <option value="en">EN</option>
+          </select>
+        </div>
+        {leftTab === "catalog" && (
+          <CatalogFilterBar
+            onResults={(items) => setArtifacts(items)}
+          />
+        )}
         <ProjectTree
           artifacts={artifacts}
           onSelect={async (a) => {
