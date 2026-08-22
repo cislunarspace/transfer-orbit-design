@@ -2,6 +2,21 @@
 
 ## 未发布
 
+## 4.0.1 (2026-08-22)
+
+### 功能
+
+- **通用工具执行通道（#399）**：工具面板接入全部七个工具——轨道族生成、任务轨道设计、轨道保持、轨道预报、转移轨道设计、轨道稳定性、时空坐标转换。参数表单由各工具的 JSON Schema 自动生成，经 Rust `run_tool` 命令直达 sidecar；工具结果轨迹按返回结构自适应渲染（JSON 数组或二进制帧），无需逐工具写画布代码。
+
+### 修复
+
+- **`cargo tauri dev` 启动失败**：`beforeDevCommand` 工作目录已在 `frontend/`，命令里的 `--prefix frontend` 造成双重前缀（`frontend/frontend/package.json` 不存在）。dev/build 两条命令同步修正。
+- **release 安装器不经 artifact 中转，直传 GitHub Release**（随 v4.0.0 后修复 CI）。
+
+### 文档
+
+- README 中英双语同步更新：删除已过时的「尚未接线」段落，SPICE 内核需求按工具区分。
+
 ## 4.0.0 (2026-08-22)
 
 ### GUI 架构切换：PyQt → Tauri（ADR-0014，#397）
