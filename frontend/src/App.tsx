@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { OrbitCanvas, type CanvasApi } from "./OrbitCanvas";
-import { loadHaloSeeds, propagate, librationPoint, type OrbitSeed } from "./cr3bp";
-import { generateFamily, type FamilyResponse } from "./sidecarApi";
+import { propagate, librationPoint } from "./cr3bp";
+import { generateFamily, getArtifact, type FamilyResponse } from "./sidecarApi";
 import { listArtifacts, removeArtifact, type ArtifactSummary } from "./projectApi";
 import { ParamsPanel } from "./ParamsPanel";
 import { ProjectTree } from "./ProjectTree";
@@ -14,17 +14,17 @@ const DEFAULT_PARAMS: Record<string, unknown> = {
   n_orbits: 10,
 };
 
+const EARTH_MOON_MU = 0.01215058560962404;
+
 export default function App() {
-  const [seeds, setSeeds] = useState<OrbitSeed[]>([]);
-  const [selected] = useState<number[]>([0]);
-  const [trajectories, setTrajectories] = useState<number[][][]>([]);
-  const [mu, setMu] = useState(0.01215058560962404);
+  const [mu, setMu] = useState(EARTH_MOON_MU);
   const [api, setApi] = useState<CanvasApi | null>(null);
   const [family, setFamily] = useState<FamilyResponse | null>(null);
   const [busy, setBusy] = useState(false);
   const [artifacts, setArtifacts] = useState<ArtifactSummary[]>([]);
   const [params, setParams] = useState<Record<string, unknown>>(DEFAULT_PARAMS);
   const [progressMessage, setProgressMessage] = useState<string>("");
+  const [catalogPoints, setCatalogPoints] = useState<number[][][]>([]);
 
   // 执行状态：sidecar 进度事件（可丢弃行，最后一条即当前状态）
   useEffect(() => {
@@ -39,32 +39,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    loadHaloSeeds().then((all) => {
-      setSeeds(all.filter((s) => s.orbitId.includes("_L1_")));
-    });
     listArtifacts().then(setArtifacts);
   }, []);
 
-  useEffect(() => {
-    if (seeds.length === 0) return;
-    setMu(seeds[0].mu);
-    setTrajectories(
-      selected
-        .filter((i) => i < seeds.length)
-        .map((i) => propagate(seeds[i].mu, seeds[i], 2000)),
-    );
-  }, [seeds, selected]);
-
   const onReady = useCallback((a: CanvasApi) => setApi(a), []);
 
-  // 布局不变的轨迹变化不重置视图（视图保持语义，阶段 3 起生效）
-  const [firstFit, setFirstFit] = useState(true);
-  useEffect(() => {
-    if (api && trajectories.length && firstFit) {
-      api.fitView();
-      setFirstFit(false);
-    }
-  }, [api, trajectories, firstFit]);
+  // 首次数据到达时视图适配一次；此后保持（视图保持语义）
 
   const libration = [
     { label: "L1", x: librationPoint(mu, 1) },
@@ -80,12 +60,14 @@ export default function App() {
       );
       const resp = await generateFamily(cleaned);
       setFamily(resp);
+      if (resp.mu) setMu(resp.mu);
       setArtifacts(await listArtifacts());
     } catch (e) {
       setFamily({
         recordId: "",
         familyType: "",
         generatedMembers: 0,
+        mu: null,
         members: [],
         error: { code: "INVOKE", message: String(e) },
       });
@@ -94,18 +76,35 @@ export default function App() {
     }
   };
 
-  // sidecar 族 → 画布点集（当前每成员初态单点，#525 后接整条轨迹）
+  // sidecar 族 → 画布轨迹：period 在手则传播整条（e2m2e ≥5.8.5）
   const familyPoints =
     family && !family.error
-      ? family.members.map((m) => {
-          const pts: number[][] = [];
-          for (let i = 0; i < m.pointCount; i++) {
-            pts.push([m.positions[i * 3], m.positions[i * 3 + 1], m.positions[i * 3 + 2]]);
-          }
-          return pts;
-        })
+      ? family.members
+          .filter((m) => m.states.length >= 6 && m.period)
+          .map((m) => {
+            const [x, y, z, vx, vy, vz] = m.states.slice(0, 6);
+            return propagate(
+              family.mu ?? mu,
+              {
+                orbitId: "family-member",
+                mu: family.mu ?? mu,
+                period: m.period!,
+                state: [x, y, z, vx, vy, vz],
+              },
+              800,
+            );
+          })
       : [];
-  const canvasTrajectories = [...trajectories, ...familyPoints];
+  const canvasTrajectories = [...familyPoints, ...catalogPoints];
+
+  // 首次数据到达时视图适配一次；此后保持（视图保持语义）
+  const [firstFit, setFirstFit] = useState(true);
+  useEffect(() => {
+    if (api && canvasTrajectories.length > 0 && firstFit) {
+      api.fitView();
+      setFirstFit(false);
+    }
+  }, [api, canvasTrajectories, firstFit]);
 
   return (
     <div style={{ display: "flex", height: "100%" }}>
@@ -113,7 +112,24 @@ export default function App() {
         <div style={{ fontWeight: 600, marginBottom: 8 }}>项目</div>
         <ProjectTree
           artifacts={artifacts}
-          onSelect={(a) => a && setArtifacts((prev) => [...prev]) /* 选中高亮阶段 3 后续 */}
+          onSelect={async (a) => {
+            // 项目树选中 → catalog 拉取 → 画布（叠加）
+            if (!a?.recordId) return;
+            const data = await getArtifact(a.recordId);
+            if (data.error) {
+              setProgressMessage(`${data.error.code}: ${data.error.message}`);
+              return;
+            }
+            setCatalogPoints(
+              data.members.map((flat) => {
+                const pts: number[][] = [];
+                for (let i = 0; i * 3 + 2 < flat.length; i++) {
+                  pts.push([flat[i * 3], flat[i * 3 + 1], flat[i * 3 + 2]]);
+                }
+                return pts;
+              }),
+            );
+          }}
           onRemove={async (id) => {
             await removeArtifact(id);
             setArtifacts(await listArtifacts());
@@ -151,18 +167,19 @@ export default function App() {
         >
           适配
         </button>
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          bottom: 8,
-          left: 546,
-          fontSize: 12,
-          color: "#888",
-        }}
-      >
-        {busy && progressMessage ? `${progressMessage}… ` : ""}
-        {selected.length} 条 CSV 轨迹{familyPoints.length > 0 ? ` + ${familyPoints.length} 族成员` : ""}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 8,
+            left: 8,
+            fontSize: 12,
+            color: "#888",
+          }}
+        >
+          {busy && progressMessage ? `${progressMessage}… ` : ""}
+          {familyPoints.length > 0 && `${familyPoints.length} 族成员`}
+          {catalogPoints.length > 0 && `${catalogPoints.length} 条库轨迹`}
+        </div>
       </div>
     </div>
   );

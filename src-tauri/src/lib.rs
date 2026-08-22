@@ -35,7 +35,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             cmd::generate_family,
             cmd::list_artifacts,
-            cmd::remove_artifact
+            cmd::remove_artifact,
+            cmd::get_artifact
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

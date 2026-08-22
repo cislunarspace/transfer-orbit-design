@@ -267,7 +267,7 @@ wheels = [
 
 [[package]]
 name = "e2m2e"
-version = "5.8.4"
+version = "5.8.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "calcephpy", version = "5.0.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'win32'" },
@@ -280,11 +280,11 @@ dependencies = [
     { name = "spiceypy" },
     { name = "tqdm" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a2/b9/5fb882edfce5ed684cfdee7562433f53ee507167330680888fe1466ef179/e2m2e-5.8.4.tar.gz", hash = "sha256:c4b7a13c4e0da3fbd571ff6d4b746f877d11e9a05d5e7b3c2651d86b92140436", size = 3575830, upload-time = "2026-08-22T02:14:18.663Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6e/05/2bd41ea6cd0e82aaabfd4deb0036d337f209dcbaa1729bfcd6d5b23a042e/e2m2e-5.8.5.tar.gz", hash = "sha256:9748d0010342c8b97efbfa2f5d3c627917ddf8fd423cac7abeac65473076eac0", size = 3576600, upload-time = "2026-08-22T03:49:29.956Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/72/de/ac605d3db3f938af72772aa403a4038ccd09f5414da1cba9bb36c186e601/e2m2e-5.8.4-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:f9c412a33101c04dfa881621844dad633d2d1dce3e8945172382fae943d85d4e", size = 5633237, upload-time = "2026-08-22T02:14:13.739Z" },
-    { url = "https://files.pythonhosted.org/packages/c7/83/253f9822689a8a09f4a6ec2b183714f27b3050f53b706960cdd2dd9a854f/e2m2e-5.8.4-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:a2008c22419ff7b8d11de9d50f414be4e9816fd56a092ecb6ba201dd41476014", size = 5769457, upload-time = "2026-08-22T02:14:15.59Z" },
-    { url = "https://files.pythonhosted.org/packages/a2/52/60ba3699834fed1adec4e3c1cde8859cb96c43743e3c5bedd6474d4374e3/e2m2e-5.8.4-cp310-abi3-win_amd64.whl", hash = "sha256:bc8ab207013fc687d314bc2cb2195f449136674ab6a887f4ecbfd0d2c4fa3988", size = 5457815, upload-time = "2026-08-22T02:14:17.065Z" },
+    { url = "https://files.pythonhosted.org/packages/24/99/fc893326167de92bd111c05e066faf9f25cfa86add44ad06f24feb4b1ae4/e2m2e-5.8.5-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:c8496c2e96c600c95b2c4fe506533dca415d90667366b9c1de1afdd5a16c9c5a", size = 5634390, upload-time = "2026-08-22T03:49:24.669Z" },
+    { url = "https://files.pythonhosted.org/packages/a6/55/891647139888310e1c53e927969def37bb6c90db2830bf704788051ed7bc/e2m2e-5.8.5-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:1e9f2faa48c072ddf5374eb5f8d3869c97b860e0fbadad3e81d9f189f8e5f31d", size = 5770519, upload-time = "2026-08-22T03:49:26.623Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/0f/c692e9b7c0da093e42ebee6a566e2cc38a86c0366dd5cbaf1b6dc0544046/e2m2e-5.8.5-cp310-abi3-win_amd64.whl", hash = "sha256:e2e0258533d88e1a08f3d90214530a2c06f7f8fb3f95159bfb71c701fed5dbb8", size = 5458663, upload-time = "2026-08-22T03:49:28.326Z" },
 ]
 
 [[package]]
