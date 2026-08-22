@@ -259,6 +259,55 @@ class FamilyOrbitWorker(_CancellableWorker):
                 self.error.emit(f"[UNKNOWN_ERROR] {e}")
 
 
+class TransferDesignWorker(_CancellableWorker):
+    """后台执行 e2m2e 转移轨道设计。
+
+    Signals:
+        log(str):                          进度/信息日志。
+        finished(TransferDesignResultData): 成功结果（含未收敛的 INFEASIBLE，
+                                          由调用方按 converged 字段区分展示）。
+        error(str):                        错误消息（含错误码前缀）。
+    """
+
+    log = pyqtSignal(str)
+    finished = pyqtSignal(object)
+    error = pyqtSignal(str)
+
+    def __init__(
+        self,
+        transfer_type: str,
+        params: dict[str, Any],
+        target_states: Any | None = None,
+        kernel_dir: str | None = None,
+        parent=None,
+    ) -> None:
+        super().__init__(parent)
+        self._transfer_type = transfer_type
+        self._params = params
+        self._target_states = target_states
+        self._kernel_dir = kernel_dir
+
+    def run(self) -> None:
+        try:
+            self.log.emit(f"开始 {self._transfer_type} 转移轨道设计...")
+            self.log.emit(f"参数: {self._params}")
+            bridge = FacadeBridge(kernel_dir=self._kernel_dir)
+            data = bridge.transfer_design(target_states=self._target_states, **self._params)
+            if self._emit_cancelled_if_requested():
+                return
+            if data.converged:
+                self.log.emit(f"转移设计完成: 总Δv={data.delta_v:.4f} km/s（{data.message}）")
+            else:
+                self.log.emit(f"转移设计未收敛: {data.message}")
+            self.finished.emit(data)
+        except OrbitError as e:
+            if not self._emit_cancelled_if_requested():
+                self.error.emit(f"[{e.code}] {e.message}")
+        except Exception as e:
+            if not self._emit_cancelled_if_requested():
+                self.error.emit(f"[UNKNOWN_ERROR] {e}")
+
+
 class StabilityWorker(_CancellableWorker):
     """后台执行 e2m2e 轨道稳定性分析（CR3BP 纯计算，无需 SPICE）。
 

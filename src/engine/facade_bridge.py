@@ -78,6 +78,19 @@ class FamilyResultData:
 
 
 @dataclass
+class TransferDesignResultData:
+    """跨线程传递的转移轨道设计结果 DTO（纯数据，不含 e2m2e 对象）。"""
+
+    transfer_type: str
+    delta_v: float  # km/s
+    message: str
+    converged: bool
+    # HMN 为地心惯性系状态序列 (n, 6)（km, km/s）；LGA/WSB 当前恒 None
+    trajectory: Any | None = None
+    details: dict[str, Any] | None = None
+
+
+@dataclass
 class PropagationResultData:
     """跨线程传递的轨道预报结果 DTO。纯数据类，不含 e2m2e 对象引用。
 
@@ -356,9 +369,10 @@ _TOOL_META: dict[str, dict[str, Any]] = {
     },
     "transfer_design": {
         "label": "转移设计",
-        "description": "转移轨道设计",
-        "enabled": False,
-        "model": None,
+        "description": "从地球停泊轨道出发设计地月转移轨道：直接霍曼转移，"
+        "或经月球引力辅助进入选中轨道工件的目标点；输出总 Δv 与转移轨迹。",
+        "enabled": True,
+        "model": "TransferDesignRequest",
     },
     "orbit_propagation": {
         "label": "轨道预报",
@@ -429,6 +443,7 @@ _GUI_INTEGRATED_TOOLS = frozenset(
         "control_orbit",
         "orbit_family_generation",
         "orbit_stability",
+        "transfer_design",
         "orbit_propagation",
     }
 )
@@ -701,6 +716,69 @@ class FacadeBridge:
             position_km=position_km,
             times_et=times_et,
             record_id=response.record_id,
+        )
+
+    def transfer_design(
+        self, target_states: Any | None = None, **params: Any
+    ) -> TransferDesignResultData:
+        """经 Facade 调用 transfer_design，返回跨线程 DTO。
+
+        Args:
+            target_states: 选中轨道工件的 CR3BP 状态序列（会合系无量纲，
+                (n, 6)）。LGA 转移的目标态取末行并换算到会合系物理单位
+                （km / km/s）——e2m2e 的 ``target_ephemeris`` 契约是会合系
+                物理态（e2m2e#516），直接喂惯性星历会几何全错。HMN 不用。
+            **params: TransferDesignRequest 字段（由参数面板收集）。
+                ``tli_epoch`` 接受 [年,月,日,时,分,秒]（epoch 控件产出）
+                或 ISO 字符串，统一转为 ISO 字符串透传（仅作记录，搜索
+                为 CR3BP 几何搜索）。
+        """
+        from datetime import datetime as _dt
+
+        from src.commons.units import DU_KM, TU_SECONDS
+        from src.engine.exceptions import translate_exception
+
+        params.pop("kernel_dir", None)  # 经 Config 注入，request 不接受
+        # LGA 默认搜索网格（50 相位点）太稀，漏掉窄可行窗口（同目标态
+        # 360 点可收敛）——注入 e2m2e 测试同款加密网格作为 GUI 默认
+        if params.get("transfer_type") == "LGA" and not params.get("lga_search_params"):
+            from e2m2e.algorithm.transfer import LgaSearchParams
+
+            params["lga_search_params"] = LgaSearchParams(n_departure_phase=360, n_tof=5)
+        tli_epoch = params.get("tli_epoch")
+        if isinstance(tli_epoch, (list, tuple)) and len(tli_epoch) >= 6:
+            epoch_vals = [float(v) for v in tli_epoch[:6]]
+            params["tli_epoch"] = _dt(
+                int(epoch_vals[0]),
+                int(epoch_vals[1]),
+                int(epoch_vals[2]),
+                int(epoch_vals[3]),
+                int(epoch_vals[4]),
+                int(epoch_vals[5]),
+            ).strftime("%Y-%m-%dT%H:%M:%S")
+        if target_states is not None:
+            last = np.asarray(target_states, dtype=float)[-1]
+            params["target_ephemeris"] = np.concatenate(
+                [last[:3] * DU_KM, last[3:] * (DU_KM / TU_SECONDS)]
+            ).reshape(1, 6)
+        try:
+            response = self._facade().transfer_design(**params)
+        except Exception as e:
+            raise translate_exception(e) from e
+        from e2m2e.data.templates import ConvergenceState
+
+        trajectory = (
+            np.asarray(response.trajectory, dtype=float)
+            if response.trajectory is not None
+            else None
+        )
+        return TransferDesignResultData(
+            transfer_type=response.transfer_type,
+            delta_v=response.delta_v,
+            message=response.message or "",
+            converged=response.status is ConvergenceState.CONVERGED,
+            trajectory=trajectory,
+            details=response.details,
         )
 
     def orbit_propagation(self, **params: Any) -> PropagationResultData:

@@ -48,13 +48,19 @@ from src.engine.facade_bridge import (
     PropagationResultData,
     StabilityResultData,
     ToolSpec,
+    TransferDesignResultData,
 )
-from src.engine.persistence import save_propagation_result, save_stability_result
+from src.engine.persistence import (
+    save_propagation_result,
+    save_stability_result,
+    save_transfer_result,
+)
 from src.engine.workers import (
     FamilyOrbitWorker,
     OrbitDesignWorker,
     PropagationWorker,
     StabilityWorker,
+    TransferDesignWorker,
 )
 from src.model import Artifact, Project
 from src.model.discovery import discover_artifacts
@@ -151,6 +157,14 @@ _DESIGN_ORBIT_LABELS: dict[str, str] = {
     "dyb": "DYB 面质比 (JSON)",
     "earth_degree": "地球引力位阶数",
     "moon_degree": "月球引力位阶数",
+    # 转移轨道设计字段（TransferDesignRequest）
+    "transfer_type": "转移类型",
+    "tli_epoch": "TLI 历元",
+    "parking_alt_km": "停泊轨道高度 (km)",
+    "incl_deg": "轨道倾角 (度)",
+    "flight_path_deg": "航迹角 (度)",
+    "target_orbit_radius_km": "目标轨道半径 (km)",
+    "tof_range": "飞行时间范围 (天)",
     # 轨道预报字段（PropagationRequest，#389）
     "initial_state": "初值 (GCRS km, km/s)",
     "force_config": "力模型配置 (JSON)",
@@ -204,6 +218,26 @@ _PARAM_GROUPS: dict[str, tuple[tuple[str, tuple[str, ...]], ...]] = {
         ("修正参数", ("correction_method", "correction_revolutions")),
     ),
 }
+
+#: 转移轨道设计分组（HMN/LGA 参数 + 目标参数）
+_PARAM_GROUPS["transfer_design"] = (
+    (
+        "转移参数",
+        (
+            "transfer_type",
+            "tli_epoch",
+            "parking_alt_km",
+            "incl_deg",
+        ),
+    ),
+    (
+        "目标参数",
+        (
+            "target_orbit_radius_km",
+            "tof_range",
+        ),
+    ),
+)
 
 #: 轨道族生成分组（轨道保持已迁至 ControlOrbitDialog，分组随迁）
 _PARAM_GROUPS["orbit_family_generation"] = (
@@ -297,7 +331,12 @@ class MainWindow(QMainWindow):
         super().__init__(parent)
         self._project = Project(name="Transfer Orbit Design")
         self._worker: (
-            OrbitDesignWorker | FamilyOrbitWorker | StabilityWorker | PropagationWorker | None
+            OrbitDesignWorker
+            | FamilyOrbitWorker
+            | StabilityWorker
+            | PropagationWorker
+            | TransferDesignWorker
+            | None
         ) = None
         # 轨道保持弹窗（模态 exec 期间非 None，供任务互斥检查）
         self._control_dialog = None
@@ -862,6 +901,21 @@ class MainWindow(QMainWindow):
             self._replace_orbit_type_with_combo(spec.request_model)
         elif tool_key == "orbit_family_generation" and "orbit_type" in self._param_widgets:
             self._replace_family_orbit_type_with_combo(spec.request_model)
+        elif tool_key == "transfer_design":
+            # target_ephemeris 由选中 Artifact 注入（FacadeBridge 换算会合系物理
+            # 态，见 e2m2e#516 契约）；lga/wsb 搜索参数用算法层默认；航迹角
+            # 模型仅支持 0（ge=0 le=0），不暴露。
+            for hidden in (
+                "target_ephemeris",
+                "lga_search_params",
+                "wsb_search_params",
+                "flight_path_deg",
+            ):
+                widget = self._param_widgets.pop(hidden, None)
+                if widget is not None:
+                    widget.setParent(None)
+            self._replace_transfer_type_with_combo()
+            self._replace_tli_epoch_with_datetime_edit()
 
         # 分组顺序：_PARAM_GROUPS 声明顺序 + 未分组字段归入"其他"
         group_specs = _PARAM_GROUPS.get(tool_key, ())
@@ -942,6 +996,12 @@ class MainWindow(QMainWindow):
             if isinstance(point_widget, QComboBox):
                 point_combo: QComboBox = point_widget
                 point_combo.currentIndexChanged.connect(self._on_family_point_changed)
+        elif tool_key == "transfer_design":
+            tt_widget = self._param_widgets.get("transfer_type")
+            if isinstance(tt_widget, QComboBox):
+                tt_combo: QComboBox = tt_widget
+                tt_combo.currentIndexChanged.connect(self._on_transfer_type_changed)
+                self._on_transfer_type_changed(tt_combo.currentIndex())
 
         # 数字框收紧宽度（见 _PARAM_SPINBOX_MAX_WIDTH）；历元 QDateTimeEdit
         # 不是"数字没那么长"的场景，保持完整日期时间宽度
@@ -1007,6 +1067,62 @@ class MainWindow(QMainWindow):
         self._param_widgets["orbit_type"] = combo
         if old is not None:
             old.setParent(None)
+
+    def _replace_transfer_type_with_combo(self) -> None:
+        """转移类型替换为下拉：仅暴露 HMN/LGA。
+
+        WSB 受 e2m2e#513 阻塞（tof_range 未接搜索、默认网格无候选）；
+        low_thrust 的必需字段不在 TransferDesignRequest（e2m2e#516），
+        facade 层不可达。上游修复后再逆补选项。
+        """
+        combo = QComboBox()
+        combo.addItems(["HMN", "LGA"])
+        combo.setToolTip("HMN 直接霍曼转移；LGA 月球引力辅助（目标取选中轨道工件）")
+        old = self._param_widgets.get("transfer_type")
+        self._param_widgets["transfer_type"] = combo
+        if old is not None:
+            old.setParent(None)
+
+    def _replace_tli_epoch_with_datetime_edit(self) -> None:
+        """TLI 历元（模型 Any 无默认，自动生成的是文本框）换成日期时间编辑。"""
+        from PyQt6.QtCore import QDate, QDateTime, QTime
+
+        edit = QDateTimeEdit(QDateTime(QDate(2025, 1, 1), QTime(0, 0, 0)))
+        edit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
+        edit.setCalendarPopup(True)
+        edit.setProperty("__params_panel_kind", "epoch")  # collect_params 按历元读取
+        old = self._param_widgets.get("tli_epoch")
+        self._param_widgets["tli_epoch"] = edit
+        if old is not None:
+            old.setParent(None)
+
+    def _on_transfer_type_changed(self, index: int) -> None:
+        """切转移类型：HMN 显示目标半径/飞行时间，LGA 目标来自选中轨道。"""
+        if self._current_tool_key != "transfer_design":
+            return
+        widget = self._param_widgets.get("transfer_type")
+        if not isinstance(widget, QComboBox):
+            return
+        transfer_type: QComboBox = widget
+        ttype = transfer_type.currentText()
+        hm_only = {"target_orbit_radius_km", "tof_range"}
+        for name in list(self._param_rows):
+            label, field_widget, unit_combo = self._param_rows[name]
+            visible = name not in hm_only or ttype == "HMN"
+            label.setVisible(visible)
+            field_widget.setVisible(visible)
+            if unit_combo is not None:
+                unit_combo.setVisible(visible)
+        for title, fields in self._group_fields.items():
+            header_pair = self._group_headers.get(title)
+            if header_pair is None:
+                continue
+            any_visible = any(
+                name in self._param_rows and not self._param_rows[name][0].isHidden()
+                for name in fields
+            )
+            header_pair[0].setVisible(any_visible)
+            header_pair[1].setVisible(any_visible)
 
     def _on_family_type_changed(self, index: int) -> None:
         """切族类型：重建平动点下拉 + 填该族默认值 + 只显示该族参数字段。"""
@@ -1234,6 +1350,8 @@ class MainWindow(QMainWindow):
             self._run_design_orbit()
         elif tool_key == "orbit_family_generation":
             self._run_family_generation()
+        elif tool_key == "transfer_design":
+            self._run_transfer_design()
         elif tool_key == "orbit_propagation":
             self._run_propagation()
 
@@ -1278,6 +1396,70 @@ class MainWindow(QMainWindow):
         self._worker.log.connect(self._on_worker_log)
         self._worker.finished.connect(self._on_design_finished)
         self._worker.error.connect(self._on_design_error)
+        self._worker.cancelled.connect(self._on_worker_cancelled)
+        self._worker.start()
+
+    def _run_transfer_design(self) -> None:
+        """收集参数并启动转移设计（LGA 需选中轨道工件作为目标）。"""
+        spec = TOOL_REGISTRY["transfer_design"]
+        model = spec.request_model
+        if model is None:
+            return
+
+        transfer_type = ""
+        tt_widget = self._param_widgets.get("transfer_type")
+        if isinstance(tt_widget, QComboBox):
+            tt_combo: QComboBox = tt_widget
+            transfer_type = tt_combo.currentText()
+
+        try:
+            params = collect_params(self._param_widgets, model)
+        except ValueError as exc:
+            self._status_bar.showMessage(str(exc), _STATUS_MSG_TIMEOUT_MS)
+            self._log.append_log(f"参数错误: {exc}")
+            return
+        params.pop("transfer_type", None)
+        if transfer_type != "HMN":
+            # HMN 专属字段对 LGA 无意义；隐藏控件仍可能携带用户先填的值，
+            # 不能隐式依赖上游忽略，收集后按类型剔除
+            params.pop("target_orbit_radius_km", None)
+            params.pop("tof_range", None)
+
+        source: Artifact | None = None
+        target_states = None
+        if transfer_type == "LGA":
+            source = self._selected_orbit_artifact()
+            if source is None:
+                self._status_bar.showMessage(
+                    "LGA 转移需先在左侧项目树选择目标轨道", _STATUS_MSG_TIMEOUT_MS
+                )
+                return
+            self._ensure_arrays_loaded(source)
+            if source.state_data is None or getattr(source.state_data, "ndim", 0) < 1:
+                self._status_bar.showMessage(
+                    f"目标轨道 {source.label} 无 CR3BP 状态数据，无法作为 LGA 目标",
+                    _STATUS_MSG_TIMEOUT_MS,
+                )
+                return
+            target_states = source.state_data
+
+        kernel_dir = self._detect_kernel_dir() or None
+        self._log.clear()
+        if target_states is not None and source is not None:
+            self._log.append_log(f"转移目标: {source.label}（末态）")
+        self._status_bar.showMessage(f"正在设计 {transfer_type} 转移轨道...")
+        self._set_run_controls(running=True)
+
+        self._worker = TransferDesignWorker(
+            transfer_type=transfer_type,
+            params=params,
+            target_states=target_states,
+            kernel_dir=kernel_dir,
+            parent=self,
+        )
+        self._worker.log.connect(self._on_worker_log)
+        self._worker.finished.connect(self._on_transfer_finished)
+        self._worker.error.connect(self._on_transfer_error)
         self._worker.cancelled.connect(self._on_worker_cancelled)
         self._worker.start()
 
@@ -1771,6 +1953,32 @@ class MainWindow(QMainWindow):
 
         self._log.append_log(f"错误:\n{error_msg}")
         self._status_bar.showMessage("设计失败", _STATUS_MSG_TIMEOUT_MS)
+
+    def _on_transfer_finished(self, result: TransferDesignResultData) -> None:
+        """转移设计完成：落盘 JSON + 重扫遗留分区进项目树。"""
+        if self._consume_stop_request():
+            return
+        self._set_run_controls(running=False)
+        try:
+            json_path = save_transfer_result(result, OUTPUT_DIR)
+            self._log.append_log(f"转移结果已保存: {json_path.name}")
+        except Exception as exc:  # noqa: BLE001
+            self._log.append_log(f"转移结果落盘失败: {exc}")
+        # 重扫遗留分区（_reload_from_catalog 仅在清单为空时才扫描）
+        self._legacy_artifacts = []
+        self._reload_from_catalog()
+        state = "完成" if result.converged else "未收敛"
+        self._status_bar.showMessage(
+            f"{result.transfer_type} 转移设计{state}: Δv={result.delta_v:.3f} km/s",
+            _STATUS_MSG_TIMEOUT_MS,
+        )
+
+    def _on_transfer_error(self, error_msg: str) -> None:
+        if self._consume_stop_request():
+            return
+        self._set_run_controls(running=False)
+        self._log.append_log(f"错误:\n{error_msg}")
+        self._status_bar.showMessage("转移设计失败", _STATUS_MSG_TIMEOUT_MS)
 
     # -- 渲染 ---------------------------------------------------------------
 
