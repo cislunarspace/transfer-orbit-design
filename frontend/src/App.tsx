@@ -8,6 +8,8 @@ import { ProjectTree } from "./ProjectTree";
 import { familyGenerationSchema } from "./schema";
 import { CatalogFilterBar } from "./CatalogFilterBar";
 import { useTranslation } from "./i18n";
+import { useChartSettings, DEFAULT_CHART_SETTINGS, type ChartSettings } from "./chartSettings";
+import { CanvasRecorder, downloadBlob } from "./canvasRecorder";
 
 const DEFAULT_PARAMS: Record<string, unknown> = {
   orbit_type: "HALO",
@@ -29,6 +31,29 @@ export default function App() {
   const [params, setParams] = useState<Record<string, unknown>>(DEFAULT_PARAMS);
   const [progressMessage, setProgressMessage] = useState<string>("");
   const [catalogPoints, setCatalogPoints] = useState<number[][][]>([]);
+  const [chart, setChart] = useChartSettings();
+  const [showSettings, setShowSettings] = useState(false);
+  const [recording, setRecording] = useState(false);
+
+  // 动画导出：录制期间自转 8 秒，产物 webm
+  const onExportAnimation = async () => {
+    if (!api) return;
+    const el = api.canvasElement();
+    if (!el || !CanvasRecorder.supported()) {
+      setProgressMessage("此环境不支持录制");
+      return;
+    }
+    setRecording(true);
+    const rec = new CanvasRecorder();
+    api.setAutoRotate(true);
+    rec.start(el, 30);
+    setTimeout(async () => {
+      api.setAutoRotate(false);
+      const result = await rec.stop();
+      if (result) downloadBlob(result.blob, "orbit-animation.webm");
+      setRecording(false);
+    }, 8000);
+  };
 
   // 执行状态：sidecar 进度事件（可丢弃行，最后一条即当前状态）
   useEffect(() => {
@@ -185,14 +210,18 @@ export default function App() {
       </div>
       <div style={{ flex: 1, position: "relative" }}>
         {canvasTrajectories.length > 0 && (
-          <OrbitCanvas trajectories={canvasTrajectories} mu={mu} libration={libration} onReady={onReady} />
+          <OrbitCanvas trajectories={canvasTrajectories} mu={mu} libration={libration} settings={chart} onReady={onReady} />
         )}
-        <button
-          onClick={() => api?.fitView()}
-          style={{ position: "absolute", top: 8, right: 8 }}
-        >
-          适配
-        </button>
+        <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 8 }}>
+          <button onClick={() => api?.fitView()}>{t("action.fit")}</button>
+          <button onClick={onExportAnimation} disabled={recording}>
+            {recording ? `${t("action.recording")}…` : t("action.export_animation")}
+          </button>
+          <button onClick={() => setShowSettings((v) => !v)}>{t("action.chart_settings")}</button>
+        </div>
+        {showSettings && (
+          <ChartSettingsPanel value={chart} onChange={setChart} onClose={() => setShowSettings(false)} />
+        )}
         <div
           style={{
             position: "absolute",
@@ -207,6 +236,63 @@ export default function App() {
           {catalogPoints.length > 0 && `${catalogPoints.length} 条库轨迹`}
         </div>
       </div>
+    </div>
+  );
+}
+
+
+function ChartSettingsPanel({
+  value,
+  onChange,
+  onClose,
+}: {
+  value: ChartSettings;
+  onChange: (s: ChartSettings) => void;
+  onClose: () => void;
+}) {
+  const num = (k: keyof ChartSettings, label: string, step = 0.1) => (
+    <label key={k} style={{ display: "block", marginBottom: 6, fontSize: 12 }}>
+      <span style={{ display: "inline-block", minWidth: 110 }}>{label}</span>
+      <input
+        type="number"
+        step={step}
+        value={value[k] as number}
+        onChange={(e) => onChange({ ...value, [k]: Number(e.target.value) })}
+      />
+    </label>
+  );
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: 44,
+        right: 8,
+        width: 240,
+        background: "#1b2026",
+        border: "1px solid #333",
+        borderRadius: 6,
+        padding: 12,
+        zIndex: 10,
+      }}
+    >
+      <div style={{ fontWeight: 600, marginBottom: 8 }}>图表设置</div>
+      {num("orbitLinewidth", "轨道线宽")}
+      {num("earthSize", "地球大小", 0.005)}
+      {num("moonSize", "月球大小", 0.005)}
+      {num("lpSize", "平动点大小", 0.001)}
+      <label style={{ display: "block", marginBottom: 6, fontSize: 12 }}>
+        <span style={{ display: "inline-block", minWidth: 110 }}>平动点颜色</span>
+        <input
+          type="color"
+          value={value.lpColor}
+          onChange={(e) => onChange({ ...value, lpColor: e.target.value })}
+        />
+      </label>
+      {num("zRatio", "Z 轴比例", 0.05)}
+      <button onClick={() => onChange(DEFAULT_CHART_SETTINGS)} style={{ marginRight: 8 }}>
+        恢复默认
+      </button>
+      <button onClick={onClose}>关闭</button>
     </div>
   );
 }

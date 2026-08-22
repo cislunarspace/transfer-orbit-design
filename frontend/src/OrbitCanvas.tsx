@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import type { ChartSettings } from "./chartSettings";
 
 export interface CanvasProps {
   /** 轨迹点（归一化会合坐标系），多条即多轨道。 */
@@ -8,15 +9,20 @@ export interface CanvasProps {
   mu: number;
   /** 平动点 x 坐标（会合坐标系）。 */
   libration: { label: string; x: number }[];
+  settings?: ChartSettings;
   onReady?: (api: CanvasApi) => void;
 }
 
 export interface CanvasApi {
   /** 视图适配：按当前轨迹包围盒重设相机，每侧留 5% 余量。 */
   fitView: () => void;
+  /** 录制用的 canvas 元素。 */
+  canvasElement: () => HTMLCanvasElement | null;
+  /** 自动旋转开关（GIF/webm 动画导出用）。 */
+  setAutoRotate: (on: boolean, speed?: number) => void;
 }
 
-export function OrbitCanvas({ trajectories, mu, libration, onReady }: CanvasProps) {
+export function OrbitCanvas({ trajectories, mu, libration, settings, onReady }: CanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<THREE.Group | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -59,6 +65,11 @@ export function OrbitCanvas({ trajectories, mu, libration, onReady }: CanvasProp
     animate();
 
     onReady?.({
+      canvasElement: () => renderer.domElement,
+      setAutoRotate: (on, speed = 0.3) => {
+        controls.autoRotate = on;
+        controls.autoRotateSpeed = speed;
+      },
       fitView: () => {
         const box = new THREE.Box3().setFromObject(content);
         if (box.isEmpty()) return;
@@ -91,7 +102,8 @@ export function OrbitCanvas({ trajectories, mu, libration, onReady }: CanvasProp
       content.remove(child);
     }
 
-    const colors = [0x4fc3f7, 0xffb74d, 0x81c784, 0xe57373, 0xba68c8];
+    const lpColorNum = parseInt((settings?.lpColor ?? "#fdd835").slice(1), 16);
+    const colors = (settings?.colorCycle ?? ["#4fc3f7", "#ffb74d", "#81c784", "#e57373", "#ba68c8"]).map(c => parseInt(c.slice(1), 16));
     trajectories.forEach((pts, i) => {
       const positions = new Float32Array(pts.length * 3);
       pts.forEach((p, j) => {
@@ -101,7 +113,10 @@ export function OrbitCanvas({ trajectories, mu, libration, onReady }: CanvasProp
       });
       const geom = new THREE.BufferGeometry();
       geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      content.add(new THREE.Line(geom, new THREE.LineBasicMaterial({ color: colors[i % colors.length] })));
+      content.add(new THREE.Line(
+        geom,
+        new THREE.LineBasicMaterial({ color: colors[i % colors.length], linewidth: settings?.orbitLinewidth ?? 1.0 }),
+      ));
     });
 
     const addSphere = (x: number, color: number, radius: number, label: string) => {
@@ -125,9 +140,10 @@ export function OrbitCanvas({ trajectories, mu, libration, onReady }: CanvasProp
       content.add(sprite);
     };
 
-    addSphere(-mu, 0x2196f3, 0.02, "地球");
-    addSphere(1 - mu, 0x9e9e9e, 0.01, "月球");
-    libration.forEach((lp) => addSphere(lp.x, 0xfdd835, 0.003, lp.label));
+    const s = settings;
+    addSphere(-mu, 0x2196f3, s?.earthSize ?? 0.02, "地球");
+    addSphere(1 - mu, 0x9e9e9e, s?.moonSize ?? 0.01, "月球");
+    libration.forEach((lp) => addSphere(lp.x, lpColorNum, s?.lpSize ?? 0.003, lp.label));
   }, [trajectories, mu, libration]);
 
   return <div ref={mountRef} style={{ width: "100%", height: "100%" }} />;
