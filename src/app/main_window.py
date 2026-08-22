@@ -566,6 +566,7 @@ class MainWindow(QMainWindow):
         toolbar.equal_aspect.toggled.connect(self._on_toggle_equal_aspect)
         toolbar.export_animation.clicked.connect(self._on_export_animation)
         toolbar.fit_view.clicked.connect(self._viz.canvas.fit_to_data)
+        self._viz.timeline.et_changed.connect(self._on_timeline_changed)
 
         self._log = LogPanel()
         self._log.setMinimumHeight(80)
@@ -1856,6 +1857,30 @@ class MainWindow(QMainWindow):
         """同步 CanvasState 并触发 render()。数据在内存，不从 NPZ 重读。"""
         self._viz.canvas.sync_state(self._canvas_state, self._selected_artifact_ids)
         self._viz.canvas.render()
+        self._update_timeline()
+
+    def _update_timeline(self) -> None:
+        """时间轴同步：区间为可见星历产物并集，无星历产物时灰显（ADR 0014）。"""
+        span = self._viz.canvas.ephemeris_time_union()
+        timeline = self._viz.timeline
+        if span is None:
+            self._canvas_state.current_et = None
+            timeline.set_unavailable()
+            return
+        et_min, et_max = span
+        if not timeline.range_is(et_min, et_max):
+            timeline.set_time_range(et_min, et_max)
+        # 默认停在起点；切产物后超出区间时回退；区间变化时滑块与画布同步
+        et = self._canvas_state.current_et
+        if et is None or et < et_min or et > et_max:
+            et = et_min
+            self._canvas_state.current_et = et
+        timeline.set_et(et)
+
+    def _on_timeline_changed(self, et: float) -> None:
+        """时间轴拖动（节流后）：更新时刻并重绘（两坐标系共享同一 t）。"""
+        self._canvas_state.current_et = et
+        self._render_canvas()
 
     def _on_projection_changed(self, projection: str) -> None:
         self._canvas_state.projection = projection

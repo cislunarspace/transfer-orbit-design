@@ -42,6 +42,10 @@ _PROJECTION_PLANE_AXES: dict[str, tuple[int, int]] = {
 # 标注（地月/平动点/月球轨迹）不打标记即不参与（CONTEXT.md: 视图适配）
 _ORBIT_GID = "orbit"
 
+# 时间轴 marker：飞行器/月球此刻位置（ADR 0014）。不参与视图适配
+# （同标注待遇），测试经此 gid 断言。
+_MARKER_GID = "timeline-marker"
+
 
 @dataclass
 class CanvasState:
@@ -77,6 +81,9 @@ class CanvasState:
     plot_content: str = "overlay"
     equal_aspect: bool = True
     center: str = "barycenter"
+    # 时间轴选中的物理时刻（ET 秒，ADR 0014）；None 表示时间轴未激活，
+    # 不画飞行器/月球此刻 marker。两坐标系共享同一时刻。
+    current_et: float | None = None
 
     def copy(self) -> CanvasState:
         """返回副本（不可变更新模式：读当前 state → 改字段 → 传新 state）。"""
@@ -89,6 +96,7 @@ class CanvasState:
             plot_content=self.plot_content,
             equal_aspect=self.equal_aspect,
             center=self.center,
+            current_et=self.current_et,
         )
 
 
@@ -266,6 +274,17 @@ class OrbitCanvas(FigureCanvasQTAgg):
                 self._initial_guess_times_by_id[aid] = initial_t
             if family_t is not None:
                 self._family_times_by_id[aid] = family_t
+
+    def ephemeris_time_union(self) -> tuple[float, float] | None:
+        """可见星历产物 times_et 的并集区间；无星历产物为 None（ADR 0014）。"""
+        spans = [
+            (float(np.min(t)), float(np.max(t)))
+            for t in self._ephemeris_times_et_by_id.values()
+            if t is not None and len(np.asarray(t)) > 0
+        ]
+        if not spans:
+            return None
+        return min(s[0] for s in spans), max(s[1] for s in spans)
 
     # -- 渲染入口 ----------------------------------------------------------
 
@@ -532,6 +551,56 @@ class OrbitCanvas(FigureCanvasQTAgg):
         return arr[:, :3] if arr.ndim == 2 and arr.shape[1] >= 3 else arr
 
     @staticmethod
+    def _position_at(times_et: Any, pos: Any, et: float):
+        """时间轴插值（ADR 0014）：et 处的线性插值位置；超出范围为 None。"""
+        t = np.asarray(times_et, dtype=np.float64)
+        p = np.asarray(pos)[:, :3]
+        if et < t[0] or et > t[-1]:
+            return None
+        return np.array([np.interp(et, t, p[:, k]) for k in range(3)])
+
+    def _draw_timeline_marker_3d(self, ax, state, times, pos, color, center) -> None:
+        """会合系/惯性系 3D 飞行器此刻 marker（时间轴激活时）。"""
+        if state.current_et is None or times is None:
+            return
+        here = self._position_at(times, pos, state.current_et)
+        if here is None:
+            return
+        xyz = here - center
+        ax.plot(
+            [xyz[0]],
+            [xyz[1]],
+            [xyz[2]],
+            "o",
+            color=color,
+            markersize=6,
+            markeredgecolor="black",
+            markeredgewidth=0.8,
+            zorder=6,
+            gid=_MARKER_GID,
+            label="飞行器（此刻）",
+        )
+
+    def _draw_timeline_marker_2d(self, ax, state, times, pos, color, plane) -> None:
+        """会合系/惯性系 2D 飞行器此刻 marker。"""
+        if state.current_et is None or times is None:
+            return
+        here = self._position_at(times, pos, state.current_et)
+        if here is None:
+            return
+        ax.scatter(
+            here[plane[0]],
+            here[plane[1]],
+            s=45,
+            c=color,
+            edgecolors="black",
+            linewidths=0.8,
+            zorder=6,
+            gid=_MARKER_GID,
+            label="飞行器（此刻）",
+        )
+
+    @staticmethod
     def _symmetrize(lo: float, hi: float) -> tuple[float, float]:
         """把 (lo, hi) 展成以 0 为中心的对称区间，保持覆盖原范围。"""
         r = max(abs(lo), abs(hi))
@@ -604,6 +673,9 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     )
                     if content == "ephemeris":
                         ax.scatter(*pos[0], s=30, c=eph_color, zorder=5)
+                    self._draw_timeline_marker_3d(
+                        ax, state, self._ephemeris_times_et_by_id.get(aid), pos, eph_color, center
+                    )
 
     def _draw_family_3d(self, ax, family_states: Any, label: str, center) -> None:
         """轨道族 3D 渲染：m 条成员按 viridis 渐变色逐条绘制。
@@ -694,6 +766,14 @@ class OrbitCanvas(FigureCanvasQTAgg):
                         linestyle="--" if content == "overlay" else "-",
                         label=f"{label}{suffix}",
                     )
+                    self._draw_timeline_marker_2d(
+                        ax,
+                        state,
+                        self._ephemeris_times_et_by_id.get(aid),
+                        pos,
+                        eph_color,
+                        plane,
+                    )
 
     def _draw_bodies(self, ax, state, center) -> None:
         # 经 viz_adapter 调用 e2m2e，view 不直接 import e2m2e
@@ -761,6 +841,15 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     label=label,
                 )
                 ax.scatter(*pos[0], s=30, c=color, zorder=5)
+                # marker 对平移后的 pos 插值即可（moon 中心分支 pos 已含平移）
+                self._draw_timeline_marker_3d(
+                    ax,
+                    state,
+                    self._ephemeris_times_et_by_id.get(aid),
+                    pos,
+                    color,
+                    np.zeros(3),
+                )
                 continue
             # 无 position_km：会合系旋转近似视图（轨道族/旧初猜等纯 CR3BP 产物）
             self._draw_inertial_approx(ax, aid, state, color, plane=None)
@@ -786,6 +875,14 @@ class OrbitCanvas(FigureCanvasQTAgg):
                     color=color,
                     gid=_ORBIT_GID,
                     label=label,
+                )
+                self._draw_timeline_marker_2d(
+                    ax,
+                    state,
+                    self._ephemeris_times_et_by_id.get(aid),
+                    pos,
+                    color,
+                    plane,
                 )
                 continue
             self._draw_inertial_approx(ax, aid, state, color, plane=plane)
@@ -947,6 +1044,43 @@ class OrbitCanvas(FigureCanvasQTAgg):
             moon = moon_shift.get(aid)
             if moon is None:
                 continue
+            # 时间轴（ADR 0014）：地心视图下月球此刻位置 marker 随 t 移动；
+            # SPICE 不可用时 moon 为 None 已在上游跳过，不另降级
+            if state.current_et is not None and state.center != "moon":
+                times = self._ephemeris_times_et_by_id.get(aid)
+                here = (
+                    self._position_at(times, moon, state.current_et)
+                    if times is not None
+                    else None
+                )
+                if here is not None:
+                    if is_3d:
+                        ax.plot(
+                            [here[0]],
+                            [here[1]],
+                            [here[2]],
+                            "o",
+                            color="#95A5A6",
+                            markersize=chart.moon_size**0.5 * 0.6,
+                            markeredgecolor="black",
+                            markeredgewidth=0.8,
+                            zorder=6,
+                            gid=_MARKER_GID,
+                            label="月球（此刻）",
+                        )
+                    else:
+                        assert plane is not None
+                        ax.scatter(
+                            here[plane[0]],
+                            here[plane[1]],
+                            s=chart.moon_size * 0.6,
+                            c="#95A5A6",
+                            edgecolors="#566573",
+                            linewidths=0.8,
+                            zorder=6,
+                            gid=_MARKER_GID,
+                            label="月球（此刻）",
+                        )
             if state.center == "moon":
                 # 月球中心：地球相对月球 = -moon_pos(t)，深蓝虚线轨迹
                 earth = -moon
@@ -1123,10 +1257,14 @@ class OrbitCanvasWithToolbar:
         # 默认 24x24 图标偏大，收紧到 16x16 与紧凑按钮密度一致
         self.toolbar.setIconSize(QSize(16, 16))
         self.projection_toolbar = CanvasToolbar(self.widget)
+        from src.view.timeline_bar import TimelineBar
+
+        self.timeline = TimelineBar(self.widget)
 
         layout.addWidget(self.toolbar)
         layout.addWidget(self.projection_toolbar)
         layout.addWidget(self.canvas)
+        layout.addWidget(self.timeline)
 
     def plot_orbit(self, **kwargs) -> None:
         self.canvas.plot_orbit(**kwargs)
