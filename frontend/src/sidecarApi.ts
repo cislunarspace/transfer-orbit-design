@@ -32,3 +32,14 @@ export async function getArtifact(recordId: string): Promise<ArtifactData> {
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke("get_artifact", { recordId });
 }
+
+export interface ToolFrame { dtype: "f32" | "f64"; shape: number[]; data: number[]; }
+export interface ToolResponse { data: Record<string, unknown>; frames: ToolFrame[]; error: { code: string; message: string } | null; }
+
+export async function runTool(
+  tool: string, arguments_: Record<string, unknown>, binaryDtype?: "f32" | "f64", artifact?: { artifactType: string; label: string; orbitType?: string },
+): Promise<ToolResponse> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke("run_tool", { tool, arguments: arguments_, binaryDtype, artifact });
+}
+
