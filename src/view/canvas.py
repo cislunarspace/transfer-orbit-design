@@ -1049,9 +1049,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
             if state.current_et is not None and state.center != "moon":
                 times = self._ephemeris_times_et_by_id.get(aid)
                 here = (
-                    self._position_at(times, moon, state.current_et)
-                    if times is not None
-                    else None
+                    self._position_at(times, moon, state.current_et) if times is not None else None
                 )
                 if here is not None:
                     if is_3d:
