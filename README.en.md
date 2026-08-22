@@ -13,7 +13,7 @@ transfer-orbit-design is the GUI frontend of [e2m2e](https://github.com/cislunar
 
 ### Desktop application (Windows)
 
-Download `tod_<version>_x64-setup.exe` from [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) (NSIS installer; per-user install, no administrator rights needed). The installer bundles the e2m2e runtime (tod-sidecar) and the small SPICE kernels; the current UI features are pure CR3BP computations and need no ephemeris kernels.
+Download `tod_<version>_x64-setup.exe` from [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) (NSIS installer; per-user install, no administrator rights needed). The installer bundles the e2m2e runtime (tod-sidecar) and the small SPICE kernels; pure CR3BP tools (orbit family generation, orbit design) need no extra kernels, while ephemeris-based tools (transfer design, propagation, …) need the planetary ephemeris `.bsp` (see below).
 
 ### Development environment
 
@@ -27,7 +27,7 @@ cargo tauri dev                # Dev mode: Vite HMR + Rust shell spawns the side
 
 ## SPICE Kernels
 
-The v4.0.0 UI tools (orbit family generation, catalog browsing) are pure CR3BP computations and need no SPICE kernels. Ephemeris-based tools (orbit design, station keeping) are returning to the UI (see [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)); once available they need the planetary ephemeris `.bsp` and friends, obtainable via:
+Pure CR3BP tools (orbit family generation, orbit design) need no SPICE kernels; ephemeris-based tools (transfer design, orbit propagation, spacetime transform) need the planetary ephemeris `.bsp` and friends, obtainable via:
 
 - **Automatic download (recommended)**: `uv run python scripts/download_kernels.py` — idempotently fetches everything into `kernels/`;
 - **Manual download**: extract e2m2e's [`kernels-v1` release](https://github.com/cislunarspace/e2m2e/releases) into `kernels/` (relative to the sidecar working directory);
@@ -38,19 +38,19 @@ Official source: [NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html) (fallback
 ## Quick Start
 
 1. The left column opens on the "Project" tab; switch to the "Catalog" tab to load the whole orbit library, with a filter bar for family type, libration point, Jacobi and amplitude ranges, and tags.
-2. The middle column is "Orbit Family Generation": pick a family (Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe / DRO); the panel shows the family-specific parameters (amplitude bounds, perilune height, phases, …). Click "Generate".
-3. Member trajectories appear on the canvas at once: drag to rotate, scroll to zoom; the "Fit" button recentres on the trajectory bounding box. Clicking a catalog record overlays its trajectories on the canvas.
-4. The language switcher at the top of the left column toggles between Chinese and English.
+2. The middle column is the tool panel: pick a tool from the dropdown (orbit family generation / orbit design / station keeping / orbit propagation / transfer design / stability analysis / spacetime transform); the parameter form is generated from the tool's JSON Schema. Click "Run".
+3. For family generation, pick a family (Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe / DRO); the panel shows the family-specific parameters (amplitude bounds, perilune height, phases, …). Other tools render their own forms.
+4. Result trajectories appear on the canvas: drag to rotate, scroll to zoom; the "Fit" button recentres on the trajectory bounding box. Clicking a catalog record overlays its trajectories on the canvas.
+5. The language switcher at the top of the left column toggles between Chinese and English.
 
 ## Capabilities
 
 **Available in the v4.0.0 UI**
 
-- **Orbit family generation**: eight families (the seven classic ones + DRO), periodic continuation or parameter sampling; the parameter form is generated from the tool's JSON Schema (field pruning, ranges and defaults follow the e2m2e models); live progress, member trajectories rendered one by one.
+- **Tool panel**: all seven tools are wired — orbit family generation, orbit design, station keeping, orbit propagation, transfer design, stability analysis, spacetime transform. Parameter forms are generated from each tool's JSON Schema (field pruning, ranges and defaults follow the e2m2e models) and run through the generic tool-execution channel (the Rust `run_tool` command) straight to the sidecar; errors are surfaced directly.
+- **Orbit family generation**: eight families (the seven classic ones + DRO), periodic continuation or parameter sampling; member trajectories rendered one by one.
 - **Catalog browsing**: products are stored automatically in the e2m2e orbit library (multi-dimensional catalog); filtered queries; clicking a record overlays it on the canvas.
-- **Canvas**: Three.js 3D view with view-fit and view-preservation, Earth/Moon and libration-point annotations, persisted chart settings (line width, body/point markers, Z-axis ratio), webm animation export.
-
-**Not yet wired** (shipped in the v3.2.3 PyQt UI; returning tool by tool on Tauri — see [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)): orbit design, station keeping, orbit propagation, transfer design, stability analysis, spacetime transform. Use v3.2.3 or the e2m2e CLI if you need them now.
+- **Canvas**: Three.js 3D view with view-fit and view-preservation, Earth/Moon and libration-point annotations, persisted chart settings (line width, body/point markers, Z-axis ratio), webm animation export. Tool result trajectories render adaptively from the response structure (JSON `states`/`position_km`/`trajectory` arrays or binary frames), with no per-tool canvas code.
 
 ## Data Flow and Artifacts
 
