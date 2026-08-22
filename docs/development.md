@@ -21,10 +21,10 @@
 
 | 类型 | 必写内容 |
 |------|----------|
-| 数据层（`src/model/`） | 数据类的字段含义、与 `output/` 文件的对应关系 |
+| 数据层（`src/model/`） | 数据类的字段含义、与持久化（catalog / output）的对应关系 |
 | 执行层（`src/engine/`） | 调用的 e2m2e 算法、返回 DTO 的字段、异常翻译、落盘布局 |
-| 表现层（`src/view/`） | 控件职责、信号语义、与数据/执行层的交互 |
-| 入口层（`src/app/`） | 组装顺序、启动探测逻辑（如 SPICE 内核引导） |
+| 前端（`frontend/src/`） | 组件职责、props 语义、与 IPC/画布的交互 |
+| Rust 壳（`src-tauri/src/`） | 命令语义、sidecar 进程与协议边界、状态生命周期 |
 | 工具脚本（`scripts/`） | 用途、参数、输出 |
 
 ### 函数与类 docstring
@@ -64,24 +64,12 @@ parser.add_argument(
 
 无量纲 CR3BP 参数应明确写“无量纲”；角度写“rad”或“度”；时间写“TU”“天”或“秒”。布尔开关说明开启后的行为。
 
-### 国际化工具
+### 国际化
 
-`tools/update_i18n.py` 用于维护 GUI 的翻译文件：
-
-```bash
-python tools/update_i18n.py          # 提取 + 编译
-python tools/update_i18n.py --extract # 仅提取待翻译字符串
-python tools/update_i18n.py --compile # 仅编译 .ts → .qm
-```
-
-脚本执行三个步骤：
-1. 用 `pylupdate6` 从 `src/app/` 提取待翻译字符串到 `src/app/i18n/gui.en.ts`
-2. 用 `lrelease6` 编译所有 `.ts` 文件为 `.qm` 二进制格式
-3. 校验 `src/app/i18n/scripts.*.json` 的 JSON 格式
-
-依赖：`pylupdate6` 和 `lrelease6`（来自 PyQt6 或 PySide6 工具包）。新增 GUI 文本后应运行此脚本更新翻译文件。
-
-> 现状：i18n 基础设施（`src/app/i18n/`、`tools/update_i18n.py`）已就位，但 GUI 尚未接入语言切换（界面固定中文，`TranslationLoader` 未被主窗口调用）。接入前维护翻译文件意义有限，新增界面文本直接写中文即可。
+界面 i18n 在前端 `frontend/src/i18n.ts`：中英两份字符串字典，`t(key)` 取用，
+语言选择存 localStorage、重启保留。新增界面文本时同步向两个字典各加一条键值；
+新增语种则追加一份字典。（PyQt 时代的 `tools/update_i18n.py` 与 `src/app/i18n/`
+已随旧 UI 删除。）
 
 ### Sphinx 文档
 

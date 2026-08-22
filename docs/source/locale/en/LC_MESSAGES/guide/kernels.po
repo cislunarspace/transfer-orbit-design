@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"POT-Creation-Date: 2026-08-22 14:16+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,104 +20,143 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../source/guide/kernels.md:1 38903f023d314de9928e71850f485178
+#: ../../source/guide/kernels.md:1 99080548b7a54b048850c00e68067d32
 msgid "SPICE 内核"
-msgstr ""
+msgstr "SPICE Kernels"
 
-#: ../../source/guide/kernels.md:3 41618791df7241c6a931226e09242851
+#: ../../source/guide/kernels.md:3 5f70d4f291864d0dbe3755b36ccbfc6e
 msgid ""
-"星历动力学（轨道设计的星历修正、轨道保持）需要 NASA SPICE 内核文件。 e2m2e 的 SPICE 内核不随 pip "
-"包分发——大文件托管在 e2m2e 仓库的 [`kernels-v1` "
-"release](https://github.com/cislunarspace/e2m2e/releases) 中， "
-"需要宿主自行准备。必需内核包括行星历（`.bsp`，如 `de440.bsp`）与闰秒 （`.tls`，如 `naif0012.tls`）。"
-msgstr ""
+"星历动力学（轨道设计的星历修正、轨道保持等）需要 NASA SPICE 内核文件； 必需内核包括行星历（`.bsp`，如 "
+"`de440.bsp`）与闰秒（`.tls`，如 `naif0012.tls`）。"
+msgstr "Ephemeris dynamics (ephemeris correction in orbit design, station keeping, …) requires NASA SPICE kernel files; the required kernels include the planetary ephemeris (`.bsp`, e.g. `de440.bsp`) and leap seconds (`.tls`, e.g. `naif0012.tls`)."
 
-#: ../../source/guide/kernels.md:9 79b6282320014e72811e98ee58789fdf
-msgid "GUI 自动引导"
-msgstr ""
-
-#: ../../source/guide/kernels.md:11 f365cd16340c46678d120976e37c5e79
-msgid "**GUI 启动时探测不到可用内核会自动弹窗引导**，三种选择："
-msgstr ""
-
-#: ../../source/guide/kernels.md 0897f64bf0e247068c868d04a2518cda
-msgid "选项"
-msgstr ""
-
-#: ../../source/guide/kernels.md f54e3307d9164c7b9059434c28876691
-msgid "行为"
-msgstr ""
-
-#: ../../source/guide/kernels.md d15b915821c34ad3b9a47e9ed828d002
-msgid "下载内核"
-msgstr ""
-
-#: ../../source/guide/kernels.md b6438bdb3c62458faabbaa6085239b85
+#: ../../source/guide/kernels.md:7 9516bef0d0c347988d1e37a2cd1b1160
 msgid ""
-"后台线程从 e2m2e `kernels-v1` release 下载到用户数据目录（Linux/macOS `~/.local/share"
-"/transfer-orbit-design/kernels`，Windows "
-"`%LOCALAPPDATA%`），模态进度条逐文件显示进度，可取消（已下载文件保留，重试幂等续传）；下载目录跨版本共享"
-msgstr ""
+"**v4.0.0 的界面工具不需要内核**：轨道族生成与轨道库浏览是纯 CR3BP 计算， "
+"安装后直接使用，无任何内核准备步骤。星历类工具的界面回归见 [issue "
+"#398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)。"
+msgstr "**The v4.0.0 UI tools need no kernels**: orbit family generation and catalog browsing are pure CR3BP computations — ready to use right after install, with no kernel preparation step. The return of ephemeris tools is tracked in [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)."
 
-#: ../../source/guide/kernels.md a9ce0112a8234679957b50b3779337ac
-msgid "指定已有目录"
-msgstr ""
+#: ../../source/guide/kernels.md:11 0d7b3bb5077d405cac5c877dc89792e9
+msgid "内核从哪里来"
+msgstr "Where the Kernels Come From"
 
-#: ../../source/guide/kernels.md 5bb0562a65e94de4b1c3221e737f9948
+#: ../../source/guide/kernels.md:13 57a0bf5ba4e34f0c83aebfc8ddb8e91b
 msgid ""
-"文件选择对话框选目录，校验含行星历 `.bsp` 与闰秒 `.tls` 后写入配置文件（`~/.config/transfer-orbit-"
-"design/kernels_dir.txt`），下次启动自动探测"
-msgstr ""
+"安装包已随带小内核（`.bpc` / `.tls` / `.tpc` / `.tf`，位于安装目录的 "
+"`resources/kernels/`）；体积大的星历 `.bsp` 不随包分发，需要时获取："
+msgstr "The installer bundles the small kernels (`.bpc` / `.tls` / `.tpc` / `.tf`, under `resources/kernels/` in the install directory); the bulky ephemeris `.bsp` files are not distributed with the package — fetch them when needed:"
 
-#: ../../source/guide/kernels.md 66f451c4d0c543e9954acfa2aecd23e9
-msgid "暂时跳过"
-msgstr ""
-
-#: ../../source/guide/kernels.md c23d48b90f9442ffb5990e1cb50e3969
-msgid "本次不准备，用到星历功能时再报错提示"
-msgstr ""
-
-#: ../../source/guide/kernels.md:19 21bd292243124f2ca25576c02f8ff64b
+#: ../../source/guide/kernels.md:16 4fe4a7892aa34c908c3233d3fb5a7f32
 msgid ""
-"内核探测顺序：`$SPICE_KERNEL_DIR` 环境变量 → 配置文件记录 → 仓库 `kernels/` 目录 → 用户数据目录 → 同级"
-" e2m2e 源码仓库的 `kernels/`。目录存在但缺必需 内核文件同样视为不可用。"
-msgstr ""
+"**自动下载（推荐）**：`uv run python scripts/download_kernels.py`，幂等地 拉取全部内核到 "
+"`kernels/`；"
+msgstr "**Automatic download (recommended)**: `uv run python scripts/download_kernels.py` — idempotently fetches all kernels into `kernels/`;"
 
-#: ../../source/guide/kernels.md:23 09f95cb2fc0b4888988aaebf941984fb
-msgid "命令行 / 脚本方式"
-msgstr ""
+#: ../../source/guide/kernels.md:18 108c9a42772e4ad68d21a2caffa507e5
+msgid ""
+"**手动下载**：从 e2m2e 的 [`kernels-v1` "
+"release](https://github.com/cislunarspace/e2m2e/releases) 下载解压到 sidecar "
+"工作目录下的 `kernels/`（开发期即仓库根 `kernels/`， 安装版即安装目录）；"
+msgstr "**Manual download**: extract e2m2e's [`kernels-v1` release](https://github.com/cislunarspace/e2m2e/releases) into `kernels/` under the sidecar working directory (the repo root in development, the install directory for the packaged app);"
 
-#: ../../source/guide/kernels.md:25 7a91482fe6154b5bba5bcb4037c41dce
-msgid "脚本化场景可用以下方式之一："
-msgstr ""
+#: ../../source/guide/kernels.md:22 e0544b167daf40d5bdefdaf42e3dd0c2
+msgid "**自备数据**：将 `$SPICE_KERNEL_DIR` 指向已有内核目录（优先级最高，sidecar 进程继承该环境变量）。"
+msgstr "**Bring your own**: point `$SPICE_KERNEL_DIR` at an existing kernel directory (highest priority; the sidecar process inherits the variable)."
 
-#: ../../source/guide/kernels.md:27 3baac66dbdfd4a0fbdfe2ada4e312e70
-msgid "**自动下载（推荐）**：`python scripts/download_kernels.py`，幂等地拉取 全部内核到 `kernels/`；"
-msgstr ""
-
-#: ../../source/guide/kernels.md:29 2725151087f34cadbae0c4f70a67edf9
-msgid "**手动下载**：从上述 release 下载解压到 `kernels/` 目录；"
-msgstr ""
-
-#: ../../source/guide/kernels.md:30 0f5072995552487b8c706e213822e4c2
-msgid "**自备数据**：使用自己的内核文件，或将 `$SPICE_KERNEL_DIR` 指向其所在路径。"
-msgstr ""
-
-#: ../../source/guide/kernels.md:32 7b02529911fe40cba5c9db4af06b382a
+#: ../../source/guide/kernels.md:25 b6a13de06d204c67ba4bac6294988411
 msgid "官方来源：[NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html)（备用）。"
-msgstr ""
+msgstr "Official source: [NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html) (fallback)."
 
-#: ../../source/guide/kernels.md:34 c35a991cfb7e41d19c6128e5010ff034
+#: ../../source/guide/kernels.md:27 0b0f1e13b2e84228b3f9f37fc307276b
 msgid "常见问题"
-msgstr ""
+msgstr "FAQ"
 
-#: ../../source/guide/kernels.md:36 bcfcf5dd1ac34945baf47c765e1f7545
+#: ../../source/guide/kernels.md:29 b7143b396baf41d5a854e83eb22cf527
 msgid ""
-"**轨道设计报 \"SPICE(NOLEAPSECONDS)\"**：闰秒内核未加载。确保内核目录含 `naif0012.tls`，或在启动前设置"
-" `$SPICE_KERNEL_DIR`（必须在 import e2m2e 之前生效，GUI 已自动处理）。"
-msgstr ""
+"**报 \"SPICE(NOLEAPSECONDS)\"**：闰秒内核未加载。确保内核目录含 `naif0012.tls`，或设置 "
+"`$SPICE_KERNEL_DIR` 后重启应用。"
+msgstr "**\"SPICE(NOLEAPSECONDS)\" error**: the leap-second kernel is not loaded. Make sure the kernel directory contains `naif0012.tls`, or set `$SPICE_KERNEL_DIR` and restart the app."
 
-#: ../../source/guide/kernels.md:39 2929e88e0b7246809194b715a76b3a5a
-msgid "**纯 CR3BP 功能不需要内核**：轨道族生成、稳定性分析是纯 CR3BP 计算， 内核缺失不影响。"
-msgstr ""
+#: ../../source/guide/kernels.md:31 caec4eac8cba4965875bff068a0906c1
+msgid "**v3.2.3 及更早版本的 GUI 内核自动引导弹窗已随 PyQt UI 移除**；v4.x 星历 工具回归时会重新评估引导交互。"
+msgstr "**The GUI kernel-guidance popup of v3.2.3 and earlier was removed with the PyQt UI**; the guidance interaction will be re-evaluated when ephemeris tools return in v4.x."
+
+#~ msgid ""
+#~ "星历动力学（轨道设计的星历修正、轨道保持）需要 NASA SPICE 内核文件。 e2m2e"
+#~ " 的 SPICE 内核不随 pip 包分发——大文件托管在 e2m2e"
+#~ " 仓库的 [`kernels-v1` "
+#~ "release](https://github.com/cislunarspace/e2m2e/releases) 中， "
+#~ "需要宿主自行准备。必需内核包括行星历（`.bsp`，如 `de440.bsp`）与闰秒 （`.tls`，如 "
+#~ "`naif0012.tls`）。"
+#~ msgstr ""
+
+#~ msgid "GUI 自动引导"
+#~ msgstr ""
+
+#~ msgid "**GUI 启动时探测不到可用内核会自动弹窗引导**，三种选择："
+#~ msgstr ""
+
+#~ msgid "选项"
+#~ msgstr ""
+
+#~ msgid "行为"
+#~ msgstr ""
+
+#~ msgid "下载内核"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "后台线程从 e2m2e `kernels-v1` release "
+#~ "下载到用户数据目录（Linux/macOS `~/.local/share/transfer-orbit-"
+#~ "design/kernels`，Windows "
+#~ "`%LOCALAPPDATA%`），模态进度条逐文件显示进度，可取消（已下载文件保留，重试幂等续传）；下载目录跨版本共享"
+#~ msgstr ""
+
+#~ msgid "指定已有目录"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "文件选择对话框选目录，校验含行星历 `.bsp` 与闰秒 `.tls` "
+#~ "后写入配置文件（`~/.config/transfer-orbit-"
+#~ "design/kernels_dir.txt`），下次启动自动探测"
+#~ msgstr ""
+
+#~ msgid "暂时跳过"
+#~ msgstr ""
+
+#~ msgid "本次不准备，用到星历功能时再报错提示"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "内核探测顺序：`$SPICE_KERNEL_DIR` 环境变量 → 配置文件记录 → "
+#~ "仓库 `kernels/` 目录 → 用户数据目录 → 同级 "
+#~ "e2m2e 源码仓库的 `kernels/`。目录存在但缺必需 内核文件同样视为不可用。"
+#~ msgstr ""
+
+#~ msgid "命令行 / 脚本方式"
+#~ msgstr ""
+
+#~ msgid "脚本化场景可用以下方式之一："
+#~ msgstr ""
+
+#~ msgid ""
+#~ "**自动下载（推荐）**：`python scripts/download_kernels.py`，幂等地拉取 "
+#~ "全部内核到 `kernels/`；"
+#~ msgstr ""
+
+#~ msgid "**手动下载**：从上述 release 下载解压到 `kernels/` 目录；"
+#~ msgstr ""
+
+#~ msgid "**自备数据**：使用自己的内核文件，或将 `$SPICE_KERNEL_DIR` 指向其所在路径。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "**轨道设计报 \"SPICE(NOLEAPSECONDS)\"**：闰秒内核未加载。确保内核目录含 "
+#~ "`naif0012.tls`，或在启动前设置 `$SPICE_KERNEL_DIR`（必须在 import "
+#~ "e2m2e 之前生效，GUI 已自动处理）。"
+#~ msgstr ""
+
+#~ msgid "**纯 CR3BP 功能不需要内核**：轨道族生成、稳定性分析是纯 CR3BP 计算， 内核缺失不影响。"
+#~ msgstr ""
 

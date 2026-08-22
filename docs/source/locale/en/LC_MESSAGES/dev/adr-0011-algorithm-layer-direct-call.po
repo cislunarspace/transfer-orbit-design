@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"POT-Creation-Date: 2026-08-22 14:16+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -21,22 +21,22 @@ msgstr ""
 "Generated-By: Babel 2.18.0\n"
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:2
-#: b0122a9080c64ee3a28a8c45a650dd86
+#: d998a9ae8ac84cf7b0caf305ee4e5ae1
 msgid "ADR 0011：算法层直调（绕过 Facade 门面）"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:4
-#: 3750c8f819ba46a48033e88e8e8f207b
+#: 96e4a030c347466cb0a264f8af57a990
 msgid "**状态**：已接受 **日期**：2026-08-04 **关联**：ADR 0006（e2m2e GUI 前端定位）"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:8
-#: 6d23f6d1201844bd9ed7f6a51d7153b1
+#: 8428d6be36bf48e68228d9a07b6d9c89
 msgid "背景"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:10
-#: 5542b04b81fd4ef7aead3573696f2964
+#: 8be6a02ccf8c4a73b571702c56cb1ed5
 msgid ""
 "e2m2e 的 Facade 门面（`e2m2e.api.Facade`）是 MCP/CLI 的统一入口。但 Facade 的返回值是 "
 "Pydantic 模型（`DesignOrbitResponse` 等），这些模型**剥离了轨道数据**——只返回标量汇总（轨道类型、Jacobi"
@@ -44,115 +44,129 @@ msgid ""
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:12
-#: be50678177004809b5dd6711096db417
+#: 487f20bd59c2447484eae161b571505b
 msgid ""
 "GUI 的可视化需要完整的轨道状态矩阵（`cr3bp_orbit.states` 形状 (n, "
 "6)）和星历表（`ephemeris.position_km`）。这些数据被 Facade 门面丢弃了。"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:14
-#: ee6e952feaa64a76a68d10c51260d438
+#: 7488fcdb76c14b979343e8d8efb78b37
 msgid "决策"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:16
-#: 0d52aeb8254e466f9ac6d6a233fdb2d3
+#: 6cca5562ef304109ad7fb830be23bcb2
 msgid ""
 "GUI **直接调用 e2m2e 算法层**（`e2m2e.algorithm.design.design_orbit` 等），不经过 "
 "Facade 门面。"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:28
-#: 5352ec7fda864216834f93f678b323d0
+#: d0f2dcb84ed845a6be3b0e2f019bc55c
 msgid "理由"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:30
-#: 7f839a554cec4d57be183f6040041b7a
+#: fcdc869cc2c2482f9a337d06fb5798de
 msgid ""
 "**可视化需要完整数据**：OrbitVisualizer 需要 `Orbit.states`，不是 "
 "`DesignOrbitResponse.initial_state`。"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:31
-#: 2a9a569c615c46c291e10ac4c525abc5
+#: c7e96ff344334d619f76bbc8fb29ce4d
 msgid ""
 "**Facade 是为 MCP/CLI 设计的**：MCP 传输层不需要 numpy 数组（JSON 序列化太重）。GUI "
 "作为进程内集成者，可以直接使用 numpy 数据。"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:32
-#: 0fedad1d0cc3409dbc398dafdf8cf95c
+#: 9ecb56904c5243b4aa5ac90ac50fa73e
 msgid "**性能**：省去 Facade 层的 Pydantic 序列化/反序列化开销。"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:33
-#: 0567324eac874d3d94cd8ab16584deb2
+#: ed31bf7800614d3caf8058e55676091d
 msgid "**e2m2e 架构对齐**：e2m2e ADR 0011 明确\"算法层保留细粒度 API（专家用）\"——GUI 就是这个\"专家\"用户。"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:35
-#: 80dd18b65a6f40c2bf91cda9e8836e08
+#: 728a5df754e14f769e1ba539b79fa9ef
 msgid "后果"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:37
-#: 3fa9cf7e70d34c4ea352f74cc08a4e6e
+#: 4e04c5426063424989670e1da386fab5
 msgid "正面"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:39
-#: b70c557608544976a233a616341b0fb9
+#: 34bb626b651a45d0931d9040d1d47eab
 msgid "可视化数据完整"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:40
-#: 5041bcf74af946798b687f964fa6063f
+#: ee3e5d64ac0040fdb09615b1fe9efdbd
 msgid "无信息损失"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:41
-#: 4f30ed5862f64240aa588434b1259d82
+#: 54ea634e7ada489ba3e85de8b94271fd
 msgid "调用链更短"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:43
-#: 522da4193db44812ac150934571a73f6
+#: 491dd67dd7534a9c8a9bdeeb37aed80e
 msgid "负面"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:45
-#: 91a84abe13f547b883307651dc3649e4
+#: cdc36a2fd0a44f72bf6a12d34e35ca21
 msgid "不经过 Pydantic 参数校验（需要在 GUI 侧自行校验，或在 FacadeBridge 中做轻量校验）"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:46
-#: dbe325e418f8406aa75993db3448ab4c
+#: 6da408595e8449f68cc70ca43cd80baf
 msgid "耦合 e2m2e 算法层的函数签名（签名变更会影响 tod）"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:47
-#: 58e12ef02cb84c81b0defddf7ae0ce05
+#: 9d77807122614a1785ff0fcf2cea6b2e
 msgid "Facade 门面更新后不需要同步（双刃剑：灵活但可能 drift）"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:49
-#: 662658888e484677ad9268bfb7711964
+#: a416896d209e4bfab07e331e5b40f84d
 msgid "缓解措施"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:51
-#: 5da0e7a2493c454692b077aaffc9b3ab
+#: 21b4c46b0afe445fb3fee74cb30b7a58
 msgid "FacadeBridge 薄封装：集中处理异常翻译和结果 DTO 转换"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:52
-#: 7f3c7c75fe2b47779c24ab555d369b8c
+#: ef7bd88cdad5413f85da11c755f03f99
 msgid "e2m2e 算法层签名相对稳定（已被其自身测试套件覆盖）"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:53
-#: 0d7bc4bcca964d9f88317e7770850765
+#: df0af9bd950a47efb0eef22622b604aa
 msgid "如果 Facade 未来补全返回完整数据，可切换回 Facade 路径"
+msgstr ""
+
+#: ../../adr/0011-algorithm-layer-direct-call.md:55
+#: 3c6a2e2da9fb469085bee2153e61b59e
+msgid "修订（2026-08-17，e2m2e 5.7.1）"
+msgstr ""
+
+#: ../../adr/0011-algorithm-layer-direct-call.md:57
+#: 0f0870ce88c347a0a24a17cf4f03940e
+msgid ""
+"轨道族生成改走 `Facade.orbit_family_generation`：5.7.1 起 Facade 响应 "
+"（`FamilyGenerationResponse`）携带完整 `Orbit` 成员与状态三元组，软失败 保留部分族，七族统一入口。本 ADR "
+"的前提（Facade 剥离轨道数据）对族生成 已不再成立；`design_orbit` / `control_orbit` "
+"仍直调算法层（对应响应仍只 返回标量汇总）。"
 msgstr ""
 

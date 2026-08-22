@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"POT-Creation-Date: 2026-08-22 14:16+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -21,24 +21,24 @@ msgstr ""
 "Generated-By: Babel 2.18.0\n"
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:2
-#: b9d1b0f7710341878300c178f2c518d9
+#: 701dde7445a9427596cf4da0ee355e28
 msgid "ADR 0013：星历模型可视化的坐标与时间约定"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:4
-#: 6419f6ba5e614b57b51d50988da9c902
+#: 0fa106be05f048c8954c2ff1bc1a2c75
 msgid ""
 "**状态**：已接受 **日期**：2026-08-09 **关联**：ADR 0010（内嵌可视化）、ADR "
 "0011（算法层直调）；CONTEXT.md（坐标系 / 图层 / 绘图与可视化）"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:8
-#: eed9058eb1f048148ec24c58b004d8e8
+#: 7afd0a3002804cefa489e1408a810b16
 msgid "背景"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:10
-#: ba3a7debfe4d42fa9138b2f4aa69ad32
+#: dab1cdc340a34cb99913e1d6c2d242b2
 msgid ""
 "ADR 0010 落地内嵌画布时只围绕 CR3BP 旋转系设计：画布读 `states[:,:3]`，按 μ 画地月与 "
 "L1–L5，单位隐含无量纲（DU）。星历模型结果（轨道保持 control_orbit 产出的受控星历、轨道设计 design_orbit "
@@ -46,7 +46,7 @@ msgid ""
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:12
-#: ea9cacd56724436e8c0c0b31b3cf2b3c
+#: 7c0a4f53b60645b0aa6344cb563e14f7
 msgid ""
 "**原点不一致**：算法层输出的 `EphemerisTable.synodic_position` 是地心归一（月球在 +1，源自 "
 "design_orbit 与 monte_carlo 的 `synodic[:,0] += μ`），而画布地月标注按质心归一（月球在 "
@@ -54,19 +54,19 @@ msgid ""
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:13
-#: 282e966b8db241249f50c9cbd7c05576
+#: df15dec2ea6a4f27979b2e5bf6135bdc
 msgid "**缺惯性系视图**：GCRS 惯性位置 `position_km` 从未进入画布，用户看不到星历结果的\"地心视角\"。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:14
-#: 54743ba671a34478a60867fff9043bc3
+#: 80b7b591fa064926bb8434f1b535076f
 msgid ""
 "**时间轴退化**：control_orbit 产物的 `times` 是 `np.arange(n)` "
 "占位索引，丢了物理时间，无法支撑惯性系月球轨迹或动画。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:15
-#: 41168491efde4fae88bee0365ad4a9fd
+#: ea61effa6b494c9581fce72093a442bf
 msgid ""
 "**design_orbit 的标称星历在画布上完全看不到**：CR3BP "
 "周期轨道作为初猜能画，但同一产物里真实星历模型下的标称星历（拟周期、跨整个 duration）一直埋在 Artifact 的 "
@@ -75,12 +75,12 @@ msgid ""
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:17
-#: 8aefc4a34dc94051a0b9f71383a1eded
+#: fcd514cd74a940cf95fc631e618de005
 msgid "文献调研（三轮并行，覆盖约 2700 篇 cislunar 文献）的结论："
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:19
-#: 2ba7c911c7f5403587cfa8e9bb2c59da
+#: 59e67f61429e4f5a8536a04dab5872d6
 msgid ""
 "**脉动-旋转系**（pulsating-rotating frame，瞬时地月距离归一）是 cislunar 可视化绝对主流（约 "
 "70%）。Folta 等 2022（NASA GSFC 官方建模约定）有专门分析框论证\"为何用无量纲旋转系\"——地月与 L₁ "
@@ -88,69 +88,69 @@ msgid ""
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:20
-#: 1d63d4aca543494399038fbeaf6db849
+#: 91ed72e3268c4239a72dc73ad721e215
 msgid ""
 "**瞬时平动点在脉动归一系里与 CR3BP 几何完全一致**（5 个固定点），只在惯性系或非脉动系里才沿地月连线摆动（Boudad "
 "2022、Gómez 等 2001）。Boudad 同时警告：瞬时点是零维点集，不是轨迹，不能连成\"平动点运动\"。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:21
-#: 54123be8b9f0441b843e559dfa17af1a
+#: 5aae8e48f58f4121b7479f60f9ca737b
 msgid "**多视图并排**（会合系 + 惯性系）是标准做法（Muralidharan & Howell 2021、Boudad 2022）。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:22
-#: c9b8e2983dcb4b75a65d072e7ba51d79
+#: bac4f8077d8a4775a2e9665d8cf18922
 msgid ""
 "**原点约定有分歧**但只限一处：质心（Park 2025，理论派）、月心（Baresi 2023，月附近可视化）、地心（Pavlak "
 "2013、Han 2026，工程对接 JPL 星历）。其余（归一基准、月球位置、转换链结构）全一致。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:23
-#: b5c0b7541e414310bbbddbec445985b2
+#: 499ff838cf7d4c8a9266c3ea3d18f130
 msgid ""
 "惯性系画月球完整真实公转轨迹，文献里几乎没有——旋转系月球本就固定，惯性系 snapshot 通常省略或画参考圆。本决策采 SPICE "
 "真实轨迹作为合理增强。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:25
-#: cc34101353de41d4838a6da3319a96b2
+#: 23dd948e25424e93842947cd2fadd82c
 msgid ""
 "核查算法层：`SynodicAxes.characteristic_length(et)` "
 "返回瞬时地月距离，旋转矩阵由瞬时月球状态构造——e2m2e 已是脉动-旋转系，无需新建坐标系。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:27
-#: 721bcf4ecd304513946f88fc167a24c9
+#: 6e4652a730444ef4ae1393d680694d1e
 msgid "决策"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:29
-#: 7e82a8f5dc1c4aca8a7e7f518e881ab2
+#: 619a7e63bc3b41bd83339020ff3fb1ea
 msgid ""
 "**坐标系**：会合系统一**质心归一**（Earth@−μ, Moon@1−μ，瞬时距离脉动）。星历产物的会合系位置在送入画布前减 "
 "μ；CR3BP 单条轨道数据与现有地月 / 平动点标注不动。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:30
-#: 466c397531404dbfbf9a855efc1d8c61
+#: 23ce13e7c2a94170a61a3e79df17c04b
 msgid ""
 "**视图**：`CanvasState` 加 `frame` 字段（`synodic` | `inertial`），支持会合系（默认）与地心惯性系"
 " GCRS 切换。月心系暂不做。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:31
-#: 85315f2fac494017883467bacff2e8a2
+#: aa61316ac1c747868a56159df92cf551
 msgid "**平动点**：仅会合系视图画 5 个 CR3BP 平动点（脉动系下即瞬时平动点，自动满足\"画瞬时平动点\"的需求）；惯性系视图不画。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:32
-#: a4b95111df1c44669a42eed4745ae670
+#: 8d4ff2cfa26d4149bc81df152ced7b92
 msgid "**惯性系天体**：地球置于原点；月球按 `times_et` 从 SPICE 取 GCRS 真实轨迹画出。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:33
-#: 7d98844536eb4466b5d9bbb28fce5a96
+#: 52f818cfdee14dc6bbb7cf6ddbf9a022
 msgid ""
 "**时间**：`Artifact.times` 存 **et 秒**（J2000 起算）；显示与导出转 UTC 或 MJD。来源由 GUI 侧从 "
 "`EphemerisTable` 的 UTC 拆分用 `spice.str2et` 重建，**不修改算法层上游**填 "
@@ -158,126 +158,128 @@ msgid ""
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:34
-#: f886da9c604f43cd8a405bcda9f65492
-msgid "**动画**：GIF 导出为独立\"导出动画\"工具（按 frame + `times_et` 逐帧渲染再合成），主画布不做实时播放。"
+#: 28653ca221fa47ba8d57e853219f0e70
+msgid ""
+"**动画**：GIF 导出为独立\"导出动画\"工具（按 frame + `times_et` "
+"逐帧渲染再合成），主画布不做实时播放。（主画布时刻交互已由 ADR 0014 增补：时间轴 scrubber 选择时刻，不含播放。）"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:36
-#: 513198f223d44139a4389d4d7babd49a
+#: 7bece5c7aae2435ab45d4dbf51aeb7a3
 msgid "理由"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:38
-#: b19d98cbf4a94697842c4585ddd389a9
+#: 9040fdf3ecaa4abd820c802cc935c68c
 msgid "质心归一与 CR3BP 教科书及现有 viz_adapter 一致，改动最小（仅星历侧减 μ）。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:39
-#: f224e04ec0b64d568e6596695d8a24c4
+#: a84e63508cf1411389df425e3fb10ccc
 msgid "算法层已是脉动系（SynodicAxes 用瞬时地月距离），无需新建坐标系。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:40
-#: d2550122d9fc463cbfaf1456c9eed748
+#: 58ae91f7d0b647799b257b628d4ee572
 msgid "瞬时平动点在脉动系下退化为 5 个固定点，免去逐历元算法——会合系视图直接复用现有 L1–L5 标注即满足需求。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:41
-#: d557aa2ab1ee495788b69826c3ed3a2e
+#: 42b177675479465ca9c8a6a501783fc0
 msgid "et 秒是 SPICE 原生，惯性系查月球与 GIF 帧采样直接复用。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:42
-#: abccd2437454439b9aef57d34b84782e
+#: 0258128ff75b4952aa1ce36d96124e9c
 msgid "GIF 走独立导出，规避主画布逐帧性能问题（matplotlib 3D + SPICE 查询）。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:44
-#: af15db48fcf041f2a74adefa99700d7b
+#: 0b973a9a2b3d40b3836d356ed030f77a
 msgid "后果"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:46
-#: 8658044d842a47608b71961447437e9f
+#: 1bf25bca30cb4d4ab0c2c56512f9e2d2
 msgid "正面"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:48
-#: ac7f8524d0174f72ae34e07c2a6e24c0
+#: 8bb63a21484b48e98f435f13100846a8
 msgid "修掉 control_orbit 星历的 ~μ 偏移，轨迹与地月标注严格对齐。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:49
-#: e0f0850ddd444990b0a4fe9d1f65dce6
+#: 22493c9663414ef38507531f9540c6e9
 msgid "星历结果获得会合系（自洽）与地心惯性系两种视图，可同轨对比。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:50
-#: 162a750c47aa464786d4d87f19a63872
+#: 7d7d17bbfba4490ea28c70c653eede9f
 msgid "真物理时间贯通数据契约，为动画与未来时间相关分析（色标、时刻标注、滑窗）铺路。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:52
-#: adace3dc589346eb8df485e322746e0b
+#: 4eae1c96e2e449d39a9ebcfac9c68f9e
 msgid "负面"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:54
-#: daab0d6a95494b8385c59eb5c130f4f7
+#: 8dff34c1cd7342e18090ab00923c00ed
 msgid "Artifact 契约变厚（多带 `position_km`、`times_et`、`frame`）。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:55
-#: 07c6f66fff0848e1a2c6dc934672ca34
+#: 9c585cb02825401d9df8033a28587b68
 msgid "惯性系视图与 GIF 依赖 SPICE 星历内核（`.bsp`），离线环境需降级提示。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:56
-#: d5c32bda27d647548df46ee809cb95e0
+#: a2f43644fe7f446d8967593c5515b8a4
 msgid ""
 "GIF 导出是新增子系统，有维护成本：当前同步渲染阻塞 UI，大画布高帧数下数秒；未来可移 QThread（与 OrbitDesignWorker"
 " 同模式）。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:58
-#: 6f4a819236d74f9590165b02c4dfbaba
+#: bf745e1c1fa2495e99d2f5e8937e1b4a
 msgid "后续"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:60
-#: 235faab0b9e145c4a2c8db4dc004edc9
+#: 40f4abf9510946d4b9337251dcb67fca
 msgid "月心系视图（文献低频）若有明确需求再开。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:61
-#: cadcbd0cb8454bc286d0c8f96beea629
+#: a538b60a2e974d87a9c8b4079d4c4388
 msgid "GIF 帧采样策略在参数对话框暴露，默认 cumulative、滑窗 3 天（地月 DRO ~14 天周期的合理量级）。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:62
-#: 0a481ddf49e8493fa77be7f4f5553dd4
+#: e2bb89ad068b480ba4fde0ae63bbd004
 msgid "若算法层将来填 `times_jd_tdb`，GUI 侧的 `str2et` 重建可替换为直读，去掉一处重复。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:64
-#: b613838de35e4db7a0162fdf26853d65
+#: fa926ca04f784ffa9e5f1203d134ac47
 msgid "更新（#359，2026-08-09）：范围扩到 design_orbit 的标称星历"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:66
-#: 8befa3985a754c1dbde9cf618d45220a
+#: 28f044f539554a948adfe8bb66b3a01e
 msgid ""
 "初版只覆盖 control_orbit 的受控星历。#359 把范围扩到 design_orbit 产出的标称星历——同一份产物里 CR3BP "
 "初猜（无量纲周期轨道）与真实星历模型下的标称星历（拟周期、跨整个 duration）首次并列进入画布。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:68
-#: 722753e6e6a6478f873348e38347bede
+#: 80ef6cbfd7e240bfa428cfe42435e607
 msgid "具体落地："
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:70
-#: b78e03b674b94f0b9416527606e3ed80
+#: 1c124ba24d88418d9fe3aea8e84a9d95
 msgid ""
 "**数据契约**：`_artifact_for_id` 显式暴露四个并列槽位——`initial_guess_states`（CR3BP "
 "周期轨道，无量纲会合系）、`ephemeris_synodic`（星历会合系位置，已减 "
@@ -287,14 +289,14 @@ msgid ""
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:71
-#: 2202f355d1854081961b0d1c1d039609
+#: 9517af7ef9cc4d35936a27fb1ce48a9c
 msgid ""
 "**质心归一对齐沿用决策 1**：design_orbit 标称星历的会合系位置在 `_artifact_for_id` 里减 μ 后再送画布，与"
 " control_orbit 的处理一致。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:72
-#: 4dab49f0826047099a8d76a0c6808ca4
+#: f122a3b99abe4cd28a52d1ae524ed9f4
 msgid ""
 "**绘制内容**：`CanvasState` 加 `plot_content` 字段（初猜 / 星历 / 叠加，默认叠加），与 `frame` "
 "正交。叠加视图初猜用实线、星历用虚线，TAB10 相邻色区分。惯性系下\"初猜\"灰显（CR3BP "
@@ -302,14 +304,17 @@ msgid ""
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:73
-#: 3bac22abef194e6584d637c1be52c513
+#: fb179cc48fa84621a4f2a41a5f20f450
 msgid "**导出动画跟随绘制内容**：仅星历可按物理时间轴动画化；初猜模式明确拒绝导出（CR3BP 单周期无物理时间轴）。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:74
-#: 8cfe3a225f4a4ec0a0f7ba100bf8f966
+#: b8fbed9b801d4a6399d7b2f6271c979d
 msgid ""
 "**持久化**：design_orbit NPZ 已存全字段（`eph_` 前缀），`load_artifact_arrays` 还原进 "
 "`extra[\"ephemeris\"]`，从磁盘恢复的历史 Artifact 同样支持绘制内容切换。NPZ schema 不变。"
 msgstr ""
+
+#~ msgid "**动画**：GIF 导出为独立\"导出动画\"工具（按 frame + `times_et` 逐帧渲染再合成），主画布不做实时播放。"
+#~ msgstr ""
 

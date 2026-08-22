@@ -7,104 +7,80 @@
 
 [中文](README.md) | English
 
-transfer-orbit-design is the GUI frontend of [e2m2e](https://github.com/cislunarspace/e2m2e). e2m2e provides the dynamics models, correctors, continuators, and transfer algorithms required for cislunar orbit design; this repository wraps them into a visual desktop application. It implements no algorithms itself; it only does three things: calling (dispatching computations through the Facade API), managing (organizing every computation product as a Project/Artifact), and presenting (visualizing results on an embedded canvas). Users complete orbit design, station keeping, and result inspection through a three-step interaction of "select an artifact -> select an operation -> view the result".
+transfer-orbit-design is the GUI frontend of [e2m2e](https://github.com/cislunarspace/e2m2e). e2m2e provides the dynamics models, correctors, continuators and transfer algorithms for cislunar orbit design; this repository wraps them into a visual desktop application. Since v4.0.0 the GUI is a Tauri 2 application: a React frontend drives the interface, a Rust shell orchestrates processes, and e2m2e runs as a sidecar child process (stdio JSON lines + binary frames). The UI never touches algorithms, and no algorithm enters the UI.
 
 ## Installation
 
-The project requires Python >= 3.13. Install with [uv](https://docs.astral.sh/uv/):
+### Desktop application (Windows)
+
+Download `tod_<version>_x64-setup.exe` from [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) (NSIS installer; per-user install, no administrator rights needed). The installer bundles the e2m2e runtime (tod-sidecar) and the small SPICE kernels; the current UI features are pure CR3BP computations and need no ephemeris kernels.
+
+### Development environment
+
+Requires Python >= 3.13, Node.js >= 20 and a stable Rust toolchain; Python packages are managed with [uv](https://docs.astral.sh/uv/):
 
 ```bash
-uv sync
+uv sync                        # Python deps (e2m2e>=5.8.5 etc.)
+npm ci --prefix frontend       # Frontend deps
+cargo tauri dev                # Dev mode: Vite HMR + Rust shell spawns the sidecar
 ```
-
-`uv sync` provisions the interpreter, creates the virtual environment, and installs all dependencies (including the core algorithm library `e2m2e>=5.6.7`) in one pass.
-
-Windows users can also download the portable bundle `TransferOrbitDesign-windows.zip` from [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) and extract it; no configuration needed. Separately download `spice-kernels.zip` from the [`spice-data-v1`](https://github.com/cislunarspace/transfer-orbit-design/releases/tag/spice-data-v1) release and extract it next to `TransferOrbitDesign.exe` (producing a `kernels/` subdirectory); the application detects it at startup.
 
 ## SPICE Kernels
 
-Ephemeris dynamics requires NASA SPICE kernel files. All required kernels are bundled in the `kernels-v1` release of [e2m2e](https://github.com/cislunarspace/e2m2e/releases). Three ways to configure:
+The v4.0.0 UI tools (orbit family generation, catalog browsing) are pure CR3BP computations and need no SPICE kernels. Ephemeris-based tools (orbit design, station keeping) are returning to the UI (see [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)); once available they need the planetary ephemeris `.bsp` and friends, obtainable via:
 
-- **Automatic download (recommended)**: `python scripts/download_kernels.py` idempotently fetches all kernels into `kernels/`.
-- **Manual download**: download from the release above and extract into the `kernels/` directory.
-- **Bring your own**: use your own kernel files, or point `$SPICE_KERNEL_DIR` at their location.
+- **Automatic download (recommended)**: `uv run python scripts/download_kernels.py` — idempotently fetches everything into `kernels/`;
+- **Manual download**: extract e2m2e's [`kernels-v1` release](https://github.com/cislunarspace/e2m2e/releases) into `kernels/` (relative to the sidecar working directory);
+- **Bring your own**: point `$SPICE_KERNEL_DIR` at an existing kernel directory (highest priority).
 
 Official source: [NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html) (fallback).
 
 ## Quick Start
 
-```bash
-uv run transfer-orbit-design
-```
-
-The interface uses a three-column layout: project tree on the left, visualization canvas and log tabs in the center, tool selector, parameter panel, and run button on the right.
-
-A walkthrough of orbit design:
-
-1. Select "Orbit Design" in the tool selector on the right, choose an orbit type (DRO / Halo / NRHO, etc.) and fill in the parameters.
-2. Click Run. Computation runs on a background thread while the log panel streams progress.
-3. When finished, the result is persisted as a JSON + NPZ pair under `output/` and overlaid on the canvas.
-
-The canvas toolbar switches between 3D / XY / XZ / YZ / quad-view projections, synodic and inertial (GCRS) coordinate frames, toggles the Earth-Moon and L1-L5 annotations, switches the plotted content (initial guess / ephemeris / overlay), and exports GIF animations; the "Settings → Chart Settings" menu adjusts line width, color scheme, annotation size, and Z-range ratio. Ctrl+click in the project tree selects multiple orbits for overlay comparison. Right-click an orbit in the project tree to launch station keeping and stability analysis.
+1. The left column opens on the "Project" tab; switch to the "Catalog" tab to load the whole orbit library, with a filter bar for family type, libration point, Jacobi and amplitude ranges, and tags.
+2. The middle column is "Orbit Family Generation": pick a family (Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe / DRO); the panel shows the family-specific parameters (amplitude bounds, perilune height, phases, …). Click "Generate".
+3. Member trajectories appear on the canvas at once: drag to rotate, scroll to zoom; the "Fit" button recentres on the trajectory bounding box. Clicking a catalog record overlays its trajectories on the canvas.
+4. The language switcher at the top of the left column toggles between Chinese and English.
 
 ## Capabilities
 
-**Orbit design**
+**Available in the v4.0.0 UI**
 
-- Periodic orbit generation: DRO, NRHO, Halo, Lissajous, L4/L5; the parameter panel is auto-generated from Pydantic models, and results are persisted as JSON + NPZ pairs.
+- **Orbit family generation**: eight families (the seven classic ones + DRO), periodic continuation or parameter sampling; the parameter form is generated from the tool's JSON Schema (field pruning, ranges and defaults follow the e2m2e models); live progress, member trajectories rendered one by one.
+- **Catalog browsing**: products are stored automatically in the e2m2e orbit library (multi-dimensional catalog); filtered queries; clicking a record overlays it on the canvas.
+- **Canvas**: Three.js 3D view with view-fit and view-preservation, Earth/Moon and libration-point annotations, persisted chart settings (line width, body/point markers, Z-axis ratio), webm animation export.
 
-**Station keeping and analysis**
+**Not yet wired** (shipped in the v3.2.3 PyQt UI; returning tool by tool on Tauri — see [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)): orbit design, station keeping, orbit propagation, transfer design, stability analysis, spacetime transform. Use v3.2.3 or the e2m2e CLI if you need them now.
 
-- Station keeping: Monte Carlo simulation with a selected orbit's ephemeris as input; outputs controlled ephemeris and delta-v statistics.
-- Orbit family generation: continuation from a small-amplitude Halo seed to the target amplitude; a whole family is overlaid on the canvas.
-- Stability analysis: Floquet multipliers / stability indices (nu1/nu2/nu3/Broucke) / bifurcation classification, shown in a dialog and persisted as JSON.
+## Data Flow and Artifacts
 
-**Visualization**
+One computation flows: parameter form → Rust command → e2m2e sidecar (JSON-line envelopes + binary frames, e2m2e ADR 0035) → product lands in the orbit library automatically → project tree / canvas fetch it via `catalog_query` / `catalog_get`.
 
-- Multi-orbit visualization: 3D / XY / XZ / YZ / quad-view projections, synodic / inertial frame switching, Earth-Moon and L1-L5 annotations, multi-orbit overlay, chart settings (line width / palette / font size / Z ratio), GIF animation export.
-
-For scripted workflows (CR3BP orbit generation, transfer search, ephemeris correction, plotting), use the [e2m2e CLI](https://github.com/cislunarspace/e2m2e); see the [Sphinx docs](https://cislunarspace.github.io/e2m2e/).
-
-## Data Flow and Data Formats
-
-The four tools follow the same data flow: fill in parameters in the panel (or right-click a selected orbit) -> the background thread calls e2m2e -> the result is written to `output/`. All products use the JSON + NPZ pair uniformly: JSON holds parameters and scalar statistics, NPZ holds orbit arrays. `<type>` is the lowercase orbit type (dro/halo/nrho/...), `<ts>` is a UTC timestamp.
-
-| Tool | Input | Output |
-|------|-------|--------|
-| Orbit design | Orbit type, amplitude, phase, epoch, duration, step | `output/<type>/<type>_<ts>.json` + `.npz` |
-| Station keeping | Ephemeris of the selected orbit + control parameters | `output/ephemeris/orbit_ephemeris_<ts>.json` + `.npz` |
-| Family generation | Libration point, max out-of-plane amplitude, number of members | `output/family/family_<ts>.json` + `.npz` |
-| Stability analysis | States and times of the selected orbit | `output/stability/<label>_stability_<ts>.json` |
-
-Per-product JSON and NPZ contents:
-
-- **Orbit design**: JSON holds orbit type, starting epoch, duration in days, mass ratio mu, Jacobi constant, convergence status and iteration count, initial state; NPZ holds `states` (n,6), `times` (n,), and ephemeris fields (UTC breakdown, GCRS position/velocity, synodic position, time).
-- **Station keeping**: JSON holds failed-sample count, total delta-v, maneuver count; NPZ holds the controlled ephemeris `states` (n,6), `times` (n,), inertial position `position_km`, physical time `times_et`.
-- **Family generation**: JSON holds libration point, member count, mass ratio; NPZ holds the family members `states` (m,n,6), `times` (m,n), out-of-plane amplitudes `z0s` (m,).
-- **Stability analysis**: JSON only, holding the monodromy matrix, eigenvalues, stability indices (nu1/nu2/nu3/Broucke), bifurcation classification, and numerical errors.
+Products persist in the `catalog/` directory (repo root in development; the install directory for the packaged app). The library is the e2m2e catalog format (multi-dimensional classification, lineage pointers) and can be opened directly by e2m2e or other hosts; `output/` only keeps the legacy transfer partition and script workflows.
 
 ## Documentation
 
 Online docs: <https://cislunarspace.github.io/transfer-orbit-design/en/>
 
-Local build:
+Build locally:
 
 ```bash
 uv sync --extra docs
-uv run sphinx-build -b html -D language=en docs/source docs/build/html
+uv run sphinx-build -b html -D language=en docs/source docs/build/html/en
 ```
 
 ## Tests and Code Standards
 
 ```bash
-uv run pytest tests/ -m "not spice"
-uv run ruff check .
-uv run pyright
+uv run pytest tests/ -m "not spice"     # Python domain layer
+cargo test --manifest-path src-tauri/Cargo.toml   # Rust shell & sidecar protocol
+npm --prefix frontend run test          # Frontend (vitest)
+uv run ruff check . && uv run pyright   # Python static checks
 ```
 
 ## Contributing
 
-1. Fork the repository
+1. Fork this repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'Add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)

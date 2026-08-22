@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"POT-Creation-Date: 2026-08-22 14:16+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,191 +20,195 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../source/guide/visualization.md:1 e8a264a176de497e9e679b07d5caab54
+#: ../../source/guide/visualization.md:1 391d11eb902341fcb93ab1e5f5a202bc
 msgid "可视化"
-msgstr ""
+msgstr "Visualization"
 
-#: ../../source/guide/visualization.md:3 7ba6f9c83f9c4d67b67391104ff3122d
-msgid ""
-"画布是主窗口中央的内嵌 matplotlib 绘图区，展示轨道工件与轨道族。工具栏 "
-"分五组：**投影**、**坐标系**、**中心**、**绘制内容**、**图层开关**，另加 **导出动画**按钮。"
-msgstr ""
+#: ../../source/guide/visualization.md:3 42861c9cf46b4612b3f73dbafe962e49
+msgid "画布是右侧的 Three.js 3D 视图（会合系，质心归一化坐标），展示族生成结果与 轨道库叠加轨迹。"
+msgstr "The canvas is the Three.js 3D view on the right (synodic frame, barycentric normalized coordinates), showing generated families and overlaid catalog trajectories."
 
-#: ../../source/guide/visualization.md:7 7b41e12c067f481290025db1c62e5fbc
-msgid "投影"
-msgstr ""
+#: ../../source/guide/visualization.md:6 89f222bd5c87445e946a0669831e3ad2
+msgid "交互"
+msgstr "Interaction"
 
-#: ../../source/guide/visualization.md 307e6a3adec84cce90744fbe81790489
-#: cc8211918a4a4a929aaab7b4030ea198 e85787918ae74a40b74b39e186f63de1
-msgid "按钮"
-msgstr ""
+#: ../../source/guide/visualization.md:8 944abf6c8c2d46ac87ccd14e813fafae
+msgid "**左键拖拽**：旋转视角；**滚轮**：缩放；**右键拖拽**：平移。"
+msgstr "**Left-drag**: rotate; **wheel**: zoom; **right-drag**: pan."
 
-#: ../../source/guide/visualization.md 2aaa68841ed74b88a96b8ab9605302c2
-#: 68f1d65d8fe241c495274fb4f4155d93 d2f1a29a7e864227a82eab6d24f1cdad
-msgid "含义"
-msgstr ""
+#: ../../source/guide/visualization.md:9 2559207a33bb45e1aa3bc10ed67418c0
+msgid "**适配**（右上角按钮）：按当前轨迹的包围盒重设相机，每侧留 5% 余量。"
+msgstr "**Fit** (top-right button): recentres the camera on the current trajectories' bounding box with a 5% margin on each side."
 
-#: ../../source/guide/visualization.md f6bea505aa7c452fbf2a9ae833e8bcb7
-msgid "3D"
-msgstr ""
+#: ../../source/guide/visualization.md:10 0e769570de284b41991d4cc4ee9391f5
+msgid "**视图保持**：首次数据到达时自动适配一次；此后增删轨迹不重置相机， 手动旋转缩放的视角不被打扰（CONTEXT.md 领域语义）。"
+msgstr "**View preservation**: the view auto-fits once when data first arrives; afterwards adding or removing trajectories does not reset the camera, so your manual rotate/zoom is never disturbed (domain semantics in CONTEXT.md)."
 
-#: ../../source/guide/visualization.md d58748d1754143be902549910023f559
-msgid "三维视图，可拖拽旋转观察"
-msgstr ""
+#: ../../source/guide/visualization.md:13 b26976ad84de4b06a51bc6ca051fd4fd
+msgid "标注与配色"
+msgstr "Annotations and Colors"
 
-#: ../../source/guide/visualization.md f963a338288946f4be8c765f6773e681
-msgid "XY / XZ / YZ"
-msgstr ""
+#: ../../source/guide/visualization.md:15 d196fe4490044629b5c5c18559789236
+msgid "画布固定绘制地球、月球与 L1/L2 平动点球体及文字标注。多条轨迹按颜色循环 自动配色：族生成成员一组颜色，库叠加轨迹依次取后续颜色。"
+msgstr "The canvas always draws the Earth, the Moon and the L1/L2 libration points as spheres with text labels. Multiple trajectories take colors from a cycle automatically: family members share the leading colors, and catalog overlays take the following ones."
 
-#: ../../source/guide/visualization.md ec5fcca8050a4898890d4f9f9855174f
-msgid "平面投影，取对应坐标面对"
-msgstr ""
-
-#: ../../source/guide/visualization.md d9914e91ac6e49e38dba830665ce9504
-msgid "四视图"
-msgstr ""
-
-#: ../../source/guide/visualization.md 91ee8379a31e435a9307f41ae55b8190
-msgid "2×2 网格同时显示 3D + XY/XZ/YZ，适合大窗口或全屏"
-msgstr ""
-
-#: ../../source/guide/visualization.md:15 418c97df6b6a467e82907e399a073226
-msgid "坐标系"
-msgstr ""
-
-#: ../../source/guide/visualization.md 99e8958e685c40568a1044f5983b6a6e
-msgid "会合系"
-msgstr ""
-
-#: ../../source/guide/visualization.md 8c8ad095d0d2430abfbb5bbc3edc130f
-msgid "CR3BP 旋转坐标系（无量纲），画地月天体与 L1–L5 平动点标注"
-msgstr ""
-
-#: ../../source/guide/visualization.md 46b27cc0a2dd4fd2825cf91277e6155c
-msgid "惯性系"
-msgstr ""
-
-#: ../../source/guide/visualization.md 1bdaa25d2a934efebc8c8ea78b327fb0
-msgid "GCRS/J2000 地心惯性系（km），地球为原点，月球沿真实轨迹移动，不画平动点"
-msgstr ""
-
-#: ../../source/guide/visualization.md:22 1fbdf8e7895b469098e676f7b7d85b15
-msgid "两套坐标系随**中心**按钮组合：会合系下中心可选质心 / 月球 / L1 / L2； 惯性系下中心为地球原点（月球按钮仍可平移视角）。"
-msgstr ""
-
-#: ../../source/guide/visualization.md:25 9fa38a60f6494d91a22d965b431b9113
-msgid "绘制内容"
-msgstr ""
-
-#: ../../source/guide/visualization.md:27 94c5639eccd843178caaa2a2b519a348
-msgid "轨道设计产物同时携带 CR3BP 初猜与标称星历两份轨迹，三者选一："
-msgstr ""
-
-#: ../../source/guide/visualization.md 6bab40906b534d0ba5f266a931f90824
-msgid "叠加"
-msgstr ""
-
-#: ../../source/guide/visualization.md 274751242b714850916b365733b842f2
-msgid "初猜（实线）+ 星历（虚线），TAB10 相邻色区分，默认"
-msgstr ""
-
-#: ../../source/guide/visualization.md c18bf4137bb449cb9583ffc1fd079e21
-msgid "初猜"
-msgstr ""
-
-#: ../../source/guide/visualization.md 4cc39e4fb62a45b6a05258ec19401d9d
-msgid "仅 CR3BP 周期初猜。惯性系下灰显（CR3BP 无量纲无惯性系表示）"
-msgstr ""
-
-#: ../../source/guide/visualization.md 2257d08be78944a4951884dac53eee5d
-msgid "星历"
-msgstr ""
-
-#: ../../source/guide/visualization.md 8710d49178074938b81fd2185b874c2f
-msgid "仅标称星历"
-msgstr ""
-
-#: ../../source/guide/visualization.md:35 20823bb8e64a4536b28bb31812bad988
-msgid "轨道保持产物只有受控星历，\"初猜\"恒灰显。"
-msgstr ""
-
-#: ../../source/guide/visualization.md:37 7b17a13c2b7649608485c016bc4e9a50
-msgid "图层与等比"
-msgstr ""
-
-#: ../../source/guide/visualization.md:39 7bcad11544534f44bfb36434022baba1
-msgid "**地月**：显示地球、月球位置（可随中心切换偏移）；"
-msgstr ""
-
-#: ../../source/guide/visualization.md:40 5dcbc754603a484eb13356544f26c632
-msgid "**L1-L5**：显示五个平动点标注（仅会合系）；"
-msgstr ""
-
-#: ../../source/guide/visualization.md:41 adbe8d3eca1443bdaa7a44f4e5ca7c25
-msgid "**等比**：勾选后各轴等比例（默认），取消后各轴独立缩放填满画布。"
-msgstr ""
-
-#: ../../source/guide/visualization.md:43 d4af5e30e58c4ca382e2a693bb391a34
-msgid "多轨道叠加"
-msgstr ""
-
-#: ../../source/guide/visualization.md:45 9888bb708c0a4a1f98c388905dc03c34
-msgid "Ctrl+点击项目树选中多个工件，画布按 TAB10 调色板自动分配颜色叠加渲染； 轨道族按成员逐条渲染，成员数多时可用\"等比\"关掉等比例观察。"
-msgstr ""
-
-#: ../../source/guide/visualization.md:48 9e892d233c7742b1a50b426f6c9e4abe
+#: ../../source/guide/visualization.md:18 daf4912bf65c4f3fb59094ef1a0ffd59
 msgid "图表设置"
-msgstr ""
+msgstr "Chart Settings"
 
-#: ../../source/guide/visualization.md:50 c95641124f4743c3adae29fad4d18432
-msgid "菜单\"设置 → 图表设置…\"打开对话框，可调："
-msgstr ""
+#: ../../source/guide/visualization.md:20 22758fc00ef84526b212dbdf14775069
+msgid "右上角「图表设置」打开设置面板，即时生效并持久化（localStorage），可一键 恢复默认："
+msgstr "The top-right \"Chart Settings\" opens the settings panel — changes apply instantly and persist (localStorage), with one-click reset to defaults:"
 
-#: ../../source/guide/visualization.md:52 6c0f455659dc4dc3a5b6eb9f246bff2b
+#: ../../source/guide/visualization.md:23 bdeeea46634d48beaadf3db905b065ac
 msgid "轨道线宽；"
-msgstr ""
+msgstr "Orbit line width;"
 
-#: ../../source/guide/visualization.md:53 a7dfab3ac5c446e49352e58d358d0af6
-msgid "颜色方案（预设配色，含适合深色背景的方案）；"
-msgstr ""
+#: ../../source/guide/visualization.md:24 798182a04ad8431497884a88713f362d
+msgid "地球 / 月球 / 平动点标注大小、平动点颜色；"
+msgstr "Earth / Moon / libration-point marker sizes, libration-point color;"
 
-#: ../../source/guide/visualization.md:54 0f69892dbf9540819d4a50aa26d7d8ab
-msgid "标注大小（地月天体、平动点标注字号）；"
-msgstr ""
+#: ../../source/guide/visualization.md:25 1196adf300fb4815b76491a8651db13c
+msgid "Z 轴比例（近平面轨道防压扁）。"
+msgstr "Z-axis ratio (prevents squashing near-planar orbits)."
 
-#: ../../source/guide/visualization.md:55 d1e6f544feda4cf093c27196fb524b69
-msgid "Z 区间比例（3D 视图 Z 轴的视觉压缩/拉伸比例）。"
-msgstr ""
-
-#: ../../source/guide/visualization.md:57 af6fda718bc244e08c42b61b847ecd0c
-msgid "设置保存到系统配置，重启后保留。"
-msgstr ""
-
-#: ../../source/guide/visualization.md:59 0ad69d05a4754f83ae6d620ebcd53f4d
+#: ../../source/guide/visualization.md:27 cc3562d58479465a8cbc54ffd4b7da21
 msgid "导出动画"
-msgstr ""
+msgstr "Export Animation"
 
-#: ../../source/guide/visualization.md:61 752e1002734e4fb69807339e44e91118
-msgid "工具栏\"导出动画\"把选中的星历工件按时间等分采样逐帧渲染，Pillow 合成 GIF（不依赖 ffmpeg）。支持："
-msgstr ""
+#: ../../source/guide/visualization.md:29 aed8e9ae8ade41ab9d676b4f564b7454
+msgid ""
+"右上角「导出动画」录制 8 秒画布自转（30 fps），经浏览器 MediaRecorder 编码 为 `orbit-"
+"animation.webm` 下载；不依赖外部编码器。录制期间按钮显示进度态， 结束后自动停止自转。"
+msgstr "The top-right \"Export Animation\" records 8 seconds of canvas auto-rotation (30 fps), encoded by the browser's MediaRecorder into `orbit-animation.webm` for download — no external encoder needed. The button shows progress while recording; rotation stops automatically at the end."
 
-#: ../../source/guide/visualization.md:64 a67cc533917a4cd6b08f34b6146d0aef
-msgid "**累积 / 滑动窗口**两种帧模式；"
-msgstr ""
+#~ msgid ""
+#~ "画布是主窗口中央的内嵌 matplotlib 绘图区，展示轨道工件与轨道族。工具栏 "
+#~ "分五组：**投影**、**坐标系**、**中心**、**绘制内容**、**图层开关**，另加 **导出动画**按钮。"
+#~ msgstr ""
 
-#: ../../source/guide/visualization.md:65 759a8834eb3740618025f48ce4b2c773
-msgid "帧率与总时长设置；"
-msgstr ""
+#~ msgid "投影"
+#~ msgstr ""
 
-#: ../../source/guide/visualization.md:66 3fddc2ac97174ff1bc377e479fb60a1e
-msgid "UTC 帧时间戳标注；"
-msgstr ""
+#~ msgid "按钮"
+#~ msgstr ""
 
-#: ../../source/guide/visualization.md:67 448e32811189413eb0a1962f512f1a90
-msgid "坐标系随当前视图（会合系或惯性系均可）。"
-msgstr ""
+#~ msgid "含义"
+#~ msgstr ""
 
-#: ../../source/guide/visualization.md:69 7aef07ae52cb4f1591f66f59c55b4bce
-msgid "初猜模式无物理时间轴，导出动画按钮会拒绝导出。"
-msgstr ""
+#~ msgid "3D"
+#~ msgstr ""
+
+#~ msgid "三维视图，可拖拽旋转观察"
+#~ msgstr ""
+
+#~ msgid "XY / XZ / YZ"
+#~ msgstr ""
+
+#~ msgid "平面投影，取对应坐标面对"
+#~ msgstr ""
+
+#~ msgid "四视图"
+#~ msgstr ""
+
+#~ msgid "2×2 网格同时显示 3D + XY/XZ/YZ，适合大窗口或全屏"
+#~ msgstr ""
+
+#~ msgid "坐标系"
+#~ msgstr ""
+
+#~ msgid "会合系"
+#~ msgstr ""
+
+#~ msgid "CR3BP 旋转坐标系（无量纲），画地月天体与 L1–L5 平动点标注"
+#~ msgstr ""
+
+#~ msgid "惯性系"
+#~ msgstr ""
+
+#~ msgid "GCRS/J2000 地心惯性系（km），地球为原点，月球沿真实轨迹移动，不画平动点"
+#~ msgstr ""
+
+#~ msgid "两套坐标系随**中心**按钮组合：会合系下中心可选质心 / 月球 / L1 / L2； 惯性系下中心为地球原点（月球按钮仍可平移视角）。"
+#~ msgstr ""
+
+#~ msgid "绘制内容"
+#~ msgstr ""
+
+#~ msgid "轨道设计产物同时携带 CR3BP 初猜与标称星历两份轨迹，三者选一："
+#~ msgstr ""
+
+#~ msgid "叠加"
+#~ msgstr ""
+
+#~ msgid "初猜（实线）+ 星历（虚线），TAB10 相邻色区分，默认"
+#~ msgstr ""
+
+#~ msgid "初猜"
+#~ msgstr ""
+
+#~ msgid "仅 CR3BP 周期初猜。惯性系下灰显（CR3BP 无量纲无惯性系表示）"
+#~ msgstr ""
+
+#~ msgid "星历"
+#~ msgstr ""
+
+#~ msgid "仅标称星历"
+#~ msgstr ""
+
+#~ msgid "轨道保持产物只有受控星历，\"初猜\"恒灰显。"
+#~ msgstr ""
+
+#~ msgid "图层与等比"
+#~ msgstr ""
+
+#~ msgid "**地月**：显示地球、月球位置（可随中心切换偏移）；"
+#~ msgstr ""
+
+#~ msgid "**L1-L5**：显示五个平动点标注（仅会合系）；"
+#~ msgstr ""
+
+#~ msgid "**等比**：勾选后各轴等比例（默认），取消后各轴独立缩放填满画布。"
+#~ msgstr ""
+
+#~ msgid "多轨道叠加"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Ctrl+点击项目树选中多个工件，画布按 TAB10 调色板自动分配颜色叠加渲染； "
+#~ "轨道族按成员逐条渲染，成员数多时可用\"等比\"关掉等比例观察。"
+#~ msgstr ""
+
+#~ msgid "菜单\"设置 → 图表设置…\"打开对话框，可调："
+#~ msgstr ""
+
+#~ msgid "颜色方案（预设配色，含适合深色背景的方案）；"
+#~ msgstr ""
+
+#~ msgid "标注大小（地月天体、平动点标注字号）；"
+#~ msgstr ""
+
+#~ msgid "Z 区间比例（3D 视图 Z 轴的视觉压缩/拉伸比例）。"
+#~ msgstr ""
+
+#~ msgid "设置保存到系统配置，重启后保留。"
+#~ msgstr ""
+
+#~ msgid "工具栏\"导出动画\"把选中的星历工件按时间等分采样逐帧渲染，Pillow 合成 GIF（不依赖 ffmpeg）。支持："
+#~ msgstr ""
+
+#~ msgid "**累积 / 滑动窗口**两种帧模式；"
+#~ msgstr ""
+
+#~ msgid "帧率与总时长设置；"
+#~ msgstr ""
+
+#~ msgid "UTC 帧时间戳标注；"
+#~ msgstr ""
+
+#~ msgid "坐标系随当前视图（会合系或惯性系均可）。"
+#~ msgstr ""
+
+#~ msgid "初猜模式无物理时间轴，导出动画按钮会拒绝导出。"
+#~ msgstr ""
 

@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"POT-Creation-Date: 2026-08-22 14:16+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,90 +20,166 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../source/guide/quickstart.md:1 a1028c00c90c45dba6788b77b2fcf0b7
+#: ../../source/guide/quickstart.md:1 502b3d2b248f419faf71fde4b3d72616
 msgid "快速上手"
-msgstr ""
+msgstr "Quick Start"
 
-#: ../../source/guide/quickstart.md:3 90ee61c03a30477a95004108141c3d9b
+#: ../../source/guide/quickstart.md:3 473446e4e44e42c9a61c65f3c295d999
 msgid "安装"
-msgstr ""
+msgstr "Installation"
 
-#: ../../source/guide/quickstart.md:5 81ea05a555bf4405a16408e76df32e85
-msgid "项目要求 Python >= 3.13。用 [uv](https://docs.astral.sh/uv/) 安装："
-msgstr ""
+#: ../../source/guide/quickstart.md:5 792063317435441f9f0b2f5a226804c4
+msgid "桌面应用（Windows）"
+msgstr "Desktop application (Windows)"
 
-#: ../../source/guide/quickstart.md:11 0737021da73244759b08027748c365fc
-msgid "`uv sync` 一次完成解释器准备、虚拟环境创建与全部依赖安装（含核心算法库 `e2m2e>=5.6.8`）。"
-msgstr ""
-
-#: ../../source/guide/quickstart.md:14 3855f5e3affe47859b5dff042866f1e6
+#: ../../source/guide/quickstart.md:7 f0178cf278b24be2a3b734fade46eeff
 msgid ""
-"Windows 用户也可从 [GitHub Releases](https://github.com/cislunarspace"
-"/transfer-orbit-design/releases) 下载便携包 `TransferOrbitDesign-"
-"windows.zip`，解压即用，无需安装 Python。"
-msgstr ""
+"从 [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-"
+"design/releases) 下载 `tod_<版本>_x64-setup.exe`，双击安装（NSIS 安装器，免管理员权限，安装到 "
+"当前用户目录）。安装包自带 e2m2e 运行时与 SPICE 小内核，开箱即用。"
+msgstr "Download `tod_<version>_x64-setup.exe` from [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) and double-click to install (NSIS installer; per-user, no administrator rights). The installer bundles the e2m2e runtime and the small SPICE kernels — ready to use out of the box."
 
-#: ../../source/guide/quickstart.md:18 add7ee34d1cb467e9c3bc55cec747f8c
-msgid "启动"
-msgstr ""
+#: ../../source/guide/quickstart.md:11 3db492d742994e87a0c5208fe18c758e
+msgid "开发环境"
+msgstr "Development environment"
 
-#: ../../source/guide/quickstart.md:24 eb0e414a263244dc8eab0f19c7b9ecb9
+#: ../../source/guide/quickstart.md:13 a30f5191433643278d4ed1b927923af4
+msgid "要求 Python >= 3.13、Node.js >= 20、Rust 稳定版工具链："
+msgstr "Requires Python >= 3.13, Node.js >= 20 and a stable Rust toolchain:"
+
+#: ../../source/guide/quickstart.md:21 7b0b62a50007491e829185d21dec29a6
 #, python-brace-format
-msgid "首次启动时，程序会探测 SPICE 内核是否可用（见 {doc}`kernels`）。未找到可用 内核会自动弹窗引导，三种选择："
-msgstr ""
+msgid "v4.0.0 的界面工具是纯 CR3BP 计算，**不需要准备 SPICE 内核**（内核说明见 {doc}`kernels`）。"
+msgstr "The v4.0.0 UI tools are pure CR3BP computations and **need no SPICE kernels** (see {doc}`kernels`)."
 
-#: ../../source/guide/quickstart.md:27 3c21af94c88a4232819630cec1677cf9
-msgid "**下载内核**：从 e2m2e 的 `kernels-v1` release 一键下载（带进度条）， 下载到用户数据目录，跨版本共享；"
-msgstr ""
+#: ../../source/guide/quickstart.md:24 e9841200bf864432928249133f70f7d5
+msgid "界面速览"
+msgstr "Interface at a Glance"
 
-#: ../../source/guide/quickstart.md:29 d64ec998a863408dbaebdf818a01eb64
-msgid "**指定已有目录**：选择你已有的内核目录（含行星历 `.bsp` 与闰秒 `.tls`）， 选择后自动记忆，下次启动直接使用；"
-msgstr ""
+#: ../../source/guide/quickstart.md:26 1b565e999ad240759783bd572d44d155
+msgid "三栏布局："
+msgstr "Three-column layout:"
 
-#: ../../source/guide/quickstart.md:31 5960d8df237041efb62e3b5eed6d4059
-msgid "**暂时跳过**：本次不准备，用到星历功能时再报错提示。"
-msgstr ""
+#: ../../source/guide/quickstart.md:28 adff61f2b18442968ada9204e54c56d6
+msgid "**左栏**：「项目」/「轨道库」页签 + 语言切换。项目页签列出当前会话与库中 产物；轨道库页签打开即全库加载，附多维过滤栏。"
+msgstr "**Left column**: \"Project\" / \"Catalog\" tabs + language switcher. The Project tab lists session and library products; the Catalog tab loads the whole library on open and carries a multi-dimensional filter bar."
 
-#: ../../source/guide/quickstart.md:33 a6260860b4cc472797a74c15620a8e63
-msgid "一次轨道设计操作"
-msgstr ""
+#: ../../source/guide/quickstart.md:30 0e0efa6809f54de1ab2bdba978ba65c1
+msgid "**中栏**：轨道族生成的参数面板与「生成」按钮。"
+msgstr "**Middle column**: the Orbit Family Generation parameter panel and the \"Generate\" button."
 
-#: ../../source/guide/quickstart.md:35 0f9a23bca4254a16b781f7ae29bff3fe
-msgid "界面为三栏布局：左侧项目树、中间可视化画布与日志标签页、右侧工具选择器与 参数面板。"
-msgstr ""
-
-#: ../../source/guide/quickstart.md:38 841a322165c445c78179584acbf45f3c
+#: ../../source/guide/quickstart.md:31 584d91f20a384eefb76d2da8a31062e0
+#, python-brace-format
 msgid ""
-"右侧工具选择器选**轨道设计**，选轨道类型（DRO / Halo / NRHO / Lissajous / L4 / L5 / "
-"ELFO）并填参数。"
-msgstr ""
+"**右栏**：Three.js 画布（详见 {doc}`visualization`），右上角浮动「适配 / 导出动画 / "
+"图表设置」按钮，左下角状态行显示运行进度。"
+msgstr "**Right column**: the Three.js canvas (see {doc}`visualization`), with floating \"Fit / Export Animation / Chart Settings\" buttons at the top right and a status line showing run progress at the bottom left."
 
-#: ../../source/guide/quickstart.md:40 1643b48394ff4c15898ee9a0398c2eba
-msgid "点击**运行**，计算在后台线程执行，日志面板逐条输出进度。"
-msgstr ""
+#: ../../source/guide/quickstart.md:34 3089c7a4b9b24ca2824b0781c3aeb28a
+msgid "生成一族轨道"
+msgstr "Generate an Orbit Family"
 
-#: ../../source/guide/quickstart.md:41 9880b8df24004edc849b3f8691658d5a
-msgid "完成后结果以 JSON + NPZ 双文件落盘 `output/`，轨道随即叠加显示在画布上。"
-msgstr ""
+#: ../../source/guide/quickstart.md:36 e18795f53d214235814ee15b9f42ac13
+msgid "中栏选族类型：Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe / DRO。"
+msgstr "Pick a family in the middle column: Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe / DRO."
 
-#: ../../source/guide/quickstart.md:43 39079a557f764717b7e72352ba20c15b
-msgid "从已有结果继续"
-msgstr ""
-
-#: ../../source/guide/quickstart.md:45 f84e96bdbcfb4a7396b528a7cb88ae2c
-msgid "启动时会自动扫描 `output/` 目录，把历史结果重建为**工件**（Artifact）显示在 左侧项目树中。右键选中工件即可发起后续操作："
-msgstr ""
-
-#: ../../source/guide/quickstart.md:48 9794168453924d8790007f6188dfee92
-msgid "对单条轨道：**轨道保持**（以选中轨道星历为输入做蒙特卡洛仿真）、 **稳定性分析**（Floquet 乘子 / 稳定性指数）；"
-msgstr ""
-
-#: ../../source/guide/quickstart.md:50 ef5fcb8eb8b5432ea0f6f5913012247e
-msgid "Ctrl+点击多选轨道可叠加对比。"
-msgstr ""
-
-#: ../../source/guide/quickstart.md:52 d042efb091d34c49bf05800b5e90373f
+#: ../../source/guide/quickstart.md:37 441591e385be4e55b47a2f737380e14c
 #, python-brace-format
-msgid "四个工具的完整参数说明见 {doc}`tools`。"
-msgstr ""
+msgid "面板按族裁剪参数（各族参数见 {doc}`tools`），改振幅上限、成员数等，点「生成」。"
+msgstr "The panel prunes parameters per family (see {doc}`tools`); adjust the amplitude bound, member count, etc., then click \"Generate\"."
+
+#: ../../source/guide/quickstart.md:38 6ec8c2beb66a49689f39818c13515c19
+#, python-brace-format
+msgid "计算在 sidecar 子进程进行，左下角状态行滚动显示进度；完成后族成员轨迹 逐条出现在画布上，产物自动写入轨道库（{doc}`output`）。"
+msgstr "The computation runs in the sidecar process while the status line scrolls progress; on completion the member trajectories appear on the canvas one by one, and the product is written into the orbit library ({doc}`output`)."
+
+#: ../../source/guide/quickstart.md:41 148d6d1f2ce94a1588140c3fc9f2f867
+msgid "浏览轨道库"
+msgstr "Browsing the Orbit Library"
+
+#: ../../source/guide/quickstart.md:43 756bd0a35fa642dbbbc072895d14801b
+msgid "切到左栏「轨道库」页签："
+msgstr "Switch to the left \"Catalog\" tab:"
+
+#: ../../source/guide/quickstart.md:45 b8c166eed415471e95b92a7456a79390
+msgid "打开即查询全库；改过滤条件（族类型、平动点、Jacobi 与振幅区间、标签）后点「查询」。"
+msgstr "Opening it queries the whole library; adjust the filters (family type, libration point, Jacobi and amplitude ranges, tags) and click \"Query\"."
+
+#: ../../source/guide/quickstart.md:46 bb1b7434b55f45b6b9370a6f98957708
+msgid "点击任一记录，其轨迹以统一配色叠加到画布，便于与新生成的族对比。"
+msgstr "Click any record to overlay its trajectories on the canvas in a consistent color scheme — handy for comparing against a freshly generated family."
+
+#: ../../source/guide/quickstart.md:48 f6d37f271d3f437bae1f56c9af0b0acf
+msgid "下一步"
+msgstr "Next Steps"
+
+#: ../../source/guide/quickstart.md:50 82e9a4499bdf43c3abc819a4b5366252
+msgid ""
+"其余工具（轨道设计、轨道保持、轨道预报、转移设计等）的界面正在逐工具回归， 进度与范围见 [issue "
+"#398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)；"
+" 在此之前可用 v3.2.3 或 [e2m2e CLI](https://cislunarspace.github.io/e2m2e/)。"
+msgstr "The remaining tools (orbit design, station keeping, orbit propagation, transfer design, …) are returning to the UI one by one — progress and scope are tracked in [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398); until then, use v3.2.3 or the [e2m2e CLI](https://cislunarspace.github.io/e2m2e/)."
+
+#~ msgid "项目要求 Python >= 3.13。用 [uv](https://docs.astral.sh/uv/) 安装："
+#~ msgstr ""
+
+#~ msgid "`uv sync` 一次完成解释器准备、虚拟环境创建与全部依赖安装（含核心算法库 `e2m2e>=5.6.8`）。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Windows 用户也可从 [GitHub "
+#~ "Releases](https://github.com/cislunarspace/transfer-orbit-"
+#~ "design/releases) 下载便携包 `TransferOrbitDesign-"
+#~ "windows.zip`，解压即用，无需安装 Python。"
+#~ msgstr ""
+
+#~ msgid "启动"
+#~ msgstr ""
+
+#~ msgid "首次启动时，程序会探测 SPICE 内核是否可用（见 {doc}`kernels`）。未找到可用 内核会自动弹窗引导，三种选择："
+#~ msgstr ""
+
+#~ msgid "**下载内核**：从 e2m2e 的 `kernels-v1` release 一键下载（带进度条）， 下载到用户数据目录，跨版本共享；"
+#~ msgstr ""
+
+#~ msgid "**指定已有目录**：选择你已有的内核目录（含行星历 `.bsp` 与闰秒 `.tls`）， 选择后自动记忆，下次启动直接使用；"
+#~ msgstr ""
+
+#~ msgid "**暂时跳过**：本次不准备，用到星历功能时再报错提示。"
+#~ msgstr ""
+
+#~ msgid "一次轨道设计操作"
+#~ msgstr ""
+
+#~ msgid "界面为三栏布局：左侧项目树、中间可视化画布与日志标签页、右侧工具选择器与 参数面板。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "右侧工具选择器选**轨道设计**，选轨道类型（DRO / Halo / NRHO "
+#~ "/ Lissajous / L4 / L5 / "
+#~ "ELFO）并填参数。"
+#~ msgstr ""
+
+#~ msgid "点击**运行**，计算在后台线程执行，日志面板逐条输出进度。"
+#~ msgstr ""
+
+#~ msgid "完成后结果以 JSON + NPZ 双文件落盘 `output/`，轨道随即叠加显示在画布上。"
+#~ msgstr ""
+
+#~ msgid "从已有结果继续"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "启动时会自动扫描 `output/` 目录，把历史结果重建为**工件**（Artifact）显示在 "
+#~ "左侧项目树中。右键选中工件即可发起后续操作："
+#~ msgstr ""
+
+#~ msgid "对单条轨道：**轨道保持**（以选中轨道星历为输入做蒙特卡洛仿真）、 **稳定性分析**（Floquet 乘子 / 稳定性指数）；"
+#~ msgstr ""
+
+#~ msgid "Ctrl+点击多选轨道可叠加对比。"
+#~ msgstr ""
+
+#~ msgid "四个工具的完整参数说明见 {doc}`tools`。"
+#~ msgstr ""
 

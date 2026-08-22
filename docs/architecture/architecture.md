@@ -22,7 +22,8 @@ sidecar 子进程驱动（协议 = e2m2e ADR 0035：信封 JSON 行 + 二进制�
 ```
 React 前端（frontend/） ←Tauri IPC→ Rust 壳（src-tauri/）
                                         ↕ stdio 协议
-                                   e2m2e serve-stdio（uv 拉起）
+                                   e2m2e serve-stdio（开发期 uv 拉起；分发期为打包进安装器的 tod-sidecar，
+见「分发」节）
 ```
 
 | 层 | 位置 | 职责 |
@@ -63,7 +64,7 @@ transfer-orbit-design/
 │   ├── adr/               # 架构决策记录
 │   ├── architecture/      # 架构说明
 │   └── source/            # Sphinx 源（docs/README.md 说明维护流程）
-├── tests/                 # 测试（app/commons/engine/model/view 分层）
+├── tests/                 # Python 领域层测试（commons/engine/model 分层）
 ├── scripts/               # 独立工具脚本（download_kernels.py）
 ├── catalog/               # 轨道库（e2m2e catalog，产物持久化源；设置可改指）
 └── pyproject.toml
@@ -178,9 +179,17 @@ OrbitCanvas Three.js 画布、CatalogFilterBar、i18n、chartSettings）与
 
 ## 依赖方向规则
 
+界面链路（单向，无环）：
+
 ```
-src/app/     →  src/view/ + src/engine/ + src/model/
-src/view/    →  src/model/ + src/engine/（仅 workers 的信号类型）
+frontend/    →  @tauri-apps/api（IPC）   # 前端不直接 import e2m2e，不碰进程
+src-tauri/   →  tokio 子进程 + stdio 协议 # Rust 壳只做编排，不做轨道力学
+sidecar      →  e2m2e Facade              # 算法只进 sidecar
+```
+
+Python 领域层（供脚本与测试使用，不在界面链路上）：
+
+```
 src/engine/  →  src/model/（仅 Artifact/Project 类型）+ e2m2e
 src/model/   →  numpy（纯数据）
 src/commons/ → 无依赖（常量）；其中 `src/commons/viz/` 为收编的第三方绘图组件，仅依赖 e2m2e 数据类型（不承担本仓类型标准，见 `pyproject.toml` 的 pyright exclude）
@@ -188,82 +197,64 @@ src/commons/ → 无依赖（常量）；其中 `src/commons/viz/` 为收编的�
 
 **硬规则**：
 
-1. `src/model/` 不 import `src/view/` 或 `src/engine/`。
-2. `src/view/` 不直接 import e2m2e。所有 e2m2e 调用经 `src/engine/` 桥接。
-3. `src/engine/` 不 import 任何 GUI 框架（Qt 依赖已随 PyQt UI 移除）。
-4. `src/commons/` 不被 `src/model/`、`src/engine/`、`src/view/` 反向依赖（commons 是叶子）。
+1. `src/model/` 不 import `src/engine/`。
+2. `src/engine/` 不 import 任何 GUI 框架（Qt 依赖已随 PyQt UI 移除）。
+3. `src/commons/` 不被 `src/model/`、`src/engine/` 反向依赖（commons 是叶子）。
+4. 前端与 Rust 壳不 import e2m2e 或 `src/`：界面要算的东西一律走 sidecar 协议。
 
 ## 可视化架构
 
-### 画布内部结构
+画布为 Three.js（`frontend/src/OrbitCanvas.tsx`），单一坐标系：会合系（质心
+归一化）。结构：
 
 ```
-FigureCanvasQTAgg
-└── Figure (8x6, dpi=100)
-    └── Axes (3d 或 2d，由 projection 切换)
-        ├── 轨道线 (Line3D / Line2D)
-        ├── 起点标记 (scatter)
-        ├── 地球 (scatter + icon, show_bodies=True)
-        ├── 月球 (scatter + icon, show_bodies=True)
-        └── 拉格朗日点 L1-L5 (scatter + label, show_libration=True)
+WebGLRenderer + OrbitControls（旋转/缩放/平移）
+└── Scene
+    └── content Group（轨迹与标注在此重建）
+        ├── 轨迹线（THREE.Line + BufferAttribute，sidecar f32 帧直达）
+        ├── 地球 / 月球（Sphere + 文字 Sprite）
+        └── L1 / L2 平动点（Sphere + 文字 Sprite）
 ```
 
-### 渲染流程
+渲染数据两条来路：族生成响应的成员初态经前端 CR3BP 传播器
+（`frontend/src/cr3bp.ts`，方程对齐 e2m2e，有回归测试）按 period 重采样整条
+轨迹；轨道库记录经 `catalog_get` 取成员 xyz 直接叠加。首次数据到达自动
+「适配」一次（按包围盒复位相机，5% 余量），此后重绘保持用户视角（视图保持）。
 
-```
-用户点击 Artifact
-  → Project.get_by_id()
-  → CanvasState 更新 visible_artifacts
-  → canvas.render(CanvasState)
-    → 根据 projection 创建 Axes (3d / 2d / quad)
-    → 根据 frame 选择坐标系（synodic：无量纲；inertial：GCRS km）
-    → 遍历 visible_artifacts，按 plot_content 绑定 state_data / 星历数组
-    → 如果 show_bodies: 绘制地月位置（inertial 下月球沿 SPICE 轨迹移动）
-    → 如果 show_libration: 绘制 L1-L5（仅 synodic）
-    → fig.tight_layout() + canvas.draw()
-```
-
-### 颜色策略
-
-- 单轨道：tab10 调色板首个颜色
-- 多轨道叠加：tab10 调色板自动分配；颜色方案可在图表设置中切换
-- 轨道族：m 条成员按 viridis colormap 渐变着色
-- 叠加视图：初猜实线、星历虚线，TAB10 相邻色区分
-- 起点：绿色圆点；终点：红色圆点
-- 地球：蓝色大圆 + 图标；月球：灰色大圆 + 图标；L 点：黑色三角 + 标签
+配色：颜色循环数组（chartSettings 可改），族成员与库轨迹依次取色；动画导出
+经 captureStream + MediaRecorder 编码 webm（画布自转 8 秒），不引入编码依赖。
 
 ## 管线串联
 
-用户操作一个 Artifact 后，项目树的右键菜单展示可用的下一步操作。
-
-**因果链**（谱系持久化，重启不断）：
-
-```
-Artifact A (DRO orbit, 含星历段, record_id=R1)
-  → 右键 → "轨道保持" → 调 control_orbit(input_record_id=R1)
-    → 产物自动入库为 Artifact B (ephemeris)，source_record_id=R1
-    → R1 被删后项目树显示 "受控星历 ⚠断链"，B 仍可用
-  → 右键 → "稳定性分析" → 调 analyze_stability(states=A.state_data)
-    → 显示结果弹窗 + 落盘 output/stability/
-```
-
-**数据流**：Artifact 的 `state_data` / 星历数组在内存中传递（numpy 数组引用），不经过文件 I/O。持久化是并行行为——计算产物经 Facade 自动入轨道库（重启后由 `catalog_query` + `catalog_get` 懒加载恢复）。
+产物间的因果关系经轨道库谱系指针持久化（重启不断）：下游产物记录
+`source_record_id`，重启后由 `catalog_query` + `catalog_get` 恢复清单与轨迹。
+当前界面已接通的链路是「族生成 → 入库 → 浏览叠加」；「选中产物 → 发起下游
+工具」（轨道保持、稳定性分析等）随工具界面回归（issue #398）逐链接通。
 
 ## 工具范围（当前）
 
-GUI 的工具范围固定为四件：轨道设计、轨道保持、轨道族生成（Halo 北族）、
-稳定性分析（右键）。e2m2e 的转移设计、低推力、流形分析等能力**不在 GUI
-范围内**——需要脚本化工作流时直接使用
-[e2m2e CLI](https://github.com/cislunarspace/e2m2e)。这与早期版本"灰显
-占位等待 e2m2e 实现"的策略不同：不承诺 GUI 承载全部算法能力，避免维护
-一批永远点不亮的按钮。
+界面接通的计算工具固定为一件：**轨道族生成**（八族 + 库浏览）。其余 13 个
+工具的 schema 已全部导出、命令未接线，回归路线见
+[issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)。
+原则不变：不承诺 GUI 承载 e2m2e 全部算法能力，需要脚本化工作流时直接使用
+[e2m2e CLI](https://github.com/cislunarspace/e2m2e)。
+
+## 分发
+
+Windows 发行版为 NSIS 安装器（currentUser 免管理员）：Tauri 主程序 +
+`tod-sidecar`（PyInstaller onefile 打包的 e2m2e serve-stdio，
+`packaging/tod_sidecar.spec`）+ SPICE 小内核，三者经 resources 映射进安装
+目录。分发期 Rust 壳从 resource 目录拉起 sidecar（`packaged_sidecar_command`），
+cwd 指向 resource 根，e2m2e Config 的 `kernels/`、`catalog/` 按 cwd 相对解析。
+发布管线见 `.github/workflows/release.yml`（tag `v*` 触发：lint → pytest →
+Windows 构建 → 直传 GitHub Release）。
 
 ## 依赖
 
 - **运行时**：numpy, scipy（Python 领域层）；Rust/Tauri 2 + Node/Vite（前端与壳，各自锁文件管理）
-- **e2m2e**：PyPI 依赖（`e2m2e>=5.6.8`），运行时经 `src/engine/facade_bridge.py` 调用 algorithm 层
+- **e2m2e**：PyPI 依赖（`e2m2e>=5.8.5`，#522/#525/#526 sidecar 契约）；界面链路经 serve-stdio 直连 Facade，`src/engine/facade_bridge.py` 供脚本与测试
 - **calcephpy**：经 e2m2e→r2s2 传递依赖（Windows 用预编译 wheel，见 `pyproject.toml` 的 `[tool.uv.sources]`）
-- **可选**：PyInstaller（打包为 Windows 便携版）
+- **打包**：PyInstaller（sidecar onefile）+ cargo-tauri（NSIS 安装器）
 
 ## 测试策略
 
@@ -271,8 +262,8 @@ GUI 的工具范围固定为四件：轨道设计、轨道保持、轨道族生�
 |---|---|---|
 | model/ | 单元测试 | Artifact CRUD、Project 查询、Discovery 扫描 |
 | engine/ | 集成测试 | FacadeBridge → e2m2e（真实参数模型签名）、持久化落盘、异常翻译 |
-| view/ | 控件测试 | 参数面板生成/收集、画布渲染、项目树交互、图表设置 |
-| app/ | 集成测试 | 内核引导、主窗口工具调度、i18n 加载 |
 | commons/ | 单元测试 | 单位换算、内核下载/可用性判断、路径探测 |
+| frontend/ | 单元测试（vitest） | CR3BP 传播器（对齐 e2m2e 方程的回归） |
+| src-tauri/ | 单元 + 集成（cargo test） | 帧解析、sidecar 拉起/崩溃自愈、真实子进程协议往返 |
 
-e2m2e 本身已通过其自身测试套件验证，tod 不重复测试 e2m2e 的计算正确性。tod 的测试关注 GUI 行为和数据流。
+e2m2e 本身已通过其自身测试套件验证，tod 不重复测试 e2m2e 的计算正确性。tod 的测试关注界面行为、协议与数据流。

@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"POT-Creation-Date: 2026-08-22 14:16+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,129 +20,164 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../source/concepts/ephemeris.md:1 c86974296e554702aad67d90c8d34aef
+#: ../../source/concepts/ephemeris.md:1 1c86d7644a0548cda25d76eb7a82a869
 msgid "星历转换：从 CR3BP 到真实星历"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:3 a723769d39f54380af71a71638484590
+#: ../../source/concepts/ephemeris.md:3 cc78012d46444b07992ddf979541af2e
 msgid "为什么要转换"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:5 0ab893bf1de240f8b95952d772431d78
+#: ../../source/concepts/ephemeris.md:5 f8fc0b54ac024b35aeccccd20b7d425d
 msgid ""
 "CR3BP 假设地球月球做匀速圆运动、忽略太阳引力等摄动，因此算出的周期轨道 "
 "是理想化的。真实星历模型包含月球轨道偏心率、太阳引力、光压等摄动，轨道 不再是严格周期。任务设计最终需要在真实星历模型里有一条**标称轨道**（可"
 " 传播、可做轨道保持基准），这就需要把 CR3BP 初猜修正到星历模型。"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:10 66764a0372414518843b583f17db8911
+#: ../../source/concepts/ephemeris.md:10 6d712f6a6b2d468697aafceb6c65545f
 msgid "轨道设计工具的工作流："
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:18 76ee0b4ce2694acab49293ec22fb51a6
+#: ../../source/concepts/ephemeris.md:18 f73f2ecc8b1243d6868ed06359097fba
 msgid "修正方法"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:20 96631432e11f4566aa5bef03f9adf42c
+#: ../../source/concepts/ephemeris.md:20 d38e15252b624d69b0dcf57df4a3ac2e
 msgid ""
 "星历修正用**多重打靶**（multiple shooting）：把整条轨道按**拼接点** （patch "
 "points）分段，逐段在真实力模型中外推，再迭代修正各段初值使段间 位置、速度连续。软件支持的修正方法："
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md a2d29c13afac477caa5a6e2a2d49a9a3
+#: ../../source/concepts/ephemeris.md 642a17688ae844dbbc2561cc3afbbfda
 msgid "方法"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md b4719331459d45fb887c803846538adc
+#: ../../source/concepts/ephemeris.md 43813b567d5a442abed75f958d36fdab
 msgid "说明"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md ab88734101b14971ad19f532f18ca4ee
+#: ../../source/concepts/ephemeris.md e06b3cdb63234faf95a817e86e6ff27b
 msgid "`standard`"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md d6adf908859e47c6b42c5bbb8ef89f66
-msgid "单层多重打靶：直接以完整星历模型为约束迭代"
+#: ../../source/concepts/ephemeris.md 9d05f590c3e440448568d2b2c4f4c0d8
+msgid "Rust 多重打靶的稳定轨道路径别名（与 `two_level` 等价，保留给 API 兼容，不在界面暴露）"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md 89955e04e8a14dfc8b37f7b04df0f01c
+#: ../../source/concepts/ephemeris.md f8d8e985e75c419bb4ab5aafd0bd0761
 msgid "`two_level`"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md ca3746cdfa8d40c283374ae8c438fe88
-msgid "两级多重打靶：先修正位置使位置约束满足，再第二阶段同时修正位置+速度（默认）"
+#: ../../source/concepts/ephemeris.md 97b9f8541d704af8b4a85e3c4e853466
+msgid ""
+"Rust 多重打靶（稳定轨道默认路径）。e2m2e 5.8.0 起旧的 Python 两级修正实现已删除，`standard` "
+"与它指向同一条实现；界面只保留这个对外名称，避免把同一算法显示成两个选项"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md 66b847d1b4fe4cb18c6e390951c67025
-msgid "`homotopy`"
-msgstr ""
-
-#: ../../source/concepts/ephemeris.md 026e80f5b90f4b7498ced464ccaa0f8c
-msgid "同伦过渡：通过天体分组逐步引入摄动，从简化模型光滑过渡到完整星历模型（不支持全摄动力模型）"
-msgstr ""
-
-#: ../../source/concepts/ephemeris.md 24e5bdf59bde41ee8b360f344cbef66f
+#: ../../source/concepts/ephemeris.md 72d07d716965411c82e506d937d5d9dc
 msgid "`segmented`"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md a5d993c84c244413b84045b5dae856b8
-msgid "分段打靶拼接：**不稳定轨道专用**，由算法对 Halo/NRHO 自动选用"
+#: ../../source/concepts/ephemeris.md 54d365a6002a43739ca619817106d1f4
+msgid "分段打靶拼接：**不稳定轨道专用**，由算法对 Halo/NRHO/DPO 自动选用"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:31 428f05f78a554e99ab8bc7f517bb5d20
-msgid "为什么 Halo/NRHO 必须走 segmented"
+#: ../../source/concepts/ephemeris.md:30 d3589fe85982450c859e96c88b656137
+msgid "为什么不稳定轨道（Halo/NRHO/DPO）必须走 segmented"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:33 1d3a6e769bfa4ab49a63cba9e9ba2217
+#: ../../source/concepts/ephemeris.md:32 bf3a3e35f6c5497187bbf81efc07da6e
 msgid ""
-"`two_level` 的流程是\"修正 1 圈 + 自由外推\"。对稳定轨道（DRO 等）这没有 问题；但对不稳定轨道，每圈 "
-"STM（状态转移矩阵）可达 1e7 量级，1 圈外的 外推必然发散——自由外推几圈后轨迹就不知去向。"
+"`two_level` 的流程是\"修正 1 圈 + 自由外推\"。这里的 `two_level` 是稳定轨道路径的对外名称，不再表示已删除的旧 "
+"Python 两级实现。对稳定轨道（DRO 等）这没有 问题；但对不稳定轨道，每圈 STM（状态转移矩阵）可达 1e7 量级，1 圈外的 "
+"外推必然发散——自由外推几圈后轨迹就不知去向。"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:37 521f29b14ce04881b09e8cefffbf2206
+#: ../../source/concepts/ephemeris.md:36 70faf2771b4a4948a8e6567aab370498
 msgid ""
 "`segmented` 全程分段打靶：每一段都约束在真实动力学上，段间只要求连续性， 不依赖\"外推 1 "
 "圈仍贴轨道\"的假设，因此对不稳定轨道收敛。e2m2e 5.6.5 起 `design_orbit` 对 Halo/NRHO **自动重定向 "
-"segmented**，用户不需要手选—— 面板上的 `correction_method` 只决定稳定轨道路径。"
+"segmented**，5.8.1 起 DPO 同属此列，用户不需要手选—— 面板上的 `correction_method` "
+"只决定稳定轨道路径。"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:42 b8ee9041ed354d2092fa39864ad4771d
+#: ../../source/concepts/ephemeris.md:41 9e5760d307394af787c7434c201450f6
 msgid "修正质量"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:44 76918112d6a04f119657c495cd784ab4
+#: ../../source/concepts/ephemeris.md:43 dc8b668b8385475a96863dcda0dddb27
 msgid "修正完成后，工具返回两组诊断："
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:46 b38947b4c7114ac8a3bfbc5fcd18405a
+#: ../../source/concepts/ephemeris.md:45 ba0a432786b84af299332922183ce937
 msgid "**收敛残差**：多重打靶牛顿迭代的解范数残差，反映迭代是否收敛；"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:47 ec79917accea4fe4b1d6e22f9d7ed296
+#: ../../source/concepts/ephemeris.md:46 ca9dd71662234e02a125b67ec4dcac88
 msgid "**连续性误差**：修正完成后逐段重新传播，比较传播终点与目标拼接点的 物理位置偏差，反映修正后轨迹在真实动力学中的连续性。"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:50 1c4fe342acea4dd1907661d3c7b07da3
+#: ../../source/concepts/ephemeris.md:49 6224b19602af44338d5681c8fd44674e
 msgid ""
 "轨道设计结果 JSON 中的 `correction_converged` / `correction_iterations` "
 "即收敛状态与迭代次数；位置连续性容差默认对齐 e2m2e 的 `CORRECTION_TOL_KM`（2e-2 km）。"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:54 0d59bb07cfe0471493e0e4781b4252f8
+#: ../../source/concepts/ephemeris.md:53 2bb3367136544ffd8ecc5931eb2a6e06
 msgid "已知的模型限制"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:56 95166b2a37114057af6a640aea700adf
+#: ../../source/concepts/ephemeris.md:55 30282e7736ca4b11b57c157fb2baced3
 msgid "**参考历元**：转换必须由用户显式提供起始历元（`epoch`）。相同输入在 不同历元下可能得到不同星历结果（月球位置不同）。"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:58 05e7f7ba188646d4b778ce84a54bc5cf
+#: ../../source/concepts/ephemeris.md:57 5b996d4093c84f05b2df6d58051e8224
 msgid ""
 "**大幅 DRO 的长期漂移**：e2m2e 5.6.x 修复了大幅 DRO 星历发散问题 （速度残差加权），但大幅 DRO 在真实星历中仍有数万"
 " km 量级的准周期 漂移——这是真实动力学特性，不是 bug，由轨道保持处理。"
 msgstr ""
 
-#: ../../source/concepts/ephemeris.md:61 a4760777325f4a3d94eeeaf597a40ee8
+#: ../../source/concepts/ephemeris.md:60 79baf47cf2a54acba3fa811d7e4af208
 msgid "**Lissajous**：CR3BP 初猜经中心流形约化生成多点有界参考轨迹，修正到 星历后保持有界。"
 msgstr ""
+
+#: ../../source/concepts/ephemeris.md:62 47405ef7cf18435593c728e2db1a0b4b
+msgid ""
+"**NRHO**：e2m2e 5.7.3 起与 Halo 解耦采样策略，默认等时间拼接点 + 1 圈/段（上游 #473），GUI 默认量级（L2"
+" 南、近月高 5000 km、约 1 个月） segmented 约数十秒收敛；删近月点采样保留为对照工具。产物含标称星历， "
+"可作轨道保持输入。圈间漂移仍是星历下固有准周期特征，由轨道保持处理。"
+msgstr ""
+
+#~ msgid "单层多重打靶：直接以完整星历模型为约束迭代"
+#~ msgstr ""
+
+#~ msgid "两级多重打靶：先修正位置使位置约束满足，再第二阶段同时修正位置+速度（默认）"
+#~ msgstr ""
+
+#~ msgid "`homotopy`"
+#~ msgstr ""
+
+#~ msgid "同伦过渡：通过天体分组逐步引入摄动，从简化模型光滑过渡到完整星历模型（不支持全摄动力模型）"
+#~ msgstr ""
+
+#~ msgid "分段打靶拼接：**不稳定轨道专用**，由算法对 Halo/NRHO 自动选用"
+#~ msgstr ""
+
+#~ msgid "为什么 Halo/NRHO 必须走 segmented"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "`two_level` 的流程是\"修正 1 圈 + "
+#~ "自由外推\"。对稳定轨道（DRO 等）这没有 问题；但对不稳定轨道，每圈 STM（状态转移矩阵）可达"
+#~ " 1e7 量级，1 圈外的 外推必然发散——自由外推几圈后轨迹就不知去向。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "`segmented` 全程分段打靶：每一段都约束在真实动力学上，段间只要求连续性， 不依赖\"外推 1"
+#~ " 圈仍贴轨道\"的假设，因此对不稳定轨道收敛。e2m2e 5.6.5 起 "
+#~ "`design_orbit` 对 Halo/NRHO **自动重定向 "
+#~ "segmented**，用户不需要手选—— 面板上的 `correction_method` "
+#~ "只决定稳定轨道路径。"
+#~ msgstr ""
 

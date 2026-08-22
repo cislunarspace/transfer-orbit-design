@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"POT-Creation-Date: 2026-08-22 14:16+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,163 +20,214 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../source/guide/gui.md:1 4cd8219dcd45420480eeb2c2a9319f4a
+#: ../../source/guide/gui.md:1 f654049baeb64ff68b22cf1fe4d3aae2
 msgid "界面总览"
-msgstr ""
+msgstr "Interface Overview"
 
-#: ../../source/guide/gui.md:3 2aa482d14f8545b19adcfc97dd1bcc6d
+#: ../../source/guide/gui.md:3 c71483880d7b4e34b35710a275f6f2ec
 msgid "三栏布局"
-msgstr ""
+msgstr "Three-Column Layout"
 
-#: ../../source/guide/gui.md:5 0ce203cde30647d9b07032048460e0fa
-msgid "主窗口按左、中、右三栏排布，分隔条可拖拽调整比例："
-msgstr ""
+#: ../../source/guide/gui.md:5 fb043fd458cb454a8f9750d4c069221a
+msgid "主窗口按左、中、右三栏排布："
+msgstr "The main window is arranged in three columns:"
 
-#: ../../source/guide/gui.md 7f2ab80b32134fad9ff649e36e1dd284
+#: ../../source/guide/gui.md 803da3a8b7e8443a969fbed3771a0952
 msgid "栏"
-msgstr ""
+msgstr "Column"
 
-#: ../../source/guide/gui.md a84529d0d23445d0a6d86e3dde44b5a9
+#: ../../source/guide/gui.md 81b3c192346e4419b5a43ad1aed38aca
 msgid "内容"
-msgstr ""
+msgstr "Content"
 
-#: ../../source/guide/gui.md faf1a5aba456452aa331026f683b0975
+#: ../../source/guide/gui.md fbc892f8bd4044f396ed602d2e6ca0b1
 msgid "作用"
-msgstr ""
+msgstr "Role"
 
-#: ../../source/guide/gui.md 83f2be85f2e84429ae8d32fa3f13e104
-msgid "左侧"
-msgstr ""
+#: ../../source/guide/gui.md 0baaae17ffd3421a80682de394d595d8
+msgid "左栏"
+msgstr "Left"
 
-#: ../../source/guide/gui.md 2be869a0c047467ea7960f65f5571aa6
-msgid "项目树"
-msgstr ""
+#: ../../source/guide/gui.md e7d897dc3b3e4dc297c641451ac4d910
+msgid "「项目」/「轨道库」页签 + 语言切换 + 项目树或过滤栏"
+msgstr "\"Project\" / \"Catalog\" tabs + language switcher + project tree or filter bar"
 
-#: ../../source/guide/gui.md f515f260dece471292381008a4ed3789
-msgid "按类型分组展示全部计算产物，支持点击/多选/右键操作"
-msgstr ""
+#: ../../source/guide/gui.md ef8b105c796349338b8d23dc3580a061
+msgid "浏览产物、查库"
+msgstr "Browse products, query the library"
 
-#: ../../source/guide/gui.md fb0cae14b1324dfbaa1bfb5dc87e188c
-msgid "中间"
-msgstr ""
+#: ../../source/guide/gui.md 15fbbb4c7d8444539d5744244c5884d5
+msgid "中栏"
+msgstr "Middle"
 
-#: ../../source/guide/gui.md fb23c242ba6841f0ba3ea2d48116d0b2
-msgid "可视化画布 + 日志标签页"
-msgstr ""
+#: ../../source/guide/gui.md 84b78ecb9ed94eeea678ebd7703c2715
+msgid "「轨道族生成」参数面板 + 生成按钮"
+msgstr "\"Orbit Family Generation\" parameter panel + Generate button"
 
-#: ../../source/guide/gui.md 47cb1b2c5e5044178d8d15a484086e3c
-msgid "画布展示轨道，日志逐条输出运行进度"
-msgstr ""
-
-#: ../../source/guide/gui.md 56bcabb337bc4c50a2686861635edcd9
-msgid "右侧"
-msgstr ""
-
-#: ../../source/guide/gui.md a71721802a974738ab1d0aca18f3ae58
-msgid "工具选择器 + 参数面板 + 运行按钮"
-msgstr ""
-
-#: ../../source/guide/gui.md 219271296e454c4b90699b50966ed415
+#: ../../source/guide/gui.md 3872336408f74b5c8c01944dced40ac3
 msgid "发起计算"
-msgstr ""
+msgstr "Start computations"
 
-#: ../../source/guide/gui.md:13 00bc1ddc66a14f6c9f2306e1dbd650ea
-#, python-brace-format
-msgid "顶部菜单\"设置 → 图表设置…\"可调整画布线宽、颜色方案、标注大小、字号与 Z 区间比例（见 {doc}`visualization`）。"
-msgstr ""
+#: ../../source/guide/gui.md 7924f75e5136499e9d78b7da5de78536
+msgid "右栏"
+msgstr "Right"
 
-#: ../../source/guide/gui.md:16 f5d130af26ee442988a13ed12a9e0cff
-msgid "工件（Artifact）与项目树"
-msgstr ""
+#: ../../source/guide/gui.md b2ef92a56d444451a4f9123be2b44f64
+msgid "Three.js 画布 + 浮动按钮 + 状态行"
+msgstr "Three.js canvas + floating buttons + status line"
 
-#: ../../source/guide/gui.md:18 7af91a300b954529b63e93846356f8d0
+#: ../../source/guide/gui.md 5af30b71a4d74049bb7d13ca1af4153b
+msgid "呈现结果"
+msgstr "Present results"
+
+#: ../../source/guide/gui.md:13 bc6334b793f0415780704b5ee7f876e5
+msgid "左栏右上角的下拉在中 / EN 之间切换界面语言，选择持久化（localStorage）， 重启后保留。"
+msgstr "The dropdown at the top of the left column switches the interface language between Chinese and English; the choice persists (localStorage) across restarts."
+
+#: ../../source/guide/gui.md:16 f13974a5f97c464f8dfeb454bcae2a16
+msgid "左栏：项目与轨道库"
+msgstr "Left Column: Project and Catalog"
+
+#: ../../source/guide/gui.md:18 cc414038362f4ed2affe6018916032ea
+msgid "**项目页签**列出当前会话生成的产物（族生成完成后自动出现）。"
+msgstr "The **Project tab** lists products generated in the current session (a family appears automatically once generation completes)."
+
+#: ../../source/guide/gui.md:20 ab6d6c5fcbce40a9a31ec29d93f0bea3
 msgid ""
-"**工件**是 GUI 管理计算产物的基本单位——一次工具运行产生一个工件。启动时 程序扫描 `output/` "
-"目录，把历史结果重建为工件；运行新工具后新工件立即出现 在树中。"
-msgstr ""
+"**轨道库页签**打开即查询全库（空过滤条件），结果显示在下方项目树；过滤栏复用 参数面板的自动表单机制，支持按族类型、平动点、Jacobi "
+"区间、振幅区间与标签 组合筛选，改完点「查询」。"
+msgstr "The **Catalog tab** queries the whole library on open (empty filter); results show in the project tree below. The filter bar reuses the parameter panel's auto-form mechanism and supports combined filtering by family type, libration point, Jacobi range, amplitude range and tags — adjust and click \"Query\"."
 
-#: ../../source/guide/gui.md:22 ac19b69b1fcc4096ab6970d504c768e5
-msgid "项目树按工件类型分组："
-msgstr ""
+#: ../../source/guide/gui.md:24 ab828f2580dc42e6a7cef5a418ed62ef
+msgid "点击树中任一族记录，画布叠加该族全部成员的轨迹（经 `catalog_get` 懒加载）。"
+msgstr "Clicking a family record in the tree overlays all its member trajectories on the canvas (lazy-loaded via `catalog_get`)."
 
-#: ../../source/guide/gui.md:35 cbecdfc2e26443ceb720ae578e7be4e5
-msgid "交互方式："
-msgstr ""
+#: ../../source/guide/gui.md:26 5681fee8a4d845f0a0cfa278352d2ad5
+msgid "中栏：参数面板"
+msgstr "Middle Column: Parameter Panel"
 
-#: ../../source/guide/gui.md:37 218145b6159143a19a2f5a0a136504c0
-msgid "**单击**：选中工件并渲染到画布；"
-msgstr ""
+#: ../../source/guide/gui.md:28 0bb2c5b8303e45ddb85182513eebc757
+msgid ""
+"面板由工具的 JSON Schema 自动生成：构建期 `tools/export_tool_schemas.py` 从 e2m2e 的 "
+"Pydantic 模型导出 schema 到 `frontend/src/toolSchemas/`，前端按 schema "
+"渲染字段——数值框、下拉、勾选（对应模型的 Optional 语义：勾选即传值， 不勾不传）。按 `orbit_type` "
+"只显示当前族适用的字段，跨族字段不出现在表单里。"
+msgstr "The panel is generated from the tool's JSON Schema: at build time `tools/export_tool_schemas.py` exports schemas from e2m2e's Pydantic models into `frontend/src/toolSchemas/`, and the frontend renders fields from the schema — number boxes, dropdowns, checkboxes (mapping the models' Optional semantics: checked means the value is sent, unchecked means unset). Only fields applicable to the current `orbit_type` are shown; cross-family fields never appear in the form."
 
-#: ../../source/guide/gui.md:38 968a54353c034ab988262d8ef343859b
-msgid "**Ctrl+点击**：多选，画布叠加对比；"
-msgstr ""
+#: ../../source/guide/gui.md:33 15453fa0b53a42c98ef71cf48ca88c30
+msgid "运行期间「生成」按钮变为禁用态；左下角状态行滚动显示 sidecar 进度消息。"
+msgstr "While running, the \"Generate\" button is disabled; the status line at the bottom left scrolls sidecar progress messages."
 
-#: ../../source/guide/gui.md:39 e13ae71d1b834efd901faa010653677d
-msgid "**右键**：按工件类型弹出可用操作（见下）；"
-msgstr ""
+#: ../../source/guide/gui.md:35 87e047a1795e43dc8d3620dbedea9c5e
+msgid "画布区"
+msgstr "Canvas Area"
 
-#: ../../source/guide/gui.md:40 1c6cf8eabdc3456e9e281522f471ae50
-msgid "**右键 → 删除**：删除输出文件（删除前要求确认路径）。"
-msgstr ""
+#: ../../source/guide/gui.md:37 6fe6de3dc8eb437b8654d1111f578042
+#, python-brace-format
+msgid ""
+"详见 {doc}`visualization`。右上角三个浮动按钮：**适配**（按轨迹包围盒复位 视角）、**导出动画**（录制 8 秒自转 "
+"webm）、**图表设置**（轨道线宽、天体与 平动点标注大小与颜色、Z 轴比例，localStorage 持久化，可恢复默认）。左下角 "
+"状态行显示运行进度与当前画布内容统计（族成员数 / 库轨迹数）。"
+msgstr "See {doc}`visualization`. Three floating buttons at the top right: **Fit** (recentre on the trajectory bounding box), **Export Animation** (record an 8-second auto-rotating webm), **Chart Settings** (orbit line width, body and libration-point marker size and color, Z-axis ratio; persisted in localStorage, resettable). The status line at the bottom left shows run progress and current canvas contents (family members / catalog trajectories)."
 
-#: ../../source/guide/gui.md:42 6082e4d1999e4342b8ceac97b90d5425
-msgid "右键操作"
-msgstr ""
+#~ msgid "主窗口按左、中、右三栏排布，分隔条可拖拽调整比例："
+#~ msgstr ""
 
-#: ../../source/guide/gui.md:44 0c2a13b993a74d249ff153a4ea7f6a54
-msgid "右键菜单随选中工件类型变化："
-msgstr ""
+#~ msgid "左侧"
+#~ msgstr ""
 
-#: ../../source/guide/gui.md 9a4106b385164d5d9122307a4ec673b5
-msgid "工件类型"
-msgstr ""
+#~ msgid "项目树"
+#~ msgstr ""
 
-#: ../../source/guide/gui.md 2433a59b5b9241649b9b1266fb32b72c
-msgid "右键可用操作"
-msgstr ""
+#~ msgid "按类型分组展示全部计算产物，支持点击/多选/右键操作"
+#~ msgstr ""
 
-#: ../../source/guide/gui.md 3e257fd616db4de3b1921162e6127211
-msgid "轨道（含星历数据）"
-msgstr ""
+#~ msgid "中间"
+#~ msgstr ""
 
-#: ../../source/guide/gui.md 83e3ee1b034e4581bd68e40c4522604c
-msgid "轨道保持、稳定性分析、删除"
-msgstr ""
+#~ msgid "可视化画布 + 日志标签页"
+#~ msgstr ""
 
-#: ../../source/guide/gui.md bb1c63a7a8e347d2b12e0abd7d37d95c
-msgid "轨道（仅 CR3BP 数据）"
-msgstr ""
+#~ msgid "画布展示轨道，日志逐条输出运行进度"
+#~ msgstr ""
 
-#: ../../source/guide/gui.md 916885c9b5984f759b2c3f3699ee359a
-msgid "稳定性分析、删除"
-msgstr ""
+#~ msgid "右侧"
+#~ msgstr ""
 
-#: ../../source/guide/gui.md 78b9a87eeee9460c9403e80d9648dd77
-msgid "轨道族"
-msgstr ""
+#~ msgid "工具选择器 + 参数面板 + 运行按钮"
+#~ msgstr ""
 
-#: ../../source/guide/gui.md 1225acaf0f9947f8b3e6a9c93f90e6f4
-#: d94e6eebef894612a96c72d6a60947f8
-msgid "删除"
-msgstr ""
+#~ msgid "顶部菜单\"设置 → 图表设置…\"可调整画布线宽、颜色方案、标注大小、字号与 Z 区间比例（见 {doc}`visualization`）。"
+#~ msgstr ""
 
-#: ../../source/guide/gui.md 9581ab345d6c4ad1a9c739e609b2fc2c
-msgid "星历（轨道保持结果）"
-msgstr ""
+#~ msgid "工件（Artifact）与项目树"
+#~ msgstr ""
 
-#: ../../source/guide/gui.md:53 0c7d5b4d00714287bb5815b52851aa13
-msgid "其中**轨道保持**与**稳定性分析**把选中工件作为输入，直接进入对应工具； 无需在右侧工具选择器中重新选择。"
-msgstr ""
+#~ msgid ""
+#~ "**工件**是 GUI 管理计算产物的基本单位——一次工具运行产生一个工件。启动时 程序扫描 "
+#~ "`output/` 目录，把历史结果重建为工件；运行新工具后新工件立即出现 在树中。"
+#~ msgstr ""
 
-#: ../../source/guide/gui.md:56 042edbbda7574ca499cf4063e5d66495
-msgid "日志面板"
-msgstr ""
+#~ msgid "项目树按工件类型分组："
+#~ msgstr ""
 
-#: ../../source/guide/gui.md:58 e439c4976fb040b4841498321d1c12bf
-msgid "中央标签页与画布并列。运行工具时逐条输出进度："
-msgstr ""
+#~ msgid "交互方式："
+#~ msgstr ""
 
-#: ../../source/guide/gui.md:67 80057ffe9b6245f2b9ff4797eb240f59
-msgid "计算在后台线程执行，运行期间界面不阻塞；日志会说明失败原因，参数校验失败 （如轨道保持仿真时长超出标称星历覆盖）会直接拦截并提示。"
-msgstr ""
+#~ msgid "**单击**：选中工件并渲染到画布；"
+#~ msgstr ""
+
+#~ msgid "**Ctrl+点击**：多选，画布叠加对比；"
+#~ msgstr ""
+
+#~ msgid "**右键**：按工件类型弹出可用操作（见下）；"
+#~ msgstr ""
+
+#~ msgid "**右键 → 删除**：删除输出文件（删除前要求确认路径）。"
+#~ msgstr ""
+
+#~ msgid "右键操作"
+#~ msgstr ""
+
+#~ msgid "右键菜单随选中工件类型变化："
+#~ msgstr ""
+
+#~ msgid "工件类型"
+#~ msgstr ""
+
+#~ msgid "右键可用操作"
+#~ msgstr ""
+
+#~ msgid "轨道（含星历数据）"
+#~ msgstr ""
+
+#~ msgid "轨道保持、稳定性分析、删除"
+#~ msgstr ""
+
+#~ msgid "轨道（仅 CR3BP 数据）"
+#~ msgstr ""
+
+#~ msgid "稳定性分析、删除"
+#~ msgstr ""
+
+#~ msgid "轨道族"
+#~ msgstr ""
+
+#~ msgid "删除"
+#~ msgstr ""
+
+#~ msgid "星历（轨道保持结果）"
+#~ msgstr ""
+
+#~ msgid "其中**轨道保持**与**稳定性分析**把选中工件作为输入，直接进入对应工具； 无需在右侧工具选择器中重新选择。"
+#~ msgstr ""
+
+#~ msgid "日志面板"
+#~ msgstr ""
+
+#~ msgid "中央标签页与画布并列。运行工具时逐条输出进度："
+#~ msgstr ""
+
+#~ msgid "计算在后台线程执行，运行期间界面不阻塞；日志会说明失败原因，参数校验失败 （如轨道保持仿真时长超出标称星历覆盖）会直接拦截并提示。"
+#~ msgstr ""
 

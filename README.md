@@ -7,81 +7,56 @@
 
 中文 | [English](README.en.md)
 
-transfer-orbit-design 是 [e2m2e](https://github.com/cislunarspace/e2m2e) 的 GUI 前端。e2m2e 提供地月空间轨道设计所需的动力学模型、修正器、延拓器与转移算法，本仓库把它们封装成可视化桌面应用。它不实现算法，只做三件事：调用（经 Facade API 发起计算）、管理（以 Project/Artifact 组织全部计算产物）、呈现（内嵌画布可视化结果）。用户通过"选工件 -> 选操作 -> 看结果"的三步交互完成轨道设计、轨道保持与结果检查。
+transfer-orbit-design 是 [e2m2e](https://github.com/cislunarspace/e2m2e) 的 GUI 前端。e2m2e 提供地月空间轨道设计所需的动力学模型、修正器、延拓器与转移算法，本仓库把它们封装成可视化桌面应用。v4.0.0 起 GUI 为 Tauri 2 架构：React 前端负责界面，Rust 壳负责进程编排，e2m2e 以 sidecar 子进程运行（stdio JSON 行 + 二进制帧协议）——界面不碰算法，算法不进界面。
 
 ## 安装
 
-项目要求 Python >= 3.13。用 [uv](https://docs.astral.sh/uv/) 安装：
+### 桌面应用（Windows）
+
+从 [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) 下载 `tod_<版本>_x64-setup.exe`（NSIS 安装器，免管理员权限，安装到当前用户目录）。安装包内含 e2m2e 运行时（tod-sidecar）与 SPICE 小内核；当前界面功能为纯 CR3BP 计算，无需额外准备星历内核。
+
+### 开发环境
+
+要求 Python >= 3.13、Node.js >= 20、Rust 稳定版工具链，包管理用 [uv](https://docs.astral.sh/uv/)：
 
 ```bash
-uv sync
+uv sync                        # Python 依赖（e2m2e>=5.8.5 等）
+npm ci --prefix frontend       # 前端依赖
+cargo tauri dev                # 开发模式启动：Vite 热更新 + Rust 壳拉起 sidecar
 ```
-
-`uv sync` 一次完成解释器准备、虚拟环境创建与全部依赖安装（含核心算法库 `e2m2e>=5.6.7`）。
-
-Windows 用户也可从 [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) 下载便携包 `TransferOrbitDesign-windows.zip`，解压即用；另从 [`spice-data-v1`](https://github.com/cislunarspace/transfer-orbit-design/releases/tag/spice-data-v1) 下载 `spice-kernels.zip`，解压到 `TransferOrbitDesign.exe` 所在目录（得到 `kernels/` 子目录），启动时自动探测。
 
 ## SPICE 内核
 
-星历动力学需要 NASA SPICE 内核文件。全部必需内核打包在 [e2m2e 的 `kernels-v1` release](https://github.com/cislunarspace/e2m2e/releases) 中。**GUI 启动时若未找到可用内核，会自动弹窗引导**：一键下载（带进度条，下载到用户数据目录，跨版本共享）或指定已有内核目录（选择后自动记忆）。命令行/脚本场景可用以下三种方式之一：
+v4.0.0 的界面工具（轨道族生成、轨道库浏览）是纯 CR3BP 计算，不需要 SPICE 内核。轨道设计、轨道保持等星历工具的界面正在回归（见 [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)）；回归后需要行星历 `.bsp` 等内核，获取方式：
 
-- **自动下载（推荐）**：`python scripts/download_kernels.py`，幂等地拉取全部内核到 `kernels/`。
-- **手动下载**：从上述 release 下载解压到 `kernels/` 目录。
-- **自备数据**：使用自己的内核文件，或将 `$SPICE_KERNEL_DIR` 指向其所在路径。
+- **自动下载（推荐）**：`uv run python scripts/download_kernels.py`，幂等拉取到 `kernels/`；
+- **手动下载**：从 e2m2e 的 [`kernels-v1` release](https://github.com/cislunarspace/e2m2e/releases) 解压到 `kernels/`（sidecar 工作目录下的相对路径）；
+- **自备数据**：`$SPICE_KERNEL_DIR` 指向已有内核目录（优先级最高）。
 
 官方来源：[NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html)（备用）。
 
 ## 快速开始
 
-```bash
-uv run transfer-orbit-design
-```
-
-界面为三栏布局：左侧项目树、中间可视化画布与日志标签页、右侧工具选择器、参数面板与运行按钮。
-
-一次轨道设计操作流：
-
-1. 右侧工具选择器选轨道设计，选轨道类型（DRO / Halo / NRHO 等）并填参数。
-2. 点击运行，计算在后台线程执行，日志面板逐条输出进度。
-3. 完成后结果以 JSON + NPZ 双文件落盘 `output/`，轨道随即叠加显示在画布上。
-
-画布工具栏可切换 3D / XY / XZ / YZ / 四视图投影，会合系与惯性系（GCRS）双坐标系，开关地月天体与 L1-L5 平动点标注，并支持初猜/星历绘制内容切换与 GIF 动画导出；菜单"设置 → 图表设置"可调线宽、颜色方案、标注大小与 Z 区间比例。Ctrl+点击项目树可多选轨道叠加对比。在项目树右键轨道可发起轨道保持与稳定性分析。
+1. 启动后左栏默认「项目」页签；切到「轨道库」页签自动加载全库，过滤栏可按族类型、平动点、Jacobi 与振幅区间、标签组合筛选。
+2. 中栏「轨道族生成」：选族类型（Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe / DRO），按族显示对应参数（振幅上下限、近月点高度、相位等），点「生成」。
+3. 族成员轨迹随即出现在右侧画布：左键拖拽旋转、滚轮缩放；「适配」按钮按轨迹包围盒复位视角。点击轨道库记录可把库轨迹叠加到画布。
+4. 左栏右上角语言切换中英界面。
 
 ## 能力
 
-**轨道设计**
+**v4.0.0 界面可用**
 
-- 周期轨道生成：DRO、DPO、NRHO、Halo、Lissajous、Axial、L4/L5（含短周期/长周期/马蹄形变体），参数面板由 Pydantic 模型自动生成，结果 JSON + NPZ 双文件落盘。
+- **轨道族生成**：八族（七族 + DRO）周期延拓/参数采样，参数表单由工具的 JSON Schema 自动生成（字段裁剪、范围与默认值随 e2m2e 模型走）；进度实时显示，成员轨迹逐条渲染。
+- **轨道库浏览**：产物自动入 e2m2e 轨道库（catalog 多维分类），多维过滤查询，选中记录叠加画布。
+- **画布**：Three.js 3D 视图，视图适配与视图保持、地月与平动点标注、图表设置（线宽/天体与平动点标注/Z 轴比例）持久化、webm 动画导出。
 
-**轨道维护与分析**
+**尚未接线**（v3.2.3 PyQt 版曾发布，Tauri 版逐工具回归中，见 [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)）：轨道设计、轨道保持、轨道预报、转移设计、稳定性分析、时空坐标转换。需要这些工具请使用 v3.2.3 或 e2m2e CLI。
 
-- 轨道保持：以选中轨道星历为输入做蒙特卡洛仿真，输出受控星历与速度增量统计。
-- 轨道族生成：小振幅 Halo 种子延拓到目标振幅，一族多轨道叠加显示。
-- 稳定性分析：Floquet 乘子 / 稳定性指数（nu1/nu2/nu3/Broucke）/ 分岔分类，对话框展示 + JSON 落盘。
+## 数据流与产物
 
-**可视化**
+一次计算的数据流：参数表单 → Rust 命令 → e2m2e sidecar（JSON 行信封 + 二进制帧，e2m2e ADR 0035）→ 产物自动入轨道库 → 项目树/画布经 `catalog_query` / `catalog_get` 取用。
 
-- 多轨道可视化：3D / XY / XZ / YZ / 四视图投影、会合系 / 惯性系切换、地月与 L1-L5 标注、多轨道叠加、图表设置（线宽/配色/字号/Z 比例）、GIF 动画导出。
-
-需要脚本化工作流（CR3BP 轨道生成、转移搜索、星历修正、绘图）时，使用 [e2m2e CLI](https://github.com/cislunarspace/e2m2e)，详见 [Sphinx 文档](https://cislunarspace.github.io/e2m2e/)。
-
-## 数据流与数据格式
-
-四个工具遵循同一数据流：面板填参数（或右键选中轨道）-> 后台线程调用 e2m2e 计算 -> 结果落盘 `output/`。所有产物统一用 JSON + NPZ 双文件：JSON 存参数与标量统计，NPZ 存轨道数组。`<type>` 为轨道类型小写（dro/halo/nrho/...），`<ts>` 为 UTC 时间戳。
-
-| 工具 | 输入 | 输出落盘 |
-|------|------|----------|
-| 轨道设计 | 轨道类型、振幅、相位、起始历元、维持时间、步长 | `output/<type>/<type>_<ts>.json` + `.npz` |
-| 轨道保持 | 选中轨道的星历 + 控制参数 | `output/ephemeris/orbit_ephemeris_<ts>.json` + `.npz` |
-| 轨道族生成 | 平动点、最大面外振幅、成员数 | `output/family/family_<ts>.json` + `.npz` |
-| 稳定性分析 | 选中轨道的状态与时间序列 | `output/stability/<label>_stability_<ts>.json` |
-
-各产物的 JSON 与 NPZ 字段：
-
-- **轨道设计**：JSON 存轨道类型、起始历元、维持天数、质量比 mu、Jacobi 常数、收敛状态与迭代次数、初始状态；NPZ 存 `states` (n,6)、`times` (n,)，以及星历字段（UTC 拆分、GCRS 位置/速度、会合系位置、时间）。
-- **轨道保持**：JSON 存失败样本数、总速度增量、机动次数；NPZ 存受控星历 `states` (n,6)、`times` (n,)、惯性位置 `position_km`、物理时间 `times_et`。
-- **轨道族生成**：JSON 存平动点、成员数、质量比；NPZ 存一族成员 `states` (m,n,6)、`times` (m,n)、面外振幅 `z0s` (m,)。
-- **稳定性分析**：仅 JSON，存单值矩阵、特征值、稳定性指数（nu1/nu2/nu3/Broucke）、分岔分类与数值误差。
+产物持久化在 `catalog/` 目录（开发期仓库根 `catalog/`；安装版在安装目录下）。轨道库是 e2m2e catalog 格式（多维分类、谱系指针），可以直接被 e2m2e 或其他宿主打开；`output/` 仅保留转移遗留分区与脚本场景。
 
 ## 文档
 
@@ -97,9 +72,10 @@ uv run sphinx-build -b html -D language=zh docs/source docs/build/html
 ## 测试与代码规范
 
 ```bash
-uv run pytest tests/ -m "not spice"
-uv run ruff check .
-uv run pyright
+uv run pytest tests/ -m "not spice"     # Python 领域层
+cargo test --manifest-path src-tauri/Cargo.toml   # Rust 壳与 sidecar 协议
+npm --prefix frontend run test          # 前端（vitest）
+uv run ruff check . && uv run pyright   # Python 静态检查
 ```
 
 ## 贡献

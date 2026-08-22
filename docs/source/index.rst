@@ -7,8 +7,9 @@ Transfer Orbit Design 文档
 
 Transfer Orbit Design 是 `e2m2e <https://github.com/cislunarspace/e2m2e>`_ 的
 GUI 前端：e2m2e 提供地月空间轨道设计所需的动力学模型与算法，本仓库把它们封装
-成可视化桌面应用，通过"选工件 → 选操作 → 看结果"的三步交互完成轨道设计、
-轨道族生成、轨道保持与稳定性分析。
+成可视化桌面应用（Tauri 2：Rust 壳 + React 前端 + e2m2e sidecar）。v4.0.0 界面
+可用能力为轨道族生成与轨道库浏览，其余工具逐工具回归中（见
+`#398 <https://github.com/cislunarspace/transfer-orbit-design/issues/398>`_）。
 
 .. toctree::
    :maxdepth: 2

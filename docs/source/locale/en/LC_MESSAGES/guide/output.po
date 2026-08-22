@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"POT-Creation-Date: 2026-08-22 14:16+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,284 +20,262 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../source/guide/output.md:1 4262003a83774716bb42f945eda2ff0a
-msgid "输出与数据格式"
-msgstr ""
+#: ../../source/guide/output.md:1 f46417a8113b457b9456c7f0bfee102d
+msgid "产物与轨道库"
+msgstr "Artifacts and the Orbit Library"
 
-#: ../../source/guide/output.md:3 ec61df7bb9b742ddb790213454c3c91e
-msgid "output/ 目录"
-msgstr ""
+#: ../../source/guide/output.md:3 6db9e231e398479eb072a471a063123f
+msgid "catalog/ 目录"
+msgstr "The catalog/ Directory"
 
-#: ../../source/guide/output.md:5 0c7beed6a945425dbf3dbf30365e475b
-msgid "所有工具结果统一落盘到项目根目录 `output/` 下，按工具与轨道类型分目录："
-msgstr ""
-
-#: ../../source/guide/output.md 8383a010f03f46da8495575fff41e1b8
-msgid "目录"
-msgstr ""
-
-#: ../../source/guide/output.md ad4286d7eca748f795633cb53dadc827
-msgid "产物"
-msgstr ""
-
-#: ../../source/guide/output.md 4cc03c072cd64053b0fc9de1f7b79922
-msgid "文件命名"
-msgstr ""
-
-#: ../../source/guide/output.md b1d58b93319a4b1993a0235a0b3e2b8d
-msgid "`output/<type>/`"
-msgstr ""
-
-#: ../../source/guide/output.md ../../source/guide/output.md:22
-#: 2fa1af78561e481fb7c8abb2ae426684 8b9726bd0f55437c89cafaef598bf058
-msgid "轨道设计"
-msgstr ""
-
-#: ../../source/guide/output.md 6f2f4b729b4e4849bba0a29741586745
-msgid "`<type>_<UTC时间戳>.json` + `.npz`（type 为 dro/halo/nrho/lissajous/l4/l5）"
-msgstr ""
-
-#: ../../source/guide/output.md c664dc4e55d9470381d06b2ea1566d0a
-msgid "`output/ephemeris/`"
-msgstr ""
-
-#: ../../source/guide/output.md ../../source/guide/output.md:54
-#: 0fa67bfc058742cb96000e2b3a72043e a58d212e6ab14ac087b6602657b2a290
-msgid "轨道保持"
-msgstr ""
-
-#: ../../source/guide/output.md 9296210e9cfb43ddbdcb94f5469cd520
-msgid "`orbit_ephemeris_<时间戳>.json` + `.npz`"
-msgstr ""
-
-#: ../../source/guide/output.md 021066882f3a476783cbdd74e239b9fb
-msgid "`output/family/`"
-msgstr ""
-
-#: ../../source/guide/output.md ../../source/guide/output.md:68
-#: 466cd676813c4c63a3f33a49acbea6ab 6882f2f59a9d428aaa816218f8616019
-msgid "轨道族生成"
-msgstr ""
-
-#: ../../source/guide/output.md fd39520c405a492fa78fd3f94f26e0a3
-msgid "`family_<时间戳>.json` + `.npz`"
-msgstr ""
-
-#: ../../source/guide/output.md eef7661431194dcdb495e98b64fe4c76
-msgid "`output/stability/`"
-msgstr ""
-
-#: ../../source/guide/output.md ../../source/guide/output.md:78
-#: 7647de3c9d0648868ac5aad07682ba1a afbc12f501984c29b09b33d5ca64f70d
-msgid "稳定性分析"
-msgstr ""
-
-#: ../../source/guide/output.md afcac207afcf45b5b1555813c01bef14
-msgid "`<标签>_stability_<时间戳>.json`（仅 JSON）"
-msgstr ""
-
-#: ../../source/guide/output.md:14 19fb54d0e8bf439eb7728601f0de865f
+#: ../../source/guide/output.md:5 1ec7edc5e2e74683b4b273931feb36d1
 msgid ""
-"时间戳为 UTC 14 位 `YYYYMMDDHHMMSS`。启动时 GUI 扫描 `output/`，按 \"目录 + "
-"文件名前缀\"识别并重建为工件；未识别文件不影响启动。"
-msgstr ""
+"v4.0.0 起，界面计算产物统一持久化到 **e2m2e 轨道库**（catalog），不再按工具 分目录落 JSON/NPZ "
+"文件。轨道库默认位于 sidecar 工作目录下的 `catalog/`： 开发期即仓库根 `catalog/`，安装版在安装目录下；可用环境变量"
+" `$E2M2E_CATALOG_DIR` 改指。"
+msgstr "Since v4.0.0, UI computation products persist uniformly in the **e2m2e orbit library** (catalog) instead of per-tool JSON/NPZ files. The library defaults to `catalog/` under the sidecar working directory: the repo root in development, the install directory for the packaged app; override with the `$E2M2E_CATALOG_DIR` environment variable."
 
-#: ../../source/guide/output.md:17 32d4c86f30de462cbd7d54abd3838afc
-msgid "双文件约定"
-msgstr ""
-
-#: ../../source/guide/output.md:19 1eeb310f4c104abb9d58fd3de0316ba5
+#: ../../source/guide/output.md:10 919feb7d576b4d24ae18f188a50f440a
 msgid ""
-"**JSON 存参数与标量统计，NPZ 存轨道数组**。JSON 的 `arrays_file` 键记录 伴随 NPZ "
-"文件名，两文件成对出现、一起删除。"
-msgstr ""
+"产物**自动入库**：族生成成功后即成为库记录（多维分类：族类型、平动点、 Jacobi "
+"区间、振幅区间；谱系指针记录上下游因果链）。重启后项目树经 `catalog_query` 恢复清单，单条记录经 `catalog_get` "
+"懒加载轨迹。"
+msgstr "Products are **stored automatically**: a generated family becomes a library record on success (multi-dimensional classification: family type, libration point, Jacobi and amplitude ranges; lineage pointers record upstream/downstream causality). After a restart the project tree restores the listing via `catalog_query`, and a single record lazy-loads its trajectories via `catalog_get`."
 
-#: ../../source/guide/output.md:24 3e6006702fbc4517a9b1a0bed8f48993
-msgid "JSON："
-msgstr ""
+#: ../../source/guide/output.md:14 e68ee32401fa4364b49f78bd33e64091
+msgid "库即数据格式"
+msgstr "The Library as Data Format"
 
-#: ../../source/guide/output.md:42 b706fdb4ce414fc2b4f138f4d978794f
-msgid "NPZ 键："
-msgstr ""
-
-#: ../../source/guide/output.md 5c4f8f93fbe6448da2a7ec14cc375bd2
-#: 974263fc8c3f413fa44c3bb6f13ac9d0 a6b3d295b9694c6dbb404fdd2efd1055
-msgid "键"
-msgstr ""
-
-#: ../../source/guide/output.md 39c7e3f377874990af517dab6cd6d953
-#: 63d16b0bf90349929f73cca5316a0172 97608c8a5ca14b83864f6a3cbb2a9729
-msgid "形状"
-msgstr ""
-
-#: ../../source/guide/output.md 6c57150845ff485b81460e6c31e36536
-#: c34c586024734da4b2cc28b4aedf9064 dbbedd1e2100465c88b9497db07dc166
-msgid "含义"
-msgstr ""
-
-#: ../../source/guide/output.md 90c8ec10596d47909061ae99249e9b89
-#: 96a6cda9d04244c1b5f0d6ba28600229 a1546b6443c5444e877c329238d37130
-msgid "`states`"
-msgstr ""
-
-#: ../../source/guide/output.md 22af72dca6de47f8b9bf5785d578390b
-#: 967ff105dfdf4e1cb81b3defa7a2ec4e
-msgid "(n, 6)"
-msgstr ""
-
-#: ../../source/guide/output.md 09f2616ab5db47e7b6478dd2c8a0b7c0
-msgid "CR3BP 周期轨道状态"
-msgstr ""
-
-#: ../../source/guide/output.md 80d42e6ddd854de59d588f03a74ce9c2
-#: 9f13884d4eb742b68ad8da9fd39bcdf9 cef685d730d74839b455ef92c9467b16
-msgid "`times`"
-msgstr ""
-
-#: ../../source/guide/output.md 3a37f7d430e44bd083d6cd1c75f192c3
-#: 80627567576f478e919e0b0fca0e7f8a 9f31918ed9854b669390af30ffa43a56
-msgid "(n,)"
-msgstr ""
-
-#: ../../source/guide/output.md 7bb49e58cddd4eb19bb9d93435ec810e
-msgid "CR3BP 时间（无量纲 TU）"
-msgstr ""
-
-#: ../../source/guide/output.md c9b667a7ba784de2a6aea5c0fd78276a
-msgid "`eph_year` … `eph_second`"
-msgstr ""
-
-#: ../../source/guide/output.md 3338bc5360274841aef9c81766c4bbdc
-#: 3c3a3afb7c8346b5ac3ebd8f73d2f601 6cdb5d8476ed487f9624028ef9338b40
-msgid "(m,)"
-msgstr ""
-
-#: ../../source/guide/output.md e9f0d41f343e41da8d0927b554e869ab
-msgid "星历 UTC 拆分"
-msgstr ""
-
-#: ../../source/guide/output.md 7643556b5dc3481498a3c5dc751df954
-msgid "`eph_position_km`"
-msgstr ""
-
-#: ../../source/guide/output.md 121eb4e0e55d4de3bfa3ac266257d8a9
-#: 62858266c1894cd78a9039461ab39308 e1121fcc377b49c7b36ba3a386a1773f
-msgid "(m, 3)"
-msgstr ""
-
-#: ../../source/guide/output.md 9b8c615f63f942dd9daef8ad06ed4b6f
-msgid "GCRS 位置（km）"
-msgstr ""
-
-#: ../../source/guide/output.md 7b1855e9cbe0401cb711a4e8ecca858e
-msgid "`eph_velocity_mps`"
-msgstr ""
-
-#: ../../source/guide/output.md 97fc881e5db1428c981ebbafe60ea420
-msgid "GCRS 速度（m/s）"
-msgstr ""
-
-#: ../../source/guide/output.md efe6ce33281d467ebdb10eb2a6b0424a
-msgid "`eph_synodic_position`"
-msgstr ""
-
-#: ../../source/guide/output.md 144da7cb26b649d5a357f75943dd891f
-msgid "会合系位置（质心归一）"
-msgstr ""
-
-#: ../../source/guide/output.md b0daf474b6bb4f5ab175e3206439192c
-msgid "`eph_times_et`"
-msgstr ""
-
-#: ../../source/guide/output.md f9028af29e61478e94e5ebff32697bdb
-msgid "真物理时间（J2000 ET 秒）"
-msgstr ""
-
-#: ../../source/guide/output.md:56 602458e20916445498b63378cdfc3053
+#: ../../source/guide/output.md:16 bdcea9bfc9bc4e7b9950b77066535648
 msgid ""
-"JSON 存 `num_failed`（失败样本数）、`total_delta_v_mps`（总速度增量）、 "
-"`n_maneuvers`（机动次数）、`mu`。NPZ 键："
-msgstr ""
+"轨道库是 e2m2e catalog 格式（见 [e2m2e "
+"文档](https://cislunarspace.github.io/e2m2e/)）："
+msgstr "The orbit library is the e2m2e catalog format (see the [e2m2e docs](https://cislunarspace.github.io/e2m2e/)):"
 
-#: ../../source/guide/output.md 3025ca8fd62d474aa8a4bf79271a14b1
-msgid "受控星历（质心归一会合系位置 + 零速度列）"
-msgstr ""
+#: ../../source/guide/output.md:19 8e05c832631949908b68b00a7783d833
+msgid "记录按多维分类索引，支持组合过滤查询；"
+msgstr "Records are indexed by multi-dimensional classification and support combined filtered queries;"
 
-#: ../../source/guide/output.md 75632cbfefa141f59fbc9518e1dac989
-msgid "物理时间（ET 秒）"
-msgstr ""
+#: ../../source/guide/output.md:20 6685523c5eb34cce97fa7aaa2c90f2b9
+msgid "谱系指针（上游记录 id）使「设计 → 保持」等链式产物的因果关系重启不断；"
+msgstr "Lineage pointers (upstream record ids) keep the causality of chained products like \"design → station keeping\" intact across restarts;"
 
-#: ../../source/guide/output.md a07461c07caa4ea8b38ce3b648c54c25
-msgid "`position_km`"
-msgstr ""
+#: ../../source/guide/output.md:21 9b068e12cfa64df6aeb2477f5b648adb
+msgid "库目录可整体拷贝、打包导出，亦可被 e2m2e CLI 或其他宿主直接打开。"
+msgstr "The library directory can be copied or exported as a whole, and opened directly by the e2m2e CLI or other hosts."
 
-#: ../../source/guide/output.md 86e07353b70f45a1bdc2f7a5bdfd528e
-msgid "(n, 3)"
-msgstr ""
+#: ../../source/guide/output.md:23 3d306b49e72740018c8faa1160bb3bea
+msgid "output/ 目录（遗留）"
+msgstr "The output/ Directory (Legacy)"
 
-#: ../../source/guide/output.md 5aff4cc87bef4e5b8412572dfc18e271
-msgid "GCRS 惯性位置（km）"
-msgstr ""
-
-#: ../../source/guide/output.md 3c1948c4411341d59e34ca1564b68831
-msgid "`times_et`"
-msgstr ""
-
-#: ../../source/guide/output.md e9ca0b8b56084d328b5c6501bfa167cb
-msgid "真物理时间（ET 秒，与 times 同源）"
-msgstr ""
-
-#: ../../source/guide/output.md:66 01a533203de04ce5bd9c369e41e694af
-msgid "全样本失败时只写 JSON（`num_failed` = 样本数），无 NPZ。"
-msgstr ""
-
-#: ../../source/guide/output.md:70 bf504b0317804de18828c501ac159a2b
-msgid "JSON 存 `orbit_type`（Halo）、`libration_point`、`n_orbits`、`mu`。NPZ 键："
-msgstr ""
-
-#: ../../source/guide/output.md c91c240c845b4c8b8406c7eb9e9e582a
-msgid "(m, n, 6)"
-msgstr ""
-
-#: ../../source/guide/output.md dee6ded7e9e046eda1203bf94b0c1e68
-msgid "一族成员状态（m 成员 × n 采样点）"
-msgstr ""
-
-#: ../../source/guide/output.md 5bc64ed9079c4bcf82c3d0f6bee62a84
-msgid "(m, n)"
-msgstr ""
-
-#: ../../source/guide/output.md f8f792ed24cf4c1c9a78223be77b3a74
-msgid "各族成员时间（TU）"
-msgstr ""
-
-#: ../../source/guide/output.md 5b0f097437144b7c9896387675d3ee13
-msgid "`z0s`"
-msgstr ""
-
-#: ../../source/guide/output.md 139b0a27707748428e4affc6f1841d02
-msgid "各族成员面外振幅"
-msgstr ""
-
-#: ../../source/guide/output.md:80 c3b606d4276e4934a1efdc5193e71f02
+#: ../../source/guide/output.md:25 39fac72172004c24b76aa8457d00c85b
 msgid ""
-"仅 JSON：单值矩阵、特征值（复数存 `[real, imag]`）、稳定性指数 "
-"（ν₁/ν₂/ν₃/Broucke）、稳定性分类、分岔检测与数值误差。"
-msgstr ""
+"`output/` 仅保留两类内容：转移轨道遗留分区（`output/transfer/`，catalog "
+"分类体系之外的过渡期产物）与脚本化工作流的直接输出。v3.2.3 及更早版本按 「工具分目录 + JSON/NPZ "
+"双文件」管理的产物不迁移（ADR 0008），需要时重算。"
+msgstr "`output/` keeps only two kinds of content: the legacy transfer partition (`output/transfer/`, transitional products outside the catalog taxonomy) and direct output from scripted workflows. Products from v3.2.3 and earlier (managed as \"per-tool directories + JSON/NPZ pairs\") are not migrated (ADR 0008) — recompute them when needed."
 
-#: ../../source/guide/output.md:83 a2f16ec9e22d4bf9b14a9d4d2d3a845b
-msgid "工件与文件的关系"
-msgstr ""
+#~ msgid "输出与数据格式"
+#~ msgstr ""
 
-#: ../../source/guide/output.md:85 f3cd2952fd354449bb3df43b5f838e86
-msgid "每个工件对应 `output/` 下的一个 JSON（+ 伴随 NPZ）；删除工件即删除文件 （删除前确认路径）。"
-msgstr ""
+#~ msgid "output/ 目录"
+#~ msgstr ""
 
-#: ../../source/guide/output.md:87 0823df46d1674147b41b653dec663714
-msgid "工件可作为后续工具的输入：轨道保持以轨道工件的星历为输入，稳定性分析以 轨道工件的 CR3BP 状态为输入。数据在内存中传递，不经过文件读写。"
-msgstr ""
+#~ msgid "所有工具结果统一落盘到项目根目录 `output/` 下，按工具与轨道类型分目录："
+#~ msgstr ""
 
-#: ../../source/guide/output.md:89 fec265f9b90643a1a57513d8447f9be8
-msgid "旧版本产物（如旧的 `dro_*_family_*.json` 轨道族命名）仍可被识别，但新 产物一律使用上表命名。"
-msgstr ""
+#~ msgid "目录"
+#~ msgstr ""
+
+#~ msgid "产物"
+#~ msgstr ""
+
+#~ msgid "文件命名"
+#~ msgstr ""
+
+#~ msgid "`output/<type>/`"
+#~ msgstr ""
+
+#~ msgid "轨道设计"
+#~ msgstr ""
+
+#~ msgid "`<type>_<UTC时间戳>.json` + `.npz`（type 为 dro/halo/nrho/lissajous/l4/l5）"
+#~ msgstr ""
+
+#~ msgid "`output/ephemeris/`"
+#~ msgstr ""
+
+#~ msgid "轨道保持"
+#~ msgstr ""
+
+#~ msgid "`orbit_ephemeris_<时间戳>.json` + `.npz`"
+#~ msgstr ""
+
+#~ msgid "`output/family/`"
+#~ msgstr ""
+
+#~ msgid "轨道族生成"
+#~ msgstr ""
+
+#~ msgid "`family_<时间戳>.json` + `.npz`"
+#~ msgstr ""
+
+#~ msgid "`output/stability/`"
+#~ msgstr ""
+
+#~ msgid "稳定性分析"
+#~ msgstr ""
+
+#~ msgid "`<标签>_stability_<时间戳>.json`（仅 JSON）"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "时间戳为 UTC 14 位 `YYYYMMDDHHMMSS`。启动时 GUI"
+#~ " 扫描 `output/`，按 \"目录 + "
+#~ "文件名前缀\"识别并重建为工件；未识别文件不影响启动。"
+#~ msgstr ""
+
+#~ msgid "双文件约定"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "**JSON 存参数与标量统计，NPZ 存轨道数组**。JSON 的 "
+#~ "`arrays_file` 键记录 伴随 NPZ 文件名，两文件成对出现、一起删除。"
+#~ msgstr ""
+
+#~ msgid "JSON："
+#~ msgstr ""
+
+#~ msgid "NPZ 键："
+#~ msgstr ""
+
+#~ msgid "键"
+#~ msgstr ""
+
+#~ msgid "形状"
+#~ msgstr ""
+
+#~ msgid "含义"
+#~ msgstr ""
+
+#~ msgid "`states`"
+#~ msgstr ""
+
+#~ msgid "(n, 6)"
+#~ msgstr ""
+
+#~ msgid "CR3BP 周期轨道状态"
+#~ msgstr ""
+
+#~ msgid "`times`"
+#~ msgstr ""
+
+#~ msgid "(n,)"
+#~ msgstr ""
+
+#~ msgid "CR3BP 时间（无量纲 TU）"
+#~ msgstr ""
+
+#~ msgid "`eph_year` … `eph_second`"
+#~ msgstr ""
+
+#~ msgid "(m,)"
+#~ msgstr ""
+
+#~ msgid "星历 UTC 拆分"
+#~ msgstr ""
+
+#~ msgid "`eph_position_km`"
+#~ msgstr ""
+
+#~ msgid "(m, 3)"
+#~ msgstr ""
+
+#~ msgid "GCRS 位置（km）"
+#~ msgstr ""
+
+#~ msgid "`eph_velocity_mps`"
+#~ msgstr ""
+
+#~ msgid "GCRS 速度（m/s）"
+#~ msgstr ""
+
+#~ msgid "`eph_synodic_position`"
+#~ msgstr ""
+
+#~ msgid "会合系位置（质心归一）"
+#~ msgstr ""
+
+#~ msgid "`eph_times_et`"
+#~ msgstr ""
+
+#~ msgid "真物理时间（J2000 ET 秒）"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "JSON 存 `num_failed`（失败样本数）、`total_delta_v_mps`（总速度增量）、 "
+#~ "`n_maneuvers`（机动次数）、`mu`。NPZ 键："
+#~ msgstr ""
+
+#~ msgid "受控星历（质心归一会合系位置 + 零速度列）"
+#~ msgstr ""
+
+#~ msgid "物理时间（ET 秒）"
+#~ msgstr ""
+
+#~ msgid "`position_km`"
+#~ msgstr ""
+
+#~ msgid "(n, 3)"
+#~ msgstr ""
+
+#~ msgid "GCRS 惯性位置（km）"
+#~ msgstr ""
+
+#~ msgid "`times_et`"
+#~ msgstr ""
+
+#~ msgid "真物理时间（ET 秒，与 times 同源）"
+#~ msgstr ""
+
+#~ msgid "全样本失败时只写 JSON（`num_failed` = 样本数），无 NPZ。"
+#~ msgstr ""
+
+#~ msgid "JSON 存 `orbit_type`（Halo）、`libration_point`、`n_orbits`、`mu`。NPZ 键："
+#~ msgstr ""
+
+#~ msgid "(m, n, 6)"
+#~ msgstr ""
+
+#~ msgid "一族成员状态（m 成员 × n 采样点）"
+#~ msgstr ""
+
+#~ msgid "(m, n)"
+#~ msgstr ""
+
+#~ msgid "各族成员时间（TU）"
+#~ msgstr ""
+
+#~ msgid "`z0s`"
+#~ msgstr ""
+
+#~ msgid "各族成员面外振幅"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "仅 JSON：单值矩阵、特征值（复数存 `[real, imag]`）、稳定性指数 "
+#~ "（ν₁/ν₂/ν₃/Broucke）、稳定性分类、分岔检测与数值误差。"
+#~ msgstr ""
+
+#~ msgid "工件与文件的关系"
+#~ msgstr ""
+
+#~ msgid "每个工件对应 `output/` 下的一个 JSON（+ 伴随 NPZ）；删除工件即删除文件 （删除前确认路径）。"
+#~ msgstr ""
+
+#~ msgid "工件可作为后续工具的输入：轨道保持以轨道工件的星历为输入，稳定性分析以 轨道工件的 CR3BP 状态为输入。数据在内存中传递，不经过文件读写。"
+#~ msgstr ""
+
+#~ msgid "旧版本产物（如旧的 `dro_*_family_*.json` 轨道族命名）仍可被识别，但新 产物一律使用上表命名。"
+#~ msgstr ""
 

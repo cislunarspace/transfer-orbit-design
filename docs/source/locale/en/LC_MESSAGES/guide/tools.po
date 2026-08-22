@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"POT-Creation-Date: 2026-08-22 14:16+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,532 +20,574 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../source/guide/tools.md:1 70ec2a4275ea40c48a05714018ee05a2
+#: ../../source/guide/tools.md:1 08441dceb439492cb0a3a769e64f1f75
 msgid "工具参考"
-msgstr ""
+msgstr "Tool Reference"
 
-#: ../../source/guide/tools.md:3 c53e1153595748efac3946baad9fdd66
+#: ../../source/guide/tools.md:3 29cad7f767a747679047b9c66ff6a034
 msgid ""
-"GUI 提供四个工具。参数面板由工具绑定的 Pydantic 模型自动生成，字段范围、 "
-"默认值与说明来自模型本身；本节列出各工具的常用参数。单位可切换的字段 （振幅、近月点高度、时长、输出步长）在面板中有单位下拉框，切换单位只改变 "
-"显示数值，不改变物理量。"
-msgstr ""
-
-#: ../../source/guide/tools.md:8 36ccd4ec59624cc9a0bebec1f76628a4
-msgid "轨道设计（design_orbit）"
-msgstr ""
-
-#: ../../source/guide/tools.md:10 5cfad71a0e874f68bc21c6bda53f7981
-msgid ""
-"在 CR3BP 中生成周期轨道并修正到星历模型。可选轨道类型： **DRO / Halo / NRHO / Lissajous / L4 / L5"
-" / ELFO**。选择类型后面板只显示 该类型相关的形状参数。"
-msgstr ""
-
-#: ../../source/guide/tools.md:14 874b437add2d4f868a4f948fe2a40c3a
-msgid "形状参数（按类型）"
-msgstr ""
-
-#: ../../source/guide/tools.md e421f085bd184d62b3af14ef22273ae2
-msgid "轨道类型"
-msgstr ""
-
-#: ../../source/guide/tools.md 23d3889393a24bb8b1b736b82c485fb7
-#: 71144a2a79274cd48b3d4c1f1e9b4b41 85f2c541f95245fe924ee9eb8cf4c876
-#: de5b3774a9b148e2b7e5ce0cd329b579
-msgid "参数"
-msgstr ""
-
-#: ../../source/guide/tools.md 0257311a1fc24a2cbdbbe143d311a5b0
-#: 79ac9115c6d749b6a0b6aa353e106040 806ee9a8f3984a4db886f05646443973
-#: fe77c520360a4b4982f53a0b3167f6df
-msgid "说明"
-msgstr ""
-
-#: ../../source/guide/tools.md bff4a4d98e9d423f983b4ca3745967a3
-#: cd259baebac64607be6716d3cdaaf9c5
-msgid "DRO"
-msgstr ""
-
-#: ../../source/guide/tools.md 76889a9b63c441eaa7c7c276b8ac506e
-#: f37fbdb4979948ea99964f77f4206cb5
-msgid "`amplitude`"
-msgstr ""
-
-#: ../../source/guide/tools.md 22d9adf3dbf446708bee070e6ec1a470
-msgid "距月振幅（km，默认 60000；可切 DU）"
-msgstr ""
-
-#: ../../source/guide/tools.md 3ca308ea5312487b9e1c912d90214dcc
-#: c374dad3643e484a969cfe07eeafed07 fd40b4d88c8e47c195ceac39a77ddf4d
-msgid "`phase`"
-msgstr ""
-
-#: ../../source/guide/tools.md 193d3ed3b96743c6a3a6bff74d6da036
-msgid "相位（默认 0.5001）"
-msgstr ""
-
-#: ../../source/guide/tools.md 52a9f92a7a7a40c0adc0ccb86bd4b2a6
-#: 70e84c2bac164a4dab9ab8a54296913e 8fbeae7077e9432a9307eac455c29eaa
-msgid "Halo"
-msgstr ""
-
-#: ../../source/guide/tools.md 77bed1004f4c407580db0ca7539df7d0
-#: d3aa97f35b98420cb8f35ab67a017749 d925dd6209434bdda9e9d0907f69283f
-msgid "`collinear_point`"
-msgstr ""
-
-#: ../../source/guide/tools.md 0e352b9a27e54a2c818719ed2a8e1c48
-msgid "共线平动点（1=L1，2=L2，默认 2）"
-msgstr ""
-
-#: ../../source/guide/tools.md 54d5407b17324a38950ace957dfc55aa
-msgid "面外振幅（km，默认 30000）"
-msgstr ""
-
-#: ../../source/guide/tools.md debd673dffc341639331d901b5ca5c2b
-#: e0e9f1b10f6e4fee86009c70d7fbfeeb
-msgid "相位（默认 0）"
-msgstr ""
-
-#: ../../source/guide/tools.md 0c1a8cff74754c3b8a4f78216a669d85
-#: 48ec8764dab54547a267afc76717b2c5 75e249b6a40341f98007b55ef2df941a
-#: f81570a7a375487a9a40027adfbad8d1
-msgid "NRHO"
-msgstr ""
-
-#: ../../source/guide/tools.md 62d0cc3c4f9a4a63a084580a9d272190
-#: bf79d20e546f469cb2209c6975abb0c3
-msgid "共线平动点（默认 2）"
-msgstr ""
-
-#: ../../source/guide/tools.md f6edd58c2a814facab8c9a43651d61c5
-msgid "`north_south`"
-msgstr ""
-
-#: ../../source/guide/tools.md 2ae38470fd4e477590a2da3171d68cc4
-msgid "北族（1）/ 南族（2），默认 2"
-msgstr ""
-
-#: ../../source/guide/tools.md 3fdce075f7044ff591d2cf6b386d7aa1
-#: d52513099ea14ecf9cb6d289bfde8492
-msgid "`perilune_height`"
-msgstr ""
-
-#: ../../source/guide/tools.md c3d61b8361d6411b8da15c6733312d21
-msgid "近月点高度（km，默认 5000）"
-msgstr ""
-
-#: ../../source/guide/tools.md e85a839d839443318c11faba6c5d03a2
-msgid "相位（默认 0.5）"
-msgstr ""
-
-#: ../../source/guide/tools.md 2775259b4eff4653b6cc173b97b4551e
-#: 79a29c08b41d44aea348dcccbaa6f05a e4c1415e86614291abfb19b251112c28
-msgid "Lissajous"
-msgstr ""
-
-#: ../../source/guide/tools.md 71f25ed0ff80430e8b697326c1bd1f96
-#: a173335e6c054dc586e8e2b2efbfcb79
-msgid "`amplitude_in` / `amplitude_out`"
-msgstr ""
-
-#: ../../source/guide/tools.md 42a6ec3e297346dda163226354f77f7b
-msgid "面内 / 面外振幅（km，默认 2500 / 7500）"
-msgstr ""
-
-#: ../../source/guide/tools.md da1c97a022654c2e9b95dad5f7900870
-#: f13c9643d2e54447ae7b9424202419ee
-msgid "`phase_in` / `phase_out`"
-msgstr ""
-
-#: ../../source/guide/tools.md c9255d36afbe40e5ad01632c3ddedc8d
-msgid "两个相位（默认 0.01 / 0.55）"
-msgstr ""
-
-#: ../../source/guide/tools.md 52acbb75a23349d89817a1dae88712b2
-#: 66581f5921844f1e9d50937a2b9e3684
-msgid "L4 / L5"
-msgstr ""
-
-#: ../../source/guide/tools.md 16e62ea319d34c1987f765d9af7bd685
-msgid "振幅（默认 8000 / 6000）"
-msgstr ""
-
-#: ../../source/guide/tools.md 2ed840b21023477faf9cee29b4ae3109
-#: 36befa2d99e241aca164074b827f3108 680352c993db439288a2b14a8892e85a
-msgid "ELFO"
-msgstr ""
-
-#: ../../source/guide/tools.md 666f4f63d51048daa83cce7d4cb3d203
-msgid "`semi_major_axis`"
-msgstr ""
-
-#: ../../source/guide/tools.md 796c50c8cf30461f8045ed6a5b3a27e9
-msgid "月心半长轴（km，必填，默认 6500）"
-msgstr ""
-
-#: ../../source/guide/tools.md e5ea662135f44a06a6c8af4c9190a8ba
-msgid "`inclination` / `arg_of_pericenter`"
-msgstr ""
-
-#: ../../source/guide/tools.md 898b4b171f2e48e4ae94e135c295fb29
-msgid "倾角 / 近月点幅角（度，默认 75 / 270）"
-msgstr ""
-
-#: ../../source/guide/tools.md fcab80bada5d49939515137d16db3042
-msgid "近月点高度（km，默认 200）"
-msgstr ""
-
-#: ../../source/guide/tools.md:36 0c24c86cf65b44c9a810df3d511668c8
-msgid "通用参数"
-msgstr ""
-
-#: ../../source/guide/tools.md 9946ebe754aa441ebdb48595df19374a
-#: f51c36e362c140d490aca12b01b3f42f ff3c7451cf624564a7b8d34c6b8b9faa
-msgid "默认值"
-msgstr ""
-
-#: ../../source/guide/tools.md 73a22add797e431fa8035cae40256167
-msgid "`epoch`"
-msgstr ""
-
-#: ../../source/guide/tools.md 754ef843aaea42f9a8a6b850016ab3a6
-msgid "2024-01-01"
-msgstr ""
-
-#: ../../source/guide/tools.md b2b08bf413904e16aed89a9a23d291a4
-msgid "起始历元：6 个输入框（年/月/日/时/分/秒）或 ISO 字符串"
-msgstr ""
-
-#: ../../source/guide/tools.md f6acc5df2cb0489e83b1ffdaf6d75457
-msgid "`duration`"
-msgstr ""
-
-#: ../../source/guide/tools.md 496e64fa38864866b97d0f6e8b92b855
-msgid "1 个月"
-msgstr ""
-
-#: ../../source/guide/tools.md bfc60bb134974267adf9ca952b3b5d96
-msgid "传播时长（默认 1 月；可切 年/月/日/TU。轨道保持以它为输入，建议 ≥ 保持总时长）"
-msgstr ""
-
-#: ../../source/guide/tools.md 4ed62b5303ec4c26bd3a75d160e9d3de
-#: 6e43ea32b5b844918d746cbfb177ac1c
-msgid "`output_step`"
-msgstr ""
-
-#: ../../source/guide/tools.md 84ca3fef1ebf42e5ac2602105ae1c5b4
-msgid "3600 s"
-msgstr ""
-
-#: ../../source/guide/tools.md 557654f9b2194066a1a46284e9ca986d
-msgid "星历输出步长（可切 秒/TU）"
-msgstr ""
-
-#: ../../source/guide/tools.md 4ac11bed46d04d42baaba1dde23cdc7a
-msgid "`correction_method`"
-msgstr ""
-
-#: ../../source/guide/tools.md 9c7cd48852e54ed08520af839bc0a9c4
-msgid "two_level"
-msgstr ""
-
-#: ../../source/guide/tools.md 63d710c379a74a9393fb12eadf4264eb
-#, python-brace-format
-msgid ""
-"星历修正方法：`standard` / `two_level` / `homotopy`。Halo/NRHO 由算法自动改走 "
-"`segmented`（见 {doc}`../concepts/ephemeris`），无需手选"
-msgstr ""
-
-#: ../../source/guide/tools.md 8667d9d2ea164b139d45772dd41ad308
-msgid "`correction_revolutions`"
-msgstr ""
-
-#: ../../source/guide/tools.md 77a19a0673924a789ab9dfcc1063db08
-#: d4531bb0f5c94f52a8d2d4977c80a89a f1a998d92eae4d7692e66a13be18e9da
-msgid "1"
-msgstr ""
-
-#: ../../source/guide/tools.md 2ae6e85ed5354de98c2ae15eb34e42bc
-msgid "修正圈数"
-msgstr ""
-
-#: ../../source/guide/tools.md 5dfb403c480c4531bd467d55440e20c9
-msgid "`correction_velocity_tolerance`"
-msgstr ""
-
-#: ../../source/guide/tools.md eb43ca12b4064d2f906f26b2f8c98e55
-msgid "0.1"
-msgstr ""
-
-#: ../../source/guide/tools.md 0e6435d80571407680fb37e000569274
-msgid "速度连续性容差"
-msgstr ""
-
-#: ../../source/guide/tools.md 638cadd2b1124f4db310e5f3f6aa6164
-msgid "`earth_degree` / `moon_degree`"
-msgstr ""
-
-#: ../../source/guide/tools.md fb9e6298391c43ff95fcf97dac5acdaf
-msgid "10"
-msgstr ""
-
-#: ../../source/guide/tools.md f65fb80e35504af381c95c3504638f52
-msgid "地球 / 月球引力位阶数"
-msgstr ""
-
-#: ../../source/guide/tools.md 2ebdd54b3e964b12978b5bfc2b6cb536
-msgid "`perturbation` / `dyb`"
-msgstr ""
-
-#: ../../source/guide/tools.md 1fc7111a99414b9883c7a07595c602d3
-#: 87b30a05ea3940d4b1d790a2bd3d2eea a9c0688ee0e640bba5a1ffd08db77da1
-#: ad9c144c744149da8415c5ca76a9b124
-msgid "空"
-msgstr ""
-
-#: ../../source/guide/tools.md b266150735d54f5a8f72fa12fe2f7f83
-msgid "可选摄动项（太阳引力等）/ DYB 摄动开关"
-msgstr ""
-
-#: ../../source/guide/tools.md:49 cfd506507cb141af9672d48906a1327e
-msgid "结果"
-msgstr ""
-
-#: ../../source/guide/tools.md:51 f5ddccd78d474187937d9ca109c9e876
-#, python-brace-format
-msgid ""
-"输出 JSON + NPZ 双文件到 `output/<type>/`（见 {doc}`output`），画布叠加显示 CR3BP "
-"初猜（实线）与标称星历（虚线）。参数校验失败（如 ELFO 缺半长轴）会 阻止运行并给出明确原因。"
-msgstr ""
-
-#: ../../source/guide/tools.md:55 8fc99f7b211740b6bbd05f544474e5f5
-msgid "轨道保持（control_orbit）"
-msgstr ""
-
-#: ../../source/guide/tools.md:57 395b9250b1af460e899076daa95b33a9
-msgid ""
-"以选中轨道工件的星历为输入，做带导航误差、机动执行误差与光压不确定度的 蒙特卡洛仿真，输出受控星历与机动 Δv "
-"统计。**必须从项目树右键轨道发起** （选中工件作为标称星历输入）。"
-msgstr ""
-
-#: ../../source/guide/tools.md 9b8fc055aa384efd8cbdf204637008bf
-msgid "`control_mode`"
-msgstr ""
-
-#: ../../source/guide/tools.md 29607d09268d4374866ed0dca285f414
-msgid "控制模式：1=目标点宽松、2=目标点严格、3=特征点；4/5/6 为对应模式 + 角动量管理"
-msgstr ""
-
-#: ../../source/guide/tools.md 2fc5bb1c963742438c82253b00b6bd11
-msgid "`is_nrho`"
-msgstr ""
-
-#: ../../source/guide/tools.md 929411c31ec64abfb67ded10a6a340ad
-msgid "0"
-msgstr ""
-
-#: ../../source/guide/tools.md 9ef43eec43c54c24930483011a513fe8
-msgid "目标轨道是否 NRHO"
-msgstr ""
-
-#: ../../source/guide/tools.md 624fc738bc0a4ee7870152606fa2cc6f
-msgid "`special_mode`"
-msgstr ""
-
-#: ../../source/guide/tools.md 07f522d6f76f4b398ffd40ab25a07a98
-msgid "特征点模式：1=Lissajous（ẋ=0）、2=Halo/NRHO（ẋ=0 且 ż=0）"
-msgstr ""
-
-#: ../../source/guide/tools.md 191e36e182ea49208459a652fe92a137
-msgid "`control_interval`"
-msgstr ""
-
-#: ../../source/guide/tools.md 2e60d10bda234c718ceea39411fbb577
-msgid "30 天"
-msgstr ""
-
-#: ../../source/guide/tools.md 5550ef36af914585b6dbccae55cc0343
-msgid "控制时间间隔（天）"
-msgstr ""
-
-#: ../../source/guide/tools.md 7e4e21e3d0ec4f86b53d35128adc8b49
-msgid "`feedback_arc`"
-msgstr ""
-
-#: ../../source/guide/tools.md 0e9cbc5f5a514363b4738677a9981213
-msgid "28 天"
-msgstr ""
-
-#: ../../source/guide/tools.md c43cbb2e94e747858efc18014ebe5942
-msgid "目标点模式反馈弧段（天）"
-msgstr ""
-
-#: ../../source/guide/tools.md 7dc5608ded514da7b6489116b7279785
-msgid "`num_controls`"
-msgstr ""
-
-#: ../../source/guide/tools.md 944ac78261fd4a9ab2a5e1dc8da53415
-msgid "120"
-msgstr ""
-
-#: ../../source/guide/tools.md 5bdf536ad9924311a5b4d62ad52bc578
-msgid "控制次数（总时长 = (次数-1) × 间隔）"
-msgstr ""
-
-#: ../../source/guide/tools.md 85806b7597dd41bcb284294ec5e43841
-msgid "`num_monte_carlo`"
-msgstr ""
-
-#: ../../source/guide/tools.md 2676f9b4a8a046b28ac17c05c23d845b
-msgid "5"
-msgstr ""
-
-#: ../../source/guide/tools.md b11742b838e64a0abb014d32458fc981
-msgid "蒙特卡洛样本数"
-msgstr ""
-
-#: ../../source/guide/tools.md b8934e42dc734c00a44b35b095918fc9
-msgid "86400 s"
-msgstr ""
-
-#: ../../source/guide/tools.md 1d113b683d4346f193667883e5a43466
-msgid "受控星历输出间隔"
-msgstr ""
-
-#: ../../source/guide/tools.md b522cbd9e629457ca977d361a78e38ae
-msgid "`engine_layout`"
-msgstr ""
-
-#: ../../source/guide/tools.md e75aa51dfded47b58c78cb51918d65f1
-msgid "发动机布局 JSON（`positions_m` / `directions`），角动量管理（模式 4–6）必填"
-msgstr ""
-
-#: ../../source/guide/tools.md 50045e93cb8d4e76b2362ff465b4a960
-msgid "`momentum_interval`"
-msgstr ""
-
-#: ../../source/guide/tools.md 478355002d25401aaa6ec4a8961b9074
-msgid "5 天"
-msgstr ""
-
-#: ../../source/guide/tools.md c490aeee76904cc3a1ebc6e8dff642a9
-msgid "角动量卸载间隔，0 = 与轨道控制同步"
-msgstr ""
-
-#: ../../source/guide/tools.md ab42d325cb57457fb76cbd74a1882c89
-msgid "`spacecraft_mass`"
-msgstr ""
-
-#: ../../source/guide/tools.md fa6acc8650b74e03b53911688b08f936
-msgid "1000 kg"
-msgstr ""
-
-#: ../../source/guide/tools.md f87c8263cd3b4bb2999e6d4e943c8125
-msgid "航天器质量"
-msgstr ""
-
-#: ../../source/guide/tools.md 71b581989e3044a7b76535b3d5eb0f75
-msgid "`srp_offset_m`"
-msgstr ""
-
-#: ../../source/guide/tools.md dfd4635f806048bbaffcc33c6d96373c
-msgid "SRP 压心相对质心偏移 [x,y,z]（m）"
-msgstr ""
-
-#: ../../source/guide/tools.md 2a6900402154430a948ee6867fe524c8
-msgid "`srp_torque`"
-msgstr ""
-
-#: ../../source/guide/tools.md 749e477cdaeb4899a1d4985920654e03
-msgid "常值 SRP 力矩 [τx,τy,τz]（N·m）"
-msgstr ""
-
-#: ../../source/guide/tools.md:77 06c157040fcf4352afb8b4ed2effdf0b
-msgid ""
-"运行前校验：**仿真总时长（= 控制次数 × 间隔 + 反馈弧）不得超过标称星历 覆盖时长**，超出会拦截并提示调整参数或延长标称轨道。例如 30"
-" 天标称星历， 用 0.25 天/次 × 119 次 + 0.125 天反馈弧可覆盖。"
-msgstr ""
-
-#: ../../source/guide/tools.md:81 fa5d1b350eaa4a499f43dc029d8a4a69
-msgid ""
-"结果写入 `output/ephemeris/`（JSON + NPZ）。全样本失败时只写 JSON 元数据 （`num_failed` "
-"等于样本数），画布无受控星历可显示。"
-msgstr ""
-
-#: ../../source/guide/tools.md:84 1431fbc8f9c943e29ccfeb4f0785e41c
+"v4.0.0 界面接通的计算工具只有**轨道族生成**（orbit_family_generation）。 参数面板由工具的 JSON "
+"Schema 自动生成：字段范围、默认值与说明来自 e2m2e 的 Pydantic 模型；按 `orbit_type` "
+"裁剪，只显示当前族适用的字段；Optional 字段 以勾选控制传不传值（勾选即传、不勾视为未设置）。"
+msgstr "The only computation tool wired into the v4.0.0 UI is **orbit family generation** (orbit_family_generation). The parameter panel is generated from the tool's JSON Schema: field ranges, defaults and descriptions come from e2m2e's Pydantic models; the form is pruned by `orbit_type` so only the fields applicable to the current family are shown; Optional fields are controlled by checkboxes (checked = send the value, unchecked = unset)."
+
+#: ../../source/guide/tools.md:8 e22d481901e1437c8b016adcd482f763
 msgid "轨道族生成（orbit_family_generation）"
-msgstr ""
+msgstr "Orbit Family Generation (orbit_family_generation)"
 
-#: ../../source/guide/tools.md:86 9a4a3d9f1bd04db09a63403232e6b098
+#: ../../source/guide/tools.md:10 b9774303577a41c8835e6a2cd1285663
 msgid ""
-"从 Halo 小振幅种子出发，固定面外振幅逐步延拓，生成一族轨道。第一版仅支持 **Halo 北族**（其余轨道类型在 e2m2e "
-"只有单条设计函数，无族延拓接口）。"
-msgstr ""
+"在 CR3BP 中生成轨道族：周期族（Halo / NRHO / Axial / SPO / LPO / Horseshoe） "
+"为延拓，Lissajous 为拟周期轨迹的参数采样，DRO 为月心族（不绑定平动点）。 范围与默认值由 e2m2e "
+"`FamilyGenerationRequest` 的 `valid_ranges` 决定，GUI 不另维护一份。纯 CR3BP 计算，不需要 "
+"SPICE 内核。"
+msgstr "Generates orbit families in the CR3BP: periodic families (Halo / NRHO / Axial / SPO / LPO / Horseshoe) by continuation, Lissajous by parameter sampling of quasi-periodic bounded trajectories, DRO as a Moon-centred family (not bound to a libration point). Ranges and defaults come from the e2m2e `FamilyGenerationRequest` `valid_ranges`; the GUI keeps no copy of its own. Pure CR3BP computation — no SPICE kernels needed."
 
-#: ../../source/guide/tools.md 3a0ecbde8d314020aa3e89df52bb6dce
+#: ../../source/guide/tools.md 9ecfc15940364d8ba014119cb77b60c6
+msgid "参数"
+msgstr "Parameter"
+
+#: ../../source/guide/tools.md cb88604b646b4c3ba981b8f5ac98df79
+msgid "适用族"
+msgstr "Applicable families"
+
+#: ../../source/guide/tools.md 421369fd246d4ea39b0a8bd704821a6e
+#: dd2338f9bdf24dfa9fb3f64b9b88b783
+msgid "说明"
+msgstr "Description"
+
+#: ../../source/guide/tools.md b9e08e1f9e4349b2a5ae256a400baf9f
+msgid "`orbit_type`"
+msgstr "`orbit_type`"
+
+#: ../../source/guide/tools.md 3cca6ef11d664bce9f8e637726142f43
+#: 708f70f0ebc941bf89dca79c1a6f61d5 a8b679ba19174f4eaadae67f1fd1a533
+msgid "全部"
+msgstr "All"
+
+#: ../../source/guide/tools.md 400e8cc2e45741419dc5b9f9a9ffb9ee
+msgid "族类型：HALO / NRHO / AXIAL / LISSAJOUS / SPO / LPO / HORSESHOE / DRO"
+msgstr "Family type: HALO / NRHO / AXIAL / LISSAJOUS / SPO / LPO / HORSESHOE / DRO"
+
+#: ../../source/guide/tools.md 16834b4087e4498097f3c1a093cd0a1e
 msgid "`libration_point`"
-msgstr ""
+msgstr "`libration_point`"
 
-#: ../../source/guide/tools.md 5506047a4421463ea47c935815710089
-msgid "2"
-msgstr ""
+#: ../../source/guide/tools.md 1bc30912bcbd4ff4addf7386fa58addf
+msgid "除 DRO"
+msgstr "All but DRO"
 
-#: ../../source/guide/tools.md ab0f8f504ebf483da67a0c3cbdf02b46
-msgid "共线平动点（1=L1，2=L2）"
-msgstr ""
+#: ../../source/guide/tools.md 501efcdef22549b4822f614769b4140e
+msgid "平动点（共线族 L1/L2，Lissajous 加 L3，三角族 L4/L5）；缺省按族取默认"
+msgstr "Libration point (L1/L2 for collinear families, plus L3 for Lissajous, L4/L5 for triangular families); defaults per family when omitted"
 
-#: ../../source/guide/tools.md 1f8a940a046646b6acd7ebb96f3d53b4
-msgid "`max_amplitude_km`"
-msgstr ""
-
-#: ../../source/guide/tools.md f4ce024f1ea249d2b8063a12122d5258
-msgid "30000"
-msgstr ""
-
-#: ../../source/guide/tools.md 1d64ef137d9f4f4b8e64ed5dd130a84b
-msgid "最大面外振幅（km，范围 1000–57000）；延拓到该振幅或折叠点自动停止"
-msgstr ""
-
-#: ../../source/guide/tools.md b86f0b1b6daa4d78841b856000d38914
+#: ../../source/guide/tools.md f74802e62e2f465eb72964cfe4499dea
 msgid "`n_orbits`"
-msgstr ""
+msgstr "`n_orbits`"
 
-#: ../../source/guide/tools.md 3c6af17a26714e5eb8b214a1aa29ba63
-msgid "20"
-msgstr ""
+#: ../../source/guide/tools.md c796ee9094c74e5f8b9048a2d1c44e8e
+msgid "族成员数上限（实际以延拓/采样结果为准）"
+msgstr "Upper bound on member count (actual result depends on continuation/sampling)"
 
-#: ../../source/guide/tools.md b137848bb0f948a296a2688038346987
-msgid "族成员数（含种子，实际以延拓结果为准）"
-msgstr ""
+#: ../../source/guide/tools.md de87272107ff4b518849abd9116416c5
+msgid "`max_amplitude_km`"
+msgstr "`max_amplitude_km`"
 
-#: ../../source/guide/tools.md:95 2f736b95d283442c8f4ccff73a223cca
-msgid "纯 CR3BP 计算，不需要 SPICE 内核。结果写入 `output/family/`，画布按成员 逐条叠加渲染。"
-msgstr ""
-
-#: ../../source/guide/tools.md:98 d8daff11474b48799956da4ffdeb164d
-msgid "稳定性分析（orbit_stability）"
-msgstr ""
-
-#: ../../source/guide/tools.md:100 4238ac48461744989fa17a5a095984c4
+#: ../../source/guide/tools.md 9202a901d17045be9a77e94596ad7bb2
 msgid ""
-"对选中轨道的 CR3BP 周期解做 Floquet 稳定性分析。**无参数面板**，右键轨道 工件触发，结果在对话框展示并落盘 "
-"`output/stability/` 独立 JSON（不进项目树、 不上画布）："
-msgstr ""
+"振幅上限（km）：Halo/Axial 带符号区分北/南（上/下）族；SPO/LPO/Horseshoe 为距 L4/L5 径向距离；DRO "
+"为距月心距离"
+msgstr "Amplitude upper bound (km): signed for Halo/Axial to distinguish northern/southern (upper/lower) branches; radial distance from L4/L5 for SPO/LPO/Horseshoe; distance from the Moon for DRO"
 
-#: ../../source/guide/tools.md:104 74c39929a52f46838742eb35eaca49b9
-msgid "单值矩阵与特征值（Floquet 乘子）；"
-msgstr ""
+#: ../../source/guide/tools.md 2afb3fc33d814473bd6eef31ddc1750b
+msgid "`min_amplitude_km`"
+msgstr "`min_amplitude_km`"
 
-#: ../../source/guide/tools.md:105 b2039301a265490a9e445fa76cf5f199
-msgid "稳定性指数 ν₁ / ν₂ / ν₃ / Broucke；"
-msgstr ""
+#: ../../source/guide/tools.md 1a7e740ea6b34d9aadb48f40ee9630be
+msgid "SPO / LPO / Horseshoe / DRO"
+msgstr "SPO / LPO / Horseshoe / DRO"
 
-#: ../../source/guide/tools.md:106 beb7508cb9dd4745b6332ad92757d2c3
-msgid "稳定性分类与分岔检测（含数值误差诊断）。"
-msgstr ""
+#: ../../source/guide/tools.md a189284155de4c4b8044b64f631fc621
+msgid "振幅下限（km）"
+msgstr "Amplitude lower bound (km)"
 
-#: ../../source/guide/tools.md:108 0f53fc74266d47f29528adbf20f64556
-msgid "纯 CR3BP 计算，不需要 SPICE 内核。"
-msgstr ""
+#: ../../source/guide/tools.md 1f5dd8624d0d4dddad8d244dfd6237b8
+msgid "`north_south`"
+msgstr "`north_south`"
+
+#: ../../source/guide/tools.md 55b2cb7fe9cb4146af8ba32dc43b6c9a
+#: 7349a2a05c554244b2be7b92b02e0f06
+msgid "NRHO"
+msgstr "NRHO"
+
+#: ../../source/guide/tools.md ace7d400ef08493288e936f360a834a7
+msgid "北族 / 南族"
+msgstr "Northern / southern branch"
+
+#: ../../source/guide/tools.md f250d1a2994a46689f2064cfb6264517
+msgid "`perilune_height_max_km`"
+msgstr "`perilune_height_max_km`"
+
+#: ../../source/guide/tools.md 0c3e7164b8d8494292d109cba41fd245
+msgid "近月点高度上限（km）"
+msgstr "Perilune height upper bound (km)"
+
+#: ../../source/guide/tools.md 34b8c2081c4849cda58e9ac1574d6dff
+msgid "`amplitude_in_km` / `amplitude_out_km`"
+msgstr "`amplitude_in_km` / `amplitude_out_km`"
+
+#: ../../source/guide/tools.md 0bf33b0f77dc40289b7904182ee110ae
+#: 7f24d9edbcac410b9f17b697a9697233
+msgid "Lissajous"
+msgstr "Lissajous"
+
+#: ../../source/guide/tools.md 6b09d52397f84301911a2dd766754a8d
+msgid "面内 / 面外振幅上限（km）"
+msgstr "In-plane / out-of-plane amplitude upper bound (km)"
+
+#: ../../source/guide/tools.md 267f2928104643ecb6708a0ef0c1e304
+msgid "`phase_in` / `phase_out`"
+msgstr "`phase_in` / `phase_out`"
+
+#: ../../source/guide/tools.md bc960758412d4a11aa4aa8c7dcb1cc0f
+msgid "面内 / 面外初始相位（0~1）"
+msgstr "In-plane / out-of-plane initial phase (0–1)"
+
+#: ../../source/guide/tools.md 9384d4b0dba34e1b9acb1f7524341382
+msgid "`continuation_direction`"
+msgstr "`continuation_direction`"
+
+#: ../../source/guide/tools.md dde9266276b74313a678e1c979d414e8
+msgid "SPO / LPO / Horseshoe / NRHO"
+msgstr "SPO / LPO / Horseshoe / NRHO"
+
+#: ../../source/guide/tools.md 3970c87e77a041479236099366389e52
+msgid "延拓方向（`decrease-x0` / `increase-x0`）"
+msgstr "Continuation direction (`decrease-x0` / `increase-x0`)"
+
+#: ../../source/guide/tools.md 3cf2418c2df24ead88a0fb84254a47f1
+msgid "`match_tolerance_km`"
+msgstr "`match_tolerance_km`"
+
+#: ../../source/guide/tools.md cec2269eed3c497dad5ed84e68ebb088
+msgid "SPO / LPO / Horseshoe"
+msgstr "SPO / LPO / Horseshoe"
+
+#: ../../source/guide/tools.md 768f97937ec54270be563af1b8541cf7
+msgid "振幅匹配容差（km）"
+msgstr "Amplitude matching tolerance (km)"
+
+#: ../../source/guide/tools.md:29 e7da250aa22f40aeb62dc74963aa1469
+msgid "结果入轨道库（record id 显示在面板下方），族成员轨迹逐条渲染到画布。"
+msgstr "The result is stored in the orbit library (record id shown below the panel); member trajectories render on the canvas one by one."
+
+#: ../../source/guide/tools.md:31 b476317e72a347d6b9067a9ce092ba56
+msgid "尚未接线的工具"
+msgstr "Tools Not Yet Wired"
+
+#: ../../source/guide/tools.md:33 bc27dee627ce421a85a07f5643bbfdb3
+msgid ""
+"14 个工具的 schema 已全部导出（`frontend/src/toolSchemas/`），下列工具的 界面接线在 [issue "
+"#398](https://github.com/cislunarspace/transfer-orbit-design/issues/398) "
+"跟踪，按优先级分批回归："
+msgstr "All 14 tool schemas are exported (`frontend/src/toolSchemas/`); wiring the following tools into the UI is tracked in [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398), returning in batches by priority:"
+
+#: ../../source/guide/tools.md 95e56f01c24e4f1bbe6f56d2470577fb
+msgid "批次"
+msgstr "Batch"
+
+#: ../../source/guide/tools.md ce3aabbfb4694d61bdad96765590a998
+msgid "工具"
+msgstr "Tools"
+
+#: ../../source/guide/tools.md 7cacfcdbf49a4947b82aa0c4a5c9de44
+msgid "1"
+msgstr "1"
+
+#: ../../source/guide/tools.md 1365568d34dc4de6bd460fad0e6aeebd
+msgid ""
+"轨道设计 design_orbit、轨道保持 control_orbit、轨道预报 orbit_propagation、转移设计 "
+"transfer_design"
+msgstr "Orbit design design_orbit, station keeping control_orbit, orbit propagation orbit_propagation, transfer design transfer_design"
+
+#: ../../source/guide/tools.md af456c1627644968befb1e1c3ac29ae4
+msgid "v3.2.3 已发布的能力"
+msgstr "Capabilities shipped in v3.2.3"
+
+#: ../../source/guide/tools.md e81a6e85d4ba49378019cd34d5848b12
+msgid "2"
+msgstr "2"
+
+#: ../../source/guide/tools.md 9860a730a17341379746c8248dac86e1
+msgid "稳定性分析 orbit_stability、时空坐标转换 spacetime_transform"
+msgstr "Stability analysis orbit_stability, spacetime transform spacetime_transform"
+
+#: ../../source/guide/tools.md 371bc07e88b949c5aeb94d54f36313e4
+msgid "补齐计算工具面"
+msgstr "Completing the computation tool surface"
+
+#: ../../source/guide/tools.md abfdca4681d44e3c86d649728f268127
+msgid "3"
+msgstr "3"
+
+#: ../../source/guide/tools.md 9ca0fce3a9b04809982f4afaa1ad19fc
+msgid "catalog_delete / export / promote / tag / sweep"
+msgstr "catalog_delete / export / promote / tag / sweep"
+
+#: ../../source/guide/tools.md 1d4659bfbb404b0bb9ca98a88d9dd178
+msgid "库管理操作，随记录详情场景做"
+msgstr "Library management operations, done alongside the record detail scenario"
+
+#: ../../source/guide/tools.md:43 a926e9edbfba4f479be26e4dd849e52f
+msgid "在此之前，这些工具经 [e2m2e CLI](https://cislunarspace.github.io/e2m2e/) 可用。"
+msgstr "Until then, these tools are available via the [e2m2e CLI](https://cislunarspace.github.io/e2m2e/)."
+
+#~ msgid ""
+#~ "GUI 提供四个工具。参数面板由工具绑定的 Pydantic 模型自动生成，字段范围、 "
+#~ "默认值与说明来自模型本身；本节列出各工具的常用参数。单位可切换的字段 "
+#~ "（振幅、近月点高度、时长、输出步长）在面板中有单位下拉框，切换单位只改变 显示数值，不改变物理量。"
+#~ msgstr ""
+
+#~ msgid "轨道设计（design_orbit）"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "在 CR3BP 中生成周期轨道并修正到星历模型。可选轨道类型： **DRO / "
+#~ "Halo / NRHO / Lissajous / L4 "
+#~ "/ L5 / ELFO**。选择类型后面板只显示 该类型相关的形状参数。"
+#~ msgstr ""
+
+#~ msgid "形状参数（按类型）"
+#~ msgstr ""
+
+#~ msgid "轨道类型"
+#~ msgstr ""
+
+#~ msgid "DRO"
+#~ msgstr ""
+
+#~ msgid "`amplitude`"
+#~ msgstr ""
+
+#~ msgid "距月振幅（km，默认 60000；可切 DU）"
+#~ msgstr ""
+
+#~ msgid "`phase`"
+#~ msgstr ""
+
+#~ msgid "相位（默认 0.5001）"
+#~ msgstr ""
+
+#~ msgid "Halo"
+#~ msgstr ""
+
+#~ msgid "`collinear_point`"
+#~ msgstr ""
+
+#~ msgid "共线平动点（1=L1，2=L2，默认 2）"
+#~ msgstr ""
+
+#~ msgid "面外振幅（km，默认 30000）"
+#~ msgstr ""
+
+#~ msgid "相位（默认 0）"
+#~ msgstr ""
+
+#~ msgid "共线平动点（默认 2）"
+#~ msgstr ""
+
+#~ msgid "北族（1）/ 南族（2），默认 2"
+#~ msgstr ""
+
+#~ msgid "`perilune_height`"
+#~ msgstr ""
+
+#~ msgid "近月点高度（km，默认 5000）"
+#~ msgstr ""
+
+#~ msgid "相位（默认 0.5）"
+#~ msgstr ""
+
+#~ msgid "`amplitude_in` / `amplitude_out`"
+#~ msgstr ""
+
+#~ msgid "面内 / 面外振幅（km，默认 2500 / 7500）"
+#~ msgstr ""
+
+#~ msgid "两个相位（默认 0.01 / 0.55）"
+#~ msgstr ""
+
+#~ msgid "L4 / L5"
+#~ msgstr ""
+
+#~ msgid "振幅（默认 8000 / 6000）"
+#~ msgstr ""
+
+#~ msgid "ELFO"
+#~ msgstr ""
+
+#~ msgid "`semi_major_axis`"
+#~ msgstr ""
+
+#~ msgid "月心半长轴（km，必填，默认 6500）"
+#~ msgstr ""
+
+#~ msgid "`inclination` / `arg_of_pericenter`"
+#~ msgstr ""
+
+#~ msgid "倾角 / 近月点幅角（度，默认 75 / 270）"
+#~ msgstr ""
+
+#~ msgid "近月点高度（km，默认 200）"
+#~ msgstr ""
+
+#~ msgid "通用参数"
+#~ msgstr ""
+
+#~ msgid "默认值"
+#~ msgstr ""
+
+#~ msgid "`epoch`"
+#~ msgstr ""
+
+#~ msgid "2024-01-01"
+#~ msgstr ""
+
+#~ msgid "起始历元：6 个输入框（年/月/日/时/分/秒）或 ISO 字符串"
+#~ msgstr ""
+
+#~ msgid "`duration`"
+#~ msgstr ""
+
+#~ msgid "1 个月"
+#~ msgstr ""
+
+#~ msgid "传播时长（默认 1 月；可切 年/月/日/TU。轨道保持以它为输入，建议 ≥ 保持总时长）"
+#~ msgstr ""
+
+#~ msgid "`output_step`"
+#~ msgstr ""
+
+#~ msgid "3600 s"
+#~ msgstr ""
+
+#~ msgid "星历输出步长（可切 秒/TU）"
+#~ msgstr ""
+
+#~ msgid "`correction_method`"
+#~ msgstr ""
+
+#~ msgid "two_level"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "星历修正方法：`standard` / `two_level` / "
+#~ "`homotopy`。Halo/NRHO 由算法自动改走 `segmented`（见 "
+#~ "{doc}`../concepts/ephemeris`），无需手选"
+#~ msgstr ""
+
+#~ msgid "`correction_revolutions`"
+#~ msgstr ""
+
+#~ msgid "修正圈数"
+#~ msgstr ""
+
+#~ msgid "`correction_velocity_tolerance`"
+#~ msgstr ""
+
+#~ msgid "0.1"
+#~ msgstr ""
+
+#~ msgid "速度连续性容差"
+#~ msgstr ""
+
+#~ msgid "`earth_degree` / `moon_degree`"
+#~ msgstr ""
+
+#~ msgid "10"
+#~ msgstr ""
+
+#~ msgid "地球 / 月球引力位阶数"
+#~ msgstr ""
+
+#~ msgid "`perturbation` / `dyb`"
+#~ msgstr ""
+
+#~ msgid "空"
+#~ msgstr ""
+
+#~ msgid "可选摄动项（太阳引力等）/ DYB 摄动开关"
+#~ msgstr ""
+
+#~ msgid "结果"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "输出 JSON + NPZ 双文件到 `output/<type>/`（见"
+#~ " {doc}`output`），画布叠加显示 CR3BP 初猜（实线）与标称星历（虚线）。参数校验失败（如"
+#~ " ELFO 缺半长轴）会 阻止运行并给出明确原因。"
+#~ msgstr ""
+
+#~ msgid "轨道保持（control_orbit）"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "以选中轨道工件的星历为输入，做带导航误差、机动执行误差与光压不确定度的 蒙特卡洛仿真，输出受控星历与机动 Δv"
+#~ " 统计。**必须从项目树右键轨道发起** （选中工件作为标称星历输入）。"
+#~ msgstr ""
+
+#~ msgid "`control_mode`"
+#~ msgstr ""
+
+#~ msgid "控制模式：1=目标点宽松、2=目标点严格、3=特征点；4/5/6 为对应模式 + 角动量管理"
+#~ msgstr ""
+
+#~ msgid "`is_nrho`"
+#~ msgstr ""
+
+#~ msgid "0"
+#~ msgstr ""
+
+#~ msgid "目标轨道是否 NRHO"
+#~ msgstr ""
+
+#~ msgid "`special_mode`"
+#~ msgstr ""
+
+#~ msgid "特征点模式：1=Lissajous（ẋ=0）、2=Halo/NRHO（ẋ=0 且 ż=0）"
+#~ msgstr ""
+
+#~ msgid "`control_interval`"
+#~ msgstr ""
+
+#~ msgid "30 天"
+#~ msgstr ""
+
+#~ msgid "控制时间间隔（天）"
+#~ msgstr ""
+
+#~ msgid "`feedback_arc`"
+#~ msgstr ""
+
+#~ msgid "28 天"
+#~ msgstr ""
+
+#~ msgid "目标点模式反馈弧段（天）"
+#~ msgstr ""
+
+#~ msgid "`num_controls`"
+#~ msgstr ""
+
+#~ msgid "120"
+#~ msgstr ""
+
+#~ msgid "控制次数（总时长 = (次数-1) × 间隔）"
+#~ msgstr ""
+
+#~ msgid "`num_monte_carlo`"
+#~ msgstr ""
+
+#~ msgid "5"
+#~ msgstr ""
+
+#~ msgid "蒙特卡洛样本数"
+#~ msgstr ""
+
+#~ msgid "86400 s"
+#~ msgstr ""
+
+#~ msgid "受控星历输出间隔"
+#~ msgstr ""
+
+#~ msgid "`engine_layout`"
+#~ msgstr ""
+
+#~ msgid "发动机布局 JSON（`positions_m` / `directions`），角动量管理（模式 4–6）必填"
+#~ msgstr ""
+
+#~ msgid "`momentum_interval`"
+#~ msgstr ""
+
+#~ msgid "5 天"
+#~ msgstr ""
+
+#~ msgid "角动量卸载间隔，0 = 与轨道控制同步"
+#~ msgstr ""
+
+#~ msgid "`spacecraft_mass`"
+#~ msgstr ""
+
+#~ msgid "1000 kg"
+#~ msgstr ""
+
+#~ msgid "航天器质量"
+#~ msgstr ""
+
+#~ msgid "`srp_offset_m`"
+#~ msgstr ""
+
+#~ msgid "SRP 压心相对质心偏移 [x,y,z]（m）"
+#~ msgstr ""
+
+#~ msgid "`srp_torque`"
+#~ msgstr ""
+
+#~ msgid "常值 SRP 力矩 [τx,τy,τz]（N·m）"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "运行前校验：**仿真总时长（= 控制次数 × 间隔 + 反馈弧）不得超过标称星历"
+#~ " 覆盖时长**，超出会拦截并提示调整参数或延长标称轨道。例如 30 天标称星历， 用 "
+#~ "0.25 天/次 × 119 次 + 0.125 "
+#~ "天反馈弧可覆盖。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "结果写入 `output/ephemeris/`（JSON + NPZ）。全样本失败时只写 "
+#~ "JSON 元数据 （`num_failed` 等于样本数），画布无受控星历可显示。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "从 Halo 小振幅种子出发，固定面外振幅逐步延拓，生成一族轨道。第一版仅支持 **Halo "
+#~ "北族**（其余轨道类型在 e2m2e 只有单条设计函数，无族延拓接口）。"
+#~ msgstr ""
+
+#~ msgid "共线平动点（1=L1，2=L2）"
+#~ msgstr ""
+
+#~ msgid "30000"
+#~ msgstr ""
+
+#~ msgid "最大面外振幅（km，范围 1000–57000）；延拓到该振幅或折叠点自动停止"
+#~ msgstr ""
+
+#~ msgid "20"
+#~ msgstr ""
+
+#~ msgid "族成员数（含种子，实际以延拓结果为准）"
+#~ msgstr ""
+
+#~ msgid "纯 CR3BP 计算，不需要 SPICE 内核。结果写入 `output/family/`，画布按成员 逐条叠加渲染。"
+#~ msgstr ""
+
+#~ msgid "稳定性分析（orbit_stability）"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "对选中轨道的 CR3BP 周期解做 Floquet 稳定性分析。**无参数面板**，右键轨道"
+#~ " 工件触发，结果在对话框展示并落盘 `output/stability/` 独立 "
+#~ "JSON（不进项目树、 不上画布）："
+#~ msgstr ""
+
+#~ msgid "单值矩阵与特征值（Floquet 乘子）；"
+#~ msgstr ""
+
+#~ msgid "稳定性指数 ν₁ / ν₂ / ν₃ / Broucke；"
+#~ msgstr ""
+
+#~ msgid "稳定性分类与分岔检测（含数值误差诊断）。"
+#~ msgstr ""
+
+#~ msgid "纯 CR3BP 计算，不需要 SPICE 内核。"
+#~ msgstr ""
 
