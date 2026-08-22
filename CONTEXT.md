@@ -88,6 +88,10 @@ _Avoid_: 单条轨道设计（那是 `design_orbit`）、批量并发跑多条�
 右键 orbit Artifact 触发的分析动作（无参数面板，不进工具下拉），对选中的 CR3BP 周期轨道调 e2m2e `algorithm/stability.StabilityAnalysis`，输出 Floquet 乘子、稳定性指数（ν₁/ν₂/ν₃/Broucke）、稳定性分类与分岔检测；结果在对话框展示并落盘 `output/stability/` 独立 JSON（不建 Artifact、不进画布）。
 _Avoid_: 轨道设计、轨道族生成
 
+**转移设计** (`transfer_design`):
+新 GUI 的转移轨道设计工具，经 `TOOL_REGISTRY` 注册并绑定 `TransferDesignRequest` 模型。从地球停泊轨道出发：HMN 直接霍曼转移（目标为环月轨道半径），LGA 月球引力辅助（目标取选中轨道工件末态，换算到会合系物理单位后透传，坐标系契约见 e2m2e#516）；LGA 默认注入加密相位网格（360 点）。结果落盘 `output/transfer/`（遗留分区扫描进项目树），轨迹暂不上画布。WSB/low_thrust 分别受 e2m2e#513/#516 阻塞，待上游修复后逆补。
+_Avoid_: 转移搜索（尚未接入）、小推力设计（facade 不可达）
+
 **生成单条轨道**:
 用户通过手动输入、参考初值或其它起点条件，生成一条 CR3BP 周期轨道。输出是一个 **单条轨道**，可作为绘图、检查、星历转换或转移设计的输入。
 _Avoid_: 生成轨道（未说明输出对象类型）、生成种子、生成一个 JSON

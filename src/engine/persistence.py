@@ -6,6 +6,8 @@ e2m2e 5.8.0 起 design_orbit / orbit_family_generation / control_orbit 的
 
 - 稳定性分析（``save_stability_result``）：只落 JSON 到 output/stability/，
   不进项目树（结果经对话框展示）。
+- 转移轨道设计（``save_transfer_result``）：落 JSON 到 output/transfer/，
+  经遗留分区扫描进项目树（e2m2e 对 transfer 产物入库另行立项）。
 
 画布与动画导出的临时文件（GIF 等）不在此列。
 """
@@ -21,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 if TYPE_CHECKING:
-    from src.engine.facade_bridge import StabilityResultData
+    from src.engine.facade_bridge import StabilityResultData, TransferDesignResultData
 
 
 def _timestamp() -> str:
@@ -76,4 +78,46 @@ def save_stability_result(
         "numerical_errors": result_data.numerical_errors,
     }
     json_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    return json_path
+
+
+def save_transfer_result(
+    result_data: TransferDesignResultData,
+    output_dir: Path,
+) -> Path:
+    """将转移轨道设计结果写入 output/transfer/，返回 json_path。
+
+    文件名 ``transfer_design_<ts>.json``（遗留分区扫描正则匹配）；轨迹以
+    ``states`` 键写入（同目录扫描的既有约定），地心惯性系 km / km/s。
+    """
+    output_dir = Path(output_dir)
+    transfer_dir = output_dir / "transfer"
+    transfer_dir.mkdir(parents=True, exist_ok=True)
+    json_path = transfer_dir / f"transfer_design_{_timestamp()}.json"
+
+    def _ser(v: Any) -> Any:
+        from enum import Enum
+
+        if isinstance(v, Enum):
+            return v.value
+        if isinstance(v, np.ndarray):
+            return _ser(v.tolist())
+        if isinstance(v, complex):
+            return [v.real, v.imag]
+        if isinstance(v, dict):
+            return {k: _ser(x) for k, x in v.items()}
+        if isinstance(v, (list, tuple)):
+            return [_ser(x) for x in v]
+        return v
+
+    data = {
+        "source_tool": "transfer_design",
+        "transfer_type": result_data.transfer_type,
+        "delta_v_km_s": result_data.delta_v,
+        "converged": result_data.converged,
+        "message": result_data.message,
+        "states": _ser(result_data.trajectory),
+        "details": _ser(result_data.details or {}),
+    }
+    json_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     return json_path

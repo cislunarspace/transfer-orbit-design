@@ -22,6 +22,7 @@ from src.model.artifact import Artifact
 
 _TRANSFER_CORRECTED_RE = re.compile(r"^corrected_transfer_.*\.json$")
 _TRANSFER_OPTIMIZATION_RE = re.compile(r"^optimization_.*\.json$")
+_TRANSFER_DESIGN_RE = re.compile(r"^transfer_design_.*\.json$")
 
 
 def _classify_file(path: Path) -> dict | None:
@@ -31,9 +32,11 @@ def _classify_file(path: Path) -> dict | None:
 
     if parent == "transfer":
         if _TRANSFER_CORRECTED_RE.match(name):
-            return {"artifact_type": "transfer"}
+            return {"artifact_type": "transfer", "source_tool": ""}
         if _TRANSFER_OPTIMIZATION_RE.match(name):
-            return {"artifact_type": "transfer"}
+            return {"artifact_type": "transfer", "source_tool": ""}
+        if _TRANSFER_DESIGN_RE.match(name):
+            return {"artifact_type": "transfer", "source_tool": "transfer_design"}
 
     return None
 
@@ -88,7 +91,7 @@ def discover_artifacts(output_dir: Path) -> list[Artifact]:
                 artifact_type=meta["artifact_type"],
                 label=json_file.stem,
                 orbit_type="",
-                source_tool="",  # 转移产物来源工具未接入 GUI，不臆测
+                source_tool=meta.get("source_tool", ""),  # 遗留 CLI 产物无来源工具
                 output_path=json_file,
                 state_data=state_data,
                 times=times,
