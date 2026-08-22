@@ -2,42 +2,24 @@
 
 ## 未发布
 
-### 轨道保持交互重构
+## 4.0.0 (2026-08-22)
 
-- **选中后弹窗独立执行**：轨道保持（control_orbit）从右侧工具选择器移除，改为「选中轨道 → 详情面板“轨道保持…”按钮 / 项目树右键」弹模态对话框（`ControlOrbitDialog`），对话框内调参、运行/停止、看日志与结果摘要。参数构建仍复用 `build_params_from_model` / `collect_params`（ADR 0009 范式不变），运行逻辑（参数注入、时长校验、Worker 生命周期）自主窗口迁入，算法层与产物入库不变。
-- **入口可用性**：按钮仅对可作输入的产物（orbit/ephemeris 且有星历段）可用，提升的族成员（仅 CR3BP 段）置灰并 tooltip 说明；星历产物可链式站保。运行中关闭弹窗视为取消（等同停止，结果不落库）；弹窗仿真与主窗口任务互斥。
+### GUI 架构切换：PyQt → Tauri（ADR-0014，#397）
 
-### 轨道预报接入（issue #389）
+- **不可逆切换**：v4.0.0 起唯一 GUI 是 Tauri 2 桌面应用——Rust 壳承担进程编排与落盘，React/TypeScript 前端承担全部控件，e2m2e 以 sidecar 子进程运行（stdin/stdout JSON 行 + 二进制帧协议，e2m2e ADR 0035）。旧 PyQt UI（src/view、src/app，约 1.2 万行）整体删除；Python 侧保留纯领域资产（src/engine、src/commons、src/model）。
+- **本版界面能力范围**：轨道族生成（Halo/NRHO/Axial/Lissajous/SPO/LPO/Horseshoe/DRO，JSON Schema 自动表单 + 进度条）、轨道库浏览（多维过滤、选中联动画布）、Three.js 画布（视图适配与保持、地月与平动点标注）、i18n 中英切换、图表设置持久化、webm 动画导出。v3.2.3 已发布的其余工具界面（轨道设计、轨道保持、轨道预报、转移设计、时间轴等）尚未在新 UI 接线，14 个工具 schema 已全部导出待逐工具回归——需要这些工具的用户请继续使用 v3.2.3。
+- **打包分发**：Windows 产物改为 NSIS 安装器（currentUser 模式免管理员）；e2m2e 运行时经 PyInstaller 打包为 tod-sidecar 单文件随安装器分发；SPICE 小内核（.bpc/.tls/.tpc/.tf）随包，星历 .bsp 内核沿用下载脚本按需获取（同 v3.2.3 口径）。旧 pyinstaller GUI 打包链（TransferOrbitDesign.spec）随 PyQt UI 退役。
+- **sidecar 崩溃自愈**：坏帧不再 panic，请求中崩溃、空闲期崩溃两种时序均自动重拉 sidecar 并重试一次，连续失败才上抛（评审阻塞项修复，附集成测试）。
+- **依赖**：e2m2e ≥5.8.5 必需（#522 serve-stdio 修复、#525/#526 族成员 period/mu 与 catalog_get 帧映射）；主版本号因 GUI 框架不可逆切换与界面能力范围变化而升。
 
-- **工具启用**：「轨道预报」（e2m2e 5.8.2 `orbit_propagation`）进入工具下拉，经 Facade 调用（Config 注入 kernel_dir，同 design_orbit 范式）；duration 沿用 GUI 标准单位年，桥接层换算为秒。
-- **初值预填**：选中含 GCRS 星历的工件（design_orbit / control_orbit / 预报产物自身）时，`initial_state` 预填为其末端 [位置; 速度]（km, km/s），历元预填为末端时刻；纯手填也可用。
-- **力模型配置**：`force_config` 不做结构化表单——留空走默认三体，可填 JSON，非法 JSON 运行前拦截不发起任务。
-- **画布渲染**：输出 GCRS km 惯性星历走既有 `ephemeris_position_km` 槽位；会合系位置由 GCRS km 经 e2m2e `SynodicJ2000System`（Rust 批量转换）转质心归一脉动会合系（有测试锚定月球 → 1−μ），两视图与 GIF 导出照常可用，不引入 spacetime_transform 依赖。`times_et` 按 ADR 0013 决策 5 的"后续"路径从 `times_jd_tdb` 直读换算（SPICE ET ≡ J2000 JD TDB 秒，与 str2et 等价且免去闰秒换算）。
-- **产物持久化**：e2m2e 未提供该工具的 catalog 入库，星历落 JSON 到 `output/propagation/`，重启经 discovery 扫描恢复进项目树（文件名茎作 artifact_id）。
+### 3.2.3 之后的引擎层增强（随本版发布）
 
-### 库浏览器改造（issue #375）
-
-- **升级依赖**：最低版本升为 `e2m2e>=5.8.0`，`uv.lock` 同步。获得轨道库 catalog（上游 #475 / ADR 0031）：多维分类、谱系指针、教学标注、子集导出与产物自动入库。
-- **项目树接 catalog**：产物清单与多维过滤（族 / 平动点 / Jacobi 区间 / 振幅区间 / 段存在性组合）来自 Facade `catalog_query`；单条产物经 `catalog_get` 懒加载（CR3BP 段 + 星历段双段，四槽位可视化契约不变）。过滤栏取值域经 e2m2e Pydantic 模型公开接口生成（ADR 0009 范式）。discovery.py 的轨道 / 族 / 星历文件名分类正则删除；transfer 分区过渡期沿用目录扫描。
-- **谱系持久化**：轨道保持以库中记录直连输入（`input_record_id`），站保产物自动记录 `source_record_id`，重启后因果链不断；上游被删显示 ⚠ 断链降级标记，产物仍可用。
-- **切回 Facade**：`design_orbit` / `control_orbit` 从算法层直调切回 Facade 门面（完成 ADR 0011 缓解措施 3 的既定清理），产物随计算自动入库；persistence.py 的手写落盘（save_artifact / save_control_result / save_family_result）退役，仅保留稳定性分析落盘。
-- **教学视图**：记录详情面板显示分类与谱系，tags / note 可查看编辑（`catalog_tag` 落库）；族成员可提升为独立记录（`catalog_promote`）进入下游；过滤子集可打包导出案例包（`catalog_export`，zip 或目录，包可直接作为库打开）。
-- **库目录设置**：默认仓库根 `catalog/`（与 output/ 平级），菜单「设置 → 轨道库目录…」可改（QSettings 持久化）。
-- **旧产物**：output/ 旧格式不迁移（ADR 0008 修订 2026-08-19），需要时重算。
-
-### e2m2e 5.7.3 适配
-
-- **升级依赖**：最低版本升为 `e2m2e>=5.7.3`，`uv.lock` 同步。获得 NRHO 星历修正默认路径在 GUI 默认量级收敛（上游 #473：NRHO 等时间采样 + `revs_per_group=1` + 删近月点采样钉历元 `t=0`；另放宽 NRHO 相位到 0~1）。
-- **恢复 NRHO 完整设计路径**：撤掉桥接层「仅 CR3BP 初猜」止血；NRHO 与 Halo 一样走 `design_orbit`，产物含标称星历，可作轨道保持输入。日志/状态栏/文档与 smoke（默认量级 NRHO）同步。
-- **真实路径回归**：`tests/engine/test_facade_bridge_e2m2e_smoke.py` 新增默认量级 NRHO（L2 南、5000 km、约 1 个月）端到端收敛 + 星历对齐断言，纯 5.7.3 wheel 上约 30 s 内通过。
-
-### e2m2e 5.7.1 适配
-
-- **升级依赖**：最低版本升为 `e2m2e>=5.7.1`，`uv.lock` 同步。获得七族统一轨道族生成（#428）与多项数值内核下沉 Rust。
-- **轨道族生成接入七族**：GUI 暴露 Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe 下拉，按族显示对应参数（振幅、近月点、相位、延拓方向等）；`sampling_mode` 各族首版只有唯一规则，不进面板。桥接层改走 `Facade.orbit_family_generation`（响应 `FamilyGenerationResponse` 携带完整轨道成员与状态三元组，软失败保留部分族）；5.7.1 起请求按 `model_fields_set` 拒绝跨族字段，面板收集后只传当前族适用字段，None 一并剔除。周期族成员只携带初态与周期，桥接层按周期重采样到固定点数供画布渲染；Lissajous 拟周期成员自带等长完整轨迹。
-- **结果契约泛化**：`FamilyResultData` 增加 `family_type` / `periodicity` / `member_parameters` / `status_message`；`z0s` 仅 Halo 保留。落盘 JSON 同步写入成员参数；完成日志按族报告标志性几何量（z 振幅 / 近月点高度 / 径向振幅等）。
-- **轨道设计默认对齐**：Horseshoe 振幅默认 150000 → 100000 km（上游默认与可达包络收口至 110000 km）；范围以 `DesignOrbitRequest.valid_ranges()` 为准，GUI 不另维护一份。
-- **异常翻译**：`e2m2e.api.OrbitError`（Facade 接缝）透传错误码与消息。
+- **转移轨道设计（#394）**：FacadeBridge 接入 HMN/LGA 两类转移；目标态会合系物理单位换算、TLI 历元转 ISO、LGA 注入 360 点加密相位网格（默认 50 点漏可行窗口）；结果落 output/transfer/ 并入项目分区。
+- **轨道预报桥接（#389/#392）**：orbit_propagation 经 Facade 调用；GCRS 星历走四槽位画布契约，会合系位置经 SynodicJ2000System 批量转换；星历落 JSON 到 output/propagation/ 经 discovery 恢复。
+- **轨道库 catalog（#375/#376）**：产物自动入库与多维过滤、谱系指针（input_record_id / source_record_id）持久化；design_orbit / control_orbit 切回 Facade 门面，persistence.py 手写落盘退役。
+- **DRO 轨道族（#383/#384/#385）**：月心族不绑平动点，FamilyResultData.liberation_point 改可空，成员参数无平动点时不再 KeyError。
+- **族生成契约泛化（e2m2e 5.7.1 适配）**：FamilyResultData 增加 family_type / periodicity / member_parameters / status_message；周期族成员按周期重采样供画布渲染；e2m2e.api.OrbitError 在 Facade 接缝透传错误码与消息。
+- **e2m2e 升级链**：5.7.1 七族统一族生成 → 5.7.3 NRHO 默认路径收敛（恢复完整设计路径）→ 5.8.0 轨道库 catalog → 5.8.1 DPO 自动重定向 segmented（默认场景收敛）→ 5.8.2 DRO 与 Axial 默认收敛恢复 → 5.8.5 sidecar 契约。
 
 ## 3.2.3 (2026-08-14)
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "transfer-orbit-design"
-version = "3.2.3"
+version = "4.0.0"
 description = "地月空间转移轨道设计与分析脚本工具集，提供 CR3BP 轨道生成、转移设计、绘图和星历转换能力"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -23,7 +23,7 @@ dependencies = [
     "scipy>=1.17.0",
     "matplotlib>=3.10.0",
     "tqdm>=4.66",
-    "e2m2e>=5.8.2",  # 5.8.2 轨道族生成支持 DRO（#502）；5.8.1 DPO 列入不稳定轨道族、星历修正自动重定向 segmented（#484），GUI 默认 DPO 可收敛；5.8.0 轨道库 catalog（#475，ADR 0031）；5.7.3 NRHO 星历修正默认路径收敛（#473）
+    "e2m2e>=5.8.5",  # 5.8.5 族成员响应下发 period/mu、catalog_get 帧映射（#525/#526）；5.8.4 serve-stdio 修复（#522）——两者为 Tauri sidecar 链路必需；5.8.2 轨道族生成支持 DRO（#502）；5.8.1 DPO 星历修正自动重定向 segmented（#484）；5.8.0 轨道库 catalog（#475，ADR 0031）；5.7.3 NRHO 星历修正默认路径收敛（#473）
     "pillow>=10.0.0",  # GIF 合成；matplotlib 的既有传递依赖，显式声明本仓库使用
     "calcephpy==5.0.0",  # 经 e2m2e→r2s2 传递依赖；显式声明以使 [tool.uv.sources] 生效（uv sources 仅覆盖直接依赖）
 ]
@@ -62,9 +62,6 @@ markers = [
 where = ["."]
 include = ["src*"]
 exclude = ["tests*", "scripts*"]
-
-[tool.setuptools.package-data]
-"src.app.i18n" = ["*.qm", "*.json"]
 
 [dependency-groups]
 dev = ["ruff>=0.1", "pyright>=1.1"]

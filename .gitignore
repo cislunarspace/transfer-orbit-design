@@ -120,5 +120,12 @@ node_modules/
 src-tauri/target/
 src-tauri/gen/schemas/
 src-tauri/catalog/
+# Tauri 打包暂存的 sidecar 二进制（CI/本地构建时复制进此目录）
+src-tauri/binaries/
 frontend/tsconfig.tsbuildinfo
 *.tsbuildinfo
+
+# Tauri 应用图标：构建 NSIS/deb 资源必需，豁免上方 *.png 全局忽略
+!src-tauri/icons/*.png
+!src-tauri/icons/*.ico
+!src-tauri/icons/*.icns
