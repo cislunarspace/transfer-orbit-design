@@ -116,3 +116,9 @@ test_results/
 
 # pi harness 项目级 agent
 .pi/
+node_modules/
+src-tauri/target/
+src-tauri/gen/schemas/
+src-tauri/catalog/
+frontend/tsconfig.tsbuildinfo
+*.tsbuildinfo

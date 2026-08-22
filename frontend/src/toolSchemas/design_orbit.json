@@ -1,0 +1,274 @@
+{
+  "additionalProperties": false,
+  "description": "任务轨道设计输入。\n\n统一覆盖 CR3BP 周期轨道（DRO/NRHO/Halo/Lissajous/…）和 ELFO 冻结轨道。\n按 orbit_type 分派校验与默认值填充（``model_validator``）。\nduration 统一用秒。",
+  "properties": {
+    "orbit_type": {
+      "description": "DRO/DPO/NRHO/HALO/LISSAJOUS/L4/L5/AXIAL/.../ELFO",
+      "title": "Orbit Type",
+      "type": "string"
+    },
+    "amplitude": {
+      "anyOf": [
+        {
+          "maximum": 200000.0,
+          "minimum": -110000.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Amplitude"
+    },
+    "phase": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Phase"
+    },
+    "collinear_point": {
+      "anyOf": [
+        {
+          "maximum": 3,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Collinear Point"
+    },
+    "north_south": {
+      "anyOf": [
+        {
+          "maximum": 2,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "North South"
+    },
+    "amplitude_in": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "maximum": 100000.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Amplitude In"
+    },
+    "amplitude_out": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "maximum": 100000.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Amplitude Out"
+    },
+    "phase_in": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Phase In"
+    },
+    "phase_out": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Phase Out"
+    },
+    "perilune_height": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "maximum": 10000.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Perilune Height"
+    },
+    "inclination": {
+      "anyOf": [
+        {
+          "maximum": 180.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "倾角（度），ELFO 用",
+      "title": "Inclination"
+    },
+    "arg_of_pericenter": {
+      "anyOf": [
+        {
+          "exclusiveMaximum": 360.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "近月点幅角（度），ELFO 用，默认 270",
+      "title": "Arg Of Pericenter"
+    },
+    "semi_major_axis": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "半长轴（km），ELFO 必填",
+      "title": "Semi Major Axis"
+    },
+    "epoch": {
+      "default": [
+        2024,
+        1,
+        1,
+        0,
+        0,
+        0.0
+      ],
+      "description": "[年,月,日,时,分,秒] 或 ISO",
+      "title": "Epoch"
+    },
+    "duration": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "传播时长（秒）；None 时按 orbit_type 填默认",
+      "title": "Duration"
+    },
+    "output_step": {
+      "default": 3600.0,
+      "exclusiveMinimum": 0.0,
+      "title": "Output Step",
+      "type": "number"
+    },
+    "perturbation": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Perturbation"
+    },
+    "dyb": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Dyb"
+    },
+    "earth_degree": {
+      "default": 10,
+      "maximum": 120,
+      "minimum": 2,
+      "title": "Earth Degree",
+      "type": "integer"
+    },
+    "moon_degree": {
+      "default": 10,
+      "maximum": 120,
+      "minimum": 2,
+      "title": "Moon Degree",
+      "type": "integer"
+    },
+    "correction_method": {
+      "default": "two_level",
+      "description": "星历修正方法：standard/two_level（稳定轨道，如 DRO）/segmented（不稳定轨道，全程分段打靶）。未显式指定时按族分派默认（HALO/NRHO/DPO → segmented，其余 CR3BP 族 → two_level）；显式传入与族冲突的值时告警并改写为 segmented",
+      "title": "Correction Method",
+      "type": "string"
+    },
+    "correction_revolutions": {
+      "default": 1,
+      "minimum": 1,
+      "title": "Correction Revolutions",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "orbit_type"
+  ],
+  "title": "DesignOrbitRequest",
+  "type": "object"
+}

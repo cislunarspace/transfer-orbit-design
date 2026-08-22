@@ -1,0 +1,37 @@
+{
+  "additionalProperties": false,
+  "description": "写教学标注（随 JSON 记录走）；``tags`` 整体替换，``note=None`` 保留原注释。",
+  "properties": {
+    "record_id": {
+      "minLength": 1,
+      "title": "Record Id",
+      "type": "string"
+    },
+    "tags": {
+      "description": "标签列表（整体替换）",
+      "items": {
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "array"
+    },
+    "note": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "自由文本注释；None 保留原注释",
+      "title": "Note"
+    }
+  },
+  "required": [
+    "record_id"
+  ],
+  "title": "CatalogTagRequest",
+  "type": "object"
+}

@@ -1,0 +1,355 @@
+{
+  "additionalProperties": false,
+  "description": "轨道保持输入（对齐 algorithm/station_keeping 的 control_orbit 参数）。\n\n字段与算法层业务参数一一对应；运行时参数（spice/kernel_dir/n_workers/\nseed）由 Facade 注入，不进模型。默认值、单位与算法层签名一致。\n\n输入源二选一（ADR 0031）：``input_ephemeris`` 直接给星历，或\n``input_record_id`` 引用库中记录（取其星历段，站保产物记录自动以\n``source_record_id`` 指向该记录，谱系跨进程不断）。",
+  "properties": {
+    "input_ephemeris": {
+      "default": null,
+      "description": "标称轨道星历路径或 EphemerisTable；与 input_record_id 二选一",
+      "title": "Input Ephemeris"
+    },
+    "input_record_id": {
+      "anyOf": [
+        {
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "库中记录 id：取其星历段作为标称轨道；站保产物自动指向该记录",
+      "title": "Input Record Id"
+    },
+    "control_mode": {
+      "default": 1,
+      "description": "控制模式：1=目标点宽松、2=目标点严格、3=特征点、4=目标点宽松+角动量管理、5=目标点严格+角动量管理、6=特征点+角动量管理",
+      "maximum": 6,
+      "minimum": 1,
+      "title": "Control Mode",
+      "type": "integer"
+    },
+    "is_nrho": {
+      "default": 0,
+      "description": "目标轨道是否 NRHO（1=是）",
+      "maximum": 1,
+      "minimum": 0,
+      "title": "Is Nrho",
+      "type": "integer"
+    },
+    "special_mode": {
+      "default": 1,
+      "description": "特征点模式：1=Lissajous（ẋ=0）、2=Halo/NRHO（ẋ=0 且 ż=0）",
+      "maximum": 2,
+      "minimum": 1,
+      "title": "Special Mode",
+      "type": "integer"
+    },
+    "control_interval": {
+      "default": 30.0,
+      "description": "控制时间间隔（天）",
+      "exclusiveMinimum": 0.0,
+      "title": "Control Interval",
+      "type": "number"
+    },
+    "feedback_arc": {
+      "default": 28.0,
+      "description": "目标点模式反馈弧段（天）",
+      "exclusiveMinimum": 0.0,
+      "title": "Feedback Arc",
+      "type": "number"
+    },
+    "special_crossings": {
+      "default": 3,
+      "description": "特征点目标穿越 x-z 平面次数",
+      "minimum": 1,
+      "title": "Special Crossings",
+      "type": "integer"
+    },
+    "num_controls": {
+      "default": 120,
+      "description": "控制次数（总时间 = (N-1)·间隔）",
+      "maximum": 10000,
+      "minimum": 1,
+      "title": "Num Controls",
+      "type": "integer"
+    },
+    "num_monte_carlo": {
+      "default": 5,
+      "description": "蒙特卡洛样本数（惯例 100）",
+      "maximum": 1000,
+      "minimum": 1,
+      "title": "Num Monte Carlo",
+      "type": "integer"
+    },
+    "output_step": {
+      "default": 86400.0,
+      "description": "受控星历输出间隔（秒）",
+      "exclusiveMinimum": 0.0,
+      "title": "Output Step",
+      "type": "number"
+    },
+    "position_accuracy": {
+      "default": 1500.0,
+      "description": "测定轨位置 1-sigma（m）",
+      "exclusiveMinimum": 0.0,
+      "title": "Position Accuracy",
+      "type": "number"
+    },
+    "velocity_accuracy": {
+      "default": 0.002,
+      "description": "测定轨速度 1-sigma（m/s）",
+      "exclusiveMinimum": 0.0,
+      "title": "Velocity Accuracy",
+      "type": "number"
+    },
+    "thrust_angle_err": {
+      "default": 0.333,
+      "description": "推力方向角 1-sigma（deg）",
+      "minimum": 0.0,
+      "title": "Thrust Angle Err",
+      "type": "number"
+    },
+    "thrust_mean": {
+      "default": 10.0,
+      "description": "推力中点值（m/s）",
+      "exclusiveMinimum": 0.0,
+      "title": "Thrust Mean",
+      "type": "number"
+    },
+    "thrust_rel_err": {
+      "default": 0.003,
+      "description": "推力相对 1-sigma（无量纲）",
+      "minimum": 0.0,
+      "title": "Thrust Rel Err",
+      "type": "number"
+    },
+    "thrust_abs_err": {
+      "default": 0.033,
+      "description": "推力绝对 1-sigma（m/s）",
+      "minimum": 0.0,
+      "title": "Thrust Abs Err",
+      "type": "number"
+    },
+    "thrust_min": {
+      "default": 0.1,
+      "description": "最小开机推力（m/s）",
+      "exclusiveMinimum": 0.0,
+      "title": "Thrust Min",
+      "type": "number"
+    },
+    "thrust_max": {
+      "default": 100.0,
+      "description": "最大开机推力（m/s）",
+      "exclusiveMinimum": 0.0,
+      "title": "Thrust Max",
+      "type": "number"
+    },
+    "thrust_total": {
+      "default": 1000.0,
+      "description": "累计推力上限（m/s）",
+      "exclusiveMinimum": 0.0,
+      "title": "Thrust Total",
+      "type": "number"
+    },
+    "srp_error_level": {
+      "default": 0.1,
+      "description": "光压弧段随机误差量级（百分比/100）",
+      "minimum": 0.0,
+      "title": "Srp Error Level",
+      "type": "number"
+    },
+    "perturbation": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "无量纲摄动开关：sun_body/planets/earth_nonspherical/moon_nonspherical/atmosphere/relativity/tide/coupling 为 0=关、1=开；solar_radiation 另可为 2=ECOM（未实现）。缺省用控制力模型默认值。",
+      "title": "Perturbation"
+    },
+    "dyb": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "DYB 系数（9 元素）：元素 1=等效面质比（m²/kg），其余为相对比值",
+      "title": "Dyb"
+    },
+    "earth_degree": {
+      "default": 2,
+      "description": "地球引力场阶数（控制力模型）",
+      "maximum": 120,
+      "minimum": 2,
+      "title": "Earth Degree",
+      "type": "integer"
+    },
+    "moon_degree": {
+      "default": 2,
+      "description": "月球引力场阶数（控制力模型）",
+      "maximum": 120,
+      "minimum": 2,
+      "title": "Moon Degree",
+      "type": "integer"
+    },
+    "real_perturbation": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "无量纲摄动开关（键和值同 perturbation）；缺省继承控制力模型开关，阶数默认 10×10",
+      "title": "Real Perturbation"
+    },
+    "real_dyb": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "真实力模型 DYB 系数（9 元素）：元素 1=等效面质比（m²/kg），其余为相对比值",
+      "title": "Real Dyb"
+    },
+    "real_earth_degree": {
+      "default": 10,
+      "description": "地球引力场阶数（真实力模型）",
+      "maximum": 120,
+      "minimum": 2,
+      "title": "Real Earth Degree",
+      "type": "integer"
+    },
+    "real_moon_degree": {
+      "default": 10,
+      "description": "月球引力场阶数（真实力模型）",
+      "maximum": 120,
+      "minimum": 2,
+      "title": "Real Moon Degree",
+      "type": "integer"
+    },
+    "engine_layout": {
+      "default": null,
+      "description": "EngineLayout（角动量管理 4-6 必填）",
+      "title": "Engine Layout"
+    },
+    "momentum_interval": {
+      "default": 5.0,
+      "description": "角动量卸载间隔（天）",
+      "exclusiveMinimum": 0.0,
+      "title": "Momentum Interval",
+      "type": "number"
+    },
+    "srp_offset_m": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "SRP 压心相对质心偏移 [x,y,z]（m），逐元素：x/y/z 分量",
+      "title": "Srp Offset M"
+    },
+    "spacecraft_mass": {
+      "default": 1000.0,
+      "description": "航天器质量（kg）",
+      "exclusiveMinimum": 0.0,
+      "title": "Spacecraft Mass",
+      "type": "number"
+    },
+    "srp_torque": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "常值 SRP 力矩 [τx,τy,τz]（N·m），逐元素：x/y/z 分量力矩",
+      "title": "Srp Torque"
+    },
+    "tight_tolerance_km": {
+      "default": 0.1,
+      "description": "TIGHT 模式位置重合容差（km）",
+      "exclusiveMinimum": 0.0,
+      "title": "Tight Tolerance Km",
+      "type": "number"
+    },
+    "tight_max_iter": {
+      "default": 6,
+      "description": "TIGHT 模式微分修正迭代上限",
+      "minimum": 1,
+      "title": "Tight Max Iter",
+      "type": "integer"
+    },
+    "special_damping_factor": {
+      "default": 1.0,
+      "description": "SPECIAL 模式牛顿迭代阻尼因子（<1 时启用回溯）",
+      "exclusiveMinimum": 0.0,
+      "maximum": 1.0,
+      "title": "Special Damping Factor",
+      "type": "number"
+    },
+    "mu": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "CR3BP 质量比 μ（透传到响应，画地月/L 点标注用）；算法层不产 mu",
+      "title": "Mu"
+    }
+  },
+  "title": "ControlOrbitRequest",
+  "type": "object"
+}

@@ -1,0 +1,23 @@
+[package]
+name = "tod-tauri"
+version = "0.1.0"
+edition = "2021"
+description = "transfer-orbit-design Tauri 桌面应用（阶段 1 画布原型）"
+
+[lib]
+name = "tod_tauri"
+crate-type = ["staticlib", "cdylib", "lib"]
+
+[[bin]]
+name = "tod"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "sync", "rt-multi-thread", "process", "io-util", "time"] }
+anyhow = "1"

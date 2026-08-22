@@ -1,0 +1,63 @@
+//! 项目状态：会话内 Artifact 容器（对齐 PyQt 版 src/model 的语义）。
+//!
+//! Artifact 摘要进内存（轻量）；大数组（帧）不入容器，由画布按需
+//! 取用——族生成结果缓存在 command 返回前直接交付前端。
+
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
+
+/// Artifact 摘要（对齐 Python 侧 Artifact.to_summary 的轻量形态）。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArtifactSummary {
+    pub artifact_id: String,
+    /// "orbit" | "family" | "transfer" | "ephemeris"
+    pub artifact_type: String,
+    pub label: String,
+    pub orbit_type: String,
+    pub source_tool: String,
+    pub record_id: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Default)]
+pub struct ProjectState {
+    artifacts: Mutex<Vec<ArtifactSummary>>,
+    counter: AtomicU64,
+}
+
+impl ProjectState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub async fn add(&self, mut a: ArtifactSummary) -> ArtifactSummary {
+        let id = self.counter.fetch_add(1, Ordering::Relaxed);
+        a.artifact_id = format!("a{id:03}");
+        self.artifacts.lock().await.push(a.clone());
+        a
+    }
+
+    pub async fn list(&self) -> Vec<ArtifactSummary> {
+        self.artifacts.lock().await.clone()
+    }
+
+    pub async fn remove(&self, artifact_id: &str) -> bool {
+        let mut guard = self.artifacts.lock().await;
+        let len_before = guard.len();
+        guard.retain(|a| a.artifact_id != artifact_id);
+        len_before != guard.len()
+    }
+}
+
+/// 摘要按 artifact_type 分组（项目树的分组序，对齐 PyQt 版 _TYPE_GROUP_LABELS 顺序）。
+pub fn group_by_type(artifacts: &[ArtifactSummary]) -> HashMap<String, Vec<ArtifactSummary>> {
+    let mut groups: HashMap<String, Vec<ArtifactSummary>> = HashMap::new();
+    for a in artifacts {
+        groups.entry(a.artifact_type.clone()).or_default().push(a.clone());
+    }
+    groups
+}
