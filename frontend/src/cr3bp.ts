@@ -62,29 +62,3 @@ export function librationPoint(mu: number, which: 1 | 2 | 3): number {
   }
   return x;
 }
-
-/** 加载 halo.csv，返回初值列表。idx 为行号（1 起始，对应数据行）。 */
-export async function loadHaloSeeds(): Promise<OrbitSeed[]> {
-  const res = await fetch("/halo.csv");
-  const text = await res.text();
-  const lines = text.trim().split("\n");
-  const header = lines[0].split(",");
-  const col = (name: string) => header.indexOf(name);
-  const ci = {
-    id: col("orbit_id"), mu: col("mu"), period: col("period"),
-    x: col("x"), y: col("y"), z: col("z"),
-    vx: col("vx"), vy: col("vy"), vz: col("vz"),
-  };
-  return lines.slice(1).map((line) => {
-    const f = line.split(",");
-    return {
-      orbitId: f[ci.id],
-      mu: parseFloat(f[ci.mu]),
-      period: parseFloat(f[ci.period]),
-      state: [
-        parseFloat(f[ci.x]), parseFloat(f[ci.y]), parseFloat(f[ci.z]),
-        parseFloat(f[ci.vx]), parseFloat(f[ci.vy]), parseFloat(f[ci.vz]),
-      ],
-    };
-  });
-}

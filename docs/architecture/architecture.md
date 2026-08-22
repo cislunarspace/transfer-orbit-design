@@ -14,53 +14,43 @@ tod 是 **e2m2e 的 GUI 前端**。它不实现任何轨道力学算法，只做
 
 ## 总体分层
 
-按依赖方向由内向外，四层。**内层不感知外层**。
+自 ADR-0014 起，GUI 为 Tauri 架构（Rust 壳 + React 前端），e2m2e 经
+sidecar 子进程驱动（协议 = e2m2e ADR 0035：信封 JSON 行 + 二进制帧）。
+原 PyQt 四层中的表现层/入口层已被替换，数据层与执行层的纯 Python 部分
+保留为领域资产。
 
-| 层级 | 名称 | 职责 |
+```
+React 前端（frontend/） ←Tauri IPC→ Rust 壳（src-tauri/）
+                                        ↕ stdio 协议
+                                   e2m2e serve-stdio（uv 拉起）
+```
+
+| 层 | 位置 | 职责 |
 |:---|:---|:---|
-| 第1层 | 数据层 `src/model/` | Project、Artifact、transfer 遗留分区扫描、元数据 |
-| 第2层 | 执行层 `src/engine/` | Facade/算法层调用（QThread 工作线程）、结果落盘 |
-| 第3层 | 表现层 `src/view/` | Qt 控件：项目树、可视化画布、参数面板、日志 |
-| 第4层 | 入口 `src/app/` | 主窗口组装、设置、国际化、主题 |
+| 前端 | `frontend/src/` | React 组件：项目树、参数面板（schema 自动表单）、Three.js 画布、i18n、图表设置 |
+| Rust 壳 | `src-tauri/src/` | sidecar 进程管理（拉起/重试/进度事件）、Tauri command、项目状态（内存 Artifact 容器） |
+| sidecar 协议 | e2m2e 侧 | `serve-stdio`：信封 JSON 行 + f32/f64 二进制帧（大数组），见 e2m2e ADR 0035 |
+| 领域层（Python） | `src/engine/`、`src/commons/`、`src/model/` | facade_bridge / catalog_service / 单位换算 / 内核管理——e2m2e 语义的 Python 侧资产，工具脚本与测试继续使用 |
 
-**分层哲学**：
+**关键机制**：
 
-- **数据层不知道 GUI 的存在**。Project/Artifact 是纯 Python 数据类，可在测试中独立使用。
-- **执行层不知道 Qt 的存在**。它只负责"接收参数 → 调 e2m2e → 返回结果 + 落盘"。线程管理由表现层的 QThread 包装处理。
-- **表现层不调 e2m2e**。它只和数据层、执行层的接口交互。
-- **入口层只做组装**。它把数据层、执行层、表现层粘在一起，不包含业务逻辑。
+- **schema 驱动表单**：工具入参 schema 构建期导出（`tools/export_tool_schemas.py` → `frontend/src/toolSchemas/`），参数面板自动生成；升级 e2m2e 后重跑导出。
+- **帧即渲染**：sidecar f32 帧直达前端 `BufferAttribute`，无中间格式；族成员初态 + period 由前端 CR3BP 传播器重采样整条轨迹（方程对齐 e2m2e，有回归测试）。
+- **视图保持**：布局不变的重绘不重置相机；首次数据到达做一次视图适配（CONTEXT.md 领域语义）。
 
 ## 顶层结构（最终形态）
 
 ```
 transfer-orbit-design/
-├── src/                   # 核心代码（src layout）
-│   ├── model/             # 第1层 数据层
-│   │   ├── project.py     # Project 容器
-│   │   ├── artifact.py    # Artifact 数据类（record_id 对齐 catalog 记录）
-│   │   └── discovery.py   # transfer 遗留分区扫描（catalog 分类体系之外）
-│   ├── engine/            # 第2层 执行层
-│   │   ├── facade_bridge.py # Facade API 桥接（计算 + catalog 薄封装）
-│   │   ├── catalog_service.py # 轨道库语义层（清单映射 / 懒加载 / 标注 / 导出）
-│   │   ├── workers.py     # QThread 工作线程（设计/保持/族生成/稳定性）
-│   │   ├── persistence.py # 稳定性分析落盘（catalog 之外的产物）
-│   │   └── viz_adapter.py # 画布绘图适配（地月/L 点/坐标系变换）
-│   ├── view/              # 第3层 表现层
-│   │   ├── project_tree.py  # 项目树（Artifact 分组展示 + 谱系断链标记 + 右键操作）
-│   │   ├── catalog_filter_bar.py # 库过滤栏（多维组合，驱动 catalog_query）
-│   │   ├── record_detail_panel.py # 记录详情面板（分类/谱系/tags/note/成员提升）
-│   │   ├── canvas.py      # 内嵌 matplotlib 画布（FigureCanvasQTAgg）
-│   │   ├── canvas_toolbar.py # 可视化工具栏（投影/坐标系/图层/动画）
-│   │   ├── params_panel.py # 参数面板（从 Pydantic 模型自动生成）
-│   │   ├── chart_settings.py # 图表设置（QSettings 持久化）
-│   │   ├── ui_settings.py # 界面设置（字号/主题 + 全局样式表，QSettings 持久化）
-│   │   ├── gif_exporter.py # GIF 动画导出
-│   │   └── log_panel.py   # 日志面板（结构化输出）
-│   ├── app/               # 第4层 入口
-│   │   ├── main.py        # QApplication 启动 + SPICE 内核引导 + 窗口组装
-│   │   ├── main_window.py # 主窗口（三栏 Splitter 布局 + 工具调度 + catalog 重载）
-│   │   ├── kernel_setup.py # 首次启动内核缺失弹窗引导（下载/指定/跳过）
-│   │   └── i18n/          # 国际化资源（尚未接入，界面固定中文）
+├── frontend/              # React 前端（Vite + TS + Three.js）
+│   └── src/               # 组件、schema 驱动表单、i18n、画布、录制导出
+├── src-tauri/             # Rust 壳（Tauri 2）
+│   ├── src/sidecar/       # 帧解析（frames）+ 子进程管理（process）
+│   ├── src/cmd.rs         # Tauri command（族生成/目录查询/项目状态）
+│   └── tests/             # 协议夹具测试 + 真实子进程集成测试
+├── src/                   # Python 领域层（纯 Python，无 Qt）
+│   ├── model/             # Project/Artifact/discovery（数据类）
+│   ├── engine/            # facade_bridge / catalog_service / persistence / viz_adapter
 │   ├── commons/           # 跨层常量与共享工具
 │   │   ├── constants.py   # DU/TU/物理常量
 │   │   ├── units.py       # 单位换算（年/月/日/TU、km/DU）
@@ -178,195 +168,13 @@ class FacadeBridge:
 
 ### Workers
 
-QThread 工作线程，每个 Facade 方法一个 Worker 类。
+（原 QThread Worker 机制已随 PyQt UI 一并移除：计算任务经 Tauri command →
+sidecar 子进程完成，线程管理由 Rust tokio 承担。）
+## 前端与 Rust 壳
 
-```python
-class OrbitDesignWorker(QThread):
-    log = pyqtSignal(str)
-    finished = pyqtSignal(OrbitDesignResultData)
-    error = pyqtSignal(str)
-```
-
-Workers 是**执行层与表现层的边界**：它们使用 PyQt6 的 QThread 和 pyqtSignal，因此在技术上依赖 Qt。这是有意的设计选择——避免引入额外的线程-通信抽象层。
-
-### Persistence（catalog 之外）
-
-稳定性分析结果落盘（只写 JSON 到 `output/stability/`，不进项目树）。
-
-```python
-def save_stability_result(result_data, output_dir: Path, *, orbit_label: str) -> Path:
-    """将稳定性分析结果写入 output/stability/，返回 json_path。"""
-```
-
-## 第3层 表现层 `src/view/`
-
-### 项目树 `project_tree.py`
-
-主窗口左侧。**catalog 浏览器**（issue #375）：顶部过滤栏（族 / 平动点 / Jacobi 区间 / 振幅区间 / 段存在性组合，取值域经 e2m2e Pydantic 模型公开接口生成）驱动 `catalog_query`；按 Artifact 类型分组展示，谱系断链的记录带 ⚠ 降级标记；底部记录详情面板显示分类 / 谱系 / tags / note（可编辑）与族成员提升。
-
-```
-📁 项目
-│  [过滤栏: 族▾ 平动点▾ Jacobi☐ 振幅☐ 段▾ | 重置 | 导出案例包]
-├─ 🪐 轨道
-│  ├─ Halo (L2, C_J=3.0500)     ← 点击 → catalog_get 懒加载 → 渲染到画布
-│  └─ DRO (C_J=3.0058)
-├─ 🌀 轨道族
-│  └─ Halo 族 (L2, 50 条)
-├─ 📡 星历
-│  └─ 受控星历（Halo L2） ⚠断链  ← 上游记录已删，产物仍可用
-└─ 🚀 转移                       ← catalog 之外，目录扫描过渡
-   └─ corrected_transfer_001
-│  [记录详情: 分类 / 谱系 / tags / note / 成员提升]
-```
-
-右键菜单上下文感知：
-
-| 选中 Artifact 类型 | 右键可用操作 |
-|---|---|
-| orbit（含星历） | 轨道保持、稳定性分析、删除 |
-| orbit（仅 CR3BP） | 稳定性分析、删除 |
-| family | 删除 |
-| ephemeris（保持结果） | 删除 |
-
-### 可视化画布 `canvas.py`
-
-主窗口中央。内嵌 `FigureCanvasQTAgg` + `NavigationToolbar2QT`。
-
-**标准可视化能力**：
-
-| 能力 | 说明 |
-|---|---|
-| 3D 轨道图 | CR3BP 旋转坐标系下的轨道，可拖拽旋转 |
-| 2D 投影切换 | XY / XZ / YZ 三视图 + 四视图（2×2 网格），工具栏按钮切换 |
-| 坐标系切换 | 会合系（CR3BP 旋转系，无量纲）/ 惯性系（GCRS，km），惯性系下月球沿真实轨迹移动 |
-| 中心切换 | 质心 / 月球 / L1 / L2（会合系），惯性系以地球为原点 |
-| 绘制内容 | 初猜 / 星历 / 叠加三选一（轨道设计产物同时携带两份轨迹） |
-| 多轨道叠加 | 选中多个 Artifact 时叠加渲染，自动分配颜色 |
-| 地月系统标注 | 地球、月球位置 + 五个拉格朗日点，`viz_adapter` 提供 |
-| 轨道族渲染 | 族成员逐条渲染，`viz` 组件提供 |
-| 图表设置 | 线宽/颜色方案/标注大小/字号/Z 区间比例，QSettings 持久化 |
-| GIF 动画导出 | 按时间等分采样逐帧渲染，Pillow 合成，累积/滑动窗口 |
-| 导航工具栏 | 缩放/平移/旋转/保存图片 |
-
-**画布状态**：
-
-```python
-class CanvasState:
-    projection: str         # "3d" | "xy" | "xz" | "yz" | "quad"（四视图）
-    frame: str              # "synodic"（会合系） | "inertial"（GCRS）
-    center: str             # "barycenter" | "moon" | "L1" | "L2"（会合系）
-    plot_content: str       # "guess" | "ephemeris" | "overlay"（绘制内容，与 frame 正交）
-    visible_artifacts: list[str]  # 当前显示的 artifact_id 列表
-    show_bodies: bool       # 是否显示地月
-    show_libration: bool    # 是否显示拉格朗日点
-    equal_aspect: bool      # 是否等比例（默认 True；False 各轴独立缩放填满）
-```
-
-### 参数面板 `params_panel.py`
-
-主窗口右侧。**从 e2m2e Pydantic 模型自动生成**。
-
-生成规则：
-
-| Pydantic 字段类型 | Qt 控件 |
-|---|---|
-| `float` (有 ge/le) | `QDoubleSpinBox` (range=ge..le) |
-| `int` (有 ge/le) | `QSpinBox` (range=ge..le)；字段在 `_INT_COMBO_OPTIONS` 时改 `QComboBox`（值存 itemData） |
-| `str` (有 enum) | `QComboBox` |
-| `str` (无 enum) | `QLineEdit` |
-| `list[float]` | 多个 `QDoubleSpinBox` |
-| `Any` (可选) | `QLineEdit` (JSON 输入) |
-
-字段元数据映射：
-
-| Pydantic Field 信息 | Qt 属性 |
-|---|---|
-| `description` | 控件 tooltip（数值控件附加"可填范围"提示） |
-| `default` | 控件默认值 |
-| `ge/le/gt/lt` | 控件范围；也是框内清空时的"可填范围"占位提示 |
-| `FIELD_UNIT_OPTIONS[field]` | 单位下拉（首个=标准单位，切换仅改显示值；收集时换算回标准单位，换算缓存保证多次切换精确往返） |
-
-单位下拉覆盖所有可换算参数：距离 km/m/DU、时间 年/月/日/时/秒/TU（或 秒/时/日/TU、天/秒/TU）、角度 度/rad、相位 周期份额/度/弧度、SRP 偏移 m/DU（list 容器整体换算）。无量纲计数（阶数/圈数/样本数）与字典/JSON 字段无可换算单位。
-
-每个工具类型注册一个参数面板生成函数：
-
-```python
-# src/engine/facade_bridge.py 中的注册表（与 e2m2e facade 工具清单对齐）
-TOOL_REGISTRY: dict[str, ToolSpec] = {
-    "design_orbit": ToolSpec(request_model=DesignOrbitRequest, ...),
-    "control_orbit": ToolSpec(request_model=ControlOrbitRequest, ...),
-    "orbit_family_generation": ToolSpec(request_model=FamilyGenerationRequest, ...),
-    "orbit_stability": ToolSpec(request_model=None, ...),  # 右键触发，不进工具下拉
-    "transfer_design": ToolSpec(request_model=None, enabled=False, ...),  # 灰显，悬停显示工具说明
-    # ... 其余 e2m2e facade 工具同构灰显
-}
-```
-
-`TOOL_REGISTRY` 从 `e2m2e.api.tool_inventory()` 自动派生全量清单及实现状态：
-已接入的工具 enabled；e2m2e 已实现但 GUI 未接入、e2m2e 占位的工具灰显，悬停
-显示相应状态。e2m2e 新增工具时 GUI 清单零改动跟随。`ToolSpec.description`
-（工具说明）展示在工具选择器下方。稳定性分析无参数面板（右键轨道触发），
-`enabled=False` 仅表示下拉灰显，右键菜单另行启用。轨道族生成使用 e2m2e
-公开的 `FamilyGenerationRequest` 模型，GUI 暴露七族下拉，桥接层走
-`Facade.orbit_family_generation` 完成延拓/采样。
-
-### 日志面板 `log_panel.py`
-
-主窗口中央标签页（与可视化画布并列）。显示当前任务的结构化日志：
-
-```
-[14:32:01] 开始设计 DRO 轨道...
-[14:32:01] 参数: amplitude=40000.0 km, duration=1.0 yr
-[14:32:15] 微分修正收敛 (3 次迭代, 残差 2.3e-12)
-[14:32:18] 星历修正完成 (two_level, max_res=1.6e-02 km)
-[14:32:20] ✓ 设计完成: DRO, C_J=3.005811
-```
-
-## 第4层 入口 `src/app/`
-
-### 主窗口布局 `main_window.py`
-
-```
-┌─ 左侧 (20%) ────┬─ 中间 (55%) ─────────────┬─ 右侧 (25%) ─────┐
-│                  │                           │                   │
-│  项目树          │  [📊 可视化 | 📋 日志]     │  选择工具 [▾]      │
-│  (QTreeWidget)   │                           │  轨道设计          │
-│                  │  ┌───────────────────┐    │  轨道保持          │
-│  🪐 轨道         │  │                   │    │  轨道族生成        │
-│   ├ DRO ...      │  │   3D 轨道图       │    │                   │
-│   └ Halo ...     │  │   (可交互)        │    │  ─────────────    │
-│                  │  │                   │    │  轨道类型  [DRO ▾] │
-│  🌀 轨道族       │  └───────────────────┘    │  振幅    [60000]   │
-│  📡 星历         │  [3D|XY|XZ|YZ|四视图]      │  历元    [...]    │
-│                  │  [会合系|惯性系] [质心|月球]│  时长    [1 月]    │
-│                  │  [叠加|初猜|星历]          │                   │
-│                  │  [地月] [L1-L5] [等比]     │  [▶ 运行]          │
-└──────────────────┴───────────────────────────┴───────────────────┘
-│ 状态栏: 就绪 | SPICE: ...                                           │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-**Splitter 布局**：三栏可拖拽调整比例。默认 20:55:25。
-
-### 设置与配置
-
-| 设置项 | 存储位置 | 说明 |
-|---|---|---|
-| SPICE 内核目录 | 配置文件 `kernels_dir.txt`（`~/.config/transfer-orbit-design/`） | 首次启动缺失内核时弹窗引导（下载/指定/跳过），探测顺序见 `src/commons/paths.py` |
-| 图表设置（线宽/颜色/标注/字号/Z 比例） | QSettings | `src/view/chart_settings.py`，菜单"设置 → 图表设置…" |
-| 界面设置（字号/主题）、分栏布局 | QSettings | `src/view/ui_settings.py`，菜单"设置 → 界面设置…"，重启后生效；分隔条位置关闭时自动保存，"设置 → 重置布局"恢复默认 |
-| 界面语言 | — | i18n 基础设施已就位但未接入，界面固定中文 |
-
-### 入口 `main.py`
-
-```python
-def main():
-    app = QApplication(sys.argv)
-    # 1. 探测 SPICE 内核（缺失时弹窗引导下载/指定/跳过）
-    # 2. 创建 MainWindow（启动时经 catalog_query 恢复产物清单）
-    # 3. showMaximized()
-    sys.exit(app.exec())
-```
+组件级说明见源码：`frontend/src/`（App 三栏布局、ParamsPanel schema 表单、
+OrbitCanvas Three.js 画布、CatalogFilterBar、i18n、chartSettings）与
+`src-tauri/src/`（sidecar 模块、cmd.rs、state.rs、project.rs）。
 
 ## 依赖方向规则
 
@@ -382,7 +190,7 @@ src/commons/ → 无依赖（常量）；其中 `src/commons/viz/` 为收编的�
 
 1. `src/model/` 不 import `src/view/` 或 `src/engine/`。
 2. `src/view/` 不直接 import e2m2e。所有 e2m2e 调用经 `src/engine/` 桥接。
-3. `src/engine/` 不 import `src/view/`（Workers 的信号是技术性例外，仅 import PyQt6.QtCore）。
+3. `src/engine/` 不 import 任何 GUI 框架（Qt 依赖已随 PyQt UI 移除）。
 4. `src/commons/` 不被 `src/model/`、`src/engine/`、`src/view/` 反向依赖（commons 是叶子）。
 
 ## 可视化架构
@@ -452,7 +260,7 @@ GUI 的工具范围固定为四件：轨道设计、轨道保持、轨道族生�
 
 ## 依赖
 
-- **运行时**：PyQt6, PyQt6-WebEngine, matplotlib, numpy, scipy, pillow（GIF 合成）
+- **运行时**：numpy, scipy（Python 领域层）；Rust/Tauri 2 + Node/Vite（前端与壳，各自锁文件管理）
 - **e2m2e**：PyPI 依赖（`e2m2e>=5.6.8`），运行时经 `src/engine/facade_bridge.py` 调用 algorithm 层
 - **calcephpy**：经 e2m2e→r2s2 传递依赖（Windows 用预编译 wheel，见 `pyproject.toml` 的 `[tool.uv.sources]`）
 - **可选**：PyInstaller（打包为 Windows 便携版）
