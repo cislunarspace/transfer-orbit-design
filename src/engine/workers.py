@@ -292,15 +292,11 @@ class TransferDesignWorker(_CancellableWorker):
             self.log.emit(f"开始 {self._transfer_type} 转移轨道设计...")
             self.log.emit(f"参数: {self._params}")
             bridge = FacadeBridge(kernel_dir=self._kernel_dir)
-            data = bridge.transfer_design(
-                target_states=self._target_states, **self._params
-            )
+            data = bridge.transfer_design(target_states=self._target_states, **self._params)
             if self._emit_cancelled_if_requested():
                 return
             if data.converged:
-                self.log.emit(
-                    f"转移设计完成: 总Δv={data.delta_v:.4f} km/s（{data.message}）"
-                )
+                self.log.emit(f"转移设计完成: 总Δv={data.delta_v:.4f} km/s（{data.message}）")
             else:
                 self.log.emit(f"转移设计未收敛: {data.message}")
             self.finished.emit(data)
