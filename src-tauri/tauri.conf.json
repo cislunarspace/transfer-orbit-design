@@ -4,9 +4,9 @@
   "version": "4.0.0",
   "identifier": "com.tod.prototype",
   "build": {
-    "beforeDevCommand": "npm --prefix frontend run dev",
+    "beforeDevCommand": "npm run dev",
     "devUrl": "http://127.0.0.1:1430",
-    "beforeBuildCommand": "npm --prefix frontend run build",
+    "beforeBuildCommand": "npm run build",
     "frontendDist": "../frontend/dist"
   },
   "app": {
