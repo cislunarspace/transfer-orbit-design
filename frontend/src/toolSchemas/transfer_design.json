@@ -1,0 +1,89 @@
+{
+  "additionalProperties": false,
+  "description": "转移轨道设计输入（对齐 algorithm/transfer 的 transfer_orbit 参数）。",
+  "properties": {
+    "transfer_type": {
+      "description": "HMN/LGA/WSB/low_thrust",
+      "title": "Transfer Type",
+      "type": "string"
+    },
+    "tli_epoch": {
+      "description": "TLI 历元（UTC ISO 字符串或 JD_TDB 浮点数）",
+      "title": "Tli Epoch"
+    },
+    "parking_alt_km": {
+      "default": 200.0,
+      "description": "地球停泊轨道高度 (km)",
+      "exclusiveMinimum": 0.0,
+      "title": "Parking Alt Km",
+      "type": "number"
+    },
+    "incl_deg": {
+      "default": 28.5,
+      "description": "轨道倾角 (度)",
+      "maximum": 180.0,
+      "minimum": 0.0,
+      "title": "Incl Deg",
+      "type": "number"
+    },
+    "flight_path_deg": {
+      "default": 0.0,
+      "description": "航迹角 (度，仅支持 0)",
+      "maximum": 0.0,
+      "minimum": 0.0,
+      "title": "Flight Path Deg",
+      "type": "number"
+    },
+    "target_ephemeris": {
+      "default": null,
+      "description": "目标星历（EphemerisTable/NominalOrbit/ndarray）",
+      "title": "Target Ephemeris"
+    },
+    "target_orbit_radius_km": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "目标轨道半径 (km)，HMN 必需",
+      "title": "Target Orbit Radius Km"
+    },
+    "tof_range": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "飞行时间范围 [min, max]（天）",
+      "title": "Tof Range"
+    },
+    "lga_search_params": {
+      "default": null,
+      "description": "LGA 搜索参数（LgaSearchParams 实例）",
+      "title": "Lga Search Params"
+    },
+    "wsb_search_params": {
+      "default": null,
+      "description": "WSB 搜索参数（WsbSearchParams 实例）",
+      "title": "Wsb Search Params"
+    }
+  },
+  "required": [
+    "transfer_type",
+    "tli_epoch"
+  ],
+  "title": "TransferDesignRequest",
+  "type": "object"
+}

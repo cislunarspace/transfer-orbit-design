@@ -1,0 +1,190 @@
+{
+  "additionalProperties": false,
+  "description": "轨道族生成输入（二档 Facade.orbit_family_generation）。\n\n公开参数用平动点统一术语（``libration_point``，1=L1 … 5=L5），由\nFacade 映射到各族算法参数。按 ``orbit_type`` 分派校验取值域\n（与 ``DesignOrbitRequest`` 同构）：共线族（Halo/NRHO/Axial）仅\nL1/L2，Lissajous 支持 L1/L2/L3，三角族（SPO/LPO/Horseshoe）仅\nL4/L5，DRO 是月心族不绑定平动点（请求不得携带 ``libration_point``）。\n八族均已实现（#428、#502）：周期族返回严格周期成员，Lissajous\n返回拟周期有界轨迹的参数采样（族上显式标注 quasi-periodic）。\n\n按族适用的字段：\n\n- HALO/AXIAL：``max_amplitude_km`` （带符号，区分北/南或上/下族）\n- NRHO：``north_south``、``perilune_height_max_km``、``continuation_direction``\n- LISSAJOUS：``amplitude_in_km``、``amplitude_out_km``、``phase_in``、``phase_out``\n- SPO/LPO/HORSESHOE：振幅上下限、延拓方向与 ``match_tolerance_km``\n- DRO：振幅上下限（距月心距离 min/max 均值，km）\n\n``sampling_mode`` 显式登记各族固定的首版采样规则；传入其他规则会\n结构化拒绝，而不是静默改用默认算法。",
+  "properties": {
+    "orbit_type": {
+      "description": "HALO/NRHO/AXIAL/LISSAJOUS/SPO/LPO/HORSESHOE/DRO",
+      "title": "Orbit Type",
+      "type": "string"
+    },
+    "libration_point": {
+      "anyOf": [
+        {
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "平动点编号：1=L1 … 5=L5；缺省按族填默认；DRO 不适用",
+      "title": "Libration Point"
+    },
+    "max_amplitude_km": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "族振幅上限（km）；HALO/AXIAL 带符号区分北/南（上/下）族，SPO/LPO/HORSESHOE 为正值（距 L4/L5 径向距离 min/max 均值），DRO 为距月心距离 min/max 均值",
+      "title": "Max Amplitude Km"
+    },
+    "min_amplitude_km": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "族振幅下限（km），仅 SPO/LPO/HORSESHOE/DRO 用",
+      "title": "Min Amplitude Km"
+    },
+    "north_south": {
+      "anyOf": [
+        {
+          "maximum": 2,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "北/南族：1=北，2=南；仅 NRHO 用",
+      "title": "North South"
+    },
+    "perilune_height_max_km": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "族成员近月点高度上限（km），仅 NRHO 用",
+      "title": "Perilune Height Max Km"
+    },
+    "amplitude_in_km": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "面内振幅上限（km），仅 LISSAJOUS 用",
+      "title": "Amplitude In Km"
+    },
+    "amplitude_out_km": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "面外振幅上限（km），仅 LISSAJOUS 用",
+      "title": "Amplitude Out Km"
+    },
+    "phase_in": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "面内初始相位（0~1），仅 LISSAJOUS 用",
+      "title": "Phase In"
+    },
+    "phase_out": {
+      "anyOf": [
+        {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "面外初始相位（0~1），仅 LISSAJOUS 用",
+      "title": "Phase Out"
+    },
+    "continuation_direction": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "延拓方向：NRHO=toward-moon、AXIAL=increase-amplitude、SPO/LPO/HORSESHOE=decrease-x0 或 increase-x0",
+      "title": "Continuation Direction"
+    },
+    "sampling_mode": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "采样规则：natural-z0/halo-segment/fixed-vz0/linear-amplitudes/full-period-pal；按族固定",
+      "title": "Sampling Mode"
+    },
+    "match_tolerance_km": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "振幅上限匹配容差（km），仅 SPO/LPO/HORSESHOE 用",
+      "title": "Match Tolerance Km"
+    },
+    "n_orbits": {
+      "default": 50,
+      "description": "族成员数量上限；延拓族包含种子或首个命中范围的成员",
+      "minimum": 1,
+      "title": "N Orbits",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "orbit_type"
+  ],
+  "title": "FamilyGenerationRequest",
+  "type": "object"
+}

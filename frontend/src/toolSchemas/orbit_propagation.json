@@ -1,0 +1,54 @@
+{
+  "additionalProperties": false,
+  "description": "轨道预报输入（对齐 algorithm/propagation 的 propagate_orbit 参数）。",
+  "properties": {
+    "initial_state": {
+      "description": "初值（GCRS，km, km/s，长度 6）",
+      "items": {
+        "type": "number"
+      },
+      "maxItems": 6,
+      "minItems": 6,
+      "title": "Initial State",
+      "type": "array"
+    },
+    "epoch": {
+      "description": "起始历元 UTC（ISO 字符串或 [年,月,日,时,分,秒]）",
+      "title": "Epoch"
+    },
+    "duration": {
+      "description": "预报时长（秒）",
+      "exclusiveMinimum": 0.0,
+      "title": "Duration",
+      "type": "number"
+    },
+    "force_config": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "力模型配置（缺省用默认三体力模型）",
+      "title": "Force Config"
+    },
+    "output_step": {
+      "default": 3600.0,
+      "description": "输出间隔（秒）",
+      "exclusiveMinimum": 0.0,
+      "title": "Output Step",
+      "type": "number"
+    }
+  },
+  "required": [
+    "initial_state",
+    "epoch",
+    "duration"
+  ],
+  "title": "PropagationRequest",
+  "type": "object"
+}

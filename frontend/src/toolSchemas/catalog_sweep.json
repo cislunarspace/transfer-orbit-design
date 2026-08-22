@@ -1,0 +1,129 @@
+{
+  "additionalProperties": false,
+  "description": "参数空间扫描批量生成并入库（编排复用 ADR 0029 的 Rust 族生成）。\n\n扫描网格 = 族 × 平动点 × 主参数维度。主参数维度三选一（同传报错）：\n\n- 一维主参数：HALO/AXIAL/SPO/LPO/HORSESHOE 扫 ``max_amplitudes_km``，\n  NRHO 扫 ``perilune_heights_max_km``；\n- 能量（Jacobi）窗口：``jacobi_windows``——同一（族、平动点）只走\n  一次延拓 trace（族延拓范围取各族默认），各窗口成员分别成记录，\n  记录 jacobi 包络落在窗口内；窗口零成员时该点无记录、结局可查；\n- LISSAJOUS 二维振幅网格：``amplitude_ins_km`` × ``amplitude_outs_km``\n  笛卡尔积逐点采样（相位取请求默认值）；能量窗口不适用于 LISSAJOUS\n  （其族生成是参数采样而非延拓 trace）。\n\n部分参数点失败时已产出的记录保留（ADR 0020 软失败语义）。",
+  "properties": {
+    "orbit_types": {
+      "description": "族集合：HALO/NRHO/AXIAL/LISSAJOUS/SPO/LPO/HORSESHOE",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "title": "Orbit Types",
+      "type": "array"
+    },
+    "libration_points": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "平动点集合；缺省按各族默认（共线 L2、三角 L4）",
+      "title": "Libration Points"
+    },
+    "max_amplitudes_km": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "族振幅上限网格（km）；HALO/AXIAL 带符号区分北/南（上/下）族；SPO/LPO/HORSESHOE 的下限取各族默认",
+      "title": "Max Amplitudes Km"
+    },
+    "perilune_heights_max_km": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "近月点高度上限网格（km），仅 NRHO 用",
+      "title": "Perilune Heights Max Km"
+    },
+    "jacobi_windows": {
+      "anyOf": [
+        {
+          "items": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "能量（Jacobi）窗口网格 [[min, max], ...]，边界包含；与 max_amplitudes_km/perilune_heights_max_km 互斥；LISSAJOUS 不适用",
+      "title": "Jacobi Windows"
+    },
+    "amplitude_ins_km": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "LISSAJOUS 面内振幅网格（km）；须与 amplitude_outs_km 同给，与其他网格维度互斥",
+      "title": "Amplitude Ins Km"
+    },
+    "amplitude_outs_km": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "LISSAJOUS 面外振幅网格（km）；须与 amplitude_ins_km 同给",
+      "title": "Amplitude Outs Km"
+    },
+    "n_orbits": {
+      "default": 20,
+      "description": "每点族成员数量上限",
+      "minimum": 1,
+      "title": "N Orbits",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "orbit_types"
+  ],
+  "title": "CatalogSweepRequest",
+  "type": "object"
+}

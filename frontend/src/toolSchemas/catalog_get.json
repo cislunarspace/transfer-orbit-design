@@ -1,0 +1,16 @@
+{
+  "additionalProperties": false,
+  "description": "按 record_id 取完整记录。",
+  "properties": {
+    "record_id": {
+      "minLength": 1,
+      "title": "Record Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "record_id"
+  ],
+  "title": "CatalogGetRequest",
+  "type": "object"
+}

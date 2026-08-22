@@ -1,0 +1,170 @@
+{
+  "$defs": {
+    "ConvergenceState": {
+      "description": "算法最终状态。",
+      "enum": [
+        "iterating",
+        "converged",
+        "diverged",
+        "stagnated",
+        "max_iterations",
+        "infeasible",
+        "collision",
+        "failed"
+      ],
+      "title": "ConvergenceState",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "子集打包导出：过滤条件同 catalog_query，外加目标路径。",
+  "properties": {
+    "orbit_family": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "轨道族（dro/halo/nrho/lissajous/dpo/axial/spo/lpo/horseshoe/elfo 等）",
+      "title": "Orbit Family"
+    },
+    "libration_point": {
+      "anyOf": [
+        {
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "平动点编号 1–5",
+      "title": "Libration Point"
+    },
+    "jacobi_min": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Jacobi 常数区间下界",
+      "title": "Jacobi Min"
+    },
+    "jacobi_max": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Jacobi 常数区间上界",
+      "title": "Jacobi Max"
+    },
+    "amplitude_min_km": {
+      "anyOf": [
+        {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "主振幅区间下界（km）",
+      "title": "Amplitude Min Km"
+    },
+    "amplitude_max_km": {
+      "anyOf": [
+        {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "主振幅区间上界（km）",
+      "title": "Amplitude Max Km"
+    },
+    "has_cr3bp": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "是否含 CR3BP 段",
+      "title": "Has Cr3Bp"
+    },
+    "has_ephemeris": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "是否含星历段",
+      "title": "Has Ephemeris"
+    },
+    "status": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ConvergenceState"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "按结果状态筛（如筛掉软失败产物）"
+    },
+    "tags": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "按标签筛，命中任一即匹配",
+      "title": "Tags"
+    },
+    "dest": {
+      "description": "目标路径；以 .zip 结尾产出 zip 包，否则产出目录（records/ + manifest.json）",
+      "minLength": 1,
+      "title": "Dest",
+      "type": "string"
+    }
+  },
+  "required": [
+    "dest"
+  ],
+  "title": "CatalogExportRequest",
+  "type": "object"
+}

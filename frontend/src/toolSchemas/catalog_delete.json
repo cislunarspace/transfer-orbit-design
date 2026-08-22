@@ -1,0 +1,16 @@
+{
+  "additionalProperties": false,
+  "description": "按 record_id 删除记录。",
+  "properties": {
+    "record_id": {
+      "minLength": 1,
+      "title": "Record Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "record_id"
+  ],
+  "title": "CatalogDeleteRequest",
+  "type": "object"
+}

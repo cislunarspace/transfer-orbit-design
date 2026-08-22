@@ -1,0 +1,24 @@
+{
+  "additionalProperties": false,
+  "description": "把族成员提升为独立记录（``source_record_id`` 指向所属族）。",
+  "properties": {
+    "record_id": {
+      "description": "族记录 id",
+      "minLength": 1,
+      "title": "Record Id",
+      "type": "string"
+    },
+    "member_index": {
+      "description": "族内成员序号（自 0 起）",
+      "minimum": 0,
+      "title": "Member Index",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "record_id",
+    "member_index"
+  ],
+  "title": "CatalogPromoteRequest",
+  "type": "object"
+}
