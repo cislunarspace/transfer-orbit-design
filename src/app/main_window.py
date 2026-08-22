@@ -1399,7 +1399,13 @@ class MainWindow(QMainWindow):
             self._log.append_log(f"参数错误: {exc}")
             return
         params.pop("transfer_type", None)
+        if transfer_type != "HMN":
+            # HMN 专属字段对 LGA 无意义；隐藏控件仍可能携带用户先填的值，
+            # 不能隐式依赖上游忽略，收集后按类型剔除
+            params.pop("target_orbit_radius_km", None)
+            params.pop("tof_range", None)
 
+        source: Artifact | None = None
         target_states = None
         if transfer_type == "LGA":
             source = self._selected_orbit_artifact()
@@ -1416,10 +1422,10 @@ class MainWindow(QMainWindow):
                 )
                 return
             target_states = source.state_data
-            self._log.append_log(f"转移目标: {source.label}（末态）")
 
         kernel_dir = self._detect_kernel_dir() or None
         self._log.clear()
+        if target_states is not None and source is not None:            self._log.append_log(f"转移目标: {source.label}（末态）")
         self._status_bar.showMessage(f"正在设计 {transfer_type} 转移轨道...")
         self._set_run_controls(running=True)
 
