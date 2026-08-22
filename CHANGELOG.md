@@ -2,6 +2,19 @@
 
 ## 未发布
 
+### 轨道保持交互重构
+
+- **选中后弹窗独立执行**：轨道保持（control_orbit）从右侧工具选择器移除，改为「选中轨道 → 详情面板“轨道保持…”按钮 / 项目树右键」弹模态对话框（`ControlOrbitDialog`），对话框内调参、运行/停止、看日志与结果摘要。参数构建仍复用 `build_params_from_model` / `collect_params`（ADR 0009 范式不变），运行逻辑（参数注入、时长校验、Worker 生命周期）自主窗口迁入，算法层与产物入库不变。
+- **入口可用性**：按钮仅对可作输入的产物（orbit/ephemeris 且有星历段）可用，提升的族成员（仅 CR3BP 段）置灰并 tooltip 说明；星历产物可链式站保。运行中关闭弹窗视为取消（等同停止，结果不落库）；弹窗仿真与主窗口任务互斥。
+
+### 轨道预报接入（issue #389）
+
+- **工具启用**：「轨道预报」（e2m2e 5.8.2 `orbit_propagation`）进入工具下拉，经 Facade 调用（Config 注入 kernel_dir，同 design_orbit 范式）；duration 沿用 GUI 标准单位年，桥接层换算为秒。
+- **初值预填**：选中含 GCRS 星历的工件（design_orbit / control_orbit / 预报产物自身）时，`initial_state` 预填为其末端 [位置; 速度]（km, km/s），历元预填为末端时刻；纯手填也可用。
+- **力模型配置**：`force_config` 不做结构化表单——留空走默认三体，可填 JSON，非法 JSON 运行前拦截不发起任务。
+- **画布渲染**：输出 GCRS km 惯性星历走既有 `ephemeris_position_km` 槽位；会合系位置由 GCRS km 经 e2m2e `SynodicJ2000System`（Rust 批量转换）转质心归一脉动会合系（有测试锚定月球 → 1−μ），两视图与 GIF 导出照常可用，不引入 spacetime_transform 依赖。`times_et` 按 ADR 0013 决策 5 的"后续"路径从 `times_jd_tdb` 直读换算（SPICE ET ≡ J2000 JD TDB 秒，与 str2et 等价且免去闰秒换算）。
+- **产物持久化**：e2m2e 未提供该工具的 catalog 入库，星历落 JSON 到 `output/propagation/`，重启经 discovery 扫描恢复进项目树（文件名茎作 artifact_id）。
+
 ### 库浏览器改造（issue #375）
 
 - **升级依赖**：最低版本升为 `e2m2e>=5.8.0`，`uv.lock` 同步。获得轨道库 catalog（上游 #475 / ADR 0031）：多维分类、谱系指针、教学标注、子集导出与产物自动入库。

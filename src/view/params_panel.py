@@ -817,14 +817,22 @@ def _make_list_float_field(field_name: str, field: Any, meta: dict[str, Any]) ->
     spinbox 一起缩放。
     """
     args = typing.get_args(field.annotation)
-    n = args[1] if len(args) > 1 and isinstance(args[1], int) else 3
+    if len(args) > 1 and isinstance(args[1], int):
+        n = args[1]
+    elif meta.get("max_length") is not None:
+        # list[float] 无固定长度元参数时用 max_length（如 initial_state 长度 6）
+        n = int(meta["max_length"])
+    else:
+        n = 3
 
     container = QWidget()
     layout = QVBoxLayout(container)
     layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(2)
 
-    defaults: list[float] = list(field.default) if field.default is not None else [0.0] * n
+    defaults: list[float] = (
+        list(field.default) if isinstance(field.default, (list, tuple)) else [0.0] * n
+    )
 
     for i in range(n):
         sb = QDoubleSpinBox()
@@ -896,10 +904,16 @@ def _make_field_widget(field_name: str, field: Any) -> QWidget | None:
     """根据 Pydantic 字段类型和约束创建对应 Qt 控件。"""
     inner_tp, is_optional = _unwrap_optional(field.annotation)
 
-    # 特判 1：epoch（[年,月,日,时,分,秒]）-> 6-spinbox 容器。
-    # 仅当默认值是 6 元序列才命中，避免误伤其它 Any 字段（如 input_ephemeris）。
-    if field_name == _EPOCH_FIELD and inner_tp is Any and _is_epoch_default(field.default):
-        return _make_epoch_field(field)
+    # 特判 1：epoch（[年,月,日,时,分,秒]）-> QDateTimeEdit。
+    # 默认值是 6 元序列（如 DesignOrbitRequest）或无默认（PropagationRequest）
+    # 都路由进来；无默认时用与设计一致的固定默认历元。避免误伤其它 Any
+    # 字段（如 control_orbit 的 input_ephemeris）。
+    if field_name == _EPOCH_FIELD and inner_tp is Any:
+        default = (
+            tuple(field.default) if _is_epoch_default(field.default) else (2024, 1, 1, 0, 0, 0.0)
+        )
+        epoch_field: Any = types.SimpleNamespace(default=default)
+        return _make_epoch_field(epoch_field)
 
     # 特判 2：str 枚举类字段（correction_method）-> QComboBox。
     options = _STR_ENUM_FIELDS.get(field_name)

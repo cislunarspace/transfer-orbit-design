@@ -65,3 +65,36 @@ class TestRetiredClassifications:
     def test_ephemeris_files_not_classified(self, tmp_path: Path) -> None:
         _write(tmp_path, "ephemeris/orbit_ephemeris_20260101000000.json")
         assert discover_artifacts(tmp_path) == []
+
+
+class TestDiscoverPropagationArtifacts:
+    """轨道预报星历分区（issue #389）：propagation_*.json → ephemeris Artifact。"""
+
+    def _payload(self) -> dict:
+        return {
+            "source_tool": "orbit_propagation",
+            "label": "轨道预报 2026-01-01T00:00:00.000",
+            "mu": 0.012150585,
+            "times_et": [0.0, 3600.0],
+            "position_km": [[6793.0, 0.0, 0.0]] * 2,
+            "velocity_km_s": [[0.0, 7.5, 3.0]] * 2,
+            "synodic_position": [[0.01, 0.02, 0.0], [0.01, 0.03, 0.0]],
+        }
+
+    def test_propagation_classified_as_ephemeris(self, tmp_path: Path) -> None:
+        _write(tmp_path, "propagation/propagation_20260101000000.json", self._payload())
+        artifacts = discover_artifacts(tmp_path)
+        assert len(artifacts) == 1
+        a = artifacts[0]
+        assert a.artifact_type == "ephemeris"
+        assert a.source_tool == "orbit_propagation"
+        assert a.label == "轨道预报 2026-01-01T00:00:00.000"
+        # 文件名茎作 artifact_id（确定性，运行后可按 id 选中）
+        assert a.artifact_id == "propagation_20260101000000"
+        assert a.state_data.shape == (2, 3)
+        np.testing.assert_allclose(a.times, [0.0, 3600.0])
+        assert a.extra["position_km"][0] == [6793.0, 0.0, 0.0]
+
+    def test_non_matching_name_skipped(self, tmp_path: Path) -> None:
+        _write(tmp_path, "propagation/other_001.json", self._payload())
+        assert discover_artifacts(tmp_path) == []

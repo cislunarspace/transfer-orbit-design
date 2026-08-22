@@ -91,16 +91,15 @@ class TestDesignOrbitUnitCombo:
         assert params["amplitude"] == pytest.approx(60000.0)
 
     def test_control_orbit_output_step_has_unit(self, qapp):
-        """control_orbit 的 output_step（共享字段）也应有单位下拉。"""
+        """control_orbit 的 output_step（共享字段）也应有单位下拉（迁至弹窗后验证弹窗）。"""
         from PyQt6.QtWidgets import QComboBox
 
-        window = _make_window(qapp)
-        tool_combo = window._tool_combo
-        idx = tool_combo.findData("control_orbit")
-        assert idx >= 0
-        tool_combo.setCurrentIndex(idx)
+        from src.model import Artifact
+        from src.view.control_orbit_dialog import ControlOrbitDialog
 
-        output_step_row = window._param_rows["output_step"]
+        source = Artifact(artifact_type="orbit", label="s", orbit_type="DRO")
+        dialog = ControlOrbitDialog(source=source, kernel_dir=None, catalog_dir="/tmp")
+        output_step_row = dialog._param_rows["output_step"]
         assert isinstance(output_step_row[2], QComboBox)
 
     def test_duration_defaults_to_one_month(self, qapp):

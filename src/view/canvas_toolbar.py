@@ -30,6 +30,8 @@ class CanvasToolbar(QWidget):
         show_bodies:    是否显示地球/月球标注。
         show_libration: 是否显示 L1-L5 拉格朗日点标注。
         equal_aspect:   是否等比例显示（默认勾选；取消后各轴独立缩放填满）。
+        fit_view:       视图适配：按当前可见轨道轨迹的坐标范围重设各轴窗口
+                        （每轴 5% 余量，标注不参与；CONTEXT.md: 视图适配）。
         export_animation: 弹出 GIF 导出对话框（P2，从选中的星历 Artifact 导出）。
     """
 
@@ -52,6 +54,7 @@ class CanvasToolbar(QWidget):
         self.show_bodies = QCheckBox("地月")
         self.show_libration = QCheckBox("L1-L5")
         self.equal_aspect = QCheckBox("等比")
+        self.fit_view = QPushButton("适配")
         self.export_animation = QPushButton("导出动画")
 
         self.show_bodies.setChecked(True)
@@ -140,7 +143,8 @@ class CanvasToolbar(QWidget):
         layout.addWidget(self.show_bodies, 3, 0)
         layout.addWidget(self.show_libration, 3, 1)
         layout.addWidget(self.equal_aspect, 3, 2)
-        layout.addWidget(self.export_animation, 3, 3)
+        layout.addWidget(self.fit_view, 3, 3)
+        layout.addWidget(self.export_animation, 3, 4)
 
         # 选中态：灰色加深（低调不突兀，仍能看出当前生效项）
         self.setStyleSheet("QPushButton:checked {  background-color: #b0b0b0;}")

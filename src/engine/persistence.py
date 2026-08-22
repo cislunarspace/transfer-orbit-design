@@ -8,6 +8,8 @@ e2m2e 5.8.0 起 design_orbit / orbit_family_generation / control_orbit 的
   不进项目树（结果经对话框展示）。
 - 转移轨道设计（``save_transfer_result``）：落 JSON 到 output/transfer/，
   经遗留分区扫描进项目树（e2m2e 对 transfer 产物入库另行立项）。
+- 轨道预报（``save_propagation_result``，issue #389）：e2m2e 未提供该工具
+  的产物入库，星历落 JSON 到 output/propagation/，重启经 discovery 恢复。
 
 画布与动画导出的临时文件（GIF 等）不在此列。
 """
@@ -23,7 +25,11 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 if TYPE_CHECKING:
-    from src.engine.facade_bridge import StabilityResultData, TransferDesignResultData
+    from src.engine.facade_bridge import (
+        PropagationResultData,
+        StabilityResultData,
+        TransferDesignResultData,
+    )
 
 
 def _timestamp() -> str:
@@ -120,4 +126,36 @@ def save_transfer_result(
         "details": _ser(result_data.details or {}),
     }
     json_path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    return json_path
+
+
+def save_propagation_result(
+    result_data: PropagationResultData,
+    output_dir: Path,
+) -> Path:
+    """将轨道预报星历写入 output/propagation/，返回 json_path。
+
+    e2m2e 未提供 orbit_propagation 的 catalog 入库，产物落 JSON（数组
+    tolist），重启后由 ``model.discovery`` 扫描恢复进项目树。文件名
+    ``propagation_<ts>``（同时作为恢复后的 artifact_id，供运行后选中）。
+    """
+    output_dir = Path(output_dir)
+    prop_dir = output_dir / "propagation"
+    prop_dir.mkdir(parents=True, exist_ok=True)
+
+    ts = _timestamp()
+    json_path = prop_dir / f"propagation_{ts}.json"
+    payload = {
+        "source_tool": "orbit_propagation",
+        "label": f"轨道预报 {result_data.epoch_utc}",
+        "epoch_utc": result_data.epoch_utc,
+        "duration_sec": result_data.duration_sec,
+        "mu": result_data.mu,
+        "times_et": np.asarray(result_data.times_et).tolist(),
+        "position_km": np.asarray(result_data.position_km).tolist(),
+        "velocity_km_s": np.asarray(result_data.velocity_km_s).tolist(),
+        "synodic_position": np.asarray(result_data.synodic_position).tolist(),
+        "final_state": np.asarray(result_data.final_state).tolist(),
+    }
+    json_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     return json_path

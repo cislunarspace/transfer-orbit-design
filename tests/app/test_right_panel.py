@@ -38,24 +38,27 @@ def _make_window(qapp):
 
 
 class TestToolInventoryAlignment:
-    def test_combo_lists_all_facade_tools(self, qapp):
-        """工具下拉与 e2m2e facade 工具清单一致（含灰显的未接入工具）。"""
+    def test_combo_lists_gui_tools(self, qapp):
+        """工具下拉列出除 control_orbit 外的全部 facade 工具（含灰显项）。
+
+        control_orbit 已迁至选中轨道后的 ControlOrbitDialog 独立入口，
+        不再走工具选择器。
+        """
         from e2m2e.api import Facade, mcp_tools
 
         window = _make_window(qapp)
         keys = [
             window._tool_combo.itemData(i) for i in range(window._tool_combo.count())
         ]
-        assert set(keys) == set(mcp_tools(Facade()))
+        assert set(keys) == set(mcp_tools(Facade())) - {"control_orbit"}
 
     def test_enabled_first_and_default_selected(self, qapp):
         """enabled 工具排前，默认选中第一个 enabled（轨道设计）。"""
         window = _make_window(qapp)
         assert window._tool_combo.currentData() == "design_orbit"
-        # 前三个是 enabled 工具
+        # 前 N 个是 enabled 工具（control_orbit 已迁出，原序号顺延）
         assert window._tool_combo.itemData(0) == "design_orbit"
-        assert window._tool_combo.itemData(1) == "control_orbit"
-        assert window._tool_combo.itemData(2) == "orbit_family_generation"
+        assert window._tool_combo.itemData(1) == "orbit_family_generation"
 
     def test_disabled_items_have_description_tooltip(self, qapp):
         """灰显工具项的 tooltip 是工具说明（告知何时提供/占位状态）。"""
@@ -94,12 +97,10 @@ class TestParamGroups:
         window = _make_window(qapp)
         assert set(window._group_headers) == {"形状参数", "传播参数", "修正参数"}
 
-    def test_control_groups(self, qapp):
-        """control_orbit 面板按控制、误差、力模型与角动量管理分组。"""
+    def test_control_orbit_not_in_combo(self, qapp):
+        """control_orbit 不再进入工具下拉（已迁至选中轨道后的独立弹窗）。"""
         window = _make_window(qapp)
-        idx = window._tool_combo.findData("control_orbit")
-        window._tool_combo.setCurrentIndex(idx)
-        assert set(window._group_headers) == {"控制参数", "仿真与误差", "力模型", "角动量管理"}
+        assert window._tool_combo.findData("control_orbit") < 0
 
     def test_family_panel_family_types(self, qapp):
         """族生成面板暴露各族下拉（5.8.2 起含月心族 DRO），sampling_mode 不进面板。"""
@@ -192,6 +193,7 @@ class TestParamGroups:
     def test_family_request_params_dro_no_libration_point(self, qapp):
         """DRO 月心族不绑定平动点：过滤须剔除 libration_point，避免空字符串触发 int 解析错误。"""
         from e2m2e.api.models import FamilyGenerationRequest
+
         from src.app.main_window import _family_request_params
 
         params = {
@@ -287,15 +289,5 @@ class TestResetButton:
         )
         assert params["amplitude"] == pytest.approx(60000.0)
 
-    def test_reset_control_restores_interval(self, qapp):
-        """control_orbit 面板重置后恢复 GUI 短弧默认（0.25/0.125 天）。"""
-        window = _make_window(qapp)
-        idx = window._tool_combo.findData("control_orbit")
-        window._tool_combo.setCurrentIndex(idx)
-        window._param_rows["control_interval"][1].setValue(1.0)
-        window._param_rows["feedback_arc"][1].setValue(2.0)
-
-        window._on_reset_params()
-
-        assert window._param_rows["control_interval"][1].value() == pytest.approx(0.25)
-        assert window._param_rows["feedback_arc"][1].value() == pytest.approx(0.125)
+    # control_orbit 重置默认已随交互重构迁至 ControlOrbitDialog，
+    # 见 tests/view/test_control_orbit_dialog.py 的 test_reset_restores_short_arc_defaults
