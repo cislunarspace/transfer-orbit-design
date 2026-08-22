@@ -49,9 +49,12 @@ jobs:
   build-windows:
     needs: test
     runs-on: windows-2025
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
@@ -78,31 +81,9 @@ jobs:
           Copy-Item dist/tod-sidecar.exe src-tauri/binaries/tod-sidecar.exe
       - name: Build NSIS installer
         run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.conf.json
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-installer
-          path: src-tauri/target/release/bundle/nsis/*-setup.exe
-          if-no-files-found: error
-
-  github-release:
-    needs: build-windows
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: windows-installer
-
       - name: Generate changelog
         id: changelog
+        shell: bash
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           if [ -n "$PREV_TAG" ]; then
@@ -110,10 +91,13 @@ jobs:
           else
             CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
           fi
-          echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-
+          {
+            echo "changelog<<EOF"
+            echo "$CHANGELOG"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      # 直传 Release，不经 actions artifact 中转（artifact 存储配额有限，
+      # 历史上 300MB 级安装包很快打满；Release 资产不计入该配额）
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -122,5 +106,5 @@ jobs:
             ## Changes
 
             ${{ steps.changelog.outputs.changelog }}
-          files: tod-*-setup.exe
+          files: src-tauri/target/release/bundle/nsis/*-setup.exe
           generate_release_notes: true
