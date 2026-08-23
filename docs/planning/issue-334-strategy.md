@@ -43,11 +43,11 @@
 
 ```
 Exception
-├── DesignNotConvergedError (RuntimeError) — 星历修正不收敛
-├── ValueError — 参数越界
-├── FileNotFoundError — SPICE 内核缺失
-├── NotImplementedError — 未实现的扰动模型
-└── UnsupportedCorrectorMethodError (ValueError) — 修正方法不支持
+├── DesignNotConvergedError (RuntimeError) - 星历修正不收敛
+├── ValueError - 参数越界
+├── FileNotFoundError - SPICE 内核缺失
+├── NotImplementedError - 未实现的扰动模型
+└── UnsupportedCorrectorMethodError (ValueError) - 修正方法不支持
 ```
 
 ---

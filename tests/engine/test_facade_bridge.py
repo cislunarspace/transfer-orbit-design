@@ -110,7 +110,7 @@ class TestToolRegistry:
             assert spec.description, f"{name}.description 为空"
 
     def test_disabled_tool_descriptions_follow_inventory_status(self):
-        """非 GUI 工具的“已实现/占位”说明以 e2m2e 清单为准。"""
+        """非 GUI 工具的已实现/占位说明以 e2m2e 清单为准。"""
         from e2m2e.api import Facade, tool_inventory
 
         status_notes = {

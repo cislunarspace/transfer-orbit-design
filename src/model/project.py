@@ -10,7 +10,7 @@ class Project:
         self.name: str = name
         self._artifacts: list[Artifact] = []
         # 全库记录 id 集合（未过滤视图）。断链的判定依据是"上游记录是否还
-        # 存在于库"，不是"是否在当前过滤视图里"——过滤把上游筛出清单时，
+        # 存在于库"，不是"是否在当前过滤视图里"，过滤把上游筛出清单时，
         # 下游不应被误标断链。None = 调用方未提供，退化为清单内查找。
         self.known_record_ids: set[str] | None = None
 

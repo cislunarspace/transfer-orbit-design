@@ -41,7 +41,7 @@ msgstr ""
 #: dab1cdc340a34cb99913e1d6c2d242b2
 msgid ""
 "ADR 0010 落地内嵌画布时只围绕 CR3BP 旋转系设计：画布读 `states[:,:3]`，按 μ 画地月与 "
-"L1–L5，单位隐含无量纲（DU）。星历模型结果（轨道保持 control_orbit 产出的受控星历、轨道设计 design_orbit "
+"L1-L5，单位隐含无量纲（DU）。星历模型结果（轨道保持 control_orbit 产出的受控星历、轨道设计 design_orbit "
 "产出的标称星历）虽也送进了画布，但有四个问题："
 msgstr ""
 
@@ -50,7 +50,7 @@ msgstr ""
 msgid ""
 "**原点不一致**：算法层输出的 `EphemerisTable.synodic_position` 是地心归一（月球在 +1，源自 "
 "design_orbit 与 monte_carlo 的 `synodic[:,0] += μ`），而画布地月标注按质心归一（月球在 "
-"1−μ）。两者差 μ·DU ≈ 4690 km——画 NRHO 这类绕月轨道时，月球标记与轨迹肉眼可见地错位。"
+"1−μ）。两者差 μ·DU ≈ 4690 km，画 NRHO 这类绕月轨道时，月球标记与轨迹肉眼可见地错位。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:13
@@ -83,7 +83,7 @@ msgstr ""
 #: 59e67f61429e4f5a8536a04dab5872d6
 msgid ""
 "**脉动-旋转系**（pulsating-rotating frame，瞬时地月距离归一）是 cislunar 可视化绝对主流（约 "
-"70%）。Folta 等 2022（NASA GSFC 官方建模约定）有专门分析框论证\"为何用无量纲旋转系\"——地月与 L₁ "
+"70%）。Folta 等 2022（NASA GSFC 官方建模约定）有专门分析框论证\"为何用无量纲旋转系\"，地月与 L₁ "
 "在该系固定，把随时间演化的轨迹压进一张静态 2D 图。Park 2025 给出最严格的定义与转换链。"
 msgstr ""
 
@@ -109,7 +109,7 @@ msgstr ""
 #: ../../adr/0013-ephemeris-visualization-conventions.md:23
 #: 499ff838cf7d4c8a9266c3ea3d18f130
 msgid ""
-"惯性系画月球完整真实公转轨迹，文献里几乎没有——旋转系月球本就固定，惯性系 snapshot 通常省略或画参考圆。本决策采 SPICE "
+"惯性系画月球完整真实公转轨迹，文献里几乎没有，旋转系月球本就固定，惯性系 snapshot 通常省略或画参考圆。本决策采 SPICE "
 "真实轨迹作为合理增强。"
 msgstr ""
 
@@ -117,7 +117,7 @@ msgstr ""
 #: 23dd948e25424e93842947cd2fadd82c
 msgid ""
 "核查算法层：`SynodicAxes.characteristic_length(et)` "
-"返回瞬时地月距离，旋转矩阵由瞬时月球状态构造——e2m2e 已是脉动-旋转系，无需新建坐标系。"
+"返回瞬时地月距离，旋转矩阵由瞬时月球状态构造，e2m2e 已是脉动-旋转系，无需新建坐标系。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:27
@@ -181,7 +181,7 @@ msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:40
 #: 58ae91f7d0b647799b257b628d4ee572
-msgid "瞬时平动点在脉动系下退化为 5 个固定点，免去逐历元算法——会合系视图直接复用现有 L1–L5 标注即满足需求。"
+msgid "瞬时平动点在脉动系下退化为 5 个固定点，免去逐历元算法，会合系视图直接复用现有 L1-L5 标注即满足需求。"
 msgstr ""
 
 #: ../../adr/0013-ephemeris-visualization-conventions.md:41
@@ -269,7 +269,7 @@ msgstr ""
 #: ../../adr/0013-ephemeris-visualization-conventions.md:66
 #: 28f044f539554a948adfe8bb66b3a01e
 msgid ""
-"初版只覆盖 control_orbit 的受控星历。#359 把范围扩到 design_orbit 产出的标称星历——同一份产物里 CR3BP "
+"初版只覆盖 control_orbit 的受控星历。#359 把范围扩到 design_orbit 产出的标称星历，同一份产物里 CR3BP "
 "初猜（无量纲周期轨道）与真实星历模型下的标称星历（拟周期、跨整个 duration）首次并列进入画布。"
 msgstr ""
 
@@ -281,7 +281,7 @@ msgstr ""
 #: ../../adr/0013-ephemeris-visualization-conventions.md:70
 #: 1c124ba24d88418d9fe3aea8e84a9d95
 msgid ""
-"**数据契约**：`_artifact_for_id` 显式暴露四个并列槽位——`initial_guess_states`（CR3BP "
+"**数据契约**：`_artifact_for_id` 显式暴露四个并列槽位，`initial_guess_states`（CR3BP "
 "周期轨道，无量纲会合系）、`ephemeris_synodic`（星历会合系位置，已减 "
 "μ）、`ephemeris_position_km`（GCRS km）、`ephemeris_times_et`（ET 秒）。不嵌套在 "
 "`extra[\"ephemeris\"]` 里让人猜、不靠\"顶层找不到翻 dict\"的隐式 fallback。control_orbit "
@@ -317,4 +317,3 @@ msgstr ""
 
 #~ msgid "**动画**：GIF 导出为独立\"导出动画\"工具（按 frame + `times_et` 逐帧渲染再合成），主画布不做实时播放。"
 #~ msgstr ""
-

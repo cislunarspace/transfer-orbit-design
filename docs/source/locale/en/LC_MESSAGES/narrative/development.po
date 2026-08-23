@@ -122,7 +122,7 @@ msgid ""
 msgstr ""
 
 #: ../../development.md:66 8bc38c169c024b44a8e1b78f83b975a9
-msgid "无量纲 CR3BP 参数应明确写“无量纲”；角度写“rad”或“度”；时间写“TU”“天”或“秒”。布尔开关说明开启后的行为。"
+msgid "无量纲 CR3BP 参数应明确写无量纲；角度写rad或度；时间写TU天或秒。布尔开关说明开启后的行为。"
 msgstr ""
 
 #: ../../development.md:68 4e425fdaade840f085098c9b5276e16e
@@ -337,4 +337,3 @@ msgstr ""
 #~ "GUI 尚未接入语言切换（界面固定中文，`TranslationLoader` "
 #~ "未被主窗口调用）。接入前维护翻译文件意义有限，新增界面文本直接写中文即可。"
 #~ msgstr ""
-

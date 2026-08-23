@@ -12,11 +12,11 @@
 
 | 轨道 | 稳定性 | 不机动可保持 | 年均保持 Δv |
 |------|--------|-------------|------------|
-| DRO（大幅） | 稳定（stability index ≈ 1） | 数月至数年有界 | 0.8–1.0 m/s |
-| DRO（小幅） | 稳定 | 数月有界 | 1.5–2.0 m/s |
-| 9:2 NRHO | 弱稳定 | 数周有界 | 0.5–2.0 m/s |
-| halo（L1/L2） | 不稳定 | 数天即需机动 | 5–7 m/s |
-| Lissajous | 不稳定 | 数天即需机动 | 5–10 m/s |
+| DRO（大幅） | 稳定（stability index ≈ 1） | 数月至数年有界 | 0.8-1.0 m/s |
+| DRO（小幅） | 稳定 | 数月有界 | 1.5-2.0 m/s |
+| 9:2 NRHO | 弱稳定 | 数周有界 | 0.5-2.0 m/s |
+| halo（L1/L2） | 不稳定 | 数天即需机动 | 5-7 m/s |
+| Lissajous | 不稳定 | 数天即需机动 | 5-10 m/s |
 
 核心区别：**DRO 稳定，halo/Lissajous 不稳定**。DRO 的保持是为了抵消长期
 小漂移；halo/Lissajous 的保持是为了压制沿不稳定流形的指数发散，代价高
@@ -40,7 +40,7 @@ DRO（Distant Retrograde Orbit）在 CR3BP 里 stability index 接近 1，是临
 > "The DROs with large amplitudes have the lowest station-keeping cost."
 > Zhang & Wang 2022
 
-所以选 DRO 做长期任务时，不必为了"怕不稳"而选紧凑轨道。~50000–70000 km
+所以选 DRO 做长期任务时，不必为了担忧稳定性而选择紧凑轨道。~50000-70000 km
 的中等 DRO 兼顾可视性、稳定性与低保持代价。
 
 ## 位置保持做什么
@@ -52,8 +52,8 @@ DRO（Distant Retrograde Orbit）在 CR3BP 里 stability index 接近 1，是临
 2. **纠正导航与执行误差**。轨道确定有不确定度，机动执行有偏差，这些误差
    累积也需要修正。
 
-对 DRO，保持是"锦上添花"：不做也能维持很久，做了能更贴标称轨道。对
-halo/Lissajous，保持是"刚需"：不做几天到两周就沿不稳定流形发散到不可用。
+对 DRO，保持属于锦上添花：不做也能维持很久，做了能更贴标称轨道。对
+halo/Lissajous，保持属于刚需：不做几天到两周就沿不稳定流形发散到不可用。
 
 ## 机动频率与速度增量
 
@@ -67,11 +67,11 @@ halo/Lissajous，保持是"刚需"：不做几天到两周就沿不稳定流形�
 | 30 天 | 0.27 m/s | 16 km | 60 km |
 | 60 天 | **0.05 m/s** | 39 km | 114 km |
 
-60 天不机动也只漂几十公里，这就是 DRO "长期稳定"的含义。每周一次机动对
+60 天不机动也只漂几十公里，这就是 DRO 长期稳定的含义。每周一次机动对
 DRO 来说偏过度；几周到两个月一次就够了。
 
-作为对比，halo 轨道（L2，ARTEMIS 实测）年均 5–7 m/s、每周约一次，超过
-10–14 天不机动就可能发散。9:2 NRHO 介于两者之间，年均 0.5–2 m/s、1–2 周
+作为对比，halo 轨道（L2，ARTEMIS 实测）年均 5-7 m/s、每周约一次，超过
+10-14 天不机动就可能发散。9:2 NRHO 介于两者之间，年均 0.5-2 m/s、1-2 周
 一次。
 
 ## CR3BP 与真实星历的差异
@@ -93,7 +93,7 @@ CR3BP 假设地球月球做匀速圆运动、忽略太阳引力等摄动，存�
 
 **轨道保持工具**（control_orbit）以一条标称星历为输入，在考虑导航误差、
 机动执行误差、光压不确定度等的情况下做 Monte-Carlo 仿真，输出受控星历
-与机动 Δv 统计。它评估的是"给定保持策略，实际飞行的轨道会怎样"。
+与机动 Δv 统计。它评估的是在给定保持策略下实际飞行的轨道演化。
 
 使用要点：
 
@@ -101,7 +101,7 @@ CR3BP 假设地球月球做匀速圆运动、忽略太阳引力等摄动，存�
   标称星历覆盖，运行前工具会校验并拦截。
 - **控制模式**：目标点模式（1/2）适合 DRO 等稳定轨道；特征点模式（3）以
   穿越 x-z 平面为控制目标，适合 halo/NRHO（`special_mode` 区分 Lissajous
-  与 Halo/NRHO 的约束）。角动量管理模式（4–6）需提供发动机布局
+  与 Halo/NRHO 的约束）。角动量管理模式（4-6）需提供发动机布局
   `engine_layout`。
 - **历史问题已修复**：e2m2e 5.6.x 已修复大幅 DRO 星历发散（速度残差加权，
   #324）与 Lissajous 初猜发散（中心流形约化，#323），本表数据可在软件中
@@ -113,10 +113,10 @@ CR3BP 假设地球月球做匀速圆运动、忽略太阳引力等摄动，存�
   strategies for cis-lunar orbits with the ephemeris*：全星历
   DRO/NRHO/halo 保持策略对比，本文 Δv 与漂移数据的主要来源。
 - Minghu 等 2014. *Transfer to long term distant retrograde orbits around
-  the moon*：大幅 DRO 在太阳摄动下 300–700 天有界。
-- Folta 等 2014. *Earth–moon libration point orbit stationkeeping: theory,
+  the moon*：大幅 DRO 在太阳摄动下 300-700 天有界。
+- Folta 等 2014. *Earth-moon libration point orbit stationkeeping: theory,
   modeling, and operations*：ARTEMIS 平动点轨道保持的工程实践
   （halo/NRHO 基准）。
-- Guzzetti 等 2016. *Rapid trajectory design in the Earth–moon ephemeris
+- Guzzetti 等 2016. *Rapid trajectory design in the Earth-moon ephemeris
   system via an interactive catalog of periodic and quasi-periodic
   orbits*：准周期轨道在星历模型里的有界性。

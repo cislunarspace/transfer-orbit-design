@@ -1,7 +1,7 @@
 """tests for FacadeBridge.generate_family / analyze_stability（轨道族生成 + 稳定性分析）。
 
 mock 测试验证 DTO 装配与参数透传；末尾真路径测试用真实 e2m2e（纯 CR3BP，
-不需要 SPICE 内核），守住"族生成真能跑"的底线。5.7.1 起族生成走
+不需要 SPICE 内核），验证族生成可正常运行。5.7.1 起族生成走
 ``Facade.orbit_family_generation``（七族统一入口），mock 桩在 Facade 方法上。
 """
 
@@ -64,7 +64,7 @@ class TestFamilyGenerationRequest:
             FamilyGenerationRequest(orbit_type="SPO", max_amplitude_km=60000.0, amplitude_in_km=1.0)
 
     def test_dro_family_defaults(self):
-        """5.8.2 起 DRO（月心族）为合法 orbit_type：不绑定平动点，振幅区间默认 2000–60000 km。"""
+        """5.8.2 起 DRO（月心族）为合法 orbit_type：不绑定平动点，振幅区间默认 2000-60000 km。"""
         req = FamilyGenerationRequest(orbit_type="DRO")
         assert req.libration_point is None
         assert req.min_amplitude_km == 2000.0
@@ -426,7 +426,7 @@ def test_generate_lissajous_family_real_pipeline():
 
 
 def test_generate_dro_family_real_pipeline(tmp_path):
-    """真 e2m2e：DRO 族（5.8.2，#502）为月心族——无平动点，成员参数为 amplitude_km。"""
+    """真 e2m2e：DRO 族（5.8.2，#502）为月心族，无平动点，成员参数为 amplitude_km。"""
     bridge = FacadeBridge(catalog_dir=str(tmp_path / "catalog"))
     data = bridge.generate_family(
         orbit_type="DRO", min_amplitude_km=2000.0, max_amplitude_km=20000.0, n_orbits=3

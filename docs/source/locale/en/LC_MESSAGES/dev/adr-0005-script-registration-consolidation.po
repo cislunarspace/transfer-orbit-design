@@ -109,7 +109,7 @@ msgstr ""
 #: ../../adr/0005-script-registration-consolidation.md:30
 #: 30f605ef0ae846fdb39468ca0f118ef8
 msgid ""
-"**保留 `_ScanEntry` 轻量包装**：虽然启动时间不再约束，但 `_ScanEntry` 作为扫描器的内部类型仍有价值——它只读取 "
+"**保留 `_ScanEntry` 轻量包装**：虽然启动时间不再约束，但 `_ScanEntry` 作为扫描器的内部类型仍有价值，它只读取 "
 "`ScriptEntry` 的字段，不持有对重型模块的引用。"
 msgstr ""
 
@@ -187,4 +187,3 @@ msgstr ""
 #: a59f7ec986024800befd60c8882dcd1c
 msgid "`optimize_dro_to_ro.py` 的 e2m2e 依赖缺失问题需要单独修复"
 msgstr ""
-

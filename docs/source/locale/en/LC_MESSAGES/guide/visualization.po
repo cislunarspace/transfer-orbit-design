@@ -58,7 +58,7 @@ msgstr "Chart Settings"
 
 #: ../../source/guide/visualization.md:20 22758fc00ef84526b212dbdf14775069
 msgid "右上角「图表设置」打开设置面板，即时生效并持久化（localStorage），可一键 恢复默认："
-msgstr "The top-right \"Chart Settings\" opens the settings panel — changes apply instantly and persist (localStorage), with one-click reset to defaults:"
+msgstr "The top-right \"Chart Settings\" opens the settings panel - changes apply instantly and persist (localStorage), with one-click reset to defaults:"
 
 #: ../../source/guide/visualization.md:23 bdeeea46634d48beaadf3db905b065ac
 msgid "轨道线宽；"
@@ -80,7 +80,7 @@ msgstr "Export Animation"
 msgid ""
 "右上角「导出动画」录制 8 秒画布自转（30 fps），经浏览器 MediaRecorder 编码 为 `orbit-"
 "animation.webm` 下载；不依赖外部编码器。录制期间按钮显示进度态， 结束后自动停止自转。"
-msgstr "The top-right \"Export Animation\" records 8 seconds of canvas auto-rotation (30 fps), encoded by the browser's MediaRecorder into `orbit-animation.webm` for download — no external encoder needed. The button shows progress while recording; rotation stops automatically at the end."
+msgstr "The top-right \"Export Animation\" records 8 seconds of canvas auto-rotation (30 fps), encoded by the browser's MediaRecorder into `orbit-animation.webm` for download - no external encoder needed. The button shows progress while recording; rotation stops automatically at the end."
 
 #~ msgid ""
 #~ "画布是主窗口中央的内嵌 matplotlib 绘图区，展示轨道工件与轨道族。工具栏 "
@@ -120,7 +120,7 @@ msgstr "The top-right \"Export Animation\" records 8 seconds of canvas auto-rota
 #~ msgid "会合系"
 #~ msgstr ""
 
-#~ msgid "CR3BP 旋转坐标系（无量纲），画地月天体与 L1–L5 平动点标注"
+#~ msgid "CR3BP 旋转坐标系（无量纲），画地月天体与 L1-L5 平动点标注"
 #~ msgstr ""
 
 #~ msgid "惯性系"
@@ -211,4 +211,3 @@ msgstr "The top-right \"Export Animation\" records 8 seconds of canvas auto-rota
 
 #~ msgid "初猜模式无物理时间轴，导出动画按钮会拒绝导出。"
 #~ msgstr ""
-

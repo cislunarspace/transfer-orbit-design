@@ -39,7 +39,7 @@ msgstr ""
 #: 8be6a02ccf8c4a73b571702c56cb1ed5
 msgid ""
 "e2m2e 的 Facade 门面（`e2m2e.api.Facade`）是 MCP/CLI 的统一入口。但 Facade 的返回值是 "
-"Pydantic 模型（`DesignOrbitResponse` 等），这些模型**剥离了轨道数据**——只返回标量汇总（轨道类型、Jacobi"
+"Pydantic 模型（`DesignOrbitResponse` 等），这些模型**剥离了轨道数据**，只返回标量汇总（轨道类型、Jacobi"
 " 常数、收敛标志），不返回 `Orbit` 对象或 `EphemerisTable`。"
 msgstr ""
 
@@ -88,7 +88,7 @@ msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:33
 #: ed31bf7800614d3caf8058e55676091d
-msgid "**e2m2e 架构对齐**：e2m2e ADR 0011 明确\"算法层保留细粒度 API（专家用）\"——GUI 就是这个\"专家\"用户。"
+msgid "**e2m2e 架构对齐**：e2m2e ADR 0011 明确\"算法层保留细粒度 API（专家用）\"，GUI 就是这个\"专家\"用户。"
 msgstr ""
 
 #: ../../adr/0011-algorithm-layer-direct-call.md:35
@@ -169,4 +169,3 @@ msgid ""
 "的前提（Facade 剥离轨道数据）对族生成 已不再成立；`design_orbit` / `control_orbit` "
 "仍直调算法层（对应响应仍只 返回标量汇总）。"
 msgstr ""
-

@@ -35,7 +35,7 @@ msgid ""
 "**v4.0.0 的界面工具不需要内核**：轨道族生成与轨道库浏览是纯 CR3BP 计算， "
 "安装后直接使用，无任何内核准备步骤。星历类工具的界面回归见 [issue "
 "#398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)。"
-msgstr "**The v4.0.0 UI tools need no kernels**: orbit family generation and catalog browsing are pure CR3BP computations — ready to use right after install, with no kernel preparation step. The return of ephemeris tools is tracked in [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)."
+msgstr "**The v4.0.0 UI tools need no kernels**: orbit family generation and catalog browsing are pure CR3BP computations - ready to use right after install, with no kernel preparation step. The return of ephemeris tools is tracked in [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)."
 
 #: ../../source/guide/kernels.md:11 0d7b3bb5077d405cac5c877dc89792e9
 msgid "内核从哪里来"
@@ -45,13 +45,13 @@ msgstr "Where the Kernels Come From"
 msgid ""
 "安装包已随带小内核（`.bpc` / `.tls` / `.tpc` / `.tf`，位于安装目录的 "
 "`resources/kernels/`）；体积大的星历 `.bsp` 不随包分发，需要时获取："
-msgstr "The installer bundles the small kernels (`.bpc` / `.tls` / `.tpc` / `.tf`, under `resources/kernels/` in the install directory); the bulky ephemeris `.bsp` files are not distributed with the package — fetch them when needed:"
+msgstr "The installer bundles the small kernels (`.bpc` / `.tls` / `.tpc` / `.tf`, under `resources/kernels/` in the install directory); the bulky ephemeris `.bsp` files are not distributed with the package - fetch them when needed:"
 
 #: ../../source/guide/kernels.md:16 4fe4a7892aa34c908c3233d3fb5a7f32
 msgid ""
 "**自动下载（推荐）**：`uv run python scripts/download_kernels.py`，幂等地 拉取全部内核到 "
 "`kernels/`；"
-msgstr "**Automatic download (recommended)**: `uv run python scripts/download_kernels.py` — idempotently fetches all kernels into `kernels/`;"
+msgstr "**Automatic download (recommended)**: `uv run python scripts/download_kernels.py` - idempotently fetches all kernels into `kernels/`;"
 
 #: ../../source/guide/kernels.md:18 108c9a42772e4ad68d21a2caffa507e5
 msgid ""
@@ -84,7 +84,7 @@ msgstr "**The GUI kernel-guidance popup of v3.2.3 and earlier was removed with t
 
 #~ msgid ""
 #~ "星历动力学（轨道设计的星历修正、轨道保持）需要 NASA SPICE 内核文件。 e2m2e"
-#~ " 的 SPICE 内核不随 pip 包分发——大文件托管在 e2m2e"
+#~ " 的 SPICE 内核不随 pip 包分发，大文件托管在 e2m2e"
 #~ " 仓库的 [`kernels-v1` "
 #~ "release](https://github.com/cislunarspace/e2m2e/releases) 中， "
 #~ "需要宿主自行准备。必需内核包括行星历（`.bsp`，如 `de440.bsp`）与闰秒 （`.tls`，如 "
@@ -159,4 +159,3 @@ msgstr "**The GUI kernel-guidance popup of v3.2.3 and earlier was removed with t
 
 #~ msgid "**纯 CR3BP 功能不需要内核**：轨道族生成、稳定性分析是纯 CR3BP 计算， 内核缺失不影响。"
 #~ msgstr ""
-

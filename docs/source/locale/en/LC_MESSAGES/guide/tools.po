@@ -41,7 +41,7 @@ msgid ""
 "为延拓，Lissajous 为拟周期轨迹的参数采样，DRO 为月心族（不绑定平动点）。 范围与默认值由 e2m2e "
 "`FamilyGenerationRequest` 的 `valid_ranges` 决定，GUI 不另维护一份。纯 CR3BP 计算，不需要 "
 "SPICE 内核。"
-msgstr "Generates orbit families in the CR3BP: periodic families (Halo / NRHO / Axial / SPO / LPO / Horseshoe) by continuation, Lissajous by parameter sampling of quasi-periodic bounded trajectories, DRO as a Moon-centred family (not bound to a libration point). Ranges and defaults come from the e2m2e `FamilyGenerationRequest` `valid_ranges`; the GUI keeps no copy of its own. Pure CR3BP computation — no SPICE kernels needed."
+msgstr "Generates orbit families in the CR3BP: periodic families (Halo / NRHO / Axial / SPO / LPO / Horseshoe) by continuation, Lissajous by parameter sampling of quasi-periodic bounded trajectories, DRO as a Moon-centred family (not bound to a libration point). Ranges and defaults come from the e2m2e `FamilyGenerationRequest` `valid_ranges`; the GUI keeps no copy of its own. Pure CR3BP computation - no SPICE kernels needed."
 
 #: ../../source/guide/tools.md 9ecfc15940364d8ba014119cb77b60c6
 msgid "参数"
@@ -151,7 +151,7 @@ msgstr "`phase_in` / `phase_out`"
 
 #: ../../source/guide/tools.md bc960758412d4a11aa4aa8c7dcb1cc0f
 msgid "面内 / 面外初始相位（0~1）"
-msgstr "In-plane / out-of-plane initial phase (0–1)"
+msgstr "In-plane / out-of-plane initial phase (0-1)"
 
 #: ../../source/guide/tools.md 9384d4b0dba34e1b9acb1f7524341382
 msgid "`continuation_direction`"
@@ -502,7 +502,7 @@ msgstr "Until then, these tools are available via the [e2m2e CLI](https://cislun
 #~ msgid "`engine_layout`"
 #~ msgstr ""
 
-#~ msgid "发动机布局 JSON（`positions_m` / `directions`），角动量管理（模式 4–6）必填"
+#~ msgid "发动机布局 JSON（`positions_m` / `directions`），角动量管理（模式 4-6）必填"
 #~ msgstr ""
 
 #~ msgid "`momentum_interval`"
@@ -558,7 +558,7 @@ msgstr "Until then, these tools are available via the [e2m2e CLI](https://cislun
 #~ msgid "30000"
 #~ msgstr ""
 
-#~ msgid "最大面外振幅（km，范围 1000–57000）；延拓到该振幅或折叠点自动停止"
+#~ msgid "最大面外振幅（km，范围 1000-57000）；延拓到该振幅或折叠点自动停止"
 #~ msgstr ""
 
 #~ msgid "20"
@@ -590,4 +590,3 @@ msgstr "Until then, these tools are available via the [e2m2e CLI](https://cislun
 
 #~ msgid "纯 CR3BP 计算，不需要 SPICE 内核。"
 #~ msgstr ""
-

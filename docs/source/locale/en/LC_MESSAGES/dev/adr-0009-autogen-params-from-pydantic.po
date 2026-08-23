@@ -215,4 +215,3 @@ msgid ""
 "可通过 `Field(json_schema_extra={\"widget\": \"slider\"})` 扩展 Pydantic "
 "元数据，覆盖特定字段的 UI"
 msgstr ""
-

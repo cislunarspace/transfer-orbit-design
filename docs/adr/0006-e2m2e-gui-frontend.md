@@ -24,7 +24,7 @@ tod 重新定位为 **e2m2e 的 GUI 前端**，职责仅限于：
 
 1. **消除双层封装**：当前 tod 脚本 = argparse + import e2m2e + 调用。这是纯粹的间接层，没有附加价值。
 2. **单一事实来源**：算法逻辑只在 e2m2e 中维护，不在 tod 中复制。
-3. **ADR 0014 结果**：e2m2e ADR 0014 已明确"transfer-orbit-design 保留独立仓库只留 GUI"。
+3. **ADR 0014 结果**：e2m2e ADR 0014 已明确transfer-orbit-design 保留独立仓库只留 GUI。
 4. **SCRIPT_ENTRY 废弃**：GUI 参数面板改为从 e2m2e Pydantic 模型自动生成，不再需要 CliParam 声明。
 
 ## 结果

@@ -58,13 +58,13 @@
 
 ### 功能（右边栏更新）
 
-- **参数分组与工具说明**：参数面板按组展示（轨道设计：形状/传播/修正参数；轨道保持：控制/仿真与误差/角动量管理；族生成：族参数），组表头 + 分隔线，轨道类型切换时整组隐藏；工具选择器下方新增工具说明（`ToolSpec.description`）；运行按钮旁新增"重置参数"按钮（重建面板恢复默认值）。
+- **参数分组与工具说明**：参数面板按组展示（轨道设计：形状/传播/修正参数；轨道保持：控制/仿真与误差/角动量管理；族生成：族参数），组表头 + 分隔线，轨道类型切换时整组隐藏；工具选择器下方新增工具说明（`ToolSpec.description`）；运行按钮旁新增重置参数按钮（重建面板恢复默认值）。
 - **整数枚举改下拉**：`collinear_point`（L1/L2/L3）、`north_south`（北族/南族）、`control_mode`（1-6 带角动量管理语义）、`is_nrho`、`special_mode`、`libration_point` 由裸 spinbox 改为带中文标签的 QComboBox（值存 itemData，收集按数据取值）。
-- **范围占位提示**：数值控件框内文本清空时显示约束范围（placeholder），tooltip 附描述+范围；切单位后提示同步刷新。全约束显示 min~max，单侧 `gt/lt` 显示 >/<，无约束字段如实显示"无范围约束"（不拿 Qt 兜底值冒充）。JSON 文本框（perturbation/dyb/engine_layout）为空时给格式示例提示。模型缺上界的 int 字段（num_controls/num_monte_carlo）用 GUI 临时上界兜底并注明。
+- **范围占位提示**：数值控件框内文本清空时显示约束范围（placeholder），tooltip 附描述+范围；切单位后提示同步刷新。全约束显示 min~max，单侧 `gt/lt` 显示 >/<，无约束字段如实显示无范围约束（不拿 Qt 兜底值冒充）。JSON 文本框（perturbation/dyb/engine_layout）为空时给格式示例提示。模型缺上界的 int 字段（num_controls/num_monte_carlo）用 GUI 临时上界兜底并注明。
 - **单位换算全覆盖**：所有可换算参数都提供国际单位与归一化单位切换：距离 km/m/DU（amplitude/amplitude_in/amplitude_out/perilune_height/semi_major_axis/max_amplitude_km）、相位 周期份额/度/弧度、角度 度/rad、时间 duration 年/月/日/时/秒/TU、output_step 秒/时/日/TU、control_interval/feedback_arc/momentum_interval 天/秒/TU、srp_offset_m 列表容器 m/DU；5.6.9 起 control_interval/feedback_arc 由模型自动生成并按显示单位换算。多次切单位精确往返（换算缓存，30 天→TU→秒→天无舍入漂移）。
 - **facade 工具清单对齐**：`TOOL_REGISTRY` 从 `e2m2e.api.Facade.mcp_tools()` 自动派生全量清单：已接入的轨道设计/轨道保持/轨道族生成 enabled，e2m2e 已实现但 GUI 未接入的（转移设计/轨道预报/时空坐标转换）与 e2m2e 占位的（转移搜索/小推力设计/不变流形分析/低能转移/相对运动）灰显并附工具说明；e2m2e 新增工具时清单零改动跟随。稳定性分析保持右键入口（下拉灰显）。
 - **新增轨道类型**：轨道设计支持 e2m2e 5.6.8 全部周期轨道类型，新增 DPO、Axial、L4_SPO、L5_SPO、L4_LPO、L5_LPO、L4_HORSESHOE、L5_HORSESHOE（默认值对齐 `DesignOrbitRequest` model_validator）。
-- **补全字段标签与 JSON 接口**：perturbation/dyb/earth_degree/moon_degree/correction_revolutions 与轨道保持字段全部换中文标签（此前裸显字段名）。`engine_layout` 的有效 JSON 文本现会解析为 `EngineLayout`，角动量管理模式 4–6 可实际使用；非法 JSON 与非布局 JSON 均给出 `INVALID_PARAMS` 明确错误。
+- **补全字段标签与 JSON 接口**：perturbation/dyb/earth_degree/moon_degree/correction_revolutions 与轨道保持字段全部换中文标签（此前裸显字段名）。`engine_layout` 的有效 JSON 文本现会解析为 `EngineLayout`，角动量管理模式 4-6 可实际使用；非法 JSON 与非布局 JSON 均给出 `INVALID_PARAMS` 明确错误。
 
 ### 工程
 
@@ -88,8 +88,8 @@
 
 ### 修复
 
-- **轨道保持 mu 透传崩溃**：参数面板按 `ControlOrbitRequest` 字段收集 `mu`（e2m2e 的响应透传字段，画地月标注用，算法函数签名无此参数），facade 以 `**params` 展开调用 `control_orbit()` 直接 `TypeError`（GUI 报 UNKNOWN_ERROR，轨道保持完全不可用）。修复：面板隐藏 mu（与 `input_ephemeris` 同构，由源 Artifact 注入 `source_mu`），facade 接缝处 `pop("mu")` 防回归。新增 3 项测试（面板不含 mu、params 不含 mu、算法层收不到 mu）。
-- **轨道保持 engine_layout 字符串崩溃**：面板把 `engine_layout` 建成 JSON 文本框（Any 字段），用户随手填 "4"，e2m2e 对非 None 布局无条件 `validate`（访问 `.E_r`），字符串直接 `AttributeError`（GUI 报 UNKNOWN_ERROR）。修复：facade 规范化，`control_mode < 4`（无角动量管理）时忽略置 None；`>= 4` 时 dict 构造 `EngineLayout` 实例、空串归一 None（走 e2m2e 清晰报错）、其余值报 INVALID_PARAMS 明确提示输入格式。新增 3 项测试（低模式忽略、dict 构造实例、无效值清晰报错）。
+- **轨道保持 mu 透传崩溃**：参数面板按 `ControlOrbitRequest` 字段收集 `mu`（e2m2e 的响应透传字段，画地月标注用，算法函数签名无此参数），facade 以 `**params` 展开调用 `control_orbit()` 直接 `TypeError`（GUI 报 UNKNOWN_ERROR，轨道保持完全不可用）。修复：面板隐藏 mu（与 `input_ephemeris` 同构，由源 Artifact 注入 `source_mu`），facade 接缝处 `pop(mu)` 防回归。新增 3 项测试（面板不含 mu、params 不含 mu、算法层收不到 mu）。
+- **轨道保持 engine_layout 字符串崩溃**：面板把 `engine_layout` 建成 JSON 文本框（Any 字段），用户随手填 4，e2m2e 对非 None 布局无条件 `validate`（访问 `.E_r`），字符串直接 `AttributeError`（GUI 报 UNKNOWN_ERROR）。修复：facade 规范化，`control_mode < 4`（无角动量管理）时忽略置 None；`>= 4` 时 dict 构造 `EngineLayout` 实例、空串归一 None（走 e2m2e 清晰报错）、其余值报 INVALID_PARAMS 明确提示输入格式。新增 3 项测试（低模式忽略、dict 构造实例、无效值清晰报错）。
 - **轨道保持全样本失败（仿真时长超出星历覆盖）**：`ControlOrbitRequest` 模型未暴露 `control_interval`/`feedback_arc`，面板没有这两个字段，e2m2e 默认 30 天/次 × 119 次 + 28 天反馈弧 ≈ 3598 天，而 GUI 设计默认星历仅 30 天，控制律目标点全部超出标称星历覆盖，5 个蒙特卡洛样本必然全部失败（Δv=0、无机动，GUI 无任何提示）。修复：面板补充 `control_interval`/`feedback_arc` 字段（默认对齐 e2m2e 签名，`collect_params` 支持模型外补充字段）；`_run_control` 运行前校验仿真时长 ≤ 星历覆盖，超出则拦截并提示调整参数或延长标称轨道。实测 30 天 Halo 用 0.25 天/次 + 0.125 天反馈弧 → 4/5 样本成功。新增 3 项测试（面板含补充字段、超出拦截、覆盖内放行）。
 - **matplotlib 3.11 兼容（画布轨道族渲染）**：`matplotlib.cm.get_cmap` 自 3.7 弃用、3.11 移除，画布按图表设置取色（`_orbit_color`）与轨道族 3D/2D 渲染在 matplotlib>=3.11 下直接 `AttributeError`（CI 全新安装即触发，本地旧版只告警不报错）。改用 `matplotlib.colormaps[...]`（3.5+ 可用，与 `src/commons/viz` 的 `PlotConfig.get_cmap` 一致）。
 
@@ -130,8 +130,8 @@
 
 ### 修复
 
-- **适配 design_orbit 入口签名 + duration 单位（27eda00）**：e2m2e 5.6.4 起 `design_orbit` 首参从散字段改为 `DesignOrbitRequest`（`extra="forbid"`），facade 的 `**kwargs` 转发会 TypeError、GUI 设计全挂；`duration` 单位从年改秒，facade 加 `* SECONDS_PER_YEAR` 换算（不修则 1 年当 1 秒、et_grid 只剩 1 点）。改为构造 request 调用。此前测试全 mock（伪造 kwargs 签名）掩盖了断裂，本次把 mock 改回真签名 + 加 `@pytest.mark.spice` 真 smoke 守住接缝。
-- **params_panel 适配新参数模型（27eda00）**：`DesignOrbitRequest` 从 14 字段扩到 23（ELFO 根数 inclination 与摄动/修正字段 dyb 等新增），duration 改 Optional。`ORBIT_TYPE_DEFAULTS` 补 ELFO 分支与新 Optional 默认值；orbit_type 下拉原从 description split（5.6.4 改全大写 + 含 "..." 占位符，得 "HALO" 与 key "Halo" 不匹配），改从 `ORBIT_TYPE_DEFAULTS` key 取。
+- **适配 design_orbit 入口签名 + duration 单位（27eda00）**：e2m2e 5.6.4 起 `design_orbit` 首参从散字段改为 `DesignOrbitRequest`（`extra=forbid`），facade 的 `**kwargs` 转发会 TypeError、GUI 设计全挂；`duration` 单位从年改秒，facade 加 `* SECONDS_PER_YEAR` 换算（不修则 1 年当 1 秒、et_grid 只剩 1 点）。改为构造 request 调用。此前测试全 mock（伪造 kwargs 签名）掩盖了断裂，本次把 mock 改回真签名 + 加 `@pytest.mark.spice` 真 smoke 守住接缝。
+- **params_panel 适配新参数模型（27eda00）**：`DesignOrbitRequest` 从 14 字段扩到 23（ELFO 根数 inclination 与摄动/修正字段 dyb 等新增），duration 改 Optional。`ORBIT_TYPE_DEFAULTS` 补 ELFO 分支与新 Optional 默认值；orbit_type 下拉原从 description split（5.6.4 改全大写 + 含 ... 占位符，得 HALO 与 key Halo 不匹配），改从 `ORBIT_TYPE_DEFAULTS` key 取。
 
 ### 工程
 
@@ -143,9 +143,9 @@
 
 ### 功能
 
-- **轨道设计标称星历进入画布（#359）**：轨道设计产物此前在画布上只能看到 CR3BP 周期初猜，真实星历模型下的标称星历（拟周期、跨整个 duration）一直埋在 Artifact 的 `extra["ephemeris"]`。画布新增绘制内容维度（初猜 / 星历 / 叠加，默认叠加），与会合系/惯性系正交。叠加视图初猜用实线、星历用虚线，TAB10 相邻色区分。两份轨迹从 `_artifact_for_id` 显式平级进画布（`initial_guess_states` / `ephemeris_synodic` / `ephemeris_position_km` / `ephemeris_times_et` 四槽），不嵌套、不靠隐式 fallback。惯性系下"初猜"灰显（CR3BP 无量纲无惯性系表示）；control_orbit 产物无初猜，"初猜"恒灰显。导出动画跟随绘制内容：初猜模式无物理时间轴，明确拒绝导出。从磁盘恢复的历史 design_orbit Artifact 也支持（NPZ 已存全字段）。ADR 0013 范围从 control_orbit 受控星历扩到 design_orbit 标称星历 + control_orbit 受控星历。
-- **星历模型坐标系切换与惯性系视图（#358 P1，93977fa）**：画布新增会合系 / 地心惯性系（GCRS）切换。惯性系视图以地球为原点、月球按 SPICE 真实轨迹移动、轨迹用 GCRS km、不画平动点；会合系维持 CR3BP 旋转系 + 地月 + L1–L5。脉动-旋转系为 cislunar 可视化主流（Folta 2022、Park 2025），瞬时平动点在该系与 CR3BP 几何一致（Boudad 2022）。
-- **GIF 动画导出（#358 P2，93977fa）**：新增独立"导出动画"工具，按时间等分采样逐帧渲染、Pillow 合成 GIF（不依赖 ffmpeg）。支持累积 / 滑动窗口、UTC 帧时间戳、坐标系随当前视图。
+- **轨道设计标称星历进入画布（#359）**：轨道设计产物此前在画布上只能看到 CR3BP 周期初猜，真实星历模型下的标称星历（拟周期、跨整个 duration）一直埋在 Artifact 的 `extra[ephemeris]`。画布新增绘制内容维度（初猜 / 星历 / 叠加，默认叠加），与会合系/惯性系正交。叠加视图初猜用实线、星历用虚线，TAB10 相邻色区分。两份轨迹从 `_artifact_for_id` 显式平级进画布（`initial_guess_states` / `ephemeris_synodic` / `ephemeris_position_km` / `ephemeris_times_et` 四槽），不嵌套、不靠隐式 fallback。惯性系下初猜灰显（CR3BP 无量纲无惯性系表示）；control_orbit 产物无初猜，初猜恒灰显。导出动画跟随绘制内容：初猜模式无物理时间轴，明确拒绝导出。从磁盘恢复的历史 design_orbit Artifact 也支持（NPZ 已存全字段）。ADR 0013 范围从 control_orbit 受控星历扩到 design_orbit 标称星历 + control_orbit 受控星历。
+- **星历模型坐标系切换与惯性系视图（#358 P1，93977fa）**：画布新增会合系 / 地心惯性系（GCRS）切换。惯性系视图以地球为原点、月球按 SPICE 真实轨迹移动、轨迹用 GCRS km、不画平动点；会合系维持 CR3BP 旋转系 + 地月 + L1-L5。脉动-旋转系为 cislunar 可视化主流（Folta 2022、Park 2025），瞬时平动点在该系与 CR3BP 几何一致（Boudad 2022）。
+- **GIF 动画导出（#358 P2，93977fa）**：新增独立导出动画工具，按时间等分采样逐帧渲染、Pillow 合成 GIF（不依赖 ffmpeg）。支持累积 / 滑动窗口、UTC 帧时间戳、坐标系随当前视图。
 
 ### 修复
 
@@ -153,7 +153,7 @@
 - **design_orbit 产物按轨道类型分目录落盘（8a2925e）**：`save_artifact` 曾无条件写 `output/dro/dro_<ts>`，Halo/NRHO/Lissajous 等非 DRO 轨道被存成 DRO 文件；discovery 按目录+前缀分类，读取时误当作 DRO，画布四槽数据契约因此失效。改为按 `orbit_type` 归一化派生目录名与文件名前缀，DRO 保持既有布局向后兼容；discovery 改为目录名 → 轨道类型映射 + 文件名前缀校验分类，兼容 `halo_north_L1.json` 等旧手工命名。新增回归测试覆盖保存、roundtrip 分类与多类型混存。
 - **锁定 e2m2e==5.6.3（778f66d）**：5.6.1 的 two_level 修正把位置(km)与速度(km/s)混在同一残差向量取范数，速度项被量级淹没，求解器停在位置连续、速度跳变数十 m/s的局部极小，L1 Halo 长期预报发散。5.6.3 含上游 Rust 打靶速度加权修复；pyproject 从 `>=5.6.0` 收紧为 `==5.6.3` 精确锁定。
 - **无标称星历时明确提示（cdaeae1）**：design_orbit 产物无标称星历时，此前会合系下画布静默只画初猜、无任何提示。新增 `_warn_missing_ephemeris`，与 `_warn_missing_mu` 并列在选中 Artifact 时提示（设计正常总有星历，仅防御异常/旧产物）。
-- **discovery 合并嵌套 if 过 ruff（786f4c1）**：8a2925e 引入的 `parent == "dro"` 嵌套 if 触发 ruff SIM102（CI `ruff check .` 会红）。合并为单 if，纯风格、语义等价。
+- **discovery 合并嵌套 if 过 ruff（786f4c1）**：8a2925e 引入的 `parent == dro` 嵌套 if 触发 ruff SIM102（CI `ruff check .` 会红）。合并为单 if，纯风格、语义等价。
 
 ### 工程
 
@@ -173,7 +173,7 @@
 
 ### 修复
 
-- **GUI 默认 DRO 振幅 10000→60000 km（02e5bca）**：默认 10000 km 产出贴月的近月紧凑 DRO，在地月尺度画布上只是一个点；改到 60000 km（距月 5.4–6.6 万 km，ARTEMIS/Gateway 量级），打开即见典型中等 DRO。e2m2e 兜底仍为 10000（DFH 黄金样本）。文献里大幅 DRO 比小幅更稳（Zhang & Wang 2022：72000 km 年均保持 0.82 m/s vs 34000 km 1.96 m/s），选 60000 不牺牲稳定性。注：e2m2e 对大幅 DRO 的星历传播有 bug（cislunarspace/e2m2e#324），修复前该默认的星历会漂移；画布画 CR3BP 周期轨道，形状观察不受影响。
+- **GUI 默认 DRO 振幅 10000→60000 km（02e5bca）**：默认 10000 km 产出贴月的近月紧凑 DRO，在地月尺度画布上只是一个点；改到 60000 km（距月 5.4-6.6 万 km，ARTEMIS/Gateway 量级），打开即见典型中等 DRO。e2m2e 兜底仍为 10000（DFH 黄金样本）。文献里大幅 DRO 比小幅更稳（Zhang & Wang 2022：72000 km 年均保持 0.82 m/s vs 34000 km 1.96 m/s），选 60000 不牺牲稳定性。注：e2m2e 对大幅 DRO 的星历传播有 bug（cislunarspace/e2m2e#324），修复前该默认的星历会漂移；画布画 CR3BP 周期轨道，形状观察不受影响。
 
 ### 文档
 
@@ -209,7 +209,7 @@
 - **入口扶正**：`transfer-orbit-design` 命令从 `tod.gui.main:main` 改为 `src.app.main:main`，移除 `-v2` 别名。
 - **PyInstaller spec**：datas 收 `src/` + `plot/` 取代 `tod/`；注释更新为新 GUI QThread 直调模型（不再依赖磁盘脚本扫描）。
 - **README**：移除 `-v2` 命令与 `tod/` 引用，CLI 脚本工作流指向 e2m2e CLI。
-- **CI/lint**：ruff `exclude` 移除 `"tod/"`（全仓纳入扫描）；`docs.yml` 触发路径移除 `tod/**`、增加 `plot/**`。
+- **CI/lint**：ruff `exclude` 移除 `tod/`（全仓纳入扫描）；`docs.yml` 触发路径移除 `tod/**`、增加 `plot/**`。
 - **Sphinx 文档**：删除 `docs/source/tod/`（101 RST，含 `automodule:: tod.*`）与对应 locale `.po`（137 文件），`index.rst` 移除 `tod/index` toctree。
 - **扫描结论**：`tod/transfers`、`tod/generates` 经核查均为 e2m2e algorithm 层的薄封装 + argparse CLI，无非薄封装的编排逻辑需迁移；等价覆盖由 e2m2e 自身测试承担。
 
@@ -225,7 +225,7 @@
 
 - **src/ 四层架构 GUI**：`src/model`（Project/Artifact 数据模型）、`src/engine`（FacadeBridge 薄封装 + QThread worker + 结果持久化）、`src/view`（内嵌 matplotlib 画布、项目树、Pydantic 自动参数面板、日志）、`src/app`（三栏主窗口组装）（1400a90）。
 - **两个启用工具**：轨道设计（`design_orbit`）与轨道保持（`control_orbit`，蒙特卡洛仿真），经 `TOOL_REGISTRY` 注册；轨道族生成、稳定性分析为灰显占位（8359419、0060c73）。
-- **可视化**：内嵌 matplotlib 画布，支持 3D/XY/XZ/YZ 投影切换、地月天体与 L1–L5 平动点图层开关、多轨道叠加渲染（d362edf、34f413d）。
+- **可视化**：内嵌 matplotlib 画布，支持 3D/XY/XZ/YZ 投影切换、地月天体与 L1-L5 平动点图层开关、多轨道叠加渲染（d362edf、34f413d）。
 - **Artifact 持久化闭环**：结果以 `dro_<ts>.json`（标量元数据）+ `.npz`（states/times/ephemeris 数组）双文件落盘，启动时扫描 `output/` 重建 Project，NPZ 数组懒加载（9121cd0、ea8e5e0、db05f74）。
 - **Pydantic 自动参数面板**：参数面板由工具绑定的 Request 模型动态生成（1e772f7）；e2m2e 异常经 `translate_exception` 翻译为结构化错误（8359419）。
 - **项目树右键菜单**：右键删除 Artifact、从树直接触发轨道保持（#340）（0060c73）。
@@ -243,7 +243,7 @@
 
 ### 验证
 
-- 全套测试 `pytest tests/ -m "not spice"` 1290 passed, 5 skipped, 33 deselected；ruff（src/）与 pyright 0 error。
+- 全套测试 `pytest tests/ -m not spice` 1290 passed, 5 skipped, 33 deselected；ruff（src/）与 pyright 0 error。
 
 ## 2.2.0 (2026-07-29)
 
@@ -273,7 +273,7 @@
 - windowed spawn 子进程 `sys.stdout/stderr` 为 None 导致 bootstrap 二次崩溃：补 devnull 兜底。
 - pyright 在 CI 严格模式下累计 40+ 处类型错误（50871a4、b7a41d4、f46e9a2、e26f04a）。
 - registry fixture 截断 sys.path 导致 e2m2e 不可导入（0681c8a）；33 个 halo ephemeris 集成测试失败（3d457f7）；`gui_defaults` 测试缺键失败（0979c8e）。
-- 批量修复 review 问题 #295、#297、#298、#302、#304、#305、#312–#319。
+- 批量修复 review 问题 #295、#297、#298、#302、#304、#305、#312-#319。
 
 ### 验证
 

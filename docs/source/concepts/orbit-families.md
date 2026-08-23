@@ -12,9 +12,9 @@
 |------|-----------|----------|
 | Lyapunov | L1, L2, L3 | 平面周期轨道，沿共线平动点主轴振荡 |
 | Halo | L1, L2 | 三维周期轨道，分北族（Class I，z 轴正方向）和南族（Class II，z 轴负方向）；稳定性指数接近 1 的高振幅区域通常称为近直线晕轨道（NRHO）；L3 处无经典 Halo 族 |
-| Vertical | L1–L5 | 垂直方向振荡的周期轨道 |
-| Axial | L1–L5 | 沿平动点轴向的周期轨道 |
-| Butterfly | L1–L2 | 连接两个共线平动点的对称轨道 |
+| Vertical | L1-L5 | 垂直方向振荡的周期轨道 |
+| Axial | L1-L5 | 沿平动点轴向的周期轨道 |
+| Butterfly | L1-L2 | 连接两个共线平动点的对称轨道 |
 
 **Halo 与 NRHO**：NRHO（Near-Rectilinear Halo Orbit）是 Halo 族高振幅
 区域的成员，轨道近月点很低、远离月球一侧很远，稳定性指数接近 1，是

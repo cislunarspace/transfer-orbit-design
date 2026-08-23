@@ -6,7 +6,7 @@ onefile + windowed：单文件便于 tauri resources（binaries/* 通配）随�
 stdin/stdout 管道不受影响。
 
 与退役的旧 GUI spec（TransferOrbitDesign.spec，PyQt 时代）不同：sidecar
-自带全部 e2m2e 依赖；SPICE 内核不打包——安装目录 resources 自带 kernels/
+自带全部 e2m2e 依赖；SPICE 内核不打包，安装目录 resources 自带 kernels/
 小内核，cwd 由 Tauri 壳指向 resource 根（e2m2e Config 按 cwd 相对解析），
 .bsp 星历内核沿用 scripts/download_kernels.py 按需获取。
 

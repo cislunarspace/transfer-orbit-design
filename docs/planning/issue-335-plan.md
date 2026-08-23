@@ -270,7 +270,7 @@ class TestPlotMultiple:
         → plot_multiple([]) 不抛异常
 
     test_title_shows_count
-        → title 包含 "2 条轨道"
+        → title 包含 2 条轨道
 ```
 
 ## 4. 实施顺序

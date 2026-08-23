@@ -96,7 +96,7 @@ msgstr "The **Project tab** lists products generated in the current session (a f
 msgid ""
 "**轨道库页签**打开即查询全库（空过滤条件），结果显示在下方项目树；过滤栏复用 参数面板的自动表单机制，支持按族类型、平动点、Jacobi "
 "区间、振幅区间与标签 组合筛选，改完点「查询」。"
-msgstr "The **Catalog tab** queries the whole library on open (empty filter); results show in the project tree below. The filter bar reuses the parameter panel's auto-form mechanism and supports combined filtering by family type, libration point, Jacobi range, amplitude range and tags — adjust and click \"Query\"."
+msgstr "The **Catalog tab** queries the whole library on open (empty filter); results show in the project tree below. The filter bar reuses the parameter panel's auto-form mechanism and supports combined filtering by family type, libration point, Jacobi range, amplitude range and tags - adjust and click \"Query\"."
 
 #: ../../source/guide/gui.md:24 ab828f2580dc42e6a7cef5a418ed62ef
 msgid "点击树中任一族记录，画布叠加该族全部成员的轨迹（经 `catalog_get` 懒加载）。"
@@ -110,9 +110,9 @@ msgstr "Middle Column: Parameter Panel"
 msgid ""
 "面板由工具的 JSON Schema 自动生成：构建期 `tools/export_tool_schemas.py` 从 e2m2e 的 "
 "Pydantic 模型导出 schema 到 `frontend/src/toolSchemas/`，前端按 schema "
-"渲染字段——数值框、下拉、勾选（对应模型的 Optional 语义：勾选即传值， 不勾不传）。按 `orbit_type` "
+"渲染字段，数值框、下拉、勾选（对应模型的 Optional 语义：勾选即传值， 不勾不传）。按 `orbit_type` "
 "只显示当前族适用的字段，跨族字段不出现在表单里。"
-msgstr "The panel is generated from the tool's JSON Schema: at build time `tools/export_tool_schemas.py` exports schemas from e2m2e's Pydantic models into `frontend/src/toolSchemas/`, and the frontend renders fields from the schema — number boxes, dropdowns, checkboxes (mapping the models' Optional semantics: checked means the value is sent, unchecked means unset). Only fields applicable to the current `orbit_type` are shown; cross-family fields never appear in the form."
+msgstr "The panel is generated from the tool's JSON Schema: at build time `tools/export_tool_schemas.py` exports schemas from e2m2e's Pydantic models into `frontend/src/toolSchemas/`, and the frontend renders fields from the schema - number boxes, dropdowns, checkboxes (mapping the models' Optional semantics: checked means the value is sent, unchecked means unset). Only fields applicable to the current `orbit_type` are shown; cross-family fields never appear in the form."
 
 #: ../../source/guide/gui.md:33 15453fa0b53a42c98ef71cf48ca88c30
 msgid "运行期间「生成」按钮变为禁用态；左下角状态行滚动显示 sidecar 进度消息。"
@@ -164,7 +164,7 @@ msgstr "See {doc}`visualization`. Three floating buttons at the top right: **Fit
 #~ msgstr ""
 
 #~ msgid ""
-#~ "**工件**是 GUI 管理计算产物的基本单位——一次工具运行产生一个工件。启动时 程序扫描 "
+#~ "**工件**是 GUI 管理计算产物的基本单位，一次工具运行产生一个工件。启动时 程序扫描 "
 #~ "`output/` 目录，把历史结果重建为工件；运行新工具后新工件立即出现 在树中。"
 #~ msgstr ""
 
@@ -230,4 +230,3 @@ msgstr "See {doc}`visualization`. Three floating buttons at the top right: **Fit
 
 #~ msgid "计算在后台线程执行，运行期间界面不阻塞；日志会说明失败原因，参数校验失败 （如轨道保持仿真时长超出标称星历覆盖）会直接拦截并提示。"
 #~ msgstr ""
-

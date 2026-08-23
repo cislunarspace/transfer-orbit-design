@@ -85,4 +85,3 @@ export function toolEntry(name: string): ToolEntry {
   if (!entry) throw new Error(`未知工具: ${name}`);
   return entry;
 }
-

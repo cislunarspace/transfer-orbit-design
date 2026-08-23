@@ -83,7 +83,7 @@ def list_release_assets() -> list[dict]:
     # 对本函数拼出的字面量也校验：与 _download 对称的纵深防御
     _check_download_url(url)
     req = urllib.request.Request(url, headers=_api_headers())
-    with urllib.request.urlopen(req) as resp:  # noqa: S310 — 初始与终点 URL 均过白名单
+    with urllib.request.urlopen(req) as resp:  # noqa: S310 - 初始与终点 URL 均过白名单
         _check_download_url(resp.geturl())
         data = json.loads(resp.read().decode("utf-8"))
     return data.get("assets", [])
@@ -93,7 +93,7 @@ def _download(url: str, dest: pathlib.Path) -> None:
     _check_download_url(url)
     print(f"下载 {url} → {dest}", file=sys.stderr)
     # 流式分块写盘，避免百 MB 级 .bsp 整块驻留内存
-    with urllib.request.urlopen(url) as resp, dest.open("wb") as fh:  # noqa: S310 — 初始与终点 URL 均过白名单
+    with urllib.request.urlopen(url) as resp, dest.open("wb") as fh:  # noqa: S310 - 初始与终点 URL 均过白名单
         # 首个 chunk 写盘前校验重定向终点，不通过则不落任何数据
         _check_download_url(resp.geturl())
         while True:

@@ -1,7 +1,7 @@
 //! 项目状态：会话内 Artifact 容器（对齐 PyQt 版 src/model 的语义）。
 //!
 //! Artifact 摘要进内存（轻量）；大数组（帧）不入容器，由画布按需
-//! 取用——族生成结果缓存在 command 返回前直接交付前端。
+//! 取用，族生成结果缓存在 command 返回前直接交付前端。
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
