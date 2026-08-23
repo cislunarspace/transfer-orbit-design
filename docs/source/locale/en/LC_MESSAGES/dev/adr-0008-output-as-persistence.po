@@ -142,7 +142,7 @@ msgid ""
 "catalog（`catalog_query` 供数、`catalog_get` 懒加载），design_orbit / "
 "orbit_family_generation / control_orbit 的产物由 Facade 自动入库；本仓 "
 "persistence.py 的手写 JSON+NPZ 落盘与 discovery.py 的「子目录名 + "
-"文件名正则」分类退役。文件命名不再承载分类语义——多维分类（族、平动点、Jacobi、振幅、段存在性）与 `source_record_id` "
+"文件名正则」分类退役。文件命名不再承载分类语义，多维分类（族、平动点、Jacobi、振幅、段存在性）与 `source_record_id` "
 "由上游在生成时写入记录，不再依赖 GUI 内存与文件名推断；上文「文件命名约定」表移交 e2m2e ADR 0031 维护。"
 msgstr ""
 
@@ -171,10 +171,9 @@ msgid ""
 msgstr ""
 
 #: ../../adr/0008-output-as-persistence.md:63 975c9c8b73fe47f9afc66d638199abb3
-msgid "**旧产物**：output/ 旧格式不迁移（上游 ADR 0031 决策 9），需要时重算——理由 4「现有 output/ 兼容」随之失效。"
+msgid "**旧产物**：output/ 旧格式不迁移（上游 ADR 0031 决策 9），需要时重算，理由 4「现有 output/ 兼容」随之失效。"
 msgstr ""
 
 #: ../../adr/0008-output-as-persistence.md:65 0c49de749d684e79ad1d23b0d75e6e52
 msgid "其余部分（Project 不做持久化、删除无撤销）不变。"
 msgstr ""
-

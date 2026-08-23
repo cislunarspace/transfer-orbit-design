@@ -73,7 +73,7 @@ msgid ""
 "`output/` 仅保留两类内容：转移轨道遗留分区（`output/transfer/`，catalog "
 "分类体系之外的过渡期产物）与脚本化工作流的直接输出。v3.2.3 及更早版本按 「工具分目录 + JSON/NPZ "
 "双文件」管理的产物不迁移（ADR 0008），需要时重算。"
-msgstr "`output/` keeps only two kinds of content: the legacy transfer partition (`output/transfer/`, transitional products outside the catalog taxonomy) and direct output from scripted workflows. Products from v3.2.3 and earlier (managed as \"per-tool directories + JSON/NPZ pairs\") are not migrated (ADR 0008) — recompute them when needed."
+msgstr "`output/` keeps only two kinds of content: the legacy transfer partition (`output/transfer/`, transitional products outside the catalog taxonomy) and direct output from scripted workflows. Products from v3.2.3 and earlier (managed as \"per-tool directories + JSON/NPZ pairs\") are not migrated (ADR 0008) - recompute them when needed."
 
 #~ msgid "输出与数据格式"
 #~ msgstr ""
@@ -278,4 +278,3 @@ msgstr "`output/` keeps only two kinds of content: the legacy transfer partition
 
 #~ msgid "旧版本产物（如旧的 `dro_*_family_*.json` 轨道族命名）仍可被识别，但新 产物一律使用上表命名。"
 #~ msgstr ""
-

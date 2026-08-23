@@ -51,7 +51,7 @@ def synodic_to_gcrs_km(pos, theta, mu: float) -> Any:
     会合系角速度归一为 1，旋转角 θ(t) = t（无量纲时间；物理秒下
     θ = t_sec / TU_sec）。转换式：``r_gcrs = R(θ)·(r_syn + (μ,0,0))·DU``
     （地球在原点）。用于无星历的纯 CR3BP 产物（轨道族/旧初猜）在惯性系
-    下的近似视图——历元对齐取 θ(t=0)=0。
+    下的近似视图，历元对齐取 θ(t=0)=0。
     """
     import numpy as np
 

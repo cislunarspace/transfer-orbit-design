@@ -1,4 +1,4 @@
-//! Tauri commands — 前端经 IPC 调用的函数。
+//! Tauri commands - 前端经 IPC 调用的函数。
 
 use serde::Serialize;
 use tauri::State;
@@ -13,7 +13,7 @@ pub const PROGRESS_EVENT: &str = "sidecar-progress";
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FamilyMember {
-    /// 成员状态（一维 n×6：xyz vx vy vz）——前端传播整条轨迹需要完整状态。
+    /// 成员状态（一维 n×6：xyz vx vy vz），前端传播整条轨迹需要完整状态。
     pub states: Vec<f32>,
     pub times: Vec<f64>,
     pub period: Option<f64>,

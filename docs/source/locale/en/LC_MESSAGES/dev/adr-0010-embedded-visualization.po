@@ -151,4 +151,3 @@ msgstr ""
 #: ../../adr/0010-embedded-visualization.md:51 9a5b30d514d344c4a26871d6ecee2247
 msgid "可增加画布分屏（2x2 多视图）"
 msgstr ""
-

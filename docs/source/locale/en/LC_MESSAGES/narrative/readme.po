@@ -60,8 +60,8 @@ msgid ""
 "transfer-orbit-design 是 [e2m2e](https://github.com/cislunarspace/e2m2e) 的"
 " GUI 前端。e2m2e 提供地月空间轨道设计所需的动力学模型、修正器、延拓器与转移算法，本仓库把它们封装成可视化桌面应用。v4.0.0 起 "
 "GUI 为 Tauri 2 架构：React 前端负责界面，Rust 壳负责进程编排，e2m2e 以 sidecar 子进程运行（stdio "
-"JSON 行 + 二进制帧协议）——界面不碰算法，算法不进界面。"
-msgstr "transfer-orbit-design is the GUI frontend of [e2m2e](https://github.com/cislunarspace/e2m2e). e2m2e provides the dynamics models, correctors, continuators and transfer algorithms for cislunar orbit design; this repository wraps them into a visual desktop application. Since v4.0.0 the GUI is a Tauri 2 application: the React frontend drives the interface, the Rust shell orchestrates processes, and e2m2e runs as a sidecar child process (stdio JSON lines + binary frames) — the UI never touches algorithms, and no algorithm enters the UI."
+"JSON 行 + 二进制帧协议），界面不碰算法，算法不进界面。"
+msgstr "transfer-orbit-design is the GUI frontend of [e2m2e](https://github.com/cislunarspace/e2m2e). e2m2e provides the dynamics models, correctors, continuators and transfer algorithms for cislunar orbit design; this repository wraps them into a visual desktop application. Since v4.0.0 the GUI is a Tauri 2 application: the React frontend drives the interface, the Rust shell orchestrates processes, and e2m2e runs as a sidecar child process (stdio JSON lines + binary frames) - the UI never touches algorithms, and no algorithm enters the UI."
 
 #: ../../../README.md:13 2609a74ed36a42edb73a805015c702dc
 msgid "安装"
@@ -102,7 +102,7 @@ msgstr "The v4.0.0 UI tools (orbit family generation, catalog browsing) are pure
 
 #: ../../../README.md:33 057ad67ee0584c0ea16b6feafa136b6a
 msgid "**自动下载（推荐）**：`uv run python scripts/download_kernels.py`，幂等拉取到 `kernels/`；"
-msgstr "**Automatic download (recommended)**: `uv run python scripts/download_kernels.py` — idempotently fetches everything into `kernels/`;"
+msgstr "**Automatic download (recommended)**: `uv run python scripts/download_kernels.py` - idempotently fetches everything into `kernels/`;"
 
 #: ../../../README.md:34 5ba8509dc06849749e240071d4d8afc4
 msgid ""
@@ -171,7 +171,7 @@ msgid ""
 "#398](https://github.com/cislunarspace/transfer-orbit-"
 "design/issues/398)）：轨道设计、轨道保持、轨道预报、转移设计、稳定性分析、时空坐标转换。需要这些工具请使用 v3.2.3 或 "
 "e2m2e CLI。"
-msgstr "**Not yet wired** (shipped in the v3.2.3 PyQt UI; returning tool by tool on Tauri — see [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)): orbit design, station keeping, orbit propagation, transfer design, stability analysis, spacetime transform. Use v3.2.3 or the e2m2e CLI if you need them now."
+msgstr "**Not yet wired** (shipped in the v3.2.3 PyQt UI; returning tool by tool on Tauri - see [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)): orbit design, station keeping, orbit propagation, transfer design, stability analysis, spacetime transform. Use v3.2.3 or the e2m2e CLI if you need them now."
 
 #: ../../../README.md:56 a74905bc127e414c9db3b2de119da102
 msgid "数据流与产物"
@@ -421,4 +421,3 @@ msgstr "[Apache 2.0](LICENSE)"
 
 #~ msgid "**稳定性分析**：仅 JSON，存单值矩阵、特征值、稳定性指数（nu1/nu2/nu3/Broucke）、分岔分类与数值误差。"
 #~ msgstr ""
-

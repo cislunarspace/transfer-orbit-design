@@ -306,7 +306,7 @@ class PlotConfig(BaseModel):
     # 天体图标缩放系数（用于 PNG 图标显示大小微调，不影响散点回退）
     primary_body_icon_scale: float = 1.0
     secondary_body_icon_scale: float = 1.0
-    # 天体图标目录：None 时由 icons.resolve_icon_dir() 按以下优先级回退——
+    # 天体图标目录：None 时由 icons.resolve_icon_dir() 按以下优先级回退，
     # 环境变量 E2M2E_BODY_ICON_PATH → ~/Downloads（向后兼容默认）。
     # 支持 ~、${VAR}/$VAR 占位符、相对/绝对路径。
     icon_path: str | None = None

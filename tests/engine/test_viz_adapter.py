@@ -130,7 +130,7 @@ class TestNoImportE2m2eAtModuleImport:
         """import src.engine.viz_adapter 不触发 e2m2e 加载（延迟 import）。
 
         保证 src/view/ 层（经由 adapter 桥接）不泄漏 e2m2e 到 import 期。
-        用 subprocess 在干净解释器里验证：既真正测试“全新导入”的属性，
+        用 subprocess 在干净解释器里验证：既真正测试全新导入的属性，
         又不会像 del sys.modules 那样污染当前测试进程、连累后续测试。
         """
         import subprocess

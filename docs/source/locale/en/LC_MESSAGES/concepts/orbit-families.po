@@ -86,7 +86,7 @@ msgstr ""
 
 #: ../../source/concepts/orbit-families.md a4e4434907cc4ea186e03eafe5edab20
 #: f60efa6fc95f480d9337bd63989a5fb6
-msgid "L1–L5"
+msgid "L1-L5"
 msgstr ""
 
 #: ../../source/concepts/orbit-families.md 61036a3696284b228658e82897ebd890
@@ -106,7 +106,7 @@ msgid "Butterfly"
 msgstr ""
 
 #: ../../source/concepts/orbit-families.md 5c9ada7c20ae4f4a80b060fa38b9c963
-msgid "L1–L2"
+msgid "L1-L2"
 msgstr ""
 
 #: ../../source/concepts/orbit-families.md 2b79ea3722c14981b0865b5dc0b753b9
@@ -221,4 +221,3 @@ msgstr ""
 #: ../../source/concepts/orbit-families.md:64 b667bc660f7e4b308d024e5c1896eec2
 msgid "**轨道族生成**工具目前只支持 Halo 北族延拓：从 0.001 DU 小振幅种子出发， 固定面外振幅逐步修正，直到目标振幅或折叠点自动终止。"
 msgstr ""
-

@@ -70,7 +70,7 @@ msgstr ""
 msgid ""
 "删除 tod 中所有\"搬运 e2m2e "
 "能力\"的脚本层（`generates/`、`transfers/`、`commons/e2m2e_compat.py`）。tod 不再有自己的 "
-"CLI 或命令行脚本——命令行用户直接使用 e2m2e 的 CLI。"
+"CLI 或命令行脚本，命令行用户直接使用 e2m2e 的 CLI。"
 msgstr ""
 
 #: ../../adr/0006-e2m2e-gui-frontend.md:24 c5305eff52ac4bfeafb53d2e6ab3353a
@@ -122,4 +122,3 @@ msgstr ""
 #: ../../adr/0006-e2m2e-gui-frontend.md:38 1f565b898ebd4f17a10b5e7e9b8e5168
 msgid "GUI 改为直接调用 e2m2e 算法层 API"
 msgstr ""
-

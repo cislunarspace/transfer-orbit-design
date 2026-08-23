@@ -9,7 +9,7 @@
 
 ### 1. DTO 修正：`src/engine/facade_bridge.py`
 
-**问题**：当前 `OrbitDesignResultData.cr3bp_orbit` 持有 e2m2e `Orbit` 对象引用，违反 DTO "纯数据类，不持有 e2m2e 对象引用"的契约（`architecture.md:173`），存在跨线程安全风险。
+**问题**：当前 `OrbitDesignResultData.cr3bp_orbit` 持有 e2m2e `Orbit` 对象引用，违反 DTO 纯数据类不持有 e2m2e 对象引用的契约（`architecture.md:173`），存在跨线程安全风险。
 
 **修正**：将 e2m2e 富对象拆解为 numpy 数组：
 
@@ -21,8 +21,8 @@ class OrbitDesignResultData:
     duration_day: float
     initial_state: Any           # np.ndarray (6,)
     cr3bp_jacobi: float
-    states: Any                  # np.ndarray (n,6) — 从 cr3bp_orbit.states 提取
-    times: Any                   # np.ndarray (n,) — 从 cr3bp_orbit.times 提取
+    states: Any                  # np.ndarray (n,6) - 从 cr3bp_orbit.states 提取
+    times: Any                   # np.ndarray (n,) - 从 cr3bp_orbit.times 提取
     correction_converged: bool
     correction_iterations: int
 ```
@@ -49,7 +49,7 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
 }
 ```
 
-**注意**：e2m2e 4 个 Facade 方法中，仅 `design_orbit` 和 `control_orbit` 有 Pydantic Request 模型；`orbit_family_generation` 和 `orbit_stability` 使用原始 `**params`。`enabled=False` 的工具在 UI 中显示为"即将推出"。
+**注意**：e2m2e 4 个 Facade 方法中，仅 `design_orbit` 和 `control_orbit` 有 Pydantic Request 模型；`orbit_family_generation` 和 `orbit_stability` 使用原始 `**params`。`enabled=False` 的工具在 UI 中显示为即将推出。
 
 ### 3. FacadeBridge 参数扩展：`src/engine/facade_bridge.py`
 

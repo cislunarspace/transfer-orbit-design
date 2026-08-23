@@ -138,7 +138,7 @@ msgstr ""
 
 #: ../../adr/0002-dro-catalog-seed-gui-v1.md:37
 #: 9d483877c5b542e79d994d9f88dce7a2
-msgid "DRO Generate GUI 新增 “Use Reference Initial Condition” checkbox，默认关闭。"
+msgid "DRO Generate GUI 新增 Use Reference Initial Condition checkbox，默认关闭。"
 msgstr ""
 
 #: ../../adr/0002-dro-catalog-seed-gui-v1.md:39
@@ -395,4 +395,3 @@ msgstr ""
 #: 21b55e8a45764759858e84c29cc56810
 msgid "v1 不暴露 integrator、rtol、atol 参数。"
 msgstr ""
-

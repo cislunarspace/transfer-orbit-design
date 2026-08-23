@@ -133,7 +133,7 @@ class _DepthDriverPatch(mpatches.Patch):
     1. 更新 AnnotationBbox 的投影位置（跟随视角变化）。
     2. 根据图标与场景中 Line3D 的深度比较动态调整 AnnotationBbox 的 zorder。
 
-    这比 draw_event 方案更可靠——后者在渲染之后才触发，导致 zorder 更新延迟一帧，
+    这比 draw_event 方案更可靠，后者在渲染之后才触发，导致 zorder 更新延迟一帧，
     旋转时出现遮挡关系闪烁。本方案在渲染前同步更新，消除延迟。
     """
 

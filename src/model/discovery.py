@@ -8,7 +8,7 @@
 
 - transfer：转移轨道产物（e2m2e 对 transfer_design 等产物入库另行立项），
   过渡期沿用，待上游入库后退役。
-- propagation：轨道预报星历（issue #389）——e2m2e 未提供该工具的产物
+- propagation：轨道预报星历（issue #389），e2m2e 未提供该工具的产物
   入库，落盘见 ``engine.persistence.save_propagation_result``。
 """
 

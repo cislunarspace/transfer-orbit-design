@@ -65,7 +65,7 @@ class FamilyResultData:
 
     orbit_type: str  # 显示名（"Halo"/"NRHO"/"Axial"/"Lissajous"/"SPO"/"LPO"/"Horseshoe"/"DRO"）
     libration_point: int | None  # None = 月心族（DRO），不绑定平动点
-    n_orbits: int  # 实际生成的成员数（可能少于请求数——延拓终止或软失败保留部分族）
+    n_orbits: int  # 实际生成的成员数（可能少于请求数，延拓终止或软失败保留部分族）
     mu: float
     states: Any  # (m, n, 6) -- 各族成员 CR3BP 状态
     times: Any  # (m, n) -- 各族成员时间序列（无量纲 TU）
@@ -153,7 +153,7 @@ _FAMILY_MEMBER_SAMPLES = 200
 #: SPICE ET 定义：J2000 历元（JD TDB 2451545.0）起的 TDB 秒。
 _J2000_JD_TDB = 2451545.0
 
-#: 地月系统默认特征时间（秒）——SynodicJ2000System 在 CR3BP 系统未携带
+#: 地月系统默认特征时间（秒），SynodicJ2000System 在 CR3BP 系统未携带
 #: characteristic_time 时使用同一默认值。
 _TU_SECONDS_FALLBACK = 4.34811305 * 86400.0
 
@@ -281,7 +281,7 @@ def _coerce_engine_layout(layout: Any, control_mode: int) -> Any:
     - ``control_mode < 4``：角动量管理未启用，engine_layout 无意义；e2m2e
       虽不使用但会无条件 validate（访问 ``.E_r``），字符串随手输入直接
       AttributeError，故置 None 忽略。
-    - ``control_mode >= 4``：None 原样（e2m2e 会报"需提供 engine_layout"，
+    - ``control_mode >= 4``：None 原样（e2m2e 会提示需提供 engine_layout，
       经翻译层给出清晰错误）；dict（``positions_m``/``directions``）构造
       ``EngineLayout``；``EngineLayout`` 实例原样；其余值（如 JSON 文本框
       里的 "4"）报 INVALID_PARAMS 清晰错误。
@@ -294,7 +294,7 @@ def _coerce_engine_layout(layout: Any, control_mode: int) -> Any:
         return None
     # 空字符串（面板 QLineEdit 未填写）归一为 None：透传空串同样会触发
     # e2m2e 的 validate（AttributeError），且 None 才能走到"需提供
-    # engine_layout"的清晰报错路径
+    # engine_layout 的清晰报错路径
     if layout is None or (isinstance(layout, str) and not layout.strip()):
         return None
     if isinstance(layout, str):
@@ -726,7 +726,7 @@ class FacadeBridge:
         Args:
             target_states: 选中轨道工件的 CR3BP 状态序列（会合系无量纲，
                 (n, 6)）。LGA 转移的目标态取末行并换算到会合系物理单位
-                （km / km/s）——e2m2e 的 ``target_ephemeris`` 契约是会合系
+                （km / km/s），e2m2e 的 ``target_ephemeris`` 契约是会合系
                 物理态（e2m2e#516），直接喂惯性星历会几何全错。HMN 不用。
             **params: TransferDesignRequest 字段（由参数面板收集）。
                 ``tli_epoch`` 接受 [年,月,日,时,分,秒]（epoch 控件产出）
@@ -740,7 +740,7 @@ class FacadeBridge:
 
         params.pop("kernel_dir", None)  # 经 Config 注入，request 不接受
         # LGA 默认搜索网格（50 相位点）太稀，漏掉窄可行窗口（同目标态
-        # 360 点可收敛）——注入 e2m2e 测试同款加密网格作为 GUI 默认
+        # 360 点可收敛），注入 e2m2e 测试同款加密网格作为 GUI 默认
         if params.get("transfer_type") == "LGA" and not params.get("lga_search_params"):
             from e2m2e.algorithm.transfer import LgaSearchParams
 
@@ -811,7 +811,7 @@ class FacadeBridge:
         if response.status is not ConvergenceState.CONVERGED:
             raise OrbitError("PROPAGATION_FAILED", response.message or "轨道预报未收敛")
 
-        # times_et 重建：ADR 0013 决策 5 的"后续"路径——算法层已填 times_jd_tdb，
+        # times_et 重建：ADR 0013 决策 5 的"后续"路径，算法层已填 times_jd_tdb，
         # 直读换算（SPICE ET ≡ J2000 JD TDB 2451545.0 起的 TDB 秒），与 str2et
         # 等价且免去闰秒换算；不修改上游。
         jd = np.asarray(response.times_jd_tdb, dtype=float)
@@ -843,7 +843,7 @@ class FacadeBridge:
         两个 5.7.1 适配点：
 
         - ``FamilyGenerationRequest`` 按 ``model_fields_set`` 拒绝跨族字段，
-          None 值也算已设置——面板对未勾选的 Optional 字段会传 None（语义为
+          None 值也算已设置，面板对未勾选的 Optional 字段会传 None（语义为
           "用模型默认"），故入参先剔除 None。
         - 周期族成员只携带初态（``states (1,6)``）与周期，画布需要整条
           轨迹，在此按周期重采样到固定点数；Lissajous 拟周期成员已携带

@@ -26,7 +26,7 @@ msgstr ""
 
 #: ../../source/concepts/station-keeping.md:3 76d7d6d255a0478cb5dee38b91ea5431
 msgid ""
-"地月空间的任务轨道——DRO、halo、NRHO、Lissajous——在真实星历模型里都不是 "
+"地月空间的任务轨道，DRO、halo、NRHO、Lissajous，在真实星历模型里都不是 "
 "严格周期轨道。月球轨道偏心率、太阳引力、太阳光压等摄动会让实际轨迹缓慢 偏离标称轨道。**轨道保持**（station-"
 "keeping）就是定期做小机动，把轨迹拉回 标称轨道附近。"
 msgstr ""
@@ -71,7 +71,7 @@ msgid "数月至数年有界"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md 6eddffa5067c4f05a766dc986dc90ccd
-msgid "0.8–1.0 m/s"
+msgid "0.8-1.0 m/s"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md 80eaff609cb840b99fa6586d78bfebbe
@@ -87,7 +87,7 @@ msgid "数月有界"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md ec1a5899a3584e86b6348ed0b0a247be
-msgid "1.5–2.0 m/s"
+msgid "1.5-2.0 m/s"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md 0b73b05733d0428996981c85399bb04b
@@ -103,7 +103,7 @@ msgid "数周有界"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md 82400b4c019e4bedb8257261de80bb3a
-msgid "0.5–2.0 m/s"
+msgid "0.5-2.0 m/s"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md 19a1285d958f43458bc4710aba3b9fda
@@ -121,7 +121,7 @@ msgid "数天即需机动"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md 76cd21d1c89d415ca0fed3ba3e3d0cdc
-msgid "5–7 m/s"
+msgid "5-7 m/s"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md 19bb71d062b04062942e4c0948e93b0d
@@ -129,7 +129,7 @@ msgid "Lissajous"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md e517de3ac318411d9afa57321ce2f327
-msgid "5–10 m/s"
+msgid "5-10 m/s"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md:21 839100465df743f9925e5db7ab175625
@@ -145,7 +145,7 @@ msgstr ""
 #: ../../source/concepts/station-keeping.md:27 732c976fc7ec4f90b451179f8f8b167c
 msgid ""
 "DRO（Distant Retrograde Orbit）在 CR3BP 里 stability index 接近 1，是临界 "
-"稳定——既不指数发散也不快速收敛。这个性质在真实星历里近似保留：DRO 变成 准周期的有界运动，会振荡、漂移，但不会逃逸。"
+"稳定，既不指数发散也不快速收敛。这个性质在真实星历里近似保留：DRO 变成 准周期的有界运动，会振荡、漂移，但不会逃逸。"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md:31 207023b62c604c249664e5c85082cab7
@@ -201,11 +201,11 @@ msgstr ""
 #: ../../source/concepts/station-keeping.md:40 39a523932c8d4866ab15f99c55a4905a
 msgid ""
 "\"The DROs with large amplitudes have the lowest station-keeping cost.\" "
-"—— Zhang & Wang 2022"
+"， Zhang & Wang 2022"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md:43 3f26af132cc044acb85014b4f146e607
-msgid "所以选 DRO 做长期任务时，不必为了\"怕不稳\"而选紧凑轨道。~50000–70000 km 的中等 DRO 兼顾可视性、稳定性与低保持代价。"
+msgid "所以选 DRO 做长期任务时，不必为了\"怕不稳\"而选紧凑轨道。~50000-70000 km 的中等 DRO 兼顾可视性、稳定性与低保持代价。"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md:46 dff1d72287d44ac4b3d088bd100fa9d8
@@ -226,8 +226,8 @@ msgstr ""
 
 #: ../../source/concepts/station-keeping.md:55 f88d924149974bc087c4ffb2f35c5adf
 msgid ""
-"对 DRO，保持是\"锦上添花\"——不做也能维持很久，做了能更贴标称轨道。对 "
-"halo/Lissajous，保持是\"刚需\"——不做几天到两周就沿不稳定流形发散到不可用。"
+"对 DRO，保持是\"锦上添花\"，不做也能维持很久，做了能更贴标称轨道。对 "
+"halo/Lissajous，保持是\"刚需\"，不做几天到两周就沿不稳定流形发散到不可用。"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md:58 de4a8ff222b54ad7bd239bc4af550834
@@ -319,13 +319,13 @@ msgid "114 km"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md:70 75280a1bbc98489fa00a15cd88f4a207
-msgid "60 天不机动也只漂几十公里——这就是 DRO \"长期稳定\"的含义。每周一次机动对 DRO 来说偏过度；几周到两个月一次就够了。"
+msgid "60 天不机动也只漂几十公里，这就是 DRO \"长期稳定\"的含义。每周一次机动对 DRO 来说偏过度；几周到两个月一次就够了。"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md:73 1c295be9d98e4351b07fe91b56cf0174
 msgid ""
-"作为对比，halo 轨道（L2，ARTEMIS 实测）年均 5–7 m/s、每周约一次，超过 10–14 天不机动就可能发散。9:2 NRHO "
-"介于两者之间，年均 0.5–2 m/s、1–2 周 一次。"
+"作为对比，halo 轨道（L2，ARTEMIS 实测）年均 5-7 m/s、每周约一次，超过 10-14 天不机动就可能发散。9:2 NRHO "
+"介于两者之间，年均 0.5-2 m/s、1-2 周 一次。"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md:77 0b2ed4dc96de4a31b08f5a02729afa67
@@ -383,7 +383,7 @@ msgstr ""
 msgid ""
 "**控制模式**：目标点模式（1/2）适合 DRO 等稳定轨道；特征点模式（3）以 穿越 x-z 平面为控制目标，适合 "
 "halo/NRHO（`special_mode` 区分 Lissajous 与 Halo/NRHO "
-"的约束）。角动量管理模式（4–6）需提供发动机布局 `engine_layout`。"
+"的约束）。角动量管理模式（4-6）需提供发动机布局 `engine_layout`。"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md:106
@@ -402,7 +402,7 @@ msgstr ""
 #: afa5390bd5b9498683923a426edd7673
 msgid ""
 "Zhang & Wang 2022. *Performance analysis of impulsive station-keeping "
-"strategies for cis-lunar orbits with the ephemeris*. —— 全星历 DRO/NRHO/halo"
+"strategies for cis-lunar orbits with the ephemeris*. ， 全星历 DRO/NRHO/halo"
 " 保持策略对比，本文 Δv 与漂移数据的主要来源。"
 msgstr ""
 
@@ -410,21 +410,20 @@ msgstr ""
 #: 736cf43c692c4c7fa1cb1a7f2788309e
 msgid ""
 "Minghu 等 2014. *Transfer to long term distant retrograde orbits around "
-"the moon*. —— 大幅 DRO 在太阳摄动下 300–700 天有界。"
+"the moon*. ， 大幅 DRO 在太阳摄动下 300-700 天有界。"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md:117
 #: 9ad9937a4ab04cc8a75d1b6ec761660b
 msgid ""
-"Folta 等 2014. *Earth–moon libration point orbit stationkeeping: theory, "
-"modeling, and operations*. —— ARTEMIS 平动点轨道保持的工程实践 （halo/NRHO 基准）。"
+"Folta 等 2014. *Earth-moon libration point orbit stationkeeping: theory, "
+"modeling, and operations*. ， ARTEMIS 平动点轨道保持的工程实践 （halo/NRHO 基准）。"
 msgstr ""
 
 #: ../../source/concepts/station-keeping.md:120
 #: dd5c764f8a4a4f4f945cd35285a1427c
 msgid ""
-"Guzzetti 等 2016. *Rapid trajectory design in the Earth–moon ephemeris "
+"Guzzetti 等 2016. *Rapid trajectory design in the Earth-moon ephemeris "
 "system via an interactive catalog of periodic and quasi-periodic orbits*."
-" —— 准周期轨道在星历模型里的有界性。"
+" ， 准周期轨道在星历模型里的有界性。"
 msgstr ""
-

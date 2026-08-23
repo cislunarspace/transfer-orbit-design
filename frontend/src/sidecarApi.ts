@@ -42,4 +42,3 @@ export async function runTool(
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke("run_tool", { tool, arguments: arguments_, binaryDtype, artifact });
 }
-

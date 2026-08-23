@@ -4,9 +4,9 @@
 
 ## 0. Issue 描述修订（提交前先同步到 GitHub issue）
 
-原 issue 有三处需修订，理由见下方"1.3 修订依据"：
+原 issue 有三处需修订，理由见下方 1.3 修订依据：
 
-1. **交付清单划掉"多轨道自动配色（tab10）"**：已在 #335（PR #343）完成。
+1. **交付清单划掉多轨道自动配色（tab10）**：已在 #335（PR #343）完成。
 2. **验收标准 #5（增量重绘）重定义为全量重绘 + 数据复用**：投影切换是结构性变化，增量重绘在当前架构下不可达。
 3. **补上 mu 数据流决策**：`CR3BP_System` 构造需要 `mu`，现有 DTO/持久化均不含。
 4. **交付清单补上 `src/engine/viz_adapter.py`**：`src/view/` 不能直接 import e2m2e（硬规则）。
@@ -24,7 +24,7 @@
 
 | 决策点 | 选择 | 理由 |
 |---|---|---|
-| **mu 数据流** | 在 `Artifact.extra` + 持久化 JSON 携带 `mu`；`engine` 侧从 e2m2e 结果提取 | 单一事实来源；GUI 侧硬编码违背"tod 不实现轨道力学"定位 |
+| **mu 数据流** | 在 `Artifact.extra` + 持久化 JSON 携带 `mu`；`engine` 侧从 e2m2e 结果提取 | 单一事实来源；GUI 侧硬编码违背 tod 不实现轨道力学定位 |
 | **投影切换实现** | CanvasState 变化 → `render()` 单入口**全量重绘**（清 ax + 重画） | 3D/2D 需不同 Axes 对象，无法增量切换 |
 | **OrbitVisualizer 集成方式** | `src/engine/viz_adapter.py` 薄封装，向 view 暴露纯数组接口 | 遵守硬规则，view 不碰 e2m2e |
 | **数据复用** | 切换投影/开关时复用内存 `state_data`，不从 NPZ 重读 | 性能 + 验收标准 #5 的可测形式 |
@@ -35,9 +35,9 @@
 
 | 原 issue 内容 | 问题 | 修订 |
 |---|---|---|
-| "多轨道叠加渲染自动配色（tab10 调色板）" | 已在 #335 完成（`canvas.py` `_TAB10_COLORS` + `plot_multiple`） | 划掉，改为"将 tab10 配色策略接入 CanvasState 渲染" |
-| "CanvasState 变化时只重绘受影响的部分（不全量清除重建）" | 投影切换需要重建 Axes，增量不可达 | 改为"CanvasState 变化 → render() 单入口全量重绘，轨道数据复用内存" |
-| "集成 e2m2e OrbitVisualizer（传入 CR3BP_System）" | 数据流无 mu 来源；view 不能直接 import e2m2e | 补 `src/engine/viz_adapter.py` + mu 数据流决策 |
+| 多轨道叠加渲染自动配色（tab10 调色板） | 已在 #335 完成（`canvas.py` `_TAB10_COLORS` + `plot_multiple`） | 划掉，改为将 tab10 配色策略接入 CanvasState 渲染 |
+| CanvasState 变化时只重绘受影响的部分（不全量清除重建） | 投影切换需要重建 Axes，增量不可达 | 改为 CanvasState 变化时通过 render() 单入口全量重绘，轨道数据复用内存 |
+| 集成 e2m2e OrbitVisualizer（传入 CR3BP_System） | 数据流无 mu 来源；view 不能直接 import e2m2e | 补 `src/engine/viz_adapter.py` + mu 数据流决策 |
 
 ## 2. 文件变更清单
 
@@ -170,7 +170,7 @@ json_data = {
 }
 ```
 
-**向后兼容**：旧 NPZ/JSON 无 `mu` 时，`extra.get("mu")` 返回 None。此时画布 fallback：不绘制地月/L 点标注（而非崩溃）。这在 `_on_artifact_clicked` 的懒加载分支已覆盖：`load_artifact_arrays` 只填 `state_data`/`times`，`extra` 从 JSON 读。若 `extra` 无 `mu`，则投影/开关可用但标注不显示，且日志提示"旧 Artifact 无 mu，跳过地月标注"。
+**向后兼容**：旧 NPZ/JSON 无 `mu` 时，`extra.get("mu")` 返回 None。此时画布 fallback：不绘制地月/L 点标注（而非崩溃）。这在 `_on_artifact_clicked` 的懒加载分支已覆盖：`load_artifact_arrays` 只填 `state_data`/`times`，`extra` 从 JSON 读。若 `extra` 无 `mu`，则投影/开关可用但标注不显示，且日志提示旧 Artifact 无 mu，跳过地月标注。
 
 ### 3.4 `src/view/canvas.py`（修改）：核心
 
@@ -281,7 +281,7 @@ class OrbitCanvas(FigureCanvasQTAgg):
 1. **`render()` 是全量重绘单入口**，从 `_fig.clear()` 开始，不保留旧 Axes 增量。3D/2D 用不同 `projection` 参数创建 Axes。
 2. **数据注册表**（`_states_by_id` / `_labels_by_id` / `_mu_by_id`）：main_window 在渲染前把当前可见 Artifact 的数组灌进去。**切换投影/开关时数组已在内存，不从 NPZ 重读**，这正是验收标准 #5 的可测形式。
 3. **`_draw_bodies` / `_draw_libration` 只画一次**：同一 CR3BP 系统（地月 mu 相同），多轨道时避免重复画。
-4. **`CanvasState.copy()`**：main_window 用"读当前 state → 改字段 → 传新 state"的不可变模式，避免 canvas 内部状态被外部直接改。也可简化为 `self._canvas.state = new_state; self._canvas.render()`。
+4. **`CanvasState.copy()`**：main_window 用读取当前 state、修改字段并传入新 state 的不可变模式，避免 canvas 内部状态被外部直接改。也可简化为 `self._canvas.state = new_state; self._canvas.render()`。
 5. **向后兼容**：`plot_orbit()` / `plot_multiple()` 保留（#335 已实现、有测试），内部改为委托 `render()` 或保持不变。**建议保留**：`_on_artifact_clicked` / `_on_artifacts_multi_selected` 可逐步迁移到 `render()`。
 
 **明确决策**：`plot_orbit()` / `plot_multiple()` 是否保留。
@@ -417,7 +417,7 @@ self._viz.toolbar.show_libration.toggled.connect(self._on_toggle_libration)
 **设计要点**：
 
 1. **单一状态源**：`self._canvas_state`（CanvasState 实例）是 main_window 的成员，画布通过 `sync_state()` 接收。
-2. **`_selected_artifact_ids` 统一维护**：重构了现在"点击调 plot_orbit、多选调 plot_multiple"的分散逻辑，投影/开关变化时无需重新选择，直接重绘当前选中。
+2. **`_selected_artifact_ids` 统一维护**：重构了此前点击调用 plot_orbit 与多选调用 plot_multiple 的分散逻辑，投影/开关变化时无需重新选择，直接重绘当前选中。
 3. **多选分支补懒加载**：修复现有 `_on_artifacts_multi_selected` 不懒加载的缺口（审查发现）。
 
 ### 3.7 测试计划
@@ -509,7 +509,7 @@ class TestOrbitCanvasRender:
 - **~~e2m2e `OrbitDesignResult` 是否暴露 `mu`~~** ✅ **已解决**：`OrbitDesignResult` 无 `mu` 字段，但 `cr3bp_orbit.system.mu` 可用（`design_orbit.py:460` 绑定 `CR3BP_System`），实测返回 `0.012153645822478`。用 `getattr` 三重防护。
 - **`OrbitVisualizer` 2D/3D 标注实际行为** ✅ **已验证**：`plot_primary_bodies` + `plot_libration_points` 在 3D ax 添加 23 个 artist、2D ax 添加 22 个 artist（Agg 后端实测，2026-08-04）。
 - **`OrbitVisualizer.plot_primary_bodies` 在 2D 下的图标加载**：e2m2e 的 2D 图标走 `icons.add_2d_icon`，需要 PNG 资源。若加载失败会回退圆形 marker（base.py:124,139），可接受，但测试中注意别依赖图标存在。
-- **matplotlib 3D→2D 切换**：每次 `render()` 重建 Axes。若高频切换（连点投影按钮）有性能顾虑，可加"当前 projection 相同则复用 Axes"优化，MVP 不做。
+- **matplotlib 3D→2D 切换**：每次 `render()` 重建 Axes。若高频切换（连点投影按钮）有性能顾虑，可加当前 projection 相同则复用 Axes 优化，MVP 不做。
 
 ### 5.3 范围外（明确不做）
 

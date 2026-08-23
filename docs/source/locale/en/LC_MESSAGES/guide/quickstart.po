@@ -37,7 +37,7 @@ msgid ""
 "从 [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-"
 "design/releases) 下载 `tod_<版本>_x64-setup.exe`，双击安装（NSIS 安装器，免管理员权限，安装到 "
 "当前用户目录）。安装包自带 e2m2e 运行时与 SPICE 小内核，开箱即用。"
-msgstr "Download `tod_<version>_x64-setup.exe` from [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) and double-click to install (NSIS installer; per-user, no administrator rights). The installer bundles the e2m2e runtime and the small SPICE kernels — ready to use out of the box."
+msgstr "Download `tod_<version>_x64-setup.exe` from [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) and double-click to install (NSIS installer; per-user, no administrator rights). The installer bundles the e2m2e runtime and the small SPICE kernels - ready to use out of the box."
 
 #: ../../source/guide/quickstart.md:11 3db492d742994e87a0c5208fe18c758e
 msgid "开发环境"
@@ -107,7 +107,7 @@ msgstr "Opening it queries the whole library; adjust the filters (family type, l
 
 #: ../../source/guide/quickstart.md:46 bb1b7434b55f45b6b9370a6f98957708
 msgid "点击任一记录，其轨迹以统一配色叠加到画布，便于与新生成的族对比。"
-msgstr "Click any record to overlay its trajectories on the canvas in a consistent color scheme — handy for comparing against a freshly generated family."
+msgstr "Click any record to overlay its trajectories on the canvas in a consistent color scheme - handy for comparing against a freshly generated family."
 
 #: ../../source/guide/quickstart.md:48 f6d37f271d3f437bae1f56c9af0b0acf
 msgid "下一步"
@@ -118,7 +118,7 @@ msgid ""
 "其余工具（轨道设计、轨道保持、轨道预报、转移设计等）的界面正在逐工具回归， 进度与范围见 [issue "
 "#398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)；"
 " 在此之前可用 v3.2.3 或 [e2m2e CLI](https://cislunarspace.github.io/e2m2e/)。"
-msgstr "The remaining tools (orbit design, station keeping, orbit propagation, transfer design, …) are returning to the UI one by one — progress and scope are tracked in [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398); until then, use v3.2.3 or the [e2m2e CLI](https://cislunarspace.github.io/e2m2e/)."
+msgstr "The remaining tools (orbit design, station keeping, orbit propagation, transfer design, …) are returning to the UI one by one - progress and scope are tracked in [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398); until then, use v3.2.3 or the [e2m2e CLI](https://cislunarspace.github.io/e2m2e/)."
 
 #~ msgid "项目要求 Python >= 3.13。用 [uv](https://docs.astral.sh/uv/) 安装："
 #~ msgstr ""
@@ -182,4 +182,3 @@ msgstr "The remaining tools (orbit design, station keeping, orbit propagation, t
 
 #~ msgid "四个工具的完整参数说明见 {doc}`tools`。"
 #~ msgstr ""
-

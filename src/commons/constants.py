@@ -1,7 +1,7 @@
 """脚本共享的常量、路径与工具。
 
 硬编码常量（M_SUN / OMEGA_SUN / RHO / FAMILY_FILENAME）在模块导入时即可用，不依赖 e2m2e。
-CR3BP 派生常量（MU / DU / TU / VU / T_MOON）通过 __getattr__ 惰性计算——首次访问时才
+CR3BP 派生常量（MU / DU / TU / VU / T_MOON）通过 __getattr__ 惰性计算，首次访问时才
 导入 e2m2e 并调用 CR3BP_System.from_known_system("earth_moon")。
 """
 
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     T_MOON: float
 
 # ============================================================
-# 硬编码常量 — 始终可用，不依赖 e2m2e
+# 硬编码常量 - 始终可用，不依赖 e2m2e
 # ============================================================
 
 # 太阳摄动（BR4BP）
@@ -29,7 +29,7 @@ RHO: float = 3.88811143e2  # 太阳到地月质心无量纲距离
 FAMILY_FILENAME: str = "family.json"
 
 # ============================================================
-# CR3BP 派生常量 — 惰性计算（首次访问时导入 e2m2e）
+# CR3BP 派生常量 - 惰性计算（首次访问时导入 e2m2e）
 # ============================================================
 
 _cr3bp_initialized: bool = False
@@ -59,7 +59,7 @@ def _init_cr3bp() -> None:
 
 
 def __getattr__(name: str) -> float:
-    """模块级惰性属性访问——仅在 name 不在 globals() 中时触发。"""
+    """模块级惰性属性访问，仅在 name 不在 globals() 中时触发。"""
     if name in ("MU", "DU", "TU", "VU", "T_MOON"):
         _init_cr3bp()
         return globals()[name]

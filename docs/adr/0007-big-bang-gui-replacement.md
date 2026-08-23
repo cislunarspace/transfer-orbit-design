@@ -16,7 +16,7 @@
 
 ## 理由
 
-1. **架构差异不可调和**：旧 GUI 的核心假设是"脚本 = 进程"，新架构是"API = 线程"。这两个假设不兼容。
+1. **架构差异不可调和**：旧 GUI 的核心假设是脚本对应进程，新架构是 API 对应线程。这两个假设不兼容。
 2. **mixin 限制**：`MainWindow` 的 mixin 链（FileTreeMixin → JobPanelMixin → QMainWindow）使得替换任一组件都需要重构整条继承链。
 3. **SCRIPT_ENTRY 废弃**：旧 GUI 的参数面板生成依赖 SCRIPT_ENTRY 扫描，新 GUI 从 Pydantic 模型生成。机制完全不同。
 4. **e2m2e_compat 不再需要**：新架构直接调用 e2m2e 的新 API 路径，不需要旧路径兼容层。

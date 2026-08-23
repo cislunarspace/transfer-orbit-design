@@ -37,15 +37,15 @@ msgid "tod 是 **e2m2e 的 GUI 前端**。它不实现任何轨道力学算法�
 msgstr ""
 
 #: ../../architecture/architecture.md:10 433238b0dff54e2cba68b26bfaa8b454
-msgid "**调用**——通过 e2m2e Facade API 发起计算任务（轨道设计、轨道族生成、轨道保持、稳定性分析）。"
+msgid "**调用**，通过 e2m2e Facade API 发起计算任务（轨道设计、轨道族生成、轨道保持、稳定性分析）。"
 msgstr ""
 
 #: ../../architecture/architecture.md:11 77448b23113c4d82a8f56fc53111e117
-msgid "**管理**——追踪用户工作会话中的全部计算产物（轨道、轨道族、转移结果），提供结构化的数据导航和管线串联。"
+msgid "**管理**，追踪用户工作会话中的全部计算产物（轨道、轨道族、转移结果），提供结构化的数据导航和管线串联。"
 msgstr ""
 
 #: ../../architecture/architecture.md:12 eb86a36a40114a54aa191d00faced5d1
-msgid "**呈现**——将计算结果以内嵌可视化的方式展示在主窗口中，支持 3D/2D 轨道图、多轨道叠加、地月系统标注。"
+msgid "**呈现**，将计算结果以内嵌可视化的方式展示在主窗口中，支持 3D/2D 轨道图、多轨道叠加、地月系统标注。"
 msgstr ""
 
 #: ../../architecture/architecture.md:14 24060db66a8c4940a45bc46e3a7d4dc4
@@ -123,7 +123,7 @@ msgstr ""
 
 #: ../../source/dev/architecture.md:1 7a73de4486634de7b2cece8c28dd6212
 msgid ""
-"facade_bridge / catalog_service / 单位换算 / 内核管理——e2m2e 语义的 Python "
+"facade_bridge / catalog_service / 单位换算 / 内核管理，e2m2e 语义的 Python "
 "侧资产，工具脚本与测试继续使用"
 msgstr ""
 
@@ -226,7 +226,7 @@ msgstr ""
 
 #: ../../architecture/architecture.md:109 db69976154a949b587d88418b4e59085
 msgid ""
-"管理一次工作会话的全部 Artifact。**Project 不做持久化**——清单由轨道库 catalog 承担（`catalog_query`"
+"管理一次工作会话的全部 Artifact。**Project 不做持久化**，清单由轨道库 catalog 承担（`catalog_query`"
 " 供数）。"
 msgstr ""
 
@@ -575,7 +575,7 @@ msgstr ""
 #~ msgid "**入口层只做组装**。它把数据层、执行层、表现层粘在一起，不包含业务逻辑。"
 #~ msgstr ""
 
-#~ msgid "管理一次工作会话的全部 Artifact。**Project 不做持久化**——持久化由 `output/` 目录承担。"
+#~ msgid "管理一次工作会话的全部 Artifact。**Project 不做持久化**，持久化由 `output/` 目录承担。"
 #~ msgstr ""
 
 #~ msgid "Discovery"
@@ -672,7 +672,7 @@ msgstr ""
 
 #~ msgid ""
 #~ "Workers 是**执行层与表现层的边界**：它们使用 PyQt6 的 QThread"
-#~ " 和 pyqtSignal，因此在技术上依赖 Qt。这是有意的设计选择——避免引入额外的线程-通信抽象层。"
+#~ " 和 pyqtSignal，因此在技术上依赖 Qt。这是有意的设计选择，避免引入额外的线程-通信抽象层。"
 #~ msgstr ""
 
 #~ msgid "Persistence"
@@ -941,7 +941,7 @@ msgstr ""
 #~ msgid "界面语言"
 #~ msgstr ""
 
-#~ msgid "—"
+#~ msgid "-"
 #~ msgstr ""
 
 #~ msgid "i18n 基础设施已就位但未接入，界面固定中文"
@@ -1008,7 +1008,7 @@ msgstr ""
 #~ msgid ""
 #~ "GUI 的工具范围固定为四件：轨道设计、轨道保持、轨道族生成（Halo 北族）、 "
 #~ "稳定性分析（右键）。e2m2e 的转移设计、低推力、流形分析等能力**不在 GUI "
-#~ "范围内**——需要脚本化工作流时直接使用 [e2m2e "
+#~ "范围内**，需要脚本化工作流时直接使用 [e2m2e "
 #~ "CLI](https://github.com/cislunarspace/e2m2e)。这与早期版本\"灰显 占位等待 "
 #~ "e2m2e 实现\"的策略不同：不承诺 GUI 承载全部算法能力，避免维护 "
 #~ "一批永远点不亮的按钮。"
@@ -1044,4 +1044,3 @@ msgstr ""
 
 #~ msgid "e2m2e 本身已通过其自身测试套件验证，tod 不重复测试 e2m2e 的计算正确性。tod 的测试关注 GUI 行为和数据流。"
 #~ msgstr ""
-

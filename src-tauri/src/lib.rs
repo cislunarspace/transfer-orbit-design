@@ -24,7 +24,7 @@ pub fn dev_sidecar_command(repo_root: &std::path::Path) -> (Vec<String>, Option<
 }
 
 /// 分发期拉起配置：resources/binaries 内的打包 sidecar，cwd 指 resource
-/// 根——e2m2e Config 的 kernels/、catalog/ 按 cwd 相对解析（安装目录内
+/// 根，e2m2e Config 的 kernels/、catalog/ 按 cwd 相对解析（安装目录内
 /// resources 已带 kernels/，catalog/ 运行时创建；两个路径均可被
 /// SPICE_KERNEL_DIR / E2M2E_CATALOG_DIR 环境变量覆盖）。
 pub fn packaged_sidecar_command(resource_dir: &std::path::Path) -> (Vec<String>, Option<String>) {

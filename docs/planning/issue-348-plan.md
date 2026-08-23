@@ -6,14 +6,14 @@
 
 发 issue 后又核实了两处底层事实，方案据此收紧：
 
-1. **issue 风险 #1（坐标系）已化解**：`_build_controlled_ephemeris`（`e2m2e/algorithm/station_keeping/monte_carlo.py:916-963`）**填充了 `synodic_position`**（`:962`），且约定为"地心归一 + μ 平移"的会合系坐标（`:921-922, 937-938`），与 `design_orbit` 的 `cr3bp_orbit.states` 同系。画布直接用 `synodic_position` 渲染即可，**无需 GCRS→会合系转换**。DTO 的 `controlled_states` 取 `synodic_position`，而非 `position_km`（GCRS）。
+1. **issue 风险 #1（坐标系）已化解**：`_build_controlled_ephemeris`（`e2m2e/algorithm/station_keeping/monte_carlo.py:916-963`）**填充了 `synodic_position`**（`:962`），且约定为地心归一加 μ 平移的会合系坐标（`:921-922, 937-938`），与 `design_orbit` 的 `cr3bp_orbit.states` 同系。画布直接用 `synodic_position` 渲染即可，**无需 GCRS→会合系转换**。DTO 的 `controlled_states` 取 `synodic_position`，而非 `position_km`（GCRS）。
 
 2. **control_orbit 对入参 EphemerisTable 的字段依赖**（决定阶段 0 存什么）：算法层 `control_orbit` → `NominalOrbit(ephemeris, spice)` → `monte_carlo`：
    - UTC 分量 `year/month/day/hour/minute/second`（`monte_carlo.py:74-78` `_utc_iso` + `:88-89` `spice.utc_to_et`）
    - `position_km` + `velocity_mps`（`monte_carlo.py:96-97`）
    - 不直接用 `synodic_position` / `times_jd_tdb`（输入侧）
 
-   阶段 0 仍按"NPZ 全字段存"实现（含 `synodic_position` / `times_jd_tdb`），原因：① design_orbit 的 `result.ephemeris` 本就完整填充，全存零成本；② 全存才能无损重建 `EphemerisTable`，不依赖字段裁剪的正确性。
+   阶段 0 仍按 NPZ 全字段保存实现（含 `synodic_position` / `times_jd_tdb`），原因：① design_orbit 的 `result.ephemeris` 本就完整填充，全存零成本；② 全存才能无损重建 `EphemerisTable`，不依赖字段裁剪的正确性。
 
 ## 1. 架构约束与设计决策
 
@@ -32,7 +32,7 @@
 | D3 | ephemeris NPZ 存储 | 全字段（year/month/day/hour/minute/second/position_km/velocity_mps/synodic_position/times_jd_tdb） | control_orbit 依赖 UTC 分量 + position/velocity；完整重建最稳，免字段裁剪 |
 | D4 | 受控星历可视化数据 | `controlled_ephemeris.synodic_position`（会合系） | `_build_controlled_ephemeris:962` 已填，与 design_orbit 同系，画布零改动 |
 | D5 | `input_ephemeris` 字段隐藏 | main_window 在 `_build_tool_params` 后剔除控件 | 局部改动；不动 e2m2e / params_panel（跨仓库改 `Field(json_schema_extra={"hidden": True})` 收益不抵成本） |
-| D6 | 触发方式 | 工具选择器 + 当前选中 orbit Artifact | 复用 #336 "选工具→填参→运行" 范式；独立于 #340 右键菜单 |
+| D6 | 触发方式 | 工具选择器 + 当前选中 orbit Artifact | 复用选工具、填参数、运行的范式；独立于 #340 右键菜单 |
 | D7 | `_on_run` 重构 | 按 `tool_key` dispatch 到 `_run_design_orbit` / `_run_control_orbit` | 现硬编码 `OrbitDesignWorker`，新增工具必须泛化 |
 | D8 | control 结果落盘 | 新增 `save_control_result`（独立函数） | control DTO 与 design DTO 字段差异大，`save_artifact` dispatch 反而绕；两者并列清晰 |
 | D9 | 标量结果展示 | 日志面板（总 Δv / 失败样本数 / 机动次数） | ADR 0010 内嵌优先，不弹窗 |
@@ -488,7 +488,7 @@ def _on_control_error(self, error_msg: str) -> None:
     self._status_bar.showMessage("轨道保持失败", _STATUS_MSG_TIMEOUT_MS)
 ```
 
-> `controlled_states` 为 None（所有样本失败）时，Artifact 仍注册但无 state_data；点击不渲染，日志已说明失败样本数。验收标准不要求"全失败也画图"。
+> `controlled_states` 为 None（所有样本失败）时，Artifact 仍注册但无 state_data；点击不渲染，日志已说明失败样本数。验收标准不要求全部失败也绘制图像。
 
 ## 4. 实施顺序
 
@@ -574,7 +574,7 @@ test_run_control_without_selection_shows_status
     → 无选中 → _on_run → 不启动 Worker，状态栏提示
 
 test_run_control_with_old_artifact_without_ephemeris_blocked
-    → 选中 extra 无 ephemeris 的 Artifact → 提示"无星历数据"
+    → 选中 extra 无 ephemeris 的 Artifact → 提示无星历数据
 
 test_run_control_dispatches_control_worker
     → mock ControlOrbitWorker → 选 orbit Artifact → _on_run
@@ -582,7 +582,7 @@ test_run_control_dispatches_control_worker
 
 test_on_control_finished_registers_ephememeris_artifact
     → 模拟 finished 信号 → Project 含 artifact_type="ephemeris"
-    → 项目树 "📡 星历" 分组出现
+    → 项目树 星历 分组出现
 ```
 
 ## 7. 验收标准映射
@@ -591,7 +591,7 @@ test_on_control_finished_registers_ephememeris_artifact
 |---|---|
 | design_orbit Artifact 含 GCRS 星历；重启恢复 | `facade_bridge.design_orbit` 提取 + `persistence` NPZ + `load_artifact_arrays` |
 | 参数面板显示 control_mode 等（无 input_ephemeris） | `main_window._build_tool_params` 隐藏字段 |
-| 选中 orbit → 运行 → ephemeris Artifact 注册"📡 星历" | `_run_control_orbit` + `_on_control_finished` |
+| 选中 orbit → 运行 → ephemeris Artifact 注册星历 | `_run_control_orbit` + `_on_control_finished` |
 | ephemeris Artifact 点击 → 渲染画布 | `controlled_states=synodic_position` 复用 `canvas.render()` |
 | 日志显示总 Δv / 失败数 / 机动次数 | `ControlOrbitWorker.run` + `_on_control_finished` |
 | 未选中运行 → 提示 | `_selected_orbit_artifact` 返回 None |
