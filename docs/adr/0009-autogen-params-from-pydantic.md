@@ -29,7 +29,7 @@
 
 1. **零维护同步**：e2m2e 更新 Pydantic 模型后 GUI 自动反映变更，不需要手动更新参数面板。
 2. **单一事实来源**：参数定义只在 e2m2e 的 `api/models.py` 中维护。
-3. **ADR 0014 对齐**：e2m2e ADR 0014 已明确"GUI 参数表单从 e2m2e Pydantic 模型生成"。
+3. **ADR 0014 对齐**：e2m2e ADR 0014 已明确 GUI 参数表单从 e2m2e Pydantic 模型生成。
 
 ## 后果
 

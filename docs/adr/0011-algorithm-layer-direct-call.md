@@ -6,7 +6,7 @@
 
 ## 背景
 
-e2m2e 的 Facade 门面（`e2m2e.api.Facade`）是 MCP/CLI 的统一入口。但 Facade 的返回值是 Pydantic 模型（`DesignOrbitResponse` 等），这些模型**剥离了轨道数据**——只返回标量汇总（轨道类型、Jacobi 常数、收敛标志），不返回 `Orbit` 对象或 `EphemerisTable`。
+e2m2e 的 Facade 门面（`e2m2e.api.Facade`）是 MCP/CLI 的统一入口。但 Facade 的返回值是 Pydantic 模型（`DesignOrbitResponse` 等），这些模型**剥离了轨道数据**：只返回标量汇总（轨道类型、Jacobi 常数、收敛标志），不返回 `Orbit` 对象或 `EphemerisTable`。
 
 GUI 的可视化需要完整的轨道状态矩阵（`cr3bp_orbit.states` 形状 (n, 6)）和星历表（`ephemeris.position_km`）。这些数据被 Facade 门面丢弃了。
 
@@ -29,7 +29,7 @@ result = design_orbit("DRO", amplitude=40000, kernel_dir="...")
 1. **可视化需要完整数据**：OrbitVisualizer 需要 `Orbit.states`，不是 `DesignOrbitResponse.initial_state`。
 2. **Facade 是为 MCP/CLI 设计的**：MCP 传输层不需要 numpy 数组（JSON 序列化太重）。GUI 作为进程内集成者，可以直接使用 numpy 数据。
 3. **性能**：省去 Facade 层的 Pydantic 序列化/反序列化开销。
-4. **e2m2e 架构对齐**：e2m2e ADR 0011 明确"算法层保留细粒度 API（专家用）"——GUI 就是这个"专家"用户。
+4. **e2m2e 架构对齐**：e2m2e ADR 0011 明确算法层保留细粒度 API（专家用），GUI 就是这个专家用户。
 
 ## 后果
 

@@ -26,7 +26,7 @@
 
 4. **`importlib` 加载需注册 `sys.modules`**：实现脚本中的 `@dataclass` 装饰器需要模块在 `sys.modules` 中。扫描器在执行前注册临时模块名，执行后清理。
 
-5. **保留 `_ScanEntry` 轻量包装**：虽然启动时间不再约束，但 `_ScanEntry` 作为扫描器的内部类型仍有价值——它只读取 `ScriptEntry` 的字段，不持有对重型模块的引用。
+5. **保留 `_ScanEntry` 轻量包装**：虽然启动时间不再约束，但 `_ScanEntry` 作为扫描器的内部类型仍有价值：它只读取 `ScriptEntry` 的字段，不持有对重型模块的引用。
 
 ## 后果
 

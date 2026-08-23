@@ -6,13 +6,13 @@
 
 ## 上下文
 
-`CONTEXT.md` 对 GUI 的「当前选择文件」「批量运行」「覆盖结果」有明确约束：支持文件输入的工具可以使用文件树里的当前选择文件，但运行前必须让用户看见并确认；运行前确认用于避免隐式输入、意外批量运行或覆盖结果；发生覆盖结果前，GUI 应显示将被覆盖的文件。
+`CONTEXT.md` 对 GUI 的当前选择文件批量运行覆盖结果有明确约束：支持文件输入的工具可以使用文件树里的当前选择文件，但运行前必须让用户看见并确认；运行前确认用于避免隐式输入、意外批量运行或覆盖结果；发生覆盖结果前，GUI 应显示将被覆盖的文件。
 
 实现层原有三处分散的"事实"：
 
 1. `_run_from_tab` 在参数校验后直接 `build_run_specs` + `dispatch`（无确认环节）
 2. `file_arg` 在 MainWindow 层静默构造并直接前置到 `extra_args`
-3. chip 多选通过 `itertools.product` 展开为多个 RunSpec，但用户点击"运行"前看不到「将创建 N 个任务」的确认摘要
+3. chip 多选通过 `itertools.product` 展开为多个 RunSpec，但用户点击"运行"前看不到将创建 N 个任务的确认摘要
 
 修复目标：在 dispatch 前集中展示工具名、当前选择文件、任务数量/分组、覆盖目标；用户取消时 0 个 Job 创建。
 
@@ -34,7 +34,7 @@ orchestrator 识别输出文件参数不靠 hardcode `"--output-file"` 字符串
 
 `build_run_specs` 与 `dispatch` 保留原签名 + 行为；`build_run_plan` 是高层包装，**不**取代 `build_run_specs`。现有 11 个 `test_run_orchestrator.py` 测试在 PR1 后继续 100% 通过。
 
-覆盖目标路径解析：`(repo_root / p).expanduser().is_file()`，不 `resolve()`，与子进程 cwd 行为一致。`--output-file` 为空字符串/纯空白视为"未指定输出文件"，触发「无输出文件参数」提示而非"覆盖目标"。
+覆盖目标路径解析：`(repo_root / p).expanduser().is_file()`，不 `resolve()`，与子进程 cwd 行为一致。`--output-file` 为空字符串/纯空白视为"未指定输出文件"，触发无输出文件参数提示而非"覆盖目标"。
 
 ## 后果
 
@@ -53,4 +53,4 @@ orchestrator 识别输出文件参数不靠 hardcode `"--output-file"` 字符串
 ### 后续
 
 - `_confirm_run_provider` 注入点已就位，但目前没有调用方注入；保留以便未来按工具类别提供不同确认策略
-- 「按 Jacobi 常数匹配 + 批量展开」场景的摘要可视化（如任务组下挂每个 Jacobi 值的预览）属后续 issue
+- 按 Jacobi 常数匹配 + 批量展开场景的摘要可视化（如任务组下挂每个 Jacobi 值的预览）属后续 issue

@@ -6,7 +6,7 @@
 
 ### 1.1 分层约束（来自 architecture.md 硬规则）
 
-- `src/model/` 不 import `src/view/` — Project **不加 QObject 信号**
+- `src/model/` 不 import `src/view/`，Project **不加 QObject 信号**
 - `src/view/` 不直接 import e2m2e
 - 自动刷新在 main_window 的 slot 中通过 `tree_view.refresh(project)` 实现
 
@@ -123,10 +123,10 @@ class ProjectTreeView(QWidget):
 
 **设计要点**：
 
-1. **QWidget 封装**而非 QTreeWidget 子类 — 组合优于继承，内部控制布局
-2. **分组节点不可选**（`~ItemIsSelectable`）— 避免点击分组标题时误发信号
+1. **QWidget 封装**而非 QTreeWidget 子类：组合优于继承，内部控制布局
+2. **分组节点不可选**（`~ItemIsSelectable`）：避免点击分组标题时误发信号
 3. **信号分流**：单选发 `artifact_selected(str)`，多选发 `artifacts_selected(list[str])`
-4. **`refresh(project)`** — 无状态，每次全量重建。Artifact 数量级在百级以内，性能无问题
+4. **`refresh(project)`**：无状态，每次全量重建。Artifact 数量级在百级以内，性能无问题
 
 ### 3.2 `src/view/canvas.py`（修改）
 
@@ -279,9 +279,9 @@ class TestPlotMultiple:
 |---|---|---|
 | 1 | 新建 `src/view/project_tree.py` | 手动检查 import 无误 |
 | 2 | 新建 `tests/view/test_project_tree.py` | `pytest tests/view/test_project_tree.py -v` |
-| 3 | 修改 `src/view/canvas.py` — 新增 `plot_multiple()` | 手动验证 import |
+| 3 | 修改 `src/view/canvas.py`，新增 `plot_multiple()` | 手动验证 import |
 | 4 | 新建 `tests/view/test_canvas_overlay.py` | `pytest tests/view/test_canvas_overlay.py -v` |
-| 5 | 修改 `src/app/main_window.py` — 集成 | `uv run python -m src.app.main` 手动验证 |
+| 5 | 修改 `src/app/main_window.py`，集成 | `uv run python -m src.app.main` 手动验证 |
 | 6 | 全量测试 | `pytest tests/ -v` |
 
 ## 5. 验收标准映射

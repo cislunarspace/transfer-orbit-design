@@ -26,7 +26,7 @@ tod 当前的 GUI 是 PyQt6 + matplotlib（约 1.2 万行 Python，四层架构�
 4. **分阶段迁移**，旧 PyQt UI 保留至核心功能（项目树、参数面板、执行状态、画布）对齐：
    - 阶段 1：Tauri 脚手架 + Three.js 画布原型（星历轨迹 + 地月标注 + 交互），验证可行性；
    - 阶段 2：sidecar RPC 协议，跑通一个轨道族生成任务；
-   - 阶段 3：核心 UI（项目树、参数面板——Pydantic 模型转 JSON Schema 自动生成表单、执行状态）；
+   - 阶段 3：核心 UI（项目树、参数面板、执行状态），参数面板由 Pydantic 模型转 JSON Schema 自动生成表单；
    - 阶段 4：长尾（catalog 过滤、GIF 导出、i18n、设置持久化），完成后移除 PyQt UI。
 5. **术语表（CONTEXT.md）继续适用**：视图适配、视图保持、轨道族等领域语义在新 UI 中原样保留，不因换框架改名。
 

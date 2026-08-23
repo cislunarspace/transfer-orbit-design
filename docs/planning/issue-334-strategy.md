@@ -26,7 +26,7 @@
 | `src/model/project.py` | 52 | 无需修改 |
 | `src/model/discovery.py` | 97 | 无需修改（已实现分类正则） |
 | `src/view/canvas.py` | 134 | 无需修改 |
-| `src/view/log_panel.py` | — | 无需修改 |
+| `src/view/log_panel.py` | 未知 | 无需修改 |
 | `src/app/main_window.py` | 297 | 需修改（接入自动参数面板 + persistence） |
 | `src/app/main.py` | 24 | 无需修改 |
 
@@ -63,7 +63,7 @@ Exception
 - view 层不应间接依赖 e2m2e 内部类型（违反分层规则）
 - DTO 序列化/调试更简单
 
-**代价**：numpy 数组通过引用传递（零拷贝），但丧失 `Orbit` 对象上的方法。这是可接受的——GUI 只需要 `states` 和 `times` 做可视化。
+**代价**：numpy 数组通过引用传递（零拷贝），但丧失 `Orbit` 对象上的方法。这是可接受的，GUI 只需要 `states` 和 `times` 做可视化。
 
 ### TD-2：TOOL_REGISTRY 结构
 
@@ -90,7 +90,7 @@ class ToolSpec:
 
 ### TD-3：持久化格式
 
-**决策**：双文件方案——元数据 JSON + numpy 旁车文件。
+**决策**：双文件方案，即元数据 JSON + numpy 旁车文件。
 
 ```
 output/dro/
@@ -205,7 +205,7 @@ except OrbitError as e:
    - `design_orbit()` 方法 wrap try/except，调用 `translate_exception()`
    - 未来其他工具方法复用同一翻译函数
 
-**验证**：`tests/engine/test_exceptions.py` — 每种异常一个测试用例。
+**验证**：`tests/engine/test_exceptions.py`，每种异常一个测试用例。
 
 ---
 
@@ -386,5 +386,5 @@ def mock_design_orbit(monkeypatch):
 | `orbit_family_generation` 桥接 | #334 + e2m2e Pydantic 模型 | 等 e2m2e 补全 Request 模型 |
 | `orbit_stability` 桥接 | #334 + e2m2e Pydantic 模型 | 等 e2m2e 补全 Request 模型 |
 | 项目树右键菜单 | #334 | 从 TOOL_REGISTRY 生成上下文操作 |
-| Discovery 增强 — 加载 numpy 数组 | #334 | `discover_artifacts()` 可选加载 .npz 旁车文件 |
+| Discovery 增强（加载 numpy 数组） | #334 | `discover_artifacts()` 可选加载 .npz 旁车文件 |
 | 旧代码清理 | 所有新 GUI issue 完成后 | 删除 `tod/gui/`、`tod/generates/`、`tod/scripting/` |

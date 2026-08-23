@@ -51,7 +51,7 @@ def load_orbit(path: Path) -> dict:
 
 ### CLI help 文本（工具脚本）
 
-`scripts/` 下的独立工具脚本（目前仅有 `download_kernels.py`）使用 `argparse`，help 文本必须回答三个问题：参数控制什么、默认值是什么、单位是什么。示例：
+`scripts/` 下的独立工具脚本中，使用 `argparse` 的目前仅有 `download_kernels.py`（`scan_transfer*.py` 为服务器上的一次性扫描脚本，不走 `argparse`）。help 文本必须回答三个问题：参数控制什么、默认值是什么、单位是什么。示例：
 
 ```python
 parser.add_argument(
@@ -62,7 +62,7 @@ parser.add_argument(
 )
 ```
 
-无量纲 CR3BP 参数应明确写“无量纲”；角度写“rad”或“度”；时间写“TU”“天”或“秒”。布尔开关说明开启后的行为。
+无量纲 CR3BP 参数应注明为无量纲；角度单位写 rad 或度；时间单位写 TU、天或秒。布尔开关说明开启后的行为。
 
 ### 国际化
 

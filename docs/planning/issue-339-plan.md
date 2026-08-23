@@ -6,17 +6,17 @@
 
 原 issue 有三处需修订，理由见下方"1.3 修订依据"：
 
-1. **交付清单划掉"多轨道自动配色（tab10）"**——已在 #335（PR #343）完成。
-2. **验收标准 #5（增量重绘）重定义为全量重绘 + 数据复用**——投影切换是结构性变化，增量重绘在当前架构下不可达。
-3. **补上 mu 数据流决策**——`CR3BP_System` 构造需要 `mu`，现有 DTO/持久化均不含。
-4. **交付清单补上 `src/engine/viz_adapter.py`**——`src/view/` 不能直接 import e2m2e（硬规则）。
+1. **交付清单划掉"多轨道自动配色（tab10）"**：已在 #335（PR #343）完成。
+2. **验收标准 #5（增量重绘）重定义为全量重绘 + 数据复用**：投影切换是结构性变化，增量重绘在当前架构下不可达。
+3. **补上 mu 数据流决策**：`CR3BP_System` 构造需要 `mu`，现有 DTO/持久化均不含。
+4. **交付清单补上 `src/engine/viz_adapter.py`**：`src/view/` 不能直接 import e2m2e（硬规则）。
 
 ## 1. 架构约束与设计决策
 
 ### 1.1 分层约束（来自 architecture.md 硬规则）
 
 - `src/model/` 不 import `src/view/`、`src/engine/`（第1层）
-- `src/view/` **不直接 import e2m2e**（第2层硬规则）——`OrbitVisualizer` / `CR3BP_System` 都在 e2m2e 包内，必须经 `src/engine/` 适配
+- `src/view/` **不直接 import e2m2e**（第2层硬规则）：`OrbitVisualizer` / `CR3BP_System` 都在 e2m2e 包内，必须经 `src/engine/` 适配
 - `src/engine/` 不 import `src/view/`（Workers 信号是技术性例外）
 - 表现层只和数据层、执行层的接口交互
 
@@ -104,8 +104,8 @@ def draw_libration_points(ax, mu: float, *, is_3d: bool = True) -> None:
 **设计要点**：
 
 1. **函数式薄封装**，无状态。每次调用构造 `CR3BP_System`，开销可忽略（μ 固定，L 点数值求解约毫秒级）。
-2. **`build_cr3bp_system` 独立导出**——主窗口若需持有 system 复用于多轨道场景，可在此构造一次。
-3. **`draw_primary_bodies` / `draw_libration_points` 返回 None**——view 不依赖任何 e2m2e 类型。
+2. **`build_cr3bp_system` 独立导出**：主窗口若需持有 system 复用于多轨道场景，可在此构造一次。
+3. **`draw_primary_bodies` / `draw_libration_points` 返回 None**：view 不依赖任何 e2m2e 类型。
 4. 若 e2m2e `plot_primary_bodies` 在 `mu is None` 时静默返回（base.py:395-396），本适配层**不传 None**，直接传 mu。
 
 ### 3.2 `src/engine/facade_bridge.py`（修改）
@@ -139,7 +139,7 @@ return OrbitDesignResultData(
 
 **已验证（2026-08-04 实测）**：
 - `OrbitDesignResult` **没有 `mu` 字段**（`design_orbit.py:138-165`，只有 `cr3bp_orbit: Orbit`、`cr3bp_jacobi`）。
-- 但 `cr3bp_orbit.system.mu` 可用——`design_orbit.py:460` 构造 `Orbit(..., system=dynamics.system)` 绑定了 `CR3BP_System`，其 `.mu` 是普通属性（`cr3bp_system.py:89`）。
+- 但 `cr3bp_orbit.system.mu` 可用：`design_orbit.py:460` 构造 `Orbit(..., system=dynamics.system)` 绑定了 `CR3BP_System`，其 `.mu` 是普通属性（`cr3bp_system.py:89`）。
 - 实测：`Orbit(states, times, system=dyn.system)` 后 `orbit.system.mu` 返回 `0.012153645822478` ✓。
 - **防御**：用 `getattr(getattr(cr3bp_orbit, "system", None), "mu", None)` 三重防护（`system` 可能为 None，鸭子类型绑定）。
 
@@ -170,9 +170,9 @@ json_data = {
 }
 ```
 
-**向后兼容**：旧 NPZ/JSON 无 `mu` 时，`extra.get("mu")` 返回 None。此时画布 fallback：不绘制地月/L 点标注（而非崩溃）。这在 `_on_artifact_clicked` 的懒加载分支已覆盖——`load_artifact_arrays` 只填 `state_data`/`times`，`extra` 从 JSON 读。若 `extra` 无 `mu`，则投影/开关可用但标注不显示，且日志提示"旧 Artifact 无 mu，跳过地月标注"。
+**向后兼容**：旧 NPZ/JSON 无 `mu` 时，`extra.get("mu")` 返回 None。此时画布 fallback：不绘制地月/L 点标注（而非崩溃）。这在 `_on_artifact_clicked` 的懒加载分支已覆盖：`load_artifact_arrays` 只填 `state_data`/`times`，`extra` 从 JSON 读。若 `extra` 无 `mu`，则投影/开关可用但标注不显示，且日志提示"旧 Artifact 无 mu，跳过地月标注"。
 
-### 3.4 `src/view/canvas.py`（修改）— 核心
+### 3.4 `src/view/canvas.py`（修改）：核心
 
 引入 `CanvasState`（与 architecture.md:247-252 一致）与 `render()` 单入口：
 
@@ -279,10 +279,10 @@ class OrbitCanvas(FigureCanvasQTAgg):
 **设计要点**：
 
 1. **`render()` 是全量重绘单入口**，从 `_fig.clear()` 开始，不保留旧 Axes 增量。3D/2D 用不同 `projection` 参数创建 Axes。
-2. **数据注册表**（`_states_by_id` / `_labels_by_id` / `_mu_by_id`）：main_window 在渲染前把当前可见 Artifact 的数组灌进去。**切换投影/开关时数组已在内存，不从 NPZ 重读**——这正是验收标准 #5 的可测形式。
+2. **数据注册表**（`_states_by_id` / `_labels_by_id` / `_mu_by_id`）：main_window 在渲染前把当前可见 Artifact 的数组灌进去。**切换投影/开关时数组已在内存，不从 NPZ 重读**，这正是验收标准 #5 的可测形式。
 3. **`_draw_bodies` / `_draw_libration` 只画一次**：同一 CR3BP 系统（地月 mu 相同），多轨道时避免重复画。
 4. **`CanvasState.copy()`**：main_window 用"读当前 state → 改字段 → 传新 state"的不可变模式，避免 canvas 内部状态被外部直接改。也可简化为 `self._canvas.state = new_state; self._canvas.render()`。
-5. **向后兼容**：`plot_orbit()` / `plot_multiple()` 保留（#335 已实现、有测试），内部改为委托 `render()` 或保持不变。**建议保留**——`_on_artifact_clicked` / `_on_artifacts_multi_selected` 可逐步迁移到 `render()`。
+5. **向后兼容**：`plot_orbit()` / `plot_multiple()` 保留（#335 已实现、有测试），内部改为委托 `render()` 或保持不变。**建议保留**：`_on_artifact_clicked` / `_on_artifacts_multi_selected` 可逐步迁移到 `render()`。
 
 **明确决策**：`plot_orbit()` / `plot_multiple()` 是否保留。
 - 方案 A（推荐）：保留，作为 `render()` 的便捷薄封装。改动最小，旧测试不破。
@@ -325,7 +325,7 @@ class CanvasToolbar(QWidget):
         layout.addStretch()
 ```
 
-**设计要点**：无业务逻辑，纯 UI。信号连接到 main_window 的 slot（见 3.6），由 main_window 统一更新 CanvasState 并调 `render()`。**工具栏按钮不做状态互斥高亮**（如 QButtonGroup 检查当前投影）——MVP 不引入，简化 scope。
+**设计要点**：无业务逻辑，纯 UI。信号连接到 main_window 的 slot（见 3.6），由 main_window 统一更新 CanvasState 并调 `render()`。**工具栏按钮不做状态互斥高亮**（如 QButtonGroup 检查当前投影），MVP 不引入，简化 scope。
 
 ### 3.6 `src/app/main_window.py`（修改）
 
@@ -417,8 +417,8 @@ self._viz.toolbar.show_libration.toggled.connect(self._on_toggle_libration)
 **设计要点**：
 
 1. **单一状态源**：`self._canvas_state`（CanvasState 实例）是 main_window 的成员，画布通过 `sync_state()` 接收。
-2. **`_selected_artifact_ids` 统一维护**——重构了现在"点击调 plot_orbit、多选调 plot_multiple"的分散逻辑，投影/开关变化时无需重新选择，直接重绘当前选中。
-3. **多选分支补懒加载**——修复现有 `_on_artifacts_multi_selected` 不懒加载的缺口（审查发现）。
+2. **`_selected_artifact_ids` 统一维护**：重构了现在"点击调 plot_orbit、多选调 plot_multiple"的分散逻辑，投影/开关变化时无需重新选择，直接重绘当前选中。
+3. **多选分支补懒加载**：修复现有 `_on_artifacts_multi_selected` 不懒加载的缺口（审查发现）。
 
 ### 3.7 测试计划
 
@@ -486,12 +486,12 @@ class TestOrbitCanvasRender:
 |---|---|---|
 | 1 | **验证 e2m2e `OrbitDesignResult` 暴露 mu**（见 5.2）；决定 `OrbitVisualizer` 集成细节 | `python -c "from e2m2e.algorithm.design import ...; print(...)"` |
 | 2 | 新建 `src/engine/viz_adapter.py` | `pytest tests/engine/test_viz_adapter.py -v` |
-| 3 | 修改 `src/engine/facade_bridge.py` — DTO 加 mu；`persistence.py` JSON 加 mu | `pytest tests/engine/ -v` |
+| 3 | 修改 `src/engine/facade_bridge.py`，DTO 加 mu；`persistence.py` JSON 加 mu | `pytest tests/engine/ -v` |
 | 4 | 新建 `tests/engine/test_viz_adapter.py` | 步骤 2/3 的测试 |
-| 5 | 修改 `src/view/canvas.py` — CanvasState + render + 标注 | `pytest tests/view/test_canvas_state.py -v` |
+| 5 | 修改 `src/view/canvas.py`，CanvasState + render + 标注 | `pytest tests/view/test_canvas_state.py -v` |
 | 6 | 新建 `tests/view/test_canvas_state.py` | 步骤 5 的测试 |
 | 7 | 新建 `src/view/canvas_toolbar.py` | 手动验证 import |
-| 8 | 修改 `src/app/main_window.py` — 接入 CanvasState + toolbar | `uv run python -m src.app.main` 手动验证 |
+| 8 | 修改 `src/app/main_window.py`，接入 CanvasState + toolbar | `uv run python -m src.app.main` 手动验证 |
 | 9 | 全量测试 | `pytest tests/ -v`（1195 passed 基线） |
 
 ## 5. 风险与待确认
@@ -508,8 +508,8 @@ class TestOrbitCanvasRender:
 
 - **~~e2m2e `OrbitDesignResult` 是否暴露 `mu`~~** ✅ **已解决**：`OrbitDesignResult` 无 `mu` 字段，但 `cr3bp_orbit.system.mu` 可用（`design_orbit.py:460` 绑定 `CR3BP_System`），实测返回 `0.012153645822478`。用 `getattr` 三重防护。
 - **`OrbitVisualizer` 2D/3D 标注实际行为** ✅ **已验证**：`plot_primary_bodies` + `plot_libration_points` 在 3D ax 添加 23 个 artist、2D ax 添加 22 个 artist（Agg 后端实测，2026-08-04）。
-- **`OrbitVisualizer.plot_primary_bodies` 在 2D 下的图标加载**：e2m2e 的 2D 图标走 `icons.add_2d_icon`，需要 PNG 资源。若加载失败会回退圆形 marker（base.py:124,139）——可接受，但测试中注意别依赖图标存在。
-- **matplotlib 3D→2D 切换**：每次 `render()` 重建 Axes。若高频切换（连点投影按钮）有性能顾虑，可加"当前 projection 相同则复用 Axes"优化——MVP 不做。
+- **`OrbitVisualizer.plot_primary_bodies` 在 2D 下的图标加载**：e2m2e 的 2D 图标走 `icons.add_2d_icon`，需要 PNG 资源。若加载失败会回退圆形 marker（base.py:124,139），可接受，但测试中注意别依赖图标存在。
+- **matplotlib 3D→2D 切换**：每次 `render()` 重建 Axes。若高频切换（连点投影按钮）有性能顾虑，可加"当前 projection 相同则复用 Axes"优化，MVP 不做。
 
 ### 5.3 范围外（明确不做）
 

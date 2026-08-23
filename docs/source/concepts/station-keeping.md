@@ -1,6 +1,6 @@
 # 轨道保持
 
-地月空间的任务轨道——DRO、halo、NRHO、Lissajous——在真实星历模型里都不是
+地月空间的任务轨道（DRO、halo、NRHO、Lissajous）在真实星历模型里都不是
 严格周期轨道。月球轨道偏心率、太阳引力、太阳光压等摄动会让实际轨迹缓慢
 偏离标称轨道。**轨道保持**（station-keeping）就是定期做小机动，把轨迹拉回
 标称轨道附近。
@@ -25,7 +25,7 @@
 ## DRO：长期稳定，且大幅更稳
 
 DRO（Distant Retrograde Orbit）在 CR3BP 里 stability index 接近 1，是临界
-稳定——既不指数发散也不快速收敛。这个性质在真实星历里近似保留：DRO 变成
+稳定，既不指数发散也不快速收敛。这个性质在真实星历里近似保留：DRO 变成
 准周期的有界运动，会振荡、漂移，但不会逃逸。
 
 **大幅 DRO 比小幅 DRO 更稳定**，这与直觉相反。文献数据（Zhang & Wang
@@ -38,7 +38,7 @@ DRO（Distant Retrograde Orbit）在 CR3BP 里 stability index 接近 1，是临
 | ~72000 km（2:1） | 13.7 天 | **0.82 m/s** |
 
 > "The DROs with large amplitudes have the lowest station-keeping cost."
-> —— Zhang & Wang 2022
+> Zhang & Wang 2022
 
 所以选 DRO 做长期任务时，不必为了"怕不稳"而选紧凑轨道。~50000–70000 km
 的中等 DRO 兼顾可视性、稳定性与低保持代价。
@@ -52,8 +52,8 @@ DRO（Distant Retrograde Orbit）在 CR3BP 里 stability index 接近 1，是临
 2. **纠正导航与执行误差**。轨道确定有不确定度，机动执行有偏差，这些误差
    累积也需要修正。
 
-对 DRO，保持是"锦上添花"——不做也能维持很久，做了能更贴标称轨道。对
-halo/Lissajous，保持是"刚需"——不做几天到两周就沿不稳定流形发散到不可用。
+对 DRO，保持是"锦上添花"：不做也能维持很久，做了能更贴标称轨道。对
+halo/Lissajous，保持是"刚需"：不做几天到两周就沿不稳定流形发散到不可用。
 
 ## 机动频率与速度增量
 
@@ -67,7 +67,7 @@ halo/Lissajous，保持是"刚需"——不做几天到两周就沿不稳定流�
 | 30 天 | 0.27 m/s | 16 km | 60 km |
 | 60 天 | **0.05 m/s** | 39 km | 114 km |
 
-60 天不机动也只漂几十公里——这就是 DRO "长期稳定"的含义。每周一次机动对
+60 天不机动也只漂几十公里，这就是 DRO "长期稳定"的含义。每周一次机动对
 DRO 来说偏过度；几周到两个月一次就够了。
 
 作为对比，halo 轨道（L2，ARTEMIS 实测）年均 5–7 m/s、每周约一次，超过
@@ -110,13 +110,13 @@ CR3BP 假设地球月球做匀速圆运动、忽略太阳引力等摄动，存�
 ## 参考文献
 
 - Zhang & Wang 2022. *Performance analysis of impulsive station-keeping
-  strategies for cis-lunar orbits with the ephemeris*. —— 全星历
+  strategies for cis-lunar orbits with the ephemeris*：全星历
   DRO/NRHO/halo 保持策略对比，本文 Δv 与漂移数据的主要来源。
 - Minghu 等 2014. *Transfer to long term distant retrograde orbits around
-  the moon*. —— 大幅 DRO 在太阳摄动下 300–700 天有界。
+  the moon*：大幅 DRO 在太阳摄动下 300–700 天有界。
 - Folta 等 2014. *Earth–moon libration point orbit stationkeeping: theory,
-  modeling, and operations*. —— ARTEMIS 平动点轨道保持的工程实践
+  modeling, and operations*：ARTEMIS 平动点轨道保持的工程实践
   （halo/NRHO 基准）。
 - Guzzetti 等 2016. *Rapid trajectory design in the Earth–moon ephemeris
   system via an interactive catalog of periodic and quasi-periodic
-  orbits*. —— 准周期轨道在星历模型里的有界性。
+  orbits*：准周期轨道在星历模型里的有界性。

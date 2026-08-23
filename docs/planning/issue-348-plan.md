@@ -1,4 +1,4 @@
-# Issue #348 实施方案：轨道保持（control_orbit）—— 算法层直调 + ephemeris Artifact
+# Issue #348 实施方案：轨道保持（control_orbit）：算法层直调 + ephemeris Artifact
 
 > 审查用。确认无误后开始实施。关联 issue：#348；拆自 #340。
 
@@ -19,7 +19,7 @@
 
 ### 1.1 分层约束（来自 architecture.md 硬规则）
 
-- `src/view/` 不直接 import e2m2e——`EphemerisTable` 重建在 `FacadeBridge` 内完成，Worker/View 只传 dict / DTO。
+- `src/view/` 不直接 import e2m2e，`EphemerisTable` 重建在 `FacadeBridge` 内完成，Worker/View 只传 dict / DTO。
 - `src/engine/` 直调 e2m2e 算法层（ADR 0011），不经 Facade 门面。
 - 结果落盘 `output/`，discovery 可恢复（ADR 0008）。
 
@@ -105,7 +105,7 @@ class ControlResultData:
     mu: float | None = None
 ```
 
-> `controlled_states` 取 `synodic_position`（会合系，见 D4），速度列补零以满足 `Artifact.state_data` 的 (n,6) 约定；画布 `_draw_3d_orbits` 只用 `[:,:3]`，补零不影响渲染。`controlled_times` 存 `np.arange(n)`——画布渲染不依赖 times 物理值；若后续需要时间轴，再从 UTC 分量重建 JD_TDB。
+> `controlled_states` 取 `synodic_position`（会合系，见 D4），速度列补零以满足 `Artifact.state_data` 的 (n,6) 约定；画布 `_draw_3d_orbits` 只用 `[:,:3]`，补零不影响渲染。`controlled_times` 存 `np.arange(n)`，画布渲染不依赖 times 物理值；若后续需要时间轴，再从 UTC 分量重建 JD_TDB。
 
 #### 3.1.3 新增 `FacadeBridge.control_orbit`
 
@@ -508,7 +508,7 @@ def _on_control_error(self, error_msg: str) -> None:
 
 ### 5.1 技术风险
 
-- **`ControlOrbitResult` 无直接 `mu`**（已决策）：算法层 result 不暴露 `mu`。决策为**旁路注入**——`main_window._run_control_orbit` 从源 Artifact `extra["mu"]` 取，经 `ControlOrbitWorker.source_mu` → `FacadeBridge.control_orbit(source_mu=...)` → 直接写入 `ControlResultData.mu`。不依赖 `MonteCarloResult` 是否含 mu，绕开算法层不确定性。受控星历画地月标注需要 mu，源 Artifact 无 mu 时（旧 dro）由前置校验拦截。
+- **`ControlOrbitResult` 无直接 `mu`**（已决策）：算法层 result 不暴露 `mu`。决策为**旁路注入**：`main_window._run_control_orbit` 从源 Artifact `extra["mu"]` 取，经 `ControlOrbitWorker.source_mu` → `FacadeBridge.control_orbit(source_mu=...)` → 直接写入 `ControlResultData.mu`。不依赖 `MonteCarloResult` 是否含 mu，绕开算法层不确定性。受控星历画地月标注需要 mu，源 Artifact 无 mu 时（旧 dro）由前置校验拦截。
 - **`ControlOrbitRequest` 字段集是否够跑出有意义结果**（issue 风险 #4）：Facade 模型只暴露 12 个参数，算法层默认值是否能在地月 DRO 上产出合理机动序列，**需步骤 7 手动验证**。若默认摄动（球模型光压、关耦合，`controller.py:46-52`）导致结果异常，记录为后续 issue。
 - **蒙特卡洛耗时**：`num_monte_carlo=2, num_controls=120` 单次仿真可能数十秒到分钟级。GUI 不做进度条（算法层无细粒度进度回调），仅日志滚动 + 按钮禁用。若体验不可接受，后续加 QProgressDialog 不定式动画。
 

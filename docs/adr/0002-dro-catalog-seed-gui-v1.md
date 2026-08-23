@@ -33,7 +33,7 @@
 
 ### GUI 行为
 
-DRO Generate GUI 新增 “Use Reference Initial Condition” checkbox，默认关闭。
+DRO Generate GUI 新增 Use Reference Initial Condition checkbox，默认关闭。
 
 - checkbox 关闭时，manual `x0/vy0/period` 控件可编辑，参考初值 selector 禁用。
 - checkbox 开启时，manual `x0/vy0/period` 控件禁用，参考初值 selector 启用。

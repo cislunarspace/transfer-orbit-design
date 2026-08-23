@@ -18,7 +18,7 @@ tod 重新定位为 **e2m2e 的 GUI 前端**，职责仅限于：
 2. 管理计算产物（Project + Artifact 模型）
 3. 可视化呈现（内嵌 matplotlib 画布）
 
-删除 tod 中所有"搬运 e2m2e 能力"的脚本层（`generates/`、`transfers/`、`commons/e2m2e_compat.py`）。tod 不再有自己的 CLI 或命令行脚本——命令行用户直接使用 e2m2e 的 CLI。
+删除 tod 中所有搬运 e2m2e 能力的脚本层（`generates/`、`transfers/`、`commons/e2m2e_compat.py`）。tod 不再有自己的 CLI 或命令行脚本。命令行用户直接使用 e2m2e 的 CLI。
 
 ## 理由
 

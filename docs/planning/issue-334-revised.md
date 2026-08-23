@@ -1,4 +1,4 @@
-# feat: Engine 层 — DTO 修正 + TOOL_REGISTRY + 持久化 + 异常翻译
+# feat: Engine 层：DTO 修正 + TOOL_REGISTRY + 持久化 + 异常翻译
 
 ## 背景
 
@@ -7,7 +7,7 @@
 
 ## 要构建什么
 
-### 1. DTO 修正 — `src/engine/facade_bridge.py`
+### 1. DTO 修正：`src/engine/facade_bridge.py`
 
 **问题**：当前 `OrbitDesignResultData.cr3bp_orbit` 持有 e2m2e `Orbit` 对象引用，违反 DTO "纯数据类，不持有 e2m2e 对象引用"的契约（`architecture.md:173`），存在跨线程安全风险。
 
@@ -27,7 +27,7 @@ class OrbitDesignResultData:
     correction_iterations: int
 ```
 
-### 2. TOOL_REGISTRY — `src/engine/facade_bridge.py`
+### 2. TOOL_REGISTRY：`src/engine/facade_bridge.py`
 
 **来源**：`architecture.md:282-293`、ADR 0009。
 
@@ -51,11 +51,11 @@ TOOL_REGISTRY: dict[str, ToolSpec] = {
 
 **注意**：e2m2e 4 个 Facade 方法中，仅 `design_orbit` 和 `control_orbit` 有 Pydantic Request 模型；`orbit_family_generation` 和 `orbit_stability` 使用原始 `**params`。`enabled=False` 的工具在 UI 中显示为"即将推出"。
 
-### 3. FacadeBridge 参数扩展 — `src/engine/facade_bridge.py`
+### 3. FacadeBridge 参数扩展：`src/engine/facade_bridge.py`
 
 当前 `design_orbit()` 仅转发 4 个参数（`orbit_type`, `amplitude`, `duration`, `output_step`），而 e2m2e 算法层 `design_orbit` 接受 20+ 参数。扩展为接受 `**kwargs` 直接转发，或显式桥接关键参数（`phase`, `epoch`, `correction_method`, `perilune_height` 等）。
 
-### 4. 结果持久化 — `src/engine/persistence.py`（新文件）
+### 4. 结果持久化：`src/engine/persistence.py`（新文件）
 
 **来源**：ADR 0008。
 
@@ -84,7 +84,7 @@ def save_artifact(result_data: OrbitDesignResultData, output_dir: Path) -> Path:
 | `output/ephemeris/` | `orbit_ephemeris_<ts>.json` | `_EPHEMERIS_RE` |
 | `output/transfer/` | `corrected_transfer_<ts>.json` | `_TRANSFER_CORRECTED_RE` |
 
-### 5. 异常翻译 — `src/engine/exceptions.py`（新文件）
+### 5. 异常翻译：`src/engine/exceptions.py`（新文件）
 
 e2m2e 算法层定义了 5 种异常：
 
@@ -104,11 +104,11 @@ def translate_exception(e: Exception) -> OrbitError:
     """将 e2m2e 异常翻译为 OrbitError。"""
 ```
 
-### 6. Worker 层更新 — `src/engine/workers.py`
+### 6. Worker 层更新：`src/engine/workers.py`
 
 用 `translate_exception()` 替换当前 `except Exception: self.error.emit(traceback.format_exc())`，发射结构化错误码 + 友好消息。
 
-### 7. 集成测试 — `tests/engine/`
+### 7. 集成测试：`tests/engine/`
 
 | 测试 | 覆盖目标 |
 |---|---|
@@ -118,7 +118,7 @@ def translate_exception(e: Exception) -> OrbitError:
 | `test_tool_registry_completeness` | 4 个工具均注册、字段完整 |
 | `test_design_orbit_integration` | 端到端（需 SPICE 内核） |
 
-### 8. 参数面板自动化 — `src/view/params_panel.py`（新文件）
+### 8. 参数面板自动化：`src/view/params_panel.py`（新文件）
 
 **来源**：ADR 0009。
 
@@ -165,7 +165,7 @@ def translate_exception(e: Exception) -> OrbitError:
 
 ## 阻塞于
 
-- #332（✅ 已关闭 — src/ 目录结构 + 最小可运行 GUI）
+- #332（✅ 已关闭：src/ 目录结构 + 最小可运行 GUI）
 
 ## 相关 ADR
 
