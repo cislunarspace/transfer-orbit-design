@@ -4,7 +4,7 @@
 和月球视为按匀速圆轨道相互绕转的两个质点，在这类简化模型中存在丰富的周期
 轨道族，是地月空间任务设计的数学基础。
 
-软件遵循 e2m2e 的轨道族术语，共 13 族。按物理特征分四类：
+软件遵循 e2m2e 的轨道族术语，共 12 族。按物理特征分四类：
 
 ## 平动点附近的三维周期轨道（L1/L2）
 
@@ -48,10 +48,10 @@ DRO 在任务设计中很常用：大幅 DRO 在真实星历中可维持数月�
 
 ## 本软件支持哪些
 
-GUI 的**轨道设计**工具支持其中 7 种：**DRO / Halo / NRHO / Lissajous /
-L4 / L5 / ELFO**（ELFO 是月心冻结轨道，不属于上述周期轨道族，见下）。
-其余族（Lyapunov、Vertical、Axial、Butterfly、DPO、SPO、LPO、Tadpole、
-Horseshoe、RO）由 e2m2e 算法库支持，需要脚本化工作流时使用
+GUI 的**轨道设计**工具支持 **DRO / DPO / Halo / NRHO / Lissajous /
+L4 / L5 / Axial / ELFO** 等类型（ELFO 是月心冻结轨道，不属于上述周期
+轨道族，见下）。其余周期轨道族（Lyapunov、Vertical、Butterfly、
+Tadpole、RO 等）由 e2m2e 算法库支持，需要脚本化工作流时使用
 [e2m2e CLI](https://github.com/cislunarspace/e2m2e)。
 
 **Lissajous**：三维拟周期轨道（两个方向的振荡频率不同），不是严格周期
@@ -61,5 +61,6 @@ Horseshoe、RO）由 e2m2e 算法库支持，需要脚本化工作流时使用
 轨道，通过倾角与近月点幅角组合使拱线不旋转。不依赖平动点，属于月球轨道
 而非 CR3BP 周期轨道族。
 
-**轨道族生成**工具目前只支持 Halo 北族延拓：从 0.001 DU 小振幅种子出发，
-固定面外振幅逐步修正，直到目标振幅或折叠点自动终止。
+**轨道族生成**工具支持 Halo、NRHO、Axial、Lissajous、SPO、LPO、
+Horseshoe、DRO 八族的延拓生成：从小振幅种子出发逐步修正，直到目标
+振幅或折叠点等终止条件自动停止。

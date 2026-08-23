@@ -28,16 +28,10 @@ Pydantic 模型；按 `orbit_type` 裁剪，只显示当前族适用的字段；
 
 结果入轨道库（record id 显示在面板下方），族成员轨迹逐条渲染到画布。
 
-## 尚未接线的工具
+## 其余工具
 
-14 个工具的 schema 已全部导出（`frontend/src/toolSchemas/`），下列工具的
-界面接线在 [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)
-跟踪，按优先级分批回归：
-
-| 批次 | 工具 | 说明 |
-|------|------|------|
-| 1 | 轨道设计 design_orbit、轨道保持 control_orbit、轨道预报 orbit_propagation、转移设计 transfer_design | v3.2.3 已发布的能力 |
-| 2 | 稳定性分析 orbit_stability、时空坐标转换 spacetime_transform | 补齐计算工具面 |
-| 3 | catalog_delete / export / promote / tag / sweep | 库管理操作，随记录详情场景做 |
-
-在此之前，这些工具经 [e2m2e CLI](https://cislunarspace.github.io/e2m2e/) 可用。
+14 个工具的 schema 已全部导出（`frontend/src/toolSchemas/`）。7 个计算
+工具（轨道族生成、轨道设计、轨道保持、轨道预报、转移设计、轨道稳定性、
+时空坐标转换）的界面已全部接通；catalog 管理操作（delete / export /
+promote / tag / sweep）尚未提供界面入口，需要时经
+[e2m2e CLI](https://cislunarspace.github.io/e2m2e/) 使用。

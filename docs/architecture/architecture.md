@@ -6,11 +6,11 @@
 
 tod 是 **e2m2e 的 GUI 前端**。它不实现任何轨道力学算法，只做三件事：
 
-1. **调用**——通过 e2m2e Facade API 发起计算任务（轨道设计、轨道族生成、轨道保持、稳定性分析）。
-2. **管理**——追踪用户工作会话中的全部计算产物（轨道、轨道族、转移结果），提供结构化的数据导航和管线串联。
-3. **呈现**——将计算结果以内嵌可视化的方式展示在主窗口中，支持 3D/2D 轨道图、多轨道叠加、地月系统标注。
+1. **调用**：通过 e2m2e Facade API 发起计算任务（任务轨道设计、轨道族生成、轨道保持、轨道预报、转移轨道设计、稳定性分析、时空坐标转换）。
+2. **管理**：追踪用户工作会话中的全部计算产物（轨道、轨道族、转移结果），提供结构化的数据导航和管线串联。
+3. **呈现**：将计算结果以内嵌可视化的方式展示在主窗口中，支持 3D/2D 轨道图、多轨道叠加、地月系统标注。
 
-用户不需要知道 e2m2e 的内部结构，也不需要手动管理文件路径。tod 把 e2m2e 的能力封装为"选工件 → 选操作 → 看结果"的三步交互。
+用户不需要知道 e2m2e 的内部结构，也不需要手动管理文件路径。tod 把 e2m2e 的能力封装为选工件 → 选操作 → 看结果的三步交互。
 
 ## 总体分层
 
@@ -23,7 +23,7 @@ sidecar 子进程驱动（协议 = e2m2e ADR 0035：信封 JSON 行 + 二进制�
 React 前端（frontend/） ←Tauri IPC→ Rust 壳（src-tauri/）
                                         ↕ stdio 协议
                                    e2m2e serve-stdio（开发期 uv 拉起；分发期为打包进安装器的 tod-sidecar，
-见「分发」节）
+见分发节）
 ```
 
 | 层 | 位置 | 职责 |
@@ -31,7 +31,7 @@ React 前端（frontend/） ←Tauri IPC→ Rust 壳（src-tauri/）
 | 前端 | `frontend/src/` | React 组件：项目树、参数面板（schema 自动表单）、Three.js 画布、i18n、图表设置 |
 | Rust 壳 | `src-tauri/src/` | sidecar 进程管理（拉起/重试/进度事件）、Tauri command、项目状态（内存 Artifact 容器） |
 | sidecar 协议 | e2m2e 侧 | `serve-stdio`：信封 JSON 行 + f32/f64 二进制帧（大数组），见 e2m2e ADR 0035 |
-| 领域层（Python） | `src/engine/`、`src/commons/`、`src/model/` | facade_bridge / catalog_service / 单位换算 / 内核管理——e2m2e 语义的 Python 侧资产，工具脚本与测试继续使用 |
+| 领域层（Python） | `src/engine/`、`src/commons/`、`src/model/` | facade_bridge / catalog_service / 单位换算 / 内核管理，e2m2e 语义的 Python 侧资产，工具脚本与测试继续使用 |
 
 **关键机制**：
 
@@ -105,7 +105,7 @@ class Artifact:
 
 ### Project
 
-管理一次工作会话的全部 Artifact。**Project 不做持久化**——清单由轨道库 catalog 承担（`catalog_query` 供数）。
+管理一次工作会话的全部 Artifact。**Project 不做持久化**，清单由轨道库 catalog 承担（`catalog_query` 供数）。
 
 ```python
 class Project:
@@ -157,7 +157,7 @@ class FacadeBridge:
 
 **关键设计**：
 
-- **三个计算工具统一走 Facade 门面**（issue #375，完成 ADR 0011 缓解措施 3 的既定清理）：#312 起 Facade 响应携带完整几何字段（states/times/mu/ephemeris），#475（e2m2e 5.8.0）起产物自动入轨道库、`control_orbit` 支持 `input_record_id` 谱系输入。GUI 不再绕过门面直调算法层。
+- **各计算工具统一走 Facade 门面**（issue #375，完成 ADR 0011 缓解措施 3 的既定清理）：#312 起 Facade 响应携带完整几何字段（states/times/mu/ephemeris），#475（e2m2e 5.8.0）起产物自动入轨道库、`control_orbit` 支持 `input_record_id` 谱系输入。GUI 不再绕过门面直调算法层。
 - **周期族成员只携带初态与周期**，桥接层按周期重采样供画布渲染（catalog 族记录懒加载复用同一辅助函数）。
 - **e2m2e 5.6.5 起 `design_orbit` 首参为 `DesignOrbitRequest`**（散字段不再支持），Facade 校验请求；`duration` 由面板年单位换算为秒，Lissajous 固定注入 segmented 修正。
 - **结果 DTO（Data Transfer Object）**：可跨线程边界传递的纯数据类，不持有 e2m2e 对象引用。包含 numpy 数组（状态矩阵、时间向量）、标量元数据与 `record_id`（入库回执）。
@@ -219,7 +219,7 @@ WebGLRenderer + OrbitControls（旋转/缩放/平移）
 渲染数据两条来路：族生成响应的成员初态经前端 CR3BP 传播器
 （`frontend/src/cr3bp.ts`，方程对齐 e2m2e，有回归测试）按 period 重采样整条
 轨迹；轨道库记录经 `catalog_get` 取成员 xyz 直接叠加。首次数据到达自动
-「适配」一次（按包围盒复位相机，5% 余量），此后重绘保持用户视角（视图保持）。
+适配一次（按包围盒复位相机，5% 余量），此后重绘保持用户视角（视图保持）。
 
 配色：颜色循环数组（chartSettings 可改），族成员与库轨迹依次取色；动画导出
 经 captureStream + MediaRecorder 编码 webm（画布自转 8 秒），不引入编码依赖。
@@ -228,14 +228,11 @@ WebGLRenderer + OrbitControls（旋转/缩放/平移）
 
 产物间的因果关系经轨道库谱系指针持久化（重启不断）：下游产物记录
 `source_record_id`，重启后由 `catalog_query` + `catalog_get` 恢复清单与轨迹。
-当前界面已接通的链路是「族生成 → 入库 → 浏览叠加」；「选中产物 → 发起下游
-工具」（轨道保持、稳定性分析等）随工具界面回归（issue #398）逐链接通。
+全部 7 个计算工具的界面已接通（issue #398 已关闭）：族生成 → 入库 → 浏览叠加的链路可用，选中产物 → 发起下游工具的输入引用经谱系记录衔接。
 
 ## 工具范围（当前）
 
-界面接通的计算工具固定为一件：**轨道族生成**（八族 + 库浏览）。其余 13 个
-工具的 schema 已全部导出、命令未接线，回归路线见
-[issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)。
+界面接通的计算工具共 7 件：轨道族生成、任务轨道设计、轨道保持、轨道预报、转移轨道设计、轨道稳定性、时空坐标转换（前端 `TOOL_REGISTRY` 注册，经通用 `run_tool` 通道下发）。14 个工具 schema（含 7 个 catalog 操作）已全部导出，其中 `catalog_query` / `catalog_get` 已接线供目录浏览与轨迹叠加，其余 catalog 管理操作（delete / export / promote / tag / sweep）尚未提供界面入口。
 原则不变：不承诺 GUI 承载 e2m2e 全部算法能力，需要脚本化工作流时直接使用
 [e2m2e CLI](https://github.com/cislunarspace/e2m2e)。
 
