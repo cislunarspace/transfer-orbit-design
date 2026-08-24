@@ -4,6 +4,9 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ChartSettings } from "./chartSettings";
+import { EARTH_RADIUS_DU, MOON_RADIUS_DU } from "./chartSettings";
+import earthTextureUrl from "./assets/earth_2048.jpg";
+import moonTextureUrl from "./assets/moon_1024.jpg";
 
 export type ProjectionMode = "3d" | "xy" | "xz" | "yz";
 export type FrameMode = "synodic" | "inertial";
@@ -60,7 +63,14 @@ export function OrbitCanvas({
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x101418);
+    // matplotlib dark_background 同源的中性深灰，不带蓝色色偏
+    scene.background = new THREE.Color(0x121212);
+
+    // 光照：太阳平行光（晨昏线）+ 环境光（夜面可辨），照亮真实贴图天体
+    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    const sun = new THREE.DirectionalLight(0xfff3e0, 1.6);
+    sun.position.set(3, 2, 4);
+    scene.add(sun);
 
     const camera = new THREE.PerspectiveCamera(50, mount.clientWidth / mount.clientHeight, 1e-4, 100);
     camera.position.set(1.5, -1.5, 1);
@@ -193,8 +203,8 @@ export function OrbitCanvas({
     content.position.set(ox, oy, oz);
     annotations.position.set(ox, oy, oz);
 
-    const lpColorNum = parseInt((settings?.lpColor ?? "#fdd835").slice(1), 16);
-    const colors = (settings?.colorCycle ?? ["#4fc3f7", "#ffb74d", "#81c784", "#e57373", "#ba68c8"]).map((c) =>
+    const lpColorNum = parseInt((settings?.lpColor ?? "#d4b106").slice(1), 16);
+    const colors = (settings?.colorCycle ?? ["#4c72b0", "#dd8452", "#55a868", "#c44e52", "#8172b3"]).map((c) =>
       parseInt(c.slice(1), 16)
     );
 
@@ -248,8 +258,34 @@ export function OrbitCanvas({
     };
 
     const s = settings;
-    addSphere(-mu, 0, 0, 0x2196f3, s?.earthSize ?? 0.02, "地球");
-    addSphere(1 - mu, 0, 0, 0x9e9e9e, s?.moonSize ?? 0.01, "月球");
+    // 地月：NASA 公有领域贴图（Blue Marble / LROC）+ Phong 光照，
+    // 半径取真实比例（chartSettings 常量），替代旧卡通纯色球
+    const texLoader = new THREE.TextureLoader();
+    const addTexturedBody = (
+      name: string, label: string, x: number, radius: number, textureUrl: string,
+      specular: number, shininess: number,
+    ) => {
+      const tex = texLoader.load(textureUrl);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const body = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 32, 24),
+        new THREE.MeshPhongMaterial({
+          map: tex,
+          specular: new THREE.Color(specular),
+          shininess,
+        }),
+      );
+      body.name = name;
+      body.position.set(x, 0, 0);
+      annotations.add(body);
+
+      const sprite = makeLabelSprite(label);
+      sprite.position.set(x + radius * 2, radius, 0);
+      annotations.add(sprite);
+    };
+    addTexturedBody("earth", "地球", -mu, s?.earthSize ?? EARTH_RADIUS_DU, earthTextureUrl, 0x2a2a2a, 14);
+    addTexturedBody("moon", "月球", 1 - mu, s?.moonSize ?? MOON_RADIUS_DU, moonTextureUrl, 0x111111, 4);
+
     libration.forEach((lp) => addSphere(lp.x, 0, 0, lpColorNum, s?.lpSize ?? 0.003, lp.label));
 
     // 坐标轴图层（matplotlib 式三轴 + 轨道面网格），随中心偏移，可开关

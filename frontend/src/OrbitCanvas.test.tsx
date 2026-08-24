@@ -182,14 +182,35 @@ describe("OrbitCanvas 轨迹渲染", () => {
     const annotations = annotationsOf(scene);
     expect(annotations.position.x).toBeCloseTo(0, 10);
 
-    // 地球 mesh（颜色 0x2196f3）应位于 (-mu, 0, 0)
-    const meshes = annotations.children.filter((c) => (c as unknown as { isMesh?: boolean }).isMesh) as unknown as {
-      position: { x: number; y: number; z: number };
-      material: { color: { getHex(): number } };
-    }[];
-    const earth = meshes.find((m) => m.material.color.getHex() === 0x2196f3);
+    // 地球 mesh 应位于 (-mu, 0, 0)，带真实表面贴图与 Phong 光照
+    const earth = annotations.getObjectByName("earth") as import("three").Mesh;
     expect(earth).toBeDefined();
-    expect(earth!.position.x).toBeCloseTo(-MU, 10);
+    expect(earth.position.x).toBeCloseTo(-MU, 10);
+    const material = earth.material as import("three").MeshPhongMaterial;
+    expect(material.map).toBeDefined();
+    expect(material.isMeshPhongMaterial).toBe(true);
+
+    // 月球同样贴图化，半径取真实比例（约地球的 0.27）
+    const moon = annotations.getObjectByName("moon") as import("three").Mesh;
+    expect((moon.material as import("three").MeshPhongMaterial).map).toBeDefined();
+    const rEarth = (earth.geometry as import("three").SphereGeometry).parameters.radius;
+    const rMoon = (moon.geometry as import("three").SphereGeometry).parameters.radius;
+    expect(rMoon / rEarth).toBeCloseTo(1737.4 / 6378.137, 4);
+  });
+
+  it("场景含太阳平行光与环境光（真实贴图需要光照）", () => {
+    renderCanvas();
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const scene = instances[instances.length - 1].lastScene as import("three").Scene;
+    let dir = 0;
+    let amb = 0;
+    scene.traverse((o) => {
+      if ((o as import("three").DirectionalLight).isDirectionalLight) dir++;
+      if ((o as import("three").AmbientLight).isAmbientLight) amb++;
+    });
+    expect(dir).toBeGreaterThanOrEqual(1);
+    expect(amb).toBeGreaterThanOrEqual(1);
   });
 });
 
