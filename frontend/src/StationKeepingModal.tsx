@@ -1,0 +1,178 @@
+// 轨道保持独立执行模态弹窗：支持源工件注入、短弧参数适配与仿真时长覆盖拦截校验
+
+import { useState } from "react";
+import { Modal, Form, InputNumber, Select, Alert, Space, Button, message } from "antd";
+import { RocketOutlined } from "@ant-design/icons";
+import { type CatalogRecord } from "./catalogApi";
+import type { ArtifactSummary } from "./projectApi";
+import { invoke } from "@tauri-apps/api/core";
+
+interface StationKeepingModalProps {
+  open: boolean;
+  sourceRecord: CatalogRecord | ArtifactSummary | null;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+export function StationKeepingModal({
+  open,
+  sourceRecord,
+  onClose,
+  onSuccess,
+}: StationKeepingModalProps) {
+  const [controlInterval, setControlInterval] = useState<number>(0.25);
+  const [feedbackArc, setFeedbackArc] = useState<number>(0.125);
+  const [numControls, setNumControls] = useState<number>(120);
+  const [numMonteCarlo, setNumMonteCarlo] = useState<number>(5);
+  const [controlMode, setControlMode] = useState<number>(1);
+  const [running, setRunning] = useState<boolean>(false);
+
+  const requiredDurationDays = (numControls - 2) * controlInterval + feedbackArc;
+  const sourceEphemerisDays = 30.0;
+  const isExceeded = requiredDurationDays > sourceEphemerisDays;
+
+  const handleExecute = async () => {
+    if (!sourceRecord) return;
+    setRunning(true);
+    try {
+      const recId = (sourceRecord as CatalogRecord).record_id || (sourceRecord as ArtifactSummary).recordId || sourceRecord.artifactId;
+      const resp = await invoke<{ status: string; data?: any }>("run_tool", {
+        tool: "control_orbit",
+        arguments: {
+          input_record_id: recId,
+          control_interval: controlInterval,
+          feedback_arc: feedbackArc,
+          num_controls: numControls,
+          num_monte_carlo: numMonteCarlo,
+          control_mode: controlMode,
+        },
+        binaryDtype: null,
+      });
+
+      if (resp.status === "ok") {
+        message.success("轨道保持仿真计算完成，产物已入库！");
+        onSuccess();
+        onClose();
+      } else {
+        message.error(`计算失败: ${JSON.stringify(resp)}`);
+      }
+    } catch (e) {
+      message.error(`执行出错: ${String(e)}`);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const labelText = sourceRecord ? String((sourceRecord as CatalogRecord).orbit_family || sourceRecord.label) : "";
+  const idText = sourceRecord ? String((sourceRecord as CatalogRecord).record_id || sourceRecord.artifactId) : "";
+
+  return (
+    <Modal
+      title={
+        <Space orientation="horizontal">
+          <RocketOutlined style={{ color: "#1890ff" }} />
+          <span>轨道保持仿真评估 (Station Keeping)</span>
+        </Space>
+      }
+      open={open}
+      onCancel={onClose}
+      footer={[
+        <Button key="cancel" onClick={onClose} disabled={running}>
+          取消
+        </Button>,
+        <Button
+          key="submit"
+          type="primary"
+          loading={running}
+          disabled={isExceeded}
+          onClick={handleExecute}
+        >
+          开始仿真
+        </Button>,
+      ]}
+      width={520}
+    >
+      {sourceRecord && (
+        <Alert
+          type="info"
+          showIcon
+          message={
+            <span>
+              已绑定源星历轨道: <strong>{labelText}</strong> (ID: {idText})
+            </span>
+          }
+          style={{ marginBottom: 12 }}
+        />
+      )}
+
+      {isExceeded && (
+        <Alert
+          type="error"
+          showIcon
+          message="仿真时长超出源星历覆盖范围"
+          description={`当前设置需要仿真时长约 ${requiredDurationDays.toFixed(2)} 天，超出源星历覆盖范围（约 ${sourceEphemerisDays} 天）。请调小控制次数或缩小控制间隔。`}
+          style={{ marginBottom: 12 }}
+        />
+      )}
+
+      <Form layout="vertical" size="small">
+        <Form.Item label="控制模式 (Control Mode)">
+          <Select
+            value={controlMode}
+            onChange={setControlMode}
+            options={[
+              { label: "1 目标点控制（宽松）", value: 1 },
+              { label: "2 目标点控制（严格）", value: 2 },
+              { label: "3 特征点控制", value: 3 },
+              { label: "4 目标点控制 + 角动量管理", value: 4 },
+              { label: "5 目标点严格控制 + 角动量管理", value: 5 },
+              { label: "6 特征点控制 + 角动量管理", value: 6 },
+            ]}
+          />
+        </Form.Item>
+
+        <Space orientation="horizontal" style={{ width: "100%" }} size={12}>
+          <Form.Item label="控制间隔 (天)" style={{ flex: 1 }}>
+            <InputNumber
+              style={{ width: "100%" }}
+              min={0.01}
+              step={0.05}
+              value={controlInterval}
+              onChange={(v) => setControlInterval(v || 0.25)}
+            />
+          </Form.Item>
+          <Form.Item label="反馈弧段 (天)" style={{ flex: 1 }}>
+            <InputNumber
+              style={{ width: "100%" }}
+              min={0.01}
+              step={0.025}
+              value={feedbackArc}
+              onChange={(v) => setFeedbackArc(v || 0.125)}
+            />
+          </Form.Item>
+        </Space>
+
+        <Space orientation="horizontal" style={{ width: "100%" }} size={12}>
+          <Form.Item label="控制次数 (N)" style={{ flex: 1 }}>
+            <InputNumber
+              style={{ width: "100%" }}
+              min={1}
+              max={10000}
+              value={numControls}
+              onChange={(v) => setNumControls(v || 120)}
+            />
+          </Form.Item>
+          <Form.Item label="蒙特卡洛样本数" style={{ flex: 1 }}>
+            <InputNumber
+              style={{ width: "100%" }}
+              min={1}
+              max={1000}
+              value={numMonteCarlo}
+              onChange={(v) => setNumMonteCarlo(v || 5)}
+            />
+          </Form.Item>
+        </Space>
+      </Form>
+    </Modal>
+  );
+}

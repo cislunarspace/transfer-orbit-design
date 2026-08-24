@@ -1,48 +1,196 @@
+// 主应用入口：基于 Ant Design 5 构建的三栏现代化高密度桌面科学计算界面
+
 import { useEffect, useState, useCallback } from "react";
-import { OrbitCanvas, type CanvasApi } from "./OrbitCanvas";
-import { propagate, librationPoint } from "./cr3bp";
-import { getArtifact, runTool, type FamilyResponse, type ToolResponse } from "./sidecarApi";
-import { listArtifacts, removeArtifact, type ArtifactSummary } from "./projectApi";
+import {
+  ConfigProvider,
+  theme as antdTheme,
+  Button,
+  Select,
+  Space,
+  Radio,
+  Typography,
+  Modal,
+  Form,
+  Slider,
+  message,
+} from "antd";
+import {
+  SettingOutlined,
+  PlayCircleOutlined,
+  CompressOutlined,
+  VideoCameraOutlined,
+  BulbOutlined,
+} from "@ant-design/icons";
+import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode } from "./OrbitCanvas";
+import { TimelineBar } from "./TimelineBar";
 import { ParamsPanel } from "./ParamsPanel";
 import { ProjectTree } from "./ProjectTree";
-import { TOOL_REGISTRY, toolEntry } from "./schema";
+import { RecordDetailPanel } from "./RecordDetailPanel";
+import { StationKeepingModal } from "./StationKeepingModal";
 import { CatalogFilterBar } from "./CatalogFilterBar";
+import { TOOL_REGISTRY, toolEntry } from "./schema";
 import { useTranslation } from "./i18n";
-import { useChartSettings, DEFAULT_CHART_SETTINGS, type ChartSettings } from "./chartSettings";
+import { useChartSettings } from "./chartSettings";
 import { CanvasRecorder, downloadBlob } from "./canvasRecorder";
+import { listArtifacts, removeArtifact, type ArtifactSummary } from "./projectApi";
+import { runTool, getArtifact } from "./sidecarApi";
+import { librationPoint } from "./cr3bp";
+import { type CatalogRecord, catalogQuery } from "./catalogApi";
 
-const DEFAULT_PARAMS: Record<string, unknown> = {
-  orbit_type: "HALO",
-  libration_point: 1,
-  max_amplitude_km: 5000,
-  n_orbits: 10,
-};
-
+const { Text, Title } = Typography;
 const EARTH_MOON_MU = 0.01215058560962404;
 
 export default function App() {
-  const { lang, setLang, t } = useTranslation();
-  const [leftTab, setLeftTab] = useState<"project" | "catalog">("project");
-  const [mu, setMu] = useState(EARTH_MOON_MU);
-  const [api, setApi] = useState<CanvasApi | null>(null);
-  const [family, setFamily] = useState<FamilyResponse | null>(null);
-  const [toolResult, setToolResult] = useState<ToolResponse | null>(null);
-  const [selectedTool, setSelectedTool] = useState(TOOL_REGISTRY[0].name);
-  const [busy, setBusy] = useState(false);
-  const [artifacts, setArtifacts] = useState<ArtifactSummary[]>([]);
-  const [params, setParams] = useState<Record<string, unknown>>(DEFAULT_PARAMS);
-  const [progressMessage, setProgressMessage] = useState<string>("");
-  const [catalogPoints, setCatalogPoints] = useState<number[][][]>([]);
-  const [chart, setChart] = useChartSettings();
-  const [showSettings, setShowSettings] = useState(false);
-  const [recording, setRecording] = useState(false);
+  const { lang, setLang } = useTranslation();
+  const [themeMode, setThemeMode] = useState<"dark" | "light">(() => {
+    return (localStorage.getItem("tod-theme-mode") as "dark" | "light") || "dark";
+  });
+  const [fontSize, setFontSize] = useState<number>(() => {
+    return Number(localStorage.getItem("tod-font-size") || "12");
+  });
 
-  // 动画导出：录制期间自转 8 秒，产物 webm
-  const onExportAnimation = async () => {
+  const [leftTab, setLeftTab] = useState<"project" | "catalog">("project");
+  const [selectedTool, setSelectedTool] = useState<string>(TOOL_REGISTRY[0].name);
+  const [toolParams, setToolParams] = useState<Record<string, unknown>>({});
+  const [busy, setBusy] = useState<boolean>(false);
+
+  const [artifacts, setArtifacts] = useState<ArtifactSummary[]>([]);
+  const [selectedArtifact, setSelectedArtifact] = useState<ArtifactSummary | null>(null);
+  const [selectedRecordDetail, setSelectedRecordDetail] = useState<CatalogRecord | null>(null);
+
+  // 画布状态
+  const [trajectories, setTrajectories] = useState<number[][][]>([]);
+  const [trajectoryTimes] = useState<number[][]>([]);
+  const [timeRange] = useState<[number, number] | null>(null);
+  const [currentEt, setCurrentEt] = useState<number | null>(null);
+
+  const [projection, setProjection] = useState<ProjectionMode>("3d");
+  const [center, setCenter] = useState<CenterMode>("barycenter");
+
+  const [api, setApi] = useState<CanvasApi | null>(null);
+  const [chart, setChart] = useChartSettings();
+  const [chartModalOpen, setChartModalOpen] = useState(false);
+  const [stationKeepingOpen, setStationKeepingOpen] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [progressMsg, setProgressMsg] = useState<string>("");
+
+  // 主题与字号持久化
+  const handleToggleTheme = () => {
+    const next = themeMode === "dark" ? "light" : "dark";
+    setThemeMode(next);
+    localStorage.setItem("tod-theme-mode", next);
+  };
+
+  const handleChangeFontSize = (size: number) => {
+    setFontSize(size);
+    localStorage.setItem("tod-font-size", String(size));
+  };
+
+  // 监听 sidecar 进度
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    import("@tauri-apps/api/event").then(({ listen }) => {
+      listen<{ meta: { message: string } }>("sidecar-progress", (ev) => {
+        setProgressMsg(ev.payload.meta.message);
+      }).then((u) => (unlisten = u));
+    });
+    return () => unlisten?.();
+  }, []);
+
+  const refreshArtifacts = useCallback(async () => {
+    const list = await listArtifacts();
+    setArtifacts(list);
+  }, []);
+
+  useEffect(() => {
+    refreshArtifacts();
+  }, [refreshArtifacts]);
+
+  // 选中记录时，从 catalog 拉取详细信息与轨迹
+  const handleSelectArtifact = async (a: ArtifactSummary | null) => {
+    setSelectedArtifact(a);
+    if (!a) {
+      setSelectedRecordDetail(null);
+      return;
+    }
+
+    try {
+      if (a.recordId) {
+        const queryResp = await catalogQuery({ record_id: a.recordId });
+        if (queryResp.records && queryResp.records.length > 0) {
+          setSelectedRecordDetail(queryResp.records[0]);
+        }
+        const data = await getArtifact(a.recordId);
+        if (data.members && data.members.length > 0) {
+          setTrajectories(data.members as unknown as number[][][]);
+          api?.fitView();
+        }
+      }
+    } catch (e) {
+      console.error("加载记录失败", e);
+    }
+  };
+
+  // 执行通用工具
+  const handleRunTool = async () => {
+    setBusy(true);
+    setProgressMsg("正在提交计算任务...");
+    try {
+      const entry = toolEntry(selectedTool);
+      const cleaned = Object.fromEntries(
+        Object.entries(toolParams).filter(([, v]) => v !== null && v !== undefined && v !== "")
+      );
+
+      const resp = await runTool(
+        selectedTool,
+        cleaned,
+        entry.binaryDtype ?? undefined,
+        entry.artifactType
+          ? {
+              artifactType: entry.artifactType,
+              label: `${entry.title} - ${new Date().toLocaleTimeString()}`,
+              orbitType: (cleaned.orbit_type as string) || undefined,
+              }
+          : undefined
+      );
+
+      if (resp.error) {
+        message.error(`计算错误: ${JSON.stringify(resp.error)}`);
+        return;
+      }
+
+      message.success("计算完成！");
+      await refreshArtifacts();
+
+      // 若有轨迹数据，装配到画布
+      if (resp.frames && resp.frames.length > 0) {
+        const frameData = resp.frames[0].data as number[];
+        const pts: number[][] = [];
+        for (let i = 0; i < frameData.length; i += 3) {
+          pts.push([frameData[i], frameData[i + 1], frameData[i + 2]]);
+        }
+        setTrajectories([pts]);
+        setTimeout(() => api?.fitView(), 100);
+      } else if (resp.data && (resp.data as any).states) {
+        const states = (resp.data as any).states as number[][];
+        const pts = states.map((s) => [s[0], s[1], s[2]]);
+        setTrajectories([pts]);
+        setTimeout(() => api?.fitView(), 100);
+      }
+    } catch (e) {
+      message.error(`执行失败: ${String(e)}`);
+    } finally {
+      setBusy(false);
+      setProgressMsg("");
+    }
+  };
+
+  // 录制动画导出
+  const handleExportAnimation = async () => {
     if (!api) return;
     const el = api.canvasElement();
     if (!el || !CanvasRecorder.supported()) {
-      setProgressMessage("此环境不支持录制");
+      message.warning("当前环境不支持录制");
       return;
     }
     setRecording(true);
@@ -51,276 +199,310 @@ export default function App() {
     rec.start(el, 30);
     setTimeout(async () => {
       api.setAutoRotate(false);
-      const result = await rec.stop();
-      if (result) downloadBlob(result.blob, "orbit-animation.webm");
+      const res = await rec.stop();
+      if (res) downloadBlob(res.blob, "orbit-animation.webm");
       setRecording(false);
+      message.success("动画导出完成！");
     }, 8000);
   };
 
-  // 执行状态：sidecar 进度事件（可丢弃行，最后一条即当前状态）
-  useEffect(() => {
-    let unlisten: (() => void) | undefined;
-    import("@tauri-apps/api/event").then(({ listen }) => {
-      listen<{ meta: { job_id: string; percent: number; message: string } }>(
-        "sidecar-progress",
-        (ev) => setProgressMessage(ev.payload.meta.message),
-      ).then((u) => (unlisten = u));
-    });
-    return () => unlisten?.();
-  }, []);
-
-  useEffect(() => {
-    listArtifacts().then(setArtifacts);
-  }, []);
-
-  const onReady = useCallback((a: CanvasApi) => setApi(a), []);
-
-  // 首次数据到达时视图适配一次；此后保持（视图保持语义）
-
   const libration = [
-    { label: "L1", x: librationPoint(mu, 1) },
-    { label: "L2", x: librationPoint(mu, 2) },
+    { label: "L1", x: librationPoint(EARTH_MOON_MU, 1) },
+    { label: "L2", x: librationPoint(EARTH_MOON_MU, 2) },
   ];
 
-  const onGenerate = async () => {
-    setBusy(true);
-    try {
-      // None/null 字段剔除（e2m2e model_fields_set 语义：None 视为已设置）
-      const cleaned = Object.fromEntries(
-        Object.entries(params).filter(([, v]) => v !== null && v !== undefined && v !== ""),
-      );
-      const entry = toolEntry(selectedTool);
-      const resp = await runTool(selectedTool, cleaned, entry.binaryDtype, entry.artifactType ? {
-        artifactType: entry.artifactType, label: entry.title, orbitType: String(cleaned.orbit_type ?? ""),
-      } : undefined);
-      setToolResult(resp);
-      if (selectedTool === "orbit_family_generation" && !resp.error) {
-        const data = resp.data;
-        const orbits = Array.isArray(data.orbits) ? data.orbits as Record<string, unknown>[] : [];
-        const members = resp.frames.map((frame, i) => ({ states: frame.data, times: Array.isArray(orbits[i]?.times) ? orbits[i].times as number[] : [], period: typeof orbits[i]?.period === "number" ? orbits[i].period as number : null }));
-        const next: FamilyResponse = { recordId: String(data.record_id ?? ""), familyType: String(data.family_type ?? ""), generatedMembers: Number(data.generated_members ?? members.length), mu: typeof data.mu === "number" ? data.mu : null, members, error: null };
-        setFamily(next); if (next.mu) setMu(next.mu);
-      }
-      setArtifacts(await listArtifacts());
-    } catch (e) {
-      const error = { code: "INVOKE", message: String(e) };
-      setToolResult({ data: {}, frames: [], error });
-      setFamily({
-        recordId: "",
-        familyType: "",
-        generatedMembers: 0,
-        mu: null,
-        members: [],
-        error: { code: "INVOKE", message: String(e) },
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // sidecar 族 → 画布轨迹：period 在手则传播整条（e2m2e ≥5.8.5）
-  const familyPoints =
-    family && !family.error
-      ? family.members
-          .filter((m) => m.states.length >= 6 && m.period)
-          .map((m) => {
-            const [x, y, z, vx, vy, vz] = m.states.slice(0, 6);
-            return propagate(
-              family.mu ?? mu,
-              {
-                orbitId: "family-member",
-                mu: family.mu ?? mu,
-                period: m.period!,
-                state: [x, y, z, vx, vy, vz],
-              },
-              800,
-            );
-          })
-      : [];
-  const genericPoints = toolResult && !toolResult.error && selectedTool !== "orbit_family_generation" ? (() => {
-    const d = toolResult.data;
-    const states = Array.isArray(d.states) ? d.states : Array.isArray(d.position_km) ? d.position_km : Array.isArray(d.trajectory) ? d.trajectory : [];
-    const jsonPoints = Array.isArray(states) && states.length && Array.isArray(states[0]) ? [states.map((s) => [Number(s[0]), Number(s[1]), Number(s[2])])] : [];
-    const framePoints = toolResult.frames.filter((frame) => frame.shape.length >= 2 && frame.shape[frame.shape.length - 1] >= 3).map((frame) => {
-      const stride = frame.shape[frame.shape.length - 1];
-      const points: number[][] = [];
-      for (let i = 0; i + 2 < frame.data.length; i += stride) points.push([frame.data[i], frame.data[i + 1], frame.data[i + 2]]);
-      return points;
-    });
-    return jsonPoints.length ? jsonPoints : framePoints;
-  })() : [];
-  const canvasTrajectories = [...familyPoints, ...genericPoints, ...catalogPoints];
-
-  // 首次数据到达时视图适配一次；此后保持（视图保持语义）
-  const [firstFit, setFirstFit] = useState(true);
-  useEffect(() => {
-    if (api && canvasTrajectories.length > 0 && firstFit) {
-      api.fitView();
-      setFirstFit(false);
-    }
-  }, [api, canvasTrajectories, firstFit]);
-
   return (
-    <div style={{ display: "flex", height: "100%" }}>
-      <div style={{ width: 230, borderRight: "1px solid #333", overflowY: "auto", padding: 8 }}>
-        <div style={{ display: "flex", marginBottom: 8, gap: 8, alignItems: "center" }}>
-          <button
-            onClick={() => setLeftTab("project")}
-            style={{ fontWeight: leftTab === "project" ? 600 : 400, flex: 1 }}
-          >
-            {t("project.title")}
-          </button>
-          <button
-            onClick={() => setLeftTab("catalog")}
-            style={{ fontWeight: leftTab === "catalog" ? 600 : 400, flex: 1 }}
-          >
-            {t("catalog.title")}
-          </button>
-          <select value={lang} onChange={(e) => setLang(e.target.value)} style={{ width: 44 }}>
-            <option value="zh">中</option>
-            <option value="en">EN</option>
-          </select>
-        </div>
-        {leftTab === "catalog" && (
-          <CatalogFilterBar
-            onResults={(items) => setArtifacts(items)}
-          />
-        )}
-        <ProjectTree
-          artifacts={artifacts}
-          onSelect={async (a) => {
-            // 项目树选中 → catalog 拉取 → 画布（叠加）
-            if (!a?.recordId) return;
-            const data = await getArtifact(a.recordId);
-            if (data.error) {
-              setProgressMessage(`${data.error.code}: ${data.error.message}`);
-              return;
-            }
-            setCatalogPoints(
-              data.members.map((flat) => {
-                const pts: number[][] = [];
-                for (let i = 0; i * 3 + 2 < flat.length; i++) {
-                  pts.push([flat[i * 3], flat[i * 3 + 1], flat[i * 3 + 2]]);
-                }
-                return pts;
-              }),
-            );
-          }}
-          onRemove={async (id) => {
-            await removeArtifact(id);
-            setArtifacts(await listArtifacts());
-          }}
-        />
-      </div>
-      <div style={{ width: 300, borderRight: "1px solid #333", overflowY: "auto", padding: 8 }}>
-        <div style={{ fontWeight: 600, marginBottom: 8 }}>工具面板</div>
-        <select value={selectedTool} onChange={(e) => { setSelectedTool(e.target.value); setParams(e.target.value === "orbit_family_generation" ? DEFAULT_PARAMS : {}); setFamily(null); setToolResult(null); }} style={{ width: "100%", marginBottom: 8 }}>
-          {TOOL_REGISTRY.map((entry) => <option key={entry.name} value={entry.name}>{entry.title}</option>)}
-        </select>
-        <ParamsPanel schema={toolEntry(selectedTool).schema} params={params} onParamsChange={setParams} />
-        <button onClick={onGenerate} disabled={busy} style={{ width: "100%", marginTop: 8 }}>
-          {busy ? "执行中…" : "执行"}
-        </button>
-        {(family || toolResult) && (
-          <div
-            style={{
-              fontSize: 12,
-              marginTop: 8,
-              color: toolResult?.error ? "#e57373" : "#81c784",
-              wordBreak: "break-all",
-            }}
-          >
-            {toolResult?.error
-              ? `${toolResult.error.code}: ${toolResult.error.message}`
-              : family ? `record ${family.recordId}（${family.generatedMembers} 成员）` : `工具 ${selectedTool} 执行成功`}
-          </div>
-        )}
-      </div>
-      <div style={{ flex: 1, position: "relative" }}>
-        {canvasTrajectories.length > 0 && (
-          <OrbitCanvas trajectories={canvasTrajectories} mu={mu} libration={libration} settings={chart} onReady={onReady} />
-        )}
-        <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 8 }}>
-          <button onClick={() => api?.fitView()}>{t("action.fit")}</button>
-          <button onClick={onExportAnimation} disabled={recording}>
-            {recording ? `${t("action.recording")}…` : t("action.export_animation")}
-          </button>
-          <button onClick={() => setShowSettings((v) => !v)}>{t("action.chart_settings")}</button>
-        </div>
-        {showSettings && (
-          <ChartSettingsPanel value={chart} onChange={setChart} onClose={() => setShowSettings(false)} />
-        )}
-        <div
-          style={{
-            position: "absolute",
-            bottom: 8,
-            left: 8,
-            fontSize: 12,
-            color: "#888",
-          }}
-        >
-          {busy && progressMessage ? `${progressMessage}… ` : ""}
-          {familyPoints.length > 0 && `${familyPoints.length} 族成员`}
-          {catalogPoints.length > 0 && `${catalogPoints.length} 条库轨迹`}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-function ChartSettingsPanel({
-  value,
-  onChange,
-  onClose,
-}: {
-  value: ChartSettings;
-  onChange: (s: ChartSettings) => void;
-  onClose: () => void;
-}) {
-  const num = (k: keyof ChartSettings, label: string, step = 0.1) => (
-    <label key={k} style={{ display: "block", marginBottom: 6, fontSize: 12 }}>
-      <span style={{ display: "inline-block", minWidth: 110 }}>{label}</span>
-      <input
-        type="number"
-        step={step}
-        value={value[k] as number}
-        onChange={(e) => onChange({ ...value, [k]: Number(e.target.value) })}
-      />
-    </label>
-  );
-  return (
-    <div
-      style={{
-        position: "absolute",
-        top: 44,
-        right: 8,
-        width: 240,
-        background: "#1b2026",
-        border: "1px solid #333",
-        borderRadius: 6,
-        padding: 12,
-        zIndex: 10,
+    <ConfigProvider
+      theme={{
+        algorithm: themeMode === "dark" ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+        token: {
+          fontSize: fontSize,
+          colorPrimary: "#1890ff",
+        },
       }}
     >
-      <div style={{ fontWeight: 600, marginBottom: 8 }}>图表设置</div>
-      {num("orbitLinewidth", "轨道线宽")}
-      {num("earthSize", "地球大小", 0.005)}
-      {num("moonSize", "月球大小", 0.005)}
-      {num("lpSize", "平动点大小", 0.001)}
-      <label style={{ display: "block", marginBottom: 6, fontSize: 12 }}>
-        <span style={{ display: "inline-block", minWidth: 110 }}>平动点颜色</span>
-        <input
-          type="color"
-          value={value.lpColor}
-          onChange={(e) => onChange({ ...value, lpColor: e.target.value })}
+      <div
+        style={{
+          display: "flex",
+          width: "100vw",
+          height: "100vh",
+          overflow: "hidden",
+          background: themeMode === "dark" ? "#141414" : "#f0f2f5",
+          color: themeMode === "dark" ? "#fff" : "#000",
+        }}
+      >
+        {/* 左栏 */}
+        <div
+          style={{
+            width: 280,
+            borderRight: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8",
+            display: "flex",
+            flexDirection: "column",
+            background: themeMode === "dark" ? "#1f1f1f" : "#fff",
+            padding: 8,
+          }}
+        >
+          {/* 页签与设置栏 */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <Radio.Group
+              size="small"
+              value={leftTab}
+              onChange={(e) => setLeftTab(e.target.value)}
+              buttonStyle="solid"
+            >
+              <Radio.Button value="project">项目</Radio.Button>
+              <Radio.Button value="catalog">轨道库</Radio.Button>
+            </Radio.Group>
+            <Space orientation="horizontal" size={4}>
+              <Button
+                type="text"
+                size="small"
+                icon={<BulbOutlined />}
+                onClick={handleToggleTheme}
+                title="切换浅色/深色主题"
+              />
+              <Select
+                size="small"
+                value={lang}
+                style={{ width: 60 }}
+                onChange={setLang}
+                options={[
+                  { label: "中", value: "zh" },
+                  { label: "EN", value: "en" },
+                ]}
+              />
+            </Space>
+          </div>
+
+          {/* 列表/过滤内容 */}
+          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+            {leftTab === "catalog" && (
+              <CatalogFilterBar
+                onResults={(arts) => setArtifacts(arts)}
+                onSelectRecord={(rec) => setSelectedRecordDetail(rec)}
+              />
+            )}
+            <ProjectTree
+              artifacts={artifacts}
+              selectedId={selectedArtifact?.artifactId || null}
+              onSelect={handleSelectArtifact}
+              onRemove={async (id) => {
+                await removeArtifact(id);
+                refreshArtifacts();
+              }}
+              onOpenStationKeeping={(item) => {
+                setSelectedArtifact(item);
+                setStationKeepingOpen(true);
+              }}
+              onRefresh={refreshArtifacts}
+            />
+          </div>
+
+          {/* 详情面板 */}
+          <div style={{ maxHeight: 280, overflowY: "auto", borderTop: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8" }}>
+            <RecordDetailPanel
+              record={selectedRecordDetail}
+              onRefresh={refreshArtifacts}
+              onOpenStationKeeping={() => setStationKeepingOpen(true)}
+            />
+          </div>
+        </div>
+
+        {/* 中栏：工具选择与参数面板 */}
+        <div
+          style={{
+            width: 320,
+            borderRight: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8",
+            display: "flex",
+            flexDirection: "column",
+            background: themeMode === "dark" ? "#1a1a1a" : "#fafafa",
+            padding: 10,
+          }}
+        >
+          <Title level={5} style={{ margin: "0 0 8px 0" }}>
+            动力学设计工具
+          </Title>
+          <Select
+            size="small"
+            style={{ width: "100%", marginBottom: 8 }}
+            value={selectedTool}
+            onChange={(val) => {
+              setSelectedTool(val);
+              setToolParams({});
+            }}
+            options={TOOL_REGISTRY.map((t) => ({ label: t.title, value: t.name }))}
+          />
+
+          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+            <ParamsPanel
+              toolName={selectedTool}
+              schema={toolEntry(selectedTool).schema}
+              values={toolParams}
+              onChange={setToolParams}
+            />
+          </div>
+
+          <div style={{ marginTop: 8 }}>
+            <Button
+              type="primary"
+              icon={<PlayCircleOutlined />}
+              loading={busy}
+              onClick={handleRunTool}
+              style={{ width: "100%" }}
+            >
+              {busy ? "执行计算中..." : "执行"}
+            </Button>
+            {progressMsg && (
+              <Text type="secondary" style={{ fontSize: 11, display: "block", marginTop: 4 }}>
+                {progressMsg}
+              </Text>
+            )}
+          </div>
+        </div>
+
+        {/* 右栏：主画布与时间轴 */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
+          {/* 画布顶部工具栏 */}
+          <div
+            style={{
+              position: "absolute",
+              top: 10,
+              left: 10,
+              right: 10,
+              display: "flex",
+              justifyContent: "space-between",
+              zIndex: 10,
+              pointerEvents: "none",
+            }}
+          >
+            {/* 投影与中心控制 */}
+            <Space orientation="horizontal" size={6} style={{ pointerEvents: "auto" }}>
+              <Radio.Group
+                size="small"
+                value={projection}
+                onChange={(e) => setProjection(e.target.value)}
+                buttonStyle="solid"
+              >
+                <Radio.Button value="3d">3D</Radio.Button>
+                <Radio.Button value="xy">XY</Radio.Button>
+                <Radio.Button value="xz">XZ</Radio.Button>
+                <Radio.Button value="yz">YZ</Radio.Button>
+              </Radio.Group>
+
+              <Select
+                size="small"
+                value={center}
+                style={{ width: 85 }}
+                onChange={setCenter}
+                options={[
+                  { label: "质心居中", value: "barycenter" },
+                  { label: "月心居中", value: "moon" },
+                  { label: "L1 居中", value: "l1" },
+                  { label: "L2 居中", value: "l2" },
+                ]}
+              />
+            </Space>
+
+            {/* 功能操作按钮组 */}
+            <Space orientation="horizontal" size={6} style={{ pointerEvents: "auto" }}>
+              <Button
+                size="small"
+                icon={<CompressOutlined />}
+                onClick={() => api?.fitView()}
+                title="按轨道包围盒自适应缩放 (适配)"
+              >
+                适配
+              </Button>
+              <Button
+                size="small"
+                icon={<VideoCameraOutlined />}
+                loading={recording}
+                onClick={handleExportAnimation}
+                title="录制自转动画并导出 WebM"
+              >
+                导出动画
+              </Button>
+              <Button
+                size="small"
+                icon={<SettingOutlined />}
+                onClick={() => setChartModalOpen(true)}
+                title="图表显示设置"
+              />
+            </Space>
+          </div>
+
+          {/* Three.js Canvas */}
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <OrbitCanvas
+              trajectories={trajectories}
+              times={trajectoryTimes}
+              currentEt={currentEt}
+              mu={EARTH_MOON_MU}
+              libration={libration}
+              projection={projection}
+              center={center}
+              settings={chart}
+              onReady={(a) => setApi(a)}
+            />
+          </div>
+
+          {/* 底部时间轴 */}
+          <div style={{ padding: "4px 8px", background: themeMode === "dark" ? "#1a1a1a" : "#fff" }}>
+            <TimelineBar
+              timeRange={timeRange}
+              currentEt={currentEt}
+              onTimeChange={setCurrentEt}
+            />
+          </div>
+        </div>
+
+        {/* 独立弹窗：轨道保持 */}
+        <StationKeepingModal
+          open={stationKeepingOpen}
+          sourceRecord={selectedRecordDetail || selectedArtifact}
+          onClose={() => setStationKeepingOpen(false)}
+          onSuccess={refreshArtifacts}
         />
-      </label>
-      {num("zRatio", "Z 轴比例", 0.05)}
-      <button onClick={() => onChange(DEFAULT_CHART_SETTINGS)} style={{ marginRight: 8 }}>
-        恢复默认
-      </button>
-      <button onClick={onClose}>关闭</button>
-    </div>
+
+        {/* 独立弹窗：图表设置 */}
+        <Modal
+          title="图表与界面偏好设置"
+          open={chartModalOpen}
+          onCancel={() => setChartModalOpen(false)}
+          footer={null}
+          width={450}
+        >
+          <Form layout="vertical" size="small">
+            <Form.Item label="界面基准字号">
+              <Slider
+                min={8}
+                max={16}
+                value={fontSize}
+                onChange={handleChangeFontSize}
+                marks={{ 8: "8pt", 12: "12pt", 16: "16pt" }}
+              />
+            </Form.Item>
+            <Form.Item label="轨道线宽">
+              <Slider
+                min={0.2}
+                max={3.0}
+                step={0.1}
+                value={chart.orbitLinewidth}
+                onChange={(v) => setChart({ ...chart, orbitLinewidth: v })}
+              />
+            </Form.Item>
+            <Form.Item label="Z 轴缩放比例 (防压扁)">
+              <Slider
+                min={0.1}
+                max={2.0}
+                step={0.05}
+                value={chart.zRatio}
+                onChange={(v) => setChart({ ...chart, zRatio: v })}
+              />
+            </Form.Item>
+          </Form>
+        </Modal>
+      </div>
+    </ConfigProvider>
   );
 }
