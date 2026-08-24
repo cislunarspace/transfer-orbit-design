@@ -23,3 +23,7 @@ tokio = { version = "1", features = ["macros", "sync", "rt-multi-thread", "proce
 anyhow = "1"
 tauri-plugin-updater = "2.10.1"
 tauri-plugin-process = "2.3.1"
+
+# sidecar 子树生命周期兜底（Job Object kill-on-close），仅 Windows 需要
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects"] }
