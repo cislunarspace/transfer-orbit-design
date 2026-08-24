@@ -20,6 +20,7 @@ import {
   CompressOutlined,
   VideoCameraOutlined,
   BulbOutlined,
+  InfoCircleOutlined,
 } from "@ant-design/icons";
 import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode } from "./OrbitCanvas";
 import { TimelineBar } from "./TimelineBar";
@@ -28,6 +29,9 @@ import { ProjectTree } from "./ProjectTree";
 import { RecordDetailPanel } from "./RecordDetailPanel";
 import { StationKeepingModal } from "./StationKeepingModal";
 import { CatalogFilterBar } from "./CatalogFilterBar";
+import { UpdateModal } from "./UpdateModal";
+import { AboutModal } from "./AboutModal";
+import { checkForAppUpdates, type UpdateInfo } from "./updater";
 import { TOOL_REGISTRY, toolEntry } from "./schema";
 import { useTranslation } from "./i18n";
 import { useChartSettings } from "./chartSettings";
@@ -71,6 +75,9 @@ export default function App() {
   const [chart, setChart] = useChartSettings();
   const [chartModalOpen, setChartModalOpen] = useState(false);
   const [stationKeepingOpen, setStationKeepingOpen] = useState(false);
+  const [aboutModalOpen, setAboutModalOpen] = useState(false);
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [recording, setRecording] = useState(false);
   const [progressMsg, setProgressMsg] = useState<string>("");
 
@@ -85,6 +92,23 @@ export default function App() {
     setFontSize(size);
     localStorage.setItem("tod-font-size", String(size));
   };
+
+  // 启动后后台静默检查更新
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const update = await checkForAppUpdates();
+        if (update) {
+          setUpdateInfo(update);
+          setUpdateModalOpen(true);
+        }
+      } catch (e) {
+        // 静默检查失败不打扰用户
+        console.warn("Silent update check failed:", e);
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // 监听 sidecar 进度
   useEffect(() => {
@@ -254,6 +278,13 @@ export default function App() {
               <Radio.Button value="catalog">轨道库</Radio.Button>
             </Radio.Group>
             <Space orientation="horizontal" size={4}>
+              <Button
+                type="text"
+                size="small"
+                icon={<InfoCircleOutlined />}
+                onClick={() => setAboutModalOpen(true)}
+                title="关于 tod"
+              />
               <Button
                 type="text"
                 size="small"
@@ -502,6 +533,22 @@ export default function App() {
             </Form.Item>
           </Form>
         </Modal>
+        {/* 独立弹窗：关于 tod */}
+        <AboutModal
+          open={aboutModalOpen}
+          onClose={() => setAboutModalOpen(false)}
+          onUpdateAvailable={(info) => {
+            setUpdateInfo(info);
+            setUpdateModalOpen(true);
+          }}
+        />
+
+        {/* 独立弹窗：软件自动更新 */}
+        <UpdateModal
+          open={updateModalOpen}
+          updateInfo={updateInfo}
+          onClose={() => setUpdateModalOpen(false)}
+        />
       </div>
     </ConfigProvider>
   );

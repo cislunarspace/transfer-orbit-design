@@ -4,7 +4,11 @@
     "beforeBuildCommand": ""
   },
   "bundle": {
-    "targets": ["nsis", "appimage", "deb"],
+    "targets": [
+      "nsis",
+      "appimage",
+      "deb"
+    ],
     "resources": {
       "../kernels": "kernels",
       "binaries/*": "binaries/"
@@ -13,6 +17,14 @@
       "nsis": {
         "installMode": "currentUser"
       }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE3Qjc0ODQ4QjBBRDI3QzIKUldUbWlWb0V0b0tIbnJ5cklyY1p3N093SXV4T1Z3cE1VOHBvS1hQcFlqYit5b0Z6OGp3QW1hRWUK",
+      "endpoints": [
+        "https://github.com/cislunarspace/transfer-orbit-design/releases/latest/download/latest.json"
+      ]
     }
   }
 }

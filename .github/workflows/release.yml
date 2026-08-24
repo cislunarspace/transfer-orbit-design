@@ -80,6 +80,9 @@ jobs:
           New-Item -ItemType Directory -Force -Path src-tauri/binaries
           Copy-Item dist/tod-sidecar.exe src-tauri/binaries/tod-sidecar.exe
       - name: Build NSIS installer
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.conf.json --bundles nsis
       - name: Generate changelog
         id: changelog
@@ -106,7 +109,9 @@ jobs:
             ## Changes
 
             ${{ steps.changelog.outputs.changelog }}
-          files: src-tauri/target/release/bundle/nsis/*-setup.exe
+          files: |
+            src-tauri/target/release/bundle/nsis/*-setup.exe
+            src-tauri/target/release/bundle/nsis/*-setup.exe.sig
           generate_release_notes: true
 
   build-linux:
@@ -157,6 +162,9 @@ jobs:
           cp dist/tod-sidecar src-tauri/binaries/tod-sidecar
           chmod +x src-tauri/binaries/tod-sidecar
       - name: Build AppImage and DEB bundle
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.conf.json --bundles appimage,deb
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
@@ -164,4 +172,52 @@ jobs:
           name: ${{ github.ref_name }}
           files: |
             src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/appimage/*.AppImage.sig
             src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/deb/*.deb.sig
+
+  publish-updater:
+    needs: [build-windows, build-linux]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download release assets and generate latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          mkdir -p release-assets
+          gh release download "$TAG_NAME" --dir release-assets --repo "${{ github.repository }}"
+
+          VERSION="${TAG_NAME#v}"
+          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          WIN_SIG=$(cat release-assets/*.exe.sig 2>/dev/null || echo "")
+          APPIMAGE_SIG=$(cat release-assets/*.AppImage.sig 2>/dev/null || echo "")
+
+          # 获取 release 资产的下载链接
+          WIN_URL=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json assets -q '.assets[] | select(.name | endswith("-setup.exe")) | .url')
+          APPIMAGE_URL=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json assets -q '.assets[] | select(.name | endswith(".AppImage")) | .url')
+
+          cat <<EOF > latest.json
+          {
+            "version": "$VERSION",
+            "notes": "Release $TAG_NAME",
+            "pub_date": "$PUB_DATE",
+            "platforms": {
+              "windows-x86_64": {
+                "signature": "$WIN_SIG",
+                "url": "$WIN_URL"
+              },
+              "linux-x86_64": {
+                "signature": "$APPIMAGE_SIG",
+                "url": "$APPIMAGE_URL"
+              }
+            }
+          }
+          EOF
+
+          gh release upload "$TAG_NAME" latest.json --clobber --repo "${{ github.repository }}"
+
