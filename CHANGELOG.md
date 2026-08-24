@@ -2,6 +2,10 @@
 
 ## 未发布
 
+### 修复
+
+- **关闭应用后 sidecar 进程残留（ADR 0019）**：计算中途关窗后 e2m2e 进程留在后台继续运行。Windows 上把 sidecar 子树划入 kill-on-close Job Object，应用无论怎么退出（关窗、崩溃、被杀、更新重启）都由内核终结整棵树，覆盖 dev（uv→python）与分发（onefile bootloader→python）两种形态。
+
 ## 4.2.0 (2026-08-24)
 
 ### 功能
