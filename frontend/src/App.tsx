@@ -38,7 +38,8 @@ import { useChartSettings } from "./chartSettings";
 import { CanvasRecorder, downloadBlob } from "./canvasRecorder";
 import { listArtifacts, removeArtifact, type ArtifactSummary } from "./projectApi";
 import { runTool, getArtifact } from "./sidecarApi";
-import { propagate, librationPoint } from "./cr3bp";
+import { librationPoint } from "./cr3bp";
+import { familyMembersToTrajectories, framesToTrajectories } from "./trajectoryParsing";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
 
 const { Text, Title } = Typography;
@@ -147,32 +148,7 @@ export default function App() {
         const data = await getArtifact(a.recordId);
         if (data.familyMembers && data.familyMembers.length > 0) {
           const muVal = data.mu ?? EARTH_MOON_MU;
-          const trajectoriesList: number[][][] = [];
-          for (const m of data.familyMembers) {
-            if (m.states.length >= 6) {
-              if (m.states.length === 6 && m.period) {
-                const [x, y, z, vx, vy, vz] = m.states.slice(0, 6);
-                trajectoriesList.push(
-                  propagate(
-                    muVal,
-                    {
-                      orbitId: "member",
-                      mu: muVal,
-                      period: m.period,
-                      state: [x, y, z, vx, vy, vz],
-                    },
-                    800
-                  )
-                );
-              } else {
-                const pts: number[][] = [];
-                for (let i = 0; i + 5 < m.states.length; i += 6) {
-                  pts.push([m.states[i], m.states[i + 1], m.states[i + 2]]);
-                }
-                if (pts.length > 0) trajectoriesList.push(pts);
-              }
-            }
-          }
+          const trajectoriesList = familyMembersToTrajectories(data.familyMembers, muVal);
           if (trajectoriesList.length > 0) {
             setTrajectories(trajectoriesList);
             setTimeout(() => api?.fitView(), 100);
@@ -220,45 +196,9 @@ export default function App() {
       message.success("计算完成！");
       await refreshArtifacts();
 
-      // 若有轨迹数据，装配到画布
+      // 若有轨迹数据，装配到画布（解析逻辑见 trajectoryParsing）
       if (resp.frames && resp.frames.length > 0) {
-        const trajectoriesList: number[][][] = [];
-        const d = resp.data as any;
-        const muVal = (typeof d?.mu === "number" ? d.mu : EARTH_MOON_MU);
-        const orbits = Array.isArray(d?.orbits) ? (d.orbits as any[]) : [];
-
-        resp.frames.forEach((frame, i) => {
-          const frameData = frame.data as number[];
-          const period = orbits[i]?.period ?? (typeof d?.period === "number" ? d.period : null);
-          if (frameData.length === 6 && period) {
-            const [x, y, z, vx, vy, vz] = frameData.slice(0, 6);
-            trajectoriesList.push(
-              propagate(
-                muVal,
-                {
-                  orbitId: `orbit-${i}`,
-                  mu: muVal,
-                  period,
-                  state: [x, y, z, vx, vy, vz],
-                },
-                800
-              )
-            );
-          } else if (frameData.length % 6 === 0 && frameData.length >= 6) {
-            const pts: number[][] = [];
-            for (let j = 0; j + 5 < frameData.length; j += 6) {
-              pts.push([frameData[j], frameData[j + 1], frameData[j + 2]]);
-            }
-            trajectoriesList.push(pts);
-          } else if (frameData.length % 3 === 0) {
-            const pts: number[][] = [];
-            for (let j = 0; j + 2 < frameData.length; j += 3) {
-              pts.push([frameData[j], frameData[j + 1], frameData[j + 2]]);
-            }
-            trajectoriesList.push(pts);
-          }
-        });
-
+        const trajectoriesList = framesToTrajectories(resp.frames, resp.data, EARTH_MOON_MU);
         if (trajectoriesList.length > 0) {
           setTrajectories(trajectoriesList);
           setTimeout(() => api?.fitView(), 100);
