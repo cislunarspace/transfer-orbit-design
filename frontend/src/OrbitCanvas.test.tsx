@@ -17,14 +17,16 @@ vi.mock("three", async (importOriginal) => {
   class FakeRenderer {
     domElement: HTMLCanvasElement;
     lastScene: unknown = null;
+    lastCamera: unknown = null;
     static instances: FakeRenderer[] = [];
     constructor() {
       this.domElement = document.createElement("canvas");
       FakeRenderer.instances.push(this);
     }
     setSize() {}
-    render(scene: unknown) {
+    render(scene: unknown, camera: unknown) {
       this.lastScene = scene;
+      this.lastCamera = camera;
     }
     dispose() {}
   }
@@ -228,30 +230,18 @@ describe("中心点居中几何", () => {
 });
 
 describe("中心切换的相机注视点", () => {
-  it("适配后切换中心，视图重新适配到新中心（CONTEXT.md 布局切换语义）", () => {
+  // 用户场景：L2 轨道族 + 适配（注视点在轨道盒中心）→ 手动切“质心居中”，
+ // 期望质心（世界原点）成为画面中心，而不是重新适配又盯回轨道盒。
+  const stateOf = () => {
+    const r = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const last = r[r.length - 1] as unknown as { lastCamera: { position: { x: number; y: number; z: number } } };
+    const list = (OrbitControls as unknown as { instances: { target: { x: number; y: number; z: number } }[] }).instances;
+    return { camera: last.lastCamera, target: list[list.length - 1].target };
+  };
+
+  it("切换到质心居中：注视点移到原点，视角与距离保持", () => {
     let api!: { fitView: () => void };
     const view = render(
-      <OrbitCanvas
-        trajectories={L2_ORBIT}
-        mu={MU}
-        libration={LIBRATION}
-        projection="3d"
-        center="barycenter"
-        onReady={(a) => (api = a)}
-      />,
-    );
-    flushFrames();
-    api.fitView();
-
-    const targetOf = () => {
-      const list = (OrbitControls as unknown as { instances: { target: { x: number; y: number; z: number } }[] }).instances;
-      return list[list.length - 1].target;
-    };
-    // 适配后注视点在 L2 轨道盒中心（x≈1.156）
-    expect(targetOf().x).toBeCloseTo(1.1557, 2);
-
-    // 切换到 L2 居中：轨道平移到原点附近，重新适配后 target 应回到原点
-    view.rerender(
       <OrbitCanvas
         trajectories={L2_ORBIT}
         mu={MU}
@@ -262,8 +252,40 @@ describe("中心切换的相机注视点", () => {
       />,
     );
     flushFrames();
+    api.fitView();
+    const before = stateOf();
+    // L2 居中 + 适配后，注视点在轨道盒中心（原点附近）
+    expect(before.target.x).toBeCloseTo(0, 2);
+    const offsetBefore = {
+      x: before.camera.position.x - before.target.x,
+      y: before.camera.position.y - before.target.y,
+      z: before.camera.position.z - before.target.z,
+    };
 
-    expect(Math.abs(targetOf().x)).toBeLessThan(0.05);
+    view.rerender(
+      <OrbitCanvas
+        trajectories={L2_ORBIT}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        onReady={(a) => (api = a)}
+      />,
+    );
+    flushFrames();
+
+    const after = stateOf();
+    // center 状态确实传到了画布：质心居中时 annotations 偏移归零（区分假设 2）
+    const scene = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const s = scene[scene.length - 1].lastScene as import("three").Scene;
+    expect(annotationsOf(s).position.x).toBeCloseTo(0, 10);
+    // 质心居中：注视点应为世界原点，而不是轨道盒中心（当前实现变红处）
+    expect(after.target.x).toBeCloseTo(0, 6);
+    expect(after.target.y).toBeCloseTo(0, 6);
+    // 视图保持：相机相对注视点的方向与距离不变
+    expect(after.camera.position.x - after.target.x).toBeCloseTo(offsetBefore.x, 6);
+    expect(after.camera.position.y - after.target.y).toBeCloseTo(offsetBefore.y, 6);
+    expect(after.camera.position.z - after.target.z).toBeCloseTo(offsetBefore.z, 6);
   });
 });
 

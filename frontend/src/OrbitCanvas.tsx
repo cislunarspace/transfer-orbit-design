@@ -45,7 +45,6 @@ export function OrbitCanvas({
   const controlsRef = useRef<OrbitControls | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const markerRef = useRef<THREE.Mesh | null>(null);
-  const fitViewRef = useRef<(() => void) | null>(null);
   // onReady 走 ref：建场景 effect 依赖 []，调用方传内联函数（如
   // App 的 onReady={(a) => setApi(a)}）不会触发场景重建导致轨迹丢失。
   const onReadyRef = useRef(onReady);
@@ -121,7 +120,6 @@ export function OrbitCanvas({
       camera.far = dist * 100;
       camera.updateProjectionMatrix();
     };
-    fitViewRef.current = fitView;
 
     onReadyRef.current?.({
       canvasElement: () => renderer.domElement,
@@ -278,11 +276,18 @@ export function OrbitCanvas({
     }
   }, [trajectories, mu, libration, center, settings]);
 
-  // 布局切换（中心）后重新视图适配：轨道平移到新中心，相机注视点须跟随
-  // （CONTEXT.md：布局切换后重绘重新视图适配）。声明在重建 effect 之后，
-  // 确保同次提交里先完成重建再适配。
+  // 中心切换：所选中心点已移到世界原点，相机注视点同步移到原点（“居中”
+ // 语义），保持注视方向与距离（视图保持）。不能改为按轨道盒重新适配：
+ // 那样会把画面中心钉回轨道所在区域（如 L2 的 Halo 族），中心切换在
+ // 画面上成为无操作，用户无法把质心/月心调到画面中心。
   useEffect(() => {
-    fitViewRef.current?.();
+    const camera = cameraRef.current;
+    const controls = controlsRef.current;
+    if (!camera || !controls) return;
+    const delta = new THREE.Vector3().sub(controls.target);
+    camera.position.add(delta);
+    controls.target.set(0, 0, 0);
+    controls.update();
   }, [center]);
 
   useEffect(() => {
