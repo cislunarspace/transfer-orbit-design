@@ -1,6 +1,5 @@
 # Auto-detect text files and normalize line endings
 * text=auto
-
 # Text files - always LF in repo
 *.py    text eol=lf
 *.md    text eol=lf
@@ -12,12 +11,10 @@
 *.cfg   text eol=lf
 *.ini   text eol=lf
 *.sh    text eol=lf
-
 # Windows scripts - CRLF
 *.bat   text eol=crlf
 *.cmd   text eol=crlf
 *.ps1   text eol=crlf
-
 # Binary files
 *.png   binary
 *.jpg   binary
@@ -28,3 +25,4 @@
 *.bsp   binary
 *.tf    binary
 *.pc    binary
+kernels/*.bsp filter=lfs diff=lfs merge=lfs -text

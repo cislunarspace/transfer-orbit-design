@@ -44,3 +44,17 @@ export async function runTool(
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke("run_tool", { tool, arguments: arguments_, binaryDtype, artifact });
 }
+
+/** 星历内核配置状态（自动配置：随 git/安装包分发，正常永远就绪）。 */
+export interface EphemerisStatus {
+  kernelDir: string | null;
+  files: string[];
+  ephemerisReady: boolean;
+  leapsecondReady: boolean;
+  usable: boolean;
+}
+
+export async function ephemerisStatus(): Promise<EphemerisStatus> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke("ephemeris_status");
+}

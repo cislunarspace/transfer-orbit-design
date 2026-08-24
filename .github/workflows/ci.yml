@@ -36,6 +36,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          # 星历内核（kernels/*.bsp）经 Git LFS 入库，测试需真实二进制
+          lfs: true
       - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
