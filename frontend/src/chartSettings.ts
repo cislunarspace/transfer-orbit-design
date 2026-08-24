@@ -14,6 +14,8 @@ export interface ChartSettings {
   labelFontsize: number;
   /** 等比模式下 Z 轴区间相对 XY 的最小比例（近平面轨道防压扁） */
   zRatio: number;
+  /** 坐标轴与网格图层（matplotlib 式参照系） */
+  axesVisible: boolean;
 }
 
 export const DEFAULT_CHART_SETTINGS: ChartSettings = {
@@ -25,6 +27,7 @@ export const DEFAULT_CHART_SETTINGS: ChartSettings = {
   lpSize: 0.003,
   labelFontsize: 12,
   zRatio: 0.5,
+  axesVisible: true,
 };
 
 const KEY = "tod-chart-settings";

@@ -6,8 +6,10 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render } from "@testing-library/react";
-import { Line, Group } from "three";
-import { OrbitCanvas } from "./OrbitCanvas";
+import { Line } from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { OrbitCanvas, type CenterMode } from "./OrbitCanvas";
+import { DEFAULT_CHART_SETTINGS } from "./chartSettings";
 
 // jsdom 无 WebGL：只替换 WebGLRenderer，其余 three 类保持真实实现。
 vi.mock("three", async (importOriginal) => {
@@ -31,14 +33,18 @@ vi.mock("three", async (importOriginal) => {
 
 vi.mock("three/examples/jsm/controls/OrbitControls.js", () => ({
   OrbitControls: class {
-    target = { set() {}, copy() {} };
+    // target 记录 x/y/z：fitView 的 copy/sub 需要可读字段，
+    // 测试靠它断言相机注视点是否跟随中心切换。
+    static instances: unknown[] = [];
+    target = { x: 0, y: 0, z: 0, set(x: number, y: number, z: number) { this.x = x; this.y = y; this.z = z; }, copy(v: { x: number; y: number; z: number }) { this.x = v.x; this.y = v.y; this.z = v.z; return this; } };
     enableDamping = false;
     autoRotate = false;
     autoRotateSpeed = 0.3;
+    constructor() { (this.constructor as unknown as { instances: unknown[] }).instances.push(this); }
     update() {}
     dispose() {}
   },
-}));
+}));;
 
 const { WebGLRenderer } = await import("three");
 type FakeRendererInstance = InstanceType<typeof WebGLRenderer> & {
@@ -55,19 +61,16 @@ function flushFrames() {
 }
 
 function sceneLines(scene: unknown): Line[] {
-  const out: Line[] = [];
-  (scene as { traverse: (cb: (o: { isLine?: boolean }) => void) => void }).traverse((o) => {
-    if (o.isLine) out.push(o as unknown as Line);
-  });
-  return out;
+  // 只数轨道线：标注组里的网格/箭头/天体不算（视图适配与轨迹计数都只针对轨道）
+  const orbits = (scene as import("three").Scene).getObjectByName("orbits");
+  if (!orbits) return [];
+  return orbits.children.filter((o) => (o as Line).isLine) as unknown as Line[];
 }
 
-function sceneGroups(scene: unknown): Group[] {
-  const out: Group[] = [];
-  (scene as { traverse: (cb: (o: { isGroup?: boolean }) => void) => void }).traverse((o) => {
-    if (o.isGroup) out.push(o as unknown as Group);
-  });
-  return out;
+function annotationsOf(scene: unknown): import("three").Group {
+  const g = (scene as import("three").Scene).getObjectByName("annotations");
+  expect(g).toBeDefined();
+  return g as import("three").Group;
 }
 
 const MU = 0.01215058560962404;
@@ -77,6 +80,15 @@ const TRAJECTORIES: number[][][] = [
 const LIBRATION = [
   { label: "L1", x: 0.8369 },
   { label: "L2", x: 1.1557 },
+];
+
+// L2 附近的偏心轨迹（模拟 Halo/NRHO 族）：fitView 后 target 会在盒中心
+// x≈1.16，而不是原点——用于复现“适配后切中心，target 不跟随”的偏移。
+const L2_ORBIT: number[][][] = [
+  Array.from({ length: 60 }, (_, i) => {
+    const a = (i / 60) * Math.PI * 2;
+    return [1.1557 + 0.05 * Math.cos(a), 0.05 * Math.sin(a), 0.02 * Math.sin(a)];
+  }),
 ];
 
 const noopReady = () => {};
@@ -115,6 +127,7 @@ beforeEach(() => {
     () => ({ fillText: () => {} }) as unknown as CanvasRenderingContext2D,
   );
   (WebGLRenderer as unknown as { instances: unknown[] }).instances.length = 0;
+  (OrbitControls as unknown as { instances: unknown[] }).instances.length = 0;
 });
 
 afterEach(() => {
@@ -160,21 +173,140 @@ describe("OrbitCanvas 轨迹渲染", () => {
     renderCanvas();
     flushFrames();
     const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
-    const scene = instances[instances.length - 1].lastScene as { children: Group[] };
+    const scene = instances[instances.length - 1].lastScene as { children: import("three").Group[] };
 
-    // content group 的位置必须是居中偏移（barycenter → 原点），
-    // 不能被 addSphere 覆盖成某个天体坐标。
-    const content = sceneGroups(scene).find((g) => g.children.length > 0);
-    expect(content).toBeDefined();
-    expect(content!.position.x).toBeCloseTo(0, 10);
+    // annotations 组的位置必须是居中偏移（barycenter → 原点），
+    // 不能被天体坐标覆盖；天体按各自坐标摆放。
+    const annotations = annotationsOf(scene);
+    expect(annotations.position.x).toBeCloseTo(0, 10);
 
-    // 地球 mesh（半径最大、颜色 0x2196f3）应位于 (-mu, 0, 0)
-    const meshes = content!.children.filter((c) => (c as unknown as { isMesh?: boolean }).isMesh) as unknown as {
+    // 地球 mesh（颜色 0x2196f3）应位于 (-mu, 0, 0)
+    const meshes = annotations.children.filter((c) => (c as unknown as { isMesh?: boolean }).isMesh) as unknown as {
       position: { x: number; y: number; z: number };
       material: { color: { getHex(): number } };
     }[];
     const earth = meshes.find((m) => m.material.color.getHex() === 0x2196f3);
     expect(earth).toBeDefined();
     expect(earth!.position.x).toBeCloseTo(-MU, 10);
+  });
+});
+
+describe("中心点居中几何", () => {
+  // 选定中心后，该天体/平动点的世界坐标应为原点（相机 target 默认 0,0,0）
+  const CASES: { name: string; center: CenterMode; bodyLocalX: number }[] = [
+    { name: "月心居中", center: "moon", bodyLocalX: 1 - MU },
+    { name: "L1 居中", center: "l1", bodyLocalX: LIBRATION[0].x },
+    { name: "L2 居中", center: "l2", bodyLocalX: LIBRATION[1].x },
+  ];
+
+  it.each(CASES)("$name：中心天体世界坐标在原点", async ({ center, bodyLocalX }) => {
+    const { Vector3 } = await import("three");
+    render(
+      <OrbitCanvas
+        trajectories={TRAJECTORIES}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center={center}
+        onReady={() => {}}
+      />,
+    );
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const scene = instances[instances.length - 1].lastScene as import("three").Scene;
+    scene.updateMatrixWorld(true);
+    const annotations = annotationsOf(scene);
+    const meshes = annotations.children.filter(
+      (c) => (c as unknown as { isMesh?: boolean }).isMesh,
+    ) as unknown as import("three").Mesh[];
+    const target = meshes.find((m) => Math.abs(m.position.x - bodyLocalX) < 1e-9);
+    expect(target, `未找到 local x=${bodyLocalX} 的天体`).toBeDefined();
+    const world = new Vector3();
+    target!.getWorldPosition(world);
+    expect(world.x).toBeCloseTo(0, 6);
+  });
+});
+
+describe("中心切换的相机注视点", () => {
+  it("适配后切换中心，视图重新适配到新中心（CONTEXT.md 布局切换语义）", () => {
+    let api!: { fitView: () => void };
+    const view = render(
+      <OrbitCanvas
+        trajectories={L2_ORBIT}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        onReady={(a) => (api = a)}
+      />,
+    );
+    flushFrames();
+    api.fitView();
+
+    const targetOf = () => {
+      const list = (OrbitControls as unknown as { instances: { target: { x: number; y: number; z: number } }[] }).instances;
+      return list[list.length - 1].target;
+    };
+    // 适配后注视点在 L2 轨道盒中心（x≈1.156）
+    expect(targetOf().x).toBeCloseTo(1.1557, 2);
+
+    // 切换到 L2 居中：轨道平移到原点附近，重新适配后 target 应回到原点
+    view.rerender(
+      <OrbitCanvas
+        trajectories={L2_ORBIT}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="l2"
+        onReady={(a) => (api = a)}
+      />,
+    );
+    flushFrames();
+
+    expect(Math.abs(targetOf().x)).toBeLessThan(0.05);
+  });
+});
+
+describe("坐标轴图层", () => {
+  it("默认显示：三轴箭头 + X/Y/Z 标注 + 轨道面网格", () => {
+    render(
+      <OrbitCanvas
+        trajectories={TRAJECTORIES}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        onReady={() => {}}
+      />,
+    );
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const scene = instances[instances.length - 1].lastScene as import("three").Scene;
+    const axes = annotationsOf(scene).getObjectByName("axes");
+    expect(axes).toBeDefined();
+    // 3 箭头 + 3 轴名 sprite + 1 网格
+    expect(axes!.children.length).toBe(7);
+    const sprites = axes!.children.filter((c) => (c as unknown as { isSprite?: boolean }).isSprite);
+    expect(sprites.length).toBe(3);
+    const grid = axes!.children.find((c) => (c as unknown as { isLineSegments?: boolean }).isLineSegments);
+    expect(grid).toBeDefined(); // GridHelper 继承 LineSegments
+  });
+
+  it("axesVisible=false 时不渲染坐标轴", () => {
+    render(
+      <OrbitCanvas
+        trajectories={TRAJECTORIES}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        settings={{ ...DEFAULT_CHART_SETTINGS, axesVisible: false }}
+        onReady={() => {}}
+      />,
+    );
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const scene = instances[instances.length - 1].lastScene as import("three").Scene;
+    expect(annotationsOf(scene).getObjectByName("axes")).toBeUndefined();
   });
 });
