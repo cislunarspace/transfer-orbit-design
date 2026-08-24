@@ -6,7 +6,7 @@
 use serde_json::json;
 use tokio::sync::mpsc;
 
-use transfer_orbit_design::sidecar::{FrameArray, SidecarHandle};
+use transfer_orbit_design_lib::sidecar::{FrameArray, SidecarHandle};
 
 async fn spawn() -> SidecarHandle {
     let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
