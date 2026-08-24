@@ -3974,7 +3974,7 @@ dependencies = [
 
 [[package]]
 name = "transfer-orbit-design"
-version = "4.1.2"
+version = "4.2.0"
 dependencies = [
  "anyhow",
  "serde",

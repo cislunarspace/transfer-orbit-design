@@ -2,6 +2,21 @@
 
 ## 未发布
 
+## 4.2.0 (2026-08-24)
+
+### 功能
+
+- **桌面端自动更新（#403, #404）**：接入 Tauri Updater，应用内检查并安装新版本。
+
+### 修复
+
+- **画布轨迹解析与积分渲染（#405）**：修复轨道生成与库记录加载时的轨迹解析，消除整除歧义与缺 period 时的单点轨迹。
+- **README 开发环境命令**：`cargo tauri dev` 改为 `npx --prefix frontend tauri dev`，无需全局安装 cargo-tauri。
+
+### 其他
+
+- **应用产物改名**：`tod` → `transfer-orbit-design`，安装包、应用 ID（`com.cislunarspace.transfer-orbit-design`）、sidecar 与打包链路同步更新。
+
 ## 4.1.2 (2026-08-24)
 
 ### 修复
