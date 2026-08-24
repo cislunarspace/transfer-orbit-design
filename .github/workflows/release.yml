@@ -80,7 +80,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path src-tauri/binaries
           Copy-Item dist/tod-sidecar.exe src-tauri/binaries/tod-sidecar.exe
       - name: Build NSIS installer
-        run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.conf.json
+        run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.conf.json --bundles nsis
       - name: Generate changelog
         id: changelog
         shell: bash
@@ -108,3 +108,60 @@ jobs:
             ${{ steps.changelog.outputs.changelog }}
           files: src-tauri/target/release/bundle/nsis/*-setup.exe
           generate_release_notes: true
+
+  build-linux:
+    needs: test
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install system dependencies for Tauri and WebKitGTK
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            file \
+            libxdo-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libegl1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: npm ci --prefix frontend
+      - run: npm --prefix frontend run build
+      - run: uv sync --group build --frozen
+      - name: Build sidecar (PyInstaller onefile)
+        run: uv run --no-sync pyinstaller packaging/tod_sidecar.spec --noconfirm
+      - name: Stage sidecar into tauri resources
+        run: |
+          mkdir -p src-tauri/binaries
+          cp dist/tod-sidecar src-tauri/binaries/tod-sidecar
+          chmod +x src-tauri/binaries/tod-sidecar
+      - name: Build AppImage and DEB bundle
+        run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.conf.json --bundles appimage,deb
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          files: |
+            src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/deb/*.deb

@@ -4,7 +4,7 @@
     "beforeBuildCommand": ""
   },
   "bundle": {
-    "targets": ["nsis"],
+    "targets": ["nsis", "appimage", "deb"],
     "resources": {
       "../kernels": "kernels",
       "binaries/*": "binaries/"
