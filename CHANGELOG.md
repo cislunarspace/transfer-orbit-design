@@ -2,6 +2,12 @@
 
 ## 未发布
 
+## 4.1.2 (2026-08-24)
+
+### 修复
+
+- **Linux AppImage 全局卡顿修复**：在 Linux 入口默认设置 `WEBKIT_DISABLE_DMABUF_RENDERER=1`，规避 WebKitGTK 2.40+ 在 Linux（NVIDIA/Wayland/Mesa）下的硬件加速合成器驱动冲突，恢复流畅交互。
+
 ## 4.1.1 (2026-08-24)
 
 ### 打包与分发
