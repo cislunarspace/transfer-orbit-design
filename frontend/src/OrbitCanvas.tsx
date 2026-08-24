@@ -44,6 +44,10 @@ export function OrbitCanvas({
   const controlsRef = useRef<OrbitControls | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const markerRef = useRef<THREE.Mesh | null>(null);
+  // onReady 走 ref：建场景 effect 依赖 []，调用方传内联函数（如
+  // App 的 onReady={(a) => setApi(a)}）不会触发场景重建导致轨迹丢失。
+  const onReadyRef = useRef(onReady);
+  onReadyRef.current = onReady;
 
   useEffect(() => {
     const mount = mountRef.current;
@@ -94,7 +98,7 @@ export function OrbitCanvas({
     };
     animate();
 
-    onReady?.({
+    onReadyRef.current?.({
       canvasElement: () => renderer.domElement,
       setAutoRotate: (on, speed = 0.3) => {
         controls.autoRotate = on;
@@ -124,7 +128,7 @@ export function OrbitCanvas({
         mount.removeChild(renderer.domElement);
       }
     };
-  }, [onReady]);
+  }, []);
 
   useEffect(() => {
     const camera = cameraRef.current;
@@ -197,9 +201,14 @@ export function OrbitCanvas({
     });
 
     const addSphere = (x: number, y: number, z: number, color: number, radius: number, label: string) => {
-      content.add(
-        new THREE.Mesh(new THREE.SphereGeometry(radius, 24, 24), new THREE.MeshBasicMaterial({ color }))
-      ).position.set(x, y, z);
+      // 注意：Object3D.add() 返回的是父 group，mesh 的位置必须显式设置，
+      // 否则天体堆在原点、group 位置被覆盖，整个场景（含轨道线）被平移。
+      const body = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 24, 24),
+        new THREE.MeshBasicMaterial({ color })
+      );
+      body.position.set(x, y, z);
+      content.add(body);
 
       const canvas = document.createElement("canvas");
       canvas.width = 256;
