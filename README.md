@@ -22,7 +22,7 @@ transfer-orbit-design 是 [e2m2e](https://github.com/cislunarspace/e2m2e) 的 GU
 ```bash
 uv sync                        # Python 依赖（e2m2e>=5.8.5 等）
 npm ci --prefix frontend       # 前端依赖
-cargo tauri dev                # 开发模式启动：Vite 热更新 + Rust 壳拉起 sidecar
+npx --prefix frontend tauri dev     # 开发模式启动：Vite 热更新 + Rust 壳拉起 sidecar
 ```
 
 ## SPICE 内核

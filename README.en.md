@@ -22,7 +22,7 @@ Requires Python >= 3.13, Node.js >= 20 and a stable Rust toolchain; Python packa
 ```bash
 uv sync                        # Python deps (e2m2e>=5.8.5 etc.)
 npm ci --prefix frontend       # Frontend deps
-cargo tauri dev                # Dev mode: Vite HMR + Rust shell spawns the sidecar
+npx --prefix frontend tauri dev     # Dev mode: Vite HMR + Rust shell spawns the sidecar
 ```
 
 ## SPICE Kernels
