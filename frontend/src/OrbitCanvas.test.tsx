@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render } from "@testing-library/react";
-import { Line } from "three";
+import { Line, ArrowHelper } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { OrbitCanvas, type CenterMode } from "./OrbitCanvas";
 import { DEFAULT_CHART_SETTINGS } from "./chartSettings";
@@ -226,6 +226,7 @@ describe("OrbitCanvas 轨迹渲染", () => {
 describe("中心点居中几何", () => {
   // 选定中心后，该天体/平动点的世界坐标应为原点（相机 target 默认 0,0,0）
   const CASES: { name: string; center: CenterMode; bodyLocalX: number }[] = [
+    { name: "地心居中", center: "earth", bodyLocalX: -MU },
     { name: "月心居中", center: "moon", bodyLocalX: 1 - MU },
     { name: "L1 居中", center: "l1", bodyLocalX: LIBRATION[0].x },
     { name: "L2 居中", center: "l2", bodyLocalX: LIBRATION[1].x },
@@ -336,12 +337,13 @@ describe("坐标轴图层", () => {
     const scene = instances[instances.length - 1].lastScene as import("three").Scene;
     const axes = annotationsOf(scene).getObjectByName("axes");
     expect(axes).toBeDefined();
-    // 3 箭头 + 3 轴名 sprite + 1 网格
-    expect(axes!.children.length).toBe(7);
-    const sprites = axes!.children.filter((c) => (c as unknown as { isSprite?: boolean }).isSprite);
-    expect(sprites.length).toBe(3);
+    // 3 轴箭头 + 3 轴名 sprite + 1 网格 + 量程刻度（默认 ±0.5/±1.0 两档 × X/Y 双轴）
+    const arrows = axes!.children.filter((c) => c instanceof ArrowHelper);
+    expect(arrows.length).toBe(3);
     const grid = axes!.children.find((c) => (c as unknown as { isLineSegments?: boolean }).isLineSegments);
     expect(grid).toBeDefined(); // GridHelper 继承 LineSegments
+    const sprites = axes!.children.filter((c) => (c as unknown as { isSprite?: boolean }).isSprite);
+    expect(sprites.length).toBeGreaterThanOrEqual(3 + 4); // 轴名 + 刻度数字
   });
 
   it("axesVisible=false 时不渲染坐标轴", () => {
@@ -360,5 +362,56 @@ describe("坐标轴图层", () => {
     const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
     const scene = instances[instances.length - 1].lastScene as import("three").Scene;
     expect(annotationsOf(scene).getObjectByName("axes")).toBeUndefined();
+  });
+
+  it("背景色 prop 驱动 scene.background（白底可切）", () => {
+    render(
+      <OrbitCanvas
+        trajectories={TRAJECTORIES}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        background="#ffffff"
+        onReady={() => {}}
+      />,
+    );
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const scene = instances[instances.length - 1].lastScene as import("three").Scene;
+    const bg = scene.background as import("three").Color;
+    expect(bg).toBeDefined();
+    expect(bg.getHexString()).toBe("ffffff");
+  });
+
+  it("量程驱动网格尺寸：gridRange=2 时网格边长 4", () => {
+    render(
+      <OrbitCanvas
+        trajectories={TRAJECTORIES}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        settings={{ ...DEFAULT_CHART_SETTINGS, gridRange: 2 }}
+        onReady={() => {}}
+      />,
+    );
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const scene = instances[instances.length - 1].lastScene as import("three").Scene;
+    const axes = annotationsOf(scene).getObjectByName("axes");
+    const grid = axes!.children.find(
+      (c) => (c as unknown as { isLineSegments?: boolean }).isLineSegments,
+    ) as unknown as import("three").LineSegments;
+    const geom = grid.geometry as import("three").BufferGeometry;
+    // GridHelper 顶点覆盖 [-size/2, size/2]；取 x 极值验边长
+    const pos = geom.getAttribute("position");
+    let minX = Infinity;
+    let maxX = -Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      minX = Math.min(minX, pos.getX(i));
+      maxX = Math.max(maxX, pos.getX(i));
+    }
+    expect(maxX - minX).toBeCloseTo(4, 3);
   });
 });

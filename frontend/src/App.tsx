@@ -486,6 +486,7 @@ export default function App() {
               projection={projection}
               center={center}
               settings={chart}
+              background={chart.bgColor ?? (themeMode === "dark" ? "#121212" : "#ffffff")}
               onReady={(a) => setApi(a)}
             />
           </div>
