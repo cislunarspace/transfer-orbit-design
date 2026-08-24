@@ -24,6 +24,8 @@ export interface ArtifactData {
   recordId: string;
   orbitFamily: string;
   memberCount: number;
+  mu?: number | null;
+  familyMembers?: FamilyMember[];
   members: number[][]; // 每成员 n×3 xyz
   error: { code: string; message: string } | null;
 }

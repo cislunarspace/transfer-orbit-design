@@ -208,7 +208,10 @@ pub struct ArtifactData {
     pub record_id: String,
     pub orbit_family: String,
     pub member_count: u64,
-    /// 每成员 (n, 6) 状态（仅 xyz 压缩为 n×3）。
+    pub mu: Option<f64>,
+    /// 每成员完整的状态与元数据（包含 (1, 6) 或 (n, 6) 的 states, period 等）
+    pub family_members: Vec<FamilyMember>,
+    /// 兼容旧版：每成员提取的 xyz
     pub members: Vec<Vec<f32>>,
     pub error: Option<serde_json::Value>,
 }
@@ -231,33 +234,47 @@ pub async fn get_artifact(
             record_id,
             orbit_family: String::new(),
             member_count: 0,
+            mu: None,
+            family_members: vec![],
             members: vec![],
             error: result.error,
         });
     }
     // 帧序 = arrays 中 None 占位键顺序；states 键配对同序 times 键，
-    // states 帧出 xyz，times 帧只用于确认形状（时间值画布暂不用）。
     let arrays = result.data["arrays"].as_object().cloned().unwrap_or_default();
     let state_keys: Vec<&String> = arrays
         .iter()
         .filter(|(k, v)| v.is_null() && k.ends_with("/states"))
         .map(|(k, _)| k)
         .collect();
+    let member_meta_list = result.data["members"].as_array().cloned().unwrap_or_default();
+    let mu = result.data["scalars"]["mu"].as_f64();
+
     let mut members = Vec::with_capacity(state_keys.len());
+    let mut family_members = Vec::with_capacity(state_keys.len());
+
     // 帧游标：frames 全序列表里找对应的 states 帧。占位键顺序即帧序，
     // 用索引直接算：states 键在全部 None 键里的位置 = 对应帧下标。
     let none_keys: Vec<&String> = arrays.iter().filter(|(_, v)| v.is_null()).map(|(k, _)| k).collect();
-    for key in &state_keys {
-        let idx = none_keys.iter().position(|k| *k == *key).expect("占位键必在序列");
+    for (i, key) in state_keys.iter().enumerate() {
+        let idx = none_keys.iter().position(|k| **k == **key).expect("占位键必在序列");
         let frame = &result.frames[idx];
         if let crate::sidecar::FrameArray::F32 { data, .. } = frame {
             members.push(data.chunks_exact(6).flat_map(|s| [s[0], s[1], s[2]]).collect());
+            let period = member_meta_list.get(i).and_then(|m| m["period"].as_f64());
+            family_members.push(FamilyMember {
+                states: data.clone(),
+                times: vec![],
+                period,
+            });
         }
     }
     Ok(ArtifactData {
         record_id: result.data["record_id"].as_str().unwrap_or("").to_string(),
         orbit_family: result.data["orbit_family"].as_str().unwrap_or("").to_string(),
         member_count: result.data["member_count"].as_u64().unwrap_or(0),
+        mu,
+        family_members,
         members,
         error: None,
     })

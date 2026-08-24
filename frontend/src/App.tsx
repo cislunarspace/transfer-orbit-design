@@ -38,7 +38,7 @@ import { useChartSettings } from "./chartSettings";
 import { CanvasRecorder, downloadBlob } from "./canvasRecorder";
 import { listArtifacts, removeArtifact, type ArtifactSummary } from "./projectApi";
 import { runTool, getArtifact } from "./sidecarApi";
-import { librationPoint } from "./cr3bp";
+import { propagate, librationPoint } from "./cr3bp";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
 
 const { Text, Title } = Typography;
@@ -145,9 +145,43 @@ export default function App() {
           setSelectedRecordDetail(queryResp.records[0]);
         }
         const data = await getArtifact(a.recordId);
+        if (data.familyMembers && data.familyMembers.length > 0) {
+          const muVal = data.mu ?? EARTH_MOON_MU;
+          const trajectoriesList: number[][][] = [];
+          for (const m of data.familyMembers) {
+            if (m.states.length >= 6) {
+              if (m.states.length === 6 && m.period) {
+                const [x, y, z, vx, vy, vz] = m.states.slice(0, 6);
+                trajectoriesList.push(
+                  propagate(
+                    muVal,
+                    {
+                      orbitId: "member",
+                      mu: muVal,
+                      period: m.period,
+                      state: [x, y, z, vx, vy, vz],
+                    },
+                    800
+                  )
+                );
+              } else {
+                const pts: number[][] = [];
+                for (let i = 0; i + 5 < m.states.length; i += 6) {
+                  pts.push([m.states[i], m.states[i + 1], m.states[i + 2]]);
+                }
+                if (pts.length > 0) trajectoriesList.push(pts);
+              }
+            }
+          }
+          if (trajectoriesList.length > 0) {
+            setTrajectories(trajectoriesList);
+            setTimeout(() => api?.fitView(), 100);
+            return;
+          }
+        }
         if (data.members && data.members.length > 0) {
           setTrajectories(data.members as unknown as number[][][]);
-          api?.fitView();
+          setTimeout(() => api?.fitView(), 100);
         }
       }
     } catch (e) {
@@ -188,18 +222,57 @@ export default function App() {
 
       // 若有轨迹数据，装配到画布
       if (resp.frames && resp.frames.length > 0) {
-        const frameData = resp.frames[0].data as number[];
-        const pts: number[][] = [];
-        for (let i = 0; i < frameData.length; i += 3) {
-          pts.push([frameData[i], frameData[i + 1], frameData[i + 2]]);
+        const trajectoriesList: number[][][] = [];
+        const d = resp.data as any;
+        const muVal = (typeof d?.mu === "number" ? d.mu : EARTH_MOON_MU);
+        const orbits = Array.isArray(d?.orbits) ? (d.orbits as any[]) : [];
+
+        resp.frames.forEach((frame, i) => {
+          const frameData = frame.data as number[];
+          const period = orbits[i]?.period ?? (typeof d?.period === "number" ? d.period : null);
+          if (frameData.length === 6 && period) {
+            const [x, y, z, vx, vy, vz] = frameData.slice(0, 6);
+            trajectoriesList.push(
+              propagate(
+                muVal,
+                {
+                  orbitId: `orbit-${i}`,
+                  mu: muVal,
+                  period,
+                  state: [x, y, z, vx, vy, vz],
+                },
+                800
+              )
+            );
+          } else if (frameData.length % 6 === 0 && frameData.length >= 6) {
+            const pts: number[][] = [];
+            for (let j = 0; j + 5 < frameData.length; j += 6) {
+              pts.push([frameData[j], frameData[j + 1], frameData[j + 2]]);
+            }
+            trajectoriesList.push(pts);
+          } else if (frameData.length % 3 === 0) {
+            const pts: number[][] = [];
+            for (let j = 0; j + 2 < frameData.length; j += 3) {
+              pts.push([frameData[j], frameData[j + 1], frameData[j + 2]]);
+            }
+            trajectoriesList.push(pts);
+          }
+        });
+
+        if (trajectoriesList.length > 0) {
+          setTrajectories(trajectoriesList);
+          setTimeout(() => api?.fitView(), 100);
         }
-        setTrajectories([pts]);
-        setTimeout(() => api?.fitView(), 100);
-      } else if (resp.data && (resp.data as any).states) {
-        const states = (resp.data as any).states as number[][];
-        const pts = states.map((s) => [s[0], s[1], s[2]]);
-        setTrajectories([pts]);
-        setTimeout(() => api?.fitView(), 100);
+      } else if (resp.data) {
+        const d = resp.data as any;
+        const rawStates = d.states || d.position_km || d.trajectory;
+        if (Array.isArray(rawStates) && rawStates.length > 0) {
+          if (Array.isArray(rawStates[0])) {
+            const pts = rawStates.map((s: number[]) => [Number(s[0]), Number(s[1]), Number(s[2])]);
+            setTrajectories([pts]);
+            setTimeout(() => api?.fitView(), 100);
+          }
+        }
       }
     } catch (e) {
       message.error(`执行失败: ${String(e)}`);
