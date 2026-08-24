@@ -1,7 +1,57 @@
 //! Tauri commands - 前端经 IPC 调用的函数。
 
 use serde::Serialize;
-use tauri::State;
+use tauri::{Manager, State};
+
+/// 星历内核状态：目录/文件清单/可用性（前端设置面板展示）。
+/// 文件名单与 e2m2e kernel_dir_usable 保持一致（任一 .bsp + 任一 .tls）。
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EphemerisStatus {
+    pub kernel_dir: Option<String>,
+    pub files: Vec<String>,
+    pub ephemeris_ready: bool,
+    pub leapsecond_ready: bool,
+    pub usable: bool,
+}
+
+const EPHEMERIS_KERNELS: [&str; 5] = ["de440.bsp", "de440s.bsp", "de435.bsp", "de438.bsp", "de430.bsp"];
+const LEAPSECOND_KERNELS: [&str; 2] = ["naif0011.tls", "naif0012.tls"];
+
+fn build_ephemeris_status(dir: Option<std::path::PathBuf>) -> EphemerisStatus {
+    let Some(dir) = dir else {
+        return EphemerisStatus { kernel_dir: None, files: vec![], ephemeris_ready: false, leapsecond_ready: false, usable: false };
+    };
+    let files: Vec<String> = std::fs::read_dir(&dir)
+        .map(|rd| {
+            rd.filter_map(|e| e.ok())
+                .filter_map(|e| e.file_name().into_string().ok())
+                .filter(|n| !n.starts_with('.'))
+                .collect()
+        })
+        .unwrap_or_default();
+    let ephemeris_ready = EPHEMERIS_KERNELS.iter().any(|k| files.iter().any(|f| f == k));
+    let leapsecond_ready = LEAPSECOND_KERNELS.iter().any(|k| files.iter().any(|f| f == k));
+    EphemerisStatus {
+        kernel_dir: Some(dir.to_string_lossy().into_owned()),
+        usable: ephemeris_ready && leapsecond_ready,
+        files,
+        ephemeris_ready,
+        leapsecond_ready,
+    }
+}
+
+/// 星历配置状态（自动配置：数据随 git/安装包分发，正常情况永远就绪）。
+#[tauri::command]
+pub async fn ephemeris_status(app: tauri::AppHandle) -> Result<EphemerisStatus, String> {
+    let resource_dir = app.path().resource_dir().ok();
+    let dir = if cfg!(debug_assertions) {
+        crate::resolve_kernel_dir(None)
+    } else {
+        crate::resolve_kernel_dir(resource_dir.as_deref())
+    };
+    Ok(build_ephemeris_status(dir))
+}
 
 use crate::project::{ArtifactSummary, ProjectState};
 use crate::state::{request_with_retry, SidecarState};
@@ -189,6 +239,41 @@ pub async fn generate_family(
         members,
         error: None,
     })
+}
+
+/// build_ephemeris_status：任一 .bsp + 任一 .tls 即可用；缺/空目录不可用。
+#[cfg(test)]
+mod ephemeris_tests {
+    use super::*;
+
+    #[test]
+    fn status_detects_complete_kernel_dir() {
+        let dir = std::env::temp_dir().join("tod-eph-test-complete");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("de440s.bsp"), b"x").unwrap();
+        std::fs::write(dir.join("naif0012.tls"), b"x").unwrap();
+        let s = build_ephemeris_status(Some(dir.clone()));
+        assert!(s.ephemeris_ready && s.leapsecond_ready && s.usable);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn status_missing_bsp_is_not_usable() {
+        let dir = std::env::temp_dir().join("tod-eph-test-missing");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("naif0012.tls"), b"x").unwrap();
+        let s = build_ephemeris_status(Some(dir.clone()));
+        assert!(s.leapsecond_ready && !s.ephemeris_ready && !s.usable);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn status_none_dir_is_not_usable() {
+        let s = build_ephemeris_status(None);
+        assert!(!s.usable && s.kernel_dir.is_none() && s.files.is_empty());
+    }
 }
 
 fn unix_seconds_now() -> String {

@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render } from "@testing-library/react";
-import { Line } from "three";
+import { Line, ArrowHelper } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { OrbitCanvas, type CenterMode } from "./OrbitCanvas";
 import { DEFAULT_CHART_SETTINGS } from "./chartSettings";
@@ -40,6 +40,7 @@ vi.mock("three/examples/jsm/controls/OrbitControls.js", () => ({
     static instances: unknown[] = [];
     target = { x: 0, y: 0, z: 0, set(x: number, y: number, z: number) { this.x = x; this.y = y; this.z = z; }, copy(v: { x: number; y: number; z: number }) { this.x = v.x; this.y = v.y; this.z = v.z; return this; } };
     enableDamping = false;
+    rotateSpeed = 1.0;
     autoRotate = false;
     autoRotateSpeed = 0.3;
     constructor() { (this.constructor as unknown as { instances: unknown[] }).instances.push(this); }
@@ -182,20 +183,50 @@ describe("OrbitCanvas 轨迹渲染", () => {
     const annotations = annotationsOf(scene);
     expect(annotations.position.x).toBeCloseTo(0, 10);
 
-    // 地球 mesh（颜色 0x2196f3）应位于 (-mu, 0, 0)
-    const meshes = annotations.children.filter((c) => (c as unknown as { isMesh?: boolean }).isMesh) as unknown as {
-      position: { x: number; y: number; z: number };
-      material: { color: { getHex(): number } };
-    }[];
-    const earth = meshes.find((m) => m.material.color.getHex() === 0x2196f3);
+    // 地球 mesh 应位于 (-mu, 0, 0)，带真实表面贴图与 Phong 光照
+    const earth = annotations.getObjectByName("earth") as import("three").Mesh;
     expect(earth).toBeDefined();
-    expect(earth!.position.x).toBeCloseTo(-MU, 10);
+    expect(earth.position.x).toBeCloseTo(-MU, 10);
+    const material = earth.material as import("three").MeshPhongMaterial;
+    expect(material.map).toBeDefined();
+    expect(material.isMeshPhongMaterial).toBe(true);
+
+    // 月球同样贴图化，半径取真实比例（约地球的 0.27）
+    const moon = annotations.getObjectByName("moon") as import("three").Mesh;
+    expect((moon.material as import("three").MeshPhongMaterial).map).toBeDefined();
+    const rEarth = (earth.geometry as import("three").SphereGeometry).parameters.radius;
+    const rMoon = (moon.geometry as import("three").SphereGeometry).parameters.radius;
+    expect(rMoon / rEarth).toBeCloseTo(1737.4 / 6378.137, 4);
+  });
+
+  it("场景含太阳平行光与环境光（真实贴图需要光照）", () => {
+    renderCanvas();
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const scene = instances[instances.length - 1].lastScene as import("three").Scene;
+    let dir = 0;
+    let amb = 0;
+    scene.traverse((o) => {
+      if ((o as import("three").DirectionalLight).isDirectionalLight) dir++;
+      if ((o as import("three").AmbientLight).isAmbientLight) amb++;
+    });
+    expect(dir).toBeGreaterThanOrEqual(1);
+    expect(amb).toBeGreaterThanOrEqual(1);
+  });
+
+  it("旋转方向与拖拽一致：rotateSpeed 为负（旧 PyQt/matplotlib 抓取场景习惯）", () => {
+    renderCanvas();
+    flushFrames();
+    const list = (OrbitControls as unknown as { instances: { rotateSpeed: number }[] }).instances;
+    expect(list.length).toBeGreaterThan(0);
+    expect(list[list.length - 1].rotateSpeed).toBeLessThan(0);
   });
 });
 
 describe("中心点居中几何", () => {
   // 选定中心后，该天体/平动点的世界坐标应为原点（相机 target 默认 0,0,0）
   const CASES: { name: string; center: CenterMode; bodyLocalX: number }[] = [
+    { name: "地心居中", center: "earth", bodyLocalX: -MU },
     { name: "月心居中", center: "moon", bodyLocalX: 1 - MU },
     { name: "L1 居中", center: "l1", bodyLocalX: LIBRATION[0].x },
     { name: "L2 居中", center: "l2", bodyLocalX: LIBRATION[1].x },
@@ -306,12 +337,13 @@ describe("坐标轴图层", () => {
     const scene = instances[instances.length - 1].lastScene as import("three").Scene;
     const axes = annotationsOf(scene).getObjectByName("axes");
     expect(axes).toBeDefined();
-    // 3 箭头 + 3 轴名 sprite + 1 网格
-    expect(axes!.children.length).toBe(7);
-    const sprites = axes!.children.filter((c) => (c as unknown as { isSprite?: boolean }).isSprite);
-    expect(sprites.length).toBe(3);
+    // 3 轴箭头 + 3 轴名 sprite + 1 网格 + 量程刻度（默认 ±0.5/±1.0 两档 × X/Y 双轴）
+    const arrows = axes!.children.filter((c) => c instanceof ArrowHelper);
+    expect(arrows.length).toBe(3);
     const grid = axes!.children.find((c) => (c as unknown as { isLineSegments?: boolean }).isLineSegments);
     expect(grid).toBeDefined(); // GridHelper 继承 LineSegments
+    const sprites = axes!.children.filter((c) => (c as unknown as { isSprite?: boolean }).isSprite);
+    expect(sprites.length).toBeGreaterThanOrEqual(3 + 4); // 轴名 + 刻度数字
   });
 
   it("axesVisible=false 时不渲染坐标轴", () => {
@@ -330,5 +362,56 @@ describe("坐标轴图层", () => {
     const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
     const scene = instances[instances.length - 1].lastScene as import("three").Scene;
     expect(annotationsOf(scene).getObjectByName("axes")).toBeUndefined();
+  });
+
+  it("背景色 prop 驱动 scene.background（白底可切）", () => {
+    render(
+      <OrbitCanvas
+        trajectories={TRAJECTORIES}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        background="#ffffff"
+        onReady={() => {}}
+      />,
+    );
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const scene = instances[instances.length - 1].lastScene as import("three").Scene;
+    const bg = scene.background as import("three").Color;
+    expect(bg).toBeDefined();
+    expect(bg.getHexString()).toBe("ffffff");
+  });
+
+  it("量程驱动网格尺寸：gridRange=2 时网格边长 4", () => {
+    render(
+      <OrbitCanvas
+        trajectories={TRAJECTORIES}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        settings={{ ...DEFAULT_CHART_SETTINGS, gridRange: 2 }}
+        onReady={() => {}}
+      />,
+    );
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const scene = instances[instances.length - 1].lastScene as import("three").Scene;
+    const axes = annotationsOf(scene).getObjectByName("axes");
+    const grid = axes!.children.find(
+      (c) => (c as unknown as { isLineSegments?: boolean }).isLineSegments,
+    ) as unknown as import("three").LineSegments;
+    const geom = grid.geometry as import("three").BufferGeometry;
+    // GridHelper 顶点覆盖 [-size/2, size/2]；取 x 极值验边长
+    const pos = geom.getAttribute("position");
+    let minX = Infinity;
+    let maxX = -Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      minX = Math.min(minX, pos.getX(i));
+      maxX = Math.max(maxX, pos.getX(i));
+    }
+    expect(maxX - minX).toBeCloseTo(4, 3);
   });
 });

@@ -4,10 +4,13 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ChartSettings } from "./chartSettings";
+import { EARTH_RADIUS_DU, MOON_RADIUS_DU } from "./chartSettings";
+import earthTextureUrl from "./assets/earth_2048.jpg";
+import moonTextureUrl from "./assets/moon_1024.jpg";
 
 export type ProjectionMode = "3d" | "xy" | "xz" | "yz";
 export type FrameMode = "synodic" | "inertial";
-export type CenterMode = "barycenter" | "moon" | "l1" | "l2";
+export type CenterMode = "barycenter" | "earth" | "moon" | "l1" | "l2";
 
 export interface OrbitCanvasProps {
   trajectories: number[][][];
@@ -18,6 +21,8 @@ export interface OrbitCanvasProps {
   projection: ProjectionMode;
   center: CenterMode;
   settings?: ChartSettings;
+  /** 画布背景色（hex）；缺省深色 */
+  background?: string;
   onReady?: (api: CanvasApi) => void;
 }
 
@@ -36,11 +41,13 @@ export function OrbitCanvas({
   projection,
   center,
   settings,
+  background,
   onReady,
 }: OrbitCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<THREE.Group | null>(null);
   const annotationsRef = useRef<THREE.Group | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -60,7 +67,15 @@ export function OrbitCanvas({
     mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x101418);
+    sceneRef.current = scene;
+    // 缺省深色；白底等主题由 background prop 驱动（见下方 effect）
+    scene.background = new THREE.Color(background ?? "#121212");
+
+    // 光照：太阳平行光（晨昏线）+ 环境光（夜面可辨），照亮真实贴图天体
+    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+    const sun = new THREE.DirectionalLight(0xfff3e0, 1.6);
+    sun.position.set(3, 2, 4);
+    scene.add(sun);
 
     const camera = new THREE.PerspectiveCamera(50, mount.clientWidth / mount.clientHeight, 1e-4, 100);
     camera.position.set(1.5, -1.5, 1);
@@ -68,6 +83,10 @@ export function OrbitCanvas({
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
+    // 旋转方向与旧 PyQt 画布（matplotlib mplot3d）一致：拖拽旋转“物体
+    // 本身”，场景跟随光标；OrbitControls 默认是“拖拽移动相机”，往左拖
+    // 场景看起来往右转，体感方向相反。负值只反转旋转，平移/缩放不受影响。
+    controls.rotateSpeed = -1.0;
     controlsRef.current = controls;
 
     const content = new THREE.Group();
@@ -165,7 +184,16 @@ export function OrbitCanvas({
     controls.update();
   }, [projection]);
 
+  // 背景色热切换（跟随主题/手动选择）
+  useEffect(() => {
+    if (sceneRef.current && background) {
+      sceneRef.current.background = new THREE.Color(background);
+    }
+  }, [background]);
+
   const getCenterOffset = (): [number, number, number] => {
+    // 会合系原点是地月质心：地球在 -mu、月球在 1-mu。居中偏移 = -(天体 x)。
+    if (center === "earth") return [mu, 0, 0];
     if (center === "moon") return [-(1 - mu), 0, 0];
     if (center === "l1") {
       const l1 = libration.find((l) => l.label === "L1");
@@ -193,10 +221,22 @@ export function OrbitCanvas({
     content.position.set(ox, oy, oz);
     annotations.position.set(ox, oy, oz);
 
-    const lpColorNum = parseInt((settings?.lpColor ?? "#fdd835").slice(1), 16);
-    const colors = (settings?.colorCycle ?? ["#4fc3f7", "#ffb74d", "#81c784", "#e57373", "#ba68c8"]).map((c) =>
+    const lpColorNum = parseInt((settings?.lpColor ?? "#d4b106").slice(1), 16);
+    const colors = (settings?.colorCycle ?? ["#4c72b0", "#dd8452", "#55a868", "#c44e52", "#8172b3"]).map((c) =>
       parseInt(c.slice(1), 16)
     );
+
+    // 背景亮度决定网格与标注颜色（白底黑线，深底浅线）
+    const isLightBg = (() => {
+      const hex = (background ?? "#121212").slice(1);
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      return (r * 299 + g * 587 + b * 114) / 1000 > 140;
+    })();
+    const labelColor = isLightBg ? "#333333" : "#c9d3dd";
+    const gridMajor = isLightBg ? 0xbdbdbd : 0x33415c;
+    const gridMinor = isLightBg ? 0xe0e0e0 : 0x1d2634;
 
     // 轨道线独占 content 组：视图适配只按可见轨道范围（标注不参与）
     trajectories.forEach((pts, i) => {
@@ -216,8 +256,8 @@ export function OrbitCanvas({
       );
     });
 
-    // 文本标注 sprite（天体名/平动点/轴名共用）
-    const makeLabelSprite = (text: string, color = "#c9d3dd"): THREE.Sprite => {
+    // 文本标注 sprite（天体名/平动点/轴名共用，颜色随背景亮度）
+    const makeLabelSprite = (text: string, color = labelColor): THREE.Sprite => {
       const canvas = document.createElement("canvas");
       canvas.width = 256;
       canvas.height = 64;
@@ -229,6 +269,13 @@ export function OrbitCanvas({
         new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), depthTest: false })
       );
       sprite.scale.set(0.08, 0.02, 1);
+      return sprite;
+    };
+
+    // 刻度数字 sprite（量程标尺，比轴名小一档）
+    const makeTickSprite = (text: string): THREE.Sprite => {
+      const sprite = makeLabelSprite(text, isLightBg ? "#666666" : "#8fa0b3");
+      sprite.scale.set(0.05, 0.0125, 1);
       return sprite;
     };
 
@@ -248,15 +295,43 @@ export function OrbitCanvas({
     };
 
     const s = settings;
-    addSphere(-mu, 0, 0, 0x2196f3, s?.earthSize ?? 0.02, "地球");
-    addSphere(1 - mu, 0, 0, 0x9e9e9e, s?.moonSize ?? 0.01, "月球");
+    // 地月：NASA 公有领域贴图（Blue Marble / LROC）+ Phong 光照，
+    // 半径取真实比例（chartSettings 常量），替代旧卡通纯色球
+    const texLoader = new THREE.TextureLoader();
+    const addTexturedBody = (
+      name: string, label: string, x: number, radius: number, textureUrl: string,
+      specular: number, shininess: number,
+    ) => {
+      const tex = texLoader.load(textureUrl);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      const body = new THREE.Mesh(
+        new THREE.SphereGeometry(radius, 32, 24),
+        new THREE.MeshPhongMaterial({
+          map: tex,
+          specular: new THREE.Color(specular),
+          shininess,
+        }),
+      );
+      body.name = name;
+      body.position.set(x, 0, 0);
+      annotations.add(body);
+
+      const sprite = makeLabelSprite(label);
+      sprite.position.set(x + radius * 2, radius, 0);
+      annotations.add(sprite);
+    };
+    addTexturedBody("earth", "地球", -mu, s?.earthSize ?? EARTH_RADIUS_DU, earthTextureUrl, 0x2a2a2a, 14);
+    addTexturedBody("moon", "月球", 1 - mu, s?.moonSize ?? MOON_RADIUS_DU, moonTextureUrl, 0x111111, 4);
+
     libration.forEach((lp) => addSphere(lp.x, 0, 0, lpColorNum, s?.lpSize ?? 0.003, lp.label));
 
-    // 坐标轴图层（matplotlib 式三轴 + 轨道面网格），随中心偏移，可开关
+    // 坐标轴图层（matplotlib 式三轴 + 轨道面网格 + 量程刻度），随中心偏移，可开关
     if (settings?.axesVisible ?? true) {
       const axes = new THREE.Group();
       axes.name = "axes";
-      const LEN = 0.45;
+      // 量程（DU）：网格半宽，默认 1.3 覆盖地月系；刻度每 0.5 DU
+      const range = settings?.gridRange ?? 1.3;
+      const LEN = Math.max(0.45, range * 0.35);
       const tips: [THREE.Vector3, number, string][] = [
         [new THREE.Vector3(1, 0, 0), 0xe57373, "X"],
         [new THREE.Vector3(0, 1, 0), 0x81c784, "Y"],
@@ -268,13 +343,26 @@ export function OrbitCanvas({
         sprite.position.copy(dir.clone().multiplyScalar(LEN + 0.07));
         axes.add(sprite);
       }
-      // 网格默认在 XZ 面，转到 XY 轨道面；间距 0.1 DU，覆盖地月系范围
-      const grid = new THREE.GridHelper(2.6, 26, 0x33415c, 0x1d2634);
+      // 网格默认在 XZ 面，转到 XY 轨道面；间距 0.1 DU，范围随量程
+      const divisions = Math.max(2, Math.round(range / 0.05));
+      const grid = new THREE.GridHelper(range * 2, divisions, gridMajor, gridMinor);
       grid.rotation.x = Math.PI / 2;
       axes.add(grid);
+
+      // 量程刻度：X/Y 轴每 0.5 DU 一个数字（matplotlib 标尺感）
+      for (let v = 0.5; v <= range + 1e-9; v += 0.5) {
+        for (const pos of [v, -v]) {
+          const tx = makeTickSprite(pos.toFixed(1));
+          tx.position.set(pos, -0.015, 0);
+          axes.add(tx);
+          const ty = makeTickSprite(pos.toFixed(1));
+          ty.position.set(0.015, pos, 0);
+          axes.add(ty);
+        }
+      }
       annotations.add(axes);
     }
-  }, [trajectories, mu, libration, center, settings]);
+  }, [trajectories, mu, libration, center, settings, background]);
 
   // 中心切换：所选中心点已移到世界原点，相机注视点同步移到原点（“居中”
   // 语义），保持注视方向与距离（视图保持）。不能改为按轨道盒重新适配：

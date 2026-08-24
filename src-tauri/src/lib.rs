@@ -9,6 +9,17 @@ use project::ProjectState;
 use state::SidecarState;
 use tauri::{Emitter, Manager};
 
+/// 星历自动配置：内核目录解析（dev=仓库 kernels/，打包=resource kernels/）。
+/// 目录不存在时返回 None（状态命令报缺失，不阻塞启动）。
+pub fn resolve_kernel_dir(resource_dir: Option<&std::path::Path>) -> Option<std::path::PathBuf> {
+    let base = match resource_dir {
+        Some(rd) => rd.to_path_buf(),
+        None => std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent()?.to_path_buf(),
+    };
+    let dir = base.join("kernels");
+    dir.is_dir().then_some(dir)
+}
+
 /// 分发期 sidecar 可执行文件名（resources/binaries/ 下，Windows 带后缀）。
 #[cfg(windows)]
 pub const SIDECAR_EXE: &str = "transfer-orbit-design-sidecar.exe";
@@ -42,13 +53,28 @@ pub fn run() {
         .setup(|app| {
             // 开发期（cargo tauri dev，debug 构建）：仓库根下 uv 拉起；
             // 分发期（release 构建）：resources/binaries 内的打包 sidecar。
+            let resource_dir_handle = app.path().resource_dir().ok();
             let (command, cwd) = if cfg!(debug_assertions) {
                 let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
                 dev_sidecar_command(repo_root)
             } else {
-                let resource_dir = app.path().resource_dir()?;
-                packaged_sidecar_command(&resource_dir)
+                let resource_dir = resource_dir_handle.as_deref().unwrap();
+                packaged_sidecar_command(resource_dir)
             };
+            // 星历自动配置：内核随 git（LFS）与安装包分发，启动时把内核
+            // 目录钉进 SPICE_KERNEL_DIR——e2m2e pip 安装布局下闰秒内核自动
+            // 搜索路径错位（detect_kernel_dir 注释），必须显式指定；子进程
+            // 自动继承。用户显式设置的环境优先，不被覆盖。
+            if std::env::var_os("SPICE_KERNEL_DIR").is_none() {
+                let kernel_dir = if cfg!(debug_assertions) {
+                    resolve_kernel_dir(None)
+                } else {
+                    resolve_kernel_dir(resource_dir_handle.as_deref())
+                };
+                if let Some(dir) = kernel_dir {
+                    std::env::set_var("SPICE_KERNEL_DIR", &dir);
+                }
+            }
             SidecarState::configure(command, cwd);
             // 进度事件 → 前端窗口
             let handle = app.handle().clone();
@@ -65,7 +91,8 @@ pub fn run() {
             cmd::list_artifacts,
             cmd::remove_artifact,
             cmd::get_artifact,
-            cmd::catalog_query
+            cmd::catalog_query,
+            cmd::ephemeris_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
