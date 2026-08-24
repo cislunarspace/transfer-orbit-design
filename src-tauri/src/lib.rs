@@ -37,6 +37,8 @@ pub fn packaged_sidecar_command(resource_dir: &std::path::Path) -> (Vec<String>,
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             // 开发期（cargo tauri dev，debug 构建）：仓库根下 uv 拉起；
             // 分发期（release 构建）：resources/binaries 内的打包 sidecar。
