@@ -78,6 +78,10 @@ export function OrbitCanvas({
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
+    // 旋转方向与旧 PyQt 画布（matplotlib mplot3d）一致：拖拽旋转“物体
+    // 本身”，场景跟随光标；OrbitControls 默认是“拖拽移动相机”，往左拖
+    // 场景看起来往右转，体感方向相反。负值只反转旋转，平移/缩放不受影响。
+    controls.rotateSpeed = -1.0;
     controlsRef.current = controls;
 
     const content = new THREE.Group();

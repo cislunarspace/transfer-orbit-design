@@ -434,18 +434,17 @@ export default function App() {
                 <Radio.Button value="yz">YZ</Radio.Button>
               </Radio.Group>
 
-              <Select
+              <Radio.Group
                 size="small"
                 value={center}
-                style={{ width: 85 }}
-                onChange={setCenter}
-                options={[
-                  { label: "质心居中", value: "barycenter" },
-                  { label: "月心居中", value: "moon" },
-                  { label: "L1 居中", value: "l1" },
-                  { label: "L2 居中", value: "l2" },
-                ]}
-              />
+                onChange={(e) => setCenter(e.target.value)}
+                buttonStyle="solid"
+              >
+                <Radio.Button value="barycenter">质心</Radio.Button>
+                <Radio.Button value="moon">月心</Radio.Button>
+                <Radio.Button value="l1">L1</Radio.Button>
+                <Radio.Button value="l2">L2</Radio.Button>
+              </Radio.Group>
             </Space>
 
             {/* 功能操作按钮组 */}

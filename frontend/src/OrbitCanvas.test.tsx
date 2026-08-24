@@ -40,6 +40,7 @@ vi.mock("three/examples/jsm/controls/OrbitControls.js", () => ({
     static instances: unknown[] = [];
     target = { x: 0, y: 0, z: 0, set(x: number, y: number, z: number) { this.x = x; this.y = y; this.z = z; }, copy(v: { x: number; y: number; z: number }) { this.x = v.x; this.y = v.y; this.z = v.z; return this; } };
     enableDamping = false;
+    rotateSpeed = 1.0;
     autoRotate = false;
     autoRotateSpeed = 0.3;
     constructor() { (this.constructor as unknown as { instances: unknown[] }).instances.push(this); }
@@ -211,6 +212,14 @@ describe("OrbitCanvas 轨迹渲染", () => {
     });
     expect(dir).toBeGreaterThanOrEqual(1);
     expect(amb).toBeGreaterThanOrEqual(1);
+  });
+
+  it("旋转方向与拖拽一致：rotateSpeed 为负（旧 PyQt/matplotlib 抓取场景习惯）", () => {
+    renderCanvas();
+    flushFrames();
+    const list = (OrbitControls as unknown as { instances: { rotateSpeed: number }[] }).instances;
+    expect(list.length).toBeGreaterThan(0);
+    expect(list[list.length - 1].rotateSpeed).toBeLessThan(0);
   });
 });
 
