@@ -1,6 +1,6 @@
 {
   "additionalProperties": false,
-  "description": "参数空间扫描批量生成并入库（编排复用 ADR 0029 的 Rust 族生成）。\n\n扫描网格 = 族 × 平动点 × 主参数维度。主参数维度三选一（同传报错）：\n\n- 一维主参数：HALO/AXIAL/SPO/LPO/HORSESHOE 扫 ``max_amplitudes_km``，\n  NRHO 扫 ``perilune_heights_max_km``；\n- 能量（Jacobi）窗口：``jacobi_windows``，同一（族、平动点）只走\n  一次延拓 trace（族延拓范围取各族默认），各窗口成员分别成记录，\n  记录 jacobi 包络落在窗口内；窗口零成员时该点无记录、结局可查；\n- LISSAJOUS 二维振幅网格：``amplitude_ins_km`` × ``amplitude_outs_km``\n  笛卡尔积逐点采样（相位取请求默认值）；能量窗口不适用于 LISSAJOUS\n  （其族生成是参数采样而非延拓 trace）。\n\n部分参数点失败时已产出的记录保留（ADR 0020 软失败语义）。",
+  "description": "参数空间扫描批量生成并入库（编排复用 ADR 0029 的 Rust 族生成）。\n\n扫描网格 = 族 × 平动点 × 主参数维度。主参数维度三选一（同传报错）：\n\n- 一维主参数：HALO/AXIAL/SPO/LPO/HORSESHOE 扫 ``max_amplitudes_km``，\n  NRHO 扫 ``perilune_heights_max_km``；\n- 能量（Jacobi）窗口：``jacobi_windows``——同一（族、平动点）只走\n  一次延拓 trace（族延拓范围取各族默认），各窗口成员分别成记录，\n  记录 jacobi 包络落在窗口内；窗口零成员时该点无记录、结局可查；\n- LISSAJOUS 二维振幅网格：``amplitude_ins_km`` × ``amplitude_outs_km``\n  笛卡尔积逐点采样（相位取请求默认值）；能量窗口不适用于 LISSAJOUS\n  （其族生成是参数采样而非延拓 trace）。\n\n部分参数点失败时已产出的记录保留（ADR 0020 软失败语义）。",
   "properties": {
     "orbit_types": {
       "description": "族集合：HALO/NRHO/AXIAL/LISSAJOUS/SPO/LPO/HORSESHOE",

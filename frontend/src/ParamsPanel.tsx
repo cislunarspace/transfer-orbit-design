@@ -1,131 +1,319 @@
-// 参数面板：从工具 schema 生成表单（阶段 3，首个工具 orbit_family_generation）。
+// 参数面板：基于 Ant Design 5 与 paramOverlay 打造的高密度科学计算参数表单
 
-import { useMemo, useState } from "react";
-import { type SchemaProperty, type ToolSchema, applicableFields, ORBIT_TYPES } from "./schema";
+import { useMemo, useState, useEffect } from "react";
+import {
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  Checkbox,
+  Tooltip,
+  DatePicker,
+  Space,
+  Typography,
+} from "antd";
+import { InfoCircleOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
+import { type SchemaProperty, type ToolSchema } from "./schema";
+import {
+  UNIT_DEFINITIONS,
+  toStandardValue,
+  fromStandardValue,
+  getBranchDefaults,
+  ENUM_OPTIONS,
+  FIELD_TOOLTIPS,
+  formatRangePrompt,
+  getFieldApplicability,
+} from "./paramOverlay";
 
-interface FieldProps {
-  name: string;
-  prop: SchemaProperty;
-  value: unknown;
-  onChange: (v: unknown) => void;
+const { Text } = Typography;
+
+interface ParamsPanelProps {
+  toolName: string;
+  schema: ToolSchema;
+  values: Record<string, unknown>;
+  onChange: (vals: Record<string, unknown>) => void;
 }
 
-/** 单字段控件：Optional 勾选 + 类型化输入（对齐 PyQt 版映射约定）。 */
-function Field({ name, prop, value, onChange }: FieldProps) {
-  const isOptional = prop.anyOf?.some((v) => v.type === "null") ?? false;
-  const [enabled, setEnabled] = useState(!isOptional || value !== null);
-  const inner: SchemaProperty = isOptional
-    ? prop.anyOf!.find((v) => v.type !== "null")!
-    : prop;
-  const hasEnum = inner.enum !== undefined;
+export function ParamsPanel({ toolName, schema, values, onChange }: ParamsPanelProps) {
+  // 当前轨道类型
+  const orbitType = (values["orbit_type"] as string) || "HALO";
 
-  const control = (() => {
-    if (hasEnum) {
-      return (
-        <select value={String(value ?? inner.enum![0])} onChange={(e) => onChange(e.target.value)}>
-          {inner.enum!.map((v) => (
-            <option key={String(v)} value={String(v)}>{String(v)}</option>
-          ))}
-        </select>
-      );
+  // 记录每个字段当前选中的显示单位
+  const [selectedUnits, setSelectedUnits] = useState<Record<string, string>>({});
+
+  // 获取适用字段列表
+  const activeFields = useMemo(() => {
+    if (toolName === "orbit_stability") {
+      return ["orbit_record_id", "dynamics_model"];
     }
-    if (inner.type === "number" || inner.type === "integer") {
+    const applicability = getFieldApplicability(toolName, orbitType);
+    if (applicability.length > 0) {
+      return applicability.filter((f) => schema.properties[f]);
+    }
+    return Object.keys(schema.properties);
+  }, [toolName, schema, orbitType]);
+
+  // 当 toolName 或 orbit_type 改变时，填入分支默认值
+  useEffect(() => {
+    const branchDefs = getBranchDefaults(toolName, orbitType);
+    if (Object.keys(branchDefs).length > 0) {
+      const next: Record<string, unknown> = { ...values, orbit_type: orbitType };
+      let changed = false;
+      for (const [k, defVal] of Object.entries(branchDefs)) {
+        if (next[k] === undefined || next[k] === null) {
+          next[k] = defVal;
+          changed = true;
+        }
+      }
+      if (changed) {
+        onChange(next);
+      }
+    }
+  }, [toolName, orbitType]);
+
+  // 处理单个字段值变更
+  const handleFieldChange = (fieldName: string, displayVal: unknown, currentUnit?: string) => {
+    const next = { ...values };
+    if (displayVal === undefined || displayVal === null || displayVal === "") {
+      delete next[fieldName];
+    } else if (typeof displayVal === "number" && currentUnit) {
+      next[fieldName] = toStandardValue(fieldName, displayVal, currentUnit);
+    } else {
+      next[fieldName] = displayVal;
+    }
+
+    // 切 orbit_type 时联动
+    if (fieldName === "orbit_type" && typeof displayVal === "string") {
+      const newBranch = getBranchDefaults(toolName, displayVal);
+      const allowed = getFieldApplicability(toolName, displayVal);
+      const pruned: any = { orbit_type: displayVal };
+      for (const f of allowed) {
+        const val = next[f];
+        if (val !== undefined && f !== "orbit_type") {
+          pruned[f] = val;
+        }
+      }
+      for (const [k, defVal] of Object.entries(newBranch)) {
+        if (pruned[k] === undefined) {
+          pruned[k] = defVal;
+        }
+      }
+      onChange(pruned);
+      return;
+    }
+
+    onChange(next);
+  };
+
+  const renderFieldControl = (fieldName: string, prop: SchemaProperty) => {
+    const isOptional = prop.anyOf?.some((v) => v.type === "null") ?? false;
+    const inner: SchemaProperty = isOptional
+      ? prop.anyOf!.find((v) => v.type !== "null") || prop
+      : prop;
+
+    const rawStandardVal = values[fieldName];
+    const availableUnits = UNIT_DEFINITIONS[fieldName];
+    const currentUnit = selectedUnits[fieldName] || (availableUnits ? availableUnits[0].label : undefined);
+
+    const displayVal = typeof rawStandardVal === "number" && currentUnit
+      ? fromStandardValue(fieldName, rawStandardVal, currentUnit)
+      : rawStandardVal;
+
+    if (ENUM_OPTIONS[fieldName]) {
       return (
-        <input
-          type="number"
-          value={value === null || value === undefined ? "" : Number(value)}
-          min={inner.minimum}
-          max={inner.maximum}
-          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        <Select
+          size="small"
+          style={{ width: "100%" }}
+          value={rawStandardVal as string | number}
+          options={ENUM_OPTIONS[fieldName]}
+          onChange={(v) => handleFieldChange(fieldName, v)}
         />
       );
     }
-    const isArray = inner.type === "array" || inner.type === "object" || !inner.type;
+
+    if (inner.enum) {
+      return (
+        <Select
+          size="small"
+          style={{ width: "100%" }}
+          value={rawStandardVal as string | number}
+          options={inner.enum.map((e) => ({ label: String(e), value: e }))}
+          onChange={(v) => handleFieldChange(fieldName, v)}
+        />
+      );
+    }
+
+    if (inner.type === "number" || inner.type === "integer") {
+      const unitAddon = availableUnits ? (
+        <Select
+          size="small"
+          value={currentUnit}
+          style={{ width: 75 }}
+          options={availableUnits.map((u) => ({ label: u.label, value: u.label }))}
+          onChange={(newUnit) => {
+            setSelectedUnits((prev) => ({ ...prev, [fieldName]: newUnit }));
+          }}
+        />
+      ) : undefined;
+
+      const minVal = inner.minimum !== undefined && currentUnit
+        ? fromStandardValue(fieldName, inner.minimum, currentUnit)
+        : inner.minimum;
+      const maxVal = inner.maximum !== undefined && currentUnit
+        ? fromStandardValue(fieldName, inner.maximum, currentUnit)
+        : inner.maximum;
+
+      const unitConfig = availableUnits?.find((u) => u.label === currentUnit);
+      const step = unitConfig ? unitConfig.step : (inner.type === "integer" ? 1 : 0.1);
+      const precision = unitConfig ? unitConfig.decimals : (inner.type === "integer" ? 0 : 4);
+
+      return (
+        <InputNumber
+          size="small"
+          style={{ width: "100%" }}
+          value={typeof displayVal === "number" ? displayVal : null}
+          min={minVal}
+          max={maxVal}
+          step={step}
+          precision={precision}
+          addonAfter={unitAddon}
+          placeholder={formatRangePrompt(minVal, maxVal, currentUnit || "")}
+          onChange={(val) => handleFieldChange(fieldName, val, currentUnit)}
+        />
+      );
+    }
+
+    if (inner.type === "boolean") {
+      return (
+        <Checkbox
+          checked={Boolean(rawStandardVal)}
+          onChange={(e) => handleFieldChange(fieldName, e.target.checked)}
+        >
+          {inner.title || fieldName}
+        </Checkbox>
+      );
+    }
+
+    if (fieldName.includes("epoch")) {
+      const dateVal = Array.isArray(rawStandardVal)
+        ? dayjs(new Date(rawStandardVal[0], rawStandardVal[1] - 1, rawStandardVal[2], rawStandardVal[3] || 0, rawStandardVal[4] || 0, rawStandardVal[5] || 0))
+        : typeof rawStandardVal === "string"
+        ? dayjs(rawStandardVal)
+        : null;
+
+      return (
+        <DatePicker
+          showTime
+          size="small"
+          style={{ width: "100%" }}
+          value={dateVal}
+          onChange={(d) => {
+            if (!d) {
+              handleFieldChange(fieldName, undefined);
+            } else {
+              handleFieldChange(fieldName, [
+                d.year(),
+                d.month() + 1,
+                d.date(),
+                d.hour(),
+                d.minute(),
+                d.second(),
+              ]);
+            }
+          }}
+        />
+      );
+    }
+
+    const isJson = inner.type === "array" || inner.type === "object" || !inner.type;
+    const stringVal = rawStandardVal === undefined || rawStandardVal === null
+      ? ""
+      : isJson
+      ? (typeof rawStandardVal === "string" ? rawStandardVal : JSON.stringify(rawStandardVal))
+      : String(rawStandardVal);
+
     return (
-      <input
-        type="text"
-        value={value === null || value === undefined ? "" : isArray ? JSON.stringify(value) : String(value)}
-        placeholder={isArray ? "JSON" : undefined}
+      <Input
+        size="small"
+        value={stringVal}
+        placeholder={isJson ? "JSON (留空表示默认)" : undefined}
         onChange={(e) => {
-          if (!isArray) return onChange(e.target.value);
-          try { onChange(JSON.parse(e.target.value)); } catch { onChange(e.target.value); }
+          const text = e.target.value;
+          if (!text) {
+            handleFieldChange(fieldName, undefined);
+            return;
+          }
+          if (isJson) {
+            try {
+              handleFieldChange(fieldName, JSON.parse(text));
+            } catch {
+              handleFieldChange(fieldName, text);
+            }
+          } else {
+            handleFieldChange(fieldName, text);
+          }
         }}
       />
     );
-  })();
+  };
 
-  return (
-    <label style={{ display: "block", marginBottom: 6, fontSize: 12 }}>
-      {isOptional && (
-        <input
-          type="checkbox"
-          checked={enabled}
-          style={{ marginRight: 6 }}
-          onChange={(e) => {
-            setEnabled(e.target.checked);
-            onChange(e.target.checked ? (inner.default ?? null) : null);
-          }}
-        />
-      )}
-      <span style={{ display: "inline-block", minWidth: 140 }}>{name}</span>
-      {enabled ? control : <span style={{ color: "#666" }}>（未设置）</span>}
-      {prop.description && (
-        <div style={{ color: "#888", fontSize: 11, marginLeft: isOptional ? 22 : 0 }}>
-          {prop.description.split("\n")[0]}
-        </div>
-      )}
-    </label>
-  );
-}
-
-export interface ParamsPanelProps {
-  schema: ToolSchema;
-  params: Record<string, unknown>;
-  onParamsChange: (p: Record<string, unknown>) => void;
-}
-
-/** orbit_type 切换时裁剪字段（不适用的字段剔除，与 e2m2e 校验规则一致）。 */
-export function ParamsPanel({ schema, params, onParamsChange }: ParamsPanelProps) {
-  const isFamily = Boolean(schema.properties.orbit_type);
-  const orbitType = String(params.orbit_type ?? "HALO");
-  const fields = useMemo(() => applicableFields(schema, orbitType), [schema, orbitType]);
-
-  return (
-    <div>
-      {isFamily && <>
-      {/* orbit_type 单独渲染为下拉（驱动字段裁剪） */}
-      <label style={{ display: "block", marginBottom: 8, fontSize: 12 }}>
-        <span style={{ display: "inline-block", minWidth: 140 }}>orbit_type</span>
-        <select
-          value={orbitType}
-          onChange={(e) => {
-            const next: Record<string, unknown> = { orbit_type: e.target.value };
-            // 只保留新类型下仍适用的字段
-            for (const f of applicableFields(schema, e.target.value)) {
-              if (f !== "orbit_type" && params[f] !== undefined && params[f] !== null) {
-                next[f] = params[f];
-              }
-            }
-            onParamsChange(next);
-          }}
+  if (toolName === "orbit_stability") {
+    return (
+      <Form layout="vertical" size="small" style={{ marginTop: 8 }}>
+        <Form.Item
+          label={
+            <Space orientation="horizontal" size={4}>
+              <Text strong style={{ fontSize: 12 }}>目标轨道 (Orbit Record ID)</Text>
+              <Tooltip title="输入或从左侧项目树选中的轨道 Record ID 或 JSON 工件">
+                <InfoCircleOutlined style={{ color: "#1890ff", fontSize: 11 }} />
+              </Tooltip>
+            </Space>
+          }
         >
-          {ORBIT_TYPES.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
-        </select>
-      </label>
-      </>}
-      {fields
-        .filter((f) => f !== "orbit_type")
-        .map((f) => (
-          <Field
-            key={f}
-            name={f}
-            prop={schema.properties[f]}
-            value={params[f] ?? null}
-            onChange={(v) => onParamsChange({ ...params, [f]: v })}
+          <Input
+            size="small"
+            placeholder="从项目树选中轨道自动填入，或手动填入 record_id"
+            value={values["orbit"] as string || ""}
+            onChange={(e) => handleFieldChange("orbit", e.target.value)}
           />
-        ))}
-    </div>
+        </Form.Item>
+      </Form>
+    );
+  }
+
+  return (
+    <Form layout="vertical" size="small" style={{ marginTop: 8 }}>
+      {activeFields.map((f) => {
+        const prop = schema.properties[f];
+        if (!prop) return null;
+
+        const isRequired = schema.required?.includes(f);
+        const tooltipText = FIELD_TOOLTIPS[f] || prop.description;
+        const labelTitle = prop.title || f;
+
+        return (
+          <Form.Item
+            key={f}
+            style={{ marginBottom: 8 }}
+            label={
+              <Space orientation="horizontal" size={4}>
+                <Text style={{ fontSize: 12, fontWeight: isRequired ? 600 : 400 }}>
+                  {labelTitle}
+                  {isRequired && <span style={{ color: "#ff4d4f", marginLeft: 2 }}>*</span>}
+                </Text>
+                {tooltipText && (
+                  <Tooltip title={tooltipText} placement="right">
+                    <InfoCircleOutlined style={{ color: "#8c8c8c", fontSize: 11, cursor: "help" }} />
+                  </Tooltip>
+                )}
+              </Space>
+            }
+          >
+            {renderFieldControl(f, prop)}
+          </Form.Item>
+        );
+      })}
+    </Form>
   );
 }

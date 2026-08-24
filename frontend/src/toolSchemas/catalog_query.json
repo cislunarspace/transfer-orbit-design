@@ -44,7 +44,7 @@
         }
       ],
       "default": null,
-      "description": "平动点编号 1-5",
+      "description": "平动点编号 1–5",
       "title": "Libration Point"
     },
     "jacobi_min": {

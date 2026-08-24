@@ -1,81 +1,164 @@
-// 项目树：按 artifact_type 分组（分组标签对齐 PyQt 版 _TYPE_GROUP_LABELS）。
+// 项目树组件：基于 Ant Design Tree 与 Dropdown 实现右键菜单、多选、删除确认与稳定性分析
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { Tree, Dropdown, Modal, Typography, message } from "antd";
+import type { MenuProps } from "antd";
+import {
+  RocketOutlined,
+  LineChartOutlined,
+  DeleteOutlined,
+} from "@ant-design/icons";
 import type { ArtifactSummary } from "./projectApi";
+import { catalogDelete, computeStability } from "./catalogApi";
 
-const GROUP_LABELS: Record<string, string> = {
-  orbit: "🪐 轨道",
-  family: "🌀 轨道族",
-  transfer: "🚀 转移",
-  ephemeris: "📡 星历",
+const { Text } = Typography;
+
+const GROUP_LABELS: Record<string, { label: string; icon: string }> = {
+  orbit: { label: "轨道", icon: "🪐" },
+  family: { label: "轨道族", icon: "🌀" },
+  transfer: { label: "转移", icon: "🚀" },
+  ephemeris: { label: "星历", icon: "📡" },
 };
 
 export interface ProjectTreeProps {
   artifacts: ArtifactSummary[];
+  selectedId: string | null;
   onSelect: (a: ArtifactSummary | null) => void;
   onRemove: (artifactId: string) => void;
+  onOpenStationKeeping?: (a: ArtifactSummary) => void;
+  onRefresh?: () => void;
 }
 
-export function ProjectTree({ artifacts, onSelect, onRemove }: ProjectTreeProps) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(Object.keys(GROUP_LABELS)));
+export function ProjectTree({
+  artifacts,
+  selectedId,
+  onSelect,
+  onRemove,
+  onOpenStationKeeping,
+  onRefresh,
+}: ProjectTreeProps) {
+  const [stabilityResult, setStabilityResult] = useState<Record<string, unknown> | null>(null);
+  const [stabilityModalOpen, setStabilityModalOpen] = useState(false);
 
-  useEffect(() => {
-    // 新类型出现时默认展开
-    const types = new Set(artifacts.map((a) => a.artifactType));
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      for (const t of types) if (!prev.has(t)) next.add(t);
-      return next;
-    });
-  }, [artifacts]);
+  const treeData = Object.entries(GROUP_LABELS).map(([typeKey, { label, icon }]) => {
+    const items = artifacts.filter((a) => a.artifactType === typeKey);
+    return {
+      title: `${icon} ${label} (${items.length})`,
+      key: `group_${typeKey}`,
+      selectable: false,
+      children: items.map((item) => ({
+        title: item.label,
+        key: item.artifactId,
+        isLeaf: true,
+        data: item,
+      })),
+    };
+  });
 
-  const grouped = Object.entries(GROUP_LABELS).map(([type, label]) => ({
-    type,
-    label,
-    items: artifacts.filter((a) => a.artifactType === type),
-  }));
+  const handleRightClick = (item: ArtifactSummary): MenuProps["items"] => {
+    const isOrbitOrFamily = item.artifactType === "orbit" || item.artifactType === "family";
+    const hasEphemeris = item.artifactType === "ephemeris" || (item as any).hasEphemeris;
+
+    return [
+      {
+        key: "station_keeping",
+        icon: <RocketOutlined />,
+        label: "轨道保持...",
+        disabled: !hasEphemeris,
+        onClick: () => onOpenStationKeeping?.(item),
+      },
+      {
+        key: "stability",
+        icon: <LineChartOutlined />,
+        label: "查看轨道稳定性",
+        disabled: !isOrbitOrFamily,
+        onClick: async () => {
+          try {
+            const data = await computeStability(item.recordId || item.artifactId);
+            setStabilityResult(data);
+            setStabilityModalOpen(true);
+          } catch (e) {
+            message.error(`计算稳定性失败: ${String(e)}`);
+          }
+        },
+      },
+      {
+        type: "divider",
+      },
+      {
+        key: "delete",
+        icon: <DeleteOutlined />,
+        danger: true,
+        label: "永久删除 (物理删除文件)",
+        onClick: () => {
+          Modal.confirm({
+            title: "确认物理删除",
+            content: `确定要从磁盘永久删除轨道记录 ${item.label} (ID: ${item.recordId || item.artifactId}) 吗？此操作不可恢复。`,
+            okText: "删除",
+            okType: "danger",
+            cancelText: "取消",
+            onOk: async () => {
+              try {
+                if (item.recordId) {
+                  await catalogDelete([item.recordId]);
+                }
+                onRemove(item.artifactId);
+                message.success("删除成功");
+                onRefresh?.();
+              } catch (e) {
+                message.error(`删除失败: ${String(e)}`);
+              }
+            },
+          });
+        },
+      },
+    ];
+  };
 
   return (
-    <div style={{ fontSize: 13 }}>
-      {grouped.map(({ type, label, items }) => (
-        <div key={type}>
-          <div
-            style={{ cursor: "pointer", padding: "4px 0", userSelect: "none" }}
-            onClick={() =>
-              setExpanded((prev) => {
-                const next = new Set(prev);
-                if (next.has(type)) next.delete(type);
-                else next.add(type);
-                return next;
-              })
-            }
-          >
-            {expanded.has(type) ? "▾" : "▸"} {label}（{items.length}）
-          </div>
-          {expanded.has(type) &&
-            items.map((a) => (
-              <div
-                key={a.artifactId}
-                style={{ display: "flex", alignItems: "center", padding: "2px 0 2px 20px" }}
-              >
-                <span
-                  style={{ flex: 1, cursor: "pointer", overflow: "hidden", textOverflow: "ellipsis" }}
-                  title={`${a.label} · ${a.recordId ?? ""}`}
-                  onClick={() => onSelect(a)}
-                >
-                  {a.label}
-                </span>
-                <button
-                  style={{ border: "none", background: "none", color: "#e57373", cursor: "pointer" }}
-                  title="移除"
-                  onClick={() => onRemove(a.artifactId)}
-                >
-                  ×
-                </button>
+    <div style={{ fontSize: 12 }}>
+      <Tree
+        showIcon={false}
+        defaultExpandAll
+        selectedKeys={selectedId ? [selectedId] : []}
+        treeData={treeData}
+        onSelect={(keys, info: any) => {
+          if (keys.length > 0 && info.node?.data) {
+            onSelect(info.node.data as ArtifactSummary);
+          } else {
+            onSelect(null);
+          }
+        }}
+        titleRender={(node: any) => {
+          if (!node.data) {
+            return <Text strong style={{ fontSize: 12 }}>{node.title}</Text>;
+          }
+          const item = node.data as ArtifactSummary;
+          return (
+            <Dropdown menu={{ items: handleRightClick(item) }} trigger={["contextMenu"]}>
+              <div style={{ display: "inline-block", width: "100%" }}>
+                <span title={item.label}>{item.label}</span>
               </div>
-            ))}
-        </div>
-      ))}
+            </Dropdown>
+          );
+        }}
+      />
+
+      <Modal
+        title="轨道稳定性分析结果"
+        open={stabilityModalOpen}
+        footer={null}
+        onCancel={() => setStabilityModalOpen(false)}
+        width={600}
+      >
+        {stabilityResult ? (
+          <pre style={{ maxHeight: 400, overflow: "auto", fontSize: 12, background: "#1f1f1f", padding: 12, borderRadius: 4 }}>
+            {JSON.stringify(stabilityResult, null, 2)}
+          </pre>
+        ) : (
+          <Text>正在加载稳定性数据...</Text>
+        )}
+      </Modal>
     </div>
   );
 }
