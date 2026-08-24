@@ -38,7 +38,7 @@ import { useTranslation } from "./i18n";
 import { useChartSettings } from "./chartSettings";
 import { CanvasRecorder, downloadBlob } from "./canvasRecorder";
 import { listArtifacts, removeArtifact, type ArtifactSummary } from "./projectApi";
-import { runTool, getArtifact } from "./sidecarApi";
+import { runTool, getArtifact, ephemerisStatus, type EphemerisStatus } from "./sidecarApi";
 import { librationPoint } from "./cr3bp";
 import { familyMembersToTrajectories, framesToTrajectories } from "./trajectoryParsing";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
@@ -49,7 +49,8 @@ const EARTH_MOON_MU = 0.01215058560962404;
 export default function App() {
   const { lang, setLang } = useTranslation();
   const [themeMode, setThemeMode] = useState<"dark" | "light">(() => {
-    return (localStorage.getItem("tod-theme-mode") as "dark" | "light") || "dark";
+    // 默认白底黑字（日间）；夜间模式经右上角按钮切换并持久化
+    return (localStorage.getItem("tod-theme-mode") as "dark" | "light") || "light";
   });
   const [fontSize, setFontSize] = useState<number>(() => {
     return Number(localStorage.getItem("tod-font-size") || "12");
@@ -82,6 +83,13 @@ export default function App() {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [recording, setRecording] = useState(false);
   const [progressMsg, setProgressMsg] = useState<string>("");
+  const [ephStatus, setEphStatus] = useState<EphemerisStatus | null>(null);
+
+  // 启动时查一次星历配置状态（设置面板展示；数据随 git/安装包分发，
+  // 正常情况永远就绪，缺失多为安装损坏或 kernels/ 被删）
+  useEffect(() => {
+    ephemerisStatus().then(setEphStatus).catch(() => setEphStatus(null));
+  }, []);
 
   // 主题与字号持久化
   const handleToggleTheme = () => {
@@ -441,6 +449,7 @@ export default function App() {
                 buttonStyle="solid"
               >
                 <Radio.Button value="barycenter">质心</Radio.Button>
+                <Radio.Button value="earth">地心</Radio.Button>
                 <Radio.Button value="moon">月心</Radio.Button>
                 <Radio.Button value="l1">L1</Radio.Button>
                 <Radio.Button value="l2">L2</Radio.Button>
@@ -551,6 +560,45 @@ export default function App() {
                 checked={chart.axesVisible}
                 onChange={(v) => setChart({ ...chart, axesVisible: v })}
               />
+            </Form.Item>
+            <Form.Item label="画布背景">
+              <Select
+                size="small"
+                value={chart.bgColor ?? "theme"}
+                style={{ width: 140 }}
+                onChange={(v) => setChart({ ...chart, bgColor: v === "theme" ? null : v })}
+                options={[
+                  { label: "跟随界面主题", value: "theme" },
+                  { label: "白色", value: "#ffffff" },
+                  { label: "深灰", value: "#121212" },
+                  { label: "黑色", value: "#000000" },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item label="量程 (DU，网格半宽)">
+              <Slider
+                min={0.5}
+                max={3.0}
+                step={0.1}
+                value={chart.gridRange}
+                onChange={(v) => setChart({ ...chart, gridRange: v })}
+                marks={{ 0.5: "0.5", 1.3: "1.3", 3: "3" }}
+              />
+            </Form.Item>
+            <Form.Item label="星历内核（自动配置，随安装分发）">
+              {ephStatus === null ? (
+                <Text type="secondary" style={{ fontSize: 12 }}>检测中...</Text>
+              ) : ephStatus.usable ? (
+                <Text type="success" style={{ fontSize: 12 }}>
+                  就绪（{ephStatus.files.filter((f) => f.endsWith(".bsp")).join("、")}）
+                </Text>
+              ) : (
+                <Text type="danger" style={{ fontSize: 12 }}>
+                  缺失：{!ephStatus.ephemerisReady && "行星历 .bsp "}
+                  {!ephStatus.leapsecondReady && "闰秒 .tls "}
+                  请重装或恢复 kernels/ 目录
+                </Text>
+              )}
             </Form.Item>
           </Form>
         </Modal>
