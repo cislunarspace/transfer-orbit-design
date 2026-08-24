@@ -15,5 +15,5 @@ fn main() {
         }
     }
 
-    transfer_orbit_design::run();
+    transfer_orbit_design_lib::run();
 }

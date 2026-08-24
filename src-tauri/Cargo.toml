@@ -5,7 +5,7 @@ edition = "2021"
 description = "transfer-orbit-design Tauri 桌面应用（Rust 壳 + React 前端 + e2m2e sidecar）"
 
 [lib]
-name = "transfer_orbit_design"
+name = "transfer_orbit_design_lib"
 crate-type = ["staticlib", "cdylib", "lib"]
 
 [[bin]]

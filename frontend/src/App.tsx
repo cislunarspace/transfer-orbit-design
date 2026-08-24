@@ -12,6 +12,7 @@ import {
   Modal,
   Form,
   Slider,
+  Switch,
   message,
 } from "antd";
 import {
@@ -542,6 +543,13 @@ export default function App() {
                 step={0.05}
                 value={chart.zRatio}
                 onChange={(v) => setChart({ ...chart, zRatio: v })}
+              />
+            </Form.Item>
+            <Form.Item label="坐标轴与网格">
+              <Switch
+                size="small"
+                checked={chart.axesVisible}
+                onChange={(v) => setChart({ ...chart, axesVisible: v })}
               />
             </Form.Item>
           </Form>
