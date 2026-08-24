@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller spec for tod sidecar（e2m2e serve-stdio，ADR 0035）。
+"""PyInstaller spec for transfer-orbit-design sidecar（e2m2e serve-stdio，ADR 0035）。
 
 onefile + windowed：单文件便于 tauri resources（binaries/* 通配）随安装器
 分发；windowed 避免 Windows 上被 GUI 拉起时闪控制台窗口，协议走
@@ -10,8 +10,8 @@ stdin/stdout 管道不受影响。
 小内核，cwd 由 Tauri 壳指向 resource 根（e2m2e Config 按 cwd 相对解析），
 .bsp 星历内核沿用 scripts/download_kernels.py 按需获取。
 
-构建：uv run pyinstaller packaging/tod_sidecar.spec --noconfirm
-产物：dist/tod-sidecar(.exe)，随后复制到 src-tauri/binaries/ 供 tauri 打包。
+构建：uv run pyinstaller packaging/transfer_orbit_design_sidecar.spec --noconfirm
+产物：dist/transfer-orbit-design-sidecar(.exe)，随后复制到 src-tauri/binaries/ 供 tauri 打包。
 """
 
 from pathlib import Path
@@ -54,7 +54,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="tod-sidecar",
+    name="transfer-orbit-design-sidecar",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

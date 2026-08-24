@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tod",
+  "productName": "transfer-orbit-design",
   "version": "4.1.2",
-  "identifier": "com.tod.prototype",
+  "identifier": "com.cislunarspace.transfer-orbit-design",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://127.0.0.1:1430",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "tod",
+        "title": "transfer-orbit-design",
         "label": "main",
         "width": 1280,
         "height": 800,

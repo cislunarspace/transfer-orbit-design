@@ -1,4 +1,4 @@
-//! tod Tauri 应用：sidecar 状态 + 命令注册。
+//! transfer-orbit-design Tauri 应用：sidecar 状态 + 命令注册。
 
 pub mod cmd;
 pub mod project;
@@ -11,9 +11,9 @@ use tauri::{Emitter, Manager};
 
 /// 分发期 sidecar 可执行文件名（resources/binaries/ 下，Windows 带后缀）。
 #[cfg(windows)]
-pub const SIDECAR_EXE: &str = "tod-sidecar.exe";
+pub const SIDECAR_EXE: &str = "transfer-orbit-design-sidecar.exe";
 #[cfg(not(windows))]
-pub const SIDECAR_EXE: &str = "tod-sidecar";
+pub const SIDECAR_EXE: &str = "transfer-orbit-design-sidecar";
 
 /// 开发期拉起配置：仓库根下 uv 拉起 e2m2e CLI（serve-stdio）。
 pub fn dev_sidecar_command(repo_root: &std::path::Path) -> (Vec<String>, Option<String>) {
@@ -77,11 +77,11 @@ mod tests {
 
     #[test]
     fn packaged_command_points_at_resource_binaries_with_resource_cwd() {
-        let root = std::path::Path::new("/opt/tod");
+        let root = std::path::Path::new("/opt/transfer-orbit-design");
         let (cmd, cwd) = packaged_sidecar_command(root);
         let expected = root.join("binaries").join(SIDECAR_EXE);
         assert_eq!(cmd, vec![expected.to_string_lossy().into_owned()]);
-        assert_eq!(cwd.as_deref(), Some("/opt/tod"));
+        assert_eq!(cwd.as_deref(), Some("/opt/transfer-orbit-design"));
     }
 
     #[test]

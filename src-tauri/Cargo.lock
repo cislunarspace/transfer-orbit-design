@@ -3739,20 +3739,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
-name = "tod-tauri"
-version = "4.1.2"
-dependencies = [
- "anyhow",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-process",
- "tauri-plugin-updater",
- "tokio",
-]
-
-[[package]]
 name = "tokio"
 version = "1.53.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3984,6 +3970,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "db97caf9d906fbde555dd62fa95ddba9eecfd14cb388e4f491a66d74cd5fb79a"
 dependencies = [
  "once_cell",
+]
+
+[[package]]
+name = "transfer-orbit-design"
+version = "4.1.2"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-process",
+ "tauri-plugin-updater",
+ "tokio",
 ]
 
 [[package]]

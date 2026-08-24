@@ -73,12 +73,12 @@ jobs:
       - run: npm --prefix frontend run build
       - run: uv sync --group build --frozen
       - name: Build sidecar (PyInstaller onefile)
-        run: uv run --no-sync pyinstaller packaging/tod_sidecar.spec --noconfirm
+        run: uv run --no-sync pyinstaller packaging/transfer_orbit_design_sidecar.spec --noconfirm
       - name: Stage sidecar into tauri resources
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path src-tauri/binaries
-          Copy-Item dist/tod-sidecar.exe src-tauri/binaries/tod-sidecar.exe
+          Copy-Item dist/transfer-orbit-design-sidecar.exe src-tauri/binaries/transfer-orbit-design-sidecar.exe
       - name: Build NSIS installer
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -155,12 +155,12 @@ jobs:
       - run: npm --prefix frontend run build
       - run: uv sync --group build --frozen
       - name: Build sidecar (PyInstaller onefile)
-        run: uv run --no-sync pyinstaller packaging/tod_sidecar.spec --noconfirm
+        run: uv run --no-sync pyinstaller packaging/transfer_orbit_design_sidecar.spec --noconfirm
       - name: Stage sidecar into tauri resources
         run: |
           mkdir -p src-tauri/binaries
-          cp dist/tod-sidecar src-tauri/binaries/tod-sidecar
-          chmod +x src-tauri/binaries/tod-sidecar
+          cp dist/transfer-orbit-design-sidecar src-tauri/binaries/transfer-orbit-design-sidecar
+          chmod +x src-tauri/binaries/transfer-orbit-design-sidecar
       - name: Build AppImage and DEB bundle
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}

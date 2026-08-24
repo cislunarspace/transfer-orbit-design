@@ -1,15 +1,15 @@
 [package]
-name = "tod-tauri"
+name = "transfer-orbit-design"
 version = "4.1.2"
 edition = "2021"
 description = "transfer-orbit-design Tauri 桌面应用（Rust 壳 + React 前端 + e2m2e sidecar）"
 
 [lib]
-name = "tod_tauri"
+name = "transfer_orbit_design"
 crate-type = ["staticlib", "cdylib", "lib"]
 
 [[bin]]
-name = "tod"
+name = "transfer-orbit-design"
 path = "src/main.rs"
 
 [build-dependencies]

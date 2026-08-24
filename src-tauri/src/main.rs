@@ -15,5 +15,5 @@ fn main() {
         }
     }
 
-    tod_tauri::run();
+    transfer_orbit_design::run();
 }
