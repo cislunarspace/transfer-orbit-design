@@ -2,9 +2,11 @@
 
 ## 未发布
 
+## 4.1.1 (2026-08-24)
+
 ### 打包与分发
 
-- **Linux 直接运行版本与安装包（ADR 0017）**：新增 Linux 平台的自动化打包流程，支持 **AppImage**（免安装单文件直接运行）与 **.deb**（系统级安装包）；CI 发布工作流（Release）新增 `build-linux` 任务。
+- **Linux 直接运行版本与安装包（ADR 0017）**：新增 Linux 平台自动化打包，提供 **AppImage**（免安装单文件直接运行）与 **.deb**（Debian/Ubuntu 系统安装包）；CI 发布工作流接入 `build-linux` 任务，产物直传 GitHub Release。
 
 ## 4.1.0 (2026-08-24)
 
