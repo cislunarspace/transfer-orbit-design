@@ -114,7 +114,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                   overflowY: "auto",
                   background: "rgba(0,0,0,0.03)",
                   padding: 8,
-                  borderRadius: 4,
+                  borderRadius: 2,
                   marginBottom: 12,
                   whiteSpace: "pre-wrap",
                 }}

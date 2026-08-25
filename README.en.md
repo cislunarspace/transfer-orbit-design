@@ -47,10 +47,10 @@ Official source: [NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html) (fallback
 
 **Available in the v4.0.0 UI**
 
-- **Tool panel**: all seven tools are wired: orbit family generation, orbit design, station keeping, orbit propagation, transfer design, stability analysis, spacetime transform. Parameter forms are generated from each tool's JSON Schema (field pruning, ranges and defaults follow the e2m2e models) and run through the generic tool-execution channel (the Rust `run_tool` command) straight to the sidecar; errors are surfaced directly.
+- **Tool panel**: all seven tools are wired: orbit family generation, orbit design, station keeping, orbit propagation, transfer design, stability analysis, spacetime transform. Parameter forms are generated from each tool's JSON Schema (field pruning, ranges and defaults follow the e2m2e models) and run through the generic tool-execution channel (the Rust `run_tool` command) straight to the sidecar; errors are surfaced directly. A preflight check validates required fields and numeric ranges before submission, flagging problems inline.
 - **Orbit family generation**: eight families (the seven classic ones + DRO), periodic continuation or parameter sampling; member trajectories rendered one by one.
 - **Catalog browsing**: products are stored automatically in the e2m2e orbit library (multi-dimensional catalog); filtered queries; clicking a record overlays it on the canvas.
-- **Canvas**: Three.js 3D view with view-fit and view-preservation, Earth/Moon and libration-point annotations, persisted chart settings (line width, body/point markers, Z-axis ratio), webm animation export. Tool result trajectories render adaptively from the response structure (JSON `states`/`position_km`/`trajectory` arrays or binary frames), with no per-tool canvas code.
+- **Canvas**: Three.js 3D view with view-fit and view-preservation, Earth/Moon and libration-point annotations, persisted chart settings (line width, body/point markers, Z-axis ratio), webm animation export; a timeline plays or scrubs a time marker along trajectories. Tool result trajectories render adaptively from the response structure (JSON `states`/`position_km`/`trajectory` arrays or binary frames), with no per-tool canvas code.
 
 ## Data Flow and Artifacts
 

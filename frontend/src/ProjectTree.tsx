@@ -152,7 +152,7 @@ export function ProjectTree({
         width={600}
       >
         {stabilityResult ? (
-          <pre style={{ maxHeight: 400, overflow: "auto", fontSize: 12, background: "#1f1f1f", padding: 12, borderRadius: 4 }}>
+          <pre style={{ maxHeight: 400, overflow: "auto", fontSize: 12, background: "#1f1f1f", padding: 12, borderRadius: 2 }}>
             {JSON.stringify(stabilityResult, null, 2)}
           </pre>
         ) : (

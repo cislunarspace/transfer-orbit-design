@@ -1,4 +1,4 @@
-// 参数面板：基于 Ant Design 5 与 paramOverlay 打造的高密度科学计算参数表单
+// 参数面板：基于 Ant Design 6 与 paramOverlay 打造的高密度科学计算参数表单
 
 import { useMemo, useState, useEffect } from "react";
 import {
@@ -264,7 +264,7 @@ export function ParamsPanel({ toolName, schema, values, onChange, fieldErrors }:
             <Space orientation="horizontal" size={4}>
               <Text strong style={{ fontSize: 12 }}>目标轨道 (Orbit Record ID)</Text>
               <Tooltip title="输入或从左侧项目树选中的轨道 Record ID 或 JSON 工件">
-                <InfoCircleOutlined style={{ color: "#1890ff", fontSize: 11 }} />
+                <InfoCircleOutlined style={{ color: "#0958d9", fontSize: 11 }} />
               </Tooltip>
             </Space>
           }

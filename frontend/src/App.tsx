@@ -1,4 +1,4 @@
-// 主应用入口：基于 Ant Design 5 构建的三栏现代化高密度桌面科学计算界面
+// 主应用入口：基于 Ant Design 6 构建的三栏现代化高密度桌面科学计算界面
 
 import { useEffect, useState, useCallback } from "react";
 import {

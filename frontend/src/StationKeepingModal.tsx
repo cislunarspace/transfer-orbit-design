@@ -70,7 +70,7 @@ export function StationKeepingModal({
     <Modal
       title={
         <Space orientation="horizontal">
-          <RocketOutlined style={{ color: "#1890ff" }} />
+          <RocketOutlined style={{ color: "#0958d9" }} />
           <span>轨道保持仿真评估 (Station Keeping)</span>
         </Space>
       }

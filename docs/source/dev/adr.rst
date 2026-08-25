@@ -6,6 +6,14 @@
 .. toctree::
    :maxdepth: 1
 
+   adr-0020-serious-semantic-ui-visual-language
+   adr-0019-sidecar-subtree-lifetime
+   adr-0018-tauri-desktop-auto-update
+   adr-0017-linux-appimage-and-deb-packaging
+   adr-0016-feature-parity-and-catalog-distribution
+   adr-0015-ui-framework-and-parameter-overlay
+   adr-0014-canvas-timeline
+   adr-0014-migrate-ui-to-tauri
    adr-0013-ephemeris-visualization-conventions
    adr-0012-defer-gil-and-facade-to-upstream
    adr-0011-algorithm-layer-direct-call
@@ -30,4 +38,7 @@
 - ADR-0006 起为现行 GUI 的决策：e2m2e 前端定位（0006）、大爆炸替换
   （0007）、output/ 持久化（0008）、Pydantic 自动参数面板（0009）、
   内嵌可视化（0010）、算法层直调（0011）、卡顿与接口边界依赖上游
-  （0012）、星历可视化坐标与时间约定（0013）。
+  （0012）、星历可视化坐标与时间约定（0013）、UI 迁移到 Tauri 与
+  主画布时间轴（0014，两份同号）、UI 组件库与参数覆写层（0015）、
+  功能补齐与 catalog 分布（0016）、Linux 打包（0017）、桌面自动更新
+  （0018）、sidecar 子树生命周期（0019）、严肃语义色板视觉语言（0020）。

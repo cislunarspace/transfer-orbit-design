@@ -48,7 +48,7 @@ export function TimelineBar({ timeRange, currentEt, onTimeChange }: TimelineBarP
       style={{
         padding: "4px 12px",
         background: "rgba(20, 24, 30, 0.85)",
-        borderRadius: 4,
+        borderRadius: 2,
         display: "flex",
         alignItems: "center",
         gap: 12,
@@ -62,7 +62,7 @@ export function TimelineBar({ timeRange, currentEt, onTimeChange }: TimelineBarP
         onClick={() => setPlaying(!playing)}
       />
       <Space orientation="horizontal" style={{ flex: 1 }} size={8}>
-        <FieldTimeOutlined style={{ color: disabled ? "#595959" : "#1890ff" }} />
+        <FieldTimeOutlined style={{ color: disabled ? "#595959" : "#0958d9" }} />
         <Slider
           style={{ flex: 1, margin: "6px 0" }}
           min={minEt}
