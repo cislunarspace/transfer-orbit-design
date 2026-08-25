@@ -20,6 +20,7 @@ import {
   toStandardValue,
   fromStandardValue,
   getBranchDefaults,
+  getActiveFields,
   ENUM_OPTIONS,
   FIELD_TOOLTIPS,
   formatRangePrompt,
@@ -33,25 +34,20 @@ interface ParamsPanelProps {
   schema: ToolSchema;
   values: Record<string, unknown>;
   onChange: (vals: Record<string, unknown>) => void;
+  /** 提交校验问题（字段名 → 人读原因），对应字段在表单内联标红 */
+  fieldErrors?: Record<string, string>;
 }
 
-export function ParamsPanel({ toolName, schema, values, onChange }: ParamsPanelProps) {
+export function ParamsPanel({ toolName, schema, values, onChange, fieldErrors }: ParamsPanelProps) {
   // 当前轨道类型
   const orbitType = (values["orbit_type"] as string) || "HALO";
 
   // 记录每个字段当前选中的显示单位
   const [selectedUnits, setSelectedUnits] = useState<Record<string, string>>({});
 
-  // 获取适用字段列表
+  // 获取适用字段列表（与提交校验同源）
   const activeFields = useMemo(() => {
-    if (toolName === "orbit_stability") {
-      return ["orbit_record_id", "dynamics_model"];
-    }
-    const applicability = getFieldApplicability(toolName, orbitType);
-    if (applicability.length > 0) {
-      return applicability.filter((f) => schema.properties[f]);
-    }
-    return Object.keys(schema.properties);
+    return getActiveFields(toolName, schema, orbitType);
   }, [toolName, schema, orbitType]);
 
   // 当 toolName 或 orbit_type 改变时，填入分支默认值
@@ -262,6 +258,8 @@ export function ParamsPanel({ toolName, schema, values, onChange }: ParamsPanelP
     return (
       <Form layout="vertical" size="small" style={{ marginTop: 8 }}>
         <Form.Item
+          validateStatus={fieldErrors?.["orbit_record_id"] ? "error" : undefined}
+          help={fieldErrors?.["orbit_record_id"] || undefined}
           label={
             <Space orientation="horizontal" size={4}>
               <Text strong style={{ fontSize: 12 }}>目标轨道 (Orbit Record ID)</Text>
@@ -296,6 +294,8 @@ export function ParamsPanel({ toolName, schema, values, onChange }: ParamsPanelP
           <Form.Item
             key={f}
             style={{ marginBottom: 8 }}
+            validateStatus={fieldErrors?.[f] ? "error" : undefined}
+            help={fieldErrors?.[f] || undefined}
             label={
               <Space orientation="horizontal" size={4}>
                 <Text style={{ fontSize: 12, fontWeight: isRequired ? 600 : 400 }}>

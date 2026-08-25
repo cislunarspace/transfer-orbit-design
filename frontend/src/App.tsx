@@ -33,6 +33,7 @@ import { UpdateModal } from "./UpdateModal";
 import { AboutModal } from "./AboutModal";
 import { checkForAppUpdates, type UpdateInfo } from "./updater";
 import { TOOL_REGISTRY, toolEntry } from "./schema";
+import { validateToolParams } from "./paramOverlay";
 import { useTranslation } from "./i18n";
 import { useChartSettings } from "./chartSettings";
 import { CanvasRecorder, downloadBlob } from "./canvasRecorder";
@@ -58,6 +59,8 @@ export default function App() {
   const [leftTab, setLeftTab] = useState<"project" | "catalog">("project");
   const [selectedTool, setSelectedTool] = useState<string>(TOOL_REGISTRY[0].name);
   const [toolParams, setToolParams] = useState<Record<string, unknown>>({});
+  // 提交校验问题（字段名 → 原因），传给参数面板内联标红；改动参数即清
+  const [paramIssues, setParamIssues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<boolean>(false);
 
   const [artifacts, setArtifacts] = useState<ArtifactSummary[]>([]);
@@ -173,12 +176,19 @@ export default function App() {
     }
   };
 
-  // 执行通用工具
+  // 执行通用工具（提交前防呆校验：必填/越界不过则不提交）
   const handleRunTool = async () => {
+    const entry = toolEntry(selectedTool);
+    const issues = validateToolParams(selectedTool, entry.schema, toolParams);
+    if (issues.length > 0) {
+      setParamIssues(Object.fromEntries(issues.map((i) => [i.field, i.reason])));
+      message.error(issues.map((i) => `${i.label}(${i.field}): ${i.reason}`).join("；"));
+      return;
+    }
+
     setBusy(true);
     setProgressMsg("正在提交计算任务...");
     try {
-      const entry = toolEntry(selectedTool);
       const cleaned = Object.fromEntries(
         Object.entries(toolParams).filter(([, v]) => v !== null && v !== undefined && v !== "")
       );
@@ -381,6 +391,7 @@ export default function App() {
             onChange={(val) => {
               setSelectedTool(val);
               setToolParams({});
+              setParamIssues({});
             }}
             options={TOOL_REGISTRY.map((t) => ({ label: t.title, value: t.name }))}
           />
@@ -390,7 +401,11 @@ export default function App() {
               toolName={selectedTool}
               schema={toolEntry(selectedTool).schema}
               values={toolParams}
-              onChange={setToolParams}
+              onChange={(vals) => {
+                setToolParams(vals);
+                setParamIssues({});
+              }}
+              fieldErrors={paramIssues}
             />
           </div>
 

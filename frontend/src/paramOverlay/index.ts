@@ -3,6 +3,8 @@
  * 来源：docs-old-pyqt-gui-inventory.md B节规范
  */
 
+import type { SchemaProperty, ToolSchema } from "../schema";
+
 export interface UnitOption {
   label: string;
   toStandard: number; // 换算到标准单位的乘数：standardValue = displayValue * toStandard
@@ -338,4 +340,63 @@ export function getFieldApplicability(toolName: string, orbitType: string): stri
   }
 
   return [];
+}
+
+/** 当前工具+轨道类型下可见（参与表单渲染与校验）的字段列表，表单与提交校验同源 */
+export function getActiveFields(toolName: string, schema: ToolSchema, orbitType: string): string[] {
+  if (toolName === "orbit_stability") {
+    return ["orbit_record_id", "dynamics_model"];
+  }
+  const applicability = getFieldApplicability(toolName, orbitType);
+  if (applicability.length > 0) {
+    return applicability.filter((f) => schema.properties[f]);
+  }
+  return Object.keys(schema.properties);
+}
+
+export interface ParamIssue {
+  field: string;
+  label: string;
+  reason: string;
+}
+
+/** 提交前防呆校验：必填缺失与数值越界（值为标准物理单位，直接对照 schema 范围） */
+export function validateToolParams(
+  toolName: string,
+  schema: ToolSchema,
+  values: Record<string, unknown>,
+): ParamIssue[] {
+  const orbitType = (values["orbit_type"] as string) || "HALO";
+  const issues: ParamIssue[] = [];
+
+  for (const field of getActiveFields(toolName, schema, orbitType)) {
+    const prop = schema.properties[field];
+    // 与 ParamsPanel 相同的 anyOf 展开：可空字段的约束在非 null 分支
+    const isOptional = prop.anyOf?.some((v) => v.type === "null") ?? false;
+    const inner: SchemaProperty = isOptional
+      ? prop.anyOf!.find((v) => v.type !== "null") || prop
+      : prop;
+    const label = prop.title || field;
+    const value = values[field];
+
+    if (value === null || value === undefined || value === "") {
+      if (schema.required?.includes(field)) {
+        issues.push({ field, label, reason: "必填，当前为空" });
+      }
+      continue;
+    }
+
+    if (typeof value === "number" && !Number.isNaN(value)) {
+      const { minimum, maximum, exclusiveMinimum, exclusiveMaximum } = inner;
+      const bounds: string[] = [];
+      if (minimum !== undefined && value < minimum) bounds.push(`≥ ${minimum}`);
+      if (exclusiveMinimum !== undefined && value <= exclusiveMinimum) bounds.push(`> ${exclusiveMinimum}`);
+      if (maximum !== undefined && value > maximum) bounds.push(`≤ ${maximum}`);
+      if (exclusiveMaximum !== undefined && value >= exclusiveMaximum) bounds.push(`< ${exclusiveMaximum}`);
+      if (bounds.length > 0) {
+        issues.push({ field, label, reason: `${value} 超出可填范围: ${bounds.join(" 且 ")}` });
+      }
+    }
+  }
+  return issues;
 }
