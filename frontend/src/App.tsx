@@ -16,14 +16,12 @@ import {
   message,
 } from "antd";
 import {
-  SettingOutlined,
   PlayCircleOutlined,
-  CompressOutlined,
-  VideoCameraOutlined,
   BulbOutlined,
   InfoCircleOutlined,
 } from "@ant-design/icons";
 import { themeTokens } from "./theme";
+import { CanvasToolbar } from "./CanvasToolbar";
 import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode } from "./OrbitCanvas";
 import { TimelineBar } from "./TimelineBar";
 import { ParamsPanel } from "./ParamsPanel";
@@ -415,74 +413,24 @@ export default function App() {
         </div>
 
         {/* 右栏：主画布与时间轴 */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
-          {/* 画布顶部工具栏 */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+          {/* 画布工具栏：投影/中心选择 + 适配/导出/设置，停靠于画布上方 */}
           <div
             style={{
-              position: "absolute",
-              top: 10,
-              left: 10,
-              right: 10,
-              display: "flex",
-              justifyContent: "space-between",
-              zIndex: 10,
-              pointerEvents: "none",
+              background: themeMode === "dark" ? "#1a1a1a" : "#fff",
+              borderBottom: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8",
             }}
           >
-            {/* 投影与中心控制 */}
-            <Space orientation="horizontal" size={6} style={{ pointerEvents: "auto" }}>
-              <Radio.Group
-                size="small"
-                value={projection}
-                onChange={(e) => setProjection(e.target.value)}
-                buttonStyle="solid"
-              >
-                <Radio.Button value="3d">3D</Radio.Button>
-                <Radio.Button value="xy">XY</Radio.Button>
-                <Radio.Button value="xz">XZ</Radio.Button>
-                <Radio.Button value="yz">YZ</Radio.Button>
-              </Radio.Group>
-
-              <Radio.Group
-                size="small"
-                value={center}
-                onChange={(e) => setCenter(e.target.value)}
-                buttonStyle="solid"
-              >
-                <Radio.Button value="barycenter">质心</Radio.Button>
-                <Radio.Button value="earth">地心</Radio.Button>
-                <Radio.Button value="moon">月心</Radio.Button>
-                <Radio.Button value="l1">L1</Radio.Button>
-                <Radio.Button value="l2">L2</Radio.Button>
-              </Radio.Group>
-            </Space>
-
-            {/* 功能操作按钮组 */}
-            <Space orientation="horizontal" size={6} style={{ pointerEvents: "auto" }}>
-              <Button
-                size="small"
-                icon={<CompressOutlined />}
-                onClick={() => api?.fitView()}
-                title="按轨道包围盒自适应缩放 (适配)"
-              >
-                适配
-              </Button>
-              <Button
-                size="small"
-                icon={<VideoCameraOutlined />}
-                loading={recording}
-                onClick={handleExportAnimation}
-                title="录制自转动画并导出 WebM"
-              >
-                导出动画
-              </Button>
-              <Button
-                size="small"
-                icon={<SettingOutlined />}
-                onClick={() => setChartModalOpen(true)}
-                title="图表显示设置"
-              />
-            </Space>
+            <CanvasToolbar
+              projection={projection}
+              center={center}
+              recording={recording}
+              onProjectionChange={setProjection}
+              onCenterChange={setCenter}
+              onFitView={() => api?.fitView()}
+              onExportAnimation={handleExportAnimation}
+              onOpenSettings={() => setChartModalOpen(true)}
+            />
           </div>
 
           {/* Three.js Canvas */}
