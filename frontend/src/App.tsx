@@ -16,13 +16,12 @@ import {
   message,
 } from "antd";
 import {
-  SettingOutlined,
   PlayCircleOutlined,
-  CompressOutlined,
-  VideoCameraOutlined,
   BulbOutlined,
   InfoCircleOutlined,
 } from "@ant-design/icons";
+import { themeTokens } from "./theme";
+import { CanvasToolbar } from "./CanvasToolbar";
 import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode } from "./OrbitCanvas";
 import { TimelineBar } from "./TimelineBar";
 import { ParamsPanel } from "./ParamsPanel";
@@ -34,13 +33,14 @@ import { UpdateModal } from "./UpdateModal";
 import { AboutModal } from "./AboutModal";
 import { checkForAppUpdates, type UpdateInfo } from "./updater";
 import { TOOL_REGISTRY, toolEntry } from "./schema";
+import { validateToolParams } from "./paramOverlay";
 import { useTranslation } from "./i18n";
 import { useChartSettings } from "./chartSettings";
 import { CanvasRecorder, downloadBlob } from "./canvasRecorder";
 import { listArtifacts, removeArtifact, type ArtifactSummary } from "./projectApi";
 import { runTool, getArtifact, ephemerisStatus, type EphemerisStatus } from "./sidecarApi";
 import { librationPoint } from "./cr3bp";
-import { familyMembersToTrajectories, framesToTrajectories } from "./trajectoryParsing";
+import { familyMembersToTrajectoryData, framesToTrajectoryData, trajectoryTimeRange } from "./trajectoryParsing";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
 
 const { Text, Title } = Typography;
@@ -59,6 +59,8 @@ export default function App() {
   const [leftTab, setLeftTab] = useState<"project" | "catalog">("project");
   const [selectedTool, setSelectedTool] = useState<string>(TOOL_REGISTRY[0].name);
   const [toolParams, setToolParams] = useState<Record<string, unknown>>({});
+  // 提交校验问题（字段名 → 原因），传给参数面板内联标红；改动参数即清
+  const [paramIssues, setParamIssues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<boolean>(false);
 
   const [artifacts, setArtifacts] = useState<ArtifactSummary[]>([]);
@@ -67,8 +69,8 @@ export default function App() {
 
   // 画布状态
   const [trajectories, setTrajectories] = useState<number[][][]>([]);
-  const [trajectoryTimes] = useState<number[][]>([]);
-  const [timeRange] = useState<[number, number] | null>(null);
+  const [trajectoryTimes, setTrajectoryTimes] = useState<number[][]>([]);
+  const [timeRange, setTimeRange] = useState<[number, number] | null>(null);
   const [currentEt, setCurrentEt] = useState<number | null>(null);
 
   const [projection, setProjection] = useState<ProjectionMode>("3d");
@@ -140,6 +142,16 @@ export default function App() {
     refreshArtifacts();
   }, [refreshArtifacts]);
 
+  // 轨迹上画布的同时接通时间轴：写入时刻数组与全局范围，当前时刻置于起点
+  const applyTrajectoryData = (data: { trajectories: number[][][]; times: number[][] }) => {
+    setTrajectories(data.trajectories);
+    setTrajectoryTimes(data.times);
+    const range = trajectoryTimeRange(data.times);
+    setTimeRange(range);
+    setCurrentEt(range ? range[0] : null);
+    setTimeout(() => api?.fitView(), 100);
+  };
+
   // 选中记录时，从 catalog 拉取详细信息与轨迹
   const handleSelectArtifact = async (a: ArtifactSummary | null) => {
     setSelectedArtifact(a);
@@ -157,15 +169,18 @@ export default function App() {
         const data = await getArtifact(a.recordId);
         if (data.familyMembers && data.familyMembers.length > 0) {
           const muVal = data.mu ?? EARTH_MOON_MU;
-          const trajectoriesList = familyMembersToTrajectories(data.familyMembers, muVal);
-          if (trajectoriesList.length > 0) {
-            setTrajectories(trajectoriesList);
-            setTimeout(() => api?.fitView(), 100);
+          const td = familyMembersToTrajectoryData(data.familyMembers, muVal);
+          if (td.trajectories.length > 0) {
+            applyTrajectoryData(td);
             return;
           }
         }
         if (data.members && data.members.length > 0) {
+          // 裸点集无时刻信息：时间轴保持禁用
           setTrajectories(data.members as unknown as number[][][]);
+          setTrajectoryTimes([]);
+          setTimeRange(null);
+          setCurrentEt(null);
           setTimeout(() => api?.fitView(), 100);
         }
       }
@@ -174,12 +189,19 @@ export default function App() {
     }
   };
 
-  // 执行通用工具
+  // 执行通用工具（提交前防呆校验：必填/越界不过则不提交）
   const handleRunTool = async () => {
+    const entry = toolEntry(selectedTool);
+    const issues = validateToolParams(selectedTool, entry.schema, toolParams);
+    if (issues.length > 0) {
+      setParamIssues(Object.fromEntries(issues.map((i) => [i.field, i.reason])));
+      message.error(issues.map((i) => `${i.label}(${i.field}): ${i.reason}`).join("；"));
+      return;
+    }
+
     setBusy(true);
     setProgressMsg("正在提交计算任务...");
     try {
-      const entry = toolEntry(selectedTool);
       const cleaned = Object.fromEntries(
         Object.entries(toolParams).filter(([, v]) => v !== null && v !== undefined && v !== "")
       );
@@ -207,10 +229,9 @@ export default function App() {
 
       // 若有轨迹数据，装配到画布（解析逻辑见 trajectoryParsing）
       if (resp.frames && resp.frames.length > 0) {
-        const trajectoriesList = framesToTrajectories(resp.frames, resp.data, EARTH_MOON_MU);
-        if (trajectoriesList.length > 0) {
-          setTrajectories(trajectoriesList);
-          setTimeout(() => api?.fitView(), 100);
+        const td = framesToTrajectoryData(resp.frames, resp.data, EARTH_MOON_MU);
+        if (td.trajectories.length > 0) {
+          applyTrajectoryData(td);
         }
       } else if (resp.data) {
         const d = resp.data as any;
@@ -219,6 +240,9 @@ export default function App() {
           if (Array.isArray(rawStates[0])) {
             const pts = rawStates.map((s: number[]) => [Number(s[0]), Number(s[1]), Number(s[2])]);
             setTrajectories([pts]);
+            setTrajectoryTimes([]);
+            setTimeRange(null);
+            setCurrentEt(null);
             setTimeout(() => api?.fitView(), 100);
           }
         }
@@ -263,7 +287,7 @@ export default function App() {
         algorithm: themeMode === "dark" ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
         token: {
           fontSize: fontSize,
-          colorPrimary: "#1890ff",
+          ...themeTokens,
         },
       }}
     >
@@ -382,6 +406,7 @@ export default function App() {
             onChange={(val) => {
               setSelectedTool(val);
               setToolParams({});
+              setParamIssues({});
             }}
             options={TOOL_REGISTRY.map((t) => ({ label: t.title, value: t.name }))}
           />
@@ -391,7 +416,11 @@ export default function App() {
               toolName={selectedTool}
               schema={toolEntry(selectedTool).schema}
               values={toolParams}
-              onChange={setToolParams}
+              onChange={(vals) => {
+                setToolParams(vals);
+                setParamIssues({});
+              }}
+              fieldErrors={paramIssues}
             />
           </div>
 
@@ -414,74 +443,24 @@ export default function App() {
         </div>
 
         {/* 右栏：主画布与时间轴 */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative" }}>
-          {/* 画布顶部工具栏 */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+          {/* 画布工具栏：投影/中心选择 + 适配/导出/设置，停靠于画布上方 */}
           <div
             style={{
-              position: "absolute",
-              top: 10,
-              left: 10,
-              right: 10,
-              display: "flex",
-              justifyContent: "space-between",
-              zIndex: 10,
-              pointerEvents: "none",
+              background: themeMode === "dark" ? "#1a1a1a" : "#fff",
+              borderBottom: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8",
             }}
           >
-            {/* 投影与中心控制 */}
-            <Space orientation="horizontal" size={6} style={{ pointerEvents: "auto" }}>
-              <Radio.Group
-                size="small"
-                value={projection}
-                onChange={(e) => setProjection(e.target.value)}
-                buttonStyle="solid"
-              >
-                <Radio.Button value="3d">3D</Radio.Button>
-                <Radio.Button value="xy">XY</Radio.Button>
-                <Radio.Button value="xz">XZ</Radio.Button>
-                <Radio.Button value="yz">YZ</Radio.Button>
-              </Radio.Group>
-
-              <Radio.Group
-                size="small"
-                value={center}
-                onChange={(e) => setCenter(e.target.value)}
-                buttonStyle="solid"
-              >
-                <Radio.Button value="barycenter">质心</Radio.Button>
-                <Radio.Button value="earth">地心</Radio.Button>
-                <Radio.Button value="moon">月心</Radio.Button>
-                <Radio.Button value="l1">L1</Radio.Button>
-                <Radio.Button value="l2">L2</Radio.Button>
-              </Radio.Group>
-            </Space>
-
-            {/* 功能操作按钮组 */}
-            <Space orientation="horizontal" size={6} style={{ pointerEvents: "auto" }}>
-              <Button
-                size="small"
-                icon={<CompressOutlined />}
-                onClick={() => api?.fitView()}
-                title="按轨道包围盒自适应缩放 (适配)"
-              >
-                适配
-              </Button>
-              <Button
-                size="small"
-                icon={<VideoCameraOutlined />}
-                loading={recording}
-                onClick={handleExportAnimation}
-                title="录制自转动画并导出 WebM"
-              >
-                导出动画
-              </Button>
-              <Button
-                size="small"
-                icon={<SettingOutlined />}
-                onClick={() => setChartModalOpen(true)}
-                title="图表显示设置"
-              />
-            </Space>
+            <CanvasToolbar
+              projection={projection}
+              center={center}
+              recording={recording}
+              onProjectionChange={setProjection}
+              onCenterChange={setCenter}
+              onFitView={() => api?.fitView()}
+              onExportAnimation={handleExportAnimation}
+              onOpenSettings={() => setChartModalOpen(true)}
+            />
           </div>
 
           {/* Three.js Canvas */}
