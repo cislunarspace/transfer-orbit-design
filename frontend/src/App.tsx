@@ -23,6 +23,7 @@ import {
   BulbOutlined,
   InfoCircleOutlined,
 } from "@ant-design/icons";
+import { themeTokens } from "./theme";
 import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode } from "./OrbitCanvas";
 import { TimelineBar } from "./TimelineBar";
 import { ParamsPanel } from "./ParamsPanel";
@@ -263,7 +264,7 @@ export default function App() {
         algorithm: themeMode === "dark" ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
         token: {
           fontSize: fontSize,
-          colorPrimary: "#1890ff",
+          ...themeTokens,
         },
       }}
     >
