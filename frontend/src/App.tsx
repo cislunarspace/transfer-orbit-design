@@ -40,7 +40,7 @@ import { CanvasRecorder, downloadBlob } from "./canvasRecorder";
 import { listArtifacts, removeArtifact, type ArtifactSummary } from "./projectApi";
 import { runTool, getArtifact, ephemerisStatus, type EphemerisStatus } from "./sidecarApi";
 import { librationPoint } from "./cr3bp";
-import { familyMembersToTrajectories, framesToTrajectories } from "./trajectoryParsing";
+import { familyMembersToTrajectoryData, framesToTrajectoryData, trajectoryTimeRange } from "./trajectoryParsing";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
 
 const { Text, Title } = Typography;
@@ -69,8 +69,8 @@ export default function App() {
 
   // 画布状态
   const [trajectories, setTrajectories] = useState<number[][][]>([]);
-  const [trajectoryTimes] = useState<number[][]>([]);
-  const [timeRange] = useState<[number, number] | null>(null);
+  const [trajectoryTimes, setTrajectoryTimes] = useState<number[][]>([]);
+  const [timeRange, setTimeRange] = useState<[number, number] | null>(null);
   const [currentEt, setCurrentEt] = useState<number | null>(null);
 
   const [projection, setProjection] = useState<ProjectionMode>("3d");
@@ -142,6 +142,16 @@ export default function App() {
     refreshArtifacts();
   }, [refreshArtifacts]);
 
+  // 轨迹上画布的同时接通时间轴：写入时刻数组与全局范围，当前时刻置于起点
+  const applyTrajectoryData = (data: { trajectories: number[][][]; times: number[][] }) => {
+    setTrajectories(data.trajectories);
+    setTrajectoryTimes(data.times);
+    const range = trajectoryTimeRange(data.times);
+    setTimeRange(range);
+    setCurrentEt(range ? range[0] : null);
+    setTimeout(() => api?.fitView(), 100);
+  };
+
   // 选中记录时，从 catalog 拉取详细信息与轨迹
   const handleSelectArtifact = async (a: ArtifactSummary | null) => {
     setSelectedArtifact(a);
@@ -159,15 +169,18 @@ export default function App() {
         const data = await getArtifact(a.recordId);
         if (data.familyMembers && data.familyMembers.length > 0) {
           const muVal = data.mu ?? EARTH_MOON_MU;
-          const trajectoriesList = familyMembersToTrajectories(data.familyMembers, muVal);
-          if (trajectoriesList.length > 0) {
-            setTrajectories(trajectoriesList);
-            setTimeout(() => api?.fitView(), 100);
+          const td = familyMembersToTrajectoryData(data.familyMembers, muVal);
+          if (td.trajectories.length > 0) {
+            applyTrajectoryData(td);
             return;
           }
         }
         if (data.members && data.members.length > 0) {
+          // 裸点集无时刻信息：时间轴保持禁用
           setTrajectories(data.members as unknown as number[][][]);
+          setTrajectoryTimes([]);
+          setTimeRange(null);
+          setCurrentEt(null);
           setTimeout(() => api?.fitView(), 100);
         }
       }
@@ -216,10 +229,9 @@ export default function App() {
 
       // 若有轨迹数据，装配到画布（解析逻辑见 trajectoryParsing）
       if (resp.frames && resp.frames.length > 0) {
-        const trajectoriesList = framesToTrajectories(resp.frames, resp.data, EARTH_MOON_MU);
-        if (trajectoriesList.length > 0) {
-          setTrajectories(trajectoriesList);
-          setTimeout(() => api?.fitView(), 100);
+        const td = framesToTrajectoryData(resp.frames, resp.data, EARTH_MOON_MU);
+        if (td.trajectories.length > 0) {
+          applyTrajectoryData(td);
         }
       } else if (resp.data) {
         const d = resp.data as any;
@@ -228,6 +240,9 @@ export default function App() {
           if (Array.isArray(rawStates[0])) {
             const pts = rawStates.map((s: number[]) => [Number(s[0]), Number(s[1]), Number(s[2])]);
             setTrajectories([pts]);
+            setTrajectoryTimes([]);
+            setTimeRange(null);
+            setCurrentEt(null);
             setTimeout(() => api?.fitView(), 100);
           }
         }
