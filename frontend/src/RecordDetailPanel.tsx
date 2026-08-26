@@ -1,4 +1,6 @@
 // 记录详情面板：展示谱系、断链标记、物理属性，支持教学标注 (catalog_tag) 与族成员提升 (catalog_promote)
+// Record detail panel: shows lineage, broken-link markers, and physical properties; supports teaching annotations
+// (catalog_tag) and family-member promotion (catalog_promote).
 
 import { useState, useEffect } from "react";
 import { Card, Descriptions, Tag, Input, Button, InputNumber, Space, Typography, message } from "antd";

@@ -1,4 +1,5 @@
 // 轨道库与工作流 API 封装（对应 ADR 0035 与 e2m2e 14 工具协议）
+// Orbit-library and workflow API wrappers (ADR 0035; the e2m2e 14-tool protocol).
 
 import { invoke } from "@tauri-apps/api/core";
 

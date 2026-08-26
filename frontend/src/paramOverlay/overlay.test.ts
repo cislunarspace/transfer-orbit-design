@@ -21,6 +21,7 @@ describe("参数覆写层 (paramOverlay)", () => {
 
   it("单位换算正确：km <-> m <-> DU", () => {
     // amplitude: km 为标准单位
+    // amplitude: km is the standard unit.
     expect(convertValue("amplitude", 384400, "km", "DU")).toBeCloseTo(1.0, 6);
     expect(convertValue("amplitude", 1.0, "DU", "km")).toBeCloseTo(384400, 4);
     expect(convertValue("amplitude", 50, "km", "m")).toBe(50000);
@@ -29,6 +30,7 @@ describe("参数覆写层 (paramOverlay)", () => {
 
   it("时间单位换算正确：年 <-> 月 <-> 日 <-> 秒 <-> TU", () => {
     // duration: 年 为 GUI 标准单位 (facade 会换算为秒)
+    // duration: years is the GUI standard unit (the facade converts to seconds).
     expect(convertValue("duration", 1.0, "年", "月")).toBeCloseTo(12.0, 4);
     expect(convertValue("duration", 1.0, "月", "年")).toBeCloseTo(1 / 12, 6);
     expect(convertValue("duration", 365.25, "日", "年")).toBeCloseTo(1.0, 4);
@@ -36,6 +38,7 @@ describe("参数覆写层 (paramOverlay)", () => {
 
   it("相位单位换算正确：周期份额 <-> 度 <-> 弧度", () => {
     // phase: 周期份额 (1.0)
+    // phase: fraction of the period (1.0).
     expect(convertValue("phase", 0.5, "周期份额", "度")).toBeCloseTo(180, 4);
     expect(convertValue("phase", 180, "度", "周期份额")).toBeCloseTo(0.5, 4);
     expect(convertValue("phase", Math.PI, "弧度", "周期份额")).toBeCloseTo(0.5, 4);
@@ -53,6 +56,7 @@ describe("参数覆写层 (paramOverlay)", () => {
       expect(typeof defs).toBe("object");
     }
     // 特征值检查
+    // Eigenvalue checks.
     expect(getBranchDefaults("design_orbit", "DRO").amplitude).toBe(60000);
     expect(getBranchDefaults("design_orbit", "HALO").amplitude).toBe(30000);
     expect(getBranchDefaults("design_orbit", "NRHO").perilune_height).toBe(5000);

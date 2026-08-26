@@ -1,4 +1,5 @@
 // Three.js 主画布
+// The main Three.js canvas.
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
@@ -22,6 +23,7 @@ export interface OrbitCanvasProps {
   center: CenterMode;
   settings?: ChartSettings;
   /** 画布背景色（hex）；缺省深色 */
+  /** Canvas background color (hex); dark by default. */
   background?: string;
   onReady?: (api: CanvasApi) => void;
 }
@@ -54,6 +56,8 @@ export function OrbitCanvas({
   const markerRef = useRef<THREE.Mesh | null>(null);
   // onReady 走 ref：建场景 effect 依赖 []，调用方传内联函数（如
   // App 的 onReady={(a) => setApi(a)}）不会触发场景重建导致轨迹丢失。
+  // onReady goes through a ref: the scene-building effect depends on [], so an inline callback from the caller (e.g.
+  // App's onReady={(a) => setApi(a)}) never triggers a scene rebuild that would lose trajectories.
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
 
@@ -69,9 +73,11 @@ export function OrbitCanvas({
     const scene = new THREE.Scene();
     sceneRef.current = scene;
     // 缺省深色；白底等主题由 background prop 驱动（见下方 effect）
+    // Dark by default; themes like white background are driven by the background prop (see the effect below).
     scene.background = new THREE.Color(background ?? "#121212");
 
     // 光照：太阳平行光（晨昏线）+ 环境光（夜面可辨），照亮真实贴图天体
+    // Lighting: a directional sun light (terminator line) plus ambient light (night side stays visible), illuminating the textured bodies.
     scene.add(new THREE.AmbientLight(0xffffff, 0.4));
     const sun = new THREE.DirectionalLight(0xfff3e0, 1.6);
     sun.position.set(3, 2, 4);
@@ -86,6 +92,9 @@ export function OrbitCanvas({
     // rotateSpeed 取负：拖拽表现为“旋转物体本身”（延续旧版手感）；
     // OrbitControls 默认是“拖拽移动相机”，往左拖场景看起来往右转，
     // 体感方向相反。负值只反转旋转，平移/缩放不受影响。
+    // Negative rotateSpeed makes dragging feel like rotating the object itself (legacy feel); OrbitControls
+    // by default drags the camera, so the scene appears to turn the wrong way. Negation only reverses rotation;
+    // panning/zooming are unaffected.
     controls.rotateSpeed = -1.0;
     controlsRef.current = controls;
 
@@ -95,6 +104,7 @@ export function OrbitCanvas({
     scene.add(content);
 
     // 标注组（天体/平动点/坐标轴/网格）：与 content 同偏移，但不参与视图适配
+    // Annotation group (bodies/libration points/axes/grid): same offset as content, but excluded from view fitting.
     const annotations = new THREE.Group();
     annotations.name = "annotations";
     annotationsRef.current = annotations;
@@ -185,6 +195,7 @@ export function OrbitCanvas({
   }, [projection]);
 
   // 背景色热切换（跟随主题/手动选择）
+  // Hot-swap of the background color (theme-driven or manually picked).
   useEffect(() => {
     if (sceneRef.current && background) {
       sceneRef.current.background = new THREE.Color(background);
@@ -193,6 +204,7 @@ export function OrbitCanvas({
 
   const getCenterOffset = (): [number, number, number] => {
     // 会合系原点是地月质心：地球在 -mu、月球在 1-mu。居中偏移 = -(天体 x)。
+    // The rotating frame's origin is the Earth-Moon barycenter: Earth at -mu, Moon at 1-mu; centering offset = -(body x).
     if (center === "earth") return [mu, 0, 0];
     if (center === "moon") return [-(1 - mu), 0, 0];
     if (center === "l1") {
@@ -227,6 +239,7 @@ export function OrbitCanvas({
     );
 
     // 背景亮度决定网格与标注颜色（白底黑线，深底浅线）
+    // Background brightness decides grid and annotation colors (black lines on light backgrounds, pale lines on dark).
     const isLightBg = (() => {
       const hex = (background ?? "#121212").slice(1);
       const r = parseInt(hex.slice(0, 2), 16);
@@ -239,6 +252,7 @@ export function OrbitCanvas({
     const gridMinor = isLightBg ? 0xe0e0e0 : 0x1d2634;
 
     // 轨道线独占 content 组：视图适配只按可见轨道范围（标注不参与）
+    // Orbit lines live exclusively in the content group: view fitting considers only visible orbit extents (annotations excluded).
     trajectories.forEach((pts, i) => {
       const positions = new Float32Array(pts.length * 3);
       pts.forEach((p, j) => {
@@ -257,6 +271,7 @@ export function OrbitCanvas({
     });
 
     // 文本标注 sprite（天体名/平动点/轴名共用，颜色随背景亮度）
+    // Text-label sprites (shared by body names/libration points/axis names; color follows background brightness).
     const makeLabelSprite = (text: string, color = labelColor): THREE.Sprite => {
       const canvas = document.createElement("canvas");
       canvas.width = 256;
@@ -273,6 +288,7 @@ export function OrbitCanvas({
     };
 
     // 刻度数字 sprite（量程标尺，比轴名小一档）
+    // Tick-number sprites (the range ruler, one size step below axis names).
     const makeTickSprite = (text: string): THREE.Sprite => {
       const sprite = makeLabelSprite(text, isLightBg ? "#666666" : "#8fa0b3");
       sprite.scale.set(0.05, 0.0125, 1);
@@ -282,6 +298,7 @@ export function OrbitCanvas({
     const addSphere = (x: number, y: number, z: number, color: number, radius: number, label: string) => {
       // 注意：Object3D.add() 返回的是父 group，mesh 的位置必须显式设置，
       // 否则天体堆在原点、group 位置被覆盖，整个场景（含轨道线）被平移。
+      // otherwise bodies pile up at the origin, the group position gets overwritten, and the whole scene (orbit lines included) shifts.
       const body = new THREE.Mesh(
         new THREE.SphereGeometry(radius, 24, 24),
         new THREE.MeshBasicMaterial({ color })
@@ -296,7 +313,9 @@ export function OrbitCanvas({
 
     const s = settings;
     // 地月：NASA 公有领域贴图（Blue Marble / LROC）+ Phong 光照，
+    // Earth and Moon: NASA public-domain textures (Blue Marble / LROC) with Phong lighting;
     // 半径取真实比例（chartSettings 常量）
+    // radii follow real proportions (chartSettings constants).
     const texLoader = new THREE.TextureLoader();
     const addTexturedBody = (
       name: string, label: string, x: number, radius: number, textureUrl: string,
@@ -326,10 +345,12 @@ export function OrbitCanvas({
     libration.forEach((lp) => addSphere(lp.x, 0, 0, lpColorNum, s?.lpSize ?? 0.003, lp.label));
 
     // 坐标轴图层（matplotlib 式三轴 + 轨道面网格 + 量程刻度），随中心偏移，可开关
+    // Axes layer (matplotlib-style three axes + orbit-plane grid + range ticks), offset with the center, toggleable.
     if (settings?.axesVisible ?? true) {
       const axes = new THREE.Group();
       axes.name = "axes";
       // 量程（DU）：网格半宽，默认 1.3 覆盖地月系；刻度每 0.5 DU
+      // Range (DU): grid half-width, defaulting to 1.3 to cover the Earth-Moon system; a tick every 0.5 DU.
       const range = settings?.gridRange ?? 1.3;
       const LEN = Math.max(0.45, range * 0.35);
       const tips: [THREE.Vector3, number, string][] = [
@@ -344,12 +365,14 @@ export function OrbitCanvas({
         axes.add(sprite);
       }
       // 网格默认在 XZ 面，转到 XY 轨道面；间距 0.1 DU，范围随量程
+      // The grid defaults to the XZ plane and is rotated onto the XY orbital plane; 0.1 DU spacing, extent follows the range.
       const divisions = Math.max(2, Math.round(range / 0.05));
       const grid = new THREE.GridHelper(range * 2, divisions, gridMajor, gridMinor);
       grid.rotation.x = Math.PI / 2;
       axes.add(grid);
 
       // 量程刻度：X/Y 轴每 0.5 DU 一个数字（matplotlib 标尺感）
+      // Range ticks: one number every 0.5 DU along X/Y (a matplotlib-ruler feel).
       for (let v = 0.5; v <= range + 1e-9; v += 0.5) {
         for (const pos of [v, -v]) {
           const tx = makeTickSprite(pos.toFixed(1));
@@ -368,6 +391,10 @@ export function OrbitCanvas({
   // 语义），保持注视方向与距离（视图保持）。不能改为按轨道盒重新适配：
   // 那样会把画面中心钉回轨道所在区域（如 L2 的 Halo 族），中心切换在
   // 画面上成为无操作，用户无法把质心/月心调到画面中心。
+  // Center switching: the selected center's body/libration point already moved to the world origin, so the camera
+  // target moves to the origin too (the "centering" semantic), keeping gaze direction and distance (view preservation).
+  // Do NOT refit on the orbit box instead: that would pin the view center back to where the orbits live (e.g. the L2
+  // Halo family), making center switching a no-op and leaving users unable to bring the barycenter/Moon into view.
   useEffect(() => {
     const camera = cameraRef.current;
     const controls = controlsRef.current;

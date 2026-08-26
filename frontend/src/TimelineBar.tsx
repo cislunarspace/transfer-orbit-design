@@ -1,4 +1,5 @@
 // 画布时间轴（时刻选择滑块组件）
+// Canvas timeline (the time-moment slider component).
 
 import { useState, useEffect, useRef } from "react";
 import { Slider, Typography, Space, Button } from "antd";

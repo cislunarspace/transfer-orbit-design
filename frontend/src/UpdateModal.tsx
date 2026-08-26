@@ -61,6 +61,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
       return;
     }
     // 默认触发 Tauri relaunch
+    // Falls back to a Tauri relaunch.
     try {
       const { relaunch } = await import("@tauri-apps/plugin-process");
       await relaunch();

@@ -1,4 +1,5 @@
 // 项目与生成命令的前端封装。
+// Frontend wrappers for the project and generation commands.
 
 import type { ArtifactSummary } from "./projectTypes";
 

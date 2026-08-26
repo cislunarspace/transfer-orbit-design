@@ -1,5 +1,7 @@
 // JSON Schema → 表单与工具注册。
 // schema 来源：frontend/src/toolSchemas/*.json
+// JSON Schema → forms and tool registration.
+// Schemas come from frontend/src/toolSchemas/*.json
 
 import familySchema from "./toolSchemas/orbit_family_generation.json";
 import designOrbitSchema from "./toolSchemas/design_orbit.json";

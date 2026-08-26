@@ -1,4 +1,5 @@
 // 轨道保持独立执行模态弹窗：支持源工件注入、短弧参数适配与仿真时长覆盖拦截校验
+// Station-keeping run modal: source-artifact injection, short-arc parameter adaptation, and duration-override validation.
 
 import { useState } from "react";
 import { Modal, Form, InputNumber, Select, Alert, Space, Button, message } from "antd";

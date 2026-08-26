@@ -1,4 +1,5 @@
 // 主应用入口：基于 Ant Design 6 构建的三栏现代化高密度桌面科学计算界面
+// Main app entry: a three-pane, high-density desktop scientific-computing UI built on Ant Design 6.
 
 import { useEffect, useState, useCallback } from "react";
 import {
@@ -49,6 +50,7 @@ export default function App() {
   const { lang, setLang } = useTranslation();
   const [themeMode, setThemeMode] = useState<"dark" | "light">(() => {
     // 默认白底黑字（日间）；夜间模式经右上角按钮切换并持久化
+    // Defaults to white background with black text (daytime); night mode toggles via the top-right button and persists.
     return (localStorage.getItem("tod-theme-mode") as "dark" | "light") || "light";
   });
   const [fontSize, setFontSize] = useState<number>(() => {
@@ -59,6 +61,7 @@ export default function App() {
   const [selectedTool, setSelectedTool] = useState<string>(TOOL_REGISTRY[0].name);
   const [toolParams, setToolParams] = useState<Record<string, unknown>>({});
   // 提交校验问题（字段名 → 原因），传给参数面板内联标红；改动参数即清
+  // Submission validation problems (field name → reason), passed to the params panel for inline red flags; cleared on any change.
   const [paramIssues, setParamIssues] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<boolean>(false);
 
@@ -67,6 +70,7 @@ export default function App() {
   const [selectedRecordDetail, setSelectedRecordDetail] = useState<CatalogRecord | null>(null);
 
   // 画布状态
+  // Canvas state.
   const [trajectories, setTrajectories] = useState<number[][][]>([]);
   const [trajectoryTimes, setTrajectoryTimes] = useState<number[][]>([]);
   const [timeRange, setTimeRange] = useState<[number, number] | null>(null);
@@ -88,11 +92,14 @@ export default function App() {
 
   // 启动时查一次星历配置状态（设置面板展示；数据随 git/安装包分发，
   // 正常情况永远就绪，缺失多为安装损坏或 kernels/ 被删）
+  // Query the ephemeris config status once at startup (shown in the settings panel; data ships
+  // with git/the installer, so it is normally always ready — absence means a broken install or deleted kernels/).
   useEffect(() => {
     ephemerisStatus().then(setEphStatus).catch(() => setEphStatus(null));
   }, []);
 
   // 主题与字号持久化
+  // Theme and font-size persistence.
   const handleToggleTheme = () => {
     const next = themeMode === "dark" ? "light" : "dark";
     setThemeMode(next);
@@ -105,6 +112,7 @@ export default function App() {
   };
 
   // 启动后后台静默检查更新
+  // Silent update check in the background after startup.
   useEffect(() => {
     const timer = setTimeout(async () => {
       try {
@@ -115,6 +123,7 @@ export default function App() {
         }
       } catch (e) {
         // 静默检查失败不打扰用户
+        // A failed silent check never disturbs the user.
         console.warn("Silent update check failed:", e);
       }
     }, 3000);
@@ -122,6 +131,7 @@ export default function App() {
   }, []);
 
   // 监听 sidecar 进度
+  // Listen to sidecar progress events.
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     import("@tauri-apps/api/event").then(({ listen }) => {
@@ -142,6 +152,7 @@ export default function App() {
   }, [refreshArtifacts]);
 
   // 轨迹上画布的同时接通时间轴：写入时刻数组与全局范围，当前时刻置于起点
+  // Wire the timeline while placing the trajectory on the canvas: write the time array and global range, with the current moment at the start.
   const applyTrajectoryData = (data: { trajectories: number[][][]; times: number[][] }) => {
     setTrajectories(data.trajectories);
     setTrajectoryTimes(data.times);
@@ -152,6 +163,7 @@ export default function App() {
   };
 
   // 选中记录时，从 catalog 拉取详细信息与轨迹
+  // When a record is selected, fetch its details and trajectory from the catalog.
   const handleSelectArtifact = async (a: ArtifactSummary | null) => {
     setSelectedArtifact(a);
     if (!a) {
@@ -176,6 +188,7 @@ export default function App() {
         }
         if (data.members && data.members.length > 0) {
           // 裸点集无时刻信息：时间轴保持禁用
+          // Bare point sets carry no timing information; the timeline stays disabled.
           setTrajectories(data.members as unknown as number[][][]);
           setTrajectoryTimes([]);
           setTimeRange(null);
@@ -189,6 +202,7 @@ export default function App() {
   };
 
   // 执行通用工具（提交前防呆校验：必填/越界不过则不提交）
+  // Run the generic tool (preflight checks before submit: missing required fields or out-of-range values block submission).
   const handleRunTool = async () => {
     const entry = toolEntry(selectedTool);
     const issues = validateToolParams(selectedTool, entry.schema, toolParams);
@@ -227,6 +241,7 @@ export default function App() {
       await refreshArtifacts();
 
       // 若有轨迹数据，装配到画布（解析逻辑见 trajectoryParsing）
+      // If trajectory data is present, assemble it onto the canvas (parsing logic in trajectoryParsing).
       if (resp.frames && resp.frames.length > 0) {
         const td = framesToTrajectoryData(resp.frames, resp.data, EARTH_MOON_MU);
         if (td.trajectories.length > 0) {
@@ -255,6 +270,7 @@ export default function App() {
   };
 
   // 录制动画导出
+  // Record and export the animation.
   const handleExportAnimation = async () => {
     if (!api) return;
     const el = api.canvasElement();

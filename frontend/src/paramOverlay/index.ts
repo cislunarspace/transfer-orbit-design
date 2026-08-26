@@ -13,8 +13,10 @@ export interface UnitOption {
 }
 
 /** 可切换单位字段定义（首项为标准单位，toStandard 恒为 1.0） */
+/** Switchable-unit field definitions (first entry is the standard unit; toStandard is always 1.0). */
 export const UNIT_DEFINITIONS: Record<string, UnitOption[]> = {
   // 长度类（标准单位：km）
+  // Length fields (standard unit: km).
   amplitude: [
     { label: "km", toStandard: 1.0, decimals: 1, step: 100 },
     { label: "m", toStandard: 1e-3, decimals: 0, step: 1000 },
@@ -71,6 +73,7 @@ export const UNIT_DEFINITIONS: Record<string, UnitOption[]> = {
     { label: "DU", toStandard: 384400, decimals: 8, step: 0.00001 },
   ],
   // 相位与角度类
+  // Phase and angle fields.
   phase: [
     { label: "周期份额", toStandard: 1.0, decimals: 4, step: 0.05 },
     { label: "度", toStandard: 1 / 360, decimals: 1, step: 5 },
@@ -95,6 +98,7 @@ export const UNIT_DEFINITIONS: Record<string, UnitOption[]> = {
     { label: "rad", toStandard: 180 / Math.PI, decimals: 4, step: 0.01 },
   ],
   // 时间类（标准单位：年 或 秒）
+  // Time fields (standard unit: years or seconds).
   duration: [
     { label: "年", toStandard: 1.0, decimals: 4, step: 0.05 },
     { label: "月", toStandard: 1 / 12, decimals: 2, step: 0.5 },
@@ -158,6 +162,7 @@ export function fromStandardValue(field: string, standardVal: number, targetUnit
 }
 
 /** 15 种 design_orbit 轨道类型分支默认值 */
+/** Branch defaults for the 15 design_orbit orbit types. */
 export const DESIGN_ORBIT_BRANCH_DEFAULTS: Record<string, Record<string, unknown>> = {
   HALO: { amplitude: 30000, phase: 0.0, collinear_point: 2, north_south: 2 },
   DRO: { amplitude: 60000, phase: 0.5001 },
@@ -177,6 +182,7 @@ export const DESIGN_ORBIT_BRANCH_DEFAULTS: Record<string, Record<string, unknown
 };
 
 /** 族生成分支默认值 */
+/** Family-generation branch defaults. */
 export const FAMILY_BRANCH_DEFAULTS: Record<string, Record<string, unknown>> = {
   HALO: { libration_point: 2, max_amplitude_km: 30000 },
   NRHO: { libration_point: 2, north_south: 2, perilune_height_max_km: 5000 },
@@ -198,6 +204,7 @@ export function getBranchDefaults(toolName: string, branchType: string): Record<
 }
 
 /** 整数枚举中文/英文标签映射 */
+/** Chinese/English label maps for integer enums. */
 export const ENUM_OPTIONS: Record<string, { label: string; value: number | string }[]> = {
   collinear_point: [
     { label: "1 (L1)", value: 1 },
@@ -241,6 +248,7 @@ export const ENUM_OPTIONS: Record<string, { label: string; value: number | strin
 };
 
 /** 字段多行 Tooltip 提示表 */
+/** Multi-line tooltip hints per field. */
 export const FIELD_TOOLTIPS: Record<string, string> = {
   orbit_type: "轨道族或轨道类型。不同轨道类型将激活对应参数集与默认初猜值。",
   amplitude: "轨道主振幅（km）。Halo 为 z 向振幅；DRO/DPO/Axial 为 x/y 向振幅；北族取正、南族取负。",
@@ -265,6 +273,7 @@ export const FIELD_TOOLTIPS: Record<string, string> = {
 };
 
 /** 格式化范围占位提示 */
+/** Formats range placeholder hints. */
 export function formatRangePrompt(
   min: number | undefined,
   max: number | undefined,
@@ -283,6 +292,7 @@ export function formatRangePrompt(
 }
 
 /** 动态计算字段适用性（支持 design_orbit 全部 15 种类型） */
+/** Computes field applicability dynamically (covers all 15 design_orbit types). */
 export function getFieldApplicability(toolName: string, orbitType: string): string[] {
   if (toolName === "orbit_family_generation") {
     const common = ["orbit_type", "libration_point", "n_orbits"];
@@ -305,6 +315,7 @@ export function getFieldApplicability(toolName: string, orbitType: string): stri
 
   if (toolName === "design_orbit") {
     // design_orbit 公共字段
+    // Fields common to all design_orbit types.
     const common = [
       "orbit_type",
       "epoch",
@@ -343,6 +354,7 @@ export function getFieldApplicability(toolName: string, orbitType: string): stri
 }
 
 /** 当前工具+轨道类型下可见（参与表单渲染与校验）的字段列表，表单与提交校验同源 */
+/** Fields visible under the current tool + orbit type (driving both rendering and validation); form and submit checks share this source. */
 export function getActiveFields(toolName: string, schema: ToolSchema, orbitType: string): string[] {
   if (toolName === "orbit_stability") {
     return ["orbit_record_id", "dynamics_model"];
@@ -361,6 +373,7 @@ export interface ParamIssue {
 }
 
 /** 提交前防呆校验：必填缺失与数值越界（值为标准物理单位，直接对照 schema 范围） */
+/** Preflight validation before submit: missing required fields and out-of-range values (values are in standard physical units, checked directly against schema ranges). */
 export function validateToolParams(
   toolName: string,
   schema: ToolSchema,
@@ -372,6 +385,7 @@ export function validateToolParams(
   for (const field of getActiveFields(toolName, schema, orbitType)) {
     const prop = schema.properties[field];
     // 与 ParamsPanel 相同的 anyOf 展开：可空字段的约束在非 null 分支
+    // Same anyOf expansion as ParamsPanel: nullable-field constraints live in the non-null branch.
     const isOptional = prop.anyOf?.some((v) => v.type === "null") ?? false;
     const inner: SchemaProperty = isOptional
       ? prop.anyOf!.find((v) => v.type !== "null") || prop

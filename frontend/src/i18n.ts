@@ -1,4 +1,5 @@
 // i18n：中英双语，localStorage 持久化，默认中文。
+// i18n: Chinese/English bilingual, persisted in localStorage, Chinese by default.
 
 import { useEffect, useState } from "react";
 

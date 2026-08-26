@@ -3,6 +3,9 @@
 // 复现 #405 后续：App 每次重渲染都传新的 onReady 内联函数，若建场景
 // effect 依赖 [onReady]，场景会被整体重建而轨迹 effect（依赖未变）
 // 不会重跑，轨迹丢失——用户看到空画布。
+// Reproduces the #405 follow-up: App passes a fresh inline onReady on every re-render; if the scene-building
+// effect depended on [onReady], the scene would be rebuilt wholesale while the trajectory effect (unchanged deps)
+// would not rerun, losing trajectories — the user sees an empty canvas.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render } from "@testing-library/react";
@@ -12,6 +15,7 @@ import { OrbitCanvas, type CenterMode } from "./OrbitCanvas";
 import { DEFAULT_CHART_SETTINGS } from "./chartSettings";
 
 // jsdom 无 WebGL：只替换 WebGLRenderer，其余 three 类保持真实实现。
+// jsdom has no WebGL: only WebGLRenderer is replaced; all other three classes stay real.
 vi.mock("three", async (importOriginal) => {
   const actual = await importOriginal<typeof import("three")>();
   class FakeRenderer {
@@ -37,6 +41,7 @@ vi.mock("three/examples/jsm/controls/OrbitControls.js", () => ({
   OrbitControls: class {
     // target 记录 x/y/z：fitView 的 copy/sub 需要可读字段，
     // 测试靠它断言相机注视点是否跟随中心切换。
+    // target records x/y/z: fitView's copy/sub need readable fields, and tests use it to assert whether the camera gaze follows center switching.
     static instances: unknown[] = [];
     target = { x: 0, y: 0, z: 0, set(x: number, y: number, z: number) { this.x = x; this.y = y; this.z = z; }, copy(v: { x: number; y: number; z: number }) { this.x = v.x; this.y = v.y; this.z = v.z; return this; } };
     enableDamping = false;
@@ -65,6 +70,7 @@ function flushFrames() {
 
 function sceneLines(scene: unknown): Line[] {
   // 只数轨道线：标注组里的网格/箭头/天体不算（视图适配与轨迹计数都只针对轨道）
+  // Count only orbit lines: grid/arrows/bodies in the annotation group do not count (view fitting and trajectory counting are orbit-only).
   const orbits = (scene as import("three").Scene).getObjectByName("orbits");
   if (!orbits) return [];
   return orbits.children.filter((o) => (o as Line).isLine) as unknown as Line[];
@@ -87,6 +93,8 @@ const LIBRATION = [
 
 // L2 附近的偏心轨迹（模拟 Halo/NRHO 族）：fitView 后 target 会在盒中心
 // x≈1.16，而不是原点——用于复现“适配后切中心，target 不跟随”的偏移。
+// An eccentric trajectory near L2 (mimicking a Halo/NRHO family): after fitView the target sits at the box
+// center x≈1.16 instead of the origin — reproducing the "switch center after fitting but target does not follow" offset.
 const L2_ORBIT: number[][][] = [
   Array.from({ length: 60 }, (_, i) => {
     const a = (i / 60) * Math.PI * 2;
@@ -126,6 +134,7 @@ beforeEach(() => {
     },
   );
   // jsdom 无 2D canvas：stub 给天体标注用的 getContext("2d")
+  // jsdom has no 2D canvas: stub getContext("2d") used by body annotations.
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
     () => ({ fillText: () => {} }) as unknown as CanvasRenderingContext2D,
   );
@@ -154,6 +163,8 @@ describe("OrbitCanvas 轨迹渲染", () => {
 
     // 模拟 App 任意状态变化（setBusy/setApi/...）：onReady 是内联函数，
     // 每次渲染都是新引用，其余 props 不变。
+    // Simulates arbitrary App state changes (setBusy/setApi/...): onReady is an inline function whose reference
+    // changes every render while other props stay equal.
     view.rerender(
       <OrbitCanvas
         trajectories={TRAJECTORIES}
@@ -180,10 +191,13 @@ describe("OrbitCanvas 轨迹渲染", () => {
 
     // annotations 组的位置必须是居中偏移（barycenter → 原点），
     // 不能被天体坐标覆盖；天体按各自坐标摆放。
+    // The annotations group's position must be the centering offset (barycenter → origin) and must not be
+    // overwritten by body coordinates; bodies sit at their own coordinates.
     const annotations = annotationsOf(scene);
     expect(annotations.position.x).toBeCloseTo(0, 10);
 
     // 地球 mesh 应位于 (-mu, 0, 0)，带真实表面贴图与 Phong 光照
+    // The Earth mesh must sit at (-mu, 0, 0) with a real surface texture and Phong lighting.
     const earth = annotations.getObjectByName("earth") as import("three").Mesh;
     expect(earth).toBeDefined();
     expect(earth.position.x).toBeCloseTo(-MU, 10);
@@ -192,6 +206,7 @@ describe("OrbitCanvas 轨迹渲染", () => {
     expect(material.isMeshPhongMaterial).toBe(true);
 
     // 月球同样贴图化，半径取真实比例（约地球的 0.27）
+    // The Moon is likewise textured, its radius at true scale (about 0.27 of Earth's).
     const moon = annotations.getObjectByName("moon") as import("three").Mesh;
     expect((moon.material as import("three").MeshPhongMaterial).map).toBeDefined();
     const rEarth = (earth.geometry as import("three").SphereGeometry).parameters.radius;
@@ -225,6 +240,7 @@ describe("OrbitCanvas 轨迹渲染", () => {
 
 describe("中心点居中几何", () => {
   // 选定中心后，该天体/平动点的世界坐标应为原点（相机 target 默认 0,0,0）
+  // After a center is selected, that body/libration point's world coordinate should be the origin (camera target defaults to 0,0,0).
   const CASES: { name: string; center: CenterMode; bodyLocalX: number }[] = [
     { name: "地心居中", center: "earth", bodyLocalX: -MU },
     { name: "月心居中", center: "moon", bodyLocalX: 1 - MU },
@@ -263,6 +279,8 @@ describe("中心点居中几何", () => {
 describe("中心切换的相机注视点", () => {
   // 用户场景：L2 轨道族 + 适配（注视点在轨道盒中心）→ 手动切“质心居中”，
  // 期望质心（世界原点）成为画面中心，而不是重新适配又盯回轨道盒。
+  // User scenario: an L2 orbit family + fit (gaze at the orbit-box center), then manually switching to
+  // "barycenter-centered": the barycenter (world origin) should become the view center rather than refitting back onto the orbit box.
   const stateOf = () => {
     const r = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
     const last = r[r.length - 1] as unknown as { lastCamera: { position: { x: number; y: number; z: number } } };
@@ -286,6 +304,7 @@ describe("中心切换的相机注视点", () => {
     api.fitView();
     const before = stateOf();
     // L2 居中 + 适配后，注视点在轨道盒中心（原点附近）
+    // After L2 centering + fitting, the gaze sits at the orbit-box center (near the origin).
     expect(before.target.x).toBeCloseTo(0, 2);
     const offsetBefore = {
       x: before.camera.position.x - before.target.x,
@@ -307,13 +326,16 @@ describe("中心切换的相机注视点", () => {
 
     const after = stateOf();
     // center 状态确实传到了画布：质心居中时 annotations 偏移归零（区分假设 2）
+    // The center state really reached the canvas: the annotations offset zeroes out under barycenter centering (distinguishes hypothesis 2).
     const scene = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
     const s = scene[scene.length - 1].lastScene as import("three").Scene;
     expect(annotationsOf(s).position.x).toBeCloseTo(0, 10);
     // 质心居中：注视点应为世界原点，而不是轨道盒中心（当前实现变红处）
+    // Barycenter-centered: the gaze should be the world origin, not the orbit-box center (where the current implementation goes red).
     expect(after.target.x).toBeCloseTo(0, 6);
     expect(after.target.y).toBeCloseTo(0, 6);
     // 视图保持：相机相对注视点的方向与距离不变
+    // View preservation: the camera's direction and distance relative to the gaze stay unchanged.
     expect(after.camera.position.x - after.target.x).toBeCloseTo(offsetBefore.x, 6);
     expect(after.camera.position.y - after.target.y).toBeCloseTo(offsetBefore.y, 6);
     expect(after.camera.position.z - after.target.z).toBeCloseTo(offsetBefore.z, 6);
@@ -338,6 +360,7 @@ describe("坐标轴图层", () => {
     const axes = annotationsOf(scene).getObjectByName("axes");
     expect(axes).toBeDefined();
     // 3 轴箭头 + 3 轴名 sprite + 1 网格 + 量程刻度（默认 ±0.5/±1.0 两档 × X/Y 双轴）
+    // Three axis arrows + three axis-name sprites + one grid + range ticks (default ±0.5/±1.0 settings x X/Y axes).
     const arrows = axes!.children.filter((c) => c instanceof ArrowHelper);
     expect(arrows.length).toBe(3);
     const grid = axes!.children.find((c) => (c as unknown as { isLineSegments?: boolean }).isLineSegments);
@@ -405,6 +428,7 @@ describe("坐标轴图层", () => {
     ) as unknown as import("three").LineSegments;
     const geom = grid.geometry as import("three").BufferGeometry;
     // GridHelper 顶点覆盖 [-size/2, size/2]；取 x 极值验边长
+    // GridHelper vertices span [-size/2, size/2]; take the x extremes to verify the side length.
     const pos = geom.getAttribute("position");
     let minX = Infinity;
     let maxX = -Infinity;

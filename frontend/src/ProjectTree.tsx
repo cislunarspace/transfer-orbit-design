@@ -1,4 +1,6 @@
 // 项目树组件：基于 Ant Design Tree 与 Dropdown 实现右键菜单、多选、删除确认与稳定性分析
+// Project tree: an Ant Design Tree + Dropdown component with context menu, multi-select, delete confirmation,
+// and stability analysis.
 
 import { useState } from "react";
 import { Tree, Dropdown, Modal, Typography, message } from "antd";

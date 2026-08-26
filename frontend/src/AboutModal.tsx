@@ -12,6 +12,7 @@ export interface AboutModalProps {
   onClose: () => void;
   onUpdateAvailable: (info: UpdateInfo) => void;
   /** 注入显示用的版本号（测试用）；缺省时取 Tauri 运行时真实版本 */
+  /** Injected display version (for tests); falls back to the real Tauri runtime version. */
   currentVersion?: string;
 }
 

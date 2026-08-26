@@ -4,6 +4,8 @@ import type { ToolSchema, SchemaProperty } from "../schema";
 
 // 最小 schema：必填枚举 + 可空数值（anyOf 分支携带范围，与真实 schema 同构）
 // + 整数独占上界 + 仅独占下界的普通数值字段
+// Minimal schema: required enum + nullable number (anyOf branch carries the range, isomorphic to the real
+// schema) + an integer with an exclusive upper bound + a plain number with only an exclusive lower bound.
 const schema: ToolSchema = {
   required: ["orbit_type", "amplitude"],
   properties: {
@@ -31,6 +33,7 @@ describe("validateToolParams", () => {
     const rs = reasons("generic_tool", { amplitude: 1000 });
     expect(rs.some((r) => r.includes("必填"))).toBe(true);
     // phase 非必填、未填 → 不报
+    // phase is optional and unfilled → no error.
     expect(rs.every((r) => !r.includes("Phase"))).toBe(true);
     expect(reasons("generic_tool", { ...OK_VALUES, orbit_type: "" }).some((r) => r.includes("必填"))).toBe(true);
   });
@@ -70,6 +73,7 @@ describe("validateToolParams", () => {
       },
     };
     // amplitude 必填但不可见 → 不报；orbit_record_id 可见且缺失 → 报必填
+    // amplitude is required but invisible → no error; orbit_record_id visible and missing → reports missing-required.
     const issues = validateToolParams("orbit_stability", stabilitySchema, { dynamics_model: "cr3bp" });
     expect(issues.map((i) => i.field)).toEqual(["orbit_record_id"]);
     expect(getActiveFields("orbit_stability", stabilitySchema, "HALO")).toEqual([

@@ -1,5 +1,7 @@
 // 画布动画录制：captureStream + MediaRecorder 编 webm；webview 内原生编码，
 // 不引额外依赖。自转动画由调用方驱动。
+// Canvas animation recording: captureStream + MediaRecorder encoding to webm with the webview's native encoder;
+// no extra dependencies. The spin animation is driven by the caller.
 
 export interface RecordingResult {
   blob: Blob;
@@ -7,6 +9,7 @@ export interface RecordingResult {
 }
 
 /** 录制 canvas 的 start/stop 控制器。 */
+/** A start/stop controller for recording the canvas. */
 export class CanvasRecorder {
   private recorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
@@ -45,6 +48,7 @@ export class CanvasRecorder {
 }
 
 /** 触发浏览器下载（Tauri webview 内走 download 事件）。 */
+/** Triggers a browser download (goes through the download event inside the Tauri webview). */
 export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
