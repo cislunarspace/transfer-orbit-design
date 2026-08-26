@@ -1,6 +1,6 @@
 """跨层共享的路径常量与辅助工具。
 
-    Path constants and helpers shared across layers.
+Path constants and helpers shared across layers.
 """
 
 import logging

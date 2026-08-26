@@ -195,7 +195,7 @@ class OrbitVisualizer:
     def _get_next_color(self) -> str:
         """从颜色循环中获取下一个颜色。
 
-            Get the next color from the color cycle.
+        Get the next color from the color cycle.
         """
         color = self.color_cycle[self.color_index % len(self.color_cycle)]
         self.color_index += 1
@@ -580,7 +580,7 @@ class OrbitVisualizer:
     def show(self) -> None:
         """显示绘图窗口。
 
-            Show the plot window.
+        Show the plot window.
         """
         plt.show()
 

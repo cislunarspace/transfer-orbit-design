@@ -145,8 +145,8 @@ def generate_leo_orbit(n_points: int = 500, r_leo: float = R_LEO) -> Orbit:
     English: generate an approximate LEO circular orbit in the CR3BP
     rotating frame. LEO is modeled as a circle of radius R_LEO centered
     on Earth; the velocity comes from leo_circular_velocity_rotating
-    (including the Coriolis correction). Args: ``n_points`` — sample
-count; ``r_leo`` — normalized LEO radius, default 400 km altitude.
+    (including the Coriolis correction). Args: ``n_points`` — sample count;
+    ``r_leo`` — normalized LEO radius, default 400 km altitude.
     Returns: an ``Orbit`` object with states, times and period.
     """
     from e2m2e.data.types.orbit import Orbit

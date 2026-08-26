@@ -100,7 +100,7 @@ def approx_moon_gcrs_km(theta) -> Any:
 
     Approximate lunar GCRS position for the inertial view:
     R(θ)·(1,0,0)·DU (circular orbit). Consistent with the lunar special
-case of :func:`synodic_to_gcrs_km`; used to draw the lunar trajectory
+    case of :func:`synodic_to_gcrs_km`; used to draw the lunar trajectory
     and moon-center translation in the inertial view for pure-CR3BP
     products without ephemeris (orbit families / legacy guesses).
     """

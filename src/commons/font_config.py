@@ -1,6 +1,6 @@
 """CJK 字体回退配置。
 
-    CJK font fallback configuration.
+CJK font fallback configuration.
 """
 
 from __future__ import annotations
