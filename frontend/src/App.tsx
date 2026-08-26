@@ -6,8 +6,6 @@ import {
   theme as antdTheme,
   Button,
   Select,
-  Space,
-  Radio,
   Typography,
   Modal,
   Form,
@@ -17,10 +15,11 @@ import {
 } from "antd";
 import {
   PlayCircleOutlined,
-  BulbOutlined,
   InfoCircleOutlined,
+  MoonOutlined,
+  SunOutlined,
 } from "@ant-design/icons";
-import { themeTokens } from "./theme";
+import { themeBehavior, themeTokens } from "./theme";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode } from "./OrbitCanvas";
 import { TimelineBar } from "./TimelineBar";
@@ -285,6 +284,7 @@ export default function App() {
     <ConfigProvider
       theme={{
         algorithm: themeMode === "dark" ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+        ...themeBehavior,
         token: {
           fontSize: fontSize,
           ...themeTokens,
@@ -312,18 +312,60 @@ export default function App() {
             padding: 8,
           }}
         >
-          {/* 页签与设置栏 */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <Radio.Group
-              size="small"
-              value={leftTab}
-              onChange={(e) => setLeftTab(e.target.value)}
-              buttonStyle="solid"
-            >
-              <Radio.Button value="project">项目</Radio.Button>
-              <Radio.Button value="catalog">轨道库</Radio.Button>
-            </Radio.Group>
-            <Space orientation="horizontal" size={4}>
+          {/* 页签与设置栏：底边指示线页签 + 无边框工具按钮（IDE 侧栏风格） */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              gap: 10,
+              borderBottom: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8",
+              marginBottom: 8,
+            }}
+          >
+            {(
+              [
+                ["project", "项目"],
+                ["catalog", "轨道库"],
+              ] as const
+            ).map(([key, label]) => {
+              const active = leftTab === key;
+              return (
+                <Button
+                  key={key}
+                  type="text"
+                  size="small"
+                  onClick={() => setLeftTab(key)}
+                  style={{
+                    padding: "1px 2px 5px",
+                    borderRadius: 0,
+                    marginBottom: -1,
+                    borderBottom: active
+                      ? `2px solid ${themeMode === "dark" ? "#4096ff" : "#0958d9"}`
+                      : "2px solid transparent",
+                    color: active ? (themeMode === "dark" ? "#fff" : "#0958d9") : "inherit",
+                    fontWeight: active ? 500 : 400,
+                  }}
+                >
+                  {label}
+                </Button>
+              );
+            })}
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 2, paddingBottom: 3 }}>
+              <Button
+                type="text"
+                size="small"
+                onClick={() => setLang(lang === "zh" ? "en" : "zh")}
+                title="切换语言"
+              >
+                {lang === "zh" ? "EN" : "中"}
+              </Button>
+              <Button
+                type="text"
+                size="small"
+                icon={themeMode === "dark" ? <SunOutlined /> : <MoonOutlined />}
+                onClick={handleToggleTheme}
+                title="切换浅色/深色主题"
+              />
               <Button
                 type="text"
                 size="small"
@@ -331,24 +373,7 @@ export default function App() {
                 onClick={() => setAboutModalOpen(true)}
                 title="关于 tod"
               />
-              <Button
-                type="text"
-                size="small"
-                icon={<BulbOutlined />}
-                onClick={handleToggleTheme}
-                title="切换浅色/深色主题"
-              />
-              <Select
-                size="small"
-                value={lang}
-                style={{ width: 60 }}
-                onChange={setLang}
-                options={[
-                  { label: "中", value: "zh" },
-                  { label: "EN", value: "en" },
-                ]}
-              />
-            </Space>
+            </div>
           </div>
 
           {/* 列表/过滤内容 */}
