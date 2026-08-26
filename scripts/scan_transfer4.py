@@ -1,4 +1,8 @@
-"""LGA/WSB 正确契约验证：synodic 物理单位目标态（对齐 e2m2e test_lga）。"""
+"""LGA/WSB 正确契约验证：synodic 物理单位目标态（对齐 e2m2e test_lga）。
+
+    Correct-contract
+verification for LGA/WSB: rotating-frame physical-unit target states (aligned with
+e2m2e's test_lga)."""
 
 import json
 import math
@@ -48,6 +52,7 @@ def main() -> None:
             res[f"lga_{int(r_km)}"] = {"error": str(exc)[:200]}
 
     # WSB 同契约
+    # WSB follows the same contract.
     for r_km in (2000.0, 5000.0):
         t0 = time.time()
         try:
@@ -66,6 +71,7 @@ def main() -> None:
             res[f"wsb_{int(r_km)}"] = {"error": str(exc)[:200]}
 
     # facade 层透传验证（TransferDesignRequest 路径）
+    # Facade-layer pass-through check (TransferDesignRequest path).
     try:
         f = Facade()
         fr = f.transfer_design(

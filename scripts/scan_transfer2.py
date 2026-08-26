@@ -1,7 +1,11 @@
 """服务器上扫描 NRHO（perilune_height）设计 + LGA/WSB 转移链路验证。
 
+    Server-side scan over NRHO
+(perilune_height) design plus LGA/WSB transfer-chain verification.
+
 用法（在服务器上）：
     .venv/bin/python scripts/scan_transfer2.py [n_workers]
+Usage (on the server): the command above.
 """
 
 import json
@@ -15,7 +19,11 @@ os.environ["SPICE_KERNEL_DIR"] = KDIR
 
 
 def _get_eph(response):
-    """从 DesignOrbitResponse 取星历并重建 EphemerisTable（transfer_orbit 支持的类型）。"""
+    """从 DesignOrbitResponse 取星历并重建 EphemerisTable（transfer_orbit 支持的类型）。
+
+        Take the
+    ephemeris from a DesignOrbitResponse and rebuild an EphemerisTable (the type transfer_orbit
+    supports)."""
     from dataclasses import fields as dc_fields
 
     import numpy as np

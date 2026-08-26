@@ -1,4 +1,5 @@
-"""tests for src.engine.facade_bridge -- DTO + TOOL_REGISTRY + design_orbit。"""
+"""tests for src.engine.facade_bridge -- DTO + TOOL_REGISTRY + design_orbit。Tests for
+src.engine.facade_bridge -- DTOs, TOOL_REGISTRY, design_orbit."""
 
 from __future__ import annotations
 
@@ -19,28 +20,43 @@ from tests.engine.conftest import _FakeDesignResult
 
 class TestOrbitDesignResultData:
     def test_dto_has_no_e2m2e_reference(self):
-        """DTO 不应包含 e2m2e Orbit 对象引用。"""
+        """DTO 不应包含 e2m2e Orbit 对象引用。
+
+            DTOs must not hold
+        e2m2e Orbit object references."""
         field_names = {f.name for f in OrbitDesignResultData.__dataclass_fields__.values()}
         assert "cr3bp_orbit" not in field_names, (
             "DTO 不应包含 cr3bp_orbit 字段（e2m2e Orbit 对象引用）"
         )
 
     def test_dto_numpy_fields(self, mock_design_orbit, catalog_bridge):
-        """states/times 应为 numpy ndarray。"""
+        """states/times 应为 numpy ndarray。
+
+        states/times must be numpy ndarrays.
+        """
         data = catalog_bridge.design_orbit(orbit_type="DRO")
         assert isinstance(data.states, np.ndarray)
         assert isinstance(data.times, np.ndarray)
 
     def test_dto_field_count(self):
-        """DTO 字段数稳定（防止意外增减）。"""
+        """DTO 字段数稳定（防止意外增减）。
+
+            The DTO field count is stable
+        (guards against accidental additions/removals)."""
         assert len(OrbitDesignResultData.__dataclass_fields__) == 12
 
     def test_dto_has_mu_field(self):
-        """DTO 应包含 mu 字段（issue #339 地月月标注数据流）。"""
+        """DTO 应包含 mu 字段（issue #339 地月月标注数据流）。
+
+            DTOs must carry the mu field
+        (issue #339 Earth-Moon annotation data flow)."""
         assert "mu" in OrbitDesignResultData.__dataclass_fields__
 
     def test_dto_has_record_id_field(self):
-        """DTO 应包含 record_id 字段（issue #375 产物入库回执）。"""
+        """DTO 应包含 record_id 字段（issue #375 产物入库回执）。
+
+            DTOs must carry the record_id field
+        (issue #375 ingestion receipt)."""
         assert "record_id" in OrbitDesignResultData.__dataclass_fields__
 
 
@@ -55,14 +71,20 @@ class TestToolSpec:
 
 class TestToolRegistry:
     def test_completeness(self):
-        """TOOL_REGISTRY 与 e2m2e facade 工具清单（mcp_tools）对齐。"""
+        """TOOL_REGISTRY 与 e2m2e facade 工具清单（mcp_tools）对齐。
+
+            TOOL_REGISTRY aligns with the
+        e2m2e facade tool inventory (mcp_tools)."""
         from e2m2e.api import Facade, mcp_tools
 
         facade_names = set(mcp_tools(Facade()))
         assert set(TOOL_REGISTRY.keys()) == facade_names
 
     def test_enabled_subset(self):
-        """仅 GUI 已接入的工具 enabled，其余灰显。"""
+        """仅 GUI 已接入的工具 enabled，其余灰显。
+
+            Only GUI-wired tools are enabled;
+        the rest gray out."""
         assert set(TOOL_REGISTRY) - {
             "design_orbit",
             "control_orbit",
@@ -75,20 +97,34 @@ class TestToolRegistry:
         assert TOOL_REGISTRY["design_orbit"].enabled is True
 
     def test_control_orbit_enabled(self):
-        """issue #348: control_orbit 已激活。"""
+        """issue #348: control_orbit 已激活。
+
+        issue #348: control_orbit is active.
+        """
         assert TOOL_REGISTRY["control_orbit"].enabled is True
 
     def test_family_generation_enabled(self):
-        """issue #340: orbit_family_generation 已激活（e2m2e 族延拓接入）。"""
+        """issue #340: orbit_family_generation 已激活（e2m2e 族延拓接入）。
+
+        issue #340: orbit_family_generation is active (wired to e2m2e family
+        continuation).
+        """
         assert TOOL_REGISTRY["orbit_family_generation"].enabled is True
         assert TOOL_REGISTRY["orbit_family_generation"].request_model is not None
 
     def test_stability_disabled_in_tool_combo(self):
-        """orbit_stability 无参数面板，工具下拉保持灰显（右键菜单入口）。"""
+        """orbit_stability 无参数面板，工具下拉保持灰显（右键菜单入口）。
+
+        orbit_stability has no parameter panel and stays grayed out in the dropdown
+        (context-menu entry only).
+        """
         assert TOOL_REGISTRY["orbit_stability"].enabled is False
 
     def test_first_enabled_tool_is_design_orbit(self):
-        """默认工具 = 第一个 enabled（工具下拉初始选中，须为轨道设计）。"""
+        """默认工具 = 第一个 enabled（工具下拉初始选中，须为轨道设计）。
+
+            The default tool is
+        the first enabled one (the dropdown's initial selection must be orbit design)."""
         for name, spec in TOOL_REGISTRY.items():
             if spec.enabled:
                 assert name == "design_orbit"
@@ -96,7 +132,11 @@ class TestToolRegistry:
         pytest.fail("无 enabled 工具")
 
     def test_facade_method_matches_tool_key(self):
-        """facade_method 是 e2m2e facade 方法名（== 工具 key，与 mcp_tools 对齐）。"""
+        """facade_method 是 e2m2e facade 方法名（== 工具 key，与 mcp_tools 对齐）。
+
+        facade_method is the e2m2e facade method name (== tool key, aligned with
+        mcp_tools).
+        """
         for name, spec in TOOL_REGISTRY.items():
             assert spec.facade_method == name, f"{name}.facade_method != 工具 key"
 
@@ -105,12 +145,18 @@ class TestToolRegistry:
             assert spec.label, f"{name}.label 为空"
 
     def test_descriptions_non_empty(self):
-        """每个工具都应有工具说明（面板顶部展示）。"""
+        """每个工具都应有工具说明（面板顶部展示）。
+
+            Every tool must have a description
+        (shown atop the panel)."""
         for name, spec in TOOL_REGISTRY.items():
             assert spec.description, f"{name}.description 为空"
 
     def test_disabled_tool_descriptions_follow_inventory_status(self):
-        """非 GUI 工具的已实现/占位说明以 e2m2e 清单为准。"""
+        """非 GUI 工具的已实现/占位说明以 e2m2e 清单为准。
+
+            Implemented/placeholder descriptions for
+        non-GUI tools follow the e2m2e inventory."""
         from e2m2e.api import Facade, tool_inventory
 
         status_notes = {
@@ -138,7 +184,11 @@ class TestFacadeBridgeDesignOrbit:
         assert isinstance(data, OrbitDesignResultData)
 
     def test_mu_extracted_from_orbit_system(self, monkeypatch, catalog_bridge):
-        """mu 应从 cr3bp_orbit.system.mu 提取（issue #339 实测路径）。"""
+        """mu 应从 cr3bp_orbit.system.mu 提取（issue #339 实测路径）。
+
+        mu must be extracted from cr3bp_orbit.system.mu (the path verified in issue
+        #339).
+        """
         result = _FakeDesignResult(system=SimpleNamespace(mu=EARTH_MOON_MU))
 
         monkeypatch.setattr(
@@ -150,7 +200,10 @@ class TestFacadeBridgeDesignOrbit:
         assert data.mu == pytest.approx(EARTH_MOON_MU)
 
     def test_mu_is_none_when_orbit_has_no_system(self, mock_design_orbit, catalog_bridge):
-        """system 缺失（旧 fake / 无上下文）时 mu 为 None，不崩溃。"""
+        """system 缺失（旧 fake / 无上下文）时 mu 为 None，不崩溃。
+
+            When system is missing
+        (legacy fake / no context), mu is None without crashing."""
         data = catalog_bridge.design_orbit(orbit_type="DRO")
         assert data.mu is None
 
@@ -159,7 +212,11 @@ class TestFacadeBridgeDesignOrbit:
         assert data.states.shape == fake_design_result.cr3bp_orbit.states.shape
 
     def test_kernel_dir_forwarded(self, monkeypatch, tmp_path):
-        """kernel_dir 经 Config 注入 Facade，转发到算法层调用。"""
+        """kernel_dir 经 Config 注入 Facade，转发到算法层调用。
+
+        kernel_dir is injected into the Facade via Config and forwarded to the
+        algorithm-layer call.
+        """
         captured: dict = {}
 
         def _capture(request, *, spice=None, kernel_dir=None, verbose=False):
@@ -171,10 +228,15 @@ class TestFacadeBridgeDesignOrbit:
         bridge = FacadeBridge(kernel_dir="/tmp/kernels", catalog_dir=str(tmp_path / "c"))
         bridge.design_orbit(orbit_type="DRO")
         # 守住接缝：kernel_dir 经 Config 注入（非 request 字段），算法层收到
+        # Guard the seam: kernel_dir is injected via Config (not a request field);
+        # the algorithm layer sees
         assert captured.get("kernel_dir") == "/tmp/kernels"
 
     def test_duration_converts_years_to_seconds(self, monkeypatch, catalog_bridge):
-        """GUI duration 单位年，e2m2e duration 单位秒；facade 做换算。"""
+        """GUI duration 单位年，e2m2e duration 单位秒；facade 做换算。
+
+            GUI duration is in years,
+        e2m2e duration in seconds; the facade converts."""
 
         captured: dict = {}
 
@@ -185,11 +247,13 @@ class TestFacadeBridgeDesignOrbit:
 
         monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _capture, raising=False)
         # 1 年（GUI 标准单位）应被换算成 1 年的秒数
+        # 1 year (GUI standard unit) should be converted into seconds for one year
         catalog_bridge.design_orbit(orbit_type="DRO", duration=1.0)
         from src.commons.units import SECONDS_PER_YEAR
 
         assert captured["duration"] == pytest.approx(SECONDS_PER_YEAR)
         # 0.5 年 -> 半年秒数
+        # 0.5 years -> seconds for half a year
         catalog_bridge.design_orbit(orbit_type="DRO", duration=0.5)
         assert captured["duration"] == pytest.approx(0.5 * SECONDS_PER_YEAR)
 
@@ -200,13 +264,18 @@ class TestFacadeBridgeDesignOrbit:
             ("LISSAJOUS", "standard", "segmented"),
             ("DRO", "two_level", "two_level"),
             # e2m2e 5.8.1 起 DPO 列入不稳定轨道族，two_level 被上游重定向 segmented
+            # Since e2m2e 5.8.1 DPO is an unstable orbit family; two_level is
+            # redirected to segmented upstream
             ("DPO", "two_level", "segmented"),
         ],
     )
     def test_lissajous_uses_segmented_correction(
         self, monkeypatch, catalog_bridge, orbit_type, correction_method, expected_method
     ):
-        """Lissajous 不得走一圈修正后自由外推的常规修正路径。"""
+        """Lissajous 不得走一圈修正后自由外推的常规修正路径。
+
+            Lissajous must not take the regular
+        correction path of one-loop correction followed by free propagation."""
         captured: dict = {}
 
         def _capture(request, *, spice=None, kernel_dir=None, verbose=False):
@@ -225,7 +294,10 @@ class TestFacadeBridgeDesignOrbit:
         assert captured["correction_method"] == expected_method
 
     def test_orbit_error_translated(self, monkeypatch, catalog_bridge):
-        """e2m2e 异常应被翻译为 OrbitError。"""
+        """e2m2e 异常应被翻译为 OrbitError。
+
+        e2m2e exceptions must be translated into OrbitError.
+        """
         from src.engine.exceptions import OrbitError
 
         def _fail(request, *, spice=None, kernel_dir=None, verbose=False):
@@ -234,11 +306,15 @@ class TestFacadeBridgeDesignOrbit:
         monkeypatch.setattr("e2m2e.algorithm.design.design_orbit", _fail, raising=False)
         with pytest.raises(OrbitError) as exc_info:
             # amplitude=50 < DRO 下限 1737 km，触发 model_validator ValueError
+            # amplitude=50 < the DRO lower bound of 1737 km, tripping a model_validator ValueError
             catalog_bridge.design_orbit(orbit_type="DRO", amplitude=50.0)
         assert exc_info.value.code == "INVALID_PARAMS"
 
     def test_nrho_uses_full_design_orbit_pipeline(self, monkeypatch, tmp_path):
-        """e2m2e 5.7.3 起 NRHO 走完整 design_orbit（不再旁路只交 CR3BP）。"""
+        """e2m2e 5.7.3 起 NRHO 走完整 design_orbit（不再旁路只交 CR3BP）。
+
+            Since e2m2e 5.7.3 NRHO
+        goes through full design_orbit (no longer bypassed with only CR3BP)."""
         captured: dict = {}
 
         def _capture(request, *, spice=None, kernel_dir=None, verbose=False):
@@ -273,10 +349,17 @@ class TestFacadeBridgeDesignOrbit:
 
 
 class TestDesignOrbitCatalogIngest:
-    """issue #375 US8：design_orbit 经 Facade 调用且产物自动入库。"""
+    """issue #375 US8：design_orbit 经 Facade 调用且产物自动入库。
+
+    issue #375 US8: design_orbit goes through the Facade and its product
+    auto-ingests.
+    """
 
     def test_computation_leaves_record_in_catalog(self, mock_design_orbit, catalog_bridge):
-        """计算成功后库中出现对应记录（record_id 即主键）。"""
+        """计算成功后库中出现对应记录（record_id 即主键）。
+
+            After a successful computation the
+        catalog holds a matching record (the record_id is its primary key)."""
         data = catalog_bridge.design_orbit(orbit_type="DRO")
         assert data.record_id is not None
         records = catalog_bridge.catalog_query()
@@ -284,13 +367,19 @@ class TestDesignOrbitCatalogIngest:
         assert records[0].source_tool == "design_orbit"
 
     def test_query_filters_by_family(self, mock_design_orbit, catalog_bridge):
-        """catalog_query 多维过滤生效（族维度）。"""
+        """catalog_query 多维过滤生效（族维度）。
+
+        catalog_query's multi-dimensional filtering works (family dimension).
+        """
         catalog_bridge.design_orbit(orbit_type="DRO")
         assert catalog_bridge.catalog_query(orbit_family="dro")
         assert not catalog_bridge.catalog_query(orbit_family="halo")
 
     def test_catalog_get_returns_arrays(self, mock_design_orbit, catalog_bridge):
-        """catalog_get 返回完整记录（含 CR3BP 段数组）。"""
+        """catalog_get 返回完整记录（含 CR3BP 段数组）。
+
+        catalog_get returns the full record (including the CR3BP segment arrays).
+        """
         data = catalog_bridge.design_orbit(orbit_type="DRO")
         record = catalog_bridge.catalog_get(data.record_id)
         assert record.arrays["cr3bp/states"].shape[0] == data.states.shape[0]
@@ -298,7 +387,10 @@ class TestDesignOrbitCatalogIngest:
     def test_export_package_contains_records_and_manifest(
         self, mock_design_orbit, catalog_bridge, tmp_path
     ):
-        """教学案例包内容：records/<id>.json/.npz + manifest.json（Testing Decisions）。"""
+        """教学案例包内容：records/<id>.json/.npz + manifest.json（Testing Decisions）。
+        Teaching-package contents: records/<id>.json/.npz plus manifest.json
+        (per the testing decisions).
+        """
         import json
         import zipfile
 

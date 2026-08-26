@@ -52,7 +52,10 @@ def _summary(
 
 
 class _StubBridge:
-    """FacadeBridge.catalog_* 方法的桩：记录调用、返回预置响应。"""
+    """FacadeBridge.catalog_* 方法的桩：记录调用、返回预置响应。
+
+        Stub for FacadeBridge.catalog_*
+    methods: records calls, returns preset responses."""
 
     def __init__(self, summaries=None, records=None) -> None:
         self.summaries = summaries or []
@@ -176,7 +179,11 @@ class TestLoadArrays:
 
     @pytest.mark.spice
     def test_design_record_ephemeris_rebuilds_times_et(self):
-        """星历段懒加载重建四槽位数据源（含 times_et，需闰秒内核）。"""
+        """星历段懒加载重建四槽位数据源（含 times_et，需闰秒内核）。
+
+            Lazy ephemeris-segment loading
+        rebuilds the four-slot data source (including times_et; needs the leap-second
+        kernel)."""
         from tests.engine.conftest import make_ephemeris_table
 
         n = 5
@@ -200,7 +207,11 @@ class TestLoadArrays:
 
     @pytest.mark.spice
     def test_control_record_subtracts_mu(self):
-        """站保记录的会合系位置减 μ 对齐画布质心归一（ADR 0013）。"""
+        """站保记录的会合系位置减 μ 对齐画布质心归一（ADR 0013）。
+
+            Station-keeping records shift
+        rotating-frame positions by μ to align with canvas barycenter normalization
+        (ADR 0013)."""
         from tests.engine.conftest import make_ephemeris_table
 
         n = 4
@@ -232,7 +243,10 @@ class TestLoadArrays:
         np.testing.assert_array_equal(artifact.state_data[:, 3:], np.zeros((n, 3)))
 
     def test_family_record_stacks_members(self):
-        """族记录：成员数组堆叠 (m, n, 6)；自带完整轨迹的成员原样采用。"""
+        """族记录：成员数组堆叠 (m, n, 6)；自带完整轨迹的成员原样采用。
+
+            Family records: member arrays
+        stacked (m, n, 6); members carrying full trajectories are used as-is."""
         m, n = 3, 7
         arrays = {}
         for i in range(m):
@@ -255,7 +269,11 @@ class TestLoadArrays:
         assert len(artifact.extra["member_parameters"]) == m
 
     def test_family_periodic_member_resampled(self, monkeypatch):
-        """周期成员只携带初态与周期时按周期重采样（画布渲染契约）。"""
+        """周期成员只携带初态与周期时按周期重采样（画布渲染契约）。
+
+            Periodic members carrying only an
+        initial state and a period are resampled per period (the canvas rendering
+        contract)."""
         arrays = {
             "cr3bp/members/0000/states": np.array([[1.0, 0.0, 0.01, 0.0, 0.3, 0.0]]),
             "cr3bp/members/0000/times": np.array([0.0]),

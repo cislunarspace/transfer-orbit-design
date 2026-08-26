@@ -1,4 +1,6 @@
-"""转移链路验证：用 orbit_propagation / DRO 造目标星历，测 LGA/WSB/low_thrust。"""
+"""转移链路验证：用 orbit_propagation / DRO 造目标星历，测 LGA/WSB/low_thrust。
+Transfer-chain verification: build target ephemerides with orbit_propagation /
+DRO and exercise LGA/WSB/low_thrust."""
 
 import json
 import os
@@ -15,6 +17,7 @@ def run() -> None:
     res = {}
 
     # 1) 目标 A：月球环绕轨道（orbit_propagation，GCRS 月心 100km 圆轨道）
+    # Target A: lunar orbit (orbit_propagation, GCRS Moon-centered 100 km circle).
     try:
         t0 = time.time()
         p = f.orbit_propagation(
@@ -33,6 +36,7 @@ def run() -> None:
         target_a = None
 
     # 2) 目标 B：DRO 设计（稳定轨道）
+    # Target B: DRO design (stable orbit).
     target_b = None
     try:
         t0 = time.time()
@@ -54,6 +58,7 @@ def run() -> None:
         print("DRO design FAILED:", str(exc)[:200])
 
     # 3) 转移测试矩阵
+    # Transfer test matrix.
     for name, target in (("prop", target_a), ("dro", target_b)):
         if target is None:
             continue

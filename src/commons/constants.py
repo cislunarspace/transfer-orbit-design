@@ -3,6 +3,13 @@
 硬编码常量（M_SUN / OMEGA_SUN / RHO / FAMILY_FILENAME）在模块导入时即可用，不依赖 e2m2e。
 CR3BP 派生常量（MU / DU / TU / VU / T_MOON）通过 __getattr__ 惰性计算，首次访问时才
 导入 e2m2e 并调用 CR3BP_System.from_known_system("earth_moon")。
+
+English: constants, paths and helpers shared by scripts. Hardcoded
+constants (M_SUN / OMEGA_SUN / RHO / FAMILY_FILENAME) are available at
+import time without e2m2e. CR3BP-derived constants (MU / DU / TU / VU /
+T_MOON) are computed lazily via __getattr__: e2m2e is imported and
+CR3BP_System.from_known_system("earth_moon") called only on first
+access.
 """
 
 import math
@@ -10,6 +17,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     # 为类型检查器声明 CR3BP 常量类型，实际值在 __getattr__ 中惰性赋值。
+    # Declare CR3BP constant types for the type checker; values are assigned lazily in __getattr__.
     MU: float
     DU: float
     TU: float
@@ -18,18 +26,25 @@ if TYPE_CHECKING:
 
 # ============================================================
 # 硬编码常量 - 始终可用，不依赖 e2m2e
+# Hard-coded constants -- always available, no e2m2e dependency.
 # ============================================================
 
 # 太阳摄动（BR4BP）
+# Solar perturbation (BR4BP).
 M_SUN: float = 3.28900541e5  # 太阳无量纲质量
+# dimensionless solar mass
 OMEGA_SUN: float = 9.25195985e-1  # 太阳无量纲角速度
+# dimensionless solar angular velocity
 RHO: float = 3.88811143e2  # 太阳到地月质心无量纲距离
+# dimensionless Sun-to-Earth-Moon-barycenter distance
 
 # 文件命名
+# File naming.
 FAMILY_FILENAME: str = "family.json"
 
 # ============================================================
 # CR3BP 派生常量 - 惰性计算（首次访问时导入 e2m2e）
+# CR3BP-derived constants -- computed lazily (e2m2e imported on first access).
 # ============================================================
 
 _cr3bp_initialized: bool = False
@@ -40,6 +55,10 @@ def _init_cr3bp() -> None:
 
     仅在首次访问 MU / DU / TU / VU / T_MOON 时调用一次，
     将 CR3BP_System 导入推迟到真正需要时。
+
+    Lazily initialize Earth-Moon CR3BP system constants. Called once on
+    first access of MU / DU / TU / VU / T_MOON, deferring the
+    CR3BP_System import until truly needed.
     """
     global _cr3bp_initialized, MU, DU, TU, VU, T_MOON
     if _cr3bp_initialized:
@@ -49,7 +68,9 @@ def _init_cr3bp() -> None:
 
     _em = CR3BP_System(mu=EARTH_MOON_MU, primary="Earth", secondary="Moon")._with_default_scales()
     MU = _em.mu  # 0.012150585350562453（e2m2e DE421 基准）
+    # 0.012150585350562453 (e2m2e DE421 baseline)
     # TU 单位是天、VU 是 m/s（消费方 * TU 得天数、VU/1000 得 km/s）。
+    # TU is in days, VU in m/s (multiply by TU for days; divide VU by 1000 for km/s).
     DU = _em.DU  # 384400.0 km
     TU = _em.TU  # 4.34248 天
     VU = _em.VU  # 1024.55 m/s
@@ -58,7 +79,10 @@ def _init_cr3bp() -> None:
 
 
 def __getattr__(name: str) -> float:
-    """模块级惰性属性访问，仅在 name 不在 globals() 中时触发。"""
+    """模块级惰性属性访问，仅在 name 不在 globals() 中时触发。
+
+        Module-level lazy attribute
+    access; triggered only when name is absent from globals()."""
     if name in ("MU", "DU", "TU", "VU", "T_MOON"):
         _init_cr3bp()
         return globals()[name]

@@ -1,7 +1,13 @@
 """阶段 2 前置测试：sidecar 结果序列化开销量测。
 
+    Phase-2 prework: measuring sidecar
+result-serialization overhead.
+
 对比 JSON 文本行协议与二进制（原始 f64 数组）在真实规模轨道族数据上的
 编码耗时、解码耗时与体积。数据形态对齐画布渲染契约：每成员 (200, 6)。
+Compares the JSON text-line protocol against binary (raw f64 arrays) on
+real-scale orbit-family data: encode time, decode time, and size. Data
+shape follows the canvas rendering contract: (200, 6) per member.
 """
 import json
 import time
@@ -10,6 +16,7 @@ import numpy as np
 
 MU = 0.01215058560962404
 # halo L1 北族第一条种子，逐条微扰 x 模拟族成员差异
+# First halo L1 northern-family seed; perturb x per member to mimic family variation.
 SEED = np.array([
     0.8760656451170601, 1.0491502986863478e-26, 0.191813535688546,
     -3.928226786817226e-14, 0.2305575388925067, 1.0601974505638561e-13,
@@ -17,11 +24,16 @@ SEED = np.array([
 
 
 def make_family(n_members: int, samples: int = 200) -> np.ndarray:
-    """(n_members, samples, 6) 状态数组，数值特征与真实传播结果同量级。"""
+    """(n_members, samples, 6) 状态数组，数值特征与真实传播结果同量级。
+
+        An (n_members, samples, 6)
+    state array whose numeric features match real propagation results in scale."""
     t = np.linspace(0, 2 * np.pi, samples)
     rng = np.random.default_rng(42)
     xs = 0.876 + rng.uniform(-0.01, 0.01, n_members)
     # 圆环扰动叠加正弦，量级与 halo 轨迹同阶；只求数值特征真实，不求轨道学精确
+    # Ring perturbation plus sinusoids at halo-trajectory magnitude; realistic numerics,
+    # not orbital-precision accuracy.
     out = np.empty((n_members, samples, 6))
     for i in range(n_members):
         out[i, :, 0] = xs[i] + 0.1 * np.sin(t)
@@ -36,12 +48,14 @@ def bench(n_members: int) -> None:
     n_floats = data.size
 
     # JSON 文本
+    # JSON text.
     t0 = time.perf_counter()
     text = json.dumps({"members": data.tolist()})
     t_enc_json = time.perf_counter() - t0
     size_json = len(text.encode())
 
     # 二进制
+    # Binary.
     t0 = time.perf_counter()
     blob = data.tobytes()
     t_enc_bin = time.perf_counter() - t0

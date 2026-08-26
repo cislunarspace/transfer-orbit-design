@@ -3,6 +3,14 @@
 常量以 ``e2m2e.data.templates`` 为唯一来源：``CHAR_LENGTH_KM=384400`` km、
 ``CHAR_PERIOD_SEC=27.32*86400`` s；``TU = CHAR_PERIOD_SEC / (2π)``。算法侧
 ``CR3BP_System`` 的默认尺度与这套值对齐，禁止在此之外另立一套换算常量。
+
+English: parameter unit conversion — pure conversions between DU/TU and
+standard units (km/years/seconds). Constants take
+``e2m2e.data.templates`` as the single source: ``CHAR_LENGTH_KM=384400``
+km, ``CHAR_PERIOD_SEC=27.32*86400`` s; ``TU = CHAR_PERIOD_SEC /
+(2π)``. The default scales of the algorithm-side ``CR3BP_System`` align
+with these values; do not invent another set of conversion constants
+outside them.
 """
 
 from __future__ import annotations

@@ -1,4 +1,7 @@
-"""tests for src.engine.persistence -- save_stability_result（catalog 之外的落盘）。"""
+"""tests for src.engine.persistence -- save_stability_result（catalog 之外的落盘）。
+
+    Tests for
+src.engine.persistence -- save_stability_result (persistence outside the catalog)."""
 
 from __future__ import annotations
 
@@ -44,10 +47,12 @@ class TestSaveStabilityResult:
         json_path = save_stability_result(self._stability_dto(), tmp_path, orbit_label="test")
         meta = json.loads(json_path.read_text(encoding="utf-8"))
         # enum/ndarray 均被序列化为普通 JSON
+        # Enums and ndarrays are all serialized into plain JSON
         assert meta["classification"]["stability_type"] == "hyperbolic"
         assert meta["bifurcation"]["bifurcation_type"] == "none"
         assert meta["monodromy_matrix"][0][0] == 1.0
         # complex128 数组 tolist 后全为复数 → [real, imag]
+        # After tolist a complex128 array is all complex -> [real, imag]
         assert meta["eigenvalues"][0] == [1.0, 0.0]
         assert meta["eigenvalues"][2] == [0.5, 0.5]
 
@@ -77,7 +82,11 @@ class TestSavePropagationResult:
         assert len(payload["synodic_position"]) == 2
 
     def test_roundtrip_through_discovery(self, tmp_path):
-        """落盘 → discovery 扫描恢复为 ephemeris Artifact（#389 重启恢复链路）。"""
+        """落盘 → discovery 扫描恢复为 ephemeris Artifact（#389 重启恢复链路）。
+
+            Persist to disk,
+        then discovery rescans it back into an ephemeris Artifact (the #389
+        restart-recovery chain)."""
         json_path = save_propagation_result(self._propagation_dto(), tmp_path)
         artifacts = discover_artifacts(tmp_path)
         assert len(artifacts) == 1

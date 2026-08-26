@@ -1,10 +1,16 @@
-"""CJK 字体回退配置。"""
+"""CJK 字体回退配置。
+
+    CJK font fallback configuration.
+"""
 
 from __future__ import annotations
 
 
 def apply_cjk_font_fallback() -> None:
-    """补充中文字体回退到 matplotlib rcParams。"""
+    """补充中文字体回退到 matplotlib rcParams。
+
+        Add Chinese font fallbacks to the matplotlib
+    rcParams."""
     import matplotlib
 
     cjk_serif_fonts = [

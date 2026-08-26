@@ -1,7 +1,13 @@
 """tests for FacadeBridge.transfer_design + 转移结果落盘/扫描。
 
+    Tests for
+FacadeBridge.transfer_design plus transfer-result persistence/scan.
+
 桩打在算法层 ``e2m2e.algorithm.transfer.transfer_orbit`` 上：请求校验与
 响应翻译仍走真 Facade。
+The stub sits on the algorithm layer
+(``e2m2e.algorithm.transfer.transfer_orbit``): request validation and
+response translation still run the real Facade.
 """
 
 from __future__ import annotations
@@ -18,7 +24,10 @@ from src.engine.persistence import save_transfer_result
 
 
 class _FakeTransferResult:
-    """Fake TransferDesignResult（transfer_orbit 返回形状）。"""
+    """Fake TransferDesignResult（transfer_orbit 返回形状）。
+
+        Fake TransferDesignResult (the
+    shape transfer_orbit returns)."""
 
     def __init__(
         self,
@@ -44,7 +53,10 @@ def bridge() -> FacadeBridge:
 
 
 def _patch_transfer_orbit(monkeypatch, result: _FakeTransferResult) -> dict:
-    """打桩 transfer_orbit，返回捕获到的调用 kwargs。"""
+    """打桩 transfer_orbit，返回捕获到的调用 kwargs。
+
+        Stub transfer_orbit and return the captured
+    call kwargs."""
     captured: dict = {}
 
     def fake(transfer_type, **kwargs):
@@ -71,7 +83,11 @@ class TestTransferDesign:
         assert captured["transfer_type"] == "HMN"
 
     def test_target_states_converted_to_synodic_physical(self, monkeypatch, bridge):
-        """选中工件的 CR3BP 无量纲状态末行应换算为会合系物理态 (1, 6)。"""
+        """选中工件的 CR3BP 无量纲状态末行应换算为会合系物理态 (1, 6)。
+
+            The selected artifact's
+        last CR3BP dimensionless state row must be converted into a rotating-frame
+        physical state (1, 6)."""
         captured = _patch_transfer_orbit(monkeypatch, _FakeTransferResult("LGA"))
         states = np.array([[1.0, 0.0, 0.0, 0.0, 0.5, 0.0], [1.1, 0.1, 0.0, -0.1, 0.4, 0.0]])
         bridge.transfer_design(
@@ -86,7 +102,11 @@ class TestTransferDesign:
         )
 
     def test_tli_epoch_list_to_iso(self, monkeypatch, bridge):
-        """epoch 控件产出的 [年,月,日,时,分,秒] 应转 ISO 字符串透传。"""
+        """epoch 控件产出的 [年,月,日,时,分,秒] 应转 ISO 字符串透传。
+
+            The
+        [year,month,day,hour,minute,second] from the epoch control must be converted to an
+        ISO string and passed through."""
         captured = _patch_transfer_orbit(monkeypatch, _FakeTransferResult())
         bridge.transfer_design(
             transfer_type="HMN", tli_epoch=[2025, 6, 1, 12, 30, 5.0]
@@ -95,7 +115,10 @@ class TestTransferDesign:
         assert tli.epoch == "2025-06-01T12:30:05"
 
     def test_lga_default_grid_injected(self, monkeypatch, bridge):
-        """LGA 未显式给搜索参数时，桥接层注入加密相位网格（360 点）。"""
+        """LGA 未显式给搜索参数时，桥接层注入加密相位网格（360 点）。
+
+            When no search parameters are
+        given for LGA, the bridge injects a denser phase grid (360 points)."""
         captured = _patch_transfer_orbit(monkeypatch, _FakeTransferResult("LGA"))
         bridge.transfer_design(
             transfer_type="LGA", tli_epoch="2025-06-01T00:00:00"
@@ -143,7 +166,10 @@ class TestSaveTransferResult:
         assert data["converged"] is False
 
     def test_discovered_by_legacy_scan(self, tmp_path):
-        """落盘文件应被遗留分区扫描识别为 transfer 工件。"""
+        """落盘文件应被遗留分区扫描识别为 transfer 工件。
+
+            Persisted files must be recognized as
+        transfer artifacts by the legacy-partition scan."""
         from src.model.discovery import discover_artifacts
 
         json_path = save_transfer_result(self._dto(), tmp_path)
