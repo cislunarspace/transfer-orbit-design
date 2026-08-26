@@ -58,3 +58,10 @@ result = design_orbit("DRO", amplitude=40000, kernel_dir="...")
 保留部分族，七族统一入口。本 ADR 的前提（Facade 剥离轨道数据）对族生成
 已不再成立；`design_orbit` / `control_orbit` 仍直调算法层（对应响应仍只
 返回标量汇总）。
+
+## 修订（Tauri 架构起，v4.0.0）
+
+界面链路整体迁移到 e2m2e `serve-stdio` sidecar——算法只经 Facade 统一
+入口进入界面（协议见 e2m2e ADR 0035）。本 ADR 的直调决策在界面上已无
+使用者；直调式薄封装保留在 `src/engine/facade_bridge.py`，供脚本与测试。
+“GUI 不再绕过门面直调算法层”见 `docs/architecture/architecture.md`。
