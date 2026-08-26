@@ -5,9 +5,8 @@
 
 归一化常量（MU/DU/TU/VU）复用 :mod:`src.commons.constants`，单一来源。
 
-本模块原属 e2m2e.orbits 包，因 e2m2e 误删（commit fd99f27，当孤儿删但 tod
-依赖它）而移植至此。几何逻辑与原实现一致；``compute_departure_velocity``
-同时整合了 tod 内此前的 4 处重复副本。
+本模块原属 e2m2e.orbits 包（上游 commit fd99f27 误删后移植至此自维护），
+几何逻辑与原实现一致。
 """
 
 from __future__ import annotations

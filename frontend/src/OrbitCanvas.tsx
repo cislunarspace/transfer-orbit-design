@@ -83,9 +83,9 @@ export function OrbitCanvas({
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    // 旋转方向与旧 PyQt 画布（matplotlib mplot3d）一致：拖拽旋转“物体
-    // 本身”，场景跟随光标；OrbitControls 默认是“拖拽移动相机”，往左拖
-    // 场景看起来往右转，体感方向相反。负值只反转旋转，平移/缩放不受影响。
+    // rotateSpeed 取负：拖拽表现为“旋转物体本身”（延续旧版手感）；
+    // OrbitControls 默认是“拖拽移动相机”，往左拖场景看起来往右转，
+    // 体感方向相反。负值只反转旋转，平移/缩放不受影响。
     controls.rotateSpeed = -1.0;
     controlsRef.current = controls;
 
@@ -296,7 +296,7 @@ export function OrbitCanvas({
 
     const s = settings;
     // 地月：NASA 公有领域贴图（Blue Marble / LROC）+ Phong 光照，
-    // 半径取真实比例（chartSettings 常量），替代旧卡通纯色球
+    // 半径取真实比例（chartSettings 常量）
     const texLoader = new THREE.TextureLoader();
     const addTexturedBody = (
       name: string, label: string, x: number, radius: number, textureUrl: string,

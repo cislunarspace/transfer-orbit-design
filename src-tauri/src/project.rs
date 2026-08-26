@@ -1,4 +1,4 @@
-//! 项目状态：会话内 Artifact 容器（对齐 PyQt 版 src/model 的语义）。
+//! 项目状态：会话内 Artifact 容器。
 //!
 //! Artifact 摘要进内存（轻量）；大数组（帧）不入容器，由画布按需
 //! 取用，族生成结果缓存在 command 返回前直接交付前端。
@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 
-/// Artifact 摘要（对齐 Python 侧 Artifact.to_summary 的轻量形态）。
+/// Artifact 摘要（轻量形态，不含数组字段）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArtifactSummary {
@@ -53,7 +53,7 @@ impl ProjectState {
     }
 }
 
-/// 摘要按 artifact_type 分组（项目树的分组序，对齐 PyQt 版 _TYPE_GROUP_LABELS 顺序）。
+/// 摘要按 artifact_type 分组（项目树的分组序）。
 pub fn group_by_type(artifacts: &[ArtifactSummary]) -> HashMap<String, Vec<ArtifactSummary>> {
     let mut groups: HashMap<String, Vec<ArtifactSummary>> = HashMap::new();
     for a in artifacts {

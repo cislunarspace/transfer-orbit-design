@@ -1,11 +1,11 @@
-// 图表设置：localStorage 持久化（对齐 PyQt 版 ChartSettings 的可调参数，
-// Three.js 语义：线宽 / 颜色循环 / 天体与平动点标注尺寸 / 字号 / z 轴比例）。
+// 图表设置：localStorage 持久化（线宽 / 颜色循环 / 天体与平动点标注尺寸 /
+// 字号 / z 轴比例）。
 
 import { useEffect, useState } from "react";
 
 export interface ChartSettings {
   orbitLinewidth: number;
-  /** 轨迹颜色循环（hex 数组，对应 PyQt 的 colormap） */
+  /** 轨迹颜色循环（hex 数组，族成员与库轨迹依次取色） */
   colorCycle: string[];
   earthSize: number;
   moonSize: number;

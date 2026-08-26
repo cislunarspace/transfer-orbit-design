@@ -1,14 +1,13 @@
-"""可视化适配层 -- view 与 OrbitVisualizer 之间的薄封装。
+"""星历可视化辅助：坐标系换算与 matplotlib 自绘标注（供脚本与测试）。
 
 职责：
-- 构造 CR3BP_System（从 mu 提取，地月质量比）
-- 调用 src.commons.viz 的 OrbitVisualizer 绘制地月标注 / L1-L5 / 2D 投影
-  （OrbitVisualizer 收编自 e2m2e 5.6.5 tools/viz，e2m2e 5.6.6 已删除该模块）
-- 惯性系（GCRS/J2000）视图：地球原点 marker、月球真实轨迹
-- 向 view 暴露纯数组接口（不泄漏 e2m2e 类型）
+- 构造 CR3BP_System（从 mu 提取，地月质量比）并解算平动点
+- 会合系（质心归一，无量纲）→ GCRS 惯性系 km 的坐标转换
+- 自绘 matplotlib 地月 / L1-L5 标注与月球 GCRS 轨迹线（不依赖 src/commons/viz）
 
-架构：src/view/ 不直接 import e2m2e（硬规则），此模块是唯一桥接点。
-e2m2e 延迟 import，保证本模块被 import 时不触发 e2m2e 加载。
+GUI 画布在前端 Three.js（frontend/src/OrbitCanvas.tsx），不经本模块；
+模块内绘制函数仅服务脚本出图与测试。e2m2e 延迟 import，保证本模块被
+import 时不触发 e2m2e 加载。
 """
 
 from __future__ import annotations
@@ -279,7 +278,7 @@ def draw_moon_gcrs_trajectory(
 
 
 def et_to_utc_label(et: float) -> str:
-    """把 ET 秒（J2000 TDB）转成 UTC 时间字符串，用于 GIF 帧时间戳标注。
+    """把 ET 秒（J2000 TDB）转成 UTC 时间字符串，作可读时间标注。
 
     优先用 SPICE 闰秒换算（et2utc）；内核未加载/缺失时回退到 J2000 历元
     固定偏移近似（ET≈UTC+64.184s，忽略闰秒跳变，误差 <1s，仅作降级标注）。

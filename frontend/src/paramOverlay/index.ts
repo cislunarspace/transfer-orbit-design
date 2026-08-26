@@ -12,7 +12,7 @@ export interface UnitOption {
   step: number;
 }
 
-/** 17 个可切换单位字段定义（首项为标准单位，toStandard 恒为 1.0） */
+/** 可切换单位字段定义（首项为标准单位，toStandard 恒为 1.0） */
 export const UNIT_DEFINITIONS: Record<string, UnitOption[]> = {
   // 长度类（标准单位：km）
   amplitude: [
@@ -282,7 +282,7 @@ export function formatRangePrompt(
   return "无范围约束";
 }
 
-/** 动态计算字段适用性（取代原有的硬表，支持 design_orbit 全部 15 种类型） */
+/** 动态计算字段适用性（支持 design_orbit 全部 15 种类型） */
 export function getFieldApplicability(toolName: string, orbitType: string): string[] {
   if (toolName === "orbit_family_generation") {
     const common = ["orbit_type", "libration_point", "n_orbits"];

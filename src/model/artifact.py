@@ -12,11 +12,9 @@ from numpy import ndarray
 class Artifact:
     """Represents a computed orbital artifact (orbit, family, transfer, ephemeris).
 
-    Mutable for in-place lazy-load performance -- ``state_data`` / ``times``
-    may be populated after construction (catalog 记录懒加载，见
-    ``engine.catalog_service``), because Qt-bound UI models trigger expensive
-    refreshes on full object replacement. Callers that need a snapshot should
-    ``copy.deepcopy`` first.
+    ``state_data`` / ``times`` 允许构造后原地填充（catalog 记录懒加载，
+    见 ``engine.catalog_service.load_arrays``）；需要快照的调用方请先
+    ``copy.deepcopy``。
     """
 
     artifact_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])

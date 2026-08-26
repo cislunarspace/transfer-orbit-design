@@ -1,6 +1,6 @@
 """OrbitError + e2m2e 异常翻译层。
 
-将 e2m2e 库异常翻译为结构化 OrbitError，Worker 层发射错误码时使用。
+将 e2m2e 库异常翻译为结构化 OrbitError（错误码 + 用户友好消息）。
 """
 
 from __future__ import annotations

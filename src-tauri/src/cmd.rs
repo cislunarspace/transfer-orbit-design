@@ -179,8 +179,8 @@ pub async fn generate_family(
             error: result.error,
         });
     }
-    // 帧序 = data.orbits 成员序；每帧 (1, 6) 初态 + period/mu 标量（e2m2e
-    // ≥5.8.5，#525）。轨迹重采样在前端 CR3BP 传播器做（与 CSV 原型同源）。
+    // 帧序 = data.orbits 成员序；每帧 (1, 6) 初态 + period/mu 标量
+    // （要求 e2m2e ≥5.8.5）。轨迹重采样在前端 CR3BP 传播器做。
     let orbits = result.data["orbits"].as_array().cloned().unwrap_or_default();
     let mu = result.data["mu"].as_f64();
     // binary_dtype=f32 是本命令固定的，f64 帧是协议违约：结构化拒绝
@@ -285,7 +285,7 @@ fn unix_seconds_now() -> String {
 
 /// 项目树选中 → 画布联动：按 record_id 从 catalog 拉取产物。
 ///
-/// 帧序 = `data.arrays` 里 None 占位键的顺序（ADR 0035，#526）；族记录
+/// 帧序 = `data.arrays` 里 None 占位键的顺序（e2m2e ADR 0035）；族记录
 /// 是 `cr3bp/members/NNNN/states|times` 交替，states 帧为 (n, 6) 或 (1, 6)。
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]

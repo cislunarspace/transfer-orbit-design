@@ -1,4 +1,4 @@
-// CR3BP 归一化单位下的轨道传播与轨道族数据加载（阶段 1 原型）。
+// CR3BP 归一化单位下的轨道传播与轨道族数据加载。
 
 export interface OrbitSeed {
   orbitId: string;

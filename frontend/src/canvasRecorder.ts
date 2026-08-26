@@ -1,6 +1,5 @@
-// 画布动画录制：captureStream + MediaRecorder（webm）。
-// PyQt 版对应 gif_exporter（matplotlib 动画导出）；webview 内原生编码，
-// 不引额外依赖。轨道旋转动画由调用方驱动（录制期间缓慢自转）。
+// 画布动画录制：captureStream + MediaRecorder 编 webm；webview 内原生编码，
+// 不引额外依赖。自转动画由调用方驱动。
 
 export interface RecordingResult {
   blob: Blob;

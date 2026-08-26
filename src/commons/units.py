@@ -1,12 +1,8 @@
 """参数单位换算 -- DU/TU 与标准单位（km/年/秒）之间的纯换算。
 
-常量来源对齐 ``e2m2e.data.templates.seed``：``CHAR_LENGTH_KM=384400`` km、
-``CHAR_PERIOD_SEC=27.32*86400`` s；``TU = CHAR_PERIOD_SEC / (2π)``。
-
-注意：e2m2e 5.6.6 常数单一来源化（上游 #377）后，``CR3BP_System`` 默认尺度
-与 ``set_characteristic_scales(CHAR_LENGTH_KM, CHAR_PERIOD_SEC)`` 已对齐为同一套
-值，历史版本两者不一致（差约 0.86 倍）的问题不复存在。GUI 仍以
-``e2m2e.data.templates`` 为准，与算法链路保持一致。
+常量以 ``e2m2e.data.templates`` 为唯一来源：``CHAR_LENGTH_KM=384400`` km、
+``CHAR_PERIOD_SEC=27.32*86400`` s；``TU = CHAR_PERIOD_SEC / (2π)``。算法侧
+``CR3BP_System`` 的默认尺度与这套值对齐，禁止在此之外另立一套换算常量。
 """
 
 from __future__ import annotations

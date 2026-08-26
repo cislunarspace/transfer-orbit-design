@@ -28,7 +28,7 @@ from pydantic import BaseModel
 
 @dataclass
 class OrbitDesignResultData:
-    """跨线程传递的轨道设计结果 DTO。
+    """轨道设计结果 DTO。
 
     纯数据类，不含 e2m2e 对象引用。
     numpy 数组通过引用传递，零拷贝。
@@ -50,13 +50,12 @@ class OrbitDesignResultData:
     # 产物入库后的轨道库记录 id（e2m2e 5.8.0 自动入库；None = 未入库）。
     record_id: str | None = None
 
-    # 注意：mu / ephemeris / record_id 带默认值放在末尾，保证旧代码按位置/关键字
-    # 构造 DTO 时不传也能工作。
+    # 带默认值的新字段一律放末尾，保持按位置构造的兼容。
 
 
 @dataclass
 class FamilyResultData:
-    """跨线程传递的轨道族生成结果 DTO。纯数据类，不含 e2m2e 对象引用。
+    """轨道族生成结果 DTO。纯数据类，不含 e2m2e 对象引用。
 
     族成员轨迹为等长采样（``states``/``times`` 均为 ``(m, n, ...)`` 三维数组）。
     5.7.1 起周期族成员只携带初态与周期（Rust 单次调用契约），桥接层按周期
@@ -79,7 +78,7 @@ class FamilyResultData:
 
 @dataclass
 class TransferDesignResultData:
-    """跨线程传递的转移轨道设计结果 DTO（纯数据，不含 e2m2e 对象）。"""
+    """转移轨道设计结果 DTO（纯数据，不含 e2m2e 对象）。"""
 
     transfer_type: str
     delta_v: float  # km/s
@@ -92,7 +91,7 @@ class TransferDesignResultData:
 
 @dataclass
 class PropagationResultData:
-    """跨线程传递的轨道预报结果 DTO。纯数据类，不含 e2m2e 对象引用。
+    """轨道预报结果 DTO。纯数据类，不含 e2m2e 对象引用。
 
     轨道预报产物不入轨道库（e2m2e 未提供该工具的入库），落盘走
     ``persistence.save_propagation_result``（output/propagation/）。
@@ -111,10 +110,10 @@ class PropagationResultData:
 
 @dataclass
 class StabilityResultData:
-    """跨线程传递的稳定性分析结果 DTO。纯数据，不含 e2m2e 对象引用。
+    """稳定性分析结果 DTO。纯数据，不含 e2m2e 对象引用。
 
-    数组字段（monodromy/eigenvalues）保留 ndarray 供对话框直接展示；
-    落盘时由调用方 tolist 序列化。
+    数组字段（monodromy/eigenvalues）保留 ndarray；落盘时由调用方
+    tolist 序列化。
     """
 
     monodromy_matrix: Any | None  # (6,6)
@@ -127,7 +126,7 @@ class StabilityResultData:
 
 @dataclass
 class ControlResultData:
-    """跨线程传递的轨道保持结果 DTO。纯数据，不含 e2m2e 对象引用。"""
+    """轨道保持结果 DTO。纯数据，不含 e2m2e 对象引用。"""
 
     num_failed: int
     sk_statistic_rows: Any  # np.ndarray (n, k)，m/s；k=3 无角动量，k>=4 含
@@ -141,7 +140,7 @@ class ControlResultData:
     position_km: Any = None
     # 真物理时间（J2000 ET 秒，形状 (n,)）。controlled_states 为 None 时也为 None。
     # 与 controlled_times 同源；分两字段是为了让画布 times（任意单调数组）与
-    # 物理时间解耦：P0 画布不读 times_et，但帧动画/GIF 需要它定位真时刻。
+    # 物理时间解耦：P0 画布不读 times_et，但帧动画/webm 录制需要它定位真时刻。
     times_et: Any = None
     record_id: str | None = None  # 产物入库后的轨道库记录 id（全失败无记录为 None）
 
@@ -292,7 +291,7 @@ def _coerce_engine_layout(layout: Any, control_mode: int) -> Any:
 
     if control_mode < 4:
         return None
-    # 空字符串（面板 QLineEdit 未填写）归一为 None：透传空串同样会触发
+    # 空字符串（前端输入框未填写）归一为 None：透传空串同样会触发
     # e2m2e 的 validate（AttributeError），且 None 才能走到"需提供
     # engine_layout 的清晰报错路径
     if layout is None or (isinstance(layout, str) and not layout.strip()):
@@ -528,12 +527,12 @@ class FacadeBridge:
 
     职责：
     - 接收 GUI 参数，经 Facade 调用 e2m2e（产物自动入轨道库）
-    - 将 Facade 响应转换为跨线程 DTO
+    - 将 Facade 响应转换为纯数据 DTO
     - 轨道库读写转发（catalog_query/get/tag/promote/export/delete）
     - 异常翻译（e2m2e 异常 -> 结构化错误消息）
 
     不负责：
-    - 线程管理（由 QThread Worker 处理）
+    - 线程/进程管理（界面链路经 Tauri 壳与 sidecar 子进程完成）
     - Artifact 语义（由 catalog 模块处理）
 
     kernel_dir / catalog_dir 经 ``e2m2e.api.config.Config`` 注入 Facade
@@ -578,14 +577,13 @@ class FacadeBridge:
             raise translate_exception(e) from e
 
     def design_orbit(self, **kwargs: Any) -> OrbitDesignResultData:
-        """经 Facade 调用 design_orbit，返回跨线程 DTO（产物自动入库）。
+        """经 Facade 调用 design_orbit，返回纯数据 DTO（产物自动入库）。
 
         ``kernel_dir`` 不是 request 字段（``extra="forbid"``），经 Config 注入；
         其余 kwargs 是 collect_params 按 model_fields 收集的合法 request 字段。
 
-        单位换算：GUI ``duration`` 标准单位为年（见
-        ``params_panel.FIELD_UNIT_OPTIONS``），e2m2e 的 ``duration`` 字段单位为秒，
-        本方法做年→秒换算（``* SECONDS_PER_YEAR``）。
+        单位换算：前端 ``duration`` 标准单位为年，e2m2e 的 ``duration`` 字段
+        单位为秒，本方法做年→秒换算（``* SECONDS_PER_YEAR``）。
 
         Lissajous 与 Halo/NRHO/DPO 同为不稳定轨道，e2m2e 仅自动把 Halo/NRHO/DPO 重定向
         到 segmented；Lissajous 若沿用 standard/two_level，一圈修正后的自由外推
@@ -595,7 +593,7 @@ class FacadeBridge:
         异常经 translate_exception() 翻译为 OrbitError 后抛出。
 
         Returns:
-            OrbitDesignResultData -- 可安全跨线程传递的纯数据对象。
+            OrbitDesignResultData -- 可安全跨边界传递的纯数据对象。
 
         Raises:
             OrbitError: 经翻译的结构化错误。
@@ -680,7 +678,7 @@ class FacadeBridge:
         # engine_layout 面板是 JSON 文本框：control_mode < 4（无角动量管理）时
         # e2m2e 虽不使用但会无条件 validate（访问 .E_r），字符串随手输入直接
         # AttributeError；置 None 忽略。>= 4 时 dict 构造 EngineLayout，其他
-        # 值报清晰错误（此前 GUI 裸崩 UNKNOWN_ERROR）。
+        # 值报清晰错误。
         layout = params.pop("engine_layout", None)
         control_mode = params.get("control_mode", 1)
         params["engine_layout"] = _coerce_engine_layout(layout, control_mode)
@@ -782,12 +780,12 @@ class FacadeBridge:
         )
 
     def orbit_propagation(self, **params: Any) -> PropagationResultData:
-        """经 Facade 调用 orbit_propagation，返回跨线程 DTO。
+        """经 Facade 调用 orbit_propagation，返回纯数据 DTO。
 
-        换算与接缝：GUI duration 标准单位年（``params_panel.FIELD_UNIT_OPTIONS``）
-        → e2m2e 秒；force_config 为 None 时剔除（走模型默认三体），dict 由
-        调用方解析 JSON。会合系位置由 GCRS km 经 ``gcrs_to_synodic`` 转换
-        （产物不入轨道库，落盘走 persistence）。
+        换算与接缝：前端 duration 标准单位年 → e2m2e 秒；force_config 为
+        None 时剔除（走模型默认三体），dict 由调用方解析 JSON。会合系位置
+        由 GCRS km 经 ``gcrs_to_synodic`` 转换（产物不入轨道库，落盘走
+        persistence）。
         """
         from e2m2e.data.templates import ConvergenceState
         from e2m2e.data.templates.seed import EARTH_MOON_MU

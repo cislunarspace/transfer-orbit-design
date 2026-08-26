@@ -214,7 +214,7 @@ describe("OrbitCanvas 轨迹渲染", () => {
     expect(amb).toBeGreaterThanOrEqual(1);
   });
 
-  it("旋转方向与拖拽一致：rotateSpeed 为负（旧 PyQt/matplotlib 抓取场景习惯）", () => {
+  it("旋转方向与拖拽一致：rotateSpeed 为负（拖拽旋转物体本身的体感）", () => {
     renderCanvas();
     flushFrames();
     const list = (OrbitControls as unknown as { instances: { rotateSpeed: number }[] }).instances;

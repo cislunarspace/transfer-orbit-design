@@ -49,11 +49,10 @@ def _init_cr3bp() -> None:
 
     _em = CR3BP_System(mu=EARTH_MOON_MU, primary="Earth", secondary="Moon")._with_default_scales()
     MU = _em.mu  # 0.012150585350562453（e2m2e DE421 基准）
-    # TU/VU 单位为 TOD 约定：TU 是天、VU 是 m/s（消费方 * TU 得天数、VU/1000 得 km/s）。
-    # 旧注释曾标为 s / km/s，系单位误标。
-    DU = _em.DU  # 384400.0 km（e2m2e 5.6.6 起；此前 384405.0）
-    TU = _em.TU  # 4.34248 天（e2m2e 5.6.6 起；此前 4.33030 天）
-    VU = _em.VU  # 1024.55 m/s（e2m2e 5.6.6 起；此前 1027.30 m/s）
+    # TU 单位是天、VU 是 m/s（消费方 * TU 得天数、VU/1000 得 km/s）。
+    DU = _em.DU  # 384400.0 km
+    TU = _em.TU  # 4.34248 天
+    VU = _em.VU  # 1024.55 m/s
     T_MOON = 2.0 * math.pi  # 月球轨道周期（无量纲）
     _cr3bp_initialized = True
 

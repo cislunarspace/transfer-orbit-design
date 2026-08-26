@@ -11,8 +11,8 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR: Path = _REPO_ROOT / "output"
 
 # 轨道库 catalog 默认目录（e2m2e 5.8.0，issue #375）：与 output/ 平级。
-# GUI 场景 cwd 不稳定，不能依赖 e2m2e Config 的相对默认（./catalog）；
-# 用户可在 GUI 设置中改指其他目录（QSettings 持久化）。
+# sidecar 场景 cwd 不稳定，不能依赖 e2m2e Config 的相对默认（./catalog）；
+# 改指其他目录经环境变量 E2M2E_CATALOG_DIR（由 Rust 壳注入）。
 CATALOG_DIR: Path = _REPO_ROOT / "catalog"
 
 logger = logging.getLogger(__name__)
@@ -117,14 +117,14 @@ def detect_kernel_dir() -> str:
     ``<repo>/kernels/`` -> 用户数据目录默认位置 -> ``<repo>/../e2m2e/kernels/``；
     找不到返回空串。
 
-    注意：本函数只判断目录存在，不校验内核完整性（仓库根 ``kernels/`` 只
-    提交小内核，行星历 ``.bsp`` 需另行补齐）；完整性判断见
+    注意：本函数只判断目录存在，不校验内核完整性；完整性判断见
     ``src.commons.kernels.kernel_dir_usable``。
 
     e2m2e 改为 pip 安装后，其内部闰秒内核（``.tls``）的自动搜索路径按源码仓库
     布局计算父目录（``parents[3]``），在 site-packages 布局下指向错误位置，导致
-    ``SPICE(NOLEAPSECONDS)``、轨道设计失败。规避：调用方须在 import e2m2e 之前把
-    本函数返回值写入 ``SPICE_KERNEL_DIR``（e2m2e 的第二搜索路径），见 ``main()``。
+    ``SPICE(NOLEAPSECONDS)``、轨道设计失败。规避：调用方须在 import e2m2e 之前
+    把本函数返回值写入 ``SPICE_KERNEL_DIR``（e2m2e 的第二搜索路径），现行做法见
+    ``src-tauri/src/lib.rs`` 与 ``tests/conftest.py``。
     """
     env_val = os.environ.get("SPICE_KERNEL_DIR", "")
     if env_val and Path(env_val).is_dir():

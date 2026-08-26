@@ -367,12 +367,9 @@ mod job {
 mod tests {
     use super::*;
 
-    /// 回归测试：关闭应用后忙碌的 sidecar 子树残留（原始 bug）。
-    ///
-    /// 孙进程深陷计算（不读 stdin）：EOF 感知不到、TerminateProcess 只能
-    /// 杀直接子进程，修复前没有任何手段能终结它。修复后 SidecarHandle 持有
-    /// kill-on-close Job Object，句柄链 drop（或 app 进程死亡被 OS 关闭）
-    /// 即由内核终结整棵树。drop(handle) 模拟 app 退出。
+    /// 回归测试：drop 句柄后，忙碌中的 sidecar 孙进程子树必须被内核终结
+    /// （kill-on-close Job Object，见上方 job 模块说明与本仓 ADR 0019）。
+    /// drop(handle) 模拟 app 退出。
     #[test]
     fn busy_grandchild_tree_killed_when_handle_dropped() {
         // uv 缺失（如无 uv 的 CI 环境）则跳过：本测试验证的是 Windows 机制

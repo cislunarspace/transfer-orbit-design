@@ -5,13 +5,13 @@ e2m2e 5.8.0 起 design_orbit / orbit_family_generation / control_orbit 的
 修订退役），本模块只剩 catalog 分类体系之外的产物：
 
 - 稳定性分析（``save_stability_result``）：只落 JSON 到 output/stability/，
-  不进项目树（结果经对话框展示）。
+  不进项目树/画布。
 - 转移轨道设计（``save_transfer_result``）：落 JSON 到 output/transfer/，
   经遗留分区扫描进项目树（e2m2e 对 transfer 产物入库另行立项）。
 - 轨道预报（``save_propagation_result``，issue #389）：e2m2e 未提供该工具
   的产物入库，星历落 JSON 到 output/propagation/，重启经 discovery 恢复。
 
-画布与动画导出的临时文件（GIF 等）不在此列。
+画布与动画录制产生的临时文件不在此列。
 """
 
 from __future__ import annotations
@@ -45,9 +45,8 @@ def save_stability_result(
 ) -> Path:
     """将稳定性分析结果写入 output/stability/，返回 json_path。
 
-    结果只落盘 JSON（不进项目树/画布，见 main_window 对话框）；数组字段
-    tolist 序列化。文件名 ``<orbit_label>_stability_<ts>``（orbit_label 清洗
-    为安全文件名字符）。
+    结果只落盘 JSON（不进项目树/画布）；数组字段 tolist 序列化。文件名
+    ``<orbit_label>_stability_<ts>``（orbit_label 清洗为安全文件名字符）。
     """
     output_dir = Path(output_dir)
     stab_dir = output_dir / "stability"

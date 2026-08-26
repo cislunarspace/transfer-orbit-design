@@ -7,10 +7,8 @@ NAIF 官方源常不可达），不随 pip 包分发，需宿主项目自行准�
 - ``kernel_dir_usable``：目录是否含轨道设计所需内核（行星历 ``.bsp`` + 闰秒 ``.tls``）
 - ``user_kernel_dir``：用户数据目录下的默认内核位置（pip 安装场景的落点）
 
-调用方：
-- ``scripts/download_kernels.py``：CLI 包装（源码用户手动补齐内核）
-- ``src/app/kernel_setup.py``：GUI 首次启动引导（弹窗确认 → 下载带进度条 /
-  指定已有目录）
+调用方：``scripts/download_kernels.py``（CLI 包装，源码用户手动补齐内核）
+与测试。
 """
 
 from __future__ import annotations
