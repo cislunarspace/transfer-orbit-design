@@ -13,7 +13,7 @@ transfer-orbit-design 是 [e2m2e](https://github.com/cislunarspace/e2m2e) 的 GU
 
 ### 桌面应用（Windows）
 
-从 [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) 下载 `tod_<版本>_x64-setup.exe`（NSIS 安装器，免管理员权限，安装到当前用户目录）。安装包内含 e2m2e 运行时（tod-sidecar）与 SPICE 小内核；纯 CR3BP 工具（轨道族生成、任务轨道设计）无需额外准备，星历类工具（转移设计、轨道预报等）还需行星历 `.bsp` 内核（见下节）。
+从 [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) 下载 `transfer-orbit-design_<版本>_x64-setup.exe`（NSIS 安装器，免管理员权限，安装到当前用户目录）。安装包内含 e2m2e 运行时（transfer-orbit-design-sidecar）与全套 SPICE 内核（含行星历），开箱即用。另有 Linux AppImage / deb 包与自动更新（见发布页）。
 
 ### 开发环境
 
@@ -27,9 +27,9 @@ npx --prefix frontend tauri dev     # 开发模式启动：Vite 热更新 + Rust
 
 ## SPICE 内核
 
-纯 CR3BP 工具（轨道族生成、任务轨道设计）不需要 SPICE 内核；转移设计、轨道预报、时空坐标转换等星历工具需要行星历 `.bsp` 等内核，获取方式：
+SPICE 内核随 Git LFS 随仓库分发（克隆后位于 `kernels/`），安装包也已随带；纯 CR3BP 工具用不到行星历。需要另行准备的场景（精简环境、自备数据）：
 
-- **自动下载（推荐）**：`uv run python scripts/download_kernels.py`，幂等拉取到 `kernels/`；
+- **自动下载**：`uv run python scripts/download_kernels.py`，幂等拉取到 `kernels/`；
 - **手动下载**：从 e2m2e 的 [`kernels-v1` release](https://github.com/cislunarspace/e2m2e/releases) 解压到 `kernels/`（sidecar 工作目录下的相对路径）；
 - **自备数据**：`$SPICE_KERNEL_DIR` 指向已有内核目录（优先级最高）。
 
@@ -38,7 +38,7 @@ npx --prefix frontend tauri dev     # 开发模式启动：Vite 热更新 + Rust
 ## 快速开始
 
 1. 启动后左栏默认项目页签；切到轨道库页签自动加载全库，过滤栏可按族类型、平动点、Jacobi 与振幅区间、标签组合筛选。
-2. 中栏工具面板：下拉选择工具（轨道族生成 / 任务轨道设计 / 轨道保持 / 轨道预报 / 转移轨道设计 / 轨道稳定性 / 时空坐标转换），参数表单按工具的 JSON Schema 自动生成，点执行。
+2. 中栏工具面板：下拉选择工具（轨道族生成 / 任务轨道设计 / 参数空间扫描 / 轨道保持 / 轨道预报 / 转移轨道设计 / 轨道稳定性 / 时空坐标转换），参数表单按工具的 JSON Schema 自动生成，点执行。
 3. 轨道族生成选族类型（Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe / DRO），按族显示对应参数（振幅上下限、近月点高度、相位等）；其余工具各自渲染参数表单。
 4. 结果轨迹随即出现在右侧画布：左键拖拽旋转、滚轮缩放；适配按钮按轨迹包围盒复位视角。点击轨道库记录可把库轨迹叠加到画布。
 5. 左栏右上角语言切换中英界面。
@@ -47,9 +47,9 @@ npx --prefix frontend tauri dev     # 开发模式启动：Vite 热更新 + Rust
 
 **v4.0.0 界面可用**
 
-- **工具面板**：七个工具全部接入：轨道族生成、任务轨道设计、轨道保持、轨道预报、转移轨道设计、轨道稳定性、时空坐标转换。参数表单由各工具的 JSON Schema 自动生成（字段裁剪、范围与默认值随 e2m2e 模型走），经通用工具执行通道（Rust `run_tool` 命令）直达 sidecar，错误直显；执行前防呆校验（必填与数值范围，内联标红）。
+- **工具面板**：八个工具全部接入：轨道族生成、任务轨道设计、参数空间扫描、轨道保持、轨道预报、转移轨道设计、轨道稳定性、时空坐标转换。参数表单由各工具的 JSON Schema 自动生成（字段裁剪、范围与默认值随 e2m2e 模型走），经通用工具执行通道（Rust `run_tool` 命令）直达 sidecar，错误直显；执行前防呆校验（必填与数值范围，内联标红）。
 - **轨道族生成**：八族（七族 + DRO）周期延拓/参数采样，成员轨迹逐条渲染。
-- **轨道库浏览**：产物自动入 e2m2e 轨道库（catalog 多维分类），多维过滤查询，选中记录叠加画布。
+- **轨道库浏览**：产物自动入 e2m2e 轨道库（catalog 多维分类），多维过滤查询，选中记录叠加画布；标注、族成员提升、导出包与删除的界面入口齐备。
 - **画布**：Three.js 3D 视图，视图适配与视图保持、地月与平动点标注、图表设置（线宽/天体与平动点标注/Z 轴比例）持久化、webm 动画导出；时间轴播放/拖动驱动画布时刻标记沿轨迹走查。
 
 ## 数据流与产物
