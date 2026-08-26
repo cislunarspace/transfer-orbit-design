@@ -104,8 +104,8 @@ class InputResolutionError(ValueError):
     def format_candidates(self) -> str:
         """生成可粘贴到 stderr 的候选提示字符串。
 
-            Build a candidate-hint string pasteable
-        to stderr."""
+        Build a candidate-hint string pasteable to stderr.
+        """
         if not self.candidates and self.remaining == 0:
             return ""
         lines = [str(p) for p in self.candidates]
@@ -159,8 +159,9 @@ class InputFileRequest:
 def _gather_candidates(search_root: Path, pattern: str) -> list[Path]:
     """在 ``search_root`` 下按 ``pattern`` 收集候选并按 mtime 从新到旧排序。
 
-        Collect candidates under
-    ``search_root`` matching ``pattern``, sorted by mtime new→old."""
+    Collect candidates under ``search_root`` matching ``pattern``, sorted by
+    mtime new→old.
+    """
     if not search_root.is_dir():
         return []
     candidates = [p.resolve() for p in search_root.glob(pattern)]
@@ -171,8 +172,9 @@ def _gather_candidates(search_root: Path, pattern: str) -> list[Path]:
 def _cap_candidates(candidates: list[Path]) -> tuple[list[Path], int]:
     """截取前 ``MAX_CANDIDATES_DISPLAYED`` 条候选并返回溢出数量。
 
-        Truncate to the first
-    ``MAX_CANDIDATES_DISPLAYED`` candidates and return the overflow count."""
+    Truncate to the first ``MAX_CANDIDATES_DISPLAYED`` candidates and return
+    the overflow count.
+    """
     if len(candidates) <= MAX_CANDIDATES_DISPLAYED:
         return list(candidates), 0
     kept = list(candidates[:MAX_CANDIDATES_DISPLAYED])

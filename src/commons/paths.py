@@ -97,7 +97,7 @@ def safe_resolve_within(user_path: str, allowed_root: Path) -> Path | None:
 def ensure_output_dir(output_dir: str = "output") -> None:
     """确保输出目录存在。
 
-        Ensure the output directory exists.
+    Ensure the output directory exists.
     """
     os.makedirs(output_dir, exist_ok=True)
 
@@ -105,8 +105,9 @@ def ensure_output_dir(output_dir: str = "output") -> None:
 def user_config_dir() -> Path:
     """用户配置目录（Windows ``%APPDATA%``，其余平台 XDG 配置目录）。
 
-        User configuration directory
-    (Windows ``%APPDATA%``; XDG config directory elsewhere)."""
+    User configuration directory (Windows ``%APPDATA%``; XDG config directory
+    elsewhere).
+    """
     if os.name == "nt":
         base = os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming"
     else:

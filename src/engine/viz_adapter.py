@@ -31,10 +31,9 @@ if TYPE_CHECKING:
 
 
 def build_cr3bp_system(mu: float) -> Any:
-    """构造 e2m2e CR3BP_System（地月系统，主天体 Earth，次天体 Moon）。
-
-        Build an e2m2e CR3BP_System
-    (Earth-Moon system, primary Earth, secondary Moon)."""
+    """构造 e2m2e CR3BP_System（地月系统，主天体 Earth，次天体 Moon）。Build an e2m2e
+    CR3BP_System (Earth-Moon system, primary Earth, secondary Moon).
+    """
     from e2m2e.algorithm.dynamics import CR3BP_System
 
     return CR3BP_System(mu=mu, primary="Earth", secondary="Moon")
@@ -177,10 +176,9 @@ def draw_libration_points(
     size: float = 80.0,
     fontsize: float = 10.0,
 ) -> None:
-    """在 ax 上绘制 L1-L5 拉格朗日点标注（自绘，支持中心平移与样式配置）。
-
-        Draw L1-L5 libration-point
-    annotations on ax (hand-drawn; supports center translation and style configuration)."""
+    """在 ax 上绘制 L1-L5 拉格朗日点标注（自绘，支持中心平移与样式配置）。Draw L1-L5 libration-point
+    annotations on ax (hand-drawn; supports center translation and style configuration).
+    """
     from e2m2e.algorithm.dynamics import LibrationPoint
 
     if plane is None:

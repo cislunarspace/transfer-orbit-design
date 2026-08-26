@@ -81,8 +81,9 @@ def _init_cr3bp() -> None:
 def __getattr__(name: str) -> float:
     """模块级惰性属性访问，仅在 name 不在 globals() 中时触发。
 
-        Module-level lazy attribute
-    access; triggered only when name is absent from globals()."""
+    Module-level lazy attribute access; triggered only when name is absent
+    from globals().
+    """
     if name in ("MU", "DU", "TU", "VU", "T_MOON"):
         _init_cr3bp()
         return globals()[name]

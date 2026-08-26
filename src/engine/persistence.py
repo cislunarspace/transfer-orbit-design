@@ -54,8 +54,8 @@ if TYPE_CHECKING:
 def _timestamp() -> str:
     """生成 UTC 时间戳字符串 ``YYYYMMDDHHMMSS``。
 
-        Generate a UTC timestamp string
-    ``YYYYMMDDHHMMSS``."""
+    Generate a UTC timestamp string ``YYYYMMDDHHMMSS``.
+    """
     return datetime.now(UTC).strftime("%Y%m%d%H%M%S")
 
 

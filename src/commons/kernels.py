@@ -108,8 +108,9 @@ def _check_download_url(url: str) -> None:
 def list_release_assets() -> list[dict]:
     """列 ``kernels-v1`` release 的全部资产（name + browser_download_url）。
 
-        List all assets of
-    the ``kernels-v1`` release (name + browser_download_url)."""
+    List all assets of the ``kernels-v1`` release (name +
+    browser_download_url).
+    """
     url = f"https://api.github.com/repos/{REPO}/releases/tags/{RELEASE}"
     # 对本函数拼出的字面量也校验：与 _download 对称的纵深防御
     # Validate the literal built here too: defense in depth, symmetric with _download.

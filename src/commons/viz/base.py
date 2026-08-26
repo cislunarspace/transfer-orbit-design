@@ -160,10 +160,9 @@ class OrbitVisualizer:
         return icons.make_offset_image(image, size), True
 
     def _plot_body_marker_3d(self, ax: Any, x: float, color: str, size: int, label: str) -> None:
-        """在 3D axes 上画一个天体的圆形 marker（图标加载失败时的回退）。
-
-            Draw a circular body marker
-        on 3D axes (fallback when icon loading fails)."""
+        """在 3D axes 上画一个天体的圆形 marker（图标加载失败时的回退）。Draw a circular body
+        marker on 3D axes (fallback when icon loading fails).
+        """
         ax.plot(
             [x],
             [0],
@@ -180,10 +179,9 @@ class OrbitVisualizer:
     def _plot_body_marker_2d(
         self, ax: Any, pos: np.ndarray, color: str, edge: str, size: int, label: str
     ) -> None:
-        """在 2D axes 上画一个天体的散点 marker（图标加载失败时的回退）。
-
-            Draw a scatter body marker
-        on 2D axes (fallback when icon loading fails)."""
+        """在 2D axes 上画一个天体的散点 marker（图标加载失败时的回退）。Draw a scatter body
+        marker on 2D axes (fallback when icon loading fails).
+        """
         ax.scatter(
             *pos,
             color=color,
