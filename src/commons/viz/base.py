@@ -1,6 +1,10 @@
 """基础可视化模块
 
 提供轨道可视化的核心类 OrbitVisualizer，支持 2D 投影和 3D 轨道绘图。
+
+English: base visualization module. Provides OrbitVisualizer, the core
+orbit-visualization class, supporting 2D projections and 3D orbit
+plotting.
 """
 
 from __future__ import annotations
@@ -32,6 +36,14 @@ class OrbitVisualizer:
     Args:
         system: CR3BP 系统对象，用于获取天体位置和平动点坐标。
         config: 绘图配置，未指定时使用默认 PlotConfig。
+
+    Orbit visualizer supporting 2D projections and 3D orbit-bound
+    plotting. Provides a unified interface for drawing a single orbit's
+    2D projection, 3D trajectory, body markers, and libration-point
+    annotations, with configurable colors, line widths and other style
+    parameters. Args: ``system`` — CR3BP system object (body positions
+    and libration points); ``config`` — plot configuration, defaulting
+    to the default PlotConfig when unspecified.
     """
 
     def __init__(self, system: CR3BP_System, config: PlotConfig | None = None) -> None:
@@ -40,25 +52,35 @@ class OrbitVisualizer:
         Args:
             system: CR3BP 系统对象，用于获取天体位置和平动点坐标。
             config: 绘图配置，未指定时使用默认 PlotConfig。
+
+        Initialize the visualizer. Args: ``system`` (CR3BP system object);
+        ``config`` (plot configuration; default PlotConfig when unspecified).
         """
         self.system = system
         self.mu = system.mu  # 质量参数，用于天体位置计算
+        # mass parameter, used for body-position computation
         self.config = config or PlotConfig()
 
         # matplotlib 对象引用，延迟创建以避免不必要开销
+        # matplotlib object references, created lazily to avoid needless overhead.
         self.figure: Figure | None = None
         self.axes: Axes | None = None
         self.axes_3d: Any | None = None
 
         # 轨道样式参数
+        # Orbit style parameters.
         self.orbit_linewidth = self.config.orbit_linewidth
         self.orbit_alpha = self.config.orbit_alpha
         # 在构造时从 matplotlib rcParams 捕获颜色循环，
         # 避免后续调用时 rcParams 已被修改导致颜色不一致
+        # Capture the color cycle from matplotlib rcParams at construction time, so later
+        # rcParams changes cannot make colors inconsistent across calls.
         self.color_cycle = plt.rcParams["axes.prop_cycle"].by_key()["color"]
         self.color_index = 0  # 颜色循环索引
+        # color-cycle index
 
         # 天体标记样式
+        # Body marker styles.
         self.primary_body_color = self.config.primary_body_color
         self.primary_body_size = self.config.primary_body_size
         self.secondary_body_color = self.config.secondary_body_color
@@ -70,6 +92,7 @@ class OrbitVisualizer:
         self.secondary_body_marker = "o"
 
         # 平动点标记样式（5 个平动点独立配置）
+        # Libration-point marker styles (independently configured per point).
         self.libration_point_colors = list(self.config.lp_colors)
         self.libration_point_markers = list(self.config.lp_markers)
         self.libration_point_sizes = list(self.config.lp_sizes)
@@ -77,8 +100,11 @@ class OrbitVisualizer:
         self.libration_point_fontsize = self.config.lp_label
 
         # 天体图标（PNG 图片缓存，懒加载）
+        # Body icons (PNG image cache, loaded lazily).
         self._primary_body_image: Any | None = None  # 主天体（地球）图片
+        # primary-body (Earth) image
         self._secondary_body_image: Any | None = None  # 次天体（月球）图片
+        # secondary-body (Moon) image
         self._icon_loaded: bool = False
 
     def _ensure_icons_loaded(self) -> None:
@@ -89,6 +115,13 @@ class OrbitVisualizer:
 
         Note:
             PIL Image 会转换为 numpy array 以便 matplotlib OffsetImage 使用。
+
+        Lazily load body-icon PNGs into
+        ``self._primary_body_image/_secondary_body_image``. Path
+        resolution is delegated to :func:`icons.resolve_icon_dir`,
+        avoiding hard-coded ``~/Downloads``. Failures fall back silently
+        without disturbing plotting. Note: PIL images are converted to
+        numpy arrays for matplotlib OffsetImage.
         """
         if self._icon_loaded:
             return
@@ -112,6 +145,11 @@ class OrbitVisualizer:
 
         Returns:
             (OffsetImage 或 PIL Image, 是否可用) 元组
+
+        Get the body icon and an availability flag as a tuple. Args:
+        ``is_primary`` — True for the primary body (Earth), False for
+        the secondary (Moon); ``size`` — target pixel size (for the
+        scale factor). Returns: ``(OffsetImage or PIL Image, usable)``.
         """
         self._ensure_icons_loaded()
 
@@ -122,7 +160,9 @@ class OrbitVisualizer:
         return icons.make_offset_image(image, size), True
 
     def _plot_body_marker_3d(self, ax: Any, x: float, color: str, size: int, label: str) -> None:
-        """在 3D axes 上画一个天体的圆形 marker（图标加载失败时的回退）。"""
+        """在 3D axes 上画一个天体的圆形 marker（图标加载失败时的回退）。Draw a circular body
+        marker on 3D axes (fallback when icon loading fails).
+        """
         ax.plot(
             [x],
             [0],
@@ -139,7 +179,9 @@ class OrbitVisualizer:
     def _plot_body_marker_2d(
         self, ax: Any, pos: np.ndarray, color: str, edge: str, size: int, label: str
     ) -> None:
-        """在 2D axes 上画一个天体的散点 marker（图标加载失败时的回退）。"""
+        """在 2D axes 上画一个天体的散点 marker（图标加载失败时的回退）。Draw a scatter body
+        marker on 2D axes (fallback when icon loading fails).
+        """
         ax.scatter(
             *pos,
             color=color,
@@ -151,7 +193,10 @@ class OrbitVisualizer:
         )
 
     def _get_next_color(self) -> str:
-        """从颜色循环中获取下一个颜色。"""
+        """从颜色循环中获取下一个颜色。
+
+        Get the next color from the color cycle.
+        """
         color = self.color_cycle[self.color_index % len(self.color_cycle)]
         self.color_index += 1
         return color
@@ -161,6 +206,10 @@ class OrbitVisualizer:
 
         接受任何满足 OrbitContainer Protocol 的对象（有 .states 属性）
         或直接的 numpy 数组 / array-like。
+
+        Extract the (n, 6) state matrix from an orbit object or array; accepts
+        anything satisfying the OrbitContainer Protocol (has .states) or a direct
+        numpy array / array-like.
         """
         states = orbit.states if hasattr(orbit, "states") else np.array(orbit)
         if states.ndim == 1:
@@ -178,9 +227,17 @@ class OrbitVisualizer:
 
         Returns:
             matplotlib axes 对象。
+
+        Unified plotting entry, delegating to plot_3d_orbit. A non-None
+        config replaces the current one (the original object is not
+        mutated). Args: ``data`` — orbit data to plot (Orbit,
+        OrbitContainer, or array-like); ``config`` — optional PlotConfig;
+        ``**kwargs`` — extra arguments passed to plot_3d_orbit.
+        Returns: a matplotlib axes object.
         """
         if config is not None and isinstance(config, PlotConfig):
             # 仅在本次调用中使用新 config，不修改实例属性
+            # Use the new config for this call only; instance attributes untouched.
             saved = self.config
             self.config = config
             try:
@@ -209,6 +266,13 @@ class OrbitVisualizer:
 
         Returns:
             matplotlib 3D axes 对象。
+
+        Draw a 3D orbit. Args: ``orbit`` — orbit object or state array
+        (any OrbitContainer Protocol object with .states, or direct
+        array-like); ``color`` — line color, auto-cycled when unspecified;
+        ``label`` — legend label; ``ax`` — target axes, auto-created when
+        unspecified; ``show_start`` — whether to mark the orbit start.
+        Returns: a matplotlib 3D axes object.
         """
         if ax is None:
             if self.axes_3d is None:
@@ -218,6 +282,7 @@ class OrbitVisualizer:
 
         states = self._extract_states(orbit)
         x, y, z = states[:, 0], states[:, 1], states[:, 2]  # 提取位置分量
+        # extract position components
 
         if color is None:
             color = self._get_next_color()
@@ -268,6 +333,14 @@ class OrbitVisualizer:
 
         Returns:
             matplotlib axes 对象。
+
+        Draw the orbit's 2D projection on the given plane. Args:
+        ``orbit`` — orbit object or state array (any OrbitContainer
+        Protocol object with .states, or direct array-like);
+        ``plane`` — projection plane (XY/XZ/YZ); ``color`` — line color;
+        ``label`` — legend label; ``ax`` — target axes; ``show_start`` —
+        whether to mark the orbit start. Returns: a matplotlib axes
+        object.
         """
         if ax is None:
             if self.axes is None:
@@ -286,6 +359,7 @@ class OrbitVisualizer:
             plane = ProjectionPlane(plane)
 
         # 根据投影平面选择坐标轴
+        # Pick coordinates per projection plane.
         if plane == ProjectionPlane.XY:
             px, py = x, y
         elif plane == ProjectionPlane.XZ:
@@ -316,6 +390,10 @@ class OrbitVisualizer:
 
         Returns:
             matplotlib axes 对象。
+
+        Draw the five libration-point markers. Args: ``ax`` (target axes);
+        ``show_labels`` (whether to show L1-L5 labels); ``is_3d`` (whether to draw
+        in 3D). Returns a matplotlib axes object.
         """
         if self.system is None or not self.system.has_L_points:
             if self.system is not None:
@@ -337,6 +415,7 @@ class OrbitVisualizer:
                 return ax
 
         # 遍历五个平动点，逐个绘制标记和标签
+        # Iterate the five libration points, drawing each marker and label.
         for i, lp in enumerate(LibrationPoint):
             coord = self.system.L_points[lp]
             color = self.libration_point_colors[i]
@@ -383,6 +462,15 @@ class OrbitVisualizer:
         技术将图标"贴"在 3D 空间中的固定位置（不随视角旋转），图标加载失败时
         回退到圆形 marker。
 
+        English: draw the primary and secondary body markers. Body
+        positions: primary at (-μ, 0, 0), secondary at (1-μ, 0, 0)
+        (rotating-frame coordinates). 2D charts prefer PNG icons; 3D
+        charts also prefer PNG icons, "glued" at fixed positions in 3D
+        space via Billboard technology (not rotating with the view),
+        falling back to circular markers when icon loading fails.
+        Args: ``ax`` — target axes; ``is_3d`` — whether to draw in 3D.
+        Returns: a matplotlib axes object.
+
         Args:
             ax: 目标 axes 对象。
             is_3d: 是否在 3D 坐标系中绘制。
@@ -392,6 +480,8 @@ class OrbitVisualizer:
         """
         # mu=None 时静默返回而非 raise：允许无系统上下文的纯装饰性绘图，
         # 部分子类方法可能不需要天体标记
+        # Return silently instead of raising when mu is None: allows purely decorative
+        # plots without system context; some subclass methods need no body markers.
         if self.mu is None:
             return ax
         if ax is None:
@@ -400,12 +490,16 @@ class OrbitVisualizer:
                 return ax
 
         # 获取天体名称，回退为默认值
+        # Body names, falling back to defaults.
         primary_name = getattr(self.system, "primary_body", None) or "Earth"
         secondary_name = getattr(self.system, "secondary_body", None) or "Moon"
 
         if is_3d:
             # 3D 图表：尝试用 PNG 图标（Billboard：通过 draw_event 回调
             # 把 3D 数据点投影到 2D 屏幕坐标，每次重绘都同步图标位置）。
+            # 3D chart: try PNG icons (billboard: a draw_event callback projects the
+            # 3D data point onto 2D screen coordinates, re-syncing the icon position
+            # on every repaint).
             primary_icon, primary_ok = self._get_body_icon(
                 is_primary=True,
                 size=int(self.primary_body_size * self.config.primary_body_icon_scale),
@@ -422,6 +516,7 @@ class OrbitVisualizer:
                 )
             else:
                 # 图标加载失败，回退到圆形 marker
+                # Icon loading failed; fall back to a circular marker.
                 self._plot_body_marker_3d(
                     ax, -self.mu, self.primary_body_color, self.primary_body_size, primary_name
                 )
@@ -434,10 +529,12 @@ class OrbitVisualizer:
                 )
         else:
             # 2D 图表优先使用 PNG 图标
+            # 2D charts prefer PNG icons.
             primary_pos = np.array([-self.mu, 0])
             secondary_pos = np.array([1 - self.mu, 0])
 
             # 尝试加载并使用图标（应用图标缩放系数）
+            # Try loading and using icons (applying the icon scale factor).
             primary_icon, primary_ok = self._get_body_icon(
                 is_primary=True,
                 size=int(self.primary_body_size * self.config.primary_body_icon_scale),
@@ -449,7 +546,9 @@ class OrbitVisualizer:
 
             if primary_ok and secondary_ok:
                 # 成功加载图标，使用 AnnotationBbox
+                # Icons loaded; use AnnotationBbox.
                 # 确保图标不为 None（类型断言）
+                # Type assertion: icons must not be None here.
                 assert primary_icon is not None
                 assert secondary_icon is not None
 
@@ -464,6 +563,7 @@ class OrbitVisualizer:
                 )
             else:
                 # 图标加载失败，回退到圆形散点
+                # Icon loading failed; fall back to circular scatter points.
                 self._plot_body_marker_2d(
                     ax, primary_pos, "#2E86AB", "#1A5276", self.primary_body_size, primary_name
                 )
@@ -478,7 +578,10 @@ class OrbitVisualizer:
         return ax
 
     def show(self) -> None:
-        """显示绘图窗口。"""
+        """显示绘图窗口。
+
+        Show the plot window.
+        """
         plt.show()
 
     def save(self, filename: str, dpi: int | None = None) -> None:
@@ -487,6 +590,10 @@ class OrbitVisualizer:
         Args:
             filename: 输出文件路径。
             dpi: 输出分辨率，未指定时使用配置中的默认值。
+
+        Save the figure to a file. Args: ``filename`` — output path;
+        ``dpi`` — output resolution, defaulting to the configured value
+        when unspecified.
         """
         if self.figure is not None:
             self.figure.savefig(
@@ -505,6 +612,14 @@ class OrbitVisualizer:
 
         Returns:
             (sorted_x, sorted_y) 排序后的坐标元组。
+
+        Sort scattered points with a nearest-neighbor algorithm so the
+        drawn polyline does not cross itself. Greedy nearest-neighbor:
+        start from the point farthest from the origin and pick the
+        nearest unvisited point each step; starting farthest keeps the
+        ordering aligned with the orbit's natural extension. Args:
+        ``x``/``y`` — point coordinate arrays. Returns:
+        ``(sorted_x, sorted_y)``.
         """
         points = np.column_stack((x, y))
         if len(points) <= 2:
@@ -525,6 +640,12 @@ class OrbitVisualizer:
 
         Returns:
             (sorted_x, sorted_y, sorted_z) 排序后的坐标元组。
+
+        Sort 3D scattered points with a nearest-neighbor algorithm so
+        the drawn polyline does not cross itself. 3D version, same logic
+        as :meth:`_sort_points_by_nearest_neighbor` but with z included
+        in the distance. Args: ``x``/``y``/``z`` — coordinate arrays.
+        Returns: ``(sorted_x, sorted_y, sorted_z)``.
         """
         points = np.column_stack((x, y, z))
         if len(points) <= 2:
@@ -543,6 +664,13 @@ class OrbitVisualizer:
 
         Returns:
             ``(n,)`` 的整数索引数组，按访问顺序排列。
+
+        Greedy nearest-neighbor traversal returning the visit-order index
+        array. Starts from the point farthest from the origin and picks
+        the nearest unvisited point each step; dimensionality follows
+        ``points.shape[1]``. Args: ``points`` — ``(n, d)`` coordinate
+        array, ``d >= 1``. Returns: ``(n,)`` integer indices in visit
+        order.
         """
         n = len(points)
         visited = np.zeros(n, dtype=bool)
@@ -555,6 +683,7 @@ class OrbitVisualizer:
             if i == n - 1:
                 break
             # 计算到所有未访问点的平方距离，已访问置 inf
+            # Squared distances to all unvisited points; visited set to inf.
             diff = points - points[current]
             dists = np.einsum("ij,ij->i", diff, diff)
             dists[visited] = np.inf

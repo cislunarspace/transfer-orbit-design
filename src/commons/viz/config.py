@@ -3,6 +3,13 @@
 定义 PlotConfig 配置类，统一管理 matplotlib 的字体、颜色、尺寸等绘图参数。
 高 DPI 缩放适配逻辑封装在 :func:`configure_dpi_scaling` 中，import 本模块
 时不执行任何副作用；交互式绘图场景下需由调用方显式调用以适配高分辨率屏幕。
+
+English: plot configuration module. Defines the PlotConfig class,
+centrally managing matplotlib fonts, colors, sizes and other plotting
+parameters. High-DPI scaling adaptation is encapsulated in
+:func:`configure_dpi_scaling`; importing this module causes no side
+effects — interactive plotting scenarios must call it explicitly to
+adapt to high-resolution screens.
 """
 
 from __future__ import annotations
@@ -19,13 +26,18 @@ from pydantic import BaseModel, ConfigDict, Field
 logger = logging.getLogger(__name__)
 
 _STANDARD_DPI = 96.0  # 标准 DPI，作为缩放计算的基准
+# Standard DPI, the baseline for scale computation.
 
 # 环境变量名：天体图标缩放系数（地球、月球同步缩放）。
+# Env var name: body-icon scale factor (Earth and Moon scaled together).
 # 调用方通过设置此环境变量影响 PlotConfig.from_env() 构造的实例。
+# Setting this env var affects instances built by PlotConfig.from_env().
 BODY_ICON_SCALE_ENV = "E2M2E_BODY_ICON_SCALE"
 
 # 环境变量名：天体图标目录。允许用户在不修改代码的情况下切换图标位置。
+# Env var name: body-icon directory; lets users relocate icons without code changes.
 # 调用方通过设置此环境变量影响 PlotConfig.from_env() 构造的实例。
+# Setting this env var affects instances built by PlotConfig.from_env().
 BODY_ICON_PATH_ENV = "E2M2E_BODY_ICON_PATH"
 
 
@@ -39,8 +51,15 @@ def _detect_system_scale() -> float:
 
     Returns:
         缩放倍数，1.0 表示标准 DPI，大于 1.0 表示高分辨率屏幕。
+
+    Detect the system display scale factor, trying in priority order:
+    (1) the MPL_SCALE environment variable (manual override); (2)
+    GDK_SCALE / QT_SCALE_FACTOR (desktop-environment scaling); (3)
+    parsing xrandr output for the actual DPI. Returns: the scale — 1.0
+    for standard DPI, above 1.0 for high-resolution screens.
     """
     # 优先级 1：用户通过 MPL_SCALE 环境变量手动指定
+    # Priority 1: manual override via the MPL_SCALE environment variable.
     env = os.environ.get("MPL_SCALE")
     if env is not None:
         try:
@@ -49,6 +68,7 @@ def _detect_system_scale() -> float:
             logger.debug("Invalid MPL_SCALE value: %s", env)
 
     # 优先级 2：桌面环境的缩放设置
+    # Priority 2: desktop-environment scaling settings.
     for var in ("GDK_SCALE", "QT_SCALE_FACTOR"):
         val = os.environ.get(var)
         if val:
@@ -58,6 +78,7 @@ def _detect_system_scale() -> float:
                 logger.debug("Invalid %s value: %s", var, val)
 
     # 优先级 3：通过 xrandr 查询实际显示器 DPI
+    # Priority 3: query actual monitor DPI via xrandr.
     try:
         r = subprocess.run(
             ["xrandr", "--query"],
@@ -68,10 +89,12 @@ def _detect_system_scale() -> float:
         best_dpi = _STANDARD_DPI
         for line in r.stdout.splitlines():
             # 跳过未连接或无物理尺寸信息的行
+            # Skip lines without a connection or physical-size info.
             if " connected" not in line or "mm" not in line:
                 continue
             parts = line.split()
             # 从分辨率信息中提取像素尺寸（如 "1920x1080"）
+            # Extract pixel size from the resolution token (e.g. "1920x1080").
             res_token = None
             for p in parts[2:]:
                 if "x" in p and any(c.isdigit() for c in p):
@@ -80,6 +103,7 @@ def _detect_system_scale() -> float:
             if not res_token:
                 continue
             # 解析像素宽度和高度
+            # Parse pixel width and height.
             try:
                 pw_s, rest = res_token.split("x", 1)
                 ph_s = rest.split("+")[0].split("-")[0]
@@ -87,6 +111,7 @@ def _detect_system_scale() -> float:
             except (ValueError, IndexError):
                 continue
             # 查找物理尺寸（mm 单位，如 "345mm x 194mm"）
+            # Locate the physical size (mm, e.g. "345mm x 194mm").
             mm_w = mm_h = None
             for i, p in enumerate(parts):
                 if (
@@ -101,12 +126,14 @@ def _detect_system_scale() -> float:
             if not mm_w or not mm_h or mm_w <= 0 or mm_h <= 0:
                 continue
             # 通过像素和物理尺寸计算实际 DPI
+            # Compute the actual DPI from pixels and physical size.
             dpi_w = pw / (mm_w / 25.4)
             dpi_h = ph / (mm_h / 25.4)
             dpi = (dpi_w + dpi_h) / 2
             if dpi > best_dpi:
                 best_dpi = dpi
         # 如果实际 DPI 超过标准值 25% 以上，计算缩放倍数
+        # If the actual DPI exceeds the standard by more than 25%, compute the scale factor.
         if best_dpi > _STANDARD_DPI * 1.25:
             return round(best_dpi / _STANDARD_DPI, 2)
     except FileNotFoundError:
@@ -119,6 +146,8 @@ def _detect_system_scale() -> float:
 
 # import 时不执行任何副作用：_detected_scale 默认为 1.0（标准 DPI），
 # 由 configure_dpi_scaling() 在需要高 DPI 适配时显式检测并更新。
+# No side effects at import time: _detected_scale defaults to 1.0 (standard DPI);
+# configure_dpi_scaling() detects and updates it explicitly when high-DPI adaptation is needed.
 _detected_scale = 1.0
 _dpi_configured = False
 
@@ -143,6 +172,20 @@ def configure_dpi_scaling() -> float:
         检测到的系统缩放倍数（1.0 表示标准 DPI）。返回值同时写入
         模块级 ``_detected_scale``，供 :class:`PlotConfig` 的
         ``scale_factor`` 字段默认值使用。
+
+    English: explicitly enable high-DPI scaling adaptation (opt-in).
+    Importing this module has no side effects (no xrandr fork, no
+    environment changes, no patches); interactive plotting scenarios
+    call this function explicitly. It (1) detects the display scale via
+    :func:`_detect_system_scale` (may fork ``xrandr``); (2) if the
+    scale exceeds 1.01, sets ``TK_SCALE``, patches
+    ``tkinter.Tk``/``tkinter.Toplevel`` ``__init__`` to apply tk
+    scaling, and, when ``zenity`` is available, replaces
+    ``tkinter.filedialog``'s ``askopenfilename``/``asksaveasfilename``
+    with it. Idempotent: repeat calls just return the detected scale
+    without re-patching. Returns: the detected scale (1.0 = standard
+    DPI), also written to the module-level ``_detected_scale`` used by
+    :class:`PlotConfig`'s ``scale_factor`` default.
     """
     global _detected_scale, _dpi_configured
     if _dpi_configured:
@@ -153,6 +196,7 @@ def configure_dpi_scaling() -> float:
     _detected_scale = scale
 
     # 检测系统缩放，若大于标准值则自动补丁 tkinter 以适配高 DPI
+    # Detect system scaling; patch tkinter automatically when above standard, for high-DPI fit.
     if scale > 1.01:
         os.environ.setdefault("TK_SCALE", str(scale))
         import shutil as _shutil
@@ -161,6 +205,9 @@ def configure_dpi_scaling() -> float:
         # tkinter scaling 使用 point 为单位（1 point = 1/72 inch），
         # 而系统 DPI 基于每英寸像素数（1 inch = 96 px 在标准 DPI 下），
         # 因此缩放倍数需乘以 96/72 将 DPI 比率转换为 point 缩放比率
+        # tkinter scaling is measured in points (1 point = 1/72 inch) while system DPI
+        # counts pixels per inch (96 px per inch at standard DPI); multiply by 96/72 to
+        # convert the DPI ratio into a point-scaling ratio.
         _tk_scaling_val = scale * 96.0 / 72.0
         _orig_tk_init = _tk.Tk.__init__
         _orig_toplevel_init = _tk.Toplevel.__init__
@@ -181,6 +228,9 @@ def configure_dpi_scaling() -> float:
         # 在高 DPI 环境下，tkinter 原生文件对话框无法跟随缩放，
         # 会出现极小的窗口。用 zenity（Linux 桌面原生对话框）替代，
         # zenity 由 GTK 渲染，自动适配系统缩放设置
+        # Under high DPI, native tkinter file dialogs do not follow the scale and show up
+        # tiny. Replace them with zenity (native Linux desktop dialogs); zenity renders via
+        # GTK and adapts to the system scaling setting automatically.
         if _shutil.which("zenity"):
             import tkinter.filedialog as _fd
 
@@ -284,11 +334,19 @@ class PlotConfig(BaseModel):
         title_y_offset_subplot: 标题 y 方向偏移量（子图布局，避免与相邻子图重叠）。
         auto_scale: 是否启用自动 DPI 缩放。
         scale_factor: 实际缩放倍数。
+
+    Unified plot configuration managing font sizes, colors, line
+    widths, figure sizes and more (see the attribute list above).
+    Built on Pydantic BaseModel with runtime type validation;
+    apply_rcparams() applies the config to matplotlib's global
+    settings; supports automatic scaling on high-DPI screens
+    (``auto_scale``/``scale_factor``).
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
     # 字体大小参数
+    # Font-size parameters.
     title: float = 16
     label: float = 14
     tick: float = 13
@@ -298,19 +356,25 @@ class PlotConfig(BaseModel):
     lp_label: float = 12
 
     # 颜色和标记参数
+    # Color and marker parameters.
     colormap: str = "coolwarm"
     primary_body_color: str = "#2E86AB"
     primary_body_size: int = 200
     secondary_body_color: str = "#95A5A6"
     secondary_body_size: int = 100
     # 天体图标缩放系数（用于 PNG 图标显示大小微调，不影响散点回退）
+    # Body-icon scale factors (fine-tune PNG icon display size; scatter fallback unaffected).
     primary_body_icon_scale: float = 1.0
     secondary_body_icon_scale: float = 1.0
     # 天体图标目录：None 时由 icons.resolve_icon_dir() 按以下优先级回退，
     # 环境变量 E2M2E_BODY_ICON_PATH → ~/Downloads（向后兼容默认）。
     # 支持 ~、${VAR}/$VAR 占位符、相对/绝对路径。
+    # Body-icon directory; when None, icons.resolve_icon_dir() falls back in this order:
+    # env var E2M2E_BODY_ICON_PATH, then ~/Downloads (backward-compatible default).
+    # Supports ~, ${VAR}/$VAR placeholders, and relative/absolute paths.
     icon_path: str | None = None
     # 主天体/次天体图标文件名（相对于 icon_path）
+    # Primary/secondary body icon filenames (relative to icon_path).
     primary_body_icon: str = "地球.png"
     secondary_body_icon: str = "月球.png"
     lp_colors: list[str] = Field(default_factory=lambda: ["#d62728"] * 5)
@@ -318,6 +382,7 @@ class PlotConfig(BaseModel):
     lp_sizes: list[int] = Field(default_factory=lambda: [80] * 5)
 
     # 线条和图像尺寸参数
+    # Line style and figure-size parameters.
     orbit_linewidth: float = 1.5
     orbit_alpha: float = 0.8
     figsize_2d: tuple = (12, 10)
@@ -327,12 +392,14 @@ class PlotConfig(BaseModel):
     dpi: int = 100
 
     # 标题偏移参数（用于不同布局下的标题位置调整）
+    # Title-offset parameters (adjust title position per layout).
     title_y_offset: float = -0.12
     title_y_offset_3d: float = -0.08
     title_y_offset_dual: float = -0.18
     title_y_offset_subplot: float = -0.15
 
     # 缩放参数
+    # Scaling parameters.
     auto_scale: bool = True
     scale_factor: float = Field(default_factory=lambda: _detected_scale)
 
@@ -358,6 +425,16 @@ class PlotConfig(BaseModel):
 
         Returns:
             构造好的 PlotConfig 实例。
+
+        Build a PlotConfig from environment variables, with overrides
+        taking the highest priority. Supported variables:
+        ``E2M2E_BODY_ICON_SCALE`` — a float applied to both icon-scale
+        fields, silently falling back to field defaults on parse
+        failure (non-numeric, <= 0); ``E2M2E_BODY_ICON_PATH`` —
+        body-icon directory written into ``icon_path``; empty or
+        missing values are silently ignored. Args: ``env`` —
+        environment mapping, ``os.environ`` when ``None`` (easy test
+        injection). Returns: the constructed PlotConfig.
         """
         source = os.environ if env is None else env
 
@@ -385,6 +462,7 @@ class PlotConfig(BaseModel):
                     )
 
         # overrides 覆盖 env 值
+        # Overrides take precedence over env values.
         merged = {**env_kwargs, **overrides}
         return cls(**merged)
 
@@ -393,14 +471,20 @@ class PlotConfig(BaseModel):
 
         设置字体族、数学文本字体、图例样式、字体大小等。
         在高 DPI 屏幕下会自动记录缩放信息。
+
+        Apply the configuration to matplotlib's global parameters —
+        font family, mathtext font, legend style, font sizes, etc.
+        Scaling info is recorded automatically on high-DPI screens.
         """
         import matplotlib.pyplot as plt
 
         # 高 DPI 屏幕自动缩放
+        # Automatic scaling on high-DPI screens.
         if self.auto_scale and self.scale_factor > 1.01:
             logger.info("auto_scale=%.2fx (tk scaling applied)", self.scale_factor)
 
         # 设置全局字体：优先 Times New Roman，数学文本使用 STIX 字体
+        # Global fonts: prefer Times New Roman; STIX fonts for math text.
         matplotlib.rcParams["font.family"] = "serif"
         matplotlib.rcParams["font.serif"] = ["Times New Roman", "DejaVu Serif"]
         matplotlib.rcParams["mathtext.fontset"] = "stix"
@@ -410,6 +494,7 @@ class PlotConfig(BaseModel):
         matplotlib.rcParams["axes.unicode_minus"] = False
 
         # 图例样式：带边框、半透明背景、无阴影（学术论文标准样式）
+        # Legend style: framed, semi-transparent background, no shadow (academic-paper standard).
         matplotlib.rcParams["legend.frameon"] = True
         matplotlib.rcParams["legend.framealpha"] = 0.9
         matplotlib.rcParams["legend.fancybox"] = True
@@ -431,5 +516,8 @@ class PlotConfig(BaseModel):
 
         Returns:
             matplotlib.colors.Colormap 颜色映射实例。
+
+        Get the configured colormap. Returns: a
+        matplotlib.colors.Colormap instance.
         """
         return matplotlib.colormaps[self.colormap]

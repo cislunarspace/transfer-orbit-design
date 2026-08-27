@@ -124,7 +124,10 @@ class TestFindUpstream:
 
 
 class TestLineage:
-    """issue #375：谱系读 source_record_id，断链显示降级标记。"""
+    """issue #375：谱系读 source_record_id，断链显示降级标记。
+
+    issue #375: lineage reads source_record_id; broken links show a degraded marker.
+    """
 
     def test_broken_lineage_when_upstream_deleted(
         self,
@@ -158,7 +161,11 @@ class TestLineage:
         orbit_artifact: Artifact,
         family_artifact: Artifact,
     ) -> None:
-        """断链按全库判定：过滤视图不含上游（但库里有）不算断链。"""
+        """断链按全库判定：过滤视图不含上游（但库里有）不算断链。
+
+            Broken-lineage is judged against
+        the whole catalog: an upstream absent from the filtered view (but still in the
+        library) is not a break."""
         project.add(family_artifact)  # 清单里只有下游
         project.known_record_ids = {"aaaa1111", "bbbb2222"}  # 全库两条都在
         assert project.has_broken_lineage(family_artifact) is False

@@ -10,6 +10,18 @@
   过渡期沿用，待上游入库后退役。
 - propagation：轨道预报星历（issue #389），e2m2e 未提供该工具的产物
   入库，落盘见 ``engine.persistence.save_propagation_result``。
+
+English: directory scanning -- products outside the catalog taxonomy
+(issues #375 / #389). Orbit / orbit-family / ephemeris products have
+been managed by the orbit catalog since e2m2e 5.8.0 (inventory and
+filters via Facade ``catalog_query``, see ``engine.catalog_service``);
+the "subdirectory name + filename regex" classification was deleted
+with this repo's ADR 0008 revision (2026-08-19). Partitions still
+scanned: transfer — transfer-orbit products (e2m2e tracks catalog
+ingestion of transfer_design etc. separately); kept transitionally,
+retiring once upstream ingests them. propagation — propagation
+ephemerides (issue #389); e2m2e provides no ingestion for that tool,
+see ``engine.persistence.save_propagation_result`` for persistence.
 """
 
 from __future__ import annotations
@@ -31,7 +43,8 @@ _PROPAGATION_RE = re.compile(r"^propagation_.*\.json$")
 
 
 def _classify_file(path: Path) -> dict | None:
-    """Classify a JSON file into artifact metadata, or None if not recognized."""
+    """Classify a JSON file into artifact metadata, or None if not recognized.
+    把 JSON 文件分类为产物元数据；无法识别返回 None。"""
     name = path.name
     parent = path.parent.name
 
@@ -50,7 +63,8 @@ def _classify_file(path: Path) -> dict | None:
 
 
 def _load_json_or_none(path: Path) -> dict | None:
-    """Try to load JSON from a file, returning None on any error."""
+    """Try to load JSON from a file, returning None on any error.
+    尝试从文件加载 JSON，出错返回 None。"""
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
@@ -59,12 +73,14 @@ def _load_json_or_none(path: Path) -> dict | None:
 
 def discover_artifacts(output_dir: Path) -> list[Artifact]:
     """Scan an output directory and return non-catalog Artifact instances.
+    扫描 output 目录，返回非 catalog 的 Artifact 实例。
 
     Subdirectory layout expected:
         output/transfer/      corrected_transfer_*.json, optimization_*.json
         output/propagation/   propagation_*.json（轨道预报星历，#389）
 
     Returns an empty list if output_dir does not exist.
+    output_dir 不存在时返回空列表。
     """
     output_dir = Path(output_dir)
     if not output_dir.is_dir():
@@ -98,6 +114,11 @@ def discover_artifacts(output_dir: Path) -> list[Artifact]:
         # 轨道预报星历：会合系位置作 state_data（画布星历槽位），ET 秒作时间轴；
         # 其余数组（position_km/velocity_km_s/times_et）进 extra。文件名茎作
         # artifact_id（确定性，运行后可按 id 选中）。transfer 分区保持原行为。
+        # Propagation ephemerides: rotating-frame positions become state_data (the canvas
+        # ephemeris slot), ET seconds become the timeline; other arrays
+        # (position_km/velocity_km_s/times_et) go into extra. The filename stem becomes
+        # artifact_id (deterministic, selectable by id after a run). The transfer partition
+        # keeps its original behavior.
         artifact_id: str | None = None
         label = json_file.stem
         if meta.get("source_tool") == "orbit_propagation":

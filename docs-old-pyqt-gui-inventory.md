@@ -1,5 +1,12 @@
 # 旧 PyQt 版 GUI 功能盘点（迁移前最后状态：commit fa2d0e3 = 64c943b^）
 
+> **已冻结的历史台账**（ADR 0016 的验收底账）。文内代码路径（`src/app/`、
+> `src/view/` 等）均已删除，仅供考古。C 节“丢失清单”对照的是 Tauri
+> v4.0.0 初版；此后 #398/#401/#402 补齐详情面板、右键菜单、参数覆写与
+> 时间轴，#406/#407 补齐投影/中心切换，v4.4.0 完成停靠工具栏与播放，
+> 多数条目已落地。**现状以 `CHANGELOG.md` 与 `docs/source/guide/` 为准，
+> 勿以本清单为准。**
+
 来源说明：以下所有条目均出自 `git show 64c943b^:<path>`（即迁移删除前的最后版本，fa2d0e3）。旧 GUI 代码分布：`src/app/`（入口/主窗口/内核引导/i18n）与 `src/view/`（12 个视图组件），另有 `src/engine/workers.py`（QThread 工作线程，随迁移删除）。参数约束的运行时来源是 e2m2e Pydantic 模型（本机 e2m2e 5.8.5 导出；64c943b^ 的 pyproject 钉 `e2m2e>=5.8.2`），GUI 在构建控件时动态读取 `ge/gt/le/lt/multiple_of` 等元数据。
 
 ---

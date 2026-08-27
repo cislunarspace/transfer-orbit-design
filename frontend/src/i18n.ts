@@ -1,5 +1,5 @@
-// i18n：中英双语（对齐 ADR-0001 的 PyQt 翻译范围，范式参照 altgo）。
-// localStorage 持久化，默认中文。
+// i18n：中英双语，localStorage 持久化，默认中文。
+// i18n: Chinese/English bilingual, persisted in localStorage, Chinese by default.
 
 import { useEffect, useState } from "react";
 

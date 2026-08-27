@@ -1,4 +1,8 @@
-# sidecar 子树生命周期
+# ADR 0019：sidecar 子树生命周期
+
+**状态**：已接受
+**日期**：2026-08-25
+**关联**：ADR 0014（UI 迁移到 Tauri）
 
 关闭应用后，sidecar 进程（e2m2e）留在后台继续运行——包括正在计算的轨道族任务。我们决定在 Windows 上把 sidecar 子树划入 kill-on-close 的 Job Object，由内核保证其随应用进程死亡而终结。
 

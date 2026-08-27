@@ -1,4 +1,7 @@
-"""跨层共享的路径常量与辅助工具。"""
+"""跨层共享的路径常量与辅助工具。
+
+Path constants and helpers shared across layers.
+"""
 
 import logging
 import os
@@ -11,8 +14,11 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR: Path = _REPO_ROOT / "output"
 
 # 轨道库 catalog 默认目录（e2m2e 5.8.0，issue #375）：与 output/ 平级。
-# GUI 场景 cwd 不稳定，不能依赖 e2m2e Config 的相对默认（./catalog）；
-# 用户可在 GUI 设置中改指其他目录（QSettings 持久化）。
+# sidecar 场景 cwd 不稳定，不能依赖 e2m2e Config 的相对默认（./catalog）；
+# 改指其他目录经环境变量 E2M2E_CATALOG_DIR（由 Rust 壳注入）。
+# Default orbit-library catalog directory (e2m2e 5.8.0, issue #375), sibling to output/.
+# The sidecar cwd is unstable, so the relative default of e2m2e Config (./catalog) cannot
+# be relied on; redirect via the E2M2E_CATALOG_DIR env var (injected by the Rust shell).
 CATALOG_DIR: Path = _REPO_ROOT / "catalog"
 
 logger = logging.getLogger(__name__)
@@ -43,6 +49,12 @@ def find_project_root(start: Path | None = None) -> Path:
 
     Raises:
         FileNotFoundError: 无法找到项目根目录
+
+    English: walk upward from the given start until the project root is
+    found. The project root is the directory containing pyproject.toml
+    or .git. Args: ``start`` — starting directory, defaults to the
+    caller's ``__file__`` directory. Returns: absolute path of the
+    project root. Raises FileNotFoundError when no root is found.
     """
     current = (start or Path(__file__)).resolve().parent
     markers = ("pyproject.toml", ".git")
@@ -67,6 +79,12 @@ def safe_resolve_within(user_path: str, allowed_root: Path) -> Path | None:
 
     Returns:
         解析后的绝对路径；若路径在 allowed_root 外则返回 None
+
+    English: safely resolve a user-supplied path, verifying it lies
+    inside ``allowed_root``. Args: ``user_path`` — user-provided path
+    string; ``allowed_root`` — root directory access is allowed within.
+    Returns: the resolved absolute path, or None when the path lies
+    outside allowed_root.
     """
     resolved = Path(user_path).expanduser().resolve()
     try:
@@ -77,12 +95,19 @@ def safe_resolve_within(user_path: str, allowed_root: Path) -> Path | None:
 
 
 def ensure_output_dir(output_dir: str = "output") -> None:
-    """确保输出目录存在。"""
+    """确保输出目录存在。
+
+    Ensure the output directory exists.
+    """
     os.makedirs(output_dir, exist_ok=True)
 
 
 def user_config_dir() -> Path:
-    """用户配置目录（Windows ``%APPDATA%``，其余平台 XDG 配置目录）。"""
+    """用户配置目录（Windows ``%APPDATA%``，其余平台 XDG 配置目录）。
+
+    User configuration directory (Windows ``%APPDATA%``; XDG config directory
+    elsewhere).
+    """
     if os.name == "nt":
         base = os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming"
     else:
@@ -94,6 +119,11 @@ def load_configured_kernel_dir() -> str:
     """读用户上次显式选择/下载的内核目录（配置文件中记录的路径）。
 
     文件缺失或指向不存在的目录时返回空串。
+
+    Read the kernel directory the user last explicitly chose or
+    downloaded (the path recorded in the config file). Returns an empty
+    string when the file is missing or points at a nonexistent
+    directory.
     """
     p = user_config_dir() / "kernels_dir.txt"
     if p.is_file():
@@ -104,7 +134,11 @@ def load_configured_kernel_dir() -> str:
 
 
 def save_configured_kernel_dir(path: str | Path) -> None:
-    """把用户显式选择/下载的内核目录写入配置文件，供下次启动探测。"""
+    """把用户显式选择/下载的内核目录写入配置文件，供下次启动探测。
+
+    Write the user's explicitly chosen/downloaded kernel directory into the config
+    file for the next startup to probe.
+    """
     d = user_config_dir()
     d.mkdir(parents=True, exist_ok=True)
     (d / "kernels_dir.txt").write_text(str(Path(path).resolve()), encoding="utf-8")
@@ -117,14 +151,30 @@ def detect_kernel_dir() -> str:
     ``<repo>/kernels/`` -> 用户数据目录默认位置 -> ``<repo>/../e2m2e/kernels/``；
     找不到返回空串。
 
-    注意：本函数只判断目录存在，不校验内核完整性（仓库根 ``kernels/`` 只
-    提交小内核，行星历 ``.bsp`` 需另行补齐）；完整性判断见
+    注意：本函数只判断目录存在，不校验内核完整性；完整性判断见
     ``src.commons.kernels.kernel_dir_usable``。
 
     e2m2e 改为 pip 安装后，其内部闰秒内核（``.tls``）的自动搜索路径按源码仓库
     布局计算父目录（``parents[3]``），在 site-packages 布局下指向错误位置，导致
-    ``SPICE(NOLEAPSECONDS)``、轨道设计失败。规避：调用方须在 import e2m2e 之前把
-    本函数返回值写入 ``SPICE_KERNEL_DIR``（e2m2e 的第二搜索路径），见 ``main()``。
+    ``SPICE(NOLEAPSECONDS)``、轨道设计失败。规避：调用方须在 import e2m2e 之前
+    把本函数返回值写入 ``SPICE_KERNEL_DIR``（e2m2e 的第二搜索路径），现行做法见
+    ``src-tauri/src/lib.rs`` 与 ``tests/conftest.py``。
+
+    English: detect the SPICE kernel directory. Priority:
+    ``$SPICE_KERNEL_DIR`` -> config-file record (user's last
+    choice/download) -> ``<repo>/kernels/`` -> user-data default
+    location -> ``<repo>/../e2m2e/kernels/``; returns an empty string
+    when nothing is found. Note: this function only checks directory
+    existence, not kernel completeness — see
+    ``src.commons.kernels.kernel_dir_usable`` for that. After e2m2e
+    moved to a pip install, its internal leap-second kernel (``.tls``)
+    auto-search path computes the parent directory per the source-repo
+    layout (``parents[3]``), which points to the wrong place under
+    site-packages and causes ``SPICE(NOLEAPSECONDS)`` and orbit-design
+    failures. Workaround: callers must write this function's return
+    value into ``SPICE_KERNEL_DIR`` (e2m2e's second search path)
+    *before* importing e2m2e — see ``src-tauri/src/lib.rs`` and
+    ``tests/conftest.py`` for the current practice.
     """
     env_val = os.environ.get("SPICE_KERNEL_DIR", "")
     if env_val and Path(env_val).is_dir():
@@ -135,16 +185,20 @@ def detect_kernel_dir() -> str:
         return configured
 
     # 本项目自带 kernels/（小内核入库，.bsp 由 scripts/download_kernels.py 补）
+    # This project ships its own kernels/ (small kernels checked in; .bsp fetched by
+    # scripts/download_kernels.py).
     own = _REPO_ROOT / "kernels"
     if own.is_dir():
         return str(own)
 
     # 用户数据目录默认位置（GUI 引导下载的落点）
+    # Default user-data location (where GUI onboarding downloads land).
     user_dir = user_kernel_dir()
     if user_dir.is_dir():
         return str(user_dir)
 
     # 回退：同父目录的 e2m2e 源码仓库内核（开发机历史布局）
+    # Fallback: kernels in a sibling e2m2e source checkout (historical dev-machine layout).
     candidate = _REPO_ROOT.parent / "e2m2e" / "kernels"
     if candidate.is_dir():
         return str(candidate)

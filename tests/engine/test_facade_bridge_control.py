@@ -1,7 +1,13 @@
 """tests for FacadeBridge.control_orbit + OrbitDesignResultData.ephemeris (issue #348/#375)。
+Tests for FacadeBridge.control_orbit plus OrbitDesignResultData.ephemeris
+(issues #348/#375).
 
 桩打在算法层 ``e2m2e.algorithm.station_keeping.control_orbit`` 上：请求校验、
 响应翻译、产物自动入库与谱系写入仍走真 Facade（e2m2e 5.8.0）。
+The stub sits on the algorithm layer
+(``e2m2e.algorithm.station_keeping.control_orbit``): request validation,
+response translation, product auto-ingestion and lineage writing still run
+the real Facade (e2m2e 5.8.0).
 """
 
 from __future__ import annotations
@@ -21,6 +27,7 @@ from tests.engine.conftest import (
 
 # ---------------------------------------------------------------------------
 # design_orbit ephemeris 提取
+# design_orbit ephemeris extraction
 # ---------------------------------------------------------------------------
 
 
@@ -28,9 +35,15 @@ class TestDesignOrbitEphemerisExtraction:
     @pytest.mark.spice
     def test_design_orbit_result_carries_ephemeris_fields(self, monkeypatch, catalog_bridge):
         """design_orbit 应将 result.ephemeris 提取到 DTO.ephemeris dict。
+        design_orbit must extract result.ephemeris into the DTO's ephemeris dict.
 
         P0 起 ephemeris dict 还含 times_et（UTC 拆分用 str2et 重建的 ET 秒），
         故此测试需要闰秒内核 → spice marker。
+
+        design_orbit must extract result.ephemeris into the DTO's
+        ephemeris dict. Since P0 the ephemeris dict also carries times_et
+        (ET seconds rebuilt from the UTC split via str2et), so this test
+        needs the leap-second kernel (the spice marker).
         """
         result = _FakeDesignResult(ephemeris=make_ephemeris_table(10))
 
@@ -56,10 +69,14 @@ class TestDesignOrbitEphemerisExtraction:
             assert key in data.ephemeris
             assert isinstance(data.ephemeris[key], np.ndarray)
         # times_jd_tdb 设计链路不填：Facade dict 里为 None，桥接层过滤后键缺省
+        # times_jd_tdb is unset in the design chain: None inside the Facade dict, so
+        # the key is absent after the bridge filters it
         assert not data.ephemeris.get("times_jd_tdb")
 
     def test_design_orbit_ephemeris_none_when_absent(self, monkeypatch, catalog_bridge):
-        """result 无 ephemeris 时，DTO.ephemeris 为 None。"""
+        """result 无 ephemeris 时，DTO.ephemeris 为 None。
+        When result has no ephemeris, DTO.ephemeris is None.
+        """
         result = _FakeDesignResult()
 
         monkeypatch.setattr(
@@ -78,9 +95,15 @@ class TestDesignOrbitEphemerisExtraction:
 
 def _make_ephemeris_data(n: int = 10, with_none_tjd: bool = True) -> dict:
     """构造 control_orbit 所需的 ephemeris_data dict。
+    Build the ephemeris_data dict that control_orbit needs.
 
     times_jd_tdb 当前版本 EphemerisTable 无此字段，始终设 None（与生产提取一致）。
     with_none_tjd 参数保留用于验证 None 值被正确跳过。
+
+    Build the ephemeris_data dict control_orbit needs.
+    EphemerisTable currently has no times_jd_tdb field, so it is always
+    None here (matching the production extraction); the with_none_tjd
+    parameter stays to verify that None values are skipped correctly.
     """
     data = {
         "year": np.full(n, 2024),
@@ -98,7 +121,10 @@ def _make_ephemeris_data(n: int = 10, with_none_tjd: bool = True) -> dict:
 
 
 def _patch_control(monkeypatch, fake_result, received: dict | None = None):
-    """把算法层 control_orbit 换成返回 fake_result 的桩（Facade 内部延迟 import 同模块）。"""
+    """把算法层 control_orbit 换成返回 fake_result 的桩（Facade 内部延迟 import 同模块）。
+    Stub the algorithm-layer control_orbit with one returning fake_result
+    (the Facade lazily imports the same module).
+    """
 
     def _fake_control(eph, **kw):
         if received is not None:
@@ -120,6 +146,12 @@ class TestControlOrbit:
 
         controlled_states[:, :3] 应为质心归一 synodic（= synodic_position − source_mu），
         position_km 等于 fake 的 GCRS km，times_et 等于 SPICE str2et 重建的真物理时间。
+
+        control_orbit must return a ControlResultData with controlled_states
+        shaped (n,6). controlled_states[:, :3] must be barycenter-normalized
+        synodic (= synodic_position − source_mu), position_km equal to the
+        fake's GCRS km, and times_et the true physical time rebuilt via
+        SPICE str2et.
         """
         import spiceypy as spice
 
@@ -142,22 +174,28 @@ class TestControlOrbit:
         assert data.controlled_states is not None
         assert data.controlled_states.shape == (n, 6)
         # 质心归一：synodic − source_mu（地心归一 → 质心归一，月球在 1−μ）
+        # Barycenter normalization: synodic - source_mu (Earth-centered ->
+        # barycenter-normalized, Moon at 1-mu)
         np.testing.assert_array_equal(
             data.controlled_states[:, :3], synodic - source_mu
         )
         # 速度列补零
+        # Velocity columns filled with zeros
         np.testing.assert_array_equal(data.controlled_states[:, 3:], np.zeros((n, 3)))
         assert data.controlled_times is not None
         assert len(data.controlled_times) == n
         assert data.mu == pytest.approx(source_mu)
 
         # position_km 直接透传
+        # position_km passed through as-is
         assert data.position_km is not None
         np.testing.assert_array_equal(
             data.position_km, fake_result.controlled_ephemeris.position_km
         )
 
         # times_et 由 UTC 拆分用 str2et 重建，应与逐点独立 str2et 一致
+        # times_et is rebuilt from UTC splits via str2et and must match pointwise
+        # independent str2et calls
         assert data.times_et is not None
         expected_et = np.array(
             [
@@ -169,10 +207,14 @@ class TestControlOrbit:
         )
         np.testing.assert_allclose(data.times_et, expected_et)
         # controlled_times 现在就是真物理时间（不再是 np.arange）
+        # controlled_times now holds true physical time (no longer np.arange)
         np.testing.assert_array_equal(data.controlled_times, data.times_et)
 
     def test_control_orbit_none_states_when_no_ephemeris(self, monkeypatch, catalog_bridge):
-        """所有样本失败（controlled_ephemeris=None）时，controlled_states/times 为 None。"""
+        """所有样本失败（controlled_ephemeris=None）时，controlled_states/times 为 None。
+        When every sample fails (controlled_ephemeris=None), controlled_states/times
+        are None.
+        """
         _patch_control(monkeypatch, _FakeControlResult())
 
         data = catalog_bridge.control_orbit(
@@ -187,7 +229,9 @@ class TestControlOrbit:
         assert data.mu is None
 
     def test_control_orbit_translates_exceptions(self, monkeypatch, catalog_bridge):
-        """算法层抛 ValueError 应翻译为 OrbitError(INVALID_PARAMS)。"""
+        """算法层抛 ValueError 应翻译为 OrbitError(INVALID_PARAMS)。
+        An algorithm-layer ValueError must translate into OrbitError(INVALID_PARAMS).
+        """
         from src.engine.exceptions import OrbitError
 
         def _fail(eph, **kw):
@@ -210,6 +254,13 @@ class TestControlOrbit:
 
         面板收集的 mu 是响应透传字段，Facade 构造 request 时合法接收；
         算法层调用参数表里没有 mu（5.8.0 Facade 逐字段转发）。
+
+        source_mu passes through to the response via request.mu (not
+        consumed by the algorithm layer; used to draw Earth-Moon
+        annotations). The mu collected by the panel is a passthrough
+        response field that the Facade legally accepts when building the
+        request; the algorithm-layer call arguments have no mu (since
+        5.8.0 the Facade forwards field by field).
         """
         received: dict = {}
 
@@ -233,6 +284,13 @@ class TestControlOrbit:
         回归：面板把 engine_layout 建成 JSON 文本框，用户随手填 "4"，e2m2e
         对非 None 值无条件 validate（访问 .E_r），字符串直接 AttributeError
         （GUI 报 UNKNOWN_ERROR）。
+
+        With control_mode < 4 engine_layout is meaningless and must not
+        pass through (arbitrary strings would blow up). Regression: the
+        panel builds engine_layout as a JSON text box; a user typing
+        "4" trips e2m2e's unconditional validate of non-None values
+        (accessing .E_r), raising a raw AttributeError (surfacing in the
+        GUI as UNKNOWN_ERROR).
         """
         received: dict = {}
 
@@ -336,7 +394,10 @@ class TestControlOrbit:
     def test_ephemeris_table_reconstruction_skips_none_times(self, monkeypatch, catalog_bridge):
         """times_jd_tdb=None 时 EphemerisTable 重建不崩（走 dataclass 默认）。
 
-        P0 起 control_orbit 会重建 times_et（spice.str2et），需闰秒内核 → spice marker。
+        EphemerisTable rebuilding must not crash with times_jd_tdb=None
+        (the dataclass default applies). Since P0 control_orbit rebuilds
+        times_et (spice.str2et), needing the leap-second kernel (the
+        spice marker).
         """
         received: dict = {}
 
@@ -350,6 +411,7 @@ class TestControlOrbit:
             source_mu=None,
         )
         # EphemerisTable 成功构造（算法层被调用即证明）
+        # EphemerisTable built successfully (proven by the algorithm layer being called)
         eph = received.get("_eph")
         assert eph is not None
         assert eph.synodic_position is not None
@@ -358,7 +420,10 @@ class TestControlOrbit:
     def test_control_orbit_kernel_dir_forwarded(self, monkeypatch, tmp_path):
         """kernel_dir 经 Config 注入 Facade，转发到算法层调用。
 
-        P0 起 control_orbit 会重建 times_et（spice.str2et），需闰秒内核 → spice marker。
+        kernel_dir is injected into the Facade via Config and forwarded
+        to the algorithm-layer call. Since P0 control_orbit rebuilds
+        times_et (spice.str2et), needing the leap-second kernel (the
+        spice marker).
         """
         received: dict = {}
 
@@ -386,6 +451,8 @@ class TestControlOrbitCatalog:
         谱系由 Facade 写入（重启后经 catalog_query 重建仍成立）。
         """
         # 入库一条源记录（星历段必须有：build_design_record 需要产物）
+        # Insert one source record (the ephemeris segment is required:
+        # build_design_record needs a product)
         design_result = _FakeDesignResult(ephemeris=make_ephemeris_table(10))
         monkeypatch.setattr(
             "e2m2e.algorithm.design.design_orbit",
@@ -408,6 +475,8 @@ class TestControlOrbitCatalog:
             control_mode=1,
         )
         # Facade 从记录解析星历段注入算法层（ephemeris_data 未使用）
+        # The Facade resolves the ephemeris segment from the record and injects it
+        # into the algorithm layer (e2m2e)phemeris_data unused)
         assert received.get("_eph") is not None
         assert data.record_id is not None
         record = catalog_bridge.catalog_get(data.record_id)

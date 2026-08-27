@@ -33,7 +33,10 @@ class TestTranslateDesignNotConverged:
 
 
 class TestTranslatePropagationNewContract:
-    """e2m2e 5.6.6 新增类型化异常（#349/#378）的翻译。"""
+    """e2m2e 5.6.6 新增类型化异常（#349/#378）的翻译。
+
+        Translation of the typed exceptions added
+    in e2m2e 5.6.6 (#349/#378)."""
 
     def test_translate_propagation_failure(self):
         from e2m2e.exceptions import PropagationFailure
@@ -56,6 +59,7 @@ class TestTranslatePropagationNewContract:
         from e2m2e.data.templates import ConvergenceState, FailureCause
 
         # status/cause 须一致（ResultStatus 构造校验），停滞对停滞
+        # status/cause must agree (validated on ResultStatus construction): stalled maps to stalled
         raw = DesignNotConvergedError(
             "LM 停滞",
             status=ConvergenceState.STAGNATED,

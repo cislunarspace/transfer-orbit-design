@@ -11,6 +11,18 @@
 
 鉴权：GitHub API 未鉴权限速 60 次/小时，单次 setup 足够；CI 或受限环境设
 ``GH_TOKEN`` 走鉴权通道。
+
+English: download SPICE kernel files into ``kernels/`` for ephemeris
+dynamics tests and runs. Implementation lives in ``src.commons.kernels``
+(download logic, usability checks, user data directory); this script is
+its CLI wrapper, keeping the original command-line behavior.
+Usage:
+    python scripts/download_kernels.py [--kernel-dir DIR]
+The default kernel directory is repo-root ``kernels/`` (matching the
+first search path of ``src.commons.paths.detect_kernel_dir``).
+Authentication: the unauthenticated GitHub API allows 60 requests/hour,
+enough for a single setup; set ``GH_TOKEN`` in CI or restricted
+environments to go through the authenticated channel.
 """
 
 from __future__ import annotations

@@ -1,6 +1,10 @@
 """轨道族可视化模块
 
 提供轨道族的 2D/3D 绘图、Jacobi-周期-稳定性分析图和概览图。
+
+English: orbit-family visualization module. Provides 2D/3D family
+plotting, Jacobi-period-stability analysis charts, and overview
+figures.
 """
 
 from __future__ import annotations
@@ -26,6 +30,11 @@ class FamilyPlotter(OrbitVisualizer):
     Args:
         system: CR3BP 系统对象。
         config: 绘图配置。
+
+    Orbit-family visualizer, inheriting OrbitVisualizer. Supports
+    Jacobi-colored 2D/3D family plotting and combined
+    Jacobi-period-stability charts. Args: ``system`` — CR3BP system
+    object; ``config`` — plot configuration.
     """
 
     def __init__(self, system: CR3BP_System, config: PlotConfig | None = None) -> None:
@@ -34,12 +43,18 @@ class FamilyPlotter(OrbitVisualizer):
         Args:
             system: CR3BP 系统对象。
             config: 绘图配置。
+
+        Initialize the family visualizer. Args: ``system`` (CR3BP system object);
+        ``config`` (plot configuration).
         """
         super().__init__(system, config)
 
     def plot(self, data: Any, config: object = None, **kwargs) -> Any:
         """统一绘图入口，委托到 plot_family_2d。
         data 应为可迭代的轨道集合（OrbitFamily、List[Orbit] 等）。
+
+        Unified plotting entry, delegating to plot_family_2d; data should be an
+        iterable orbit collection (OrbitFamily, List[Orbit], etc.).
 
         Args:
             data: 轨道族数据（OrbitFamily 或轨道列表）。
@@ -62,6 +77,11 @@ class FamilyPlotter(OrbitVisualizer):
 
         Returns:
             (jmin, jmax, jrange) 元组，jrange 防止除零（全相等时为 1.0）。
+
+        Compute the normalized [0, 1] range of Jacobi constants. Args:
+        ``jacobi_values`` — Jacobi constant list. Returns:
+        ``(jmin, jmax, jrange)``; jrange guards against division by zero
+        (1.0 when all equal).
         """
         if not jacobi_values:
             return 0.0, 1.0, 1.0
@@ -83,6 +103,12 @@ class FamilyPlotter(OrbitVisualizer):
             start: 起始轨道索引。
             end: 终止轨道索引（含），None 表示到末尾。
             step: 绘图步长（用于降采样）。
+
+        Batch-plot the family's 2D projections colored by Jacobi constant.
+        Args: family_result (iterable orbit collection); jacobi_values
+        (per-orbit Jacobi constants); ax (target axes); plane (projection plane,
+        "xy"/"xz"/"yz"); start/end (orbit index range, end inclusive, None = to
+        the end); step (plot stride, for downsampling).
         """
         jmin, jmax, jrange = self._get_jacobi_norm(jacobi_values)
         cmap = self.config.get_cmap()
@@ -103,6 +129,12 @@ class FamilyPlotter(OrbitVisualizer):
             start: 起始轨道索引。
             end: 终止轨道索引（含），None 表示到末尾。
             step: 绘图步长（用于降采样）。
+
+        Batch-plot the family's 3D view colored by Jacobi constant.
+        Args: family_result (iterable orbit collection); jacobi_values
+        (per-orbit Jacobi constants); ax (target 3D axes); start/end (orbit index
+        range, end inclusive, None = to the end); step (plot stride, for
+        downsampling).
         """
         jmin, jmax, jrange = self._get_jacobi_norm(jacobi_values)
         cmap = self.config.get_cmap()
@@ -124,6 +156,11 @@ class FamilyPlotter(OrbitVisualizer):
 
         Returns:
             matplotlib Colorbar 对象。
+
+        Attach a Jacobi-constant colorbar beside the axes. Args: ``ax`` —
+        target axes; ``jacobi_values`` — Jacobi constant list (sets the
+        colorbar range); ``shrink`` — height scale; ``pad`` — gap to the
+        axes. Returns: a matplotlib Colorbar.
         """
         jmin, jmax, _ = self._get_jacobi_norm(jacobi_values)
         cmap = self.config.get_cmap()
@@ -144,6 +181,9 @@ class FamilyPlotter(OrbitVisualizer):
             ax: 目标 axes 对象。
             xlabel: x 轴标签文本。
             ylabel: y 轴标签文本。
+
+        Set the 2D axes labels, ticks and equal aspect. Args: ``ax`` —
+        target axes; ``xlabel``/``ylabel`` — axis label text.
         """
         ax.set_xlabel(xlabel, fontsize=self.config.label)
         ax.set_ylabel(ylabel, fontsize=self.config.label)
@@ -155,6 +195,8 @@ class FamilyPlotter(OrbitVisualizer):
 
         Args:
             ax: 目标 3D axes 对象。
+
+        Set the 3D axes labels and ticks. Args: ``ax`` — target 3D axes object.
         """
         ax.set_xlabel("X (nondimensional)", fontsize=self.config.label)
         ax.set_ylabel("Y (nondimensional)", fontsize=self.config.label)
@@ -179,6 +221,14 @@ class FamilyPlotter(OrbitVisualizer):
         show: bool = True,
     ):
         """绘制轨道族的 2D 投影图，按 Jacobi 常数着色。
+
+        Plot the family's 2D projection colored by Jacobi constant. Args:
+        family_result (OrbitFamily or List[Orbit]); jacobi_values
+        (per-orbit Jacobi constants); title (figure title); plane
+        (projection plane); xlim/ylim (axis ranges); show_bodies /
+        show_libration / show_colorbar (toggle markers and colorbar);
+        start/end/step (orbit index range and stride); save_path (save
+        path); show (show window). Returns a (fig, ax) tuple.
 
         Args:
             family_result: 轨道族（OrbitFamily 或 List[Orbit]）。
@@ -256,6 +306,14 @@ class FamilyPlotter(OrbitVisualizer):
     ):
         """绘制轨道族的 3D 视图，按 Jacobi 常数着色。
 
+        Plot the family's 3D view colored by Jacobi constant.
+        Args: family_result (the family); jacobi_values (per-orbit Jacobi
+        constants); title (figure title); center (3D view center); radius (3D
+        view radius); elev (elevation); azim (azimuth); show_bodies /
+        show_libration / show_colorbar (toggles); start/end/step (index range
+        and stride); save_path (save path); show (show window). Returns a
+        (fig, ax) tuple.
+
         Args:
             family_result: 轨道族。
             jacobi_values: 各轨道对应的 Jacobi 常数。
@@ -288,6 +346,9 @@ class FamilyPlotter(OrbitVisualizer):
 
         # 天体/平动点用 plot+marker 而非 scatter，保证 3D 深度排序正确
         # （scatter 的 Path3DCollection 会被整体推到前景，导致挡住后方轨道线）
+        # Use plot+marker rather than scatter for bodies/libration points so 3D depth sorting
+        # stays correct (a scatter's Path3DCollection is pushed wholesale to the foreground,
+        # occluding orbit lines behind it).
         if show_bodies:
             self.plot_primary_bodies(ax=ax, is_3d=True)
         if show_libration:
@@ -324,6 +385,12 @@ class FamilyPlotter(OrbitVisualizer):
         show: bool = True,
     ):
         """绘制 Jacobi 常数 vs 周期的单 Y 轴折线图。
+
+        Plot Jacobi constant vs period on a single-Y-axis line chart, sorted by
+        Jacobi constant, with an optional target_period reference line.
+        Args: jacobi_values (Jacobi sequence); periods (period sequence);
+        title (chart title); target_period (reference line); save_path (save
+        path); show (show window).
 
         按 Jacobi 常数排序后绘制周期曲线，可选 target_period 参考线。
 
@@ -385,6 +452,13 @@ class FamilyPlotter(OrbitVisualizer):
     ):
         """绘制双 Y 轴图：Jacobi 常数 vs 周期 + 稳定性指标。
 
+        Plot a dual-Y-axis chart: Jacobi constant vs period plus a stability
+        index — left axis period, right axis the maximum Lyapunov index (λmax),
+        sorted by Jacobi constant. Args: jacobi_values (Jacobi sequence);
+        periods (period sequence); stability_values (stability index sequence);
+        title (chart title); target_period (reference line); save_path (save
+        path); show (show window).
+
         左轴为周期，右轴为最大 Lyapunov 指标（λmax），按 Jacobi 常数排序。
 
         Args:
@@ -402,6 +476,7 @@ class FamilyPlotter(OrbitVisualizer):
         fig, ax1 = plt.subplots(figsize=self.config.figsize_dual, dpi=self.config.dpi)
 
         # 按 Jacobi 常数排序以便绘制单调曲线
+        # Sort by Jacobi constant so the plotted curve is monotonic.
         sorted_indices = sorted(range(len(jacobi_values)), key=lambda i: jacobi_values[i])
         j_sorted = [jacobi_values[i] for i in sorted_indices]
         p_sorted = [periods[i] for i in sorted_indices]
@@ -477,6 +552,12 @@ class FamilyPlotter(OrbitVisualizer):
     ):
         """绘制轨道族概览图（2x2 子图布局）。
 
+        Plot a family overview figure (2x2 subplot layout): top-left global 2D
+        projection (Jacobi-colored + colorbar); top-right zoomed 2D projection;
+        bottom-left Jacobi vs period + stability dual-Y-axis chart; bottom-right
+        3D view. Args: family_result (the family); jacobi_values (Jacobi
+        sequence); periods (period sequence).
+
         布局：
         - 左上：全局 2D 投影（Jacobi 着色 + 颜色条）
         - 右上：局部放大 2D 投影
@@ -509,6 +590,7 @@ class FamilyPlotter(OrbitVisualizer):
         fs = self.config  # 缩短引用
 
         # 子图 1：全局 2D 投影（Jacobi 着色）
+        # Subplot 1: global 2D projection (colored by Jacobi).
         ax1 = fig.add_subplot(221)
         self._draw_orbit_loop_2d(family_result, jacobi_values, ax1, plane=plane, step=step)
         self.plot_primary_bodies(ax=ax1)
@@ -527,6 +609,7 @@ class FamilyPlotter(OrbitVisualizer):
         ax1.set_aspect("equal")
 
         # 子图 2：局部放大 2D 视图
+        # Subplot 2: zoomed-in local 2D view.
         ax2 = fig.add_subplot(222)
         self._draw_orbit_loop_2d(family_result, jacobi_values, ax2, plane=plane, step=step)
         self.plot_primary_bodies(ax=ax2)
@@ -544,6 +627,7 @@ class FamilyPlotter(OrbitVisualizer):
         ax2.set_aspect("equal")
 
         # 子图 3：Jacobi vs 周期 & 稳定性（双 Y 轴）
+        # Subplot 3: Jacobi vs period & stability (dual Y axes).
         ax3 = fig.add_subplot(223)
         ax3.set_xlabel("Jacobi Constant", fontsize=fs.label)
         ax3.set_ylabel("Period", color="tab:blue", fontsize=fs.label)
@@ -565,6 +649,7 @@ class FamilyPlotter(OrbitVisualizer):
         ax3.grid(True, alpha=0.3)
 
         # 子图 4：3D 视图
+        # Subplot 4: 3D view.
         ax4 = fig.add_subplot(224, projection="3d")
         self.plot_primary_bodies(ax=ax4, is_3d=True)
         self._draw_orbit_loop_3d(family_result, jacobi_values, ax4, step=step)

@@ -1,4 +1,5 @@
-// CR3BP 归一化单位下的轨道传播与轨道族数据加载（阶段 1 原型）。
+// CR3BP 归一化单位下的轨道传播与轨道族数据加载。
+// CR3BP orbit propagation in normalized units plus orbit-family data loading.
 
 export interface OrbitSeed {
   orbitId: string;
@@ -8,6 +9,7 @@ export interface OrbitSeed {
 }
 
 /** CR3BP 运动方程（会合坐标系，归一化单位）。 */
+/** CR3BP equations of motion (rotating frame, normalized units). */
 export function deriv(mu: number, s: number[]): number[] {
   const [x, y, z, vx, vy, vz] = s;
   const r1 = Math.sqrt((x + mu) ** 2 + y * y + z * z);
@@ -25,6 +27,7 @@ export function deriv(mu: number, s: number[]): number[] {
 }
 
 /** RK4 定步长积分一个周期，返回采样点（含起点，不含终点重复）。 */
+/** Integrate one period with fixed-step RK4; returns samples (start included, no duplicate endpoint). */
 export function propagate(mu: number, seed: OrbitSeed, steps: number): number[][] {
   const h = seed.period / steps;
   let s = [...seed.state];
@@ -41,6 +44,7 @@ export function propagate(mu: number, seed: OrbitSeed, steps: number): number[][
 }
 
 /** 平动点合力方程 f(x)=0（会合坐标系 x 轴）。 */
+/** Net-force equation for libration points f(x)=0 (rotating-frame x axis). */
 function collinearAccel(mu: number, x: number): number {
   const r1 = Math.abs(x + mu);
   const r2 = Math.abs(x - 1 + mu);
@@ -51,6 +55,7 @@ function collinearAccel(mu: number, x: number): number {
 }
 
 /** 牛顿法解共线平动点位置（会合坐标系）。which: 1 (L1) / 2 (L2) / 3 (L3)。 */
+/** Solve collinear libration-point positions by Newton's method (rotating frame). which: 1 (L1) / 2 (L2) / 3 (L3). */
 export function librationPoint(mu: number, which: 1 | 2 | 3): number {
   let x = which === 1 ? 0.85 : which === 2 ? 1.15 : -1.0;
   for (let i = 0; i < 50; i++) {

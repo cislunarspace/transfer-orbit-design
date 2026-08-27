@@ -46,7 +46,10 @@ class TestKernelDirUsable:
 class TestDownloadKernels:
     @pytest.fixture(autouse=True)
     def _fake_release(self, monkeypatch, tmp_path):
-        """假 release 资产 + 假网络下载（写一个占位文件）。"""
+        """假 release 资产 + 假网络下载（写一个占位文件）。
+
+            Fake release assets plus a fake network
+        download (writes a placeholder file)."""
         self._assets = [
             {"name": "de440s.bsp", "browser_download_url": "https://example/de440s.bsp"},
             {"name": "naif0012.tls", "browser_download_url": "https://example/naif0012.tls"},

@@ -1,8 +1,13 @@
 """服务器上扫描 NRHO 设计参数 + LGA/WSB 转移链路验证。
 
+    Server-side scan over NRHO design
+parameters plus LGA/WSB transfer-chain verification.
+
 用法（在服务器上）：
     .venv/bin/python scan_transfer.py [n_workers]
 输出 JSON 到 stdout 末行（RESULTS: 前缀）。
+Usage (on the server): the command above. Emits JSON on stdout's last
+line (RESULTS: prefix).
 """
 
 import json

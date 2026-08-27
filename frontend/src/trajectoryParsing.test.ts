@@ -8,6 +8,7 @@ import {
 const MU = 0.01215058560962404;
 
 /** 平圆参考轨道一个整周期附近的初态 + 周期，保证传播能闭合。 */
+/** An initial state plus period around one full period of a flat circular reference orbit, so propagation closes. */
 const SEED = {
   orbitId: "t",
   mu: MU,
@@ -21,6 +22,7 @@ const SEED = {
 describe("framesToTrajectoryData 轨迹解析", () => {
   it("(n,3) 纯位置帧按 shape 解析，不误判为状态序列", () => {
     // 6 个 xyz 点 = 18 个数，18 % 6 === 0，旧逻辑会当成 3 个状态点
+    // Six xyz points = 18 numbers; 18 % 6 === 0, so the old logic would have treated it as 3 state points.
     const pts: number[] = [];
     for (let i = 0; i < 6; i++) pts.push(i, i + 10, i + 20);
     const got = framesToTrajectoryData([{ dtype: "f32", shape: [6, 3], data: pts }], {}, MU);

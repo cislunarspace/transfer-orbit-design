@@ -3,6 +3,13 @@
 design_orbit / control_orbit 经 Facade 门面（issue #375），桩打在算法层模块
 函数上：请求校验、响应翻译、产物自动入库仍走真 Facade，fake 只需提供翻译
 所需的完整结果形状（status/cause/message/force_config/drift 等）。
+
+English: test fixtures -- mocked e2m2e algorithm-layer calls. design_orbit /
+control_orbit go through the Facade facade (issue #375); stubs are
+placed on the algorithm-layer module functions, so request validation,
+response translation and auto-ingestion still run the real Facade —
+the fakes only need to supply the complete result shape that
+translation needs (status/cause/message/force_config/drift etc.).
 """
 
 from __future__ import annotations
@@ -17,6 +24,10 @@ class _FakeCorrection:
     """Fake EphemerisCorrectionResult（只保留 status/iterations）。
 
     e2m2e 5.6.6 起收敛判定走统一结果契约 status（#351），不再有 converged。
+
+    Fake EphemerisCorrectionResult (only status/iterations kept). Since
+    e2m2e 5.6.6 convergence is judged by the unified result-contract
+    status (#351); there is no converged field anymore.
     """
 
     def __init__(self, converged: bool = True, iterations: int = 3) -> None:
@@ -27,7 +38,10 @@ class _FakeCorrection:
 
 
 class _FakeOrbit:
-    """Fake Orbit（e2m2e.data.types.orbit.Orbit）。"""
+    """Fake Orbit（e2m2e.data.types.orbit.Orbit）。
+
+    A fake Orbit (e2m2e.data.types.orbit.Orbit).
+    """
 
     def __init__(
         self,
@@ -38,7 +52,10 @@ class _FakeOrbit:
         self.states = states
         self.times = times
         # design_orbit.py 构造 Orbit 时绑定 CR3BP_System，其 .mu 是普通属性。
+        # design_orbit.py binds a CR3BP_System when constructing an Orbit; its .mu
+        # is a plain attribute.
         # 测试可注入带 .mu 的 fake system 以覆盖 mu 提取路径。
+        # Tests can inject a fake system with .mu to cover the mu-extraction path.
         self.system = system
 
 
@@ -47,6 +64,11 @@ class _FakeDesignResult:
 
     字段须覆盖 Facade 响应翻译（_design_result_to_response）与产物入库
     （catalog_ingest.build_design_record）访问的全部属性。
+
+    Fake OrbitDesignResult (from e2m2e.algorithm.design.design_orbit).
+    Its fields must cover every attribute accessed by Facade response
+    translation (_design_result_to_response) and product ingestion
+    (catalog_ingest.build_design_record).
     """
 
     def __init__(
@@ -88,13 +110,18 @@ class _FakeDesignResult:
         )
         self.correction = _FakeCorrection(converged=converged, iterations=iterations)
         # e2m2e 5.8.2 起 #492：修正方法按族分派上提，设计结果记录实际方法
+        # Since e2m2e 5.8.2 (#492): correction-method dispatch per family moved up;
+        # design results record the actual method
         self.correction_method = correction_method
         self.ephemeris = ephemeris
 
 
 @pytest.fixture()
 def fake_design_result() -> _FakeDesignResult:
-    """默认 _FakeDesignResult（DRO, 8761 点）。"""
+    """默认 _FakeDesignResult（DRO, 8761 点）。
+
+        The default _FakeDesignResult (DRO, 8761 points).
+    """
     return _FakeDesignResult()
 
 
@@ -104,6 +131,13 @@ def mock_design_orbit(monkeypatch, fake_design_result):
 
     桩在算法层（Facade 内部延迟 import 同一模块属性），Facade 的请求校验 /
     响应翻译 / 自动入库仍走真路径。duration 单位换算等接缝由真 request 承载。
+
+    Monkeypatch e2m2e.algorithm.design.design_orbit to return
+    fake_design_result. The stub sits at the algorithm layer (the Facade
+    lazily imports the same module attribute), so Facade request
+    validation / response translation / auto-ingestion still run the
+    real path; seams such as duration unit conversion ride on the real
+    request.
     """
 
     def _fake_design_orbit(request, *, spice=None, kernel_dir=None, verbose=False):
@@ -118,7 +152,11 @@ def mock_design_orbit(monkeypatch, fake_design_result):
 
 
 def make_ephemeris_table(n: int = 10, *, start_second: float = 0.0) -> EphemerisTable:
-    """构造真 EphemerisTable（dataclass，供 Facade 翻译与入库访问全字段）。"""
+    """构造真 EphemerisTable（dataclass，供 Facade 翻译与入库访问全字段）。
+
+        Build a real
+    EphemerisTable (dataclass) with all fields accessible to Facade translation and
+    ingestion."""
     return EphemerisTable(
         year=np.full(n, 2024, dtype=int),
         month=np.ones(n, dtype=int),
@@ -145,7 +183,10 @@ class _FakeManeuverTable:
 
 
 class _FakeControlResult:
-    """Fake ControlOrbitResult（字段覆盖 Facade 翻译与入库访问）。"""
+    """Fake ControlOrbitResult（字段覆盖 Facade 翻译与入库访问）。
+
+        Fake ControlOrbitResult (fields
+    cover Facade translation and ingestion access)."""
 
     def __init__(
         self,
@@ -179,7 +220,10 @@ class _FakeControlResult:
 
 @pytest.fixture()
 def catalog_bridge(tmp_path):
-    """指向 tmp 库目录的 FacadeBridge（产物自动入库不污染真实库）。"""
+    """指向 tmp 库目录的 FacadeBridge（产物自动入库不污染真实库）。
+
+        A FacadeBridge pointed at a tmp
+    catalog (auto-ingestion never touches the real catalog)."""
     from src.engine.facade_bridge import FacadeBridge
 
     return FacadeBridge(catalog_dir=str(tmp_path / "catalog"))

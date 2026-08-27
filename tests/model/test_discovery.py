@@ -1,7 +1,14 @@
 """tests for src.model.discovery -- transfer 遗留分区扫描（issue #375）。
 
+    Tests for
+src.model.discovery -- the transfer legacy-partition scan (issue #375).
+
 轨道 / 族 / 星历产物的文件名分类正则已随 catalog 接入退役；本模块只剩
 transfer 分区（e2m2e catalog 分类体系之外，过渡期目录扫描）。
+The filename-classification regexes for orbit / family / ephemeris
+products retired with catalog adoption; only the transfer partition
+remains here (outside the e2m2e catalog taxonomy, transitional directory
+scan).
 """
 
 from __future__ import annotations
@@ -50,7 +57,11 @@ class TestDiscoverTransferArtifacts:
 
 
 class TestRetiredClassifications:
-    """轨道 / 族 / 星历分类正则已删除（ADR 0008 修订）：同类文件不再进清单。"""
+    """轨道 / 族 / 星历分类正则已删除（ADR 0008 修订）：同类文件不再进清单。
+
+        The
+    orbit/family/ephemeris classification regexes are deleted (ADR 0008 revision):
+    such files no longer enter the listing."""
 
     def test_orbit_files_not_classified(self, tmp_path: Path) -> None:
         _write(tmp_path, "dro/dro_20260101000000.json", {"orbit_type": "DRO"})
@@ -68,7 +79,9 @@ class TestRetiredClassifications:
 
 
 class TestDiscoverPropagationArtifacts:
-    """轨道预报星历分区（issue #389）：propagation_*.json → ephemeris Artifact。"""
+    """轨道预报星历分区（issue #389）：propagation_*.json → ephemeris Artifact。
+    Propagation-ephemeris partition (issue #389): propagation_*.json becomes an
+    ephemeris Artifact."""
 
     def _payload(self) -> dict:
         return {
@@ -90,6 +103,7 @@ class TestDiscoverPropagationArtifacts:
         assert a.source_tool == "orbit_propagation"
         assert a.label == "轨道预报 2026-01-01T00:00:00.000"
         # 文件名茎作 artifact_id（确定性，运行后可按 id 选中）
+        # The filename stem becomes artifact_id (deterministic; selectable by id after a run)
         assert a.artifact_id == "propagation_20260101000000"
         assert a.state_data.shape == (2, 3)
         np.testing.assert_allclose(a.times, [0.0, 3600.0])

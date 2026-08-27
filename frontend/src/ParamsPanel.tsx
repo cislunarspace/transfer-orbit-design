@@ -1,4 +1,5 @@
 // 参数面板：基于 Ant Design 6 与 paramOverlay 打造的高密度科学计算参数表单
+// Params panel: a high-density scientific-computing parameter form built on Ant Design 6 and paramOverlay.
 
 import { useMemo, useState, useEffect } from "react";
 import {
@@ -35,22 +36,27 @@ interface ParamsPanelProps {
   values: Record<string, unknown>;
   onChange: (vals: Record<string, unknown>) => void;
   /** 提交校验问题（字段名 → 人读原因），对应字段在表单内联标红 */
+  /** Submission validation problems (field name → human-readable reason); matching fields get inline red flags. */
   fieldErrors?: Record<string, string>;
 }
 
 export function ParamsPanel({ toolName, schema, values, onChange, fieldErrors }: ParamsPanelProps) {
   // 当前轨道类型
+  // Current orbit type.
   const orbitType = (values["orbit_type"] as string) || "HALO";
 
   // 记录每个字段当前选中的显示单位
+  // Tracks each field's currently selected display unit.
   const [selectedUnits, setSelectedUnits] = useState<Record<string, string>>({});
 
   // 获取适用字段列表（与提交校验同源）
+  // Get the applicable field list (same source as submission validation).
   const activeFields = useMemo(() => {
     return getActiveFields(toolName, schema, orbitType);
   }, [toolName, schema, orbitType]);
 
   // 当 toolName 或 orbit_type 改变时，填入分支默认值
+  // Fill branch defaults when toolName or orbit_type changes.
   useEffect(() => {
     const branchDefs = getBranchDefaults(toolName, orbitType);
     if (Object.keys(branchDefs).length > 0) {
@@ -69,6 +75,7 @@ export function ParamsPanel({ toolName, schema, values, onChange, fieldErrors }:
   }, [toolName, orbitType]);
 
   // 处理单个字段值变更
+  // Handle a single field-value change.
   const handleFieldChange = (fieldName: string, displayVal: unknown, currentUnit?: string) => {
     const next = { ...values };
     if (displayVal === undefined || displayVal === null || displayVal === "") {
@@ -80,6 +87,7 @@ export function ParamsPanel({ toolName, schema, values, onChange, fieldErrors }:
     }
 
     // 切 orbit_type 时联动
+    // Linked updates when orbit_type switches.
     if (fieldName === "orbit_type" && typeof displayVal === "string") {
       const newBranch = getBranchDefaults(toolName, displayVal);
       const allowed = getFieldApplicability(toolName, displayVal);

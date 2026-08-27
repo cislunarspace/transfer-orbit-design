@@ -1,8 +1,8 @@
 # ADR 0010：内嵌可视化替代弹窗
 
-**状态**：已接受
+**状态**：已接受；其 PyQt/matplotlib 实现路径已被 ADR 0014（UI 迁移到 Tauri，画布改用 Three.js）取代，仅“内嵌于主窗口、不弹外部窗”的原则仍然有效
 **日期**：2026-08-04
-**关联**：`docs/architecture/architecture.md`（第3层 表现层）
+**关联**：`docs/architecture/architecture.md`（可视化架构）
 
 ## 背景
 

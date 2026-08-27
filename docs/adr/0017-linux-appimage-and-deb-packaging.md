@@ -30,3 +30,9 @@
 
 - Linux 用户获得了开箱即用（AppImage）与包管理器安装（deb）的完整支持。
 - 全平台分发链路（Windows + Linux）完全对称且自动化。
+
+**修订**（2026-08-26 复核）：应用改名 tod → transfer-orbit-design 后，spec 与
+产物名为 `packaging/transfer_orbit_design_sidecar.spec` 与
+`dist/transfer-orbit-design-sidecar`；且内核（含行星历）经 Git LFS 随包分发，
+不再依赖 `~/.local/share/tod/kernels` 按需解析。以 `.github/workflows/release.yml`
+为准。

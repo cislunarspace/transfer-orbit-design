@@ -7,10 +7,21 @@ NAIF 官方源常不可达），不随 pip 包分发，需宿主项目自行准�
 - ``kernel_dir_usable``：目录是否含轨道设计所需内核（行星历 ``.bsp`` + 闰秒 ``.tls``）
 - ``user_kernel_dir``：用户数据目录下的默认内核位置（pip 安装场景的落点）
 
-调用方：
-- ``scripts/download_kernels.py``：CLI 包装（源码用户手动补齐内核）
-- ``src/app/kernel_setup.py``：GUI 首次启动引导（弹窗确认 → 下载带进度条 /
-  指定已有目录）
+调用方：``scripts/download_kernels.py``（CLI 包装，源码用户手动补齐内核）
+与测试。
+
+English: SPICE kernel download and availability checks. Kernel assets
+are hosted on e2m2e's GitHub Release ``kernels-v1`` (reachable from
+mainland China; the official NAIF source often is not), are not
+distributed with the pip package, and must be prepared by the host
+project. This module provides: ``download_kernels`` — idempotently
+fetch all release kernels into a directory (with optional progress
+callback); ``kernel_dir_usable`` — whether a directory holds the
+kernels orbit design needs (planetary ephemeris ``.bsp`` + leap
+seconds ``.tls``); ``user_kernel_dir`` — the default kernel location
+under the user data directory (the landing spot for pip installs).
+Callers: ``scripts/download_kernels.py`` (the CLI wrapper; source users
+supply kernels manually) and tests.
 """
 
 from __future__ import annotations
@@ -27,6 +38,8 @@ REPO = "cislunarspace/e2m2e"
 RELEASE = "kernels-v1"
 
 #: 下载源域名白名单（SSRF 防线）：API 清单与 release 资产只从 GitHub 官方域拉取
+#: Download-source domain allowlist (SSRF line of defense): API listings and release
+#: assets are fetched only from official GitHub domains.
 _ALLOWED_DOWNLOAD_HOSTS = frozenset(
     {
         "api.github.com",
@@ -36,11 +49,15 @@ _ALLOWED_DOWNLOAD_HOSTS = frozenset(
     }
 )
 # release 同款 pattern：星历/闰秒/常数/姿态/帧
+# Same patterns as the release: ephemeris/leap-seconds/constants/attitude/frames.
 EXTENSIONS = (".bsp", ".tls", ".tpc", ".bpc", ".tf")
 # load_design_kernels 认 de440s/de430；find_ephemeris_kernel 另收 de440/de435/de438。
 # 宽松判断：以上任一存在即视为有行星历。
+# load_design_kernels accepts de440s/de430; find_ephemeris_kernel additionally accepts
+# de440/de435/de438. Loose check: any one present means planetary ephemerides exist.
 _EPHEMERIS_NAMES = ("de440.bsp", "de440s.bsp", "de435.bsp", "de438.bsp", "de430.bsp")
 # 模块级常量（测试可替换），避免运行时改全局 os.name
+# Module-level constant (tests may substitute it), avoiding runtime mutation of global os.name.
 _IS_WINDOWS = os.name == "nt"
 
 
@@ -49,6 +66,11 @@ def user_kernel_dir() -> pathlib.Path:
 
     Windows 用 ``%LOCALAPPDATA%``，其余平台用 XDG 数据目录（默认
     ``~/.local/share``）。
+
+    Default kernel location under the user data directory (shared
+    across versions; upgrades do not re-download). Windows uses
+    ``%LOCALAPPDATA%``; other platforms use the XDG data directory
+    (default ``~/.local/share``).
     """
     if _IS_WINDOWS:
         base = os.environ.get("LOCALAPPDATA") or pathlib.Path.home() / "AppData" / "Local"
@@ -71,6 +93,12 @@ def _check_download_url(url: str) -> None:
     资产 URL 来自 GitHub API 响应（非用户输入，但属外部数据）。urlopen
     会自动跟随重定向，故调用方须在 urlopen 前校验初始 URL、在打开后用
     ``resp.geturl()`` 再校验重定向终点。
+
+    Validate that a download URL is https with a whitelisted domain.
+    Asset URLs come from the GitHub API response (not user input, but
+    still external data). urlopen follows redirects automatically, so
+    the caller must validate the initial URL before urlopen and
+    re-validate the redirect target afterwards via ``resp.geturl()``.
     """
     parsed = urllib.parse.urlparse(url)
     if parsed.scheme != "https" or parsed.hostname not in _ALLOWED_DOWNLOAD_HOSTS:
@@ -78,12 +106,18 @@ def _check_download_url(url: str) -> None:
 
 
 def list_release_assets() -> list[dict]:
-    """列 ``kernels-v1`` release 的全部资产（name + browser_download_url）。"""
+    """列 ``kernels-v1`` release 的全部资产（name + browser_download_url）。
+
+    List all assets of the ``kernels-v1`` release (name +
+    browser_download_url).
+    """
     url = f"https://api.github.com/repos/{REPO}/releases/tags/{RELEASE}"
     # 对本函数拼出的字面量也校验：与 _download 对称的纵深防御
+    # Validate the literal built here too: defense in depth, symmetric with _download.
     _check_download_url(url)
     req = urllib.request.Request(url, headers=_api_headers())
     with urllib.request.urlopen(req) as resp:  # noqa: S310 - 初始与终点 URL 均过白名单
+        # noqa: S310 - both the initial and final URLs pass the allowlist
         _check_download_url(resp.geturl())
         data = json.loads(resp.read().decode("utf-8"))
     return data.get("assets", [])
@@ -93,8 +127,11 @@ def _download(url: str, dest: pathlib.Path) -> None:
     _check_download_url(url)
     print(f"下载 {url} → {dest}", file=sys.stderr)
     # 流式分块写盘，避免百 MB 级 .bsp 整块驻留内存
+    # Stream to disk in chunks so a >100 MB .bsp never sits fully in memory.
     with urllib.request.urlopen(url) as resp, dest.open("wb") as fh:  # noqa: S310 - 初始与终点 URL 均过白名单
+        # noqa: S310 - both the initial and final URLs pass the allowlist
         # 首个 chunk 写盘前校验重定向终点，不通过则不落任何数据
+        # Validate the redirect target before writing the first chunk; nothing lands otherwise.
         _check_download_url(resp.geturl())
         while True:
             chunk = resp.read(1 << 20)
@@ -116,6 +153,13 @@ def download_kernels(
 
     Returns:
         ``(fetched, skipped)``。
+
+    English: fetch all ``kernels-v1`` kernels into ``kernel_dir``
+    (idempotent: existing files are skipped). Args: ``kernel_dir`` —
+    target directory (created if absent); ``progress`` — callback
+    ``(done, total, name)`` after each file; total is the release asset
+    count, and both skips and downloads increment done. Returns
+    ``(fetched, skipped)``.
     """
     kernel_dir = pathlib.Path(kernel_dir)
     kernel_dir.mkdir(parents=True, exist_ok=True)
@@ -145,6 +189,12 @@ def kernel_dir_usable(kernel_dir: str | os.PathLike[str]) -> bool:
 
     缺任一即不可用：无行星历则 ``design_orbit`` 直接报错；无闰秒则
     UTC↔ET 转换失败（SPICE NOLEAPSECONDS）。
+
+    Whether a directory holds the kernels orbit design needs:
+    planetary ephemeris (de440s/de430 etc. ``.bsp``) plus leap seconds
+    (``.tls``). Missing either makes it unusable: without ephemeris
+    ``design_orbit`` errors out directly; without leap seconds UTC↔ET
+    conversion fails (SPICE NOLEAPSECONDS).
     """
     d = pathlib.Path(kernel_dir)
     if not d.is_dir():

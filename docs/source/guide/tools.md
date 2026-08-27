@@ -1,9 +1,9 @@
 # 工具参考
 
-v4.0.0 界面接通的计算工具只有**轨道族生成**（orbit_family_generation）。
-参数面板由工具的 JSON Schema 自动生成：字段范围、默认值与说明来自 e2m2e 的
-Pydantic 模型；按 `orbit_type` 裁剪，只显示当前族适用的字段；Optional 字段
-以勾选控制传不传值（勾选即传、不勾视为未设置）。
+中栏工具面板接通八个工具。参数面板由工具的 JSON Schema 自动生成：字段范围、
+默认值与说明来自 e2m2e 的 Pydantic 模型；按 `orbit_type` 裁剪，只显示当前族
+适用的字段；Optional 字段以勾选控制传不传值（勾选即传、不勾视为未设置）。
+本页展开说明轨道族生成，其余工具的参数见各 schema 与 {doc}`../dev/architecture`。
 
 ## 轨道族生成（orbit_family_generation）
 
@@ -30,8 +30,9 @@ Pydantic 模型；按 `orbit_type` 裁剪，只显示当前族适用的字段；
 
 ## 其余工具
 
-14 个工具的 schema 已全部导出（`frontend/src/toolSchemas/`）。7 个计算
-工具（轨道族生成、轨道设计、轨道保持、轨道预报、转移设计、轨道稳定性、
-时空坐标转换）的界面已全部接通；catalog 管理操作（delete / export /
-promote / tag / sweep）尚未提供界面入口，需要时经
-[e2m2e CLI](https://cislunarspace.github.io/e2m2e/) 使用。
+14 个工具的 schema 已全部导出（`frontend/src/toolSchemas/`）。其余六个计算
+工具（轨道设计、轨道保持、轨道预报、转移设计、轨道稳定性、时空坐标转换）
+与参数空间扫描（catalog_sweep）都在工具面板直接可用。catalog 管理操作的
+界面分布：查询/取用由目录浏览与画布叠加承担，删除在项目树右键菜单，标注
+与族成员提升在记录详情面板，教学案例包导出在过滤栏。需要脚本化工作流时
+经 [e2m2e CLI](https://cislunarspace.github.io/e2m2e/) 使用。

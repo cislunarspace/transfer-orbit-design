@@ -5,9 +5,18 @@
 
 归一化常量（MU/DU/TU/VU）复用 :mod:`src.commons.constants`，单一来源。
 
-本模块原属 e2m2e.orbits 包，因 e2m2e 误删（commit fd99f27，当孤儿删但 tod
-依赖它）而移植至此。几何逻辑与原实现一致；``compute_departure_velocity``
-同时整合了 tod 内此前的 4 处重复副本。
+本模块原属 e2m2e.orbits 包（上游 commit fd99f27 误删后移植至此自维护），
+几何逻辑与原实现一致。
+
+English: GEO / LEO circular-orbit geometry helpers. Defines the
+parameters and helper functions of GEO (geostationary) and LEO (low
+Earth orbit) in the CR3BP normalized frame. Both are modeled as
+fixed-radius circular orbits centered on Earth (not CR3BP periodic
+orbits). Normalization constants (MU/DU/TU/VU) reuse
+:mod:`src.commons.constants` — single source. This module originally
+belonged to the e2m2e.orbits package (ported here for self-maintenance
+after upstream commit fd99f27 deleted it by mistake); the geometry is
+unchanged from the original implementation.
 """
 
 from __future__ import annotations
@@ -24,7 +33,8 @@ if TYPE_CHECKING:
 
 # =============================================================================
 # GEO（地球静止轨道）参数
-# =============================================================================
+# GEO (geostationary orbit) parameters.
+# ============================================================================
 
 R_GEO_KM: float = 42164.0
 R_GEO: float = R_GEO_KM / DU
@@ -41,6 +51,10 @@ def geo_circular_velocity_rotating(position: npt.NDArray[np.floating]) -> npt.ND
 
     Returns:
         旋转系下 GEO 圆轨道速度 ``(3,)``。
+
+    English: compute the GEO circular-orbit velocity in the rotating
+    frame. Args: ``position`` — rotating-frame position ``(3,)``.
+    Returns: rotating-frame GEO circular-orbit velocity ``(3,)``.
     """
     r_rel = position - EARTH_CENTER
     r_rel_xy = np.sqrt(r_rel[0] ** 2 + r_rel[1] ** 2)
@@ -62,6 +76,10 @@ def compute_geo_dv2(trajectory_state: npt.NDArray[np.floating]) -> float:
 
     Returns:
         GEO 插入 Δv 标量。
+
+    English: compute the GEO insertion delta-v. Args:
+    ``trajectory_state`` — transfer trajectory terminal state ``(6,)``.
+    Returns: the GEO insertion Δv scalar.
     """
     v_geo = geo_circular_velocity_rotating(trajectory_state[:3])
     return float(np.linalg.norm(trajectory_state[3:] - v_geo))
@@ -69,6 +87,7 @@ def compute_geo_dv2(trajectory_state: npt.NDArray[np.floating]) -> float:
 
 # =============================================================================
 # LEO（低地球轨道）参数
+# LEO (low Earth orbit) parameters.
 # =============================================================================
 
 R_EARTH_KM: float = 6371.0
@@ -90,6 +109,11 @@ def leo_circular_velocity_rotating(
 
     Returns:
         旋转系下 LEO 圆轨道速度 ``(3,)``。
+
+    English: compute the LEO circular-orbit velocity in the rotating
+    frame. Args: ``position`` — rotating-frame position ``(3,)``;
+    ``r_leo`` — normalized LEO radius, default 400 km altitude.
+    Returns: rotating-frame LEO circular-orbit velocity ``(3,)``.
     """
     r_rel = position - EARTH_CENTER
     r_rel_xy = np.sqrt(r_rel[0] ** 2 + r_rel[1] ** 2)
@@ -117,6 +141,13 @@ def generate_leo_orbit(n_points: int = 500, r_leo: float = R_LEO) -> Orbit:
 
     Returns:
         ``Orbit`` 对象，包含 states、times 和 period。
+
+    English: generate an approximate LEO circular orbit in the CR3BP
+    rotating frame. LEO is modeled as a circle of radius R_LEO centered
+    on Earth; the velocity comes from leo_circular_velocity_rotating
+    (including the Coriolis correction). Args: ``n_points`` — sample count;
+    ``r_leo`` — normalized LEO radius, default 400 km altitude.
+    Returns: an ``Orbit`` object with states, times and period.
     """
     from e2m2e.data.types.orbit import Orbit
 
@@ -143,7 +174,8 @@ def generate_leo_orbit(n_points: int = 500, r_leo: float = R_LEO) -> Orbit:
 
 # =============================================================================
 # 共享：出发速度分解 + 碰撞检测
-# =============================================================================
+# Shared: departure-velocity decomposition + collision detection.
+# ==============================================================================
 
 
 def compute_departure_velocity(state: npt.ArrayLike, alpha: float) -> npt.NDArray[np.floating]:
@@ -158,6 +190,15 @@ def compute_departure_velocity(state: npt.ArrayLike, alpha: float) -> npt.NDArra
 
     Returns:
         调整后的速度 ``(3,)``。
+
+    English: compute the departure velocity per tangential-velocity
+    ratio α. The radial component (along the position vector) is kept;
+    the tangential component (perpendicular to position, in the
+    equatorial plane) is scaled by α — simulating an impulsive maneuver
+    that scales the tangential velocity at the departure point. Args:
+    ``state`` — departure state ``(6,)`` (first 3 position, last 3
+    velocity); ``alpha`` — tangential velocity ratio. Returns: the
+    adjusted velocity ``(3,)``.
     """
     arr = np.asarray(state, dtype=np.float64)
     pos = arr[:3]
@@ -165,6 +206,8 @@ def compute_departure_velocity(state: npt.ArrayLike, alpha: float) -> npt.NDArra
     r_xy = float(np.sqrt(pos[0] ** 2 + pos[1] ** 2))
     if r_xy < 1e-10:
         # r_xy ≈ 0 时切向向量 [-y, x, 0]/r_xy 无定义，返回原始速度。
+        # When r_xy ~ 0 the tangential vector [-y, x, 0]/r_xy is undefined; return the
+        # original velocity.
         return vel.copy()
     tangential = np.array([-pos[1], pos[0], 0.0]) / r_xy
     radial = pos / np.linalg.norm(pos)
@@ -189,6 +232,11 @@ def check_collision(
 
     Returns:
         ``(是否碰撞, 碰撞天体名或 None, 首次碰撞索引)``。
+
+    English: collision detection (Earth/Moon). Args: ``states`` —
+    trajectory state sequence ``(n, 6)``; ``mu`` — CR3BP mass parameter;
+    ``earth_radius``/``moon_radius`` — normalized radii. Returns:
+    ``(collided, colliding body name or None, first collision index)``.
     """
     if earth_radius <= 0 or moon_radius <= 0:
         raise ValueError("Radii must be positive")
@@ -208,6 +256,7 @@ def check_collision(
 
 # =============================================================================
 # GEO 轨道生成
+# GEO orbit generation.
 # =============================================================================
 
 
@@ -222,6 +271,12 @@ def generate_geo_orbit(n_points: int = 500) -> Orbit:
 
     Returns:
         ``Orbit`` 对象，包含 states、times 和 period。
+
+    English: generate an approximate GEO circular orbit in the CR3BP
+    rotating frame. GEO is modeled as a circle of radius R_GEO centered
+    on Earth; the velocity comes from geo_circular_velocity_rotating
+    (including the Coriolis correction). Args: ``n_points`` — sample
+    count. Returns: an ``Orbit`` object with states, times and period.
     """
     from e2m2e.data.types.orbit import Orbit
 

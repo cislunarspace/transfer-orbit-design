@@ -6,6 +6,15 @@
 约定：所有路径解析走 :func:`resolve_icon_dir`，避免在业务代码中硬编码
 ``~/Downloads``。优先级：显式参数 → 环境变量 ``E2M2E_BODY_ICON_PATH`` →
 ``~/Downloads``（向后兼容默认）。
+
+English: body-icon loading and rendering helpers. Wraps PNG icon
+loading, 2D AnnotationBbox packaging, 3D Billboard depth-driven
+patches and other visualization helpers. Formerly in ``base.py``;
+separated into a module for reuse and unit testing. Convention: all
+path resolution goes through :func:`resolve_icon_dir`, avoiding
+hard-coded ``~/Downloads`` in business code. Priority: explicit
+parameter → environment variable ``E2M2E_BODY_ICON_PATH`` →
+``~/Downloads`` (backward-compatible default).
 """
 
 from __future__ import annotations
@@ -21,6 +30,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 # 环境变量名：天体图标目录。允许用户在不修改代码的情况下切换图标位置。
+# Env var name: body-icon directory; lets users relocate icons without code changes.
 BODY_ICON_PATH_ENV = "E2M2E_BODY_ICON_PATH"
 
 
@@ -41,6 +51,15 @@ def resolve_icon_dir(
 
     Returns:
         解析后的绝对路径 ``Path`` 对象。
+
+    Resolve the body-icon directory. Priority: (1) explicit
+    ``icon_path`` (supports ``~``, ``${VAR}``/``$VAR``, relative or
+    absolute paths); (2) the ``E2M2E_BODY_ICON_PATH`` environment
+    variable; (3) ``~/Downloads`` (backward-compatible default).
+    Args: ``icon_path`` — user-specified icon directory, falling back
+    to the chain when unspecified; ``env`` — environment dict,
+    ``os.environ`` when ``None`` (easy test injection). Returns: the
+    resolved absolute ``Path``.
     """
     source_env = os.environ if env is None else env
 
@@ -49,6 +68,7 @@ def resolve_icon_dir(
         return Path.home() / "Downloads"
 
     # 展开 ~ 与 ${VAR}/$VAR 占位符
+    # Expand ~ and ${VAR}/$VAR placeholders.
     expanded = os.path.expandvars(os.path.expanduser(raw))
     return Path(expanded).expanduser()
 
@@ -69,6 +89,13 @@ def load_body_icons(
 
     Returns:
         ``(primary_image, secondary_image)`` 元组，缺失或加载失败时对应位置返回 ``None``。
+
+    Load the primary and secondary body PNG icons from ``icon_dir`` as
+    RGBA numpy arrays. If either file is missing or PIL is unavailable,
+    the corresponding slot returns ``None`` instead of raising. Args:
+    ``icon_dir`` — icon directory; ``primary_name``/``secondary_name`` —
+    icon filenames (e.g. "地球.png" / "月球.png"). Returns:
+    ``(primary_image, secondary_image)`` with ``None`` in failed slots.
     """
     primary: np.ndarray | None = None
     secondary: np.ndarray | None = None
@@ -115,6 +142,11 @@ def make_offset_image(image: np.ndarray, size: int) -> Any:
 
     Returns:
         ``OffsetImage`` 实例。``dpi_cor=False`` 避免保存时根据 dpi 自动放大。
+
+    Build a matplotlib ``OffsetImage`` from ``image`` at the target
+    pixel ``size``. Args: ``image`` — loaded RGBA numpy array;
+    ``size`` — target pixel size. Returns: the ``OffsetImage``;
+    ``dpi_cor=False`` avoids automatic dpi-based enlargement on save.
     """
     from matplotlib.offsetbox import OffsetImage
 
@@ -135,6 +167,18 @@ class _DepthDriverPatch(mpatches.Patch):
 
     这比 draw_event 方案更可靠，后者在渲染之后才触发，导致 zorder 更新延迟一帧，
     旋转时出现遮挡关系闪烁。本方案在渲染前同步更新，消除延迟。
+
+    English: a Patch that drives depth sorting of Billboard icons via
+    the Axes3D do_3d_projection hook. Before rendering,
+    Axes3D.draw() calls do_3d_projection() on every visible Collection
+    and Patch — the only moment the correct projection matrix M is
+    available each frame. This Patch uses that hook to (1) update the
+    AnnotationBbox's projected position (following the view) and (2)
+    dynamically adjust its zorder by comparing icon depth against the
+    scene's Line3D objects. More reliable than the draw_event approach,
+    which fires after rendering and lags the zorder update by one frame,
+    causing flickering occlusion while rotating; this scheme updates
+    synchronously before rendering, eliminating the lag.
     """
 
     def __init__(self, annotation_box: Any, position_3d: tuple[float, float, float]) -> None:
@@ -193,6 +237,7 @@ class _DepthDriverPatch(mpatches.Patch):
             return z2
 
         # proj_z 越小越靠近相机；与中位数比较决定遮挡关系
+        # Smaller proj_z means closer to the camera; compare against the median to decide occlusion.
         median_z = np.median(all_zs)
         z_range = all_zs.max() - all_zs.min()
         margin = z_range * 0.1
@@ -227,6 +272,15 @@ def add_3d_billboard_icon(
         offset_img: 已经构造好的 ``OffsetImage``。
         position: 天体的 (x, y, z) 旋转系坐标。
         label: 图例标签。
+
+    Render a PNG icon Billboard-style on 3D axes with dynamic depth
+    occlusion. matplotlib 3D's AnnotationBbox is a 2D element outside
+    automatic depth sorting; via :class:`_DepthDriverPatch` hooked into
+    Axes3D.draw()'s do_3d_projection, icon position and zorder update
+    synchronously **before** each frame renders, so occlusion reflects
+    spatial depth without lag during rotation. Args: ``ax`` — 3D axes;
+    ``offset_img`` — prebuilt ``OffsetImage``; ``position`` — body's
+    (x, y, z) rotating-frame coordinates; ``label`` — legend label.
     """
     from matplotlib.offsetbox import AnnotationBbox
     from mpl_toolkits.mplot3d import proj3d  # type: ignore[import-untyped]
@@ -248,10 +302,13 @@ def add_3d_billboard_icon(
 
     # 深度驱动：不可见 Patch，通过 do_3d_projection 钩子
     # 在每帧渲染前同步更新 AnnotationBbox 的位置和 zorder
+    # Depth driver: an invisible patch whose do_3d_projection hook re-syncs the
+    # AnnotationBbox position and zorder before each rendered frame.
     driver = _DepthDriverPatch(ab, position)
     ax.add_patch(driver)
 
     # 图例占位（invisible scatter），与 2D 路径一致
+    # Legend placeholder (invisible scatter), consistent with the 2D path.
     ax.scatter([], [], [], color="white", label=label)
 
 
@@ -270,10 +327,17 @@ def add_2d_icon(
         offset_img: 已经构造好的 ``OffsetImage``。
         position: 天体的 (x, y) 旋转系坐标。
         label: 图例标签。
+
+    Render a PNG icon on 2D axes via ``AnnotationBbox``. Also adds an
+    invisible scatter to fill the legend entry, matching the 3D path's
+    legend-placeholder strategy. Args: ``ax`` — 2D axes;
+    ``offset_img`` — prebuilt ``OffsetImage``; ``position`` — body's
+    (x, y) rotating-frame coordinates; ``label`` — legend label.
     """
     from matplotlib.offsetbox import AnnotationBbox
 
     # 先添加图例条目（用 invisible scatter）
+    # Add the legend entry first (via an invisible scatter).
     ax.scatter([], [], color="white", label=label)
 
     ab = AnnotationBbox(

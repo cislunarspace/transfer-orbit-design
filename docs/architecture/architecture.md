@@ -22,8 +22,8 @@ sidecar 子进程驱动（协议 = e2m2e ADR 0035：信封 JSON 行 + 二进制�
 ```
 React 前端（frontend/） ←Tauri IPC→ Rust 壳（src-tauri/）
                                         ↕ stdio 协议
-                                   e2m2e serve-stdio（开发期 uv 拉起；分发期为打包进安装器的 tod-sidecar，
-见分发节）
+                                   e2m2e serve-stdio（开发期 uv 拉起；分发期为打包进安装器的
+                                   transfer-orbit-design-sidecar，见分发节）
 ```
 
 | 层 | 位置 | 职责 |
@@ -36,8 +36,11 @@ React 前端（frontend/） ←Tauri IPC→ Rust 壳（src-tauri/）
 **关键机制**：
 
 - **schema 驱动表单**：工具入参 schema 构建期导出（`tools/export_tool_schemas.py` → `frontend/src/toolSchemas/`），参数面板自动生成；升级 e2m2e 后重跑导出。
-- **帧即渲染**：sidecar f32 帧直达前端 `BufferAttribute`，无中间格式；族成员初态 + period 由前端 CR3BP 传播器重采样整条轨迹（方程对齐 e2m2e，有回归测试）。
-- **视图保持**：布局不变的重绘不重置相机；首次数据到达做一次视图适配（CONTEXT.md 领域语义）。
+- **帧即渲染**：sidecar 二进制帧由 Rust 壳转成 JSON 数字数组过 IPC，前端重建为
+  `Float32Array` 直进 Three.js `BufferAttribute`，无中间文件格式；族成员初态 +
+  period 由前端 CR3BP 传播器重采样整条轨迹（方程对齐 e2m2e，有回归测试）。
+- **视图保持**：布局不变的重绘不重置相机；每批新轨迹数据到达做一次视图适配
+  （按包围盒复位相机，5% 余量），此后重绘保持用户视角（CONTEXT.md 领域语义）。
 
 ## 顶层结构（最终形态）
 
@@ -65,7 +68,7 @@ transfer-orbit-design/
 │   ├── architecture/      # 架构说明
 │   └── source/            # Sphinx 源（docs/README.md 说明维护流程）
 ├── tests/                 # Python 领域层测试（commons/engine/model 分层）
-├── scripts/               # 独立工具脚本（download_kernels.py）
+├── scripts/               # 独立工具脚本（download_kernels.py；scan_transfer* 为一次性验证留档）
 ├── catalog/               # 轨道库（e2m2e catalog，产物持久化源；设置可改指）
 └── pyproject.toml
 ```
@@ -190,16 +193,18 @@ sidecar      →  e2m2e Facade              # 算法只进 sidecar
 Python 领域层（供脚本与测试使用，不在界面链路上）：
 
 ```
-src/engine/  →  src/model/（仅 Artifact/Project 类型）+ e2m2e
+src/engine/  →  src/model/（仅 Artifact/Project 类型）+ src/commons/ + e2m2e
 src/model/   →  numpy（纯数据）
-src/commons/ → 无依赖（常量）；其中 `src/commons/viz/` 为收编的第三方绘图组件，仅依赖 e2m2e 数据类型（不承担本仓类型标准，见 `pyproject.toml` 的 pyright exclude）
+src/commons/ → 无内部依赖（commons 是叶子，只被上层引用）
 ```
 
 **硬规则**：
 
 1. `src/model/` 不 import `src/engine/`。
 2. `src/engine/` 不 import 任何 GUI 框架（Qt 依赖已随 PyQt UI 移除）。
-3. `src/commons/` 不被 `src/model/`、`src/engine/` 反向依赖（commons 是叶子）。
+3. `src/commons/` 是叶子：只被上层引用，自身不引用 `src/model/`、`src/engine/`；
+   其中 `src/commons/viz/` 为收编自 e2m2e 的第三方绘图组件（仅依赖 e2m2e 数据
+   类型，类型标准豁免见 `pyproject.toml` 的 pyright exclude）。
 4. 前端与 Rust 壳不 import e2m2e 或 `src/`：界面要算的东西一律走 sidecar 协议。
 
 ## 可视化架构
@@ -218,8 +223,9 @@ WebGLRenderer + OrbitControls（旋转/缩放/平移）
 
 渲染数据两条来路：族生成响应的成员初态经前端 CR3BP 传播器
 （`frontend/src/cr3bp.ts`，方程对齐 e2m2e，有回归测试）按 period 重采样整条
-轨迹；轨道库记录经 `catalog_get` 取成员 xyz 直接叠加。首次数据到达自动
-适配一次（按包围盒复位相机，5% 余量），此后重绘保持用户视角（视图保持）。
+轨迹；轨道库记录经 `catalog_get` 取成员 xyz 直接叠加。新轨迹数据到达时自动
+适配一次（按包围盒复位相机，5% 余量），此后重绘与设置变更保持用户视角
+（视图保持）。
 
 配色：颜色循环数组（chartSettings 可改），族成员与库轨迹依次取色；动画导出
 经 captureStream + MediaRecorder 编码 webm（画布自转 8 秒），不引入编码依赖。
@@ -232,19 +238,23 @@ WebGLRenderer + OrbitControls（旋转/缩放/平移）
 
 ## 工具范围（当前）
 
-界面接通的计算工具共 7 件：轨道族生成、任务轨道设计、轨道保持、轨道预报、转移轨道设计、轨道稳定性、时空坐标转换（前端 `TOOL_REGISTRY` 注册，经通用 `run_tool` 通道下发）。14 个工具 schema（含 7 个 catalog 操作）已全部导出，其中 `catalog_query` / `catalog_get` 已接线供目录浏览与轨迹叠加，其余 catalog 管理操作（delete / export / promote / tag / sweep）尚未提供界面入口。
+中栏工具面板接通 8 个工具：轨道族生成、任务轨道设计、参数空间扫描（catalog_sweep）、轨道保持、轨道预报、转移轨道设计、轨道稳定性、时空坐标转换（前端 `TOOL_REGISTRY` 注册，经通用 `run_tool` 通道下发）。14 个工具 schema（含 7 个 catalog 操作）已全部导出，catalog 操作的界面分布：query/get 服务目录浏览与轨迹叠加，sweep 在工具面板，delete 在项目树右键菜单，export 在筛选栏「导出包」，promote/tag 在记录详情面板。
 原则不变：不承诺 GUI 承载 e2m2e 全部算法能力，需要脚本化工作流时直接使用
 [e2m2e CLI](https://github.com/cislunarspace/e2m2e)。
 
 ## 分发
 
-Windows 发行版为 NSIS 安装器（currentUser 免管理员）：Tauri 主程序 +
-`tod-sidecar`（PyInstaller onefile 打包的 e2m2e serve-stdio，
-`packaging/tod_sidecar.spec`）+ SPICE 小内核，三者经 resources 映射进安装
-目录。分发期 Rust 壳从 resource 目录拉起 sidecar（`packaged_sidecar_command`），
-cwd 指向 resource 根，e2m2e Config 的 `kernels/`、`catalog/` 按 cwd 相对解析。
-发布管线见 `.github/workflows/release.yml`（tag `v*` 触发：lint → pytest →
-Windows 构建 → 直传 GitHub Release）。
+发行版为 Windows NSIS 安装器（currentUser 免管理员）与 Linux AppImage/deb：
+Tauri 主程序 + `transfer-orbit-design-sidecar`（PyInstaller onefile 打包的
+e2m2e serve-stdio，`packaging/transfer_orbit_design_sidecar.spec`）+ SPICE
+内核（含行星历，随 Git LFS 入库），三者经 resources 映射进安装目录。分发期
+Rust 壳从 resource 目录拉起 sidecar（`packaged_sidecar_command`），cwd 指向
+resource 根，e2m2e Config 的 `kernels/`、`catalog/` 按 cwd 相对解析（可用
+`SPICE_KERNEL_DIR` / `E2M2E_CATALOG_DIR` 环境变量覆盖）。桌面端自动更新经
+`@tauri-apps/plugin-updater` 基于 GitHub Releases 的 latest.json（ADR 0018）。
+发布管线见 `.github/workflows/release.yml`（tag `v*` 触发：lint → 测试 →
+Windows NSIS 与 Linux AppImage/deb 构建 → publish-updater 生成签名更新清单
+latest.json → 直传 GitHub Release）。
 
 ## 依赖
 

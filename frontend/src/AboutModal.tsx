@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Modal, Typography, Button, Space, message } from "antd";
 import { InfoCircleOutlined, SyncOutlined } from "@ant-design/icons";
+import { getVersion } from "@tauri-apps/api/app";
 import { useTranslation } from "./i18n";
 import { checkForAppUpdates, type UpdateInfo } from "./updater";
 
@@ -10,6 +11,8 @@ export interface AboutModalProps {
   open: boolean;
   onClose: () => void;
   onUpdateAvailable: (info: UpdateInfo) => void;
+  /** 注入显示用的版本号（测试用）；缺省时取 Tauri 运行时真实版本 */
+  /** Injected display version (for tests); falls back to the real Tauri runtime version. */
   currentVersion?: string;
 }
 
@@ -17,10 +20,20 @@ export const AboutModal: React.FC<AboutModalProps> = ({
   open,
   onClose,
   onUpdateAvailable,
-  currentVersion = "4.1.2",
+  currentVersion,
 }) => {
   const { t } = useTranslation();
   const [checking, setChecking] = useState(false);
+  const [runtimeVersion, setRuntimeVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (currentVersion) return;
+    getVersion()
+      .then(setRuntimeVersion)
+      .catch(() => setRuntimeVersion("unknown"));
+  }, [currentVersion]);
+
+  const displayVersion = currentVersion ?? runtimeVersion ?? "…";
 
   const handleCheckUpdate = async () => {
     setChecking(true);
@@ -69,7 +82,7 @@ export const AboutModal: React.FC<AboutModalProps> = ({
           tod - 地月转移轨道设计系统
         </Title>
         <Paragraph type="secondary" style={{ marginTop: 4 }}>
-          版本号：v{currentVersion}
+          版本号：v{displayVersion}
         </Paragraph>
         <Paragraph>
           基于 CR3BP 高精度动力学模型与星历转换算法，支持平动点轨道生成、转移轨道设计及轨道保持仿真。

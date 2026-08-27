@@ -3,6 +3,7 @@ import { deriv, librationPoint, propagate } from "./cr3bp";
 
 const MU = 0.01215058560962404;
 // halo.csv earth-moon_halo_L1_N:000001 的初值与周期
+// Initial state and period from halo.csv earth-moon_halo_L1_N:000001.
 const SEED = {
   orbitId: "t",
   mu: MU,
@@ -16,6 +17,7 @@ const SEED = {
 describe("deriv", () => {
   it("在初值处与 e2m2e equations_of_motion 一致（含科里奥利项）", () => {
     // e2m2e CR3BP_Dynamics.equations_of_motion(0, SEED) 的参考输出
+    // Reference output of e2m2e CR3BP_Dynamics.equations_of_motion(0, SEED).
     const expectRef = [
       -3.92822679e-14, 2.30557539e-01, 1.06019745e-13,
       2.91915690e-01, 7.85645357e-14, -4.65526703e-01,

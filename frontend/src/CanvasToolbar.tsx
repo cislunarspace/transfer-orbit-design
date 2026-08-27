@@ -1,5 +1,7 @@
 // 画布工具栏：归拢投影/中心选择与适配/导出动画/图表设置操作，停靠于画布上方
 // （替代原先分居画布两角的悬浮层）
+// Canvas toolbar: gathers projection/center selection and fit/export-animation/chart-settings actions,
+// docked above the canvas (replacing the floating layers that used to sit in opposite corners).
 
 import { Button, Radio } from "antd";
 import {

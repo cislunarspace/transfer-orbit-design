@@ -1,4 +1,5 @@
 // sidecar 族生成的前端封装：Tauri command 调用 + 类型。
+// Frontend wrapper for sidecar family generation: Tauri command calls plus types.
 
 export interface FamilyMember {
   states: number[]; // n×6 状态（初态帧时 n=1）
@@ -46,6 +47,7 @@ export async function runTool(
 }
 
 /** 星历内核配置状态（自动配置：随 git/安装包分发，正常永远就绪）。 */
+/** Ephemeris kernel config status (auto-configured: ships with git/the installer, normally always ready). */
 export interface EphemerisStatus {
   kernelDir: string | null;
   files: string[];

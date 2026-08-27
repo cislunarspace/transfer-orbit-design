@@ -5,8 +5,9 @@
 ### 桌面应用（Windows）
 
 从 [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases)
-下载 `tod_<版本>_x64-setup.exe`，双击安装（NSIS 安装器，免管理员权限，安装到
-当前用户目录）。安装包自带 e2m2e 运行时与 SPICE 小内核，开箱即用。
+下载 `transfer-orbit-design_<版本>_x64-setup.exe`，双击安装（NSIS 安装器，
+免管理员权限，安装到当前用户目录）。安装包自带 e2m2e 运行时与全套 SPICE
+内核（含行星历），开箱即用。另有 Linux AppImage / deb 包与桌面端自动更新。
 
 ### 开发环境
 
@@ -15,11 +16,11 @@
 ```bash
 uv sync                        # Python 依赖（e2m2e>=5.8.5 等）
 npm ci --prefix frontend       # 前端依赖
-cargo tauri dev                # 开发模式启动
+npx --prefix frontend tauri dev   # 开发模式启动（无需全局 cargo-tauri）
 ```
 
-v4.0.0 的界面工具是纯 CR3BP 计算，**不需要准备 SPICE 内核**（内核说明见
-{doc}`kernels`）。
+SPICE 内核经 Git LFS 随仓库分发，克隆后位于 `kernels/`；星历类工具开箱即用
+（内核说明见 {doc}`kernels`）。
 
 ## 界面速览
 
@@ -27,9 +28,12 @@ v4.0.0 的界面工具是纯 CR3BP 计算，**不需要准备 SPICE 内核**（�
 
 - **左栏**：项目/轨道库页签 + 语言切换。项目页签列出当前会话与库中
   产物；轨道库页签打开即全库加载，附多维过滤栏。
-- **中栏**：轨道族生成的参数面板与生成按钮。
-- **右栏**：Three.js 画布（详见 {doc}`visualization`），右上角浮动适配 /
-  导出动画 / 图表设置按钮，左下角状态行显示运行进度。
+- **中栏**：工具下拉 + 参数面板。八个工具全部接通：轨道族生成、任务
+  轨道设计、参数空间扫描、轨道保持、轨道预报、转移轨道设计、轨道稳定性、
+  时空坐标转换。
+- **右栏**：Three.js 画布（详见 {doc}`visualization`），停靠在画布上方的
+  工具栏提供投影/中心切换、适配与录制导出、图表设置，左下角状态行显示
+  运行进度。
 
 ## 生成一族轨道
 
