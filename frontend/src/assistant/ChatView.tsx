@@ -6,6 +6,7 @@
 
 import { useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Typography } from "antd";
 import type { ChatItem } from "./chatModel";
 import { ToolCardView } from "./ToolCardView";
@@ -13,8 +14,12 @@ import { ToolCardView } from "./ToolCardView";
 const { Text } = Typography;
 
 // 本仓无全局样式表（全内联 + antd），markdown 元素经 components 映射内联样式。
+// remark-gfm 启用 GFM 扩展（表格/删除线/任务列表）——助手输出的参数对比表
+// 是管道表语法，没有该插件只会显示原始管道文本。
 // The repo has no global stylesheet (all inline + antd), so markdown elements
-// get inline styles via the components mapping.
+// get inline styles via the components mapping. remark-gfm enables GFM
+// extensions (tables/strikethrough/task lists) — the assistant's parameter
+// tables use pipe syntax, which renders as raw pipes without the plugin.
 const mdComponents = {
   p: ({ children }: any) => <p style={{ margin: "4px 0" }}>{children}</p>,
   code: ({ children, className }: any) =>
@@ -52,6 +57,41 @@ const mdComponents = {
     <a href={href} target="_blank" rel="noreferrer" style={{ color: "#0958d9" }}>
       {children}
     </a>
+  ),
+  // GFM 表格：边栏较窄，块级横向滚动兜底
+  // GFM tables: the sidebar is narrow — block-level horizontal scroll as fallback.
+  table: ({ children }: any) => (
+    <table
+      style={{
+        borderCollapse: "collapse",
+        margin: "6px 0",
+        fontSize: 12,
+        display: "block",
+        maxWidth: "100%",
+        overflowX: "auto",
+      }}
+    >
+      {children}
+    </table>
+  ),
+  th: ({ children }: any) => (
+    <th
+      style={{
+        border: "1px solid rgba(128,128,128,0.45)",
+        padding: "3px 8px",
+        background: "rgba(128,128,128,0.12)",
+        textAlign: "left",
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {children}
+    </th>
+  ),
+  td: ({ children }: any) => (
+    <td style={{ border: "1px solid rgba(128,128,128,0.45)", padding: "3px 8px" }}>
+      {children}
+    </td>
   ),
 };
 
@@ -111,7 +151,9 @@ export function ChatView({
                   wordBreak: "break-word",
                 }}
               >
-                <ReactMarkdown components={mdComponents}>{item.text}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                  {item.text}
+                </ReactMarkdown>
               </div>
             </div>
           );
