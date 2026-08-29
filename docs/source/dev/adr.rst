@@ -6,6 +6,8 @@
 .. toctree::
    :maxdepth: 1
 
+   adr-0023-ai-assistant-architecture
+   adr-0022-ai-assistant-llm-mcp
    adr-0021-canvas-timeline
    adr-0020-serious-semantic-ui-visual-language
    adr-0019-sidecar-subtree-lifetime
@@ -42,4 +44,5 @@
   UI 组件库与参数覆写层（0015）、功能补齐与 catalog 分布（0016）、
   Linux 打包（0017）、桌面自动更新（0018）、sidecar 子树生命周期
   （0019）、严肃语义色板视觉语言（0020）、主画布时间轴（0021，
-  原与 0014 同号，已改编）。
+  原与 0014 同号，已改编）、AI 助手定位与模型服务策略（0022）、
+  AI 助手架构（0023）。
