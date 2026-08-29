@@ -1319,7 +1319,7 @@ wheels = [
 
 [[package]]
 name = "transfer-orbit-design"
-version = "4.4.0"
+version = "4.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "calcephpy", version = "5.0.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'win32'" },
