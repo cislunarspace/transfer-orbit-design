@@ -52,7 +52,8 @@ fn task_layer(lang: &str) -> &'static str {
 3. Compute/state-changing tools (design_orbit, control_orbit, transfer_design, orbit_propagation, orbit_family_generation, spacetime_transform, catalog_delete/tag/promote/export/sweep) are NOT executed immediately: your call is shown to the user with its arguments, and runs only after the user confirms (they may edit the arguments first). When you call such a tool, make sure its arguments are complete and sensible so the user can review them.
 4. Be honest about gaps: if the available tools cannot cover what the user wants (e.g. pursuit-evasion reachable-set analysis), say so plainly instead of improvising.
 5. Self-correct on errors: if a tool returns an error (validation failure, orbit error), read the message, fix the arguments, and retry at most 3 times; if still failing, report the failure and its cause to the user.
-6. Units and epochs: CR3BP quantities are nondimensional (DU = 384400 km, TU ≈ 3.7517 d, VU = DU/TU); epochs are UTC unless stated otherwise. Keep units and epochs explicit whenever you cite numbers."#
+6. Units and epochs: CR3BP quantities are nondimensional (DU = 384400 km, TU ≈ 3.7517 d, VU = DU/TU); epochs are UTC unless stated otherwise. Keep units and epochs explicit whenever you cite numbers.
+7. Always make propagation spans explicit: for tools with a duration field (design_orbit, orbit_propagation, orbit_family_generation, ...), pass duration and output_step (both in seconds) explicitly on every call — omitting duration falls back to a very long default (CR3BP defaults to one full year, which is prohibitive in compute and output size). For a first-shot design use hours-to-days spans (e.g. 86400 = 1 day, 2592000 = 30 days); the catalog stores the corrected orbit, and longer spans can be produced later on demand."#
     } else {
         r#"工具使用规则（结构化工作流：先探索、再规划、后执行）：
 1. 先探索后承诺：提议任何计算类工具之前，先用只读工具（catalog_query、catalog_get——立即执行、无需用户确认）查看轨道库中已有的产物。
@@ -60,7 +61,8 @@ fn task_layer(lang: &str) -> &'static str {
 3. 计算/改状态类工具（design_orbit、control_orbit、transfer_design、orbit_propagation、orbit_family_generation、spacetime_transform、catalog_delete/tag/promote/export/sweep）不会立即执行：你的调用会连参数一起展示给用户，用户确认后才运行（用户可先改参数）。调用这类工具时务必把参数填完整、合理，方便用户审阅。
 4. 缺项诚实：现有工具覆盖不了用户需求时（例如追逃博弈的可达域分析），直接说明，不要硬凑。
 5. 错误自纠：工具返回错误（参数校验失败、轨道计算错误等）时，读懂错误信息、修正参数后重试，最多 3 次；仍失败则向用户报告失败及原因。
-6. 单位与历元：CR3BP 量为无量纲（DU = 384400 km，TU ≈ 3.7517 天，VU = DU/TU）；历元为 UTC。引用数值时保持量纲与历元显式。"#
+6. 单位与历元：CR3BP 量为无量纲（DU = 384400 km，TU ≈ 3.7517 天，VU = DU/TU）；历元为 UTC。引用数值时保持量纲与历元显式。
+7. 传播时长必须显式：design_orbit、orbit_propagation、orbit_family_generation 等带 duration 的工具，每次调用都必须显式给出 duration 与 output_step（均为秒）——不传 duration 会落进超长默认（CR3BP 默认整整一年，计算量与输出量都不可接受）。首次设计用小时～天级时长（如 86400=1 天、2592000=30 天）；修正后的轨道已入库，更长弧段可按需再算。"#
     }
 }
 
@@ -108,6 +110,7 @@ mod tests {
         assert!(p.contains("先探索、再规划、后执行"), "结构化工作流");
         assert!(p.contains("用户确认后才运行"), "分级确认语义");
         assert!(p.contains("缺项诚实"), "缺项诚实");
+        assert!(p.contains("传播时长必须显式"), "显式时长规则");
         assert!(p.contains("当前态势"), "态势层");
         assert!(p.contains("没有选中"), "无选择的明示");
     }
