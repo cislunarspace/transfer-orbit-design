@@ -53,7 +53,7 @@ export function OrbitCanvas({
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const markerRef = useRef<THREE.Mesh | null>(null);
+  const markersRef = useRef<THREE.Mesh[]>([]);
   // onReady 走 ref：建场景 effect 依赖 []，调用方传内联函数（如
   // App 的 onReady={(a) => setApi(a)}）不会触发场景重建导致轨迹丢失。
   // onReady goes through a ref: the scene-building effect depends on [], so an inline callback from the caller (e.g.
@@ -89,13 +89,10 @@ export function OrbitCanvas({
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    // rotateSpeed 取负：拖拽表现为“旋转物体本身”（延续旧版手感）；
-    // OrbitControls 默认是“拖拽移动相机”，往左拖场景看起来往右转，
-    // 体感方向相反。负值只反转旋转，平移/缩放不受影响。
-    // Negative rotateSpeed makes dragging feel like rotating the object itself (legacy feel); OrbitControls
-    // by default drags the camera, so the scene appears to turn the wrong way. Negation only reverses rotation;
-    // panning/zooming are unaffected.
-    controls.rotateSpeed = -1.0;
+    // 旋转手感用 OrbitControls 默认方向（拖拽移动相机）；旧版反转手感（rotateSpeed 取负）
+    // 已于 2026-08-29 决策废弃，仅平移/缩放行为不变。
+    // Rotation keeps the OrbitControls default direction (dragging moves the camera); the legacy inverted
+    // feel (negative rotateSpeed) was dropped by decision on 2026-08-29; panning/zooming are unchanged.
     controlsRef.current = controls;
 
     const content = new THREE.Group();
@@ -109,14 +106,6 @@ export function OrbitCanvas({
     annotations.name = "annotations";
     annotationsRef.current = annotations;
     scene.add(annotations);
-
-    const marker = new THREE.Mesh(
-      new THREE.SphereGeometry(0.015, 16, 16),
-      new THREE.MeshBasicMaterial({ color: 0xff0055 })
-    );
-    marker.visible = false;
-    markerRef.current = marker;
-    scene.add(marker);
 
     const resize = () => {
       if (!mount) return;
@@ -387,6 +376,29 @@ export function OrbitCanvas({
     }
   }, [trajectories, mu, libration, center, settings, background]);
 
+  // 每条轨迹一个时刻标记：随轨迹数组同步创建/清理（挂 scene 根，不参与视图适配）
+  // One time marker per trajectory: created/cleaned in sync with the trajectory array
+  // (attached to the scene root, excluded from view fitting).
+  useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+    const markers = trajectories.map(() => {
+      const m = new THREE.Mesh(
+        new THREE.SphereGeometry(0.015, 16, 16),
+        new THREE.MeshBasicMaterial({ color: 0xff0055 })
+      );
+      m.name = "time-marker";
+      m.visible = false;
+      scene.add(m);
+      return m;
+    });
+    markersRef.current = markers;
+    return () => {
+      markers.forEach((m) => scene.remove(m));
+      markersRef.current = [];
+    };
+  }, [trajectories]);
+
   // 中心切换：所选中心点已移到世界原点，相机注视点同步移到原点（“居中”
   // 语义），保持注视方向与距离（视图保持）。不能改为按轨道盒重新适配：
   // 那样会把画面中心钉回轨道所在区域（如 L2 的 Halo 族），中心切换在
@@ -405,37 +417,41 @@ export function OrbitCanvas({
     controls.update();
   }, [center]);
 
+  // 各标记沿自己的轨迹/时刻插值：currentEt 超出该轨迹范围或无效时该标记隐藏
+  // Each marker interpolates along its own trajectory/times: hidden when currentEt falls outside
+  // that trajectory's range or is invalid.
   useEffect(() => {
-    const marker = markerRef.current;
-    if (!marker || currentEt === null || currentEt === undefined || trajectories.length === 0 || !times || times.length === 0) {
-      if (marker) marker.visible = false;
-      return;
-    }
-
-    const tList = times[0];
-    const pts = trajectories[0];
-    if (!tList || tList.length === 0 || pts.length === 0) {
-      marker.visible = false;
-      return;
-    }
-
-    let idx = tList.findIndex((t) => t >= currentEt);
-    if (idx <= 0) idx = 1;
-    if (idx >= tList.length) idx = tList.length - 1;
-
-    const t0 = tList[idx - 1];
-    const t1 = tList[idx];
-    const alpha = (currentEt - t0) / Math.max(1e-6, t1 - t0);
-    const p0 = pts[idx - 1] || pts[0];
-    const p1 = pts[idx] || pts[0];
-
+    const markers = markersRef.current;
     const [ox, oy, oz] = getCenterOffset();
-    const x = (p0[0] + (p1[0] - p0[0]) * alpha) + ox;
-    const y = (p0[1] + (p1[1] - p0[1]) * alpha) + oy;
-    const z = (p0[2] + (p1[2] - p0[2]) * alpha) * (settings?.zRatio ?? 1.0) + oz;
+    markers.forEach((marker, i) => {
+      const pts = trajectories[i];
+      const tList = times?.[i];
+      const et = currentEt;
+      if (
+        et === null || et === undefined || !pts || pts.length === 0 ||
+        !tList || tList.length === 0 || et < tList[0] || et > tList[tList.length - 1]
+      ) {
+        marker.visible = false;
+        return;
+      }
 
-    marker.position.set(x, y, z);
-    marker.visible = true;
+      let idx = tList.findIndex((t) => t >= et);
+      if (idx <= 0) idx = 1;
+      if (idx >= tList.length) idx = tList.length - 1;
+
+      const t0 = tList[idx - 1];
+      const t1 = tList[idx];
+      const alpha = (et - t0) / Math.max(1e-6, t1 - t0);
+      const p0 = pts[idx - 1] || pts[0];
+      const p1 = pts[idx] || pts[0];
+
+      marker.position.set(
+        (p0[0] + (p1[0] - p0[0]) * alpha) + ox,
+        (p0[1] + (p1[1] - p0[1]) * alpha) + oy,
+        (p0[2] + (p1[2] - p0[2]) * alpha) * (settings?.zRatio ?? 1.0) + oz
+      );
+      marker.visible = true;
+    });
   }, [currentEt, trajectories, times, center, settings]);
 
   return <div ref={mountRef} style={{ width: "100%", height: "100%", position: "relative" }} />;

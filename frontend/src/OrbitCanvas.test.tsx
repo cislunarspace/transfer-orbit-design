@@ -229,12 +229,94 @@ describe("OrbitCanvas 轨迹渲染", () => {
     expect(amb).toBeGreaterThanOrEqual(1);
   });
 
-  it("旋转方向与拖拽一致：rotateSpeed 为负（拖拽旋转物体本身的体感）", () => {
+  it("旋转恢复 OrbitControls 默认方向：rotateSpeed 不再取负（2026-08-29 决策废弃旧反转手感）", () => {
     renderCanvas();
     flushFrames();
     const list = (OrbitControls as unknown as { instances: { rotateSpeed: number }[] }).instances;
     expect(list.length).toBeGreaterThan(0);
-    expect(list[list.length - 1].rotateSpeed).toBeLessThan(0);
+    expect(list[list.length - 1].rotateSpeed).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("时刻标记（每条轨迹一个）", () => {
+  // 两条不同时刻区间的轨迹：marker 各自沿自己的 times 插值，区间外隐藏
+  // Two trajectories with disjoint time spans: each marker interpolates over its own times, hidden outside.
+  const MULTI_TRAJ: number[][][] = [
+    Array.from({ length: 5 }, (_, i) => [i, 0, 0]),
+    Array.from({ length: 5 }, (_, i) => [10 + i, 1, 0]),
+  ];
+  const MULTI_TIMES: number[][] = [
+    [0, 1, 2, 3, 4],
+    [10, 11, 12, 13, 14],
+  ];
+
+  function timeMarkers(scene: unknown): import("three").Mesh[] {
+    const s = scene as import("three").Scene;
+    return s.children.filter((o) => o.name === "time-marker") as unknown as import("three").Mesh[];
+  }
+
+  function lastScene() {
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    return instances[instances.length - 1].lastScene;
+  }
+
+  it("标记数与轨迹数同步；currentEt 无效时全部隐藏（新数据上画布不自动出现红点）", () => {
+    renderCanvas({ trajectories: MULTI_TRAJ, times: MULTI_TIMES, currentEt: null });
+    flushFrames();
+    const markers = timeMarkers(lastScene());
+    expect(markers).toHaveLength(2);
+    // currentEt=null：数据已上画布，红点仍待用户拖动时间轴或播放后才出现
+    // currentEt=null: data is on the canvas, yet the marker awaits a timeline drag or playback.
+    markers.forEach((m) => expect(m.visible).toBe(false));
+  });
+
+  it("轨迹数变化时旧标记清理、新标记补齐", () => {
+    const view = renderCanvas({ trajectories: MULTI_TRAJ, times: MULTI_TIMES, currentEt: null });
+    flushFrames();
+    const three = MULTI_TRAJ.concat([Array.from({ length: 5 }, (_, i) => [20 + i, 2, 0])]);
+    view.rerender(
+      <OrbitCanvas
+        trajectories={three}
+        times={MULTI_TIMES.concat([[20, 21, 22, 23, 24]])}
+        currentEt={null}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        onReady={() => {}}
+      />,
+    );
+    flushFrames();
+    const markers = timeMarkers(lastScene());
+    expect(markers).toHaveLength(3);
+  });
+
+  it("各标记沿自己的 times 插值：currentEt 落在谁的区间谁可见，区间外隐藏", () => {
+    const view = renderCanvas({ trajectories: MULTI_TRAJ, times: MULTI_TIMES, currentEt: 2.5 });
+    flushFrames();
+    let markers = timeMarkers(lastScene());
+    expect(markers[0].visible).toBe(true);
+    expect(markers[0].position.x).toBeCloseTo(2.5, 6);
+    expect(markers[1].visible).toBe(false);
+
+    view.rerender(
+      <OrbitCanvas
+        trajectories={MULTI_TRAJ}
+        times={MULTI_TIMES}
+        currentEt={12}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        onReady={() => {}}
+      />,
+    );
+    flushFrames();
+    markers = timeMarkers(lastScene());
+    expect(markers[0].visible).toBe(false);
+    expect(markers[1].visible).toBe(true);
+    expect(markers[1].position.x).toBeCloseTo(12, 6);
+    expect(markers[1].position.y).toBeCloseTo(1, 6);
   });
 });
 

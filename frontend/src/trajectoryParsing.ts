@@ -152,3 +152,14 @@ export function trajectoryTimeRange(times: number[][]): [number, number] | null 
   }
   return Number.isFinite(min) && Number.isFinite(max) ? [min, max] : null;
 }
+
+/** 叠加/替换合并：叠加时轨迹与时刻按序追加，替换时整体覆盖（画布叠加模式的唯一数据语义）。 */
+/** Overlay/replace merge: overlay appends trajectories and times in order, replace overwrites wholesale
+ *  (the single data semantic of the canvas overlay mode). */
+export function mergeTrajectoryData(prev: TrajectoryData, next: TrajectoryData, overlay: boolean): TrajectoryData {
+  if (!overlay) return next;
+  return {
+    trajectories: prev.trajectories.concat(next.trajectories),
+    times: prev.times.concat(next.times),
+  };
+}
