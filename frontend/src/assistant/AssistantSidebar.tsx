@@ -93,14 +93,33 @@ export function AssistantSidebar({
   // error). A tool_done carrying a record_id triggers the A1 auto-registration
   // into the project tree.
   useEffect(() => {
+    // listen 是异步的：StrictMode 双挂载（挂载→清理→再挂载）下，清理先于
+    // promise resolve 执行，若只靠 unlisten 变量，首挂载的监听器会泄漏——
+    // 每个事件被处理两次（delta 逐字重复）。用 cancelled 标记：清理之后
+    // 才 resolve 的监听器立即退订。
+    // listen is async: under StrictMode double-mount (mount → cleanup → mount)
+    // the cleanup runs before the promise resolves, so a bare unlisten variable
+    // leaks the first mount's listener — every event is handled twice (deltas
+    // duplicate character by character). Guard with a cancelled flag: a listener
+    // resolving after cleanup unsubscribes immediately.
+    let cancelled = false;
     let unlisten: (() => void) | undefined;
     onAssistantEvent((payload) => {
       setItems((prev) => foldEvent(prev, payload));
       if (payload.kind === "tool_done" && payload.ok && payload.summary?.recordId) {
         producedRef.current?.(payload.summary.recordId, payload.tool);
       }
-    }).then((u) => (unlisten = u));
-    return () => unlisten?.();
+    }).then((u) => {
+      if (cancelled) {
+        u();
+        return;
+      }
+      unlisten = u;
+    });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
   }, []);
 
   const toggleCollapsed = (next: boolean) => {

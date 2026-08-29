@@ -137,13 +137,26 @@ export default function App() {
   // 监听 sidecar 进度
   // Listen to sidecar progress events.
   useEffect(() => {
+    // 同 AssistantSidebar 的监听竞态：StrictMode 双挂载下泄漏首个监听器
+    // Same listen race as AssistantSidebar: StrictMode double-mount leaks the
+    // first mount's listener.
+    let cancelled = false;
     let unlisten: (() => void) | undefined;
     import("@tauri-apps/api/event").then(({ listen }) => {
       listen<{ meta: { message: string } }>("sidecar-progress", (ev) => {
         setProgressMsg(ev.payload.meta.message);
-      }).then((u) => (unlisten = u));
+      }).then((u) => {
+        if (cancelled) {
+          u();
+          return;
+        }
+        unlisten = u;
+      });
     });
-    return () => unlisten?.();
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
   }, []);
 
   const refreshArtifacts = useCallback(async () => {
