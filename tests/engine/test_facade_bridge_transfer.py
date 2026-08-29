@@ -34,11 +34,15 @@ class _FakeTransferResult:
         transfer_type: str = "HMN",
         delta_v: float = 3.9,
         trajectory: np.ndarray | None = None,
+        trajectory_times: np.ndarray | None = None,
         converged: bool = True,
     ) -> None:
         self.transfer_type = transfer_type
         self.delta_v = delta_v
         self.trajectory = trajectory
+        # e2m2e 5.8.9 起 Facade 无条件读取该字段（ADR 0040 轨迹契约）
+        # The Facade reads this unconditionally since e2m2e 5.8.9 (ADR 0040 contract).
+        self.trajectory_times = trajectory_times
         self.details = {"tof_sec": 345600.0}
         self.status = (
             ConvergenceState.CONVERGED if converged else ConvergenceState.INFEASIBLE
