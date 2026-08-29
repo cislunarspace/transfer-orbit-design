@@ -399,3 +399,29 @@ pub async fn remove_artifact(
 ) -> Result<bool, String> {
     Ok(state.remove(&artifact_id).await)
 }
+
+/// 登记 AI 助手经 MCP 运行产出的产物（ADR 0022：AI 产物与手动运行语义
+/// 一致，同一项目树）。run_tool/generate_family 之外的登记入口——MCP
+/// 链路不过 run_tool，产物 record_id 由前端从工具卡片事件带回。
+#[tauri::command]
+pub async fn register_artifact(
+    state: State<'_, ProjectState>,
+    artifact_type: String,
+    label: String,
+    orbit_type: Option<String>,
+    source_tool: String,
+    record_id: String,
+) -> Result<ArtifactSummary, String> {
+    if record_id.is_empty() {
+        return Err("record_id 不能为空".into());
+    }
+    Ok(state.add(ArtifactSummary {
+        artifact_id: String::new(),
+        artifact_type,
+        label,
+        orbit_type: orbit_type.unwrap_or_default(),
+        source_tool,
+        record_id: Some(record_id),
+        created_at: unix_seconds_now(),
+    }).await)
+}

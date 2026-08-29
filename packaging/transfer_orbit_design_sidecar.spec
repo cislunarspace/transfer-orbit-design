@@ -31,8 +31,17 @@ hiddenimports = [
     "e2m2e.api.sidecar",
     "e2m2e.api.facade",
     "e2m2e.api.config",
+    # 标准 MCP 服务端（mcp-serve 路径，本仓 ADR 0023）：mcp SDK 经 e2m2e
+    # 函数级懒加载引入，静态分析可能漏抓，显式收编
+    "mcp",
+    "anyio",
 ]
-hiddenimports += collect_submodules("e2m2e") + collect_submodules("r2s2")
+hiddenimports += (
+    collect_submodules("e2m2e")
+    + collect_submodules("r2s2")
+    + collect_submodules("mcp")
+    + collect_submodules("anyio")
+)
 
 a = Analysis(
     [str(spec_dir / "sidecar_main.py")],

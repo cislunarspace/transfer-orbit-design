@@ -1,7 +1,7 @@
 // 主应用入口：基于 Ant Design 6 构建的三栏现代化高密度桌面科学计算界面
 // Main app entry: a three-pane, high-density desktop scientific-computing UI built on Ant Design 6.
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   ConfigProvider,
   theme as antdTheme,
@@ -12,6 +12,7 @@ import {
   Form,
   Slider,
   Switch,
+  Divider,
   message,
 } from "antd";
 import {
@@ -37,8 +38,11 @@ import { validateToolParams } from "./paramOverlay";
 import { useTranslation } from "./i18n";
 import { useChartSettings } from "./chartSettings";
 import { CanvasRecorder, downloadBlob } from "./canvasRecorder";
-import { listArtifacts, removeArtifact, type ArtifactSummary } from "./projectApi";
+import { listArtifacts, removeArtifact, registerArtifact, type ArtifactSummary } from "./projectApi";
 import { runTool, getArtifact, ephemerisStatus, type EphemerisStatus } from "./sidecarApi";
+import { AssistantSidebar } from "./assistant/AssistantSidebar";
+import { AssistantSettingsForm } from "./assistant/AssistantSettingsForm";
+import type { SelectionContext } from "./assistant/api";
 import { librationPoint } from "./cr3bp";
 import { familyMembersToTrajectoryData, framesToTrajectoryData, trajectoryTimeRange } from "./trajectoryParsing";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
@@ -47,7 +51,7 @@ const { Text, Title } = Typography;
 const EARTH_MOON_MU = 0.01215058560962404;
 
 export default function App() {
-  const { lang, setLang } = useTranslation();
+  const { lang, setLang, t } = useTranslation();
   const [themeMode, setThemeMode] = useState<"dark" | "light">(() => {
     // 默认白底黑字（日间）；夜间模式经右上角按钮切换并持久化
     // Defaults to white background with black text (daytime); night mode toggles via the top-right button and persists.
@@ -133,13 +137,26 @@ export default function App() {
   // 监听 sidecar 进度
   // Listen to sidecar progress events.
   useEffect(() => {
+    // 同 AssistantSidebar 的监听竞态：StrictMode 双挂载下泄漏首个监听器
+    // Same listen race as AssistantSidebar: StrictMode double-mount leaks the
+    // first mount's listener.
+    let cancelled = false;
     let unlisten: (() => void) | undefined;
     import("@tauri-apps/api/event").then(({ listen }) => {
       listen<{ meta: { message: string } }>("sidecar-progress", (ev) => {
         setProgressMsg(ev.payload.meta.message);
-      }).then((u) => (unlisten = u));
+      }).then((u) => {
+        if (cancelled) {
+          u();
+          return;
+        }
+        unlisten = u;
+      });
     });
-    return () => unlisten?.();
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
   }, []);
 
   const refreshArtifacts = useCallback(async () => {
@@ -200,6 +217,69 @@ export default function App() {
       console.error("加载记录失败", e);
     }
   };
+
+  // —— AI 助手产物（ADR 0022 A1：AI 产物与手动运行同一棵项目树）——
+  // AI 工具产出 record_id 时自动登记入项目树（与 run_tool 手动运行同语义），
+  // ref 去重防止重复登记；画布绘图走既有 getArtifact 通道按需触发。
+  // AI assistant artifacts (ADR 0022 A1: AI artifacts share the manual-run
+  // project tree). A record_id from an AI tool auto-registers into the project
+  // tree (same semantics as a manual run_tool), deduped via a ref; canvas
+  // plotting goes through the existing getArtifact channel on demand.
+  const assistantRegistered = useRef<Set<string>>(new Set());
+
+  const handleAssistantArtifact = async (recordId: string, tool: string) => {
+    if (assistantRegistered.current.has(recordId)) return;
+    assistantRegistered.current.add(recordId);
+    try {
+      const entry = TOOL_REGISTRY.find((t) => t.name === tool);
+      await registerArtifact({
+        artifactType: entry?.artifactType ?? "orbit",
+        label: `AI · ${entry?.title ?? tool}`,
+        orbitType: undefined,
+        sourceTool: tool,
+        recordId,
+      });
+      await refreshArtifacts();
+    } catch (e) {
+      console.warn("AI 产物登记失败", e);
+    }
+  };
+
+  const handleAssistantOpenRecord = async (recordId: string) => {
+    try {
+      const data = await getArtifact(recordId);
+      if (data.familyMembers && data.familyMembers.length > 0) {
+        const td = familyMembersToTrajectoryData(data.familyMembers, data.mu ?? EARTH_MOON_MU);
+        if (td.trajectories.length > 0) {
+          applyTrajectoryData(td);
+          return;
+        }
+      }
+      if (data.members && data.members.length > 0) {
+        // 裸点集无时刻信息：时间轴保持禁用
+        // Bare point sets carry no timing information; the timeline stays disabled.
+        setTrajectories(data.members as unknown as number[][][]);
+        setTrajectoryTimes([]);
+        setTimeRange(null);
+        setCurrentEt(null);
+        setTimeout(() => api?.fitView(), 100);
+      }
+    } catch (e) {
+      message.error(`加载产物失败: ${String(e)}`);
+    }
+  };
+
+  // 助手随消息携带的当前选择上下文（态势层素材，ADR 0023 决策 5）
+  // The selection context the assistant carries with each message (situation-layer
+  // material, ADR 0023 decision 5).
+  const assistantSelection: SelectionContext | null = selectedArtifact
+    ? {
+        recordId: selectedArtifact.recordId,
+        label: selectedArtifact.label,
+        artifactType: selectedArtifact.artifactType,
+        orbitType: selectedArtifact.orbitType,
+      }
+    : null;
 
   // 执行通用工具（提交前防呆校验：必填/越界不过则不提交）
   // Run the generic tool (preflight checks before submit: missing required fields or out-of-range values block submission).
@@ -530,6 +610,16 @@ export default function App() {
           </div>
         </div>
 
+        {/* 最右栏：AI 助手边栏（CONTEXT.md 术语：助手边栏）。可折叠、可拖宽，
+            agent loop 在后端，此处仅交互转发（ADR 0022/0023） */}
+        <AssistantSidebar
+          lang={lang}
+          selection={assistantSelection}
+          onArtifactProduced={handleAssistantArtifact}
+          onOpenRecord={(recordId) => handleAssistantOpenRecord(recordId)}
+          onOpenSettings={() => setChartModalOpen(true)}
+        />
+
         {/* 独立弹窗：轨道保持 */}
         <StationKeepingModal
           open={stationKeepingOpen}
@@ -620,6 +710,15 @@ export default function App() {
                 </Text>
               )}
             </Form.Item>
+
+            {/* AI 助手分区：模型服务配置（BYOK，OpenAI 兼容协议）。key 只进
+                后端 keyring，不回读（ADR 0022 决策 5 / 0023 决策 6） */}
+            <Divider titlePlacement="start" style={{ margin: "12px 0 8px" }}>
+              <Text strong style={{ fontSize: 13 }}>
+                {t("assistant.settings.section_title")}
+              </Text>
+            </Divider>
+            <AssistantSettingsForm />
           </Form>
         </Modal>
         {/* 独立弹窗：关于 tod */}
