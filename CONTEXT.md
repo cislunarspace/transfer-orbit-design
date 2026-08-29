@@ -109,7 +109,7 @@ _Avoid_: 单条轨道设计（那是 `design_orbit`）、批量并发跑多条�
 _Avoid_: 轨道设计、轨道族生成
 
 **转移设计** (`transfer_design`):
-新 GUI 的转移轨道设计工具，绑定 e2m2e `TransferDesignRequest` 模型。参数面板按 transfer_type 联动显隐（HMN 显 target_orbit_radius_km；LGA/WSB 显各自搜索参数、不显 target_ephemeris）。从地球停泊轨道出发：HMN 直接霍曼转移（目标为地心半径，默认 384400 km 环月演示），LGA/WSB 引力辅助（目标取选中轨道工件 CR3BP 状态序列末行，位置×DU_KM、速度×DU_KM/TU_SECONDS 换算到会合系物理单位后于提交时注入，坐标系契约见 e2m2e#516；未选中工件时拦截提交）；LGA 无显式搜索参数时默认注入加密相位网格（360 点）。结果轨迹（e2m2e ≥5.9.0 / ADR 0040：会合系质心原点物理 km）经 `trajectoryParsing.transferTrajectoryToCanvasData` ÷DU_KM 归一后叠加到画布，`trajectory_times`（TLI 起算秒）接时间轴；HMN 为两体几何的相位对齐显示约定。
+新 GUI 的转移轨道设计工具，绑定 e2m2e `TransferDesignRequest` 模型。参数面板按 transfer_type 联动显隐（HMN 显 target_orbit_radius_km；LGA/WSB 显各自搜索参数、不显 target_ephemeris）。从地球停泊轨道出发：HMN 直接霍曼转移（目标为地心半径，默认 384400 km 环月演示），LGA/WSB 引力辅助（目标取选中轨道工件 CR3BP 状态序列末行，位置×DU_KM、速度×DU_KM/TU_SECONDS 换算到会合系物理单位后于提交时注入，坐标系契约见 e2m2e#516；未选中工件时拦截提交）；LGA 无显式搜索参数时默认注入加密相位网格（360 点）。结果轨迹（e2m2e ≥5.8.9 / ADR 0040：会合系质心原点物理 km）经 `trajectoryParsing.transferTrajectoryToCanvasData` ÷DU_KM 归一后叠加到画布，`trajectory_times`（TLI 起算秒）接时间轴；HMN 为两体几何的相位对齐显示约定。
 _Avoid_: 转移搜索（尚未接入）、小推力设计（facade 不可达）
 
 **生成单条轨道**:

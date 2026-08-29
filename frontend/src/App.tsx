@@ -444,9 +444,9 @@ export default function App() {
         }
       } else if (resp.data) {
         const d = resp.data as any;
-        // 转移设计（e2m2e ≥5.9.0，ADR 0040）：trajectory 是会合系物理 km/km/s，
+        // 转移设计（e2m2e ≥5.8.9，ADR 0040）：trajectory 是会合系物理 km/km/s，
         // ÷DU_KM 归一后上画布；trajectory_times（TLI 起算秒）接时间轴
-        // Transfer design (e2m2e ≥5.9.0, ADR 0040): trajectory is rotating-frame
+        // Transfer design (e2m2e ≥5.8.9, ADR 0040): trajectory is rotating-frame
         // physical km/km/s — normalize by DU_KM for the canvas; trajectory_times
         // (seconds since TLI) wire the timeline.
         if (Array.isArray(d.trajectory) && d.trajectory.length > 0) {
