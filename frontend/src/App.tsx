@@ -40,7 +40,12 @@ import { CanvasRecorder, downloadBlob } from "./canvasRecorder";
 import { listArtifacts, removeArtifact, type ArtifactSummary } from "./projectApi";
 import { runTool, getArtifact, ephemerisStatus, type EphemerisStatus } from "./sidecarApi";
 import { librationPoint } from "./cr3bp";
-import { familyMembersToTrajectoryData, framesToTrajectoryData, trajectoryTimeRange } from "./trajectoryParsing";
+import {
+  familyMembersToTrajectoryData,
+  framesToTrajectoryData,
+  trajectoryTimeRange,
+  transferTrajectoryToCanvasData,
+} from "./trajectoryParsing";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
 
 const { Text, Title } = Typography;
@@ -249,15 +254,31 @@ export default function App() {
         }
       } else if (resp.data) {
         const d = resp.data as any;
-        const rawStates = d.states || d.position_km || d.trajectory;
-        if (Array.isArray(rawStates) && rawStates.length > 0) {
-          if (Array.isArray(rawStates[0])) {
-            const pts = rawStates.map((s: number[]) => [Number(s[0]), Number(s[1]), Number(s[2])]);
-            setTrajectories([pts]);
-            setTrajectoryTimes([]);
-            setTimeRange(null);
-            setCurrentEt(null);
-            setTimeout(() => api?.fitView(), 100);
+        // 转移设计（e2m2e ≥5.9.0，ADR 0040）：trajectory 是会合系物理 km/km/s，
+        // ÷DU_KM 归一后上画布；trajectory_times（TLI 起算秒）接时间轴
+        // Transfer design (e2m2e ≥5.9.0, ADR 0040): trajectory is rotating-frame
+        // physical km/km/s — normalize by DU_KM for the canvas; trajectory_times
+        // (seconds since TLI) wire the timeline.
+        if (Array.isArray(d.trajectory) && d.trajectory.length > 0) {
+          applyTrajectoryData(transferTrajectoryToCanvasData(d.trajectory, d.trajectory_times));
+        } else {
+          // 通用回退：design_orbit 的 states（会合无量纲）直画。注意
+          // orbit_propagation 的 position_km 是 GCRS 惯性 km，被此处按
+          // 无量纲误画是既存问题（#421），待星历槽位接线时修。
+          // Generic fallback: design_orbit states (dimensionless synodic)
+          // draw directly. Note orbit_propagation's position_km is GCRS
+          // inertial km misdrawn as dimensionless here — a known issue
+          // (#421) to fix when the ephemeris slot gets wired.
+          const rawStates = d.states || d.position_km;
+          if (Array.isArray(rawStates) && rawStates.length > 0) {
+            if (Array.isArray(rawStates[0])) {
+              const pts = rawStates.map((s: number[]) => [Number(s[0]), Number(s[1]), Number(s[2])]);
+              setTrajectories([pts]);
+              setTrajectoryTimes([]);
+              setTimeRange(null);
+              setCurrentEt(null);
+              setTimeout(() => api?.fitView(), 100);
+            }
           }
         }
       }

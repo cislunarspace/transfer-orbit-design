@@ -109,7 +109,7 @@ _Avoid_: 单条轨道设计（那是 `design_orbit`）、批量并发跑多条�
 _Avoid_: 轨道设计、轨道族生成
 
 **转移设计** (`transfer_design`):
-新 GUI 的转移轨道设计工具，绑定 e2m2e `TransferDesignRequest` 模型。从地球停泊轨道出发：HMN 直接霍曼转移（目标为环月轨道半径），LGA 月球引力辅助（目标取选中轨道工件末态，换算到会合系物理单位后透传，坐标系契约见 e2m2e#516）；LGA 默认注入加密相位网格（360 点）。结果轨迹叠加到画布。
+新 GUI 的转移轨道设计工具，绑定 e2m2e `TransferDesignRequest` 模型。从地球停泊轨道出发：HMN 直接霍曼转移（目标为环月轨道半径），LGA 月球引力辅助（目标取选中轨道工件末态，换算到会合系物理单位后透传，坐标系契约见 e2m2e#516）；LGA 默认注入加密相位网格（360 点）。结果轨迹（e2m2e ≥5.9.0 / ADR 0040：会合系质心原点物理 km）经 `trajectoryParsing.transferTrajectoryToCanvasData` ÷DU_KM 归一后叠加到画布，`trajectory_times`（TLI 起算秒）接时间轴；HMN 为两体几何的相位对齐显示约定。
 _Avoid_: 转移搜索（尚未接入）、小推力设计（facade 不可达）
 
 **生成单条轨道**:

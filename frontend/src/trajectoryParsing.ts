@@ -16,7 +16,7 @@
 // Time sources (row counts match trajectory point counts exactly): propagation synthesizes uniformly by
 // period; frame data prefers data.epochs; otherwise row order is the fallback.
 
-import { propagate } from "./cr3bp";
+import { DU_KM, propagate } from "./cr3bp";
 import type { FamilyMember } from "./sidecarApi";
 
 export interface TrajectoryFrame {
@@ -108,6 +108,29 @@ export function framesToTrajectoryData(
 function matchingTimes(times: number[] | null, points: number): number[] {
   if (times && times.length === points) return times;
   return rowIndexTimes(points);
+}
+
+/** 转移设计响应的 trajectory（(n,6) 会合系物理 km/km/s，e2m2e ADR 0040 契约）
+ *  → 画布轨迹：位置 ÷DU_KM 归一到会合无量纲；trajectory_times（TLI 起算秒）
+ *  与行数一致则作同源时刻接时间轴，否则丢弃（时间轴禁用）。 */
+/** transfer_design trajectory ((n,6) rotating-frame physical km/km/s, the
+ *  e2m2e ADR 0040 contract) → canvas data: positions normalized by DU_KM;
+ *  trajectory_times (seconds since TLI) pass through as matching times when
+ *  row-aligned, else dropped (timeline stays disabled). */
+export function transferTrajectoryToCanvasData(
+  trajectory: number[][],
+  times: unknown,
+): TrajectoryData {
+  const pts = trajectory.map((row) => [
+    Number(row[0]) / DU_KM,
+    Number(row[1]) / DU_KM,
+    Number(row[2]) / DU_KM,
+  ]);
+  const t =
+    Array.isArray(times) && times.length === trajectory.length
+      ? (times as unknown[]).map(Number)
+      : null;
+  return { trajectories: [pts], times: t ? [t] : [] };
 }
 
 /** 库记录的 familyMembers（(1,6) 初态或 (n,6) 状态）→ 轨迹 + 时刻。 */

@@ -1,6 +1,19 @@
 // CR3BP 归一化单位下的轨道传播与轨道族数据加载。
 // CR3BP orbit propagation in normalized units plus orbit-family data loading.
 
+/** e2m2e DE421 地月 CR3BP 特征长度（km，e2m2e constants.toml [datum.DE421]）。 */
+/** e2m2e DE421 Earth-Moon CR3BP characteristic length (km, e2m2e constants.toml [datum.DE421]). */
+export const DU_KM = 384400.0;
+
+/** e2m2e DE421 地月 CR3BP 特征时间（秒）。
+ *  与 paramOverlay 的 375676.97（BCR4BP 27.32 天周期口径）不同——注入
+ *  target_ephemeris 等跨层数据必须用 CR3BP 口径，勿混用。 */
+/** e2m2e DE421 Earth-Moon CR3BP characteristic time (seconds).
+ *  Distinct from paramOverlay's 375676.97 (BCR4BP 27.32-day period
+ *  convention) — cross-layer payloads such as target_ephemeris must use the
+ *  CR3BP convention; do not mix. */
+export const TU_SECONDS = 375190.2588926273;
+
 export interface OrbitSeed {
   orbitId: string;
   mu: number;
