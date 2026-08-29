@@ -194,9 +194,24 @@ export const FAMILY_BRANCH_DEFAULTS: Record<string, Record<string, unknown>> = {
   DRO: { min_amplitude_km: 1737, max_amplitude_km: 110000 },
 };
 
+/** 转移设计分支默认值（键 = transfer_type）。
+ *  HMN 默认地心目标半径取地月平均距离（环月演示），transfer_type 自身
+ *  进默认值使表单挂载即有合法分支。 */
+/** Transfer-design branch defaults (keyed by transfer_type).
+ *  HMN's default geocentric target radius is the mean Earth-Moon distance
+ *  (a lunar demo); transfer_type itself rides the defaults so the form has
+ *  a valid branch right after mount. */
+export const TRANSFER_BRANCH_DEFAULTS: Record<string, Record<string, unknown>> = {
+  HMN: { transfer_type: "HMN", target_orbit_radius_km: 384400 },
+  LGA: { transfer_type: "LGA" },
+  WSB: { transfer_type: "WSB" },
+  low_thrust: { transfer_type: "low_thrust" },
+};
+
 export const BRANCH_DEFAULTS: Record<string, Record<string, Record<string, unknown>>> = {
   design_orbit: DESIGN_ORBIT_BRANCH_DEFAULTS,
   orbit_family_generation: FAMILY_BRANCH_DEFAULTS,
+  transfer_design: TRANSFER_BRANCH_DEFAULTS,
 };
 
 export function getBranchDefaults(toolName: string, branchType: string): Record<string, unknown> {
@@ -245,6 +260,12 @@ export const ENUM_OPTIONS: Record<string, { label: string; value: number | strin
   correction_method: [
     { label: "two_level (双层打靶)", value: "two_level" },
   ],
+  transfer_type: [
+    { label: "HMN 霍曼直接转移", value: "HMN" },
+    { label: "LGA 月球引力辅助", value: "LGA" },
+    { label: "WSB 太阳引力辅助（弱稳定边界）", value: "WSB" },
+    { label: "low_thrust 小推力", value: "low_thrust" },
+  ],
 };
 
 /** 字段多行 Tooltip 提示表 */
@@ -270,6 +291,19 @@ export const FIELD_TOOLTIPS: Record<string, string> = {
   tight_tolerance_km: "严格位置控制容差（km），默认 0.1 km。",
   control_interval: "站保控制评估间隔（天），默认 0.25 天（短弧）。",
   feedback_arc: "站保反馈弧段时长（天），默认 0.125 天。",
+  transfer_type:
+    "转移类型。LGA/WSB 需先在项目树选中目标轨道工件，提交时自动注入其末态为 target_ephemeris（会合系物理 km，e2m2e#516）；HMN 用 target_orbit_radius_km。",
+  tli_epoch: "出发（TLI）历元。HMN 几何搜索中仅作记录，不参与几何解算。",
+  parking_alt_km: "地球停泊轨道高度 (km)，默认 200 km。",
+  incl_deg: "停泊轨道倾角（度），默认 28.5°。",
+  flight_path_deg: "航迹角（度）。当前仅支持 0（圆停泊轨道）。",
+  target_orbit_radius_km:
+    "目标轨道半径 (km)。地心距——从地心量起的圆轨道半径，非月心高度；环月演示取 ≈384400（默认值）。",
+  tof_range:
+    "飞行时间范围 [min, max]（天）。HMN 提供时走 Lambert 批量扫描选最优 tof，缺省用霍曼公式；LGA/WSB 各自搜索网格有自己的默认。",
+  lga_search_params:
+    "LGA 搜索参数 JSON（留空表示 GUI 默认注入 360 相位点加密网格）。",
+  wsb_search_params: "WSB 搜索参数 JSON（留空表示搜索默认网格）。",
 };
 
 /** 格式化范围占位提示 */
@@ -311,6 +345,29 @@ export function getFieldApplicability(toolName: string, orbitType: string): stri
       return fields.filter((f) => f !== "libration_point");
     }
     return fields;
+  }
+
+  if (toolName === "transfer_design") {
+    // 转移类型公共字段；target_ephemeris 不进表单——LGA/WSB 由 GUI 从
+    // 项目树选中工件注入（App.tsx handleRunTool），手填 JSON 无意义。
+    // Fields common to all transfer types; target_ephemeris stays out of
+    // the form — for LGA/WSB the GUI injects it from the selected project
+    // artifact (App.tsx handleRunTool); hand-typed JSON adds nothing.
+    const common = [
+      "transfer_type",
+      "tli_epoch",
+      "parking_alt_km",
+      "incl_deg",
+      "flight_path_deg",
+      "tof_range",
+    ];
+    const specific: Record<string, string[]> = {
+      HMN: ["target_orbit_radius_km"],
+      LGA: ["lga_search_params"],
+      WSB: ["wsb_search_params"],
+      low_thrust: [],
+    };
+    return [...common, ...(specific[orbitType] ?? [])];
   }
 
   if (toolName === "design_orbit") {

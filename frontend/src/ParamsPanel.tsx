@@ -41,9 +41,13 @@ interface ParamsPanelProps {
 }
 
 export function ParamsPanel({ toolName, schema, values, onChange, fieldErrors }: ParamsPanelProps) {
-  // 当前轨道类型
-  // Current orbit type.
-  const orbitType = (values["orbit_type"] as string) || "HALO";
+  // 分支键字段：orbit_type（轨道工具）或 transfer_type（转移设计）
+  // Branch-key field: orbit_type (orbit tools) or transfer_type (transfer design).
+  const branchKey = toolName === "transfer_design" ? "transfer_type" : "orbit_type";
+  // 当前分支类型（未选时给各自的首个合法分支）
+  // Current branch type (falls back to each tool's first legal branch).
+  const branchType =
+    (values[branchKey] as string) || (branchKey === "transfer_type" ? "HMN" : "HALO");
 
   // 记录每个字段当前选中的显示单位
   // Tracks each field's currently selected display unit.
@@ -52,15 +56,15 @@ export function ParamsPanel({ toolName, schema, values, onChange, fieldErrors }:
   // 获取适用字段列表（与提交校验同源）
   // Get the applicable field list (same source as submission validation).
   const activeFields = useMemo(() => {
-    return getActiveFields(toolName, schema, orbitType);
-  }, [toolName, schema, orbitType]);
+    return getActiveFields(toolName, schema, branchType);
+  }, [toolName, schema, branchType]);
 
-  // 当 toolName 或 orbit_type 改变时，填入分支默认值
-  // Fill branch defaults when toolName or orbit_type changes.
+  // 当工具或分支类型改变时，填入分支默认值
+  // Fill branch defaults when the tool or branch type changes.
   useEffect(() => {
-    const branchDefs = getBranchDefaults(toolName, orbitType);
+    const branchDefs = getBranchDefaults(toolName, branchType);
     if (Object.keys(branchDefs).length > 0) {
-      const next: Record<string, unknown> = { ...values, orbit_type: orbitType };
+      const next: Record<string, unknown> = { ...values, [branchKey]: branchType };
       let changed = false;
       for (const [k, defVal] of Object.entries(branchDefs)) {
         if (next[k] === undefined || next[k] === null) {
@@ -72,7 +76,7 @@ export function ParamsPanel({ toolName, schema, values, onChange, fieldErrors }:
         onChange(next);
       }
     }
-  }, [toolName, orbitType]);
+  }, [toolName, branchType]);
 
   // 处理单个字段值变更
   // Handle a single field-value change.
@@ -86,15 +90,15 @@ export function ParamsPanel({ toolName, schema, values, onChange, fieldErrors }:
       next[fieldName] = displayVal;
     }
 
-    // 切 orbit_type 时联动
-    // Linked updates when orbit_type switches.
-    if (fieldName === "orbit_type" && typeof displayVal === "string") {
+    // 切分支类型（orbit_type / transfer_type）时联动
+    // Linked updates when the branch type (orbit_type / transfer_type) switches.
+    if (fieldName === branchKey && typeof displayVal === "string") {
       const newBranch = getBranchDefaults(toolName, displayVal);
       const allowed = getFieldApplicability(toolName, displayVal);
-      const pruned: any = { orbit_type: displayVal };
+      const pruned: any = { [branchKey]: displayVal };
       for (const f of allowed) {
         const val = next[f];
-        if (val !== undefined && f !== "orbit_type") {
+        if (val !== undefined && f !== branchKey) {
           pruned[f] = val;
         }
       }

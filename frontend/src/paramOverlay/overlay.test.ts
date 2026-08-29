@@ -103,3 +103,36 @@ describe("参数覆写层 (paramOverlay)", () => {
     expect(elfoFields).toContain("arg_of_pericenter");
   });
 });
+describe("转移设计类型联动 (transfer_design)", () => {
+  it("四种 transfer_type 的适用字段：HMN 显目标半径，LGA/WSB 显搜索参数且都不显 target_ephemeris（由 GUI 注入）", () => {
+    const hmn = getFieldApplicability("transfer_design", "HMN");
+    expect(hmn).toContain("target_orbit_radius_km");
+    expect(hmn).not.toContain("lga_search_params");
+
+    const lga = getFieldApplicability("transfer_design", "LGA");
+    expect(lga).toContain("lga_search_params");
+    expect(lga).not.toContain("target_orbit_radius_km");
+    expect(lga).not.toContain("target_ephemeris");
+
+    const wsb = getFieldApplicability("transfer_design", "WSB");
+    expect(wsb).toContain("wsb_search_params");
+    expect(wsb).not.toContain("target_ephemeris");
+
+    for (const fields of [hmn, lga, wsb]) {
+      for (const common of ["transfer_type", "tli_epoch", "parking_alt_km", "incl_deg", "flight_path_deg", "tof_range"]) {
+        expect(fields).toContain(common);
+      }
+    }
+  });
+
+  it("HMN 分支默认值：transfer_type 自身 + 地心目标半径取地月平均距离", () => {
+    expect(getBranchDefaults("transfer_design", "HMN")).toEqual({
+      transfer_type: "HMN",
+      target_orbit_radius_km: 384400,
+    });
+  });
+
+  it("ENUM_OPTIONS.transfer_type 提供四项中文标签", () => {
+    expect(ENUM_OPTIONS.transfer_type.map((o) => o.value)).toEqual(["HMN", "LGA", "WSB", "low_thrust"]);
+  });
+});

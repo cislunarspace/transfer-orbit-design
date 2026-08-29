@@ -4,6 +4,7 @@ import {
   familyMembersToTrajectoryData,
   trajectoryTimeRange,
   mergeTrajectoryData,
+  transferTrajectoryToCanvasData,
 } from "./trajectoryParsing";
 
 const MU = 0.01215058560962404;
@@ -138,6 +139,41 @@ describe("trajectoryTimeRange", () => {
 
   it("空列表返回 null（时间轴禁用）", () => {
     expect(trajectoryTimeRange([])).toBeNull();
+  });
+});
+
+describe("transferTrajectoryToCanvasData 转移轨迹解析", () => {
+  // 会合系物理 km（e2m2e ADR 0040）：地月质心原点
+  // Rotating-frame physical km (e2m2e ADR 0040): barycenter origin.
+  const TRAJ = [
+    [-4670.9, 6578.0, 0.0, 0.0, 7.8, 0.0],
+    [100000.0, 0.0, 5000.0, 1.0, 0.0, 0.0],
+    [380000.0, 0.0, 0.0, 0.0, 0.5, 0.0],
+  ];
+
+  it("位置 ÷DU_KM 归一（384400 km → 1 DU），速度列丢弃", () => {
+    const got = transferTrajectoryToCanvasData(TRAJ, null);
+    expect(got.trajectories).toHaveLength(1);
+    expect(got.trajectories[0][0][0]).toBeCloseTo(-4670.9 / 384400, 12);
+    expect(got.trajectories[0][2][0]).toBeCloseTo(380000 / 384400, 12);
+    expect(got.trajectories[0][0]).toHaveLength(3);
+  });
+
+  it("trajectory_times 行数一致时透传（接时间轴）", () => {
+    const got = transferTrajectoryToCanvasData(TRAJ, [0, 100, 200]);
+    expect(got.times).toHaveLength(1);
+    expect(got.times[0]).toEqual([0, 100, 200]);
+  });
+
+  it("times 缺失或行数不一致时丢弃（时间轴禁用）", () => {
+    expect(transferTrajectoryToCanvasData(TRAJ, undefined).times).toEqual([]);
+    expect(transferTrajectoryToCanvasData(TRAJ, [0, 1]).times).toEqual([]);
+  });
+
+  it("空轨迹返回空画布数据", () => {
+    const got = transferTrajectoryToCanvasData([], []);
+    expect(got.trajectories).toEqual([[]]);
+    expect(got.times).toEqual([[]]);
   });
 });
 
