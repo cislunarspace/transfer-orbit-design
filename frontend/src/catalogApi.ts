@@ -29,6 +29,10 @@ export interface CatalogQueryResponse {
   message: string;
 }
 
+/** 保留标签值：出现即视为星标（星形切换 / 仅看星标过滤共用）。 */
+/** The reserved tag value: its presence marks a starred record (shared by the star toggle / starred-only filter). */
+export const STAR_TAG = "★";
+
 export async function catalogQuery(filters: Record<string, unknown>): Promise<CatalogQueryResponse> {
   return invoke<CatalogQueryResponse>("catalog_query", { arguments: filters });
 }

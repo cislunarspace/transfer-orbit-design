@@ -1,6 +1,10 @@
 //! transfer-orbit-design Tauri 应用：sidecar 状态 + 命令注册。
 
+pub mod assistant;
+pub mod assistant_cmd;
 pub mod cmd;
+pub mod job;
+pub mod mcp;
 pub mod project;
 pub mod sidecar;
 pub mod state;
@@ -31,6 +35,23 @@ pub fn dev_sidecar_command(repo_root: &std::path::Path) -> (Vec<String>, Option<
     (
         vec!["uv".into(), "run".into(), "e2m2e".into(), "serve-stdio".into()],
         Some(repo_root.to_string_lossy().into_owned()),
+    )
+}
+
+/// AI 助手的 mcp-serve 拉起配置（本仓 ADR 0023）：与 sidecar 同一可执行
+/// 入口，仅子命令不同（sidecar_main.py 透传 argv）。
+pub fn dev_mcp_command(repo_root: &std::path::Path) -> (Vec<String>, Option<String>) {
+    (
+        vec!["uv".into(), "run".into(), "e2m2e".into(), "mcp-serve".into()],
+        Some(repo_root.to_string_lossy().into_owned()),
+    )
+}
+
+pub fn packaged_mcp_command(resource_dir: &std::path::Path) -> (Vec<String>, Option<String>) {
+    let exe = resource_dir.join("binaries").join(SIDECAR_EXE);
+    (
+        vec![exe.to_string_lossy().into_owned(), "mcp-serve".into()],
+        Some(resource_dir.to_string_lossy().into_owned()),
     )
 }
 
@@ -76,13 +97,28 @@ pub fn run() {
                 }
             }
             SidecarState::configure(command, cwd);
+            // AI 助手：mcp-serve 拉起配置与 sidecar 同源（dev uv / 分发打包），
+            // 仅子命令不同（ADR 0023 决策 2）
+            let (mcp_command, mcp_cwd) = if cfg!(debug_assertions) {
+                dev_mcp_command(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap())
+            } else {
+                packaged_mcp_command(resource_dir_handle.as_deref().unwrap())
+            };
+            mcp::McpState::configure(mcp_command, mcp_cwd);
             // 进度事件 → 前端窗口
             let handle = app.handle().clone();
             state::set_progress_emitter(std::sync::Arc::new(move |ev: &serde_json::Value| {
                 let _ = handle.emit(cmd::PROGRESS_EVENT, ev);
             }));
+            // AI 助手事件 → 前端窗口
+            let assistant_handle = app.handle().clone();
+            assistant::set_emitter(std::sync::Arc::new(move |ev: &serde_json::Value| {
+                let _ = assistant_handle.emit(assistant::ASSISTANT_EVENT, ev);
+            }));
             app.manage(SidecarState::new());
             app.manage(ProjectState::new());
+            app.manage(mcp::McpState::new());
+            app.manage(assistant::AssistantState::new());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -92,7 +128,14 @@ pub fn run() {
             cmd::remove_artifact,
             cmd::get_artifact,
             cmd::catalog_query,
-            cmd::ephemeris_status
+            cmd::register_artifact,
+            cmd::ephemeris_status,
+            assistant_cmd::assistant_get_state,
+            assistant_cmd::assistant_set_config,
+            assistant_cmd::assistant_test_config,
+            assistant_cmd::assistant_send,
+            assistant_cmd::assistant_confirm_tool,
+            assistant_cmd::assistant_clear_history
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

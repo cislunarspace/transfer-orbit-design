@@ -3,20 +3,25 @@
 // Canvas toolbar: gathers projection/center selection and fit/export-animation/chart-settings actions,
 // docked above the canvas (replacing the floating layers that used to sit in opposite corners).
 
-import { Button, Radio } from "antd";
+import { Button, Radio, Switch } from "antd";
 import {
   CompressOutlined,
   VideoCameraOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
 import type { ProjectionMode, CenterMode } from "./OrbitCanvas";
+import { useTranslation } from "./i18n";
 
 export interface CanvasToolbarProps {
   projection: ProjectionMode;
   center: CenterMode;
   recording: boolean;
+  /** 叠加模式：开 = 新轨迹追加不清空，关 = 替换 */
+  /** Overlay mode: on appends new trajectories without clearing; off replaces. */
+  overlay: boolean;
   onProjectionChange: (p: ProjectionMode) => void;
   onCenterChange: (c: CenterMode) => void;
+  onOverlayChange: (v: boolean) => void;
   onFitView: () => void;
   onExportAnimation: () => void;
   onOpenSettings: () => void;
@@ -26,12 +31,15 @@ export function CanvasToolbar({
   projection,
   center,
   recording,
+  overlay,
   onProjectionChange,
   onCenterChange,
+  onOverlayChange,
   onFitView,
   onExportAnimation,
   onOpenSettings,
 }: CanvasToolbarProps) {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -66,6 +74,13 @@ export function CanvasToolbar({
         <Radio.Button value="l1">L1</Radio.Button>
         <Radio.Button value="l2">L2</Radio.Button>
       </Radio.Group>
+
+      {/* 叠加模式开关：管辖所有上画布的绘制路径（追加 / 替换） */}
+      {/* Overlay-mode switch: governs every plotting path onto the canvas (append / replace). */}
+      <div style={{ display: "flex", alignItems: "center", gap: 4 }} title={t("action.overlay_hint")}>
+        <Switch size="small" checked={overlay} onChange={(v) => onOverlayChange(v)} />
+        <span style={{ fontSize: 12, cursor: "default" }}>{t("action.overlay")}</span>
+      </div>
 
       <div style={{ flex: 1 }} />
 

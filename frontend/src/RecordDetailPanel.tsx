@@ -1,11 +1,12 @@
-// 记录详情面板：展示谱系、断链标记、物理属性，支持教学标注 (catalog_tag) 与族成员提升 (catalog_promote)
-// Record detail panel: shows lineage, broken-link markers, and physical properties; supports teaching annotations
+// 记录详情面板：展示谱系、断链标记、物理属性，支持备注与标签 (catalog_tag) 与族成员提升 (catalog_promote)
+// Record detail panel: shows lineage, broken-link markers, and physical properties; supports notes & tags
 // (catalog_tag) and family-member promotion (catalog_promote).
 
 import { useState, useEffect } from "react";
 import { Card, Descriptions, Tag, Input, Button, InputNumber, Space, Typography, message } from "antd";
 import { EditOutlined, ArrowUpOutlined, RocketOutlined } from "@ant-design/icons";
-import { type CatalogRecord, catalogTag, catalogPromote } from "./catalogApi";
+import { type CatalogRecord, catalogTag, catalogPromote, STAR_TAG } from "./catalogApi";
+import { useTranslation } from "./i18n";
 
 const { Text } = Typography;
 
@@ -16,6 +17,7 @@ interface RecordDetailPanelProps {
 }
 
 export function RecordDetailPanel({ record, onRefresh, onOpenStationKeeping }: RecordDetailPanelProps) {
+  const { t } = useTranslation();
   if (!record) {
     return (
       <Card size="small" title="记录详情" style={{ marginTop: 8 }}>
@@ -39,9 +41,15 @@ export function RecordDetailPanel({ record, onRefresh, onOpenStationKeeping }: R
   const handleSaveAnnotation = async () => {
     setSavingTag(true);
     try {
-      const tagList = tagsInput.split(",").map((s) => s.trim()).filter(Boolean);
+      const raw = tagsInput.split(",").map((s) => s.trim()).filter(Boolean);
+      // 星标 (★) 为保留值：编辑框输入的 ★ 剥离并提示，星标经项目树星形图标设置
+      // The star (★) is reserved: ★ typed here is stripped with a hint; stars are set via the tree's star icon.
+      const tagList = raw.filter((tag) => tag !== STAR_TAG);
+      if (tagList.length !== raw.length) {
+        message.info(t("panel.star_reserved"));
+      }
       await catalogTag(record.record_id, tagList, noteInput);
-      message.success("教学标注保存成功");
+      message.success(t("panel.annotation_saved"));
       onRefresh?.();
     } catch (e) {
       message.error(`保存失败: ${String(e)}`);
@@ -137,9 +145,10 @@ export function RecordDetailPanel({ record, onRefresh, onOpenStationKeeping }: R
         </div>
       )}
 
-      {/* 教学标注与标签 */}
+      {/* 备注与标签（原“教学标注”，2026-08 更名） */}
+      {/* Notes & tags (renamed from the former "teaching annotation" in 2026-08). */}
       <div style={{ marginTop: 10, borderTop: "1px dashed #434343", paddingTop: 8 }}>
-        <Text strong style={{ fontSize: 11 }}>教学标注 (Tags & Note)</Text>
+        <Text strong style={{ fontSize: 11 }}>{t("panel.annotation_title")}</Text>
         <Input
           size="small"
           placeholder="标签 (逗号分隔)"

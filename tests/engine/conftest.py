@@ -219,11 +219,20 @@ class _FakeControlResult:
 
 
 @pytest.fixture()
-def catalog_bridge(tmp_path):
+def catalog_bridge(tmp_path, monkeypatch):
     """指向 tmp 库目录的 FacadeBridge（产物自动入库不污染真实库）。
 
+    关闭 e2m2e 基线首用导入（E2M2E_CATALOG_BASELINE_IMPORT=0，ADR 0036）：
+    用例断言的是本仓产物的入库语义，需空库起点；5.8.6 起开库自动导入
+    15 条基线记录，会把"空库"假设打破。
+
         A FacadeBridge pointed at a tmp
-    catalog (auto-ingestion never touches the real catalog)."""
+    catalog (auto-ingestion never touches the real catalog). Baseline
+    first-use import is disabled (E2M2E_CATALOG_BASELINE_IMPORT=0, ADR 0036):
+    the tests assert this repo's own ingest semantics and need an empty
+    catalog; since e2m2e 5.8.6 opening a catalog auto-imports 15 baseline
+    records, which breaks the "empty catalog" assumption."""
+    monkeypatch.setenv("E2M2E_CATALOG_BASELINE_IMPORT", "0")
     from src.engine.facade_bridge import FacadeBridge
 
     return FacadeBridge(catalog_dir=str(tmp_path / "catalog"))

@@ -3,6 +3,7 @@ import {
   framesToTrajectoryData,
   familyMembersToTrajectoryData,
   trajectoryTimeRange,
+  mergeTrajectoryData,
   transferTrajectoryToCanvasData,
 } from "./trajectoryParsing";
 
@@ -173,5 +174,24 @@ describe("transferTrajectoryToCanvasData 转移轨迹解析", () => {
     const got = transferTrajectoryToCanvasData([], []);
     expect(got.trajectories).toEqual([[]]);
     expect(got.times).toEqual([[]]);
+  });
+});
+
+describe("mergeTrajectoryData 叠加/替换", () => {
+  const prev = { trajectories: [[[0, 0, 0]]], times: [[0]] };
+  const next = { trajectories: [[[1, 1, 1]], [[2, 2, 2]]], times: [[5], [6]] };
+
+  it("overlay=true 追加不清空（轨迹与时刻按序拼接）", () => {
+    const got = mergeTrajectoryData(prev, next, true);
+    expect(got.trajectories).toHaveLength(3);
+    expect(got.times).toHaveLength(3);
+    expect(got.trajectories[0]).toEqual(prev.trajectories[0]);
+    expect(got.trajectories[2]).toEqual(next.trajectories[1]);
+  });
+
+  it("overlay=false 整体替换（默认手感）", () => {
+    const got = mergeTrajectoryData(prev, next, false);
+    expect(got.trajectories).toBe(next.trajectories);
+    expect(got.times).toBe(next.times);
   });
 });
