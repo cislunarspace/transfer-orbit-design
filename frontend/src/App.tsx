@@ -44,7 +44,7 @@ import { AssistantSidebar } from "./assistant/AssistantSidebar";
 import { AssistantSettingsForm } from "./assistant/AssistantSettingsForm";
 import type { SelectionContext } from "./assistant/api";
 import { librationPoint } from "./cr3bp";
-import { familyMembersToTrajectoryData, framesToTrajectoryData, trajectoryTimeRange } from "./trajectoryParsing";
+import { familyMembersToTrajectoryData, framesToTrajectoryData, trajectoryTimeRange, mergeTrajectoryData } from "./trajectoryParsing";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
 
 const { Text, Title } = Typography;
@@ -85,6 +85,15 @@ export default function App() {
 
   const [api, setApi] = useState<CanvasApi | null>(null);
   const [chart, setChart] = useChartSettings();
+  // 叠加模式：开 = 新轨迹追加不清空，关 = 替换（localStorage 持久化）
+  // Overlay mode: on appends new trajectories without clearing, off replaces (persisted in localStorage).
+  const [overlayMode, setOverlayMode] = useState<boolean>(
+    () => localStorage.getItem("canvas.overlayMode") === "1"
+  );
+  const handleToggleOverlay = (v: boolean) => {
+    setOverlayMode(v);
+    localStorage.setItem("canvas.overlayMode", v ? "1" : "0");
+  };
   const [chartModalOpen, setChartModalOpen] = useState(false);
   const [stationKeepingOpen, setStationKeepingOpen] = useState(false);
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
@@ -168,14 +177,21 @@ export default function App() {
     refreshArtifacts();
   }, [refreshArtifacts]);
 
-  // 轨迹上画布的同时接通时间轴：写入时刻数组与全局范围，当前时刻置于起点
-  // Wire the timeline while placing the trajectory on the canvas: write the time array and global range, with the current moment at the start.
+  // 轨迹上画布的同时接通时间轴：写入时刻数组与全局范围。叠加模式下追加不清空；
+  // 当前时刻置空——红点不自动出现，待用户拖动时间轴或播放后出现。
+  // Wire the timeline while placing trajectories on the canvas: write the time array and global range.
+  // Overlay mode appends without clearing; the current moment resets to null so the time marker
+  // never appears automatically — it shows only after the user drags the timeline or presses play.
   const applyTrajectoryData = (data: { trajectories: number[][][]; times: number[][] }) => {
-    setTrajectories(data.trajectories);
-    setTrajectoryTimes(data.times);
-    const range = trajectoryTimeRange(data.times);
-    setTimeRange(range);
-    setCurrentEt(range ? range[0] : null);
+    const merged = mergeTrajectoryData(
+      { trajectories, times: trajectoryTimes },
+      data,
+      overlayMode
+    );
+    setTrajectories(merged.trajectories);
+    setTrajectoryTimes(merged.times);
+    setTimeRange(trajectoryTimeRange(merged.times));
+    setCurrentEt(null);
     setTimeout(() => api?.fitView(), 100);
   };
 
@@ -281,6 +297,58 @@ export default function App() {
       }
     : null;
 
+  // 勾选多条后“绘制所选”：逐条复用单选的拉取链路，轨迹/时刻拼接成一份数据上画布；
+  // 单条失败跳过并提示，不阻塞其余。
+  // "Plot Selected" after multi-check: reuse the single-select fetch chain per record, concatenate
+  // trajectories/times into one dataset for the canvas; a failed record is skipped with a hint.
+  const handlePlotSelected = async (items: ArtifactSummary[]) => {
+    const trajParts: number[][][] = [];
+    const timeParts: number[][] = [];
+    for (const item of items) {
+      if (!item.recordId) continue;
+      try {
+        const data = await getArtifact(item.recordId);
+        if (data.familyMembers && data.familyMembers.length > 0) {
+          const td = familyMembersToTrajectoryData(data.familyMembers, data.mu ?? EARTH_MOON_MU);
+          if (td.trajectories.length > 0) {
+            trajParts.push(...td.trajectories);
+            timeParts.push(...td.times);
+            continue;
+          }
+        }
+        if (data.members && data.members.length > 0) {
+          // 裸点集无时刻：每成员是 n×3 平铺数组，重排为 xyz 点列
+          // Bare point sets carry no times: each member is a flat n×3 array, reshaped into xyz points.
+          const pts = data.members
+            .map((flat) => {
+              const rows: number[][] = [];
+              for (let i = 0; i + 3 <= flat.length; i += 3) {
+                rows.push([flat[i], flat[i + 1], flat[i + 2]]);
+              }
+              return rows;
+            })
+            .filter((rows) => rows.length > 0);
+          trajParts.push(...pts);
+          pts.forEach(() => timeParts.push([]));
+        }
+      } catch (e) {
+        message.warning(`${t("tree.plot_skip_failed")}: ${item.label}`);
+      }
+    }
+    if (trajParts.length > 0) {
+      applyTrajectoryData({ trajectories: trajParts, times: timeParts });
+    }
+  };
+
+  // 星标/备注保存成功后同步树行数据（本地更新，不重查整表）
+  // Sync the tree row after a successful star/note save (local update; no full re-query).
+  const updateArtifactMeta = (recordId: string, tags: string[], note?: string) => {
+    setArtifacts((prev) =>
+      prev.map((a) =>
+        a.recordId === recordId ? { ...a, tags, ...(note !== undefined ? { note } : {}) } : a
+      )
+    );
+  };
   // 执行通用工具（提交前防呆校验：必填/越界不过则不提交）
   // Run the generic tool (preflight checks before submit: missing required fields or out-of-range values block submission).
   const handleRunTool = async () => {
@@ -493,6 +561,8 @@ export default function App() {
                 setStationKeepingOpen(true);
               }}
               onRefresh={refreshArtifacts}
+              onPlotSelected={handlePlotSelected}
+              onMetaChange={updateArtifactMeta}
             />
           </div>
 
@@ -576,8 +646,10 @@ export default function App() {
               projection={projection}
               center={center}
               recording={recording}
+              overlay={overlayMode}
               onProjectionChange={setProjection}
               onCenterChange={setCenter}
+              onOverlayChange={handleToggleOverlay}
               onFitView={() => api?.fitView()}
               onExportAnimation={handleExportAnimation}
               onOpenSettings={() => setChartModalOpen(true)}

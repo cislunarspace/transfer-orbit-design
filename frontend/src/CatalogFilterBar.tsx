@@ -1,10 +1,12 @@
 // 轨道库过滤栏
 // The catalog filter bar.
 
-import { useEffect, useState } from "react";
-import { Form, Select, InputNumber, Button, Space, message, Modal, Input } from "antd";
+import { useEffect, useRef, useState } from "react";
+import { Form, Select, InputNumber, Button, Space, message, Modal, Input, Switch } from "antd";
 import { SearchOutlined, DownloadOutlined, RedoOutlined } from "@ant-design/icons";
-import { catalogQuery, catalogExport } from "./catalogApi";
+import { catalogQuery, catalogExport, STAR_TAG } from "./catalogApi";
+import type { CatalogRecord } from "./catalogApi";
+import { useTranslation } from "./i18n";
 import type { ArtifactSummary } from "./projectApi";
 
 export interface CatalogFilterBarProps {
@@ -13,15 +15,40 @@ export interface CatalogFilterBarProps {
 }
 
 export function CatalogFilterBar({ onResults }: CatalogFilterBarProps) {
+  const { t } = useTranslation();
   const [family, setFamily] = useState<string | undefined>(undefined);
   const [libration, setLibration] = useState<number | undefined>(undefined);
   const [jacobiMin, setJacobiMin] = useState<number | undefined>(undefined);
   const [jacobiMax, setJacobiMax] = useState<number | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  // 仅看星标：纯前端过滤最近一次查询结果，不重发请求
+  // Starred-only: a pure front-end filter over the latest query results; no request is re-sent.
+  const [starOnly, setStarOnly] = useState(false);
+  const lastRecordsRef = useRef<CatalogRecord[]>([]);
 
-  const [exportModalOpen, setExportModalOpen] = useState(false);
-  const [exportDest, setExportDest] = useState("./export_package.zip");
-  const [exporting, setExporting] = useState(false);
+  // 查询结果 → 树数据源（星标过滤 + tags/note 透传给树行）
+  // Query results → tree data source (star filtering + tags/note passthrough into tree rows).
+  const publish = (records: CatalogRecord[], fallbackMessage?: string) => {
+    const visible = starOnly
+      ? records.filter((r) => (r.tags ?? []).includes(STAR_TAG))
+      : records;
+    onResults(
+      visible.map((r) => ({
+        artifactId: String(r.record_id ?? ""),
+        artifactType: r.source_tool === "orbit_family_generation" || (r.member_count ?? 0) > 1 ? "family" : "orbit",
+        label: `${String(r.orbit_family ?? "")} (${r.member_count ?? 1} 成员)`,
+        orbitType: String(r.orbit_family ?? ""),
+        sourceTool: String(r.source_tool ?? ""),
+        recordId: (r.record_id as string) ?? null,
+        createdAt: String(r.created_at ?? ""),
+        hasEphemeris: Boolean(r.has_ephemeris),
+        tags: r.tags ?? [],
+        note: r.note ?? "",
+      })),
+      visible.length,
+      fallbackMessage || `查询到 ${visible.length} 条记录`,
+    );
+  };
 
   const executeQuery = async () => {
     setBusy(true);
@@ -34,20 +61,8 @@ export function CatalogFilterBar({ onResults }: CatalogFilterBarProps) {
 
       const resp = await catalogQuery(filters);
       const records = resp.records || [];
-      onResults(
-        records.map((r) => ({
-          artifactId: String(r.record_id ?? ""),
-          artifactType: r.source_tool === "orbit_family_generation" || (r.member_count ?? 0) > 1 ? "family" : "orbit",
-          label: `${String(r.orbit_family ?? "")} (${r.member_count ?? 1} 成员)`,
-          orbitType: String(r.orbit_family ?? ""),
-          sourceTool: String(r.source_tool ?? ""),
-          recordId: (r.record_id as string) ?? null,
-          createdAt: String(r.created_at ?? ""),
-          hasEphemeris: Boolean(r.has_ephemeris),
-        })),
-        records.length,
-        resp.message || `查询到 ${records.length} 条记录`,
-      );
+      lastRecordsRef.current = records;
+      publish(records, resp.message);
     } catch (e) {
       message.error(`查询失败: ${String(e)}`);
     } finally {
@@ -58,6 +73,18 @@ export function CatalogFilterBar({ onResults }: CatalogFilterBarProps) {
   useEffect(() => {
     executeQuery();
   }, []);
+
+  // 星标开关切换：对已查得的记录重过滤（publish 闭包取当次渲染的 starOnly）
+  // Toggling the star switch re-filters the already-fetched records (publish closes over this render's starOnly).
+  useEffect(() => {
+    if (lastRecordsRef.current.length > 0) {
+      publish(lastRecordsRef.current);
+    }
+  }, [starOnly]);
+
+  const [exportModalOpen, setExportModalOpen] = useState(false);
+  const [exportDest, setExportDest] = useState("./export_package.zip");
+  const [exporting, setExporting] = useState(false);
 
   const handleExportPackage = async () => {
     setExporting(true);
@@ -121,6 +148,14 @@ export function CatalogFilterBar({ onResults }: CatalogFilterBarProps) {
               { label: "L4", value: 4 },
               { label: "L5", value: 5 },
             ]}
+          />
+        </Form.Item>
+
+        <Form.Item label={t("catalog.star_only")} style={{ marginBottom: 6 }}>
+          <Switch
+            size="small"
+            checked={starOnly}
+            onChange={setStarOnly}
           />
         </Form.Item>
 
