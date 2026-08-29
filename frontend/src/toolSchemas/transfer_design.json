@@ -36,7 +36,7 @@
     },
     "target_ephemeris": {
       "default": null,
-      "description": "目标星历（EphemerisTable/NominalOrbit/ndarray）",
+      "description": "目标星历（会合旋转系物理 km/km/s，e2m2e#516 契约）；LGA/WSB 由 GUI 从项目树选中工件末态自动注入，无需手填",
       "title": "Target Ephemeris"
     },
     "target_orbit_radius_km": {
@@ -50,7 +50,7 @@
         }
       ],
       "default": null,
-      "description": "目标轨道半径 (km)，HMN 必需",
+      "description": "目标轨道半径 (km)，HMN 必需；地心距——从地心量起的圆轨道半径，非月心高度（环月取 ≈384400）",
       "title": "Target Orbit Radius Km"
     },
     "tof_range": {

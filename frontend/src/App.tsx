@@ -39,7 +39,7 @@ import { useChartSettings } from "./chartSettings";
 import { CanvasRecorder, downloadBlob } from "./canvasRecorder";
 import { listArtifacts, removeArtifact, type ArtifactSummary } from "./projectApi";
 import { runTool, getArtifact, ephemerisStatus, type EphemerisStatus } from "./sidecarApi";
-import { librationPoint } from "./cr3bp";
+import { DU_KM, TU_SECONDS, librationPoint } from "./cr3bp";
 import {
   familyMembersToTrajectoryData,
   framesToTrajectoryData,
@@ -223,6 +223,47 @@ export default function App() {
       const cleaned = Object.fromEntries(
         Object.entries(toolParams).filter(([, v]) => v !== null && v !== undefined && v !== "")
       );
+
+      // LGA/WSB 目标注入（legacy facade_bridge.py 同款）：取项目树选中轨道
+      // 工件 CR3BP 状态序列末行，换算会合系物理 km/km/s 注入 target_ephemeris
+      // （e2m2e#516 契约）；LGA 无显式搜索参数时注入加密相位网格。未选中
+      // 工件则拦截提交（老 PyQt 行为：状态栏拦截）。
+      // LGA/WSB target injection (same as the legacy facade_bridge.py): take
+      // the last row of the selected orbit artifact's CR3BP state sequence,
+      // convert to rotating-frame physical km/km/s for target_ephemeris
+      // (e2m2e#516 contract); inject the denser phase grid when LGA search
+      // params are absent. Block submission without a selection (matching the
+      // legacy PyQt interception).
+      if (
+        selectedTool === "transfer_design" &&
+        (cleaned.transfer_type === "LGA" || cleaned.transfer_type === "WSB")
+      ) {
+        if (!selectedArtifact?.recordId) {
+          message.warning("LGA/WSB 转移需要先在项目树选中目标轨道工件");
+          return;
+        }
+        try {
+          const art = await getArtifact(selectedArtifact.recordId);
+          const s = art.familyMembers?.[0]?.states;
+          if (!s || s.length < 6) {
+            message.warning("选中工件无 CR3BP 状态序列，无法注入目标");
+            return;
+          }
+          const rows: number[][] = [];
+          for (let i = 0; i + 6 <= s.length; i += 6) rows.push(s.slice(i, i + 6));
+          const last = rows[rows.length - 1];
+          cleaned.target_ephemeris = [
+            ...last.slice(0, 3).map((v) => v * DU_KM),
+            ...last.slice(3, 6).map((v) => (v * DU_KM) / TU_SECONDS),
+          ];
+        } catch (e) {
+          message.error(`读取选中工件失败: ${String(e)}`);
+          return;
+        }
+        if (cleaned.transfer_type === "LGA" && !cleaned.lga_search_params) {
+          cleaned.lga_search_params = { n_departure_phase: 360, n_tof: 5 };
+        }
+      }
 
       const resp = await runTool(
         selectedTool,
