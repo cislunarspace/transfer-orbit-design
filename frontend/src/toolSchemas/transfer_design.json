@@ -36,7 +36,7 @@
     },
     "target_ephemeris": {
       "default": null,
-      "description": "目标星历（会合旋转系物理 km/km/s，e2m2e#516 契约）；LGA/WSB 由 GUI 从项目树选中工件末态自动注入，无需手填",
+      "description": "目标星历（EphemerisTable/NominalOrbit/ndarray），LGA/WSB 必需。坐标系契约按转移类型区分：LGA/WSB 要求会合旋转系（synodic）物理单位（km, km/s）状态，编排器直接无量纲化，不做惯性系→旋转系转换，orbit_propagation/design_orbit 产出的惯性星历必须先经 spacetime_transform(j2000_to_synodic) 转换后再传入，否则目标态几何全错；HMN/low_thrust 按地心惯性系 km/km/s 状态解释。",
       "title": "Target Ephemeris"
     },
     "target_orbit_radius_km": {
@@ -78,6 +78,108 @@
       "default": null,
       "description": "WSB 搜索参数（WsbSearchParams 实例）",
       "title": "Wsb Search Params"
+    },
+    "engine_config": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "推进配置（low_thrust 必需）：{'t_max': 最大推力 N, 'isp': 比冲 s}",
+      "title": "Engine Config"
+    },
+    "initial_mass": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "初始质量 (kg)，low_thrust 必需",
+      "title": "Initial Mass"
+    },
+    "n_segments": {
+      "default": 10,
+      "description": "求解器段数（low_thrust，默认 10）",
+      "exclusiveMinimum": 0,
+      "title": "N Segments",
+      "type": "integer"
+    },
+    "target_oe": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 3,
+          "minItems": 3,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Q-law 目标 [a_T (km), e_T, i_T (弧度)]（low_thrust 可选）",
+      "title": "Target Oe"
+    },
+    "solver_method": {
+      "default": "shooting",
+      "description": "求解方法 shooting/collocation（low_thrust）",
+      "title": "Solver Method",
+      "type": "string"
+    },
+    "duration_days": {
+      "default": 30.0,
+      "description": "飞行时间（天）（low_thrust，默认 30.0）",
+      "exclusiveMinimum": 0.0,
+      "title": "Duration Days",
+      "type": "number"
+    },
+    "departure_state": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 6,
+          "minItems": 6,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "出发状态 [x,y,z,vx,vy,vz]（地心惯性系，km, km/s）（low_thrust 可选）",
+      "title": "Departure State"
+    },
+    "target_state": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 6,
+          "minItems": 6,
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "目标末态 [x,y,z,vx,vy,vz]（地心惯性系，km, km/s）（low_thrust 可选）",
+      "title": "Target State"
     }
   },
   "required": [

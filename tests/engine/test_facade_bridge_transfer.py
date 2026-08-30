@@ -43,6 +43,12 @@ class _FakeTransferResult:
         # e2m2e 5.8.9 起 Facade 无条件读取该字段（ADR 0040 轨迹契约）
         # The Facade reads this unconditionally since e2m2e 5.8.9 (ADR 0040 contract).
         self.trajectory_times = trajectory_times
+        # e2m2e 5.9.0 起 Facade 无条件读取 state_frame 与 maneuver_events
+        # （ADR 0040 增补：数据系标注契约 / 机动事件契约）
+        # The Facade reads state_frame and maneuver_events unconditionally
+        # since e2m2e 5.9.0 (ADR 0040 amendments: state-frame / maneuver-event contracts).
+        self.state_frame = "synodic_barycentric_km"
+        self.maneuver_events = []
         self.details = {"tof_sec": 345600.0}
         self.status = (
             ConvergenceState.CONVERGED if converged else ConvergenceState.INFEASIBLE

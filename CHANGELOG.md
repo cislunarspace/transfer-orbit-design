@@ -2,6 +2,15 @@
 
 ## 未发布
 
+### 功能
+
+- **结果层/固定层双层画布与 et 两级时刻基准（#427）**：画布内容分结果层（当前计算产物，随计算替换）与固定层（项目树钉住的库记录，5 条上限＋色环图例）双层模型；轨迹位置按「et 秒 / 历元 UTC」两级时刻基准解析；修复轨道预报 GCRS 惯性 km 被按会合无量纲误画（#421，÷DU_KM＋et 基准）；时间轴新增 Δv 事件 chip。
+- **地月空间分区图层（#432）**：e2m2e `spatiography_boundaries` 工具（Rosengren et al. 2026 Primer §5 五省分区）返回的边界几何——地心 Laplace 半径、地球/月球 SOI 与 Hill 圆族、Battin 非对称闭合曲线、Chebotarev 圆、L3–L5 平动点标记——经 km→DU 归一后作为固定参照层上画布，不参与取景适配；图表设置新增分区图层开关（持久化）。
+
+### 其他
+
+- **依赖 e2m2e 升至 ≥5.9.0（#431）**：最低版本覆盖 state_frame 数据系标注（5.8.10，e2m2e#572）与地月空间分区解析三工具（5.9.0，e2m2e#577）。`toolSchemas/` 全量重导出校准：`transfer_design` 补齐 low_thrust 参数（engine_config/initial_mass 等）与目标星历坐标系契约描述，`catalog_query` 增转移记录过滤器（transfer_type/tli_epoch），`spacetime_transform` 的 times 字段改为双单位契约描述，新增 `spatiography_classify`/`spatiography_scales`；助手摘要层同步转移契约——`trajectory_times` 大数组与 `trajectory` 同规则省略，`state_frame` 标注小字段透传进上下文供模型解读数据系。
+
 ## 4.5.0 (2026-08-30)
 
 ### 功能

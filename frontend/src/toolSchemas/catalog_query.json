@@ -154,6 +154,73 @@
       "default": null,
       "description": "按标签筛，命中任一即匹配",
       "title": "Tags"
+    },
+    "transfer_type": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "转移类型等值过滤（HMN/LGA/WSB/low_thrust；#574 transfer record）",
+      "title": "Transfer Type"
+    },
+    "delta_v_min_km_s": {
+      "anyOf": [
+        {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "转移总 Δv 区间下界（km/s）",
+      "title": "Delta V Min Km S"
+    },
+    "delta_v_max_km_s": {
+      "anyOf": [
+        {
+          "minimum": 0.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "转移总 Δv 区间上界（km/s）",
+      "title": "Delta V Max Km S"
+    },
+    "tli_epoch_min": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "TLI 历元区间下界（JD_TDB 数值）。仅数值历元入索引；UTC 字符串历元记录不匹配区间过滤",
+      "title": "Tli Epoch Min"
+    },
+    "tli_epoch_max": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "TLI 历元区间上界（JD_TDB 数值）",
+      "title": "Tli Epoch Max"
     }
   },
   "title": "CatalogQueryRequest",
