@@ -71,6 +71,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // 开发期（cargo tauri dev，debug 构建）：仓库根下 uv 拉起；
             // 分发期（release 构建）：resources/binaries 内的打包 sidecar。
@@ -129,6 +130,8 @@ pub fn run() {
             cmd::catalog_query,
             cmd::register_artifact,
             cmd::ephemeris_status,
+            cmd::save_scenario,
+            cmd::open_scenario,
             assistant_cmd::assistant_get_state,
             assistant_cmd::assistant_set_config,
             assistant_cmd::assistant_test_config,

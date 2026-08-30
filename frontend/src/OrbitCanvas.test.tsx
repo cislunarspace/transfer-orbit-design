@@ -747,3 +747,210 @@ describe("Jacobi 常数着色（#435）", () => {
     expect((swatches[1] as HTMLElement).style.background).toBe("rgb(180, 4, 38)"); // #b40426
   });
 });
+
+// —— 惯性视图（#428 第一步）：视图系贯通——灰显、月球 SPICE 轨迹、
+// 会合系参照隐藏、et 正交 ——
+// Inertial view (#428 step 1): the view frame threads through — graying,
+// the Moon's SPICE track, synodic-reference hiding, et orthogonality.
+
+import { Color as ThreeColor } from "three";
+import type { MoonTrack } from "./moonEphemeris";
+
+/** 与 OrbitCanvas 的灰显算法对拍：保留 18% 饱和度、亮度不变。 */
+/** Mirrors OrbitCanvas's graying: keeps 18% saturation, brightness unchanged. */
+function desaturate(hex: string): string {
+  const c = new ThreeColor(hex);
+  const hsl = { h: 0, s: 0, l: 0 };
+  c.getHSL(hsl);
+  c.setHSL(hsl.h, hsl.s * 0.18, hsl.l);
+  return `#${c.getHexString()}`;
+}
+
+/** 半圆月轨（跨度 [0, 100]，间距 1）：位置 = (et/100·π, sin) 归一幅度。 */
+/** A semicircular Moon track (span [0, 100], spacing 1): position = (et/100·π, sin) normalized. */
+const MOON_TRACK: MoonTrack = {
+  points: Array.from({ length: 101 }, (_, i) => [
+    Math.cos((i / 100) * Math.PI),
+    Math.sin((i / 100) * Math.PI),
+    0,
+  ]),
+  etRange: [0, 100],
+};
+
+function sceneOf(): import("three").Scene {
+  const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+  return instances[instances.length - 1].lastScene as import("three").Scene;
+}
+
+describe("惯性视图（#428）", () => {
+  it("地球居原点；月轨线进标注组；月球贴图摆到跨度中点", () => {
+    renderCanvas({ frame: "inertial", moonTrack: MOON_TRACK });
+    flushFrames();
+    const scene = sceneOf();
+    const annotations = annotationsOf(scene);
+
+    const earth = annotations.getObjectByName("earth") as import("three").Mesh;
+    expect(earth.position.x).toBeCloseTo(0, 10);
+    expect(earth.position.y).toBeCloseTo(0, 10);
+
+    // 月轨线在标注组（天体参照物语义，不参与视图适配），不混进轨道组
+    // The Moon track lives in the annotation group (body-reference semantics,
+    // excluded from view fitting), never among the orbit lines.
+    expect(annotations.getObjectByName("moon-track")).toBeDefined();
+    expect(sceneLines(scene)).toHaveLength(TRAJECTORIES.length);
+
+    const moon = annotations.getObjectByName("moon") as import("three").Mesh;
+    expect(moon).toBeDefined();
+    // 无 currentEt：月球在跨度中点（et=50 → 半圆顶点 (0, 1, 0)）
+    // No currentEt: the Moon sits at the span midpoint (et=50 → semicircle apex (0, 1, 0)).
+    expect(moon.position.x).toBeCloseTo(0, 6);
+    expect(moon.position.y).toBeCloseTo(1, 6);
+  });
+
+  it("月球贴图随 currentEt 沿月轨插值移动（与 spacetime_transform 输出的缩放对拍）", () => {
+    const view = renderCanvas({
+      frame: "inertial",
+      moonTrack: MOON_TRACK,
+      times: [[0, 100]],
+      currentEt: 25,
+    });
+    flushFrames();
+    let moon = annotationsOf(sceneOf()).getObjectByName("moon") as import("three").Mesh;
+    expect(moon.position.x).toBeCloseTo(Math.cos(Math.PI / 4), 6);
+    expect(moon.position.y).toBeCloseTo(Math.sin(Math.PI / 4), 6);
+
+    view.rerender(
+      <OrbitCanvas
+        trajectories={TRAJECTORIES}
+        times={[[0, 100]]}
+        currentEt={75}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        frame="inertial"
+        moonTrack={MOON_TRACK}
+        onReady={noopReady}
+      />,
+    );
+    flushFrames();
+    moon = annotationsOf(sceneOf()).getObjectByName("moon") as import("three").Mesh;
+    expect(moon.position.x).toBeCloseTo(Math.cos((3 * Math.PI) / 4), 6);
+    expect(moon.position.y).toBeCloseTo(Math.sin((3 * Math.PI) / 4), 6);
+  });
+
+  it("moonTrack 缺失时月球隐藏（ADR 0013 离线降级）", () => {
+    renderCanvas({ frame: "inertial", moonTrack: null });
+    flushFrames();
+    const annotations = annotationsOf(sceneOf());
+    expect(annotations.getObjectByName("moon")).toBeUndefined();
+    expect(annotations.getObjectByName("moon-track")).toBeUndefined();
+  });
+
+  it("会合视图不消费 moonTrack（零行为变化）", () => {
+    renderCanvas({ frame: "synodic", moonTrack: MOON_TRACK });
+    flushFrames();
+    const annotations = annotationsOf(sceneOf());
+    expect(annotations.getObjectByName("moon-track")).toBeUndefined();
+    const moon = annotations.getObjectByName("moon") as import("three").Mesh;
+    expect(moon.position.x).toBeCloseTo(1 - MU, 10);
+  });
+
+  it("synodic 数据系轨迹灰显（去饱和），inertial_km 轨迹原色", () => {
+    renderCanvas({
+      frame: "inertial",
+      trajectories: [TRAJECTORIES[0], TRAJECTORIES[0]],
+      dataFrames: ["synodic_nd", "inertial_km"],
+    });
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const lines = sceneLines(instances[instances.length - 1].lastScene);
+    const hexOf = (l: Line) =>
+      (l.material as unknown as { color: { getHexString(): string } }).color.getHexString();
+    // 第 0 条（synodic_nd）→ 灰显色；第 1 条（inertial_km）→ 原色环第二色
+    // Row 0 (synodic_nd) → grayed; row 1 (inertial_km) → the untouched second cycle color.
+    expect(hexOf(lines[0])).toBe(desaturate(DEFAULT_CHART_SETTINGS.colorCycle[0]).slice(1));
+    expect(hexOf(lines[1])).toBe(DEFAULT_CHART_SETTINGS.colorCycle[1].slice(1));
+  });
+
+  it("dataFrames 缺省按 synodic_nd 解释：惯性视图下灰显", () => {
+    renderCanvas({ frame: "inertial" });
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const lines = sceneLines(instances[instances.length - 1].lastScene);
+    const hex = (lines[0].material as unknown as { color: { getHexString(): string } }).color.getHexString();
+    expect(hex).toBe(desaturate(DEFAULT_CHART_SETTINGS.colorCycle[0]).slice(1));
+  });
+
+  it("平动点与分区图层隐藏（会合系参照）", () => {
+    renderCanvas({ frame: "inertial", regions: REGIONS });
+    flushFrames();
+    const scene = sceneOf();
+    // L1/L2 是 SphereGeometry 标注球：惯性下不画（只剩地球/月球贴图）
+    // L1/L2 are sphere annotation markers: not drawn in the inertial view
+    // (only the textured Earth/Moon remain).
+    const annotations = annotationsOf(scene);
+    const spheres = annotations.children.filter(
+      (c) => (c as unknown as { isMesh?: boolean }).isMesh,
+    );
+    expect(spheres.length).toBe(1); // 仅地球
+    expect(regionsOf(scene).children).toHaveLength(0);
+  });
+
+  it("视图系正交：切 frame 不动 time-marker（currentEt 语义与视图系无关）", () => {
+    const view = renderCanvas({
+      times: [[0, 100]],
+      currentEt: 60,
+    });
+    flushFrames();
+    const markerBefore = () => {
+      const s = sceneOf();
+      return s.children.find((o) => o.name === "time-marker") as import("three").Mesh;
+    };
+    const before = { ...markerBefore().position };
+
+    view.rerender(
+      <OrbitCanvas
+        trajectories={TRAJECTORIES}
+        times={[[0, 100]]}
+        currentEt={60}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        frame="inertial"
+        moonTrack={MOON_TRACK}
+        onReady={noopReady}
+      />,
+    );
+    flushFrames();
+    const after = markerBefore().position;
+    expect(after.x).toBeCloseTo(before.x, 10);
+    expect(after.y).toBeCloseTo(before.y, 10);
+    expect(after.z).toBeCloseTo(before.z, 10);
+  });
+
+  it("惯性视图下 Jacobi 颜色条隐藏（有值轨迹全灰显，颜色条与线色脱钩不展示）", () => {
+    const view = renderCanvas({
+      frame: "inertial",
+      trajectories: [TRAJECTORIES[0], TRAJECTORIES[0]],
+      jacobi: [2.9, 3.1],
+      labels: ["轨道A", "轨道B"],
+      synodicUnavailableNote: "会合系几何，惯性视图下不可画",
+    });
+    flushFrames();
+    expect(view.container.querySelector("[data-testid='jacobi-colorbar']")).toBeNull();
+    // 灰显项图例附不可画注记
+    // Grayed legend items carry the not-drawable note.
+    const notes = view.container.querySelectorAll("[data-testid='legend-unavailable']");
+    expect(notes).toHaveLength(2);
+    // 灰显 swatch 反映灰显色（CSS 十六进制→rgb 直读，不经 THREE 的
+    // linear-sRGB 转换）
+    // Grayed swatches mirror the grayed color (hex→rgb read directly,
+    // bypassing THREE's linear-sRGB conversion).
+    const grayedHex = desaturate("#3b4cc0").slice(1); // 轨迹 0 有 Jacobi 值：原色是 coolwarm 蓝端
+    const expectedRgb = `rgb(${parseInt(grayedHex.slice(0, 2), 16)}, ${parseInt(grayedHex.slice(2, 4), 16)}, ${parseInt(grayedHex.slice(4, 6), 16)})`;
+    const swatches = view.container.querySelectorAll("[data-testid='legend-swatch']");
+    expect((swatches[0] as HTMLElement).style.background).toBe(expectedRgb);
+  });
+});

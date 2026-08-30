@@ -23,7 +23,7 @@ import {
 } from "@ant-design/icons";
 import { themeBehavior, themeTokens } from "./theme";
 import { CanvasToolbar } from "./CanvasToolbar";
-import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode } from "./OrbitCanvas";
+import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode, type FrameMode } from "./OrbitCanvas";
 import { TimelineBar } from "./TimelineBar";
 import { ParamsPanel } from "./ParamsPanel";
 import { ProjectTree } from "./ProjectTree";
@@ -39,12 +39,21 @@ import { useTranslation } from "./i18n";
 import { useChartSettings } from "./chartSettings";
 import { CanvasRecorder, downloadBlob } from "./canvasRecorder";
 import { listArtifacts, removeArtifact, registerArtifact, type ArtifactSummary } from "./projectApi";
+import {
+  DEFAULT_PLAYBACK,
+  parseScenario,
+  resolveScenarioRecords,
+  serializeScenario,
+  type ScenarioPlayback,
+} from "./scenario";
+import { saveScenarioFile, openScenarioFile } from "./scenarioApi";
 import { runTool, getArtifact, ephemerisStatus, type EphemerisStatus } from "./sidecarApi";
 import { AssistantSidebar } from "./assistant/AssistantSidebar";
 import { AssistantSettingsForm } from "./assistant/AssistantSettingsForm";
 import type { SelectionContext } from "./assistant/api";
 import { DU_KM, TU_SECONDS, librationPoint } from "./cr3bp";
 import { etFromEpoch } from "./timeBasis";
+import { moonTrackFromResponse, moonTrackRequest, type MoonTrack } from "./moonEphemeris";
 import { boundariesResponseToRegionLayer, type BoundaryElementPayload, type RegionElement } from "./regionLayer";
 import {
   designEphemerisToCanvasData,
@@ -157,6 +166,20 @@ export default function App() {
 
   const [projection, setProjection] = useState<ProjectionMode>("3d");
   const [center, setCenter] = useState<CenterMode>("barycenter");
+  // 视图系（#428 第一步，ADR 0013）：显示选择，与数据/时刻语义正交——切
+  // 换不改 currentEt、播放状态与任何轨迹数据（TimelineBar 在 props 之外
+  // 持有播放态，不受本状态影响）。
+  // The view frame (#428 step 1, ADR 0013): a display choice orthogonal to
+  // data/time semantics — switching changes no currentEt, playback state, or
+  // trajectory data (TimelineBar owns its playback state beyond these props).
+  const [frame, setFrame] = useState<FrameMode>("synodic");
+  // 惯性视图的月球 SPICE 轨迹：按时间轴跨度缓存（moonCacheKey），跨度变
+  // 化失效重取；切换回会合视图不清缓存。
+  // The Moon's SPICE track for the inertial view: cached by timeline span
+  // (moonCacheKey), refetched when the span changes; switching back to the
+  // synodic view keeps the cache.
+  const [moonTrack, setMoonTrack] = useState<MoonTrack | null>(null);
+  const moonCacheKeyRef = useRef("");
 
   const [api, setApi] = useState<CanvasApi | null>(null);
   const [chart, setChart] = useChartSettings();
@@ -305,6 +328,48 @@ export default function App() {
     if (!api || canvasData.trajectories.length === 0) return;
     api.fitView();
   }, [canvasData, api]);
+
+  // 惯性视图的月球轨迹获取（#428）：仅 et 钟模式下有时间轴跨度可取；经
+  // run_tool 调 spacetime_transform（synodic_to_j2000，旋转链由 SPICE 真实
+  // 月历构造）取跨度内月球位置序列。按跨度缓存（中点历元由跨度唯一决
+  // 定，不单独判失效）；失败降级为无月球（ADR 0013 离线降级）并提示。
+  // Moon-track fetching for the inertial view (#428): only the et-clock mode
+  // offers a timeline span to sample; run_tool calls spacetime_transform
+  // (synodic_to_j2000, the rotation chain built from the real SPICE lunar
+  // ephemeris) for the Moon's positions across the span. Cached by span (the
+  // midpoint epoch follows uniquely from the span, no separate invalidation);
+  // failures degrade to no Moon (the ADR 0013 offline fallback) with a hint.
+  useEffect(() => {
+    if (frame !== "inertial" || canvasData.mode !== "et" || !canvasData.timeRange) return;
+    const [lo, hi] = canvasData.timeRange;
+    const key = `${lo.toFixed(1)}|${hi.toFixed(1)}`;
+    if (key === moonCacheKeyRef.current) return;
+    moonCacheKeyRef.current = key;
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await runTool("spacetime_transform", {
+          ...moonTrackRequest([lo, hi]),
+        });
+        if (cancelled) return;
+        if (resp.error) {
+          throw new Error(String(resp.error.message ?? resp.error.code));
+        }
+        const track = moonTrackFromResponse(resp.data, [lo, hi]);
+        if (!track) throw new Error("bad spacetime_transform payload");
+        setMoonTrack(track);
+      } catch (e) {
+        if (!cancelled) {
+          setMoonTrack(null);
+          console.warn("月球惯性轨迹获取失败", e);
+          message.warning(t("canvas.moon_track_failed"));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [frame, canvasData.mode, canvasData.timeRange, t]);
 
   // 库记录工件 → 画布轨迹（选中查看 / 绘制所选 / 钉住共用）。
   // 记录可含 CR3BP 段与星历段（双段并存，CONTEXT.md）：CR3BP 闭曲线之外，
@@ -536,6 +601,120 @@ export default function App() {
     }
   };
 
+  // —— 情景 v1（#429，grilling 2026-08-30 定稿）：固定层记录集 + 参考历元
+  // + 播放配置的保存/打开。播放配置归 App 持有（TimelineBar 只上报变
+  // 更），情景保存时随当前历元一并导出。——
+  // Scenario v1 (#429, finalized by the 2026-08-30 grilling): save/open of
+  // the pinned-layer record set + reference epoch + playback config. App owns
+  // the playback config (TimelineBar only reports changes); scenario save
+  // exports it alongside the current epoch.
+  const [playback, setPlayback] = useState<ScenarioPlayback>(DEFAULT_PLAYBACK);
+
+  // 保存情景：仅 et 钟模式（有真实历元产物）且固定层非空时可存——情景的
+  // 核心语义是固定层+历元回放，相对时刻模式下无 et 基准、语义不完整。
+  // 当前历元即参考历元；对话框取消静默。
+  // Save a scenario: storable only in et-clock mode (a real-epoch product on
+  // screen) with a non-empty pinned layer — the scenario's core semantics are
+  // pinned layer + epoch replay, meaningless without the et basis in relative
+  // mode. The current moment becomes the reference epoch; a cancelled dialog
+  // stays silent.
+  const handleSaveScenario = async () => {
+    if (pinned.length === 0) {
+      message.warning(t("scenario.save_empty_pinned"));
+      return;
+    }
+    if (canvasData.mode !== "et" || currentEt === null) {
+      message.warning(t("scenario.save_needs_et"));
+      return;
+    }
+    const text = serializeScenario({
+      records: pinned.map((p) => p.recordId),
+      referenceEpoch: { et: currentEt },
+      playback: { ...playback, startOffsetEt: 0 },
+    });
+    try {
+      const saved = await saveScenarioFile(text);
+      if (saved) message.success(t("scenario.saved"));
+    } catch (e) {
+      message.error(`${t("scenario.save_failed")}: ${String(e)}`);
+    }
+  };
+
+  // 打开情景：逐 record_id 解析重建固定层（缺失跳过并列出、超上限截
+  // 断，均提示不静默）；时间轴校准到参考历元（含播放起点偏移）；应用
+  // 播放配置。结果层不动（情景只描述固定层）。
+  // Open a scenario: resolve record ids one by one to rebuild the pinned layer
+  // (missing ones skipped and listed, over-cap references truncated — both
+  // hinted, never silent); calibrate the timeline onto the reference epoch
+  // (with the playback start offset); apply the playback config. The result
+  // layer stays untouched (a scenario describes only the pinned layer).
+  const handleOpenScenario = async () => {
+    let text: string | null;
+    try {
+      text = await openScenarioFile();
+    } catch (e) {
+      message.error(`${t("scenario.open_failed")}: ${String(e)}`);
+      return;
+    }
+    if (text === null) return;
+    const parsed = parseScenario(text);
+    if ("error" in parsed) {
+      message.error(parsed.error);
+      return;
+    }
+    const fetchRecord = async (rid: string): Promise<PinnedRecord | null> => {
+      try {
+        // 项目树是会话内的（重启即空）：label 从 catalog 记录合成，不依赖
+        // 项目树现状。
+        // The project tree is session-scoped (empty after restart): the label
+        // synthesizes from the catalog record, independent of the tree.
+        let label = rid;
+        try {
+          const resp = await catalogQuery({ record_id: rid });
+          const family = resp.records?.[0]?.orbit_family;
+          if (family) label = `${family}·${rid.slice(0, 8)}`;
+        } catch {
+          // label 合成失败不阻塞轨迹解析，退回 rid
+          // A failed label synthesis never blocks trajectory resolution; fall
+          // back to the rid.
+        }
+        const data = await getArtifact(rid);
+        const td = parseArtifactToTrajectoryData(data);
+        if (!td || td.trajectories.length === 0) return null;
+        const segLabels =
+          td.labels && td.labels.length === td.trajectories.length
+            ? td.labels.map((l) => `${label}·${l}`)
+            : td.trajectories.map(() => label);
+        return { recordId: rid, label, data: { ...td, labels: segLabels } };
+      } catch {
+        return null;
+      }
+    };
+    let resolution: Awaited<ReturnType<typeof resolveScenarioRecords<PinnedRecord>>>;
+    try {
+      resolution = await resolveScenarioRecords(parsed.scenario.records, PINNED_LIMIT, fetchRecord);
+    } catch (e) {
+      message.error(`${t("scenario.open_failed")}: ${String(e)}`);
+      return;
+    }
+    setPinned(resolution.resolved);
+    if (resolution.missing.length > 0) {
+      message.warning(
+        t("scenario.missing_records").replace("{ids}", resolution.missing.join("、")),
+      );
+    }
+    if (resolution.truncated) {
+      message.warning(t("scenario.truncated").replace("{limit}", String(PINNED_LIMIT)));
+    }
+    setPlayback(parsed.scenario.playback);
+    setCurrentEt(parsed.scenario.referenceEt + parsed.scenario.playback.startOffsetEt);
+    if (resolution.resolved.length > 0) {
+      message.success(
+        t("scenario.opened").replace("{count}", String(resolution.resolved.length)),
+      );
+    }
+  };
+
   // 星标/备注保存成功后同步树行数据（本地更新，不重查整表）
   // Sync the tree row after a successful star/note save (local update; no full re-query).
   const updateArtifactMeta = (recordId: string, tags: string[], note?: string) => {
@@ -675,7 +854,7 @@ export default function App() {
           const prop = propagationToCanvasData(
             d.position_km,
             d.times_jd_tdb,
-            t("canvas.propagation_inertial")
+            t("canvas.propagation")
           );
           if (prop) {
             applyTrajectoryData(prop);
@@ -979,12 +1158,16 @@ export default function App() {
             <CanvasToolbar
               projection={projection}
               center={center}
+              frame={frame}
               recording={recording}
               onProjectionChange={setProjection}
               onCenterChange={setCenter}
+              onFrameChange={setFrame}
               onFitView={() => api?.fitView()}
               onExportAnimation={handleExportAnimation}
               onOpenSettings={() => setChartModalOpen(true)}
+              onSaveScenario={handleSaveScenario}
+              onOpenScenario={handleOpenScenario}
             />
           </div>
 
@@ -998,6 +1181,10 @@ export default function App() {
               frameLabels={canvasData.frames?.map((f) => t(`canvas.frame.${f}`))}
               jacobi={canvasData.jacobi}
               regions={regionData}
+              frame={frame}
+              dataFrames={canvasData.frames}
+              moonTrack={frame === "inertial" ? moonTrack : null}
+              synodicUnavailableNote={t("canvas.frame.synodic_unavailable")}
               mu={EARTH_MOON_MU}
               libration={libration}
               projection={projection}
@@ -1016,6 +1203,9 @@ export default function App() {
               onTimeChange={setCurrentEt}
               mode={canvasData.mode}
               events={timelineEvents}
+              playbackRate={playback.rate}
+              loop={playback.loop}
+              onPlaybackConfigChange={(c) => setPlayback((prev) => ({ ...prev, ...c }))}
             />
           </div>
         </div>
