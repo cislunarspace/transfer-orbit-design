@@ -2,7 +2,7 @@
 //!
 //! 协议：MCP（JSON-RPC 2.0，stdio 传输，换行分隔 JSON 消息）。只实现
 //! agent loop 需要的最小子集：initialize 握手、tools/list、tools/call；
-//! tools/call 支持 progressToken（e2m2e 5.8.10 起 server 发
+//! tools/call 支持 progressToken（e2m2e 5.9.0 起 server 发
 //! notifications/progress，分数制 [0,1] + 可读消息），其余 server
 //! notifications 忽略。
 //!
@@ -277,7 +277,7 @@ async fn io_loop(
                             Err(_) => continue, // 非 JSON 行（前向兼容/噪声）：跳过
                         };
                         // 通知（无 id 或带 method）：notifications/progress
-                        // 按 progressToken 转发（e2m2e 5.8.10+）；其余忽略。
+                        // 按 progressToken 转发（e2m2e 5.9.0+）；其余忽略。
                         if v.get("method").is_some() {
                             if v.get("method").and_then(Value::as_str)
                                 == Some("notifications/progress")

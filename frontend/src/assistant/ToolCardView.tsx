@@ -107,7 +107,7 @@ export function ToolCardView({
         )}
       </div>
 
-      {/* 真进度（progressToken 通知，ADR 0023 限制已由 e2m2e 5.8.10 解除）：
+      {/* 真进度（progressToken 通知，ADR 0023 限制已由 e2m2e 5.9.0 解除）：
           运行中且有进度时显示分数条与阶段消息；无进度保持耗时转圈不定态 */}
       {card.status === "running" && typeof card.progress === "number" && (
         <div style={{ marginTop: 6 }}>

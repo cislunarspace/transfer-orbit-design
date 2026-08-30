@@ -370,7 +370,7 @@ impl AssistantState {
             return tool_message(&tc.id, &format!("调用被验证链拒绝：{reason}"));
         }
 
-        // 进度订阅：call_tool 带 progressToken（e2m2e 5.8.10+ 发
+        // 进度订阅：call_tool 带 progressToken（e2m2e 5.9.0+ 发
         // notifications/progress），转发为 tool_progress 事件——工具卡片
         // 由"只转圈"升级为真进度（分数 + 可读消息）。
         let progress_call_id = tc.id.clone();
