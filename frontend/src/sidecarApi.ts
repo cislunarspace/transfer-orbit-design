@@ -5,6 +5,9 @@ export interface FamilyMember {
   states: number[]; // n×6 状态（初态帧时 n=1）
   times: number[];
   period: number | null;
+  /** 该成员的 Jacobi 常数（族记录通道，#435）；无值为 null */
+  /** The member's Jacobi constant (family-record channel, #435); null when absent. */
+  jacobi?: number | null;
 }
 
 export interface FamilyResponse {
@@ -41,6 +44,12 @@ export interface ArtifactData {
   mu?: number | null;
   familyMembers?: FamilyMember[];
   members: number[][]; // 每成员 n×3 xyz
+  /** 记录级 Jacobi 常数（设计轨道记录通道，#435）：设计记录是该轨道唯一值；
+   *  族记录为包络下限（成员值优先、缺值时回退本值）；无 CR3BP 段为 null */
+  /** Record-level Jacobi constant (design-orbit record channel, #435): the orbit's
+   *  only value for design records; the envelope floor for family records (a member's
+   *  own value wins, this fills in when missing); null without a CR3BP segment. */
+  jacobi?: number | null;
   ephemeris?: EphemerisSegment | null;
   error: { code: string; message: string } | null;
 }

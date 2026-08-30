@@ -149,6 +149,102 @@ describe("familyMembersToTrajectoryData 轨迹解析", () => {
   });
 });
 
+describe("Jacobi 常数透传（#435）", () => {
+  it("族成员 jacobi 透传进 TrajectoryData", () => {
+    const states: number[] = [];
+    for (let i = 0; i < 4; i++) states.push(i, i + 1, i + 2, 0, 0, 0);
+    const got = familyMembersToTrajectoryData(
+      [
+        { states: [...states], times: [], period: null, jacobi: 3.1 },
+        { states: [...states], times: [], period: null, jacobi: 2.9 },
+      ],
+      MU,
+    );
+    expect(got.jacobi).toEqual([3.1, 2.9]);
+  });
+
+  it("无 jacobi 的成员对应 undefined（与轨迹逐条对齐）", () => {
+    const states: number[] = [];
+    for (let i = 0; i < 4; i++) states.push(i, i + 1, i + 2, 0, 0, 0);
+    const got = familyMembersToTrajectoryData(
+      [
+        { states: [...states], times: [], period: null, jacobi: 3.1 },
+        { states: [...states], times: [], period: null },
+      ],
+      MU,
+    );
+    expect(got.jacobi).toEqual([3.1, undefined]);
+  });
+
+  it("被跳过的成员（缺 period 的初态）不占 jacobi 槽位", () => {
+    const states: number[] = [];
+    for (let i = 0; i < 4; i++) states.push(i, i + 1, i + 2, 0, 0, 0);
+    const got = familyMembersToTrajectoryData(
+      [
+        { states: [...SEED.state], times: [], period: null, jacobi: 9.9 }, // 跳过
+        { states: [...states], times: [], period: null, jacobi: 3.1 },
+      ],
+      MU,
+    );
+    expect(got.trajectories).toHaveLength(1);
+    expect(got.jacobi).toEqual([3.1]);
+  });
+
+  it("成员 jacobi 缺失时回退记录级 recordJacobi（设计轨道单条通道）", () => {
+    const states: number[] = [];
+    for (let i = 0; i < 4; i++) states.push(i, i + 1, i + 2, 0, 0, 0);
+    const got = familyMembersToTrajectoryData(
+      [{ states: [...states], times: [], period: null }],
+      MU,
+      3.006,
+    );
+    expect(got.jacobi).toEqual([3.006]);
+  });
+
+  it("成员自带 jacobi 优先于记录级 recordJacobi", () => {
+    const states: number[] = [];
+    for (let i = 0; i < 4; i++) states.push(i, i + 1, i + 2, 0, 0, 0);
+    const got = familyMembersToTrajectoryData(
+      [{ states: [...states], times: [], period: null, jacobi: 3.1 }],
+      MU,
+      3.006,
+    );
+    expect(got.jacobi).toEqual([3.1]);
+  });
+
+  it("framesToTrajectoryData：orbits[i].jacobi 逐帧透传", () => {
+    const pts: number[] = [];
+    for (let i = 0; i < 6; i++) pts.push(i, i + 10, i + 20);
+    const got = framesToTrajectoryData(
+      [{ dtype: "f32", shape: [6, 3], data: pts }],
+      { orbits: [{ jacobi: 3.05 }] },
+      MU,
+    );
+    expect(got.jacobi).toEqual([3.05]);
+  });
+
+  it("framesToTrajectoryData：顶层 cr3bp_jacobi 只兜底单条轨迹", () => {
+    const pts: number[] = [];
+    for (let i = 0; i < 6; i++) pts.push(i, i + 10, i + 20);
+    const single = framesToTrajectoryData(
+      [{ dtype: "f32", shape: [6, 3], data: pts }],
+      { cr3bp_jacobi: 3.006 },
+      MU,
+    );
+    expect(single.jacobi).toEqual([3.006]);
+
+    const multi = framesToTrajectoryData(
+      [
+        { dtype: "f32", shape: [3, 3], data: pts.slice(0, 9) },
+        { dtype: "f32", shape: [3, 3], data: pts.slice(9) },
+      ],
+      { cr3bp_jacobi: 3.006 },
+      MU,
+    );
+    expect(multi.jacobi).toEqual([undefined, undefined]);
+  });
+});
+
 describe("trajectoryTimeRange", () => {
   it("多条时刻取全局端点", () => {
     expect(trajectoryTimeRange([[0, 1, 2], [5, 10]])).toEqual([0, 10]);
