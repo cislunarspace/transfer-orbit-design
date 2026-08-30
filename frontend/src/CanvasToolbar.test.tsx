@@ -1,13 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { CanvasToolbar } from "./CanvasToolbar";
 
 const baseProps = {
   projection: "3d" as const,
   center: "barycenter" as const,
+  frame: undefined as "synodic" | "inertial" | undefined,
   recording: false,
   onProjectionChange: vi.fn(),
   onCenterChange: vi.fn(),
+  onFrameChange: vi.fn(),
   onFitView: vi.fn(),
   onExportAnimation: vi.fn(),
   onOpenSettings: vi.fn(),
@@ -59,5 +61,39 @@ describe("CanvasToolbar component", () => {
     setup({ recording: true });
     const btn = screen.getByRole("button", { name: /导出动画/ });
     expect(btn.className).toContain("ant-btn-loading");
+  });
+});
+
+// —— 视图系切换（#428）——
+// The view-frame switch (#428).
+
+describe("CanvasToolbar 视图系切换", () => {
+  it("默认渲染会合系/惯性选项，缺省选中会合系", () => {
+    setup();
+    expect(screen.getByRole("radio", { name: "会合系" })).toBeDefined();
+    expect(screen.getByRole("radio", { name: "惯性 (GCRS)" })).toBeDefined();
+    expect((screen.getByRole("radio", { name: "会合系" }) as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("切换视图系触发 onFrameChange", () => {
+    const props = setup({ onFrameChange: vi.fn() });
+    fireEvent.click(screen.getByRole("radio", { name: "惯性 (GCRS)" }));
+    expect(props.onFrameChange).toHaveBeenCalledWith("inertial");
+  });
+
+  it("惯性视图下月心/L1/L2 居中禁用，会合视图全部可用", () => {
+    setup({ frame: "inertial" });
+    for (const name of ["月心", "L1", "L2"]) {
+      expect((screen.getByRole("radio", { name }) as HTMLInputElement).disabled).toBe(true);
+    }
+    for (const name of ["质心", "地心"]) {
+      expect((screen.getByRole("radio", { name }) as HTMLInputElement).disabled).toBe(false);
+    }
+
+    cleanup();
+    setup({ frame: "synodic" });
+    for (const name of ["质心", "地心", "月心", "L1", "L2"]) {
+      expect((screen.getByRole("radio", { name }) as HTMLInputElement).disabled).toBe(false);
+    }
   });
 });

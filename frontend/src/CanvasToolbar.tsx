@@ -3,35 +3,50 @@
 // Canvas toolbar: gathers projection/center selection and fit/export-animation/chart-settings actions,
 // docked above the canvas (replacing the floating layers that used to sit in opposite corners).
 
-import { Button, Radio } from "antd";
+import { Button, Radio, Tooltip } from "antd";
 import {
   CompressOutlined,
   VideoCameraOutlined,
   SettingOutlined,
+  SaveOutlined,
+  FolderOpenOutlined,
 } from "@ant-design/icons";
-import type { ProjectionMode, CenterMode } from "./OrbitCanvas";
+import type { ProjectionMode, CenterMode, FrameMode } from "./OrbitCanvas";
 
 export interface CanvasToolbarProps {
   projection: ProjectionMode;
   center: CenterMode;
+  /** 视图系（#428）：synodic 默认；inertial 下月心/L1/L2 居中禁用 */
+  /** The view frame (#428): synodic by default; moon/L1/L2 centering disabled under inertial. */
+  frame?: FrameMode;
   recording: boolean;
   onProjectionChange: (p: ProjectionMode) => void;
   onCenterChange: (c: CenterMode) => void;
+  onFrameChange?: (f: FrameMode) => void;
   onFitView: () => void;
   onExportAnimation: () => void;
   onOpenSettings: () => void;
+  /** 情景保存/打开（#429）：固定层记录集 + 参考历元 + 播放配置 */
+  /** Scenario save/open (#429): pinned-layer record set + reference epoch + playback config. */
+  onSaveScenario?: () => void;
+  onOpenScenario?: () => void;
 }
 
 export function CanvasToolbar({
   projection,
   center,
+  frame,
   recording,
   onProjectionChange,
   onCenterChange,
+  onFrameChange,
   onFitView,
   onExportAnimation,
   onOpenSettings,
+  onSaveScenario,
+  onOpenScenario,
 }: CanvasToolbarProps) {
+  const inertial = frame === "inertial";
   return (
     <div
       style={{
@@ -54,6 +69,20 @@ export function CanvasToolbar({
         <Radio.Button value="yz">YZ</Radio.Button>
       </Radio.Group>
 
+      {/* 视图系切换（#428，ADR 0013：会合系 ⇄ 惯性 GCRS）：显示选择，
+          不改任何数据与时刻语义 */}
+      {/* The view-frame switch (#428, ADR 0013: synodic ⇄ inertial GCRS):
+          a display choice that changes no data or time semantics. */}
+      <Radio.Group
+        size="small"
+        value={frame ?? "synodic"}
+        onChange={(e) => onFrameChange?.(e.target.value as FrameMode)}
+        buttonStyle="solid"
+      >
+        <Radio.Button value="synodic">会合系</Radio.Button>
+        <Radio.Button value="inertial">惯性 (GCRS)</Radio.Button>
+      </Radio.Group>
+
       <Radio.Group
         size="small"
         value={center}
@@ -62,9 +91,15 @@ export function CanvasToolbar({
       >
         <Radio.Button value="barycenter">质心</Radio.Button>
         <Radio.Button value="earth">地心</Radio.Button>
-        <Radio.Button value="moon">月心</Radio.Button>
-        <Radio.Button value="l1">L1</Radio.Button>
-        <Radio.Button value="l2">L2</Radio.Button>
+        <Tooltip title={inertial ? "月心是会合系概念，惯性视图下不可用" : ""}>
+          <Radio.Button value="moon" disabled={inertial}>月心</Radio.Button>
+        </Tooltip>
+        <Tooltip title={inertial ? "L1/L2 是会合系概念，惯性视图下不可用" : ""}>
+          <Radio.Button value="l1" disabled={inertial}>L1</Radio.Button>
+        </Tooltip>
+        <Tooltip title={inertial ? "L1/L2 是会合系概念，惯性视图下不可用" : ""}>
+          <Radio.Button value="l2" disabled={inertial}>L2</Radio.Button>
+        </Tooltip>
       </Radio.Group>
 
       {/* 叠加模式开关已由双层模型取代（结果层/固定层，钉住走项目树图钉） */}
@@ -72,6 +107,22 @@ export function CanvasToolbar({
 
       <div style={{ flex: 1 }} />
 
+      {onSaveScenario && (
+        <Button
+          size="small"
+          icon={<SaveOutlined />}
+          onClick={onSaveScenario}
+          title="保存情景（固定层记录集 + 参考历元 + 播放配置）"
+        />
+      )}
+      {onOpenScenario && (
+        <Button
+          size="small"
+          icon={<FolderOpenOutlined />}
+          onClick={onOpenScenario}
+          title="打开情景：重建固定层并校准时间轴"
+        />
+      )}
       <Button
         size="small"
         icon={<CompressOutlined />}

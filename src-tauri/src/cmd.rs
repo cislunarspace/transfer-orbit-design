@@ -197,6 +197,63 @@ fn unix_seconds_now() -> String {
         .unwrap_or_default()
 }
 
+/// 情景文件写盘（#429）：前端经 dialog 插件取路径，本命令只负责落盘
+/// （路径由对话框来，不做额外校验；内容是前端序列化好的 JSON 文本）。
+#[tauri::command]
+pub async fn save_scenario(path: String, content: String) -> Result<(), String> {
+    std::fs::write(&path, content).map_err(|e| format!("写入情景文件失败：{e}"))
+}
+
+/// 情景文件读取（#429）：路径来自 dialog 插件，内容交前端解析校验
+/// （版本拒绝等语义在前端 scenario 模块）。
+#[tauri::command]
+pub async fn open_scenario(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("读取情景文件失败：{e}"))
+}
+
+/// save/open_scenario 的纯 io 对（可测面）：写后读回逐字节一致。
+#[cfg(test)]
+mod scenario_io_tests {
+    use super::*;
+
+    #[test]
+    fn save_then_open_round_trips_verbatim() {
+        let dir = std::env::temp_dir().join("tod-scenario-roundtrip");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("s.json");
+        let content = "{\"format\":\"tod-scenario\",\"version\":1}";
+        drive_save_open(path.to_string_lossy().into_owned(), content.into()).unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// 在临时 tokio runtime 上直接驱动命令体（跳过 tauri runtime），同一
+    /// 函数体，避免测试里复制实现导致漂移。
+    /// Drives the command bodies directly on a throwaway tokio runtime
+    /// (bypassing the tauri runtime) — same bodies, so the test never drifts
+    /// from the implementation by copying it.
+    fn drive_save_open(path: String, content: String) -> Result<(), String> {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        rt.block_on(async {
+            save_scenario(path.clone(), content).await?;
+            let read_back = open_scenario(path).await?;
+            assert_eq!(read_back, "{\"format\":\"tod-scenario\",\"version\":1}");
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn open_missing_file_errors_with_path_context() {
+        let rt = tokio::runtime::Builder::new_current_thread().build().unwrap();
+        let err = rt
+            .block_on(open_scenario("Z:/definitely/not/here.json".into()))
+            .unwrap_err();
+        assert!(err.contains("读取情景文件失败"));
+    }
+}
+
 /// 记录的星历段（eph/ 前缀数组）：会合系无量纲位置 (n,3) 平铺 + UTC 时间
 /// 分量（各 (n,)）。键名与 e2m2e EphemerisTable 字段一致（不加 camelCase
 /// 改名，与设计响应的 ephemeris dict 同形，前端共用同一解析函数）。
