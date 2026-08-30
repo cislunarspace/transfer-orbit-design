@@ -1,10 +1,15 @@
-// 轨道保持独立执行模态弹窗：支持源工件注入、短弧参数适配与仿真时长覆盖拦截校验
-// Station-keeping run modal: source-artifact injection, short-arc parameter adaptation, and duration-override validation.
+// 轨道保持独立执行模态弹窗：支持源工件注入、短弧参数适配与仿真时长覆盖拦截校验。
+// 阻断判据用源记录的真实星历覆盖跨弧（catalog_get 推导，#416），取不到时
+// 禁用执行并说明原因，不静默兜底。
+// Station-keeping run modal: source-artifact injection, short-arc parameter adaptation, and
+// duration-override validation. The gate uses the source record's real ephemeris span
+// (derived via catalog_get, #416); when unavailable the run button is disabled with the
+// reason shown — never a silent fallback.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal, Form, InputNumber, Select, Alert, Space, Button, message } from "antd";
 import { RocketOutlined } from "@ant-design/icons";
-import { type CatalogRecord } from "./catalogApi";
+import { type CatalogRecord, catalogGet, ephemerisSpanDays } from "./catalogApi";
 import type { ArtifactSummary } from "./projectApi";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -27,10 +32,57 @@ export function StationKeepingModal({
   const [numMonteCarlo, setNumMonteCarlo] = useState<number>(5);
   const [controlMode, setControlMode] = useState<number>(1);
   const [running, setRunning] = useState<boolean>(false);
+  // 星历跨弧三态：loading / ok（spanDays 有值）/ unavailable（spanReason 说明）
+  // Ephemeris-span tri-state: loading / ok (spanDays set) / unavailable (spanReason explains).
+  const [spanDays, setSpanDays] = useState<number | null>(null);
+  const [spanStatus, setSpanStatus] = useState<"loading" | "ok" | "unavailable">("loading");
+  const [spanReason, setSpanReason] = useState<string>("");
+
+  const recordId = sourceRecord
+    ? String(
+        (sourceRecord as CatalogRecord).record_id ||
+          (sourceRecord as ArtifactSummary).recordId ||
+          sourceRecord.artifactId,
+      )
+    : "";
+
+  // 弹窗打开或源记录变化时取真实星历跨弧（catalog_get）
+  // Fetch the real ephemeris span (catalog_get) when the modal opens or the source changes.
+  useEffect(() => {
+    if (!open || !recordId) {
+      setSpanStatus("unavailable");
+      setSpanReason("未绑定源星历记录");
+      return;
+    }
+    let cancelled = false;
+    setSpanStatus("loading");
+    catalogGet(recordId)
+      .then((res) => {
+        if (cancelled) return;
+        const span = ephemerisSpanDays(res);
+        if (span === null) {
+          setSpanDays(null);
+          setSpanStatus("unavailable");
+          setSpanReason("源记录无星历段（或数据不完整），无法评估覆盖范围");
+        } else {
+          setSpanDays(span);
+          setSpanStatus("ok");
+        }
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setSpanDays(null);
+        setSpanStatus("unavailable");
+        setSpanReason(`读取源记录失败: ${String(e)}`);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, recordId]);
 
   const requiredDurationDays = (numControls - 2) * controlInterval + feedbackArc;
-  const sourceEphemerisDays = 30.0;
-  const isExceeded = requiredDurationDays > sourceEphemerisDays;
+  const isExceeded = spanStatus === "ok" && requiredDurationDays > (spanDays as number);
+  const canRun = spanStatus === "ok" && !isExceeded;
 
   const handleExecute = async () => {
     if (!sourceRecord) return;
@@ -85,7 +137,7 @@ export function StationKeepingModal({
           key="submit"
           type="primary"
           loading={running}
-          disabled={isExceeded}
+          disabled={!canRun}
           onClick={handleExecute}
         >
           开始仿真
@@ -106,12 +158,31 @@ export function StationKeepingModal({
         />
       )}
 
+      {spanStatus === "loading" && (
+        <Alert
+          type="info"
+          showIcon
+          message="正在读取源记录的星历覆盖范围..."
+          style={{ marginBottom: 12 }}
+        />
+      )}
+
+      {spanStatus === "unavailable" && (
+        <Alert
+          type="warning"
+          showIcon
+          message="无法确定源星历覆盖范围，执行已禁用"
+          description={spanReason}
+          style={{ marginBottom: 12 }}
+        />
+      )}
+
       {isExceeded && (
         <Alert
           type="error"
           showIcon
           message="仿真时长超出源星历覆盖范围"
-          description={`当前设置需要仿真时长约 ${requiredDurationDays.toFixed(2)} 天，超出源星历覆盖范围（约 ${sourceEphemerisDays} 天）。请调小控制次数或缩小控制间隔。`}
+          description={`当前设置需要仿真时长约 ${requiredDurationDays.toFixed(2)} 天，超出源星历覆盖范围（约 ${(spanDays as number).toFixed(2)} 天）。请调小控制次数或缩小控制间隔。`}
           style={{ marginBottom: 12 }}
         />
       )}
