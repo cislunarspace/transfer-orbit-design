@@ -245,14 +245,16 @@ export default function App() {
 
   // 结果层写入：新内容整体替换，事件旗标（若有）随本次运行重置。当前时刻
   // 置空——红点不自动出现，待用户拖动时间轴或播放后出现。
+  // 视图适配不在此同步触发，改由下方 useEffect 在 canvasData 提交后驱动（#438）。
   // Result-layer write: the new content replaces wholesale; event flags (if any)
   // reset with this run. The current moment resets to null so the time marker
   // never appears automatically — it shows only after the user drags or plays.
+  // View fitting is not triggered here synchronously; the useEffect below drives it
+  // after canvasData commits (#438).
   const applyTrajectoryData = (data: TrajectoryData, events: TimelineEvent[] = []) => {
     setResultData(data);
     setTimelineEvents(events);
     setCurrentEt(null);
-    setTimeout(() => api?.fitView(), 100);
   };
 
   // 画布装配（useMemo）：固定层在前、结果层在后拼一条数组；时间轴按
@@ -280,14 +282,22 @@ export default function App() {
     };
   }, [pinned, resultData]);
 
-  // 固定层增减后视图适配一次，钉住的目标轨道即刻入画
-  // Refit once when the pinned layer changes so a freshly pinned target orbit lands in view.
+  // 自动视图适配（#438 确认式，不再用固定时长 setTimeout）：canvasData 提交后
+  // 适配一次。React 保证子组件（OrbitCanvas）的几何重建 effect 先于本父组件
+  // effect 运行，故此处轨道包围盒已就绪，与几何构建耗时无关；api 未就绪或画面
+  // 无内容时不适配。覆盖原两处调用点：结果层写入（applyTrajectoryData）与固定层
+  // 增减——两者都改变 canvasData。用户手动 fitView（工具栏）不变。
+  // Auto view-fit (#438, confirmed instead of a fixed setTimeout): fit once after
+  // canvasData commits. React guarantees the child (OrbitCanvas) geometry-rebuild
+  // effect runs before this parent effect, so the orbit bounding box is ready here
+  // regardless of how long geometry construction takes; skip when api is not ready
+  // or the canvas is empty. Covers both former call sites — result-layer write
+  // (applyTrajectoryData) and pinned-layer changes — since both alter canvasData.
+  // The manual fitView (toolbar) is unchanged.
   useEffect(() => {
-    if (pinned.length > 0) {
-      const t = setTimeout(() => api?.fitView(), 100);
-      return () => clearTimeout(t);
-    }
-  }, [pinned.length, api]);
+    if (!api || canvasData.trajectories.length === 0) return;
+    api.fitView();
+  }, [canvasData, api]);
 
   // 库记录工件 → 画布轨迹（选中查看 / 绘制所选 / 钉住共用）。
   // 记录可含 CR3BP 段与星历段（双段并存，CONTEXT.md）：CR3BP 闭曲线之外，
