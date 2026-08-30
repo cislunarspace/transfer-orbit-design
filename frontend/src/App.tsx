@@ -1,7 +1,7 @@
 // 主应用入口：基于 Ant Design 6 构建的三栏现代化高密度桌面科学计算界面
 // Main app entry: a three-pane, high-density desktop scientific-computing UI built on Ant Design 6.
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import {
   ConfigProvider,
   theme as antdTheme,
@@ -44,17 +44,71 @@ import { AssistantSidebar } from "./assistant/AssistantSidebar";
 import { AssistantSettingsForm } from "./assistant/AssistantSettingsForm";
 import type { SelectionContext } from "./assistant/api";
 import { DU_KM, TU_SECONDS, librationPoint } from "./cr3bp";
+import { etFromEpoch } from "./timeBasis";
 import {
   familyMembersToTrajectoryData,
   framesToTrajectoryData,
   trajectoryTimeRange,
-  mergeTrajectoryData,
+  timelineMode,
+  timesForMode,
   transferTrajectoryToCanvasData,
+  propagationToCanvasData,
+  type TrajectoryData,
+  type TimeBasis,
 } from "./trajectoryParsing";
+import type { TimelineEvent } from "./TimelineBar";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
 
 const { Text, Title } = Typography;
 const EARTH_MOON_MU = 0.01215058560962404;
+
+/** 固定层软上限：超过提示但不拦截 */
+/** Soft cap of the pinned layer: warn past it without blocking. */
+const PINNED_LIMIT = 5;
+
+/**
+ * 转移响应 details → 出发/到达脉冲事件旗标（Q6/Q9 决策：本期用 details
+ * 现成字段，机动事件结构化契约随转移存档下批做；近月点无时刻字段不做）。
+ * dv_departure_km_s/dv_arrival_km_s 为 LGA/WSB 字段，dv1_km_s/dv2_km_s 为
+ * HMN 字段，兼容取用；时刻 = tli et + (0 | tof_sec)。
+ * Transfer details → departure/arrival pulse event flags (Q6/Q9: ready-made
+ * details fields this round; the structured maneuver-event contract ships with
+ * transfer catalog records next batch; perilune has no time field, skipped).
+ * dv_departure_km_s/dv_arrival_km_s are the LGA/WSB fields, dv1_km_s/dv2_km_s
+ * the HMN ones; times = tli et + (0 | tof_sec).
+ */
+function transferEventsFromDetails(
+  details: unknown,
+  tliEpoch: string | number | undefined,
+  t: (key: string) => string,
+): TimelineEvent[] {
+  const det = (details ?? {}) as Record<string, unknown>;
+  const tliEt = tliEpoch !== undefined ? etFromEpoch(tliEpoch) : NaN;
+  if (!Number.isFinite(tliEt)) return [];
+  const tof = Number(det.tof_sec);
+  const events: TimelineEvent[] = [];
+  const dvDep = Number(det.dv_departure_km_s ?? det.dv1_km_s);
+  if (Number.isFinite(dvDep) && dvDep > 0) {
+    events.push({ et: tliEt, label: t("event.departure_pulse"), dv: `${dvDep.toFixed(2)} km/s` });
+  }
+  const dvArr = Number(det.dv_arrival_km_s ?? det.dv2_km_s);
+  if (Number.isFinite(tof) && tof > 0 && Number.isFinite(dvArr) && dvArr > 0) {
+    events.push({
+      et: tliEt + tof,
+      label: t("event.arrival_pulse"),
+      dv: `${dvArr.toFixed(2)} km/s`,
+    });
+  }
+  return events;
+}
+
+/** 固定层条目：钉住的库记录及其解析出的轨迹数据 */
+/** A pinned-layer entry: the pinned catalog record plus its parsed trajectory data. */
+interface PinnedRecord {
+  recordId: string;
+  label: string;
+  data: TrajectoryData;
+}
 
 export default function App() {
   const { lang, setLang, t } = useTranslation();
@@ -79,11 +133,18 @@ export default function App() {
   const [selectedArtifact, setSelectedArtifact] = useState<ArtifactSummary | null>(null);
   const [selectedRecordDetail, setSelectedRecordDetail] = useState<CatalogRecord | null>(null);
 
-  // 画布状态
-  // Canvas state.
-  const [trajectories, setTrajectories] = useState<number[][][]>([]);
-  const [trajectoryTimes, setTrajectoryTimes] = useState<number[][]>([]);
-  const [timeRange, setTimeRange] = useState<[number, number] | null>(null);
+  // 画布状态（双层模型，CONTEXT.md「结果层」「固定层」）：
+  // 结果层 = 最近一次计算/查看的轨迹集合（新内容整体替换）；
+  // 固定层 = 项目树图钉钉住的记录，持续同屏直到取消。
+  // Canvas state (two-layer model, see CONTEXT.md "result layer"/"pinned layer"):
+  // the result layer holds the latest run/record view (replaced wholesale);
+  // the pinned layer keeps project-tree records pinned on screen until unpinned.
+  const [resultData, setResultData] = useState<TrajectoryData>({
+    trajectories: [],
+    times: [],
+  });
+  const [pinned, setPinned] = useState<PinnedRecord[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [currentEt, setCurrentEt] = useState<number | null>(null);
 
   const [projection, setProjection] = useState<ProjectionMode>("3d");
@@ -91,15 +152,6 @@ export default function App() {
 
   const [api, setApi] = useState<CanvasApi | null>(null);
   const [chart, setChart] = useChartSettings();
-  // 叠加模式：开 = 新轨迹追加不清空，关 = 替换（localStorage 持久化）
-  // Overlay mode: on appends new trajectories without clearing, off replaces (persisted in localStorage).
-  const [overlayMode, setOverlayMode] = useState<boolean>(
-    () => localStorage.getItem("canvas.overlayMode") === "1"
-  );
-  const handleToggleOverlay = (v: boolean) => {
-    setOverlayMode(v);
-    localStorage.setItem("canvas.overlayMode", v ? "1" : "0");
-  };
   const [chartModalOpen, setChartModalOpen] = useState(false);
   const [stationKeepingOpen, setStationKeepingOpen] = useState(false);
   const [aboutModalOpen, setAboutModalOpen] = useState(false);
@@ -183,26 +235,116 @@ export default function App() {
     refreshArtifacts();
   }, [refreshArtifacts]);
 
-  // 轨迹上画布的同时接通时间轴：写入时刻数组与全局范围。叠加模式下追加不清空；
-  // 当前时刻置空——红点不自动出现，待用户拖动时间轴或播放后出现。
-  // Wire the timeline while placing trajectories on the canvas: write the time array and global range.
-  // Overlay mode appends without clearing; the current moment resets to null so the time marker
-  // never appears automatically — it shows only after the user drags the timeline or presses play.
-  const applyTrajectoryData = (data: { trajectories: number[][][]; times: number[][] }) => {
-    const merged = mergeTrajectoryData(
-      { trajectories, times: trajectoryTimes },
-      data,
-      overlayMode
-    );
-    setTrajectories(merged.trajectories);
-    setTrajectoryTimes(merged.times);
-    setTimeRange(trajectoryTimeRange(merged.times));
+  // 结果层写入：新内容整体替换，事件旗标（若有）随本次运行重置。当前时刻
+  // 置空——红点不自动出现，待用户拖动时间轴或播放后出现。
+  // Result-layer write: the new content replaces wholesale; event flags (if any)
+  // reset with this run. The current moment resets to null so the time marker
+  // never appears automatically — it shows only after the user drags or plays.
+  const applyTrajectoryData = (data: TrajectoryData, events: TimelineEvent[] = []) => {
+    setResultData(data);
+    setTimelineEvents(events);
     setCurrentEt(null);
     setTimeout(() => api?.fitView(), 100);
   };
 
-  // 选中记录时，从 catalog 拉取详细信息与轨迹
-  // When a record is selected, fetch its details and trajectory from the catalog.
+  // 画布装配（useMemo）：固定层在前、结果层在后拼一条数组；时间轴按
+  // ADR 0021 修订的两级基准——任一 et 产物在屏即全局 et 钟，相对/无基准
+  // 轨迹置空时刻（marker 自动隐藏），相对与绝对不混排。
+  // Canvas assembly (useMemo): pinned layer first, result layer second, one array; the
+  // timeline follows the ADR 0021 revised two-tier basis — any et product on
+  // screen switches to the global et clock, relative/untimed trajectories get
+  // blanked times (markers hide), and relative never mixes with absolute.
+  const canvasData = useMemo(() => {
+    const layers = [...pinned.map((p) => p.data), resultData];
+    const combined: TrajectoryData = {
+      trajectories: layers.flatMap((l) => l.trajectories),
+      times: layers.flatMap((l) => l.times),
+      timeBasis: layers.flatMap((l) => l.timeBasis ?? l.trajectories.map(() => "relative" as const)),
+      labels: layers.flatMap((l) => l.labels ?? l.trajectories.map(() => "")),
+    };
+    const mode = timelineMode(combined);
+    return {
+      ...combined,
+      displayTimes: timesForMode(combined, mode),
+      mode,
+      timeRange: trajectoryTimeRange(timesForMode(combined, mode)),
+    };
+  }, [pinned, resultData]);
+
+  // 固定层增减后视图适配一次，钉住的目标轨道即刻入画
+  // Refit once when the pinned layer changes so a freshly pinned target orbit lands in view.
+  useEffect(() => {
+    if (pinned.length > 0) {
+      const t = setTimeout(() => api?.fitView(), 100);
+      return () => clearTimeout(t);
+    }
+  }, [pinned.length, api]);
+
+  // 库记录工件 → 画布轨迹（选中查看 / 绘制所选 / 钉住共用）。
+  // An orbit artifact record → canvas data (shared by select / plot-selected / pin).
+  const parseArtifactToTrajectoryData = (
+    data: Awaited<ReturnType<typeof getArtifact>>,
+  ): TrajectoryData | null => {
+    if (data.familyMembers && data.familyMembers.length > 0) {
+      return familyMembersToTrajectoryData(data.familyMembers, data.mu ?? EARTH_MOON_MU);
+    }
+    if (data.members && data.members.length > 0) {
+      // 裸点集无时刻：每成员是 n×3 平铺数组，重排为 xyz 点列
+      // Bare point sets carry no times: each member is a flat n×3 array, reshaped into xyz points.
+      const pts = data.members
+        .map((flat) => {
+          const rows: number[][] = [];
+          for (let i = 0; i + 3 <= flat.length; i += 3) {
+            rows.push([flat[i], flat[i + 1], flat[i + 2]]);
+          }
+          return rows;
+        })
+        .filter((rows) => rows.length > 0);
+      return {
+        trajectories: pts,
+        times: pts.map(() => []),
+        timeBasis: pts.map(() => "none" as const),
+      };
+    }
+    return null;
+  };
+
+  // 图钉切换：钉住 = 拉取记录解析进固定层（软上限提示）；取消 = 移出。
+  // Pushpin toggle: pin = fetch and parse the record into the pinned layer (soft-cap hint);
+  // unpin = remove it.
+  const handleTogglePin = async (item: ArtifactSummary) => {
+    const rid = item.recordId;
+    if (!rid) return;
+    if (pinned.some((p) => p.recordId === rid)) {
+      setPinned((prev) => prev.filter((p) => p.recordId !== rid));
+      return;
+    }
+    if (pinned.length >= PINNED_LIMIT) {
+      message.warning(t("tree.pin_limit"));
+      return;
+    }
+    try {
+      const data = await getArtifact(rid);
+      const td = parseArtifactToTrajectoryData(data);
+      if (!td || td.trajectories.length === 0) {
+        message.warning(t("tree.pin_load_failed"));
+        return;
+      }
+      // 图例显示记录名（Q8 决策）：每条轨迹一个记录名标签
+      // Legend shows the record name (Q8 decision): one label per trajectory.
+      const labeled: TrajectoryData = {
+        ...td,
+        labels: td.trajectories.map(() => item.label),
+      };
+      setPinned((prev) => [...prev, { recordId: rid, label: item.label, data: labeled }]);
+    } catch {
+      message.error(t("tree.pin_load_failed"));
+    }
+  };
+
+  // 选中记录时，从 catalog 拉取详细信息与轨迹（进结果层，替换上次内容）
+  // When a record is selected, fetch its details and trajectory from the catalog
+  // (into the result layer, replacing the previous content).
   const handleSelectArtifact = async (a: ArtifactSummary | null) => {
     setSelectedArtifact(a);
     if (!a) {
@@ -217,22 +359,9 @@ export default function App() {
           setSelectedRecordDetail(queryResp.records[0]);
         }
         const data = await getArtifact(a.recordId);
-        if (data.familyMembers && data.familyMembers.length > 0) {
-          const muVal = data.mu ?? EARTH_MOON_MU;
-          const td = familyMembersToTrajectoryData(data.familyMembers, muVal);
-          if (td.trajectories.length > 0) {
-            applyTrajectoryData(td);
-            return;
-          }
-        }
-        if (data.members && data.members.length > 0) {
-          // 裸点集无时刻信息：时间轴保持禁用
-          // Bare point sets carry no timing information; the timeline stays disabled.
-          setTrajectories(data.members as unknown as number[][][]);
-          setTrajectoryTimes([]);
-          setTimeRange(null);
-          setCurrentEt(null);
-          setTimeout(() => api?.fitView(), 100);
+        const td = parseArtifactToTrajectoryData(data);
+        if (td && td.trajectories.length > 0) {
+          applyTrajectoryData(td);
         }
       }
     } catch (e) {
@@ -270,21 +399,9 @@ export default function App() {
   const handleAssistantOpenRecord = async (recordId: string) => {
     try {
       const data = await getArtifact(recordId);
-      if (data.familyMembers && data.familyMembers.length > 0) {
-        const td = familyMembersToTrajectoryData(data.familyMembers, data.mu ?? EARTH_MOON_MU);
-        if (td.trajectories.length > 0) {
-          applyTrajectoryData(td);
-          return;
-        }
-      }
-      if (data.members && data.members.length > 0) {
-        // 裸点集无时刻信息：时间轴保持禁用
-        // Bare point sets carry no timing information; the timeline stays disabled.
-        setTrajectories(data.members as unknown as number[][][]);
-        setTrajectoryTimes([]);
-        setTimeRange(null);
-        setCurrentEt(null);
-        setTimeout(() => api?.fitView(), 100);
+      const td = parseArtifactToTrajectoryData(data);
+      if (td && td.trajectories.length > 0) {
+        applyTrajectoryData(td);
       }
     } catch (e) {
       message.error(`加载产物失败: ${String(e)}`);
@@ -303,46 +420,30 @@ export default function App() {
       }
     : null;
 
-  // 勾选多条后“绘制所选”：逐条复用单选的拉取链路，轨迹/时刻拼接成一份数据上画布；
+  // 勾选多条后“绘制所选”：逐条复用解析链路，轨迹/时刻/基准拼接成一份结果层数据；
   // 单条失败跳过并提示，不阻塞其余。
-  // "Plot Selected" after multi-check: reuse the single-select fetch chain per record, concatenate
-  // trajectories/times into one dataset for the canvas; a failed record is skipped with a hint.
+  // "Plot Selected" after multi-check: reuse the parse chain per record, concatenate
+  // trajectories/times/bases into one result-layer dataset; a failed record is skipped with a hint.
   const handlePlotSelected = async (items: ArtifactSummary[]) => {
     const trajParts: number[][][] = [];
     const timeParts: number[][] = [];
+    const basisParts: TimeBasis[] = [];
     for (const item of items) {
       if (!item.recordId) continue;
       try {
         const data = await getArtifact(item.recordId);
-        if (data.familyMembers && data.familyMembers.length > 0) {
-          const td = familyMembersToTrajectoryData(data.familyMembers, data.mu ?? EARTH_MOON_MU);
-          if (td.trajectories.length > 0) {
-            trajParts.push(...td.trajectories);
-            timeParts.push(...td.times);
-            continue;
-          }
-        }
-        if (data.members && data.members.length > 0) {
-          // 裸点集无时刻：每成员是 n×3 平铺数组，重排为 xyz 点列
-          // Bare point sets carry no times: each member is a flat n×3 array, reshaped into xyz points.
-          const pts = data.members
-            .map((flat) => {
-              const rows: number[][] = [];
-              for (let i = 0; i + 3 <= flat.length; i += 3) {
-                rows.push([flat[i], flat[i + 1], flat[i + 2]]);
-              }
-              return rows;
-            })
-            .filter((rows) => rows.length > 0);
-          trajParts.push(...pts);
-          pts.forEach(() => timeParts.push([]));
+        const td = parseArtifactToTrajectoryData(data);
+        if (td) {
+          trajParts.push(...td.trajectories);
+          timeParts.push(...td.times);
+          basisParts.push(...(td.timeBasis ?? td.trajectories.map(() => "relative" as const)));
         }
       } catch (e) {
         message.warning(`${t("tree.plot_skip_failed")}: ${item.label}`);
       }
     }
     if (trajParts.length > 0) {
-      applyTrajectoryData({ trajectories: trajParts, times: timeParts });
+      applyTrajectoryData({ trajectories: trajParts, times: timeParts, timeBasis: basisParts });
     }
   };
 
@@ -444,30 +545,58 @@ export default function App() {
         }
       } else if (resp.data) {
         const d = resp.data as any;
-        // 转移设计（e2m2e ≥5.8.9，ADR 0040）：trajectory 是会合系物理 km/km/s，
-        // ÷DU_KM 归一后上画布；trajectory_times（TLI 起算秒）接时间轴
-        // Transfer design (e2m2e ≥5.8.9, ADR 0040): trajectory is rotating-frame
-        // physical km/km/s — normalize by DU_KM for the canvas; trajectory_times
-        // (seconds since TLI) wire the timeline.
+        // 转移设计（e2m2e ≥5.9.0，ADR 0040）：trajectory 是会合系物理 km/km/s，
+        // ÷DU_KM 归一后上画布；trajectory_times（TLI 起算秒）+ 提交的
+        // tli_epoch → et 绝对基准接时间轴；details 现成字段 → 出发/到达
+        // 脉冲旗标（Q9：近月点无时刻字段，不做）。
+        // Transfer design (e2m2e ≥5.9.0, ADR 0040): trajectory is rotating-frame
+        // physical km/km/s — normalize by DU_KM; trajectory_times (seconds
+        // since TLI) plus the submitted tli_epoch give the et absolute basis;
+        // ready-made details fields feed the departure/arrival pulse flags
+        // (Q9: perilune has no time field, skipped).
         if (Array.isArray(d.trajectory) && d.trajectory.length > 0) {
-          applyTrajectoryData(transferTrajectoryToCanvasData(d.trajectory, d.trajectory_times));
+          const tliEpoch = cleaned.tli_epoch as string | number | undefined;
+          const td = transferTrajectoryToCanvasData(
+            d.trajectory,
+            d.trajectory_times,
+            tliEpoch,
+            t("canvas.transfer_arc")
+          );
+          applyTrajectoryData(td, transferEventsFromDetails(d.details, tliEpoch, t));
         } else {
-          // 通用回退：design_orbit 的 states（会合无量纲）直画。注意
-          // orbit_propagation 的 position_km 是 GCRS 惯性 km，被此处按
-          // 无量纲误画是既存问题（#421），待星历槽位接线时修。
-          // Generic fallback: design_orbit states (dimensionless synodic)
-          // draw directly. Note orbit_propagation's position_km is GCRS
-          // inertial km misdrawn as dimensionless here — a known issue
-          // (#421) to fix when the ephemeris slot gets wired.
-          const rawStates = d.states || d.position_km;
-          if (Array.isArray(rawStates) && rawStates.length > 0) {
-            if (Array.isArray(rawStates[0])) {
+          // 轨道预报（#421 修复）：position_km 是 GCRS 惯性 km，÷DU_KM 后按
+          // 惯性系几何如实绘制并图例标注（惯性视图落地前），times_jd_tdb →
+          // et 基准。state_frame 契约（ADR 0040 增补）到位后按标签替换硬编码。
+          // Orbit propagation (#421 fix): position_km is GCRS inertial km —
+          // drawn honestly as inertial-frame geometry after ÷DU_KM with a
+          // legend note (until the inertial view lands); times_jd_tdb → the et
+          // basis. Replace this hardcode by the state_frame label once that
+          // contract (ADR 0040 amendment) ships.
+          const prop = propagationToCanvasData(
+            d.position_km,
+            d.times_jd_tdb,
+            t("canvas.propagation_inertial")
+          );
+          if (prop) {
+            applyTrajectoryData(prop);
+          } else {
+            // 通用回退：design_orbit 的 states（会合无量纲）直画；
+            // d.times（CR3BP 无量纲）行对齐则作相对时刻。
+            // Generic fallback: design_orbit states (dimensionless synodic)
+            // draw directly; row-aligned d.times (CR3BP nondimensional) serve
+            // as relative times.
+            const rawStates = d.states;
+            if (Array.isArray(rawStates) && rawStates.length > 0 && Array.isArray(rawStates[0])) {
               const pts = rawStates.map((s: number[]) => [Number(s[0]), Number(s[1]), Number(s[2])]);
-              setTrajectories([pts]);
-              setTrajectoryTimes([]);
-              setTimeRange(null);
-              setCurrentEt(null);
-              setTimeout(() => api?.fitView(), 100);
+              const relTimes =
+                Array.isArray(d.times) && d.times.length === pts.length
+                  ? (d.times as unknown[]).map(Number)
+                  : null;
+              applyTrajectoryData({
+                trajectories: [pts],
+                times: relTimes ? [relTimes] : [],
+                timeBasis: [relTimes ? "relative" : "none"],
+              });
             }
           }
         }
@@ -626,6 +755,8 @@ export default function App() {
               onRefresh={refreshArtifacts}
               onPlotSelected={handlePlotSelected}
               onMetaChange={updateArtifactMeta}
+              pinnedRecordIds={pinned.map((p) => p.recordId)}
+              onTogglePin={handleTogglePin}
             />
           </div>
 
@@ -709,10 +840,8 @@ export default function App() {
               projection={projection}
               center={center}
               recording={recording}
-              overlay={overlayMode}
               onProjectionChange={setProjection}
               onCenterChange={setCenter}
-              onOverlayChange={handleToggleOverlay}
               onFitView={() => api?.fitView()}
               onExportAnimation={handleExportAnimation}
               onOpenSettings={() => setChartModalOpen(true)}
@@ -722,9 +851,10 @@ export default function App() {
           {/* Three.js Canvas */}
           <div style={{ flex: 1, minHeight: 0 }}>
             <OrbitCanvas
-              trajectories={trajectories}
-              times={trajectoryTimes}
+              trajectories={canvasData.trajectories}
+              times={canvasData.displayTimes}
               currentEt={currentEt}
+              labels={canvasData.labels}
               mu={EARTH_MOON_MU}
               libration={libration}
               projection={projection}
@@ -738,9 +868,11 @@ export default function App() {
           {/* 底部时间轴 */}
           <div style={{ padding: "4px 8px", background: themeMode === "dark" ? "#1a1a1a" : "#fff" }}>
             <TimelineBar
-              timeRange={timeRange}
+              timeRange={canvasData.timeRange}
               currentEt={currentEt}
               onTimeChange={setCurrentEt}
+              mode={canvasData.mode}
+              events={timelineEvents}
             />
           </div>
         </div>

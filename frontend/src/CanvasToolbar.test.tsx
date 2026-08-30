@@ -6,10 +6,8 @@ const baseProps = {
   projection: "3d" as const,
   center: "barycenter" as const,
   recording: false,
-  overlay: false,
   onProjectionChange: vi.fn(),
   onCenterChange: vi.fn(),
-  onOverlayChange: vi.fn(),
   onFitView: vi.fn(),
   onExportAnimation: vi.fn(),
   onOpenSettings: vi.fn(),
@@ -52,20 +50,9 @@ describe("CanvasToolbar component", () => {
     expect(props.onOpenSettings).toHaveBeenCalledTimes(1);
   });
 
-  it("叠加模式开关关闭态点击回调 true", () => {
-    const props = setup();
-    const sw = screen.getByRole("switch");
-    expect(sw.getAttribute("aria-checked")).toBe("false");
-    fireEvent.click(sw);
-    expect(props.onOverlayChange).toHaveBeenCalledWith(true);
-  });
-
-  it("叠加模式开关开启态回显并回调 false", () => {
-    const props = setup({ overlay: true });
-    const sw = screen.getByRole("switch");
-    expect(sw.getAttribute("aria-checked")).toBe("true");
-    fireEvent.click(sw);
-    expect(props.onOverlayChange).toHaveBeenCalledWith(false);
+  it("叠加模式开关已由双层模型移除（不再渲染 switch）", () => {
+    setup();
+    expect(screen.queryByRole("switch")).toBeNull();
   });
 
   it("录制中导出按钮呈 loading", () => {

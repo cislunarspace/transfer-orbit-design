@@ -13,6 +13,10 @@ export type ProjectionMode = "3d" | "xy" | "xz" | "yz";
 export type FrameMode = "synodic" | "inertial";
 export type CenterMode = "barycenter" | "earth" | "moon" | "l1" | "l2";
 
+/** 轨迹色循环缺省值（与渲染 effect、图例共用同一循环口径） */
+/** Default trajectory color cycle (shared verbatim by the render effect and the legend). */
+export const DEFAULT_COLOR_CYCLE = ["#4c72b0", "#dd8452", "#55a868", "#c44e52", "#8172b3"];
+
 export interface OrbitCanvasProps {
   trajectories: number[][][];
   times?: number[][];
@@ -25,6 +29,9 @@ export interface OrbitCanvasProps {
   /** 画布背景色（hex）；缺省深色 */
   /** Canvas background color (hex); dark by default. */
   background?: string;
+  /** 与 trajectories 逐条对齐的图例标签；缺省项不进图例 */
+  /** Legend label per trajectory (row-aligned); omitted entries stay out of the legend. */
+  labels?: string[];
   onReady?: (api: CanvasApi) => void;
 }
 
@@ -44,6 +51,7 @@ export function OrbitCanvas({
   center,
   settings,
   background,
+  labels,
   onReady,
 }: OrbitCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -223,7 +231,7 @@ export function OrbitCanvas({
     annotations.position.set(ox, oy, oz);
 
     const lpColorNum = parseInt((settings?.lpColor ?? "#d4b106").slice(1), 16);
-    const colors = (settings?.colorCycle ?? ["#4c72b0", "#dd8452", "#55a868", "#c44e52", "#8172b3"]).map((c) =>
+    const colors = (settings?.colorCycle ?? DEFAULT_COLOR_CYCLE).map((c) =>
       parseInt(c.slice(1), 16)
     );
 
@@ -454,5 +462,45 @@ export function OrbitCanvas({
     });
   }, [currentEt, trajectories, times, center, settings]);
 
-  return <div ref={mountRef} style={{ width: "100%", height: "100%", position: "relative" }} />;
+  // 图例：带标签的轨迹按渲染同款色循环显示（固定层记录与结果层命名轨迹）
+  // Legend: labeled trajectories rendered with the same color cycle as the lines
+  // (pinned-layer records and named result-layer trajectories).
+  const legendItems = (labels ?? [])
+    .map((label, i) => ({ label, color: (settings?.colorCycle ?? DEFAULT_COLOR_CYCLE)[i % (settings?.colorCycle ?? DEFAULT_COLOR_CYCLE).length] }))
+    .filter((item) => !!item.label);
+
+  return (
+    <div ref={mountRef} style={{ width: "100%", height: "100%", position: "relative" }}>
+      {legendItems.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: 8,
+            left: 8,
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            pointerEvents: "none",
+          }}
+        >
+          {legendItems.map((item, i) => (
+            <div
+              key={`${item.label}-${i}`}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 11,
+                color: "#c9d3dd",
+                textShadow: "0 1px 2px rgba(0,0,0,0.6)",
+              }}
+            >
+              <span style={{ width: 14, height: 2, background: item.color, display: "inline-block" }} />
+              {item.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
