@@ -1,0 +1,122 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0021-canvas-timeline.md:2 7557a92e2c4c44c293eaf241b37efbd6
+msgid "ADR 0021：主画布时间轴（时刻选择）"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:4 88e7f472fd894b639aa30a357cefb27e
+msgid ""
+"**状态**：已接受 **日期**：2026-08-12 **关联**：ADR 0013（星历模型可视化的坐标与时间约定，决策 6 被本 ADR "
+"修订） **编号说明**：成文时误与《UI 迁移到 Tauri 架构》同编 0014，2026-08-26 改编为 0021。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:9 605d8ac07636430bb7104f557c0cd20a
+msgid "背景"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:11 16529d362dbe4f63bc2a108f5485af4b
+msgid ""
+"用户需要拨动时间观察飞行器在轨道上的真实位置，且地球、月球使用真实位置。经原型（`src/view/prototype_timeline.py`，一次性分支留档）验证三个会合系行为变体后确定方案：会合系保持静态"
+" CR3BP 几何（文献主流），真实公转平面由惯性系视图承担（ADR 0013 既有决策不变）。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:13 cfdad2c8bee7458ab5dde24ad8fa05f4
+msgid "决策"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:15 2f94793a3a214921bca15a34abfe6664
+msgid "**形态**：画布下方新增 Qt 滑块（scrubber），选择物理时刻 t（et 秒），旁显 UTC。不做播放按钮。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:16 631a189df500490da2f89d5d760fb00b
+msgid ""
+"**作用对象**：仅带 `times_et` 的星历产物（design_orbit 标称星历、control_orbit 受控星历），飞行器 "
+"marker 在轨迹上走到 t 对应位置。初猜（CR3BP，无物理时间）不受时间轴影响；同屏无星历产物时时间轴灰显。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:17 0ed3bdd65bdf49a69ffe8946180076be
+msgid ""
+"**两系行为**：惯性系下飞行器点在 `position_km` 轨迹上移动，另加月球此刻位置 marker 随 t "
+"移动（月球轨迹仍整条显示，地球原点不动）；会合系下轨迹静态，仅飞行器点沿线移动，地月/平动点标注不变。两系共享同一 t，切系不重置滑块。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:18 bbfc16b36fcf4f3faffaa99322b26714
+msgid "**滑块区间**：所有可见星历产物 `times_et` 的并集；超出某产物范围的时刻该产物的飞行器点消失。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:19 a25e697781e8486aa62073336b62140e
+msgid "**渲染**：拖动走全量重绘 `render()` + 节流（拖动中约 10 Hz），不建增量渲染路径。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:21 9bc1288cd24244f3bbe6d4ed16901cec
+msgid "本 ADR 修订 ADR 0013 决策 6 中主画布不做实时播放/时刻交互的部分；GIF 导出工具不变。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:23 f3c10c2891d94b73bef862d222c11350
+msgid ""
+"**修订**（2026-08-26，v4.4.0 复核）：Tauri 化后实现演进为前端 `TimelineBar`， "
+"三处与本文明示的决策不再一致：时间轴带播放按钮（推翻决策 1 的“不做播放 按钮”）；时刻数组由轨迹解析同源产出（period 均匀合成 / "
+"epochs / 行序推算）， 不再限于带 `times_et` 的星历产物（放宽决策 2）；GIF 导出已被画布 webm 录制 "
+"取代。其余决策不变。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:29 f90caf08004c4a48b8ca5fa74e67099a
+msgid ""
+"**修订**（2026-08-30，多轨迹同屏设计，随结果层/固定层落地）：时间轴时刻 基准定为两级——**et 秒（J2000 "
+"起算）是唯一绝对基准**。同屏出现任一带真实 历元的产物（星历段；转移弧经 TLI 历元 + `trajectory_times` "
+"换算）时，时间轴 切为全局 et 钟，滑块区间取可见带历元产物时刻的并集（决策 4 的“并集”收窄为 "
+"此集合），无历元轨迹不参与时刻走查；仅当同屏全部产物都无真实历元（如族成 员）时，退化为相对时刻走查（period "
+"均匀合成）。相对时刻与绝对时刻不混排。 彻底统一到 et、取消族相对走查的方案被否决：族走查是展示性功能，且初猜无真 实历元，强行造相位违背本 "
+"ADR“初猜不造物理上不存在的东西”的既有立场。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:38 136e5b2d4f62485e85727e410343d62d
+msgid "理由"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:40 f6c61b4f3b5748fba9e485b6f5f9aede
+msgid ""
+"会合系静态几何是脉动-旋转系的定义（ADR 0013 文献调研，Folta 2022 "
+"等），原型中的轨迹随月相旋转变体被否决，真实几何看惯性系即可，会合系看周期结构。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:41 33cdf05d5c044da492aab5a7ee9bc518
+msgid "初猜无真实历元，用周期映射造相位会画出物理上不存在的东西。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:42 3c7131b53a6a48349681f18154876716
+msgid "全量重绘复用现有 `render()` 单入口；仅一个 marker 移动，节流后体验够用，增量路径的残留元素类 bug 风险不值得。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:44 3c55e1d469dc43fdac0c140d548b4dc9
+msgid "后果"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:46 a9207db238764cfb906de26ecb7b3a3c
+msgid "`CanvasState` 需新增时刻字段，参与重绘判定；时间轴是画布状态而非某个视图的私产。"
+msgstr ""
+
+#: ../../adr/0021-canvas-timeline.md:47 733320238f6344f29f91edbcbd2300ce
+msgid "惯性系时间轴依赖 SPICE 内核（查月球此刻位置），离线环境降级为无月球 marker。"
+msgstr ""
+

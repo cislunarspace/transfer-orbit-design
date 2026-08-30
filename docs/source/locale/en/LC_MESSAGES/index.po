@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-22 14:16+0800\n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -19,47 +19,48 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../source/index.rst:14
+#: ../../source/index.rst:15
 msgid "入门"
 msgstr "Getting Started"
 
-#: ../../source/index.rst:21
+#: ../../source/index.rst:22
 msgid "使用指南"
 msgstr "User Guide"
 
-#: ../../source/index.rst:31
+#: ../../source/index.rst:32
 msgid "领域知识"
 msgstr "Domain Knowledge"
 
-#: ../../source/index.rst:39
+#: ../../source/index.rst:40
 msgid "开发"
 msgstr "Development"
 
-#: ../../source/index.rst:6 ba04f87f30fb41c285ccca6af58138a8
+#: ../../source/index.rst:6 8bb1980911524a0aa41d3b6729bbf824
 msgid "Transfer Orbit Design 文档"
 msgstr "Transfer Orbit Design Documentation"
 
-#: ../../source/index.rst:8 249ced791c1746409826d13e661c1129
+#: ../../source/index.rst:8 06779e86d03740988dfc6cef4f28d6d2
 msgid ""
 "Transfer Orbit Design 是 `e2m2e <https://github.com/cislunarspace/e2m2e>`_"
 " 的 GUI 前端：e2m2e 提供地月空间轨道设计所需的动力学模型与算法，本仓库把它们封装 成可视化桌面应用（Tauri 2：Rust 壳 + "
-"React 前端 + e2m2e sidecar）。v4.0.0 界面 可用能力为轨道族生成与轨道库浏览，其余工具逐工具回归中（见 `#398 "
-"<https://github.com/cislunarspace/transfer-orbit-design/issues/398>`_）。"
-msgstr "Transfer Orbit Design is the GUI frontend of `e2m2e <https://github.com/cislunarspace/e2m2e>`_: e2m2e provides the dynamics models and algorithms for cislunar orbit design, and this repository wraps them into a visual desktop application (Tauri 2: Rust shell + React frontend + e2m2e sidecar). The v4.0.0 UI offers orbit family generation and catalog browsing; the remaining tools are returning one by one (see `#398 <https://github.com/cislunarspace/transfer-orbit-design/issues/398>`_)."
+"React 前端 + e2m2e sidecar）。八个工具 （含参数空间扫描与分区边界）与 catalog "
+"的标注/提升/导出/删除操作均已可用； 画布为结果层/固定层双层模型，附时间轴走查与地月空间分区图层；内嵌 AI 助手 "
+"（LLM+MCP）可对话式发起计算，会话跨重启持久化。"
+msgstr "Transfer Orbit Design is the GUI frontend of `e2m2e <https://github.com/cislunarspace/e2m2e>`_: e2m2e provides the dynamics models and algorithms for cislunar orbit design, and this repository wraps them into a visual desktop application (Tauri 2: Rust shell + React frontend + e2m2e sidecar). Eight tools (including the parameter sweep and spatiography boundaries) and the catalog annotate/promote/export/delete operations are all available; the canvas uses a two-layer result/pinned model with a timeline scrubber and the cislunar partition layer; an embedded AI assistant (LLM+MCP) drives computations conversationally, with sessions persisting across restarts."
 
-#: ../../source/index.rst:48 320509d5bf9c4b9391abf9bbcf81c055
+#: ../../source/index.rst:49 7cfa99b65d3640f6a6cc0c5093446af6
 msgid "索引"
 msgstr "Index"
 
-#: ../../source/index.rst:50 fa1d5074904c4f95be1722b7eaf91f28
+#: ../../source/index.rst:51 864db3733fe943debd7835fb9071a3c3
 msgid ":ref:`genindex`"
 msgstr ":ref:`genindex`"
 
-#: ../../source/index.rst:51 98cae3142e1040bfad67456f95799df6
+#: ../../source/index.rst:52 612b559943f44d7195863237ece09c18
 msgid ":ref:`modindex`"
 msgstr ":ref:`modindex`"
 
-#: ../../source/index.rst:52 164c239e9cae4c2a91f4923829905895
+#: ../../source/index.rst:53 7e39fec2e71f41bd980d2a0b087c7561
 msgid ":ref:`search`"
 msgstr ":ref:`search`"
 
@@ -85,3 +86,4 @@ msgstr ":ref:`search`"
 #~ " → 选操作 → 看结果\"的三步交互完成轨道设计、 "
 #~ "轨道族生成、轨道保持与稳定性分析。"
 #~ msgstr ""
+

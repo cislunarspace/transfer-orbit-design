@@ -1,0 +1,96 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0018-tauri-desktop-auto-update.md:2
+#: 3a2b6b5968f74b86a05b00679a1563c3
+msgid "ADR 0018：Tauri 桌面端自动更新架构"
+msgstr ""
+
+#: ../../adr/0018-tauri-desktop-auto-update.md:4
+#: 7ce1cebef90049c69b61545d65b4a2e7
+msgid ""
+"**状态**：已接受 **日期**：2026-08-24 **关联**：ADR 0014（UI 迁移到 Tauri）、ADR 0017（Linux"
+" 打包）"
+msgstr ""
+
+#: ../../adr/0018-tauri-desktop-auto-update.md:8
+#: 3f7d64ee0b524e67856eb5a3d635b2d6
+msgid ""
+"**现状（2026-08-30）**：macOS 自动更新未落地。`.github/workflows/release.yml` 仅产出 "
+"windows / linux 清单（`latest.json` 只含 `windows-x86_64` 与 `linux-x86_64`），无 "
+"macOS 构建 job。macOS 端更新能力待补。"
+msgstr ""
+
+#: ../../adr/0018-tauri-desktop-auto-update.md:12
+#: 8ee09c0a63ef4a86aa0780bd02666f1b
+msgid ""
+"为桌面端（Windows / Linux / macOS）提供无缝、可信且安全的版本更新能力。我们决定采用 `@tauri-apps"
+"/plugin-updater` 官方更新插件，基于 GitHub Releases 托管安装包与更新清单（`latest.json`），并在 "
+"CI/CD 发布工作流中生成 Ed25519 签名与清单。"
+msgstr ""
+
+#: ../../adr/0018-tauri-desktop-auto-update.md:14
+#: 0609a4dcaf9a4e2bb1374e10c8171d41
+msgid "Considered Options"
+msgstr ""
+
+#: ../../adr/0018-tauri-desktop-auto-update.md:16
+#: df08ffedbb124a2f84cb2f66ee8f110e
+msgid ""
+"**手写 Python/Sidecar 更新脚本或独立下载器**：跨平台差异大（Windows NSIS vs Linux "
+"AppImage/deb 替换机制完全不同），缺少统一的签名校验与进度回调，维护成本高。"
+msgstr ""
+
+#: ../../adr/0018-tauri-desktop-auto-update.md:17
+#: 6bf35cbbf34d4c6c98ddd33b82b80d1e
+msgid "**纯网页重定向（仅弹窗跳转 GitHub 网页手动下载）**：打断用户工作流，体验割裂。"
+msgstr ""
+
+#: ../../adr/0018-tauri-desktop-auto-update.md:18
+#: 1f2e4db65d3c4d51960e207ea93548aa
+msgid ""
+"**Tauri 官方插件 (`@tauri-apps/plugin-updater`)**：与 Tauri v2 深度结合，内置 Ed25519 "
+"签名验证、断点与下载进度事件、系统级原生安装器拉起，前端提供统一 JS API。"
+msgstr ""
+
+#: ../../adr/0018-tauri-desktop-auto-update.md:20
+#: b186ba296ec74603b49c1b1d9740aff2
+msgid "Consequences"
+msgstr ""
+
+#: ../../adr/0018-tauri-desktop-auto-update.md:22
+#: 952584388c764b158d1126f3f5b9fe9c
+msgid ""
+"必须在构建流程中配置 updater 签名密钥对（公钥注入 `tauri.conf.json` / "
+"`tauri.release.conf.json`，私钥注入 CI Secrets）。"
+msgstr ""
+
+#: ../../adr/0018-tauri-desktop-auto-update.md:23
+#: 2c0b94f4128c4177a5f7ef909a81d7be
+msgid "CI 发布工作流需要在 Windows 与 Linux 各自构建后汇聚产物并生成合法的 `latest.json` 发布清单。"
+msgstr ""
+
+#: ../../adr/0018-tauri-desktop-auto-update.md:24
+#: a2d3581bbca04af88f16b6978dcb28ff
+msgid "前端需提供非阻塞式的启动后台检查、更新就绪弹窗提示以及“关于/设置”的手动检查更新入口。"
+msgstr ""
+
