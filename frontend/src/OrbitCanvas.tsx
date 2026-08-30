@@ -8,10 +8,19 @@ import type { ChartSettings } from "./chartSettings";
 import { EARTH_RADIUS_DU, MOON_RADIUS_DU } from "./chartSettings";
 import { COOLWARM_STOPS, jacobiColor, jacobiNorm } from "./jacobiColormap";
 import type { RegionElement } from "./regionLayer";
+import type { DataFrameTag } from "./trajectoryParsing";
+import { moonPositionAt, type MoonTrack } from "./moonEphemeris";
 import earthTextureUrl from "./assets/earth_2048.jpg";
 import moonTextureUrl from "./assets/moon_1024.jpg";
 
 export type ProjectionMode = "3d" | "xy" | "xz" | "yz";
+/** 视图系（ADR 0013：synodic 会合默认 | inertial 地心惯性 GCRS）。视图
+ *  系是用户的显示选择，不随数据走、不改任何数据数值与时刻语义；数据自
+ *  带的坐标系叫数据系（DataFrameTag，CONTEXT.md 术语边界）。 */
+/** The view frame (ADR 0013: synodic default | inertial geocentric GCRS).
+ *  A view frame is the user's display choice — it never rides the data and
+ *  changes no data value or time semantics; the frame riding the data is the
+ *  data frame (DataFrameTag, per CONTEXT.md's term boundary). */
 export type FrameMode = "synodic" | "inertial";
 export type CenterMode = "barycenter" | "earth" | "moon" | "l1" | "l2";
 
@@ -49,6 +58,32 @@ export interface OrbitCanvasProps {
   /** 地月空间分区图层（regionLayer 解析产物；不参与视图适配） */
   /** Cislunar partition region layer (parsed by regionLayer; excluded from view fitting). */
   regions?: RegionElement[];
+  /** 视图系（#428 第一步）：synodic 下全部现有行为逐项不变；inertial 下
+   *  地球居原点、月球沿 moonTrack 移动、会合系数据系产物灰显、平动点
+   *  与分区图层隐藏、居中偏移收敛到原点。 */
+  /** The view frame (#428 step 1): synodic keeps every existing behavior
+   *  item-for-item; inertial puts Earth at the origin, moves the Moon along
+   *  moonTrack, grays synodic data-frame products, hides libration points
+   *  and the region layer, and collapses centering offsets to the origin. */
+  frame?: FrameMode;
+  /** 与 trajectories 逐条对齐的数据系标签：惯性视图下 synodic_* 产物灰显
+   *  （inertial_km 正常呈现）；缺省按 synodic_nd 解释（画布既有轨迹全
+   *  会合系）。 */
+  /** Data-frame tags row-aligned with trajectories: synodic_* products gray
+   *  out in the inertial view (inertial_km renders properly); omitted entries
+   *  read as synodic_nd (every legacy canvas trajectory is synodic). */
+  dataFrames?: DataFrameTag[];
+  /** 惯性视图的月球轨迹（moonEphemeris 产物，DU 单位）；null = 上游不可
+   *  用，月球隐藏（ADR 0013 离线降级先例）。仅 frame=inertial 时消费。 */
+  /** The Moon's track for the inertial view (moonEphemeris output, DU);
+   *  null = upstream unavailable, the Moon hides (the ADR 0013 offline
+   *  degradation precedent). Consumed only when frame=inertial. */
+  moonTrack?: MoonTrack | null;
+  /** 惯性视图下图例对灰显项的注记（已本地化整句，如“会合系几何，惯性
+   *  视图下不可画”） */
+  /** The legend note for grayed items in the inertial view (a pre-localized
+   *  sentence, e.g. "synodic geometry, not drawable in the inertial view"). */
+  synodicUnavailableNote?: string;
   onReady?: (api: CanvasApi) => void;
 }
 
@@ -79,6 +114,21 @@ function trajectoryColorsHex(
   return { colors, range: hasValue ? { jmin, jmax } : null };
 }
 
+/** 灰显色（#359 先例：惯性视图下会合系几何不可画）：保留 18% 饱和度
+ *  让用户仍能分辨原色相归属，亮度不变；与图例 swatch 共用同一函数，
+ *  保证色样如实反映线上颜色。 */
+/** The graying color (#359 precedent: synodic geometry is not drawable in
+ *  the inertial view): keeps 18% saturation so the original hue stays
+ *  identifiable, brightness unchanged; shared with the legend swatch so the
+ *  swatch mirrors the line color. */
+function desaturateHex(hex: string): string {
+  const c = new THREE.Color(hex);
+  const hsl = { h: 0, s: 0, l: 0 };
+  c.getHSL(hsl);
+  c.setHSL(hsl.h, hsl.s * 0.18, hsl.l);
+  return `#${c.getHexString()}`;
+}
+
 export function OrbitCanvas({
   trajectories,
   times,
@@ -93,6 +143,10 @@ export function OrbitCanvas({
   frameLabels,
   jacobi,
   regions,
+  frame,
+  dataFrames,
+  moonTrack,
+  synodicUnavailableNote,
   onReady,
 }: OrbitCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -249,6 +303,12 @@ export function OrbitCanvas({
   }, [background]);
 
   const getCenterOffset = (): [number, number, number] => {
+    // 惯性视图：地球在原点，质心与地球重合（差 mu·DU，画面上无感）；
+    // 月心/L1/L2 是会合系概念（工具栏已禁用），防御性收敛到原点。
+    // Inertial view: Earth sits at the origin and the barycenter coincides
+    // with it (mu·DU apart — invisible on screen); moon/L1/L2 are synodic
+    // concepts (toolbar disables them), defensively collapsed to the origin.
+    if (frame === "inertial") return [0, 0, 0];
     // 会合系原点是地月质心：地球在 -mu、月球在 1-mu。居中偏移 = -(天体 x)。
     // The rotating frame's origin is the Earth-Moon barycenter: Earth at -mu, Moon at 1-mu; centering offset = -(body x).
     if (center === "earth") return [mu, 0, 0];
@@ -285,11 +345,20 @@ export function OrbitCanvas({
     regionsGroup.position.set(ox, oy, oz);
 
     const lpColorNum = parseInt((settings?.lpColor ?? "#d4b106").slice(1), 16);
+    const inertial = frame === "inertial";
+    // 灰显判定（#428）：惯性视图下会合系数据系产物去饱和；缺省标签按
+    // synodic_nd 解释（与 TrajectoryData.frames 的缺省口径一致）。
+    // Graying decision (#428): synodic data-frame products desaturate in the
+    // inertial view; an omitted tag reads as synodic_nd (same default as
+    // TrajectoryData.frames).
+    const grayed = trajectories.map(
+      (_, i) => inertial && (dataFrames?.[i] ?? "synodic_nd") !== "inertial_km",
+    );
     const colors = trajectoryColorsHex(
       trajectories.length,
       jacobi,
       settings?.colorCycle ?? DEFAULT_COLOR_CYCLE,
-    ).colors.map((c) => parseInt(c.slice(1), 16));
+    ).colors.map((c, i) => (grayed[i] ? desaturateHex(c) : c)).map((c) => parseInt(c.slice(1), 16));
 
     // 背景亮度决定网格与标注颜色（白底黑线，深底浅线）
     // Background brightness decides grid and annotation colors (black lines on light backgrounds, pale lines on dark).
@@ -366,12 +435,20 @@ export function OrbitCanvas({
 
     const s = settings;
     // 地月：NASA 公有领域贴图（Blue Marble / LROC）+ Phong 光照，
-    // Earth and Moon: NASA public-domain textures (Blue Marble / LROC) with Phong lighting;
-    // 半径取真实比例（chartSettings 常量）
-    // radii follow real proportions (chartSettings constants).
+    // 半径取真实比例（chartSettings 常量）。位置随视图系：会合系下地月在
+    // x 轴固定（-mu / 1-mu）；惯性系下地球居原点，月球沿 moonTrack 的
+    // 当前时刻位置（下方 addInertialMoon 摆放，无轨迹则隐藏——ADR 0013
+    // 离线降级）。
+    // Earth and Moon: NASA public-domain textures (Blue Marble / LROC) with
+    // Phong lighting, radii at true proportions (chartSettings constants).
+    // Placement follows the view frame: fixed on the x axis (-mu / 1-mu) in
+    // the synodic frame; Earth at the origin in the inertial frame, with the
+    // Moon at its current-moment position along moonTrack (placed by
+    // addInertialMoon below; hidden without a track — the ADR 0013 offline
+    // degradation).
     const texLoader = new THREE.TextureLoader();
     const addTexturedBody = (
-      name: string, label: string, x: number, radius: number, textureUrl: string,
+      name: string, label: string, position: [number, number, number], radius: number, textureUrl: string,
       specular: number, shininess: number,
     ) => {
       const tex = texLoader.load(textureUrl);
@@ -385,17 +462,65 @@ export function OrbitCanvas({
         }),
       );
       body.name = name;
-      body.position.set(x, 0, 0);
+      body.position.set(position[0], position[1], position[2]);
       annotations.add(body);
 
       const sprite = makeLabelSprite(label);
-      sprite.position.set(x + radius * 2, radius, 0);
+      sprite.position.set(position[0] + radius * 2, position[1] + radius, position[2]);
       annotations.add(sprite);
     };
-    addTexturedBody("earth", "地球", -mu, s?.earthSize ?? EARTH_RADIUS_DU, earthTextureUrl, 0x2a2a2a, 14);
-    addTexturedBody("moon", "月球", 1 - mu, s?.moonSize ?? MOON_RADIUS_DU, moonTextureUrl, 0x111111, 4);
+    if (inertial) {
+      addTexturedBody("earth", "地球", [0, 0, 0], s?.earthSize ?? EARTH_RADIUS_DU, earthTextureUrl, 0x2a2a2a, 14);
+    } else {
+      addTexturedBody("earth", "地球", [-mu, 0, 0], s?.earthSize ?? EARTH_RADIUS_DU, earthTextureUrl, 0x2a2a2a, 14);
+      addTexturedBody("moon", "月球", [1 - mu, 0, 0], s?.moonSize ?? MOON_RADIUS_DU, moonTextureUrl, 0x111111, 4);
+    }
 
-    libration.forEach((lp) => addSphere(lp.x, 0, 0, lpColorNum, s?.lpSize ?? 0.003, lp.label));
+    // 惯性视图的月球（#428，ADR 0013 决策 4）：整条 SPICE 真实轨迹（灰白
+    // 细线，天体参照物语义进标注组、不参与视图适配）+ 贴图天体摆到当前
+    // 时刻的插值位置（无时刻取跨度中点；时刻更新在 marker effect 里，拖
+    // 时间轴不重建几何）。
+    // The inertial-view Moon (#428, ADR 0013 decision 4): the full real SPICE
+    // track (a pale thin line; a body reference joining the annotation group,
+    // excluded from view fitting) plus the textured body placed at the
+    // interpolated current-moment position (span midpoint without a moment;
+    // moment updates live in the marker effect so scrubbing never rebuilds
+    // geometry).
+    const zr = settings?.zRatio ?? 1.0;
+    if (inertial && moonTrack && moonTrack.points.length > 1) {
+      const moonTrackColor = isLightBg ? 0x75808c : 0x8a93a0;
+      const moonPositions = new Float32Array(moonTrack.points.length * 3);
+      moonTrack.points.forEach((p, j) => {
+        moonPositions[j * 3] = p[0];
+        moonPositions[j * 3 + 1] = p[1];
+        moonPositions[j * 3 + 2] = p[2] * zr;
+      });
+      const moonGeom = new THREE.BufferGeometry();
+      moonGeom.setAttribute("position", new THREE.BufferAttribute(moonPositions, 3));
+      const moonLine = new THREE.Line(
+        moonGeom,
+        new THREE.LineBasicMaterial({
+          color: moonTrackColor,
+          linewidth: settings?.orbitLinewidth ?? 1.0,
+          transparent: true,
+          opacity: 0.7,
+        }),
+      );
+      moonLine.name = "moon-track";
+      annotations.add(moonLine);
+      // 初始位置取跨度中点（无时刻口径）；currentEt 更新由 marker effect
+      // 驱动，拖动时间轴不重建几何。
+      // Initial position takes the span midpoint (the no-moment convention);
+      // currentEt updates are driven by the marker effect so scrubbing never
+      // rebuilds geometry.
+      const p = moonPositionAt(moonTrack, null);
+      addTexturedBody("moon", "月球", [p[0], p[1], p[2] * zr], s?.moonSize ?? MOON_RADIUS_DU, moonTextureUrl, 0x111111, 4);
+    }
+
+    // 平动点是会合系概念（ADR 0013 决策 3）：惯性视图不画。
+    // Libration points are synodic concepts (ADR 0013 decision 3): not drawn
+    // in the inertial view.
+    if (!inertial) libration.forEach((lp) => addSphere(lp.x, 0, 0, lpColorNum, s?.lpSize ?? 0.003, lp.label));
 
     // 坐标轴图层（matplotlib 式三轴 + 轨道面网格 + 量程刻度），随中心偏移，可开关
     // Axes layer (matplotlib-style three axes + orbit-plane grid + range ticks), offset with the center, toggleable.
@@ -447,7 +572,7 @@ export function OrbitCanvas({
     // points): same offset as content, excluded from view fitting (data is DU-normalized by
     // regionLayer, z=0 plane); toggled by settings.regionsVisible. Colors by central body —
     // Earth-centered blue, Moon-centered amber, point markers reuse the libration gold.
-    if ((settings?.regionsVisible ?? true) && regions && regions.length > 0) {
+    if ((settings?.regionsVisible ?? true) && !inertial && regions && regions.length > 0) {
       const regionColor = (el: RegionElement): number => {
         const hex =
           el.kind === "point"
@@ -489,7 +614,7 @@ export function OrbitCanvas({
         );
       });
     }
-  }, [trajectories, mu, libration, center, settings, background, jacobi, regions]);
+  }, [trajectories, mu, libration, center, settings, background, jacobi, regions, frame, moonTrack, dataFrames]);
 
   // 每条轨迹一个时刻标记：随轨迹数组同步创建/清理（挂 scene 根，不参与视图适配）
   // One time marker per trajectory: created/cleaned in sync with the trajectory array
@@ -532,9 +657,14 @@ export function OrbitCanvas({
     controls.update();
   }, [center]);
 
-  // 各标记沿自己的轨迹/时刻插值：currentEt 超出该轨迹范围或无效时该标记隐藏
+  // 各标记沿自己的轨迹/时刻插值：currentEt 超出该轨迹范围或无效时该标记隐藏。
+  // 惯性视图下月球贴图同步沿 moonTrack 走到当前时刻（#428）：月球是天体
+  // 参照物，不随时刻越界隐藏（越界取就近端点，moonPositionAt 口径）。
   // Each marker interpolates along its own trajectory/times: hidden when currentEt falls outside
-  // that trajectory's range or is invalid.
+  // that trajectory's range or is invalid. In the inertial view the textured Moon
+  // likewise walks along moonTrack to the current moment (#428): a body reference,
+  // it never hides on out-of-range moments (clamped to the nearer endpoint, per
+  // moonPositionAt).
   useEffect(() => {
     const markers = markersRef.current;
     const [ox, oy, oz] = getCenterOffset();
@@ -567,23 +697,39 @@ export function OrbitCanvas({
       );
       marker.visible = true;
     });
-  }, [currentEt, trajectories, times, center, settings]);
+
+    if (frame === "inertial" && moonTrack) {
+      const moon = annotationsRef.current?.getObjectByName("moon") as THREE.Mesh | undefined;
+      if (moon) {
+        const p = moonPositionAt(moonTrack, currentEt ?? null);
+        moon.position.set(p[0], p[1], p[2] * (settings?.zRatio ?? 1.0));
+      }
+    }
+  }, [currentEt, trajectories, times, center, settings, frame, moonTrack, mu, libration]);
 
   // 图例：带标签的轨迹按各自实际渲染色显示（固定层记录与结果层命名轨迹），
-  // 各轨迹附数据系标注（#431：数据系 vs 视图系措辞沿 CONTEXT.md）
+  // 各轨迹附数据系标注（#431：数据系 vs 视图系措辞沿 CONTEXT.md）；惯性
+  // 视图下灰显项附“会合系几何不可画”注记（#428）。
   // Legend: labeled trajectories shown in their actual render colors (pinned-layer
   // records and named result-layer trajectories), each carrying a data-frame
-  // annotation (#431; 数据系 vs 视图系 per CONTEXT.md).
+  // annotation (#431; 数据系 vs 视图系 per CONTEXT.md); grayed items carry the
+  // "synodic geometry not drawable" note in the inertial view (#428).
+  const inertial = frame === "inertial";
+  const grayed = trajectories.map(
+    (_, i) => inertial && (dataFrames?.[i] ?? "synodic_nd") !== "inertial_km",
+  );
   const renderColors = trajectoryColorsHex(
     trajectories.length,
     jacobi,
     settings?.colorCycle ?? DEFAULT_COLOR_CYCLE,
   );
+  const displayColors = renderColors.colors.map((c, i) => (grayed[i] ? desaturateHex(c) : c));
   const legendItems = (labels ?? [])
     .map((label, i) => ({
       label,
       frame: frameLabels?.[i],
-      color: renderColors.colors[i],
+      color: displayColors[i],
+      grayed: grayed[i],
     }))
     .filter((item) => !!item.label);
 
@@ -628,16 +774,26 @@ export function OrbitCanvas({
                   {item.frame}
                 </span>
               )}
+              {item.grayed && synodicUnavailableNote && (
+                <span data-testid="legend-unavailable" style={{ fontSize: 10, opacity: 0.6 }}>
+                  {synodicUnavailableNote}
+                </span>
+              )}
             </div>
           ))}
         </div>
       )}
       {/* Jacobi 颜色条（#435）：存在有值轨迹时叠加，标注归一化范围的
-          实际值区间（上端 jmax、下端 jmin），渐变按 coolwarm 采样表。 */}
+          实际值区间（上端 jmax、下端 jmin），渐变按 coolwarm 采样表。
+          惯性视图下会合系产物已灰显（#428），颜色条只对应未灰显的有值
+          轨迹——全部灰显时隐藏，不做与线色脱钩的展示。 */}
       {/* Jacobi colorbar (#435): shown whenever a valued trajectory exists,
           labeling the real value interval of the normalization range
-          (jmax on top, jmin below); gradient follows the coolwarm stops. */}
-      {renderColors.range && (
+          (jmax on top, jmin below); gradient follows the coolwarm stops.
+          In the inertial view synodic products are grayed out (#428), so the
+          bar tracks only un-grayed valued trajectories — hidden when all are
+          grayed, never shown decoupled from the line colors. */}
+      {renderColors.range && jacobi?.some((v, i) => v !== undefined && !grayed[i]) && (
         <div
           data-testid="jacobi-colorbar"
           style={{

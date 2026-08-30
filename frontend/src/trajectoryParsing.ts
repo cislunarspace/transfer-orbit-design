@@ -217,20 +217,23 @@ export function transferTrajectoryToCanvasData(
   };
 }
 
-/** 轨道预报响应 → 画布轨迹（#421 修复）。position_km 是 GCRS 惯性 km，
- *  ÷DU_KM 缩放后画的是惯性系几何形状（会合系视图下方向不随地球-月球线
- *  旋转，待惯性视图落地前如实标注）；times_jd_tdb → et 绝对基准。
+/** 轨道预报响应 → 画布轨迹（#421 修复，#428 更新）。position_km 是
+ *  GCRS 惯性 km，÷DU_KM 缩放后按惯性系几何如实绘制；times_jd_tdb →
+ *  et 绝对基准。数据系标签 inertial_km 驱动视图系分流（#431/#428）：
+ *  惯性视图下正常呈现，会合视图下保持既有混画（图例数据系标注已区分）。
  *  state_frame 契约（e2m2e ADR 0040 增补）到位后按标签替换此硬编码。 */
-/** Orbit-propagation response → canvas data (#421 fix). position_km is GCRS
- *  inertial km: after ÷DU_KM scaling the drawn shape is inertial-frame
- *  geometry (directions do not co-rotate with the Earth-Moon line in the
- *  synodic view — labeled honestly until the inertial view lands);
- *  times_jd_tdb → the et absolute basis. Replace this hardcode by the
- *  state_frame label once that contract (e2m2e ADR 0040 amendment) ships. */
+/** Orbit-propagation response → canvas data (#421 fix, updated by #428).
+ *  position_km is GCRS inertial km: after ÷DU_KM scaling it draws honestly
+ *  as inertial-frame geometry; times_jd_tdb → the et absolute basis. The
+ *  inertial_km data-frame tag drives view-frame routing (#431/#428): proper
+ *  rendering in the inertial view, legacy co-drawing in the synodic view
+ *  (the data-frame legend note already distinguishes them). Replace this
+ *  hardcode by the state_frame label once that contract (e2m2e ADR 0040
+ *  amendment) ships. */
 export function propagationToCanvasData(
   positionKm: unknown,
   timesJdTdb: unknown,
-  label = "轨道预报（惯性系几何）",
+  label = "轨道预报",
 ): TrajectoryData | null {
   if (!Array.isArray(positionKm) || positionKm.length === 0 || !Array.isArray(positionKm[0])) {
     return null;

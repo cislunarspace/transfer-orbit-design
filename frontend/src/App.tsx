@@ -23,7 +23,7 @@ import {
 } from "@ant-design/icons";
 import { themeBehavior, themeTokens } from "./theme";
 import { CanvasToolbar } from "./CanvasToolbar";
-import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode } from "./OrbitCanvas";
+import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode, type FrameMode } from "./OrbitCanvas";
 import { TimelineBar } from "./TimelineBar";
 import { ParamsPanel } from "./ParamsPanel";
 import { ProjectTree } from "./ProjectTree";
@@ -45,6 +45,7 @@ import { AssistantSettingsForm } from "./assistant/AssistantSettingsForm";
 import type { SelectionContext } from "./assistant/api";
 import { DU_KM, TU_SECONDS, librationPoint } from "./cr3bp";
 import { etFromEpoch } from "./timeBasis";
+import { moonTrackFromResponse, moonTrackRequest, type MoonTrack } from "./moonEphemeris";
 import { boundariesResponseToRegionLayer, type BoundaryElementPayload, type RegionElement } from "./regionLayer";
 import {
   designEphemerisToCanvasData,
@@ -157,6 +158,20 @@ export default function App() {
 
   const [projection, setProjection] = useState<ProjectionMode>("3d");
   const [center, setCenter] = useState<CenterMode>("barycenter");
+  // 视图系（#428 第一步，ADR 0013）：显示选择，与数据/时刻语义正交——切
+  // 换不改 currentEt、播放状态与任何轨迹数据（TimelineBar 在 props 之外
+  // 持有播放态，不受本状态影响）。
+  // The view frame (#428 step 1, ADR 0013): a display choice orthogonal to
+  // data/time semantics — switching changes no currentEt, playback state, or
+  // trajectory data (TimelineBar owns its playback state beyond these props).
+  const [frame, setFrame] = useState<FrameMode>("synodic");
+  // 惯性视图的月球 SPICE 轨迹：按时间轴跨度缓存（moonCacheKey），跨度变
+  // 化失效重取；切换回会合视图不清缓存。
+  // The Moon's SPICE track for the inertial view: cached by timeline span
+  // (moonCacheKey), refetched when the span changes; switching back to the
+  // synodic view keeps the cache.
+  const [moonTrack, setMoonTrack] = useState<MoonTrack | null>(null);
+  const moonCacheKeyRef = useRef("");
 
   const [api, setApi] = useState<CanvasApi | null>(null);
   const [chart, setChart] = useChartSettings();
@@ -305,6 +320,48 @@ export default function App() {
     if (!api || canvasData.trajectories.length === 0) return;
     api.fitView();
   }, [canvasData, api]);
+
+  // 惯性视图的月球轨迹获取（#428）：仅 et 钟模式下有时间轴跨度可取；经
+  // run_tool 调 spacetime_transform（synodic_to_j2000，旋转链由 SPICE 真实
+  // 月历构造）取跨度内月球位置序列。按跨度缓存（中点历元由跨度唯一决
+  // 定，不单独判失效）；失败降级为无月球（ADR 0013 离线降级）并提示。
+  // Moon-track fetching for the inertial view (#428): only the et-clock mode
+  // offers a timeline span to sample; run_tool calls spacetime_transform
+  // (synodic_to_j2000, the rotation chain built from the real SPICE lunar
+  // ephemeris) for the Moon's positions across the span. Cached by span (the
+  // midpoint epoch follows uniquely from the span, no separate invalidation);
+  // failures degrade to no Moon (the ADR 0013 offline fallback) with a hint.
+  useEffect(() => {
+    if (frame !== "inertial" || canvasData.mode !== "et" || !canvasData.timeRange) return;
+    const [lo, hi] = canvasData.timeRange;
+    const key = `${lo.toFixed(1)}|${hi.toFixed(1)}`;
+    if (key === moonCacheKeyRef.current) return;
+    moonCacheKeyRef.current = key;
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await runTool("spacetime_transform", {
+          ...moonTrackRequest([lo, hi]),
+        });
+        if (cancelled) return;
+        if (resp.error) {
+          throw new Error(String(resp.error.message ?? resp.error.code));
+        }
+        const track = moonTrackFromResponse(resp.data, [lo, hi]);
+        if (!track) throw new Error("bad spacetime_transform payload");
+        setMoonTrack(track);
+      } catch (e) {
+        if (!cancelled) {
+          setMoonTrack(null);
+          console.warn("月球惯性轨迹获取失败", e);
+          message.warning(t("canvas.moon_track_failed"));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [frame, canvasData.mode, canvasData.timeRange, t]);
 
   // 库记录工件 → 画布轨迹（选中查看 / 绘制所选 / 钉住共用）。
   // 记录可含 CR3BP 段与星历段（双段并存，CONTEXT.md）：CR3BP 闭曲线之外，
@@ -675,7 +732,7 @@ export default function App() {
           const prop = propagationToCanvasData(
             d.position_km,
             d.times_jd_tdb,
-            t("canvas.propagation_inertial")
+            t("canvas.propagation")
           );
           if (prop) {
             applyTrajectoryData(prop);
@@ -982,9 +1039,11 @@ export default function App() {
             <CanvasToolbar
               projection={projection}
               center={center}
+              frame={frame}
               recording={recording}
               onProjectionChange={setProjection}
               onCenterChange={setCenter}
+              onFrameChange={setFrame}
               onFitView={() => api?.fitView()}
               onExportAnimation={handleExportAnimation}
               onOpenSettings={() => setChartModalOpen(true)}
@@ -1001,6 +1060,10 @@ export default function App() {
               frameLabels={canvasData.frames?.map((f) => t(`canvas.frame.${f}`))}
               jacobi={canvasData.jacobi}
               regions={regionData}
+              frame={frame}
+              dataFrames={canvasData.frames}
+              moonTrack={frame === "inertial" ? moonTrack : null}
+              synodicUnavailableNote={t("canvas.frame.synodic_unavailable")}
               mu={EARTH_MOON_MU}
               libration={libration}
               projection={projection}
