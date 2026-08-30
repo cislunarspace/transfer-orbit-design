@@ -11,7 +11,6 @@ import type { ArtifactSummary } from "./projectApi";
 
 vi.mock("./catalogApi", () => ({
   catalogDelete: vi.fn(),
-  computeStability: vi.fn(),
   catalogQuery: vi.fn(),
   catalogTag: vi.fn().mockResolvedValue(true),
   STAR_TAG: "★",

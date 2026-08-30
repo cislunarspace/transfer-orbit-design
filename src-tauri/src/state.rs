@@ -33,12 +33,18 @@ impl SidecarState {
         let _ = SPAWN_CONFIG.set((command, cwd));
     }
 
-    /// 取当前 sidecar，没有则拉起。已死进程（读循环退出）会自动重启。
+    /// 取当前 sidecar，没有则拉起。死亡判定与自愈不在此处：由
+    /// [`request_with_retry`] 承担（覆盖死句柄的 anyhow 错误与请求中
+    /// 崩溃的 SIDECAR_EXIT 两种时序，均先 reset 再重拉）；此处仅复用
+    /// 既有句柄。
+    /// Fetch the current sidecar, spawning one when absent. Death detection
+    /// and self-healing are not done here — [`request_with_retry`] owns them
+    /// (covering both the dead-handle anyhow error and the mid-request
+    /// SIDECAR_EXIT, each resetting before respawning); this only reuses the
+    /// existing handle.
     pub async fn get_or_spawn(&self) -> anyhow::Result<SidecarHandle> {
         let mut guard = self.handle.lock().await;
         if let Some(h) = guard.as_ref() {
-            // 探活：空闲句柄无法便宜地探活（无 ping 工具），依赖请求路径
-            // 的 SIDECAR_EXIT 错误触发重试。此处直接复用。
             return Ok(h.clone());
         }
         let (cmd, cwd) = SPAWN_CONFIG

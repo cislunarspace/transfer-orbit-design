@@ -1,20 +1,20 @@
 // Jacobi 常数着色：coolwarm 采样表 + 归一化（#435）。
 //
-// matplotlib 出图侧（src/commons/viz/family.py 的 FamilyPlotter）用
-// PlotConfig.colormap = "coolwarm"（commons/viz/config.py）；画布侧
-// 硬编码同一 colormap 的 9 档采样表线性插值，保持两侧视觉语义相容
-// （低 Jacobi 蓝端、高 Jacobi 红端），不引入运行时依赖。
+// 画布硬编码 coolwarm colormap 的 9 档采样表线性插值（低 Jacobi 蓝端、
+// 高 Jacobi 红端），不引入运行时依赖。原与 matplotlib 出图侧（已删的
+// FamilyPlotter，#435 定的视觉语义）对齐；该侧随 #415 删除，此处保留
+// 同一色板。
 // 归一化口径照抄 matplotlib _get_jacobi_norm：全相等或仅一条时
 // jrange 取 1.0 防除零，归一化值恒为 0 → 固定蓝端色。
 // Jacobi-constant coloring: the coolwarm sample table plus normalization (#435).
 //
-// The matplotlib plot path (FamilyPlotter in src/commons/viz/family.py) uses
-// PlotConfig.colormap = "coolwarm" (commons/viz/config.py); the canvas hardcodes
-// a 9-stop sample of the same colormap with linear interpolation, keeping the two
-// sides visually consistent (low Jacobi blue, high Jacobi red) without adding a
-// runtime dependency. Normalization follows matplotlib's _get_jacobi_norm:
-// jrange falls back to 1.0 when all values are equal or only one exists (norm
-// stays 0 → fixed blue-end color).
+// The canvas hardcodes a 9-stop sample of the coolwarm colormap with linear
+// interpolation (low Jacobi blue, high Jacobi red), adding no runtime
+// dependency. It originally matched the former matplotlib plot path (the
+// FamilyPlotter side whose visual semantics #435 fixed); that side was removed
+// with #415, and this keeps the same palette. Normalization follows
+// matplotlib's _get_jacobi_norm: jrange falls back to 1.0 when all values are
+// equal or only one exists (norm stays 0 → fixed blue-end color).
 
 /** coolwarm 的 9 档采样（matplotlib.colormaps["coolwarm"] 等距取点）。 */
 /** 9-stop sample of coolwarm (evenly sampled from matplotlib.colormaps["coolwarm"]). */

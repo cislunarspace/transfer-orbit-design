@@ -59,7 +59,13 @@ use crate::state::{request_with_retry, SidecarState};
 /// 进度事件名（前端 listen 用）。
 pub const PROGRESS_EVENT: &str = "sidecar-progress";
 
-/// 族生成响应（camelCase 给前端）。
+/// 生成轨道族命令已随 #415 删除（族生成统一走 run_tool/catalog_sweep 通道）；
+/// FamilyMember 保留——get_artifact 的 catalog_get 映射用它携带成员状态
+/// 与 period/jacobi 元数据。
+/// The generate_family command was removed with #415 (family generation goes
+/// through the unified run_tool/catalog_sweep channel); FamilyMember stays —
+/// get_artifact's catalog_get mapping uses it to carry member states plus
+/// period/jacobi metadata.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FamilyMember {
@@ -69,18 +75,6 @@ pub struct FamilyMember {
     pub period: Option<f64>,
     /// 成员 Jacobi 常数（族记录 members 元数据通道，#435）；无值为 None。
     pub jacobi: Option<f64>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FamilyResponse {
-    pub record_id: String,
-    pub family_type: String,
-    pub generated_members: u64,
-    pub mu: Option<f64>,
-    pub members: Vec<FamilyMember>,
-    /// 错误信封（e2m2e 结构化错误原样透传）。
-    pub error: Option<serde_json::Value>,
 }
 
 #[derive(Serialize)]
@@ -159,89 +153,6 @@ pub async fn run_tool(
         }
     }
     Ok(ToolResponse { data: result.data, frames, error: None })
-}
-
-/// 生成轨道族（首个打通的工具；参数结构与 FamilyGenerationRequest 对齐）。
-#[tauri::command]
-pub async fn generate_family(
-    state: State<'_, SidecarState>,
-    project: State<'_, ProjectState>,
-    arguments: serde_json::Value,
-) -> Result<FamilyResponse, String> {
-    let result = request_with_retry(&state, "orbit_family_generation", arguments, Some("f32"))
-        .await
-        .map_err(|e| e.to_string())?;
-    if result.status != "ok" {
-        return Ok(FamilyResponse {
-            record_id: String::new(),
-            family_type: String::new(),
-            generated_members: 0,
-            mu: None,
-            members: vec![],
-            error: result.error,
-        });
-    }
-    // 帧序 = data.orbits 成员序；每帧 (1, 6) 初态 + period/mu 标量
-    // （要求 e2m2e ≥5.8.5）。轨迹重采样在前端 CR3BP 传播器做。
-    let orbits = result.data["orbits"].as_array().cloned().unwrap_or_default();
-    let mu = result.data["mu"].as_f64();
-    // binary_dtype=f32 是本命令固定的，f64 帧是协议违约：结构化拒绝
-    if result.frames.iter().any(|f| matches!(f, crate::sidecar::FrameArray::F64 { .. })) {
-        return Ok(FamilyResponse {
-            record_id: String::new(),
-            family_type: String::new(),
-            generated_members: 0,
-            mu: None,
-            members: vec![],
-            error: Some(serde_json::json!({
-                "code": "PROTOCOL_VIOLATION",
-                "message": "binary_dtype=f32 请求收到 f64 帧",
-            })),
-        });
-    }
-    let members = result
-        .frames
-        .iter()
-        .zip(orbits.iter())
-        .map(|(frame, orbit)| {
-            let initial = match frame {
-                crate::sidecar::FrameArray::F32 { data, .. } => data,
-                crate::sidecar::FrameArray::F64 { .. } => unreachable!("已在上方排除"),
-            };
-            let states = initial.to_vec();
-            let times = orbit["times"].as_array().cloned().unwrap_or_default()
-                .iter().filter_map(|t| t.as_f64()).collect();
-            FamilyMember {
-                states,
-                times,
-                period: orbit["period"].as_f64(),
-                jacobi: orbit["jacobi"].as_f64(),
-            }
-        })
-        .collect();
-    let record_id = result.data["record_id"].as_str().unwrap_or("").to_string();
-    let family_type = result.data["family_type"].as_str().unwrap_or("").to_string();
-    let generated = result.data["generated_members"].as_u64().unwrap_or(0);
-    // 入项目（摘要想入容器；帧不入库，随本次响应交付前端）
-    if !record_id.is_empty() {
-        project.add(ArtifactSummary {
-            artifact_id: String::new(),
-            artifact_type: "family".into(),
-            label: format!("{family_type} 族（{generated} 成员）"),
-            orbit_type: family_type.clone(),
-            source_tool: "orbit_family_generation".into(),
-            record_id: Some(record_id.clone()),
-            created_at: unix_seconds_now(),
-        }).await;
-    }
-    Ok(FamilyResponse {
-        record_id,
-        family_type,
-        generated_members: generated,
-        mu,
-        members,
-        error: None,
-    })
 }
 
 /// build_ephemeris_status：任一 .bsp + 任一 .tls 即可用；缺/空目录不可用。
@@ -479,7 +390,7 @@ pub async fn remove_artifact(
 }
 
 /// 登记 AI 助手经 MCP 运行产出的产物（ADR 0022：AI 产物与手动运行语义
-/// 一致，同一项目树）。run_tool/generate_family 之外的登记入口——MCP
+/// 一致，同一项目树）。run_tool 之外的登记入口——MCP
 /// 链路不过 run_tool，产物 record_id 由前端从工具卡片事件带回。
 #[tauri::command]
 pub async fn register_artifact(

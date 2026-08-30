@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getActiveFields, validateToolParams, type ParamIssue } from "./index";
+import { validateToolParams, type ParamIssue } from "./index";
 import type { ToolSchema, SchemaProperty } from "../schema";
 
 // 最小 schema：必填枚举 + 可空数值（anyOf 分支携带范围，与真实 schema 同构）
@@ -61,24 +61,5 @@ describe("validateToolParams", () => {
     expect(issues[0].field).toBe("orbit_type");
     expect(issues[0].label).toBe("Orbit Type");
     expect(issues.some((i) => i.field === "amplitude" && i.label === "Amplitude")).toBe(true);
-  });
-
-  it("隐藏字段不参与校验：orbit_stability 只看可见两字段", () => {
-    const stabilitySchema: ToolSchema = {
-      required: ["orbit_record_id", "dynamics_model", "amplitude"],
-      properties: {
-        orbit_record_id: { type: "string", title: "Orbit Record ID" },
-        dynamics_model: { type: "string", title: "Dynamics Model", enum: ["cr3bp", "ephemeris"] },
-        amplitude: { title: "Amplitude", anyOf: [{ type: "number" } as SchemaProperty, { type: "null" }] },
-      },
-    };
-    // amplitude 必填但不可见 → 不报；orbit_record_id 可见且缺失 → 报必填
-    // amplitude is required but invisible → no error; orbit_record_id visible and missing → reports missing-required.
-    const issues = validateToolParams("orbit_stability", stabilitySchema, { dynamics_model: "cr3bp" });
-    expect(issues.map((i) => i.field)).toEqual(["orbit_record_id"]);
-    expect(getActiveFields("orbit_stability", stabilitySchema, "HALO")).toEqual([
-      "orbit_record_id",
-      "dynamics_model",
-    ]);
   });
 });

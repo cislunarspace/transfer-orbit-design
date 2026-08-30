@@ -1,7 +1,4 @@
-"""tests for FacadeBridge.transfer_design + 转移结果落盘/扫描。
-
-    Tests for
-FacadeBridge.transfer_design plus transfer-result persistence/scan.
+"""tests for FacadeBridge.transfer_design.
 
 桩打在算法层 ``e2m2e.algorithm.transfer.transfer_orbit`` 上：请求校验与
 响应翻译仍走真 Facade。
@@ -12,15 +9,12 @@ response translation still run the real Facade.
 
 from __future__ import annotations
 
-import json
-
 import numpy as np
 import pytest
 from e2m2e.data.templates import ConvergenceState, FailureCause
 
 from src.commons.units import DU_KM, TU_SECONDS
 from src.engine.facade_bridge import FacadeBridge, TransferDesignResultData
-from src.engine.persistence import save_transfer_result
 
 
 class _FakeTransferResult:
@@ -144,49 +138,3 @@ class TestTransferDesign:
         assert data.converged is False
         assert data.trajectory is None
 
-
-class TestSaveTransferResult:
-    def _dto(self, **kw) -> TransferDesignResultData:
-        defaults = dict(
-            transfer_type="HMN",
-            delta_v=3.94,
-            message="霍曼转移完成",
-            converged=True,
-            trajectory=np.array([[6800.0, 0, 0, 0, 7.7, 0]]),
-            details={"tof_sec": 345600.0},
-        )
-        defaults.update(kw)
-        return TransferDesignResultData(**defaults)
-
-    def test_creates_transfer_json(self, tmp_path):
-        json_path = save_transfer_result(self._dto(), tmp_path)
-        assert json_path.parent.name == "transfer"
-        assert json_path.name.startswith("transfer_design_")
-        data = json.loads(json_path.read_text(encoding="utf-8"))
-        assert data["source_tool"] == "transfer_design"
-        assert data["delta_v_km_s"] == 3.94
-        assert data["states"] == [[6800.0, 0, 0, 0, 7.7, 0]]
-
-    def test_none_trajectory_serializes(self, tmp_path):
-        json_path = save_transfer_result(
-            self._dto(trajectory=None, converged=False), tmp_path
-        )
-        data = json.loads(json_path.read_text(encoding="utf-8"))
-        assert data["states"] is None
-        assert data["converged"] is False
-
-    def test_discovered_by_legacy_scan(self, tmp_path):
-        """落盘文件应被遗留分区扫描识别为 transfer 工件。
-
-            Persisted files must be recognized as
-        transfer artifacts by the legacy-partition scan."""
-        from src.model.discovery import discover_artifacts
-
-        json_path = save_transfer_result(self._dto(), tmp_path)
-        artifacts = discover_artifacts(tmp_path)
-        assert len(artifacts) == 1
-        art = artifacts[0]
-        assert art.artifact_type == "transfer"
-        assert art.source_tool == "transfer_design"
-        assert art.output_path == json_path
-        assert art.state_data is not None and art.state_data.shape == (1, 6)
