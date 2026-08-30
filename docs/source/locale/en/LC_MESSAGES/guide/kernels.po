@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-22 14:16+0800\n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,67 +20,77 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../source/guide/kernels.md:1 99080548b7a54b048850c00e68067d32
+#: ../../source/guide/kernels.md:1 be77d4ed594149829a59a42273b59f2c
 msgid "SPICE 内核"
 msgstr "SPICE Kernels"
 
-#: ../../source/guide/kernels.md:3 5f70d4f291864d0dbe3755b36ccbfc6e
+#: ../../source/guide/kernels.md:3 5cb13c86c2384e80be197b8b76d37905
 msgid ""
-"星历动力学（轨道设计的星历修正、轨道保持等）需要 NASA SPICE 内核文件； 必需内核包括行星历（`.bsp`，如 "
-"`de440.bsp`）与闰秒（`.tls`，如 `naif0012.tls`）。"
-msgstr "Ephemeris dynamics (ephemeris correction in orbit design, station keeping, …) requires NASA SPICE kernel files; the required kernels include the planetary ephemeris (`.bsp`, e.g. `de440.bsp`) and leap seconds (`.tls`, e.g. `naif0012.tls`)."
+"星历动力学（轨道设计的星历修正、轨道保持、轨道预报、时空坐标转换等）需要 NASA SPICE 内核文件；必需内核包括行星历（`.bsp`，如 "
+"`de440s.bsp`）与闰秒 （`.tls`，如 `naif0012.tls`）。轨道族生成等纯 CR3BP 工具不读内核。"
+msgstr "Ephemeris dynamics (ephemeris correction in orbit design, station keeping, orbit propagation, spacetime transforms, …) require NASA SPICE kernel files; the required kernels include the planetary ephemeris (`.bsp`, e.g. `de440s.bsp`) and leap seconds (`.tls`, e.g. `naif0012.tls`). Pure-CR3BP tools such as orbit family generation never read kernels."
 
-#: ../../source/guide/kernels.md:7 9516bef0d0c347988d1e37a2cd1b1160
+#: ../../source/guide/kernels.md:7 505c4ffc492840dfb46cbb86b02a0908
 msgid ""
-"**v4.0.0 的界面工具不需要内核**：轨道族生成与轨道库浏览是纯 CR3BP 计算， "
-"安装后直接使用，无任何内核准备步骤。星历类工具的界面回归见 [issue "
-"#398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)。"
-msgstr "**The v4.0.0 UI tools need no kernels**: orbit family generation and catalog browsing are pure CR3BP computations - ready to use right after install, with no kernel preparation step. The return of ephemeris tools is tracked in [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)."
+"**内核已随包分发，开箱即用**：内核全套（含行星历 `.bsp`）经 Git LFS 随仓库 提交，安装包也把它们打进了安装目录的 "
+"`resources/kernels/`。桌面用户无需任何 准备步骤；需要另行准备的只剩以下场景。"
+msgstr "**Kernels ship with the app — ready out of the box**: the full kernel set (including planetary ephemerides `.bsp`) is committed via Git LFS and bundled into the installer's `resources/kernels/`. Desktop users need no preparation; only the scenarios below call for anything extra."
 
-#: ../../source/guide/kernels.md:11 0d7b3bb5077d405cac5c877dc89792e9
+#: ../../source/guide/kernels.md:11 57e0c12d9bec4991871fb883016b0c37
 msgid "内核从哪里来"
 msgstr "Where the Kernels Come From"
 
-#: ../../source/guide/kernels.md:13 57a0bf5ba4e34f0c83aebfc8ddb8e91b
+#: ../../source/guide/kernels.md:13 56bbf5a9899e49c69f4f5995587665ab
 msgid ""
-"安装包已随带小内核（`.bpc` / `.tls` / `.tpc` / `.tf`，位于安装目录的 "
-"`resources/kernels/`）；体积大的星历 `.bsp` 不随包分发，需要时获取："
-msgstr "The installer bundles the small kernels (`.bpc` / `.tls` / `.tpc` / `.tf`, under `resources/kernels/` in the install directory); the bulky ephemeris `.bsp` files are not distributed with the package - fetch them when needed:"
+"**Git LFS / 安装包**：克隆仓库后 `kernels/` 即已就位（安装版在安装目录）， 应用启动时自动钉到 "
+"`$SPICE_KERNEL_DIR`；"
+msgstr "**Git LFS / installer**: after cloning, `kernels/` is already in place (in the install directory for the packaged app); on startup the app pins it to `$SPICE_KERNEL_DIR` automatically;"
 
-#: ../../source/guide/kernels.md:16 4fe4a7892aa34c908c3233d3fb5a7f32
+#: ../../source/guide/kernels.md:15 5648aa7d8fe7456f931cfa6d724c034e
 msgid ""
-"**自动下载（推荐）**：`uv run python scripts/download_kernels.py`，幂等地 拉取全部内核到 "
-"`kernels/`；"
-msgstr "**Automatic download (recommended)**: `uv run python scripts/download_kernels.py` - idempotently fetches all kernels into `kernels/`;"
+"**自动下载**：精简环境（如未拉取 LFS 的 CI）可运行 `uv run python "
+"scripts/download_kernels.py`，幂等地拉取全部内核到 `kernels/`；"
+msgstr "**Automatic download**: in slim environments (e.g. CI without LFS), run `uv run python scripts/download_kernels.py`, which idempotently fetches all kernels into `kernels/`;"
 
-#: ../../source/guide/kernels.md:18 108c9a42772e4ad68d21a2caffa507e5
+#: ../../source/guide/kernels.md:17 be9345d8b917412085efb5664a9ebcb8
 msgid ""
 "**手动下载**：从 e2m2e 的 [`kernels-v1` "
 "release](https://github.com/cislunarspace/e2m2e/releases) 下载解压到 sidecar "
 "工作目录下的 `kernels/`（开发期即仓库根 `kernels/`， 安装版即安装目录）；"
-msgstr "**Manual download**: extract e2m2e's [`kernels-v1` release](https://github.com/cislunarspace/e2m2e/releases) into `kernels/` under the sidecar working directory (the repo root in development, the install directory for the packaged app);"
+msgstr ""
+"**Manual download**: extract e2m2e's [`kernels-v1` "
+"release](https://github.com/cislunarspace/e2m2e/releases) into `kernels/`"
+" under the sidecar working directory (the repo root in development, the "
+"install directory for the packaged app);"
 
-#: ../../source/guide/kernels.md:22 e0544b167daf40d5bdefdaf42e3dd0c2
+#: ../../source/guide/kernels.md:21 bdc393e790f14faeabbf2773c272cee6
 msgid "**自备数据**：将 `$SPICE_KERNEL_DIR` 指向已有内核目录（优先级最高，sidecar 进程继承该环境变量）。"
-msgstr "**Bring your own**: point `$SPICE_KERNEL_DIR` at an existing kernel directory (highest priority; the sidecar process inherits the variable)."
+msgstr ""
+"**Bring your own**: point `$SPICE_KERNEL_DIR` at an existing kernel "
+"directory (highest priority; the sidecar process inherits the variable)."
 
-#: ../../source/guide/kernels.md:25 b6a13de06d204c67ba4bac6294988411
+#: ../../source/guide/kernels.md:24 3cc1f1fcc52549d0b56087d27749be30
 msgid "官方来源：[NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html)（备用）。"
-msgstr "Official source: [NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html) (fallback)."
+msgstr ""
+"Official source: [NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html) "
+"(fallback)."
 
-#: ../../source/guide/kernels.md:27 0b0f1e13b2e84228b3f9f37fc307276b
+#: ../../source/guide/kernels.md:26 74536b27f0a440dea2013d654595e39b
 msgid "常见问题"
 msgstr "FAQ"
 
-#: ../../source/guide/kernels.md:29 b7143b396baf41d5a854e83eb22cf527
+#: ../../source/guide/kernels.md:28 aea8cf8ae1d246cfb61c722e6f96ebd2
 msgid ""
 "**报 \"SPICE(NOLEAPSECONDS)\"**：闰秒内核未加载。确保内核目录含 `naif0012.tls`，或设置 "
 "`$SPICE_KERNEL_DIR` 后重启应用。"
-msgstr "**\"SPICE(NOLEAPSECONDS)\" error**: the leap-second kernel is not loaded. Make sure the kernel directory contains `naif0012.tls`, or set `$SPICE_KERNEL_DIR` and restart the app."
+msgstr ""
+"**\"SPICE(NOLEAPSECONDS)\" error**: the leap-second kernel is not loaded."
+" Make sure the kernel directory contains `naif0012.tls`, or set "
+"`$SPICE_KERNEL_DIR` and restart the app."
 
-#: ../../source/guide/kernels.md:31 caec4eac8cba4965875bff068a0906c1
-msgid "**v3.2.3 及更早版本的 GUI 内核自动引导弹窗已随 PyQt UI 移除**；v4.x 星历 工具回归时会重新评估引导交互。"
-msgstr "**The GUI kernel-guidance popup of v3.2.3 and earlier was removed with the PyQt UI**; the guidance interaction will be re-evaluated when ephemeris tools return in v4.x."
+#: ../../source/guide/kernels.md:30 61a0f628622d42a2928a9a8c02d5e562
+msgid "**v3.2.3 及更早版本的 GUI 内核自动引导弹窗已随 PyQt UI 移除**；当前界面 不再提供引导交互，需按上节手动准备内核。"
+msgstr "**The GUI kernel-guidance popup of v3.2.3 and earlier was removed with the PyQt UI**; the current interface no longer offers guidance interaction — prepare kernels manually as described above."
 
 #~ msgid ""
 #~ "星历动力学（轨道设计的星历修正、轨道保持）需要 NASA SPICE 内核文件。 e2m2e"
@@ -159,3 +169,33 @@ msgstr "**The GUI kernel-guidance popup of v3.2.3 and earlier was removed with t
 
 #~ msgid "**纯 CR3BP 功能不需要内核**：轨道族生成、稳定性分析是纯 CR3BP 计算， 内核缺失不影响。"
 #~ msgstr ""
+
+#~ msgid ""
+#~ "**v4.0.0 的界面工具不需要内核**：轨道族生成与轨道库浏览是纯 CR3BP 计算， "
+#~ "安装后直接使用，无任何内核准备步骤。星历类工具的界面回归见 [issue "
+#~ "#398](https://github.com/cislunarspace/transfer-orbit-"
+#~ "design/issues/398)。"
+#~ msgstr ""
+#~ "**The v4.0.0 UI tools need no "
+#~ "kernels**: orbit family generation and "
+#~ "catalog browsing are pure CR3BP "
+#~ "computations - ready to use right "
+#~ "after install, with no kernel "
+#~ "preparation step. The return of "
+#~ "ephemeris tools is tracked in [issue "
+#~ "#398](https://github.com/cislunarspace/transfer-orbit-"
+#~ "design/issues/398)."
+
+#~ msgid ""
+#~ "安装包已随带小内核（`.bpc` / `.tls` / `.tpc` / "
+#~ "`.tf`，位于安装目录的 `resources/kernels/`）；体积大的星历 `.bsp` "
+#~ "不随包分发，需要时获取："
+#~ msgstr ""
+#~ "The installer bundles the small kernels"
+#~ " (`.bpc` / `.tls` / `.tpc` / "
+#~ "`.tf`, under `resources/kernels/` in the "
+#~ "install directory); the bulky ephemeris "
+#~ "`.bsp` files are not distributed with"
+#~ " the package - fetch them when "
+#~ "needed:"
+

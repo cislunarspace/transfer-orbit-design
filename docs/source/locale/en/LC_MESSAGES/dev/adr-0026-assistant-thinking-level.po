@@ -1,0 +1,256 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0026-assistant-thinking-level.md:2
+#: d6550637ea084be8b4fcdc91e66185ec
+msgid "ADR 0026：AI 助手思考等级与过程展示"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:4
+#: ea8b21bb71d846e8afde9ee409425183
+msgid ""
+"**状态**：已接受 **日期**：2026-08-30 **关联**：ADR 0022（决策 5 模型服务策略：首期 OpenAI "
+"兼容协议）；ADR 0023（agent loop 与事件协议宿主）；ADR 0025（思考块持久化依赖其会话存储演进）"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:8
+#: 96714a688bb847b9a0770edc04a32bde
+msgid "背景"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:10
+#: 89827d98575f42cea0c6bcd534a86760
+#, python-brace-format
+msgid ""
+"两个需求：一是**思考等级调整**——BYOK 下各家 OpenAI 兼容服务的思考参数并不统一（DeepSeek 用 "
+"`thinking:{type}`，通义/百炼用 `enable_thinking`+`thinking_budget`，Kimi 只有 "
+"`thinking` 开关，OpenAI 系用 "
+"`reasoning_effort`）；二是**过程展示**——思考过程与工具调用要在消息流中可见（演示场景的核心卖点，呼应模式三\"语言规划器\"叙事）。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:12
+#: c20900c715874671bcd8c3b67b2da526
+msgid ""
+"现状是纯绿地：LLM 请求体仅 `model/messages/stream/tools` 四个字段，SSE 解析只取 "
+"`delta.content` 与 `tool_calls`；事件协议 7 种 kind 无思考增量；前端无思考渲染分支；i18n "
+"无相关键。抽象方法借鉴 cc-switch 的成熟实践：**统一档位枚举 × 按平台（base_url）判定的方言映射 × "
+"收敛钳制**，纪律为\"平台优先于模型、无证据的参数宁可不填\"。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:14
+#: d7f388458782442b9c7248da42869009
+msgid "决策"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:16
+#: c76aae90193c4aa287e7c9f4a7e848d9
+msgid ""
+"**三档抽象**：关 / 标准 / 深度。控件粒度为每会话——输入区旁小三档单选，切会话记住各自档位；设置面板 AI "
+"助手分区存全局默认，新会话继承。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:17
+#: 07c29887abf74f7a9e6bec9c549630b4
+msgid "**provider 映射表**（按 base_url 判定平台，判定不到走兜底）："
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: 34e0fbec45e7429b8e15f12f85072da8
+msgid "Provider（base_url）"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: 335138418de44a31a9c36645b72987a0
+msgid "关"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: b6c917b0210c4c30bf3deaab10ee5cbf
+msgid "标准"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: 68c129cbbc734a0a93c1233630a3706e
+msgid "深度"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: 20e823d320cf4ec6b445b65fa0d60505
+msgid "DeepSeek（`api.deepseek.com`）"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: 4ccf2f633ac347ad9c594127171fa63e e46ae4bbdc2f44bdb7a43c4219475bb8
+#, python-brace-format
+msgid "`thinking:{type:\"disabled\"}`"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: 0e453b4bf935404fbdea87efbc9c992c de93a8fc826f4473a2d62b219d576613
+#, python-brace-format
+msgid "`thinking:{type:\"enabled\"}`"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: e0a02bc9ca2940ab83d6bdf4cab03efd
+msgid "标准 + `reasoning_effort:\"high\"`"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: caf7e15de96e44b6aab07edbe5f9ea1b
+msgid "通义/百炼（`dashscope.aliyuncs.com`）"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: 97b33326e5fc4a0bba24298879f69c6b
+msgid "`enable_thinking:false`"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: 458d9ba976514ee28d1ad8ffe09a01fb
+msgid "`enable_thinking:true`"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: bed5e222a83f4e75b1bed4d845e34811
+msgid "标准 + `thinking_budget:16384`"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: dd494328ef534d149df3a4c189d5a846
+msgid "Kimi（`api.moonshot.cn`）"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: 4ee1528e5d1f48c2a44032b9679efdba
+msgid "同标准（无强度旋钮，两档合并）"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: 7c7d0d62e28e4343828f5f0ebefdefe4
+msgid "Ollama / LM Studio / 未识别"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: a537e5144ef94fcb9a670f54502d159e
+msgid "`reasoning_effort:\"none\"`"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: 990301e8d41845e198863c6e56af5636
+msgid "`reasoning_effort:\"low\"`"
+msgstr ""
+
+#: ../../source/dev/adr-0026-assistant-thinking-level.md:1
+#: de6cfa15a75a4eb292fc021829a7cb17
+msgid "`reasoning_effort:\"high\"`（容忍被服务端忽略）"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:26
+#: 43c2606cf2c14693ba189258ced98878
+msgid ""
+"纪律：**标准档不发强度参数**（只开思考，用服务端默认强度），深度档才显式给强度；识别不了的 provider 只发 OpenAI 风格 "
+"`reasoning_effort`，不造假参数；只有开关的 provider（Kimi）标准与深度如实合并。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:27
+#: 5ac1589a0c4c42928f9820d1961dd5dd
+msgid ""
+"**思考流式增量按方言解析**：DeepSeek/通义回 `delta.reasoning_content`，MiniMax 回 "
+"`reasoning_details`；SSE 解析层新增对应分支，事件协议新增思考增量 kind（与 `delta` 并列）。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:28
+#: 18ef76eb30dc43d3a18f412a0ab7be9a
+msgid ""
+"**展示架构**：思考块与工具卡片按发生顺序交织进消息流时间线，不分设侧面板——过程与结果同一条时间线，才对照得上\"哪次调用产出了哪段正文\"。思考块默认折叠（标题显示\"已思考\"），点击展开全文；完成的工具卡片折叠为单行摘要（工具名"
+" + 状态 + record_id），点击展开参数与结果摘要。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:29
+#: 6128d4937b33444291adb8b48fcef5b0
+msgid ""
+"**思考持久化分层**：展示层存全量（思考块随 ADR 0025 的会话文件落盘供回看），构造 API 请求回放时剥除——多数 provider "
+"协议明确要求思考块不回放，这是硬约束不是偏好。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:30
+#: 103fe6bcfd284844babd5be68531c817
+msgid ""
+"**映射参数被服务端拒绝**（如通义不认 `thinking_budget`）时不做自动降级重试，报错如实进消息流——错误自纠是 agent "
+"职责（prompt 任务层已有\"错误自纠≤3\"），静默降级违背 ADR 0020 系列\"不隐式降级\"的一贯立场。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:32
+#: 4184ac4bee98429a8f56423936c2803f
+msgid "考虑过的选项"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:34
+#: 39eb355ed4e24fc5b8b839f70c005ac2
+msgid ""
+"**原生参数透传**（设置面板让用户自己填参数串，否决）：每次切 provider 都要用户去查对方文档，违背 "
+"BYOK\"一套协议覆盖\"的初衷（ADR 0022 决策 5）。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:35
+#: 944243552b07481080d2eb4e344af326
+msgid "**过程分离侧面板**（否决）：思考/工具与正文拆开，用户对照不上过程与结果的因果。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:36
+#: 3905f72656ed4cc6ab7c2aa8f9a038d6
+msgid "**思考过程不持久化**（否决）：演示中\"展示 AI 的推理过程\"本身是卖点；回放剥离已解决协议约束，丢展示层没有收益。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:37
+#: 847ec29db5404d99bee1682138a09743
+msgid "**每条消息一个档位**（否决）：粒度没有真实用户，每会话已覆盖演示现场调档位的需求。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:39
+#: 45fd7ad0d28c473b9dfe69b284593531
+msgid "后果"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:41
+#: 6087d1709332421f9a0a3a1e43b7879d
+#, python-brace-format
+msgid ""
+"`llm.rs` 的请求体构造与 SSE 解析都长出方言层，新增按 base_url 的 provider 判定表；Anthropic 原生协议的"
+" `thinking:{budget_tokens}` 属 ADR 0022 决策 5 的后续协议扩展，不在本 ADR 范围。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:42
+#: 9f0abbdb0f71451abec04452b99ee65c
+msgid ""
+"一整条竖井的改动面：Rust（参数映射、SSE 新分支、新事件 kind）→ `chatModel`（思考块入消息模型）→ "
+"`ChatView`/`ToolCardView`（折叠渲染）→ i18n（中英键同步）。"
+msgstr ""
+
+#: ../../adr/0026-assistant-thinking-level.md:43
+#: 727d34fb5ab6423d8293523f0db8da10
+msgid ""
+"已知限制新增一条：未识别 provider 的思考等级是\"尽力而为\"——`reasoning_effort` "
+"可能被静默忽略，界面不保证思考块一定出现。"
+msgstr ""
+

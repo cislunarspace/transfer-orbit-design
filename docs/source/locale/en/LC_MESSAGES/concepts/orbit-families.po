@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,204 +20,223 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../source/concepts/orbit-families.md:1 833889720a0a4f04bff3595e4769a6e5
+#: ../../source/concepts/orbit-families.md:1 3d83b025da3644cfb34c8682c939d5fa
 msgid "轨道族"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md:3 baf4250249c84b3c8b31f2da8759882d
+#: ../../source/concepts/orbit-families.md:3 14a57643e6dd4696bd28d0442ce74002
 msgid ""
 "本软件在地月 **CR3BP**（圆型限制性三体问题）中生成周期轨道。CR3BP 把地球 "
 "和月球视为按匀速圆轨道相互绕转的两个质点，在这类简化模型中存在丰富的周期 轨道族，是地月空间任务设计的数学基础。"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md:7 1a66a08387e54f44aadf33fb46383a01
-msgid "软件遵循 e2m2e 的轨道族术语，共 13 族。按物理特征分四类："
+#: ../../source/concepts/orbit-families.md:7 62eecd74e5114129908b95fb8e8eade2
+msgid "软件遵循 e2m2e 的轨道族术语，共 12 族。按物理特征分四类："
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md:9 4efc0c5a6f3e4b12830a518ad3c2af5c
+#: ../../source/concepts/orbit-families.md:9 36dcb23ad0434879b629f55882520703
 msgid "平动点附近的三维周期轨道（L1/L2）"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 9f85869507a343e0af3cff12f7bcc4dd
-#: a02fb8b55378479b83874acfa8b55d8f f1cc1bbe2db94eb9a0759fa29bb940a6
-#: f227745961364b13a947b60e8d961731
+#: ../../source/concepts/orbit-families.md 3ac338c921ee4e93989f081de7defd35
+#: 3e3a1a0e560e47a4adce49d705340e51 9763ed74ee2549aca9263ef82894a28d
+#: fde1e655a7204702b2eacbbbad30205a
 msgid "族名"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md fd76beac77614df8a32dc0f938b7616f
+#: ../../source/concepts/orbit-families.md ab45dac54dd0472c830bf4e3ae275208
 msgid "相关平动点"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 002e8e5eccb64173a5570f33c5c68993
-#: 3b76ff815c3e46e0a3f08f89da066fc4 aef6a7afbd0d4343aa0d4941e0f01d0a
-#: ff2a490c3fd74396b8bb39ad94e4e23b
+#: ../../source/concepts/orbit-families.md adb9e3f545a942e291cb6dd6ac61d6e8
+#: ca873b65475842c2baf3ebb4804bdd56 e97cf029750a43feb5fe6665f57ff186
+#: ee1b87764e9f411e97d175d2c51f048a
 msgid "物理特征"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md a9945ae6fc914ae5b35b3ddcdf9dcb39
+#: ../../source/concepts/orbit-families.md 4d4bd6bc3bd74c12823c92cdcdaab6a9
 msgid "Lyapunov"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 55dbff5350de4232af901df2039ea398
+#: ../../source/concepts/orbit-families.md 553d1fe952c747108f0d3d1393ded95e
 msgid "L1, L2, L3"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 30adbcb2acc7479baa0a1a4267be4df8
+#: ../../source/concepts/orbit-families.md aa931b6a767744459b42bb6a023b2253
 msgid "平面周期轨道，沿共线平动点主轴振荡"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md a4ff4029d2254f24a379eeac3108aba2
+#: ../../source/concepts/orbit-families.md 443acecd636342fb9dcfb5e0f666cd76
 msgid "Halo"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 88a6088fcee345b48b659c6b1c9bd026
+#: ../../source/concepts/orbit-families.md 89c70859a76f47e09bedbd84db6d081f
 msgid "L1, L2"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md fbb95879b3f4420893c86b7c48add854
+#: ../../source/concepts/orbit-families.md ad8f041fe5584f79b16fe67b9d84e4a1
 msgid ""
 "三维周期轨道，分北族（Class I，z 轴正方向）和南族（Class II，z 轴负方向）；稳定性指数接近 1 "
 "的高振幅区域通常称为近直线晕轨道（NRHO）；L3 处无经典 Halo 族"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md df05f03c1d8641cb90d55f2b1b801a57
+#: ../../source/concepts/orbit-families.md 7387b90886d34ddcbe6212fa24bfb233
 msgid "Vertical"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md a4e4434907cc4ea186e03eafe5edab20
-#: f60efa6fc95f480d9337bd63989a5fb6
+#: ../../source/concepts/orbit-families.md 00ae89ba001546a9be24f093ad661f3a
+#: 2ad511e650ca4acc8c16e9c2265eb7e6
 msgid "L1-L5"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 61036a3696284b228658e82897ebd890
+#: ../../source/concepts/orbit-families.md 44ad9afffd624dd0ac9305341e41af6b
 msgid "垂直方向振荡的周期轨道"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md f0c279023b7f4719b89f135f3bd4faeb
+#: ../../source/concepts/orbit-families.md 03da4a09fc9d4eae997454c9879d9784
 msgid "Axial"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 14eee52309e84fe2a35f2f5a853d4225
+#: ../../source/concepts/orbit-families.md 739be2766f9e424c9e7fb31231d8e593
 msgid "沿平动点轴向的周期轨道"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 5c4fe1f7fdff426e8d447dc925dbdb1f
+#: ../../source/concepts/orbit-families.md 9b8803322d6248928262065c89617996
 msgid "Butterfly"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 5c9ada7c20ae4f4a80b060fa38b9c963
+#: ../../source/concepts/orbit-families.md a26f04f34e3a408f8f9bf19b699ffdfe
 msgid "L1-L2"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 2b79ea3722c14981b0865b5dc0b753b9
+#: ../../source/concepts/orbit-families.md 74ef92bc42d24b42a3ba71608a231a6a
 msgid "连接两个共线平动点的对称轨道"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md:19 b64a5d9232c04a19a4a199b0506f820f
+#: ../../source/concepts/orbit-families.md:19 c5b00102f0274342b903202d7d3821f2
 msgid ""
 "**Halo 与 NRHO**：NRHO（Near-Rectilinear Halo Orbit）是 Halo 族高振幅 "
 "区域的成员，轨道近月点很低、远离月球一侧很远，稳定性指数接近 1，是 Gateway 等长期任务的候选轨道。软件中 NRHO "
 "是独立轨道类型（形状参数与 Halo 不同：近月点高度 + 南北族），但生成算法同源。"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md:24 8f6fe15d904144a199b6a625b91f0d35
+#: ../../source/concepts/orbit-families.md:24 b1818ae24a5c4ce3b0bcadc610a7b0bf
 msgid "绕月轨道（secondary）"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 2f119007eb84452a83c29e6c6087f1ed
+#: ../../source/concepts/orbit-families.md 310272725d614d81b59787ed473c93f4
 msgid "DRO（Distant Retrograde Orbit）"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md c3fa161aa3204220949e8e3aa47c4d26
+#: ../../source/concepts/orbit-families.md 2526dbb1f0f64a8d97b461211c9c2ff5
 msgid "围绕月球的远程**逆行**轨道，稳定性指数接近 1，临界稳定"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md cb871c3c5c204f3c9afad62da7ca35ec
+#: ../../source/concepts/orbit-families.md d921243220294c9fa6a495dbd054891f
 msgid "DPO（Direct Prograde Orbit）"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md dc9ca1e3b1a2446bb5e4869e07e28aaa
+#: ../../source/concepts/orbit-families.md eee07760bf3b415c9f05c21ca045b3fd
 msgid "围绕月球的**顺行**轨道"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md:31 b49ef3d765634f6d9caed97081cbb3ef
+#: ../../source/concepts/orbit-families.md:31 e63d03f9346749e599ec4662f3348d54
 #, python-brace-format
 msgid "DRO 在任务设计中很常用：大幅 DRO 在真实星历中可维持数月至数年有界，保持 代价低（见 {doc}`station-keeping`）。"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md:34 c68f7649f3064f438e6c5bf414385639
+#: ../../source/concepts/orbit-families.md:34 dbdf93da804343caaf033e6f6d3cb7ca
 msgid "三角平动点轨道（L4/L5）"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 9ceeac2dd689452d86cf92f8c486c442
+#: ../../source/concepts/orbit-families.md ccd1afe510a24245865ed585df1ceafd
 msgid "SPO（Short Period Orbit）"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md e32b7d42ed0247cdb41b1e888c9b3919
+#: ../../source/concepts/orbit-families.md d37fde19e6ef4a2999b6dc10b078ac56
 msgid "L4/L5 附近的短周期轨道"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 74950e9789be425aa5374a3bbacf74b6
+#: ../../source/concepts/orbit-families.md 855de789b194427cac24c32bfc04e196
 msgid "LPO（Long Period Orbit）"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md d8c976cc412349a2ba4996d3e9abd9fb
+#: ../../source/concepts/orbit-families.md e75300b2b53c4607ad832d2fae311870
 msgid "L4/L5 附近的长周期轨道"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 0ba9e7a7e23043ff8381835ad75c7b40
+#: ../../source/concepts/orbit-families.md 01282006723d44098e17aac72d67ab1a
 msgid "Tadpole"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 2d9da0106fb5448e95b9391a33dab3f4
+#: ../../source/concepts/orbit-families.md 60c883b62d47480e958a20c819f97ed6
 msgid "围绕单个三角平动点的蝌蚪形轨道"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 584b8b64226a4454bb73316e47058089
+#: ../../source/concepts/orbit-families.md 7853dcd6904b44b8b71a528098abdb5a
 msgid "Horseshoe"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md abf8dd8019cd489981042efd1db28076
+#: ../../source/concepts/orbit-families.md 69eb0b2691024263b03d56aeccea8291
 msgid "跨越两个三角平动点的马蹄形轨道"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md:43 4ec11faf2f6042a6936ae65c57a47e35
+#: ../../source/concepts/orbit-families.md:43 7ff75467867648c2a176f06199109249
 msgid "共振轨道"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md 63961551dec94c40883f68576f49e1dc
+#: ../../source/concepts/orbit-families.md 050919ce19f94a8fad95c9cfcc2dafb9
 msgid "RO（Resonant Orbit）"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md bfbec8d221f047c8832619eec3326e85
+#: ../../source/concepts/orbit-families.md fe095608703640138733e5bd915e62e0
 msgid "满足 m:n 共振比例的周期轨道，如 3:1（周期是月球周期的 3 倍）、3:2（1.5 倍），用共振比 `--ratio` 区分"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md:49 31ea8b9295da41a0b898235ba9638a5d
+#: ../../source/concepts/orbit-families.md:49 5e55596f82b5420791d52350a850daaa
 msgid "本软件支持哪些"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md:51 7a3c261f7bd94b2cbdf4dcd35559f7d9
+#: ../../source/concepts/orbit-families.md:51 c64471e6ee3b44078d697863e513bba7
 msgid ""
-"GUI 的**轨道设计**工具支持其中 7 种：**DRO / Halo / NRHO / Lissajous / L4 / L5 / "
-"ELFO**（ELFO 是月心冻结轨道，不属于上述周期轨道族，见下）。 "
-"其余族（Lyapunov、Vertical、Axial、Butterfly、DPO、SPO、LPO、Tadpole、 Horseshoe、RO）由"
-" e2m2e 算法库支持，需要脚本化工作流时使用 [e2m2e "
-"CLI](https://github.com/cislunarspace/e2m2e)。"
+"GUI 的**轨道设计**工具支持 **DRO / DPO / Halo / NRHO / Lissajous / L4 / L5 / Axial"
+" / ELFO** 等类型（ELFO 是月心冻结轨道，不属于上述周期 "
+"轨道族，见下）。其余周期轨道族（Lyapunov、Vertical、Butterfly、 Tadpole、RO 等）由 e2m2e "
+"算法库支持，需要脚本化工作流时使用 [e2m2e CLI](https://github.com/cislunarspace/e2m2e)。"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md:57 578e835f0aa14daebfdcf9d2183e248b
+#: ../../source/concepts/orbit-families.md:57 cab80849331c487db79aecfdac09bbd7
 msgid ""
 "**Lissajous**：三维拟周期轨道（两个方向的振荡频率不同），不是严格周期 轨道，不闭合。软件支持 L1/L2/L3 附近的 "
 "Lissajous。"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md:60 086091d9ecf24d3d87677c284ad7bf08
+#: ../../source/concepts/orbit-families.md:60 e9f0afe991044fed8d35009b96312e95
 msgid ""
 "**ELFO**：月心冻结轨道（Elliptical Lunar Frozen Orbit），绕月球的大椭圆 "
 "轨道，通过倾角与近月点幅角组合使拱线不旋转。不依赖平动点，属于月球轨道 而非 CR3BP 周期轨道族。"
 msgstr ""
 
-#: ../../source/concepts/orbit-families.md:64 b667bc660f7e4b308d024e5c1896eec2
-msgid "**轨道族生成**工具目前只支持 Halo 北族延拓：从 0.001 DU 小振幅种子出发， 固定面外振幅逐步修正，直到目标振幅或折叠点自动终止。"
+#: ../../source/concepts/orbit-families.md:64 e279fb47508f4c04a2fd1c0ad6d7fa7d
+msgid ""
+"**轨道族生成**工具支持 Halo、NRHO、Axial、Lissajous、SPO、LPO、 Horseshoe、DRO "
+"八族的延拓生成：从小振幅种子出发逐步修正，直到目标 振幅或折叠点等终止条件自动停止。"
 msgstr ""
+
+#~ msgid "软件遵循 e2m2e 的轨道族术语，共 13 族。按物理特征分四类："
+#~ msgstr ""
+
+#~ msgid ""
+#~ "GUI 的**轨道设计**工具支持其中 7 种：**DRO / Halo "
+#~ "/ NRHO / Lissajous / L4 / L5"
+#~ " / ELFO**（ELFO 是月心冻结轨道，不属于上述周期轨道族，见下）。 "
+#~ "其余族（Lyapunov、Vertical、Axial、Butterfly、DPO、SPO、LPO、Tadpole、 "
+#~ "Horseshoe、RO）由 e2m2e 算法库支持，需要脚本化工作流时使用 [e2m2e "
+#~ "CLI](https://github.com/cislunarspace/e2m2e)。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "**轨道族生成**工具目前只支持 Halo 北族延拓：从 0.001 DU "
+#~ "小振幅种子出发， 固定面外振幅逐步修正，直到目标振幅或折叠点自动终止。"
+#~ msgstr ""
+

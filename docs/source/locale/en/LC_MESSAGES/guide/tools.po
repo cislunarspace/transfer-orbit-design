@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-22 14:16+0800\n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,227 +20,224 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../source/guide/tools.md:1 08441dceb439492cb0a3a769e64f1f75
+#: ../../source/guide/tools.md:1 2d40041004e4485786991d3fc303b95e
 msgid "工具参考"
 msgstr "Tool Reference"
 
-#: ../../source/guide/tools.md:3 29cad7f767a747679047b9c66ff6a034
+#: ../../source/guide/tools.md:3 dae0543359ae454d85e178df0fb181f6
+#, python-brace-format
 msgid ""
-"v4.0.0 界面接通的计算工具只有**轨道族生成**（orbit_family_generation）。 参数面板由工具的 JSON "
-"Schema 自动生成：字段范围、默认值与说明来自 e2m2e 的 Pydantic 模型；按 `orbit_type` "
-"裁剪，只显示当前族适用的字段；Optional 字段 以勾选控制传不传值（勾选即传、不勾视为未设置）。"
-msgstr "The only computation tool wired into the v4.0.0 UI is **orbit family generation** (orbit_family_generation). The parameter panel is generated from the tool's JSON Schema: field ranges, defaults and descriptions come from e2m2e's Pydantic models; the form is pruned by `orbit_type` so only the fields applicable to the current family are shown; Optional fields are controlled by checkboxes (checked = send the value, unchecked = unset)."
+"中栏工具面板接通八个工具：轨道族生成、任务轨道设计、参数空间扫描 （catalog_sweep）、轨道保持、轨道预报、转移轨道设计、时空坐标转换与"
+" 分区边界（spatiography_boundaries）；轨道稳定性因上游 placeholder （空参 "
+"schema）暂不接入。参数面板由工具的 JSON Schema 自动生成：字段范围、 默认值与说明来自 e2m2e 的 Pydantic "
+"模型；按 `orbit_type` 裁剪，只显示当前族 适用的字段；Optional 字段以勾选控制传不传值（勾选即传、不勾视为未设置）。 "
+"本页展开说明轨道族生成与转移设计，其余工具的参数见各 schema 与 {doc}`../dev/architecture`。"
+msgstr "The middle-column tool panel wires eight tools: orbit family generation, orbit design, parameter sweep (catalog_sweep), station keeping, orbit propagation, transfer design, spacetime transform, and spatiography boundaries (spatiography_boundaries); stability analysis stays out while upstream marks it a placeholder (empty-arg schema). Parameter forms are generated from each tool's JSON Schema: field ranges, defaults and descriptions come from e2m2e's Pydantic models; fields are pruned by `orbit_type` so only those applicable to the current family appear; Optional fields are controlled by checkboxes (checked sends the value, unchecked leaves it unset). This page covers family generation and transfer design in depth; for the rest, see each schema and {doc}`../dev/architecture`."
 
-#: ../../source/guide/tools.md:8 e22d481901e1437c8b016adcd482f763
+#: ../../source/guide/tools.md:12 bd3c04a02c474d729079b9a14e2664b2
 msgid "轨道族生成（orbit_family_generation）"
 msgstr "Orbit Family Generation (orbit_family_generation)"
 
-#: ../../source/guide/tools.md:10 b9774303577a41c8835e6a2cd1285663
+#: ../../source/guide/tools.md:14 c0828c11003d447f95cb4b46de634bc9
 msgid ""
 "在 CR3BP 中生成轨道族：周期族（Halo / NRHO / Axial / SPO / LPO / Horseshoe） "
 "为延拓，Lissajous 为拟周期轨迹的参数采样，DRO 为月心族（不绑定平动点）。 范围与默认值由 e2m2e "
 "`FamilyGenerationRequest` 的 `valid_ranges` 决定，GUI 不另维护一份。纯 CR3BP 计算，不需要 "
 "SPICE 内核。"
-msgstr "Generates orbit families in the CR3BP: periodic families (Halo / NRHO / Axial / SPO / LPO / Horseshoe) by continuation, Lissajous by parameter sampling of quasi-periodic bounded trajectories, DRO as a Moon-centred family (not bound to a libration point). Ranges and defaults come from the e2m2e `FamilyGenerationRequest` `valid_ranges`; the GUI keeps no copy of its own. Pure CR3BP computation - no SPICE kernels needed."
+msgstr ""
+"Generates orbit families in the CR3BP: periodic families (Halo / NRHO / "
+"Axial / SPO / LPO / Horseshoe) by continuation, Lissajous by parameter "
+"sampling of quasi-periodic bounded trajectories, DRO as a Moon-centred "
+"family (not bound to a libration point). Ranges and defaults come from "
+"the e2m2e `FamilyGenerationRequest` `valid_ranges`; the GUI keeps no copy"
+" of its own. Pure CR3BP computation - no SPICE kernels needed."
 
-#: ../../source/guide/tools.md 9ecfc15940364d8ba014119cb77b60c6
+#: ../../source/guide/tools.md a0adebb5fdb54f2fb7cede1b3adeca3b
 msgid "参数"
 msgstr "Parameter"
 
-#: ../../source/guide/tools.md cb88604b646b4c3ba981b8f5ac98df79
+#: ../../source/guide/tools.md 9905fafe749040828b520073d4c951ad
 msgid "适用族"
 msgstr "Applicable families"
 
-#: ../../source/guide/tools.md 421369fd246d4ea39b0a8bd704821a6e
-#: dd2338f9bdf24dfa9fb3f64b9b88b783
+#: ../../source/guide/tools.md 7e3ac5356c984e45812362970695a713
 msgid "说明"
 msgstr "Description"
 
-#: ../../source/guide/tools.md b9e08e1f9e4349b2a5ae256a400baf9f
+#: ../../source/guide/tools.md 69e88c669b564d8fa3cd4cb8f9627614
 msgid "`orbit_type`"
 msgstr "`orbit_type`"
 
-#: ../../source/guide/tools.md 3cca6ef11d664bce9f8e637726142f43
-#: 708f70f0ebc941bf89dca79c1a6f61d5 a8b679ba19174f4eaadae67f1fd1a533
+#: ../../source/guide/tools.md 018307e4d0564d8f9270cd2a960bb1ad
+#: 6978065b3af64452a85349f9fa2e75a3 7787af90b4f7457f8579bb92c0082d9b
 msgid "全部"
 msgstr "All"
 
-#: ../../source/guide/tools.md 400e8cc2e45741419dc5b9f9a9ffb9ee
+#: ../../source/guide/tools.md a9ac44392a1a47158691f9897f914327
 msgid "族类型：HALO / NRHO / AXIAL / LISSAJOUS / SPO / LPO / HORSESHOE / DRO"
 msgstr "Family type: HALO / NRHO / AXIAL / LISSAJOUS / SPO / LPO / HORSESHOE / DRO"
 
-#: ../../source/guide/tools.md 16834b4087e4498097f3c1a093cd0a1e
+#: ../../source/guide/tools.md 5867685f94d041c58efde2cc585cd0ab
 msgid "`libration_point`"
 msgstr "`libration_point`"
 
-#: ../../source/guide/tools.md 1bc30912bcbd4ff4addf7386fa58addf
+#: ../../source/guide/tools.md 612126aaddc24880906b4375b57aa7b9
 msgid "除 DRO"
 msgstr "All but DRO"
 
-#: ../../source/guide/tools.md 501efcdef22549b4822f614769b4140e
+#: ../../source/guide/tools.md 8f38bb02c3e24529b26888909d47b8fc
 msgid "平动点（共线族 L1/L2，Lissajous 加 L3，三角族 L4/L5）；缺省按族取默认"
-msgstr "Libration point (L1/L2 for collinear families, plus L3 for Lissajous, L4/L5 for triangular families); defaults per family when omitted"
+msgstr ""
+"Libration point (L1/L2 for collinear families, plus L3 for Lissajous, "
+"L4/L5 for triangular families); defaults per family when omitted"
 
-#: ../../source/guide/tools.md f74802e62e2f465eb72964cfe4499dea
+#: ../../source/guide/tools.md 77313d73471a4169be2e927c94e0b177
 msgid "`n_orbits`"
 msgstr "`n_orbits`"
 
-#: ../../source/guide/tools.md c796ee9094c74e5f8b9048a2d1c44e8e
+#: ../../source/guide/tools.md 97aa34b07ab94156967c9aa5967f5e40
 msgid "族成员数上限（实际以延拓/采样结果为准）"
-msgstr "Upper bound on member count (actual result depends on continuation/sampling)"
+msgstr ""
+"Upper bound on member count (actual result depends on "
+"continuation/sampling)"
 
-#: ../../source/guide/tools.md de87272107ff4b518849abd9116416c5
+#: ../../source/guide/tools.md 807af607db2e443e81c7db3defbd7492
 msgid "`max_amplitude_km`"
 msgstr "`max_amplitude_km`"
 
-#: ../../source/guide/tools.md 9202a901d17045be9a77e94596ad7bb2
+#: ../../source/guide/tools.md ab310e908fc74c89a5d5abdc11d459f7
 msgid ""
 "振幅上限（km）：Halo/Axial 带符号区分北/南（上/下）族；SPO/LPO/Horseshoe 为距 L4/L5 径向距离；DRO "
 "为距月心距离"
-msgstr "Amplitude upper bound (km): signed for Halo/Axial to distinguish northern/southern (upper/lower) branches; radial distance from L4/L5 for SPO/LPO/Horseshoe; distance from the Moon for DRO"
+msgstr ""
+"Amplitude upper bound (km): signed for Halo/Axial to distinguish "
+"northern/southern (upper/lower) branches; radial distance from L4/L5 for "
+"SPO/LPO/Horseshoe; distance from the Moon for DRO"
 
-#: ../../source/guide/tools.md 2afb3fc33d814473bd6eef31ddc1750b
+#: ../../source/guide/tools.md 778c0489a75a47c4bd0f7c9d8be7d08a
 msgid "`min_amplitude_km`"
 msgstr "`min_amplitude_km`"
 
-#: ../../source/guide/tools.md 1a7e740ea6b34d9aadb48f40ee9630be
+#: ../../source/guide/tools.md cfc1a319c88e466785293271a56b30d6
 msgid "SPO / LPO / Horseshoe / DRO"
 msgstr "SPO / LPO / Horseshoe / DRO"
 
-#: ../../source/guide/tools.md a189284155de4c4b8044b64f631fc621
+#: ../../source/guide/tools.md 31205c10074846f68d0b8426109888bf
 msgid "振幅下限（km）"
 msgstr "Amplitude lower bound (km)"
 
-#: ../../source/guide/tools.md 1f5dd8624d0d4dddad8d244dfd6237b8
+#: ../../source/guide/tools.md 309f71a58b2d4f5c8c7852f5c7c8cfe3
 msgid "`north_south`"
 msgstr "`north_south`"
 
-#: ../../source/guide/tools.md 55b2cb7fe9cb4146af8ba32dc43b6c9a
-#: 7349a2a05c554244b2be7b92b02e0f06
+#: ../../source/guide/tools.md 834c082556e847da863ce368fbffc31b
+#: 9a5fb2c483464247bd095ee20d3bca14
 msgid "NRHO"
 msgstr "NRHO"
 
-#: ../../source/guide/tools.md ace7d400ef08493288e936f360a834a7
+#: ../../source/guide/tools.md 94ac576820fd4a5c9199160e19eb9f01
 msgid "北族 / 南族"
 msgstr "Northern / southern branch"
 
-#: ../../source/guide/tools.md f250d1a2994a46689f2064cfb6264517
+#: ../../source/guide/tools.md e8bb2ccc5e094e39bb94161c28fbf32e
 msgid "`perilune_height_max_km`"
 msgstr "`perilune_height_max_km`"
 
-#: ../../source/guide/tools.md 0c3e7164b8d8494292d109cba41fd245
+#: ../../source/guide/tools.md 90ce9cd448164f4bae5040b8d39589c2
 msgid "近月点高度上限（km）"
 msgstr "Perilune height upper bound (km)"
 
-#: ../../source/guide/tools.md 34b8c2081c4849cda58e9ac1574d6dff
+#: ../../source/guide/tools.md a6258239b09c471682082fe4b403c422
 msgid "`amplitude_in_km` / `amplitude_out_km`"
 msgstr "`amplitude_in_km` / `amplitude_out_km`"
 
-#: ../../source/guide/tools.md 0bf33b0f77dc40289b7904182ee110ae
-#: 7f24d9edbcac410b9f17b697a9697233
+#: ../../source/guide/tools.md 573c76dd459f4dda856a755c3d504cc5
+#: 8d753fe6f5674018b4d30655ea0a451c
 msgid "Lissajous"
 msgstr "Lissajous"
 
-#: ../../source/guide/tools.md 6b09d52397f84301911a2dd766754a8d
+#: ../../source/guide/tools.md b3f52dae21fa4416ac721603171d63cd
 msgid "面内 / 面外振幅上限（km）"
 msgstr "In-plane / out-of-plane amplitude upper bound (km)"
 
-#: ../../source/guide/tools.md 267f2928104643ecb6708a0ef0c1e304
+#: ../../source/guide/tools.md 99778c3c812f4df69db97943bedecc15
 msgid "`phase_in` / `phase_out`"
 msgstr "`phase_in` / `phase_out`"
 
-#: ../../source/guide/tools.md bc960758412d4a11aa4aa8c7dcb1cc0f
+#: ../../source/guide/tools.md 0f64e575f3994053934b998631848c80
 msgid "面内 / 面外初始相位（0~1）"
 msgstr "In-plane / out-of-plane initial phase (0-1)"
 
-#: ../../source/guide/tools.md 9384d4b0dba34e1b9acb1f7524341382
+#: ../../source/guide/tools.md ce9757315f1e46d9bf38fefc78d15377
 msgid "`continuation_direction`"
 msgstr "`continuation_direction`"
 
-#: ../../source/guide/tools.md dde9266276b74313a678e1c979d414e8
+#: ../../source/guide/tools.md e14a998f56a8445688f2d7f2d3fba90f
 msgid "SPO / LPO / Horseshoe / NRHO"
 msgstr "SPO / LPO / Horseshoe / NRHO"
 
-#: ../../source/guide/tools.md 3970c87e77a041479236099366389e52
+#: ../../source/guide/tools.md 824f9c504297472eb4a114afb29cfd41
 msgid "延拓方向（`decrease-x0` / `increase-x0`）"
 msgstr "Continuation direction (`decrease-x0` / `increase-x0`)"
 
-#: ../../source/guide/tools.md 3cf2418c2df24ead88a0fb84254a47f1
+#: ../../source/guide/tools.md d751fffde0504ebab782b7b454966f62
 msgid "`match_tolerance_km`"
 msgstr "`match_tolerance_km`"
 
-#: ../../source/guide/tools.md cec2269eed3c497dad5ed84e68ebb088
+#: ../../source/guide/tools.md 4d47c6853b424bd8be54e1735864c100
 msgid "SPO / LPO / Horseshoe"
 msgstr "SPO / LPO / Horseshoe"
 
-#: ../../source/guide/tools.md 768f97937ec54270be563af1b8541cf7
+#: ../../source/guide/tools.md 2648d6fde3f74e7892522d8282e58c9c
 msgid "振幅匹配容差（km）"
 msgstr "Amplitude matching tolerance (km)"
 
-#: ../../source/guide/tools.md:29 e7da250aa22f40aeb62dc74963aa1469
+#: ../../source/guide/tools.md:33 0eb2fa90c75848a4ac61e538bcf231f4
 msgid "结果入轨道库（record id 显示在面板下方），族成员轨迹逐条渲染到画布。"
-msgstr "The result is stored in the orbit library (record id shown below the panel); member trajectories render on the canvas one by one."
+msgstr ""
+"The result is stored in the orbit library (record id shown below the "
+"panel); member trajectories render on the canvas one by one."
 
-#: ../../source/guide/tools.md:31 b476317e72a347d6b9067a9ce092ba56
-msgid "尚未接线的工具"
-msgstr "Tools Not Yet Wired"
+#: ../../source/guide/tools.md:35 62b88f49259545e0987effa74495fe2a
+msgid "转移轨道设计（transfer_design）"
+msgstr "Transfer Design (transfer_design)"
 
-#: ../../source/guide/tools.md:33 bc27dee627ce421a85a07f5643bbfdb3
+#: ../../source/guide/tools.md:37 64a232574e534187a618b636ffe12697
 msgid ""
-"14 个工具的 schema 已全部导出（`frontend/src/toolSchemas/`），下列工具的 界面接线在 [issue "
-"#398](https://github.com/cislunarspace/transfer-orbit-design/issues/398) "
-"跟踪，按优先级分批回归："
-msgstr "All 14 tool schemas are exported (`frontend/src/toolSchemas/`); wiring the following tools into the UI is tracked in [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398), returning in batches by priority:"
+"生成地月转移轨迹，支持 HMN（Hohmann 式）、LGA（月球借力）与 WSB（弱稳定 边界）三类。参数面板按转移类型联动显隐：HMN "
+"显示目标地心半径（默认 384400 km，环月演示）；LGA/WSB 需要先在项目树选中一个轨道工件——提交时 自动取其 CR3BP "
+"状态末行换算到会合系物理单位注入目标星历，未选中时拦截 提交并提示；LGA 无显式搜索参数时默认注入加密相位网格（360 点）。"
+msgstr "Generates cislunar transfer trajectories in three flavours: HMN (Hohmann-like), LGA (lunar gravity assist) and WSB (weak stability boundary). The form shows and hides fields by transfer type: HMN exposes the target geocentric radius (default 384400 km, a circumlunar demo); LGA/WSB require an orbit artifact selected in the project tree — on submission its final CR3BP state row is converted into synodic physical units and injected as the target ephemeris, and submission is intercepted with a hint when nothing is selected; LGA injects a default fine-grained phase grid (360 points) when no explicit search parameters are given."
 
-#: ../../source/guide/tools.md 95e56f01c24e4f1bbe6f56d2470577fb
-msgid "批次"
-msgstr "Batch"
-
-#: ../../source/guide/tools.md ce3aabbfb4694d61bdad96765590a998
-msgid "工具"
-msgstr "Tools"
-
-#: ../../source/guide/tools.md 7cacfcdbf49a4947b82aa0c4a5c9de44
-msgid "1"
-msgstr "1"
-
-#: ../../source/guide/tools.md 1365568d34dc4de6bd460fad0e6aeebd
+#: ../../source/guide/tools.md:43 4fcee25e8ac94442bdd1cd497a95673f
 msgid ""
-"轨道设计 design_orbit、轨道保持 control_orbit、轨道预报 orbit_propagation、转移设计 "
-"transfer_design"
-msgstr "Orbit design design_orbit, station keeping control_orbit, orbit propagation orbit_propagation, transfer design transfer_design"
+"转移结果按 e2m2e ADR 0040 契约解析（会合系质心原点物理 km/km/s、TLI 起算 "
+"秒），位置归一后上画布，出发/到达脉冲在时间轴上以 Δv 事件 chip 标注。"
+msgstr "Transfer results are parsed per the e2m2e ADR 0040 contract (synodic, barycentric-origin physical km/km/s, seconds since TLI); positions are normalized onto the canvas, and departure/arrival pulses appear on the timeline as Δv event chips."
 
-#: ../../source/guide/tools.md af456c1627644968befb1e1c3ac29ae4
-msgid "v3.2.3 已发布的能力"
-msgstr "Capabilities shipped in v3.2.3"
+#: ../../source/guide/tools.md:46 714cf460c1e041d1840ac675f67e9d6c
+msgid "分区边界（spatiography_boundaries）"
+msgstr "Spatiography Boundaries (spatiography_boundaries)"
 
-#: ../../source/guide/tools.md e81a6e85d4ba49378019cd34d5848b12
-msgid "2"
-msgstr "2"
+#: ../../source/guide/tools.md:48 15e9e7b3fd5e4d62b625cc0150662f70
+msgid ""
+"返回地月空间分区参照几何（Rosengren et al. 2026 Primer 五省分区：Laplace 半径、SOI/Hill "
+"圆族、Battin 曲线、Chebotarev 圆、L3–L5 平动点），经 km→DU "
+"归一后作为画布参照图层显示（图表设置可开关）。非轨迹产物、不入轨道库。"
+msgstr "Returns the cislunar partition reference geometry (Rosengren et al. 2026 Primer five-province partition: Laplace radius, SOI/Hill circle families, Battin curves, Chebotarev circles, L3–L5 libration points), normalized from km to DU and shown as a canvas reference layer (toggleable in chart settings). Not a trajectory product; not stored in the catalog."
 
-#: ../../source/guide/tools.md 9860a730a17341379746c8248dac86e1
-msgid "稳定性分析 orbit_stability、时空坐标转换 spacetime_transform"
-msgstr "Stability analysis orbit_stability, spacetime transform spacetime_transform"
+#: ../../source/guide/tools.md:52 f4e9f876ed034ab7a07e14d15a5fd442
+msgid "其余工具"
+msgstr "Other tools"
 
-#: ../../source/guide/tools.md 371bc07e88b949c5aeb94d54f36313e4
-msgid "补齐计算工具面"
-msgstr "Completing the computation tool surface"
-
-#: ../../source/guide/tools.md abfdca4681d44e3c86d649728f268127
-msgid "3"
-msgstr "3"
-
-#: ../../source/guide/tools.md 9ca0fce3a9b04809982f4afaa1ad19fc
-msgid "catalog_delete / export / promote / tag / sweep"
-msgstr "catalog_delete / export / promote / tag / sweep"
-
-#: ../../source/guide/tools.md 1d4659bfbb404b0bb9ca98a88d9dd178
-msgid "库管理操作，随记录详情场景做"
-msgstr "Library management operations, done alongside the record detail scenario"
-
-#: ../../source/guide/tools.md:43 a926e9edbfba4f479be26e4dd849e52f
-msgid "在此之前，这些工具经 [e2m2e CLI](https://cislunarspace.github.io/e2m2e/) 可用。"
-msgstr "Until then, these tools are available via the [e2m2e CLI](https://cislunarspace.github.io/e2m2e/)."
+#: ../../source/guide/tools.md:54 7a6578814b1246578b509cdf9f3dad67
+msgid ""
+"17 个工具的 schema 已全部导出（`frontend/src/toolSchemas/`，含 7 个 catalog 操作与 3 "
+"个分区解析工具）。任务轨道设计、轨道保持、轨道预报与时空坐标转换的 参数以 schema 为准；轨道稳定性 schema "
+"已导出，待上游放开后接入； 参数空间扫描（catalog_sweep）在工具面板直接可用。 catalog 管理操作的 "
+"界面分布：查询/取用由目录浏览与画布叠加承担，删除在项目树右键菜单，标注 与族成员提升在记录详情面板，教学案例包导出在过滤栏。需要脚本化工作流时 "
+"经 [e2m2e CLI](https://cislunarspace.github.io/e2m2e/) 使用。"
+msgstr "All 17 tool schemas are exported (`frontend/src/toolSchemas/`, including 7 catalog operations and 3 spatiography tools). Parameters for orbit design, station keeping, orbit propagation and spacetime transforms follow their schemas; the stability-analysis schema is exported, awaiting an upstream unblock; the parameter sweep (catalog_sweep) is directly available in the tool panel. Catalog management is spread across the UI: query/get serve catalog browsing and canvas overlay, deletion lives in the project-tree context menu, annotation and family-member promotion in the record detail panel, and teaching-case package export in the filter bar. For scripted workflows, use the [e2m2e CLI](https://cislunarspace.github.io/e2m2e/)."
 
 #~ msgid ""
 #~ "GUI 提供四个工具。参数面板由工具绑定的 Pydantic 模型自动生成，字段范围、 "
@@ -590,3 +587,84 @@ msgstr "Until then, these tools are available via the [e2m2e CLI](https://cislun
 
 #~ msgid "纯 CR3BP 计算，不需要 SPICE 内核。"
 #~ msgstr ""
+
+#~ msgid ""
+#~ "v4.0.0 界面接通的计算工具只有**轨道族生成**（orbit_family_generation）。 "
+#~ "参数面板由工具的 JSON Schema 自动生成：字段范围、默认值与说明来自 e2m2e"
+#~ " 的 Pydantic 模型；按 `orbit_type` "
+#~ "裁剪，只显示当前族适用的字段；Optional 字段 以勾选控制传不传值（勾选即传、不勾视为未设置）。"
+#~ msgstr ""
+#~ "The only computation tool wired into "
+#~ "the v4.0.0 UI is **orbit family "
+#~ "generation** (orbit_family_generation). The "
+#~ "parameter panel is generated from the"
+#~ " tool's JSON Schema: field ranges, "
+#~ "defaults and descriptions come from "
+#~ "e2m2e's Pydantic models; the form is "
+#~ "pruned by `orbit_type` so only the "
+#~ "fields applicable to the current family"
+#~ " are shown; Optional fields are "
+#~ "controlled by checkboxes (checked = send"
+#~ " the value, unchecked = unset)."
+
+#~ msgid "尚未接线的工具"
+#~ msgstr "Tools Not Yet Wired"
+
+#~ msgid ""
+#~ "14 个工具的 schema "
+#~ "已全部导出（`frontend/src/toolSchemas/`），下列工具的 界面接线在 [issue "
+#~ "#398](https://github.com/cislunarspace/transfer-orbit-"
+#~ "design/issues/398) 跟踪，按优先级分批回归："
+#~ msgstr ""
+#~ "All 14 tool schemas are exported "
+#~ "(`frontend/src/toolSchemas/`); wiring the following"
+#~ " tools into the UI is tracked "
+#~ "in [issue #398](https://github.com/cislunarspace"
+#~ "/transfer-orbit-design/issues/398), returning in"
+#~ " batches by priority:"
+
+#~ msgid "批次"
+#~ msgstr "Batch"
+
+#~ msgid "1"
+#~ msgstr "1"
+
+#~ msgid ""
+#~ "轨道设计 design_orbit、轨道保持 control_orbit、轨道预报 "
+#~ "orbit_propagation、转移设计 transfer_design"
+#~ msgstr ""
+#~ "Orbit design design_orbit, station keeping "
+#~ "control_orbit, orbit propagation orbit_propagation,"
+#~ " transfer design transfer_design"
+
+#~ msgid "v3.2.3 已发布的能力"
+#~ msgstr "Capabilities shipped in v3.2.3"
+
+#~ msgid "2"
+#~ msgstr "2"
+
+#~ msgid "稳定性分析 orbit_stability、时空坐标转换 spacetime_transform"
+#~ msgstr ""
+#~ "Stability analysis orbit_stability, spacetime "
+#~ "transform spacetime_transform"
+
+#~ msgid "补齐计算工具面"
+#~ msgstr "Completing the computation tool surface"
+
+#~ msgid "3"
+#~ msgstr "3"
+
+#~ msgid "catalog_delete / export / promote / tag / sweep"
+#~ msgstr "catalog_delete / export / promote / tag / sweep"
+
+#~ msgid "库管理操作，随记录详情场景做"
+#~ msgstr ""
+#~ "Library management operations, done alongside"
+#~ " the record detail scenario"
+
+#~ msgid "在此之前，这些工具经 [e2m2e CLI](https://cislunarspace.github.io/e2m2e/) 可用。"
+#~ msgstr ""
+#~ "Until then, these tools are available"
+#~ " via the [e2m2e "
+#~ "CLI](https://cislunarspace.github.io/e2m2e/)."
+

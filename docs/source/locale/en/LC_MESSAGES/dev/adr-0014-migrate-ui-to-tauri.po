@@ -1,0 +1,134 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:2 30fcdac8db1d4ed69adc359b1c5165a5
+msgid "ADR-0014：UI 迁移到 Tauri 架构"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:4 bb6e3886f50a4ef78c8243f04d3efb62
+msgid "日期"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:6 fd8b150152a84b339b52b0e58430050c
+msgid "2026-08-05"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:8 f9fbd7f01651481dbf9a2f7aa5342f61
+msgid "状态"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:10 1c2ced0f2fc14488a0af50db0efe8526
+msgid "已接受"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:12 1d739994d7a4499caee106c55a6fe2ab
+msgid "背景"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:14 cb78001030144608bede1aa4f8987459
+msgid ""
+"tod 当前的 GUI 是 PyQt6 + matplotlib（约 1.2 万行 Python，四层架构见 "
+"`docs/architecture/architecture.md`）。维护痛点集中在："
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:16 e061778fcf5e44c6b8d38997bd9a7c96
+msgid "控件状态管理分散在 Qt 信号/槽里，跨面板联动容易踩坑；"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:17 3af48951897c4603a74cc44396f90f44
+msgid "QThread 工作线程与 GUI 线程边界需要手工维护；"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:18 d2d5ca3c847645119b7de15ca8463ce3
+msgid "样式与国际化缺少现成生态，大量手搓。"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:20 abde29529b9b4424b2b49c9e6d232eec
+msgid "用户决定迁移到 Tauri 2 架构（参照 ~/codes/altgo）：Rust 后端 + React/TS 前端 + IPC。"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:22 a2dfc8107a6345efa3b02537b93a9a2c
+msgid "决策"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:24 682a596acec54749b7dea3ba4efe4919
+msgid ""
+"**架构选型**：Tauri 2（Rust 壳 + React/Vite 前端）。UI 本身不是 Rust 写的；Rust "
+"承担进程编排、落盘、catalog 逻辑，前端承担全部控件。"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:25 f7a7865675c44edeb6ad3e7dfc7e2e36
+msgid ""
+"**e2m2e 保持在 Python**：它依赖 calcephpy/SPICE，Rust 无法直接调用。将其作为 sidecar 子进程，提供薄"
+" RPC 入口（stdin/stdout JSON 行协议），Rust 侧拉起、派发任务、转发进度事件。"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:26 15867be8ea3e4f6c8fea51e3404c60d9
+msgid ""
+"**画布用 Three.js**：matplotlib 3D 无现成等价物，视图适配、视图保持、地月标注、GIF "
+"导出需从头实现。此块是最大风险，先行原型验证。"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:27 022b5cc8059f4b5b852b28a7317c190f
+msgid "**分阶段迁移**，旧 PyQt UI 保留至核心功能（项目树、参数面板、执行状态、画布）对齐："
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:28 f82758e46b064ff486150469476746ff
+msgid "阶段 1：Tauri 脚手架 + Three.js 画布原型（星历轨迹 + 地月标注 + 交互），验证可行性；"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:29 5b11b448b7494c5082d208c388fb6d58
+msgid "阶段 2：sidecar RPC 协议，跑通一个轨道族生成任务；"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:30 f0405be341e446c489d926ab001a8a98
+msgid "阶段 3：核心 UI（项目树、参数面板、执行状态），参数面板由 Pydantic 模型转 JSON Schema 自动生成表单；"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:31 e7c805f39d194c979895228cde5d48e5
+msgid "阶段 4：长尾（catalog 过滤、GIF 导出、i18n、设置持久化），完成后移除 PyQt UI。"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:32 8882114b436d44fcbf1cac239574d8b4
+msgid "**术语表（CONTEXT.md）继续适用**：视图适配、视图保持、轨道族等领域语义在新 UI 中原样保留，不因换框架改名。"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:34 a99f8cddb16a4f408c1a7cd5c6bdf832
+msgid "后果"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:36 71a5c088b95746808f30494c39261467
+msgid "状态管理收敛到前端 store，线程边界交给 tokio + Tauri 事件，预期显著降低维护成本；"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:37 c38aa03f08f84c6790b57168fb48ac00
+msgid "画布是最大工作量单块（估计占四成以上），阶段 1 不通过则重新评估方案；"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:38 350893c1e4da4c00ba45965962ce07ec
+msgid "双 UI 并存期间有重复维护成本，阶段 4 完成前不移除旧 UI；"
+msgstr ""
+
+#: ../../adr/0014-migrate-ui-to-tauri.md:39 8769ed1109dc43bbb080c2b82aa08311
+msgid "新增 Rust / TypeScript 技术栈，构建链变长（cargo + vite）。"
+msgstr ""
+

@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,105 +20,117 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:2 b2893cd453314a079911ee274e8da776
+#: ../../adr/0006-e2m2e-gui-frontend.md:2 4e471c0678684ca0a492d43124a0de29
 msgid "ADR 0006：e2m2e GUI 前端定位"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:4 c188c4db5a8b45ffaadd34c7b2724fe6
+#: ../../adr/0006-e2m2e-gui-frontend.md:4 949f48f4cf7f491b97a8156da8357bc9
 msgid "**状态**：已接受 **日期**：2026-08-04 **关联**：`docs/architecture/architecture.md`"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:8 e4298a8916414ee19c4158d0326bdb0b
+#: ../../adr/0006-e2m2e-gui-frontend.md:8 ef121fc8021042189019f52ab4110e3b
 msgid "背景"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:10 43bf885f1ba648a1bca892b4efcd9085
+#: ../../adr/0006-e2m2e-gui-frontend.md:10 0cd436b2d305477f80c4aa4836da5aee
 msgid ""
 "transfer-orbit-design（tod）最初是独立的轨道设计工具集，包含自己的生成脚本、转移搜索脚本、可视化脚本和 GUI。随着 "
 "e2m2e 的成熟，tod 的所有计算能力已被 e2m2e 覆盖。tod 的脚本层变成了 e2m2e 的薄封装 + argparse CLI + "
 "SCRIPT_ENTRY 元数据。"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:12 f047a348fde94d86869de01f8abb2635
+#: ../../adr/0006-e2m2e-gui-frontend.md:12 ed95713ab7cd4fcfbc9b5eb510efb44e
 msgid ""
 "当前状态：tod 的 `generates/`、`transfers/`、`plot/` 目录中有 40+ 脚本，每个脚本内部 `import "
 "e2m2e` 调用算法。GUI 通过 QProcess 子进程运行这些脚本。e2m2e 兼容层（`e2m2e_compat.py`）维持旧 "
 "import 路径可用。"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:14 f73282e12b424399b951af136d22f1ca
+#: ../../adr/0006-e2m2e-gui-frontend.md:14 0acd1e381a5547bfbbffcc0acd9adf4a
 msgid "决策"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:16 ae048c73c68d4310996cd88ba8ce4407
+#: ../../adr/0006-e2m2e-gui-frontend.md:16 b72edd4ea0134aabac6646af01b2ac78
 msgid "tod 重新定位为 **e2m2e 的 GUI 前端**，职责仅限于："
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:18 c33a452206904bcd80fc8d2ae01fd375
+#: ../../adr/0006-e2m2e-gui-frontend.md:18 2fb956891bd94bbfbcad1f09178b555e
 msgid "调用 e2m2e 能力（通过算法层 API 直调）"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:19 2c655323f3a64e7d8d74909d98d92b15
+#: ../../adr/0006-e2m2e-gui-frontend.md:19 d30ec81202274fed9ac1f6928c240745
 msgid "管理计算产物（Project + Artifact 模型）"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:20 fa2bdf37f31a43afa8fb7bd7b1530bdd
+#: ../../adr/0006-e2m2e-gui-frontend.md:20 638b6ca465674b3590568a1acf383312
 msgid "可视化呈现（内嵌 matplotlib 画布）"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:22 f4504efd45e840ccb9165bb31ef55f94
+#: ../../adr/0006-e2m2e-gui-frontend.md:22 db79325a66204971987ebecf18576899
 msgid ""
-"删除 tod 中所有\"搬运 e2m2e "
-"能力\"的脚本层（`generates/`、`transfers/`、`commons/e2m2e_compat.py`）。tod 不再有自己的 "
-"CLI 或命令行脚本，命令行用户直接使用 e2m2e 的 CLI。"
+"删除 tod 中所有搬运 e2m2e "
+"能力的脚本层（`generates/`、`transfers/`、`commons/e2m2e_compat.py`）。tod 不再有自己的 "
+"CLI 或命令行脚本。命令行用户直接使用 e2m2e 的 CLI。"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:24 c5305eff52ac4bfeafb53d2e6ab3353a
+#: ../../adr/0006-e2m2e-gui-frontend.md:24 b4f2ac4254e342fcad51a377013542b4
 msgid "理由"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:26 5f9f9a6df0c74145bb7b66a4b97ac616
+#: ../../adr/0006-e2m2e-gui-frontend.md:26 45ef36d324eb4dd4ad680be32a8eca0b
 msgid "**消除双层封装**：当前 tod 脚本 = argparse + import e2m2e + 调用。这是纯粹的间接层，没有附加价值。"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:27 9a4dddde0d304d48bba87541565f9b8c
+#: ../../adr/0006-e2m2e-gui-frontend.md:27 23a9ca327c9a475296e551b99ad46655
 msgid "**单一事实来源**：算法逻辑只在 e2m2e 中维护，不在 tod 中复制。"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:28 ce8e7fd4b75249a880241ca423c54c71
-msgid "**ADR 0014 结果**：e2m2e ADR 0014 已明确\"transfer-orbit-design 保留独立仓库只留 GUI\"。"
+#: ../../adr/0006-e2m2e-gui-frontend.md:28 ec4e48b086674d89817fd18e4eb64c4c
+msgid "**ADR 0014 结果**：e2m2e ADR 0014 已明确transfer-orbit-design 保留独立仓库只留 GUI。"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:29 249f0ecedde84e2aa10c88387405e3ee
+#: ../../adr/0006-e2m2e-gui-frontend.md:29 e3652067858b4695b84825be256dc1df
 msgid "**SCRIPT_ENTRY 废弃**：GUI 参数面板改为从 e2m2e Pydantic 模型自动生成，不再需要 CliParam 声明。"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:31 219ebddc7b094eef998f6c62946d3151
+#: ../../adr/0006-e2m2e-gui-frontend.md:31 e0e18a4dbc9347b69fec852d1eed8d1c
 msgid "结果"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:33 51e4c8394db04df48c0b6dc9b36dd1bc
+#: ../../adr/0006-e2m2e-gui-frontend.md:33 9ce3daf520564a27901e29177a4ba775
 msgid "删除 `tod/generates/`、`tod/transfers/`（含全部子目录）"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:34 be9172c215b54f1b82634207e4e2e662
+#: ../../adr/0006-e2m2e-gui-frontend.md:34 e22457e5e6fb428999a5114bc6ed2745
 msgid "删除 `tod/scripting/`（SCRIPT_ENTRY 机制）"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:35 6ec8fbf74f164aeda322ef72ba6e97e8
+#: ../../adr/0006-e2m2e-gui-frontend.md:35 141ae74d5f804e05af2e70bfdbd33110
 msgid "删除 `tod/commons/e2m2e_compat.py`"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:36 5279a98713704bb2bee2197271cb0d00
+#: ../../adr/0006-e2m2e-gui-frontend.md:36 48cfb7a2bb3f407fb528f3445b2ad7a9
 msgid ""
 "核心代码迁入 `src/`（src "
 "layout）：`src/model/`、`src/engine/`、`src/view/`、`src/app/`、`src/commons/`"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:37 e8b0dd52a8a947e5ba1b0652e04625f8
+#: ../../adr/0006-e2m2e-gui-frontend.md:37 44c491f8623e4d438a922793ee831f96
 msgid "`tod/plot/` 提升为顶层 `plot/`（独立绘图脚本，高级用户可直接使用）"
 msgstr ""
 
-#: ../../adr/0006-e2m2e-gui-frontend.md:38 1f565b898ebd4f17a10b5e7e9b8e5168
+#: ../../adr/0006-e2m2e-gui-frontend.md:38 18f6102a10fb4e9cb41931983457ba3d
 msgid "GUI 改为直接调用 e2m2e 算法层 API"
 msgstr ""
+
+#~ msgid ""
+#~ "删除 tod 中所有\"搬运 e2m2e "
+#~ "能力\"的脚本层（`generates/`、`transfers/`、`commons/e2m2e_compat.py`）。tod "
+#~ "不再有自己的 CLI 或命令行脚本，命令行用户直接使用 e2m2e 的 CLI。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "**ADR 0014 结果**：e2m2e ADR 0014 已明确"
+#~ "\"transfer-orbit-design 保留独立仓库只留 GUI\"。"
+#~ msgstr ""
+

@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-22 14:16+0800\n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,11 +20,11 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../../README.md:2 d076d5fb27f64de69ee622ce2dd714b2
+#: ../../../README.md:2 763af7a29314485e980d83ef0ef3ad5b
 msgid "transfer-orbit-design - 地月空间轨道设计 GUI"
 msgstr "transfer-orbit-design - Cislunar Orbit Design GUI"
 
-#: ../../../README.md:4 9fac57e7e9fc41ecb83088a07fff6efc
+#: ../../../README.md:4 858a7d19e47c45d18e0c639b1315aaa2
 msgid ""
 "[![Release](https://img.shields.io/github/v/release/cislunarspace"
 "/transfer-orbit-design?label=release)](https://github.com/cislunarspace"
@@ -37,203 +37,244 @@ msgid ""
 "blue?logo=python&logoColor=white)](https://www.python.org/) "
 "[![License](https://img.shields.io/badge/license-"
 "Apache%202.0-blue)](LICENSE)"
-msgstr "[![Release](https://img.shields.io/github/v/release/cislunarspace/transfer-orbit-design?label=release)](https://github.com/cislunarspace/transfer-orbit-design/releases) [![CI](https://img.shields.io/github/actions/workflow/status/cislunarspace/transfer-orbit-design/ci.yml?branch=master&label=CI)](https://github.com/cislunarspace/transfer-orbit-design/actions/workflows/ci.yml) [![Python](https://img.shields.io/badge/python-3.13%2B-blue?logo=python&logoColor=white)](https://www.python.org/) [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)"
+msgstr ""
+"[![Release](https://img.shields.io/github/v/release/cislunarspace"
+"/transfer-orbit-design?label=release)](https://github.com/cislunarspace"
+"/transfer-orbit-design/releases) "
+"[![CI](https://img.shields.io/github/actions/workflow/status/cislunarspace"
+"/transfer-orbit-"
+"design/ci.yml?branch=master&label=CI)](https://github.com/cislunarspace"
+"/transfer-orbit-design/actions/workflows/ci.yml) "
+"[![Python](https://img.shields.io/badge/python-3.13%2B-"
+"blue?logo=python&logoColor=white)](https://www.python.org/) "
+"[![License](https://img.shields.io/badge/license-"
+"Apache%202.0-blue)](LICENSE)"
 
-#: ../../../README.md:4 5621b79d499243788974a7cc5e72a4f0
+#: ../../../README.md:4 fe65f628421c4d8487655b2e3500adcd
 msgid "Release"
 msgstr "Release"
 
-#: ../../../README.md:4 21e4a5aee8204645b2223bfeb1926bce
+#: ../../../README.md:4 cbf35ca17b5543348064fc61c659b99c
 msgid "CI"
 msgstr "CI"
 
-#: ../../../README.md:4 449558116be14627873308d7d2c8f548
+#: ../../../README.md:4 23e2a1293d5b40048f10bbe94c1a413b
 msgid "Python"
 msgstr "Python"
 
-#: ../../../README.md:9 0e18ae267f5a43f8919b975a78ad7dab
+#: ../../../README.md:9 10b9d5ba1a72492488f49a32c9b8b0f6
 msgid "中文 | [English](README.en.md)"
 msgstr "[中文](README.md) | English"
 
-#: ../../../README.md:11 4909770bcee046538883b91ea029339f
+#: ../../../README.md:11 b9eb1a927dd5482a864c3cb1e8f1bb3b
 msgid ""
 "transfer-orbit-design 是 [e2m2e](https://github.com/cislunarspace/e2m2e) 的"
 " GUI 前端。e2m2e 提供地月空间轨道设计所需的动力学模型、修正器、延拓器与转移算法，本仓库把它们封装成可视化桌面应用。v4.0.0 起 "
 "GUI 为 Tauri 2 架构：React 前端负责界面，Rust 壳负责进程编排，e2m2e 以 sidecar 子进程运行（stdio "
-"JSON 行 + 二进制帧协议），界面不碰算法，算法不进界面。"
+"JSON 行 + 二进制帧协议）：界面不碰算法，算法不进界面。"
 msgstr "transfer-orbit-design is the GUI frontend of [e2m2e](https://github.com/cislunarspace/e2m2e). e2m2e provides the dynamics models, correctors, continuators and transfer algorithms for cislunar orbit design; this repository wraps them into a visual desktop application. Since v4.0.0 the GUI is a Tauri 2 application: the React frontend drives the interface, the Rust shell orchestrates processes, and e2m2e runs as a sidecar child process (stdio JSON lines + binary frames) - the UI never touches algorithms, and no algorithm enters the UI."
 
-#: ../../../README.md:13 2609a74ed36a42edb73a805015c702dc
+#: ../../../README.md:13 288f0354aa1040be9287a2a9f92aea6f
 msgid "安装"
 msgstr "Installation"
 
-#: ../../../README.md:15 72ef8f82d744465abd93a137bc263699
+#: ../../../README.md:15 3d0604ce507b4eeeb763d00d39af0283
 msgid "桌面应用（Windows）"
 msgstr "Desktop application (Windows)"
 
-#: ../../../README.md:17 f6e8b49ee71846da847b9f91a0aa0be3
+#: ../../../README.md:17 e913b038d6424eb599e6c5c83f49c169
 msgid ""
 "从 [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-"
-"design/releases) 下载 `tod_<版本>_x64-setup.exe`（NSIS "
-"安装器，免管理员权限，安装到当前用户目录）。安装包内含 e2m2e 运行时（tod-sidecar）与 SPICE 小内核；当前界面功能为纯 "
-"CR3BP 计算，无需额外准备星历内核。"
-msgstr "Download `tod_<version>_x64-setup.exe` from [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) (NSIS installer; per-user install, no administrator rights needed). The installer bundles the e2m2e runtime (tod-sidecar) and the small SPICE kernels; the current UI features are pure CR3BP computations and need no ephemeris kernels."
+"design/releases) 下载 `transfer-orbit-design_<版本>_x64-setup.exe`（NSIS "
+"安装器，免管理员权限，安装到当前用户目录）。安装包内含 e2m2e 运行时（transfer-orbit-design-sidecar）与全套 "
+"SPICE 内核（含行星历），开箱即用。另有 Linux AppImage / deb 包与自动更新（见发布页）。"
+msgstr "Download `transfer-orbit-design_<version>_x64-setup.exe` from [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) (NSIS installer; per-user install, no administrator rights needed). The installer bundles the e2m2e runtime (transfer-orbit-design-sidecar) and the full SPICE kernel set including planetary ephemerides — everything works out of the box. Linux AppImage / deb packages and auto-update are also available on the releases page."
 
-#: ../../../README.md:19 5aa8dd2454504192bd329bad79c7db39
+#: ../../../README.md:19 2d6bfaf2db454ca8b31846bbe75f46de
 msgid "开发环境"
 msgstr "Development environment"
 
-#: ../../../README.md:21 881603e6348f44e1a72ddf25502926bc
+#: ../../../README.md:21 67a04286259b459185875779e24218ce
 msgid ""
 "要求 Python >= 3.13、Node.js >= 20、Rust 稳定版工具链，包管理用 "
 "[uv](https://docs.astral.sh/uv/)："
-msgstr "Requires Python >= 3.13, Node.js >= 20 and a stable Rust toolchain; Python packages are managed with [uv](https://docs.astral.sh/uv/):"
+msgstr ""
+"Requires Python >= 3.13, Node.js >= 20 and a stable Rust toolchain; "
+"Python packages are managed with [uv](https://docs.astral.sh/uv/):"
 
-#: ../../../README.md:29 3e61f0586d914024aadf3cf87187b9b2
+#: ../../../README.md:29 d9ca5923f8d04d7e8389df8aa720babc
 msgid "SPICE 内核"
 msgstr "SPICE Kernels"
 
-#: ../../../README.md:31 605982d1ce0e417aa22cfafdfa5f2eab
+#: ../../../README.md:31 e7399a3500b74b1f94d1aade60eae3b9
 msgid ""
-"v4.0.0 的界面工具（轨道族生成、轨道库浏览）是纯 CR3BP 计算，不需要 SPICE 内核。轨道设计、轨道保持等星历工具的界面正在回归（见"
-" [issue #398](https://github.com/cislunarspace/transfer-orbit-"
-"design/issues/398)）；回归后需要行星历 `.bsp` 等内核，获取方式："
-msgstr "The v4.0.0 UI tools (orbit family generation, catalog browsing) are pure CR3BP computations and need no SPICE kernels. Ephemeris tools such as orbit design and station keeping are returning to the UI (see [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)); once available they need the planetary ephemeris `.bsp` and friends, obtainable via:"
+"SPICE 内核随 Git LFS 随仓库分发（克隆后位于 `kernels/`），安装包也已随带；纯 CR3BP "
+"工具用不到行星历。需要另行准备的场景（精简环境、自备数据）："
+msgstr "SPICE kernels ship with the repository via Git LFS (`kernels/` after cloning) and are bundled in the installers; pure CR3BP tools never touch the planetary ephemerides. Situations that still call for preparation (slim environments, bring-your-own data):"
 
-#: ../../../README.md:33 057ad67ee0584c0ea16b6feafa136b6a
-msgid "**自动下载（推荐）**：`uv run python scripts/download_kernels.py`，幂等拉取到 `kernels/`；"
-msgstr "**Automatic download (recommended)**: `uv run python scripts/download_kernels.py` - idempotently fetches everything into `kernels/`;"
+#: ../../../README.md:33 28e82f7685774edb965defee45681ba9
+msgid "**自动下载**：`uv run python scripts/download_kernels.py`，幂等拉取到 `kernels/`；"
+msgstr "**Automatic download**: `uv run python scripts/download_kernels.py` idempotently fetches everything into `kernels/`;"
 
-#: ../../../README.md:34 5ba8509dc06849749e240071d4d8afc4
+#: ../../../README.md:34 5c2902f6c0ce443ebaf471e080add335
 msgid ""
 "**手动下载**：从 e2m2e 的 [`kernels-v1` "
 "release](https://github.com/cislunarspace/e2m2e/releases) 解压到 "
 "`kernels/`（sidecar 工作目录下的相对路径）；"
-msgstr "**Manual download**: extract e2m2e's [`kernels-v1` release](https://github.com/cislunarspace/e2m2e/releases) into `kernels/` (relative to the sidecar working directory);"
+msgstr ""
+"**Manual download**: extract e2m2e's [`kernels-v1` "
+"release](https://github.com/cislunarspace/e2m2e/releases) into `kernels/`"
+" (relative to the sidecar working directory);"
 
-#: ../../../README.md:35 a9d53e3f1a544953a5b15fbcec80d044
+#: ../../../README.md:35 85a5c45987444d348f0af9044e61dc04
 msgid "**自备数据**：`$SPICE_KERNEL_DIR` 指向已有内核目录（优先级最高）。"
-msgstr "**Bring your own**: point `$SPICE_KERNEL_DIR` at an existing kernel directory (highest priority)."
+msgstr ""
+"**Bring your own**: point `$SPICE_KERNEL_DIR` at an existing kernel "
+"directory (highest priority)."
 
-#: ../../../README.md:37 20710498d72e467cba5f5f30bcf05709
+#: ../../../README.md:37 f24eba582d284d788687a0f1d668bdc3
 msgid "官方来源：[NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html)（备用）。"
-msgstr "Official source: [NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html) (fallback)."
+msgstr ""
+"Official source: [NASA NAIF](https://naif.jpl.nasa.gov/naif/data.html) "
+"(fallback)."
 
-#: ../../../README.md:39 44829e6d53e74b25b29316aef8931d92
+#: ../../../README.md:39 5c9d3d0e3cc245c692cfbaabf34672f9
 msgid "快速开始"
 msgstr "Quick Start"
 
-#: ../../../README.md:41 d18c87a85fe2437680558a825e075f00
-msgid "启动后左栏默认「项目」页签；切到「轨道库」页签自动加载全库，过滤栏可按族类型、平动点、Jacobi 与振幅区间、标签组合筛选。"
-msgstr "The left column opens on the \"Project\" tab; switch to the \"Catalog\" tab to load the whole orbit library, with a filter bar combining family type, libration point, Jacobi and amplitude ranges, and tags."
+#: ../../../README.md:41 d2fee38f87864e6bb966ff50b2f6d25c
+msgid "启动后左栏默认项目页签；切到轨道库页签自动加载全库，过滤栏可按族类型、平动点、Jacobi 与振幅区间、标签组合筛选。"
+msgstr "The left column opens on the Project tab; switch to the Catalog tab to load the whole orbit library, with a filter bar combining family type, libration point, Jacobi and amplitude ranges, and tags."
 
-#: ../../../README.md:42 b48e2404b54140488000ab4d538013c3
+#: ../../../README.md:42 1f40e1b4a68e42e1a3d75da7b0843414
 msgid ""
-"中栏「轨道族生成」：选族类型（Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe / "
-"DRO），按族显示对应参数（振幅上下限、近月点高度、相位等），点「生成」。"
-msgstr "The middle column is \"Orbit Family Generation\": pick a family (Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe / DRO); the panel shows the family-specific parameters (amplitude bounds, perilune height, phases, …). Click \"Generate\"."
+"中栏工具面板：下拉选择工具（轨道族生成 / 任务轨道设计 / 参数空间扫描 / 轨道保持 / 轨道预报 / 转移轨道设计 / 时空坐标转换 / "
+"分区边界），参数表单按工具的 JSON Schema 自动生成，点执行。"
+msgstr "The middle column is the tool panel: pick a tool from the dropdown (orbit family generation / orbit design / parameter sweep / station keeping / orbit propagation / transfer design / spacetime transform / spatiography boundaries); the parameter form is generated from the tool's JSON Schema. Click Run."
 
-#: ../../../README.md:43 9c430c54f41842d3a9858517474c64ff
-msgid "族成员轨迹随即出现在右侧画布：左键拖拽旋转、滚轮缩放；「适配」按钮按轨迹包围盒复位视角。点击轨道库记录可把库轨迹叠加到画布。"
-msgstr "Member trajectories appear on the canvas at once: drag to rotate, scroll to zoom; the \"Fit\" button recentres on the trajectory bounding box. Clicking a catalog record overlays its trajectories on the canvas."
+#: ../../../README.md:43 3343ecc285f84f9b85092677fe5ee049
+msgid ""
+"轨道族生成选族类型（Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe / "
+"DRO），按族显示对应参数（振幅上下限、近月点高度、相位等）；其余工具各自渲染参数表单。"
+msgstr "For family generation, pick a family (Halo / NRHO / Axial / Lissajous / SPO / LPO / Horseshoe / DRO); the panel shows the family-specific parameters (amplitude bounds, perilune height, phases, …). Other tools render their own forms."
 
-#: ../../../README.md:44 c07140dc11684e48bf6c959a1e536cfe
-msgid "左栏右上角语言切换中英界面。"
-msgstr "The language switcher at the top of the left column toggles between Chinese and English."
+#: ../../../README.md:44 4c6569badd3240ba9bafec6d745e9e34
+msgid "结果轨迹随即出现在右侧画布：左键拖拽旋转、滚轮缩放；适配按钮按轨迹包围盒复位视角。轨道库记录可钉入固定层（多选同屏），与结果层对照显示。"
+msgstr "Result trajectories appear on the canvas: drag to rotate, scroll to zoom; the Fit button recentres on the trajectory bounding box. Catalog records can be pinned into the pinned layer (multi-select overlay) alongside the result layer for comparison."
 
-#: ../../../README.md:46 37906ef7cab34dfe8ff89a8124aa9f04
+#: ../../../README.md:45 deaf7aceaddc4b74ae4d5fac6687de8d
+msgid "左栏右上角语言切换中英界面；右侧助手边栏配置模型服务后可对话式发起计算（见「AI 助手」）。"
+msgstr "The language switcher at the top of the left column toggles between Chinese and English; once a model service is configured, the assistant sidebar on the right drives computations conversationally (see \"AI Assistant\")."
+
+#: ../../../README.md:47 d7ca1c46a1a446b29cb272c2a1d1f2ae
 msgid "能力"
 msgstr "Capabilities"
 
-#: ../../../README.md:48 b8613f0905794ebdb502e9a23e088e0c
-msgid "**v4.0.0 界面可用**"
-msgstr "**Available in the v4.0.0 UI**"
-
-#: ../../../README.md:50 5ea334da8e294f93b653b087b067152c
+#: ../../../README.md:49 4fad573bee6d4ed28bfacf51e512a835
 msgid ""
-"**轨道族生成**：八族（七族 + DRO）周期延拓/参数采样，参数表单由工具的 JSON Schema 自动生成（字段裁剪、范围与默认值随 "
-"e2m2e 模型走）；进度实时显示，成员轨迹逐条渲染。"
-msgstr "**Orbit family generation**: eight families (the seven classic ones + DRO), periodic continuation or parameter sampling; the parameter form is generated from the tool's JSON Schema (field pruning, ranges and defaults follow the e2m2e models); live progress; member trajectories rendered one by one."
+"**工具面板**：八个工具接入：轨道族生成、任务轨道设计、参数空间扫描、轨道保持、轨道预报、转移轨道设计、时空坐标转换、分区边界（地月空间分区参照层）。轨道稳定性暂不接入（上游"
+" e2m2e 将其标为 placeholder，空参 schema）。参数表单由各工具的 JSON Schema "
+"自动生成（字段裁剪、范围与默认值随 e2m2e 模型走），经通用工具执行通道（Rust `run_tool` 命令）直达 "
+"sidecar，错误直显；执行前防呆校验（必填与数值范围，内联标红）。转移设计的参数面板按转移类型联动显隐，LGA/WSB "
+"提交时自动取选中轨道工件换算到会合系物理单位注入目标星历。"
+msgstr "**Tool panel**: eight tools are wired: orbit family generation, orbit design, parameter sweep, station keeping, orbit propagation, transfer design, spacetime transform, and spatiography boundaries (the cislunar partition reference layer). Stability analysis stays out for now (upstream e2m2e marks it as a placeholder with an empty-arg schema). Parameter forms are generated from each tool's JSON Schema (field pruning, ranges and defaults follow the e2m2e models) and run through the generic tool-execution channel (the Rust `run_tool` command) straight to the sidecar; errors are surfaced directly. A preflight check validates required fields and numeric ranges before submission, flagging problems inline. The transfer-design form shows and hides fields by transfer type; on LGA/WSB submission it converts the selected orbit artifact into synodic physical units and injects it as the target ephemeris."
 
-#: ../../../README.md:51 af41d6a8efb945f9a11e516196f94c0b
-msgid "**轨道库浏览**：产物自动入 e2m2e 轨道库（catalog 多维分类），多维过滤查询，选中记录叠加画布。"
-msgstr "**Catalog browsing**: products are stored automatically in the e2m2e orbit library (multi-dimensional catalog); filtered queries; clicking a record overlays it on the canvas."
-
-#: ../../../README.md:52 2aec99a87fe5412a96bbd470946cfffa
+#: ../../../README.md:50 e38b1894807e43c1a0b626e9afda6e1a
 msgid ""
-"**画布**：Three.js 3D 视图，视图适配与视图保持、地月与平动点标注、图表设置（线宽/天体与平动点标注/Z 轴比例）持久化、webm "
-"动画导出。"
-msgstr "**Canvas**: Three.js 3D view with view-fit and view-preservation, Earth/Moon and libration-point annotations, persisted chart settings (line width, body/point markers, Z-axis ratio), webm animation export."
+"**AI 助手（LLM+MCP，ADR 0022/0023）**：右侧可折叠、可拖宽的助手边栏。模型服务走 BYOK：设置面板「AI "
+"助手」分区配置 OpenAI 兼容协议的 base URL、模型名与 API key（云端 DeepSeek/通义/Kimi 或本地 "
+"Ollama/LM Studio 一套协议覆盖），key 只存系统凭据管理器、不进界面 JS 上下文。助手经标准 MCP 拉起独立的 `mcp-"
+"serve` 进程调用 e2m2e 工具，与画布计算的 `serve-stdio` "
+"链路互不阻塞。工具调用分级确认：只读查询免确认直接执行，计算与改库工具先出工具卡片待用户确认/编辑参数/拒绝。会话跨重启持久化，多会话可切换续聊；思考等级按会话三档（关/标准/深度）。助手触发的产物与手动运行同语义：同一轨道库、谱系与画布叠加。"
+msgstr "**AI assistant (LLM+MCP, ADRs 0022/0023)**: a collapsible, resizable assistant sidebar on the right. The model service is BYOK: configure an OpenAI-compatible base URL, model name and API key in the \"AI Assistant\" section of the settings dialog (cloud DeepSeek/Qwen/Kimi or local Ollama/LM Studio, one protocol covers both); the key lives only in the OS credential manager, never in the webview JS context. The assistant calls e2m2e tools over standard MCP through a separate `mcp-serve` process, which never blocks the `serve-stdio` channel used by canvas computations. Tool calls are confirmed by tier: read-only queries run directly, while computing or mutating tools first show a tool card for the user to confirm, edit or reject. Sessions persist across restarts, with multiple sessions switchable and resumable; the thinking level has three per-session tiers (off/standard/deep). Products the assistant triggers follow the same semantics as manual runs: the same orbit library, lineage and canvas overlay."
 
-#: ../../../README.md:54 c574e85a68a547f2addf78d3d7886a9b
+#: ../../../README.md:51 a4de7f9f735d440db1779364fae47ee4
+msgid "**轨道族生成**：八族（七族 + DRO）周期延拓/参数采样，成员轨迹逐条渲染。"
+msgstr "**Orbit family generation**: eight families (the seven classic ones + DRO), periodic continuation or parameter sampling; member trajectories rendered one by one."
+
+#: ../../../README.md:52 b51a972ef81747daba2205a166ba0c6e
 msgid ""
-"**尚未接线**（v3.2.3 PyQt 版曾发布，Tauri 版逐工具回归中，见 [issue "
-"#398](https://github.com/cislunarspace/transfer-orbit-"
-"design/issues/398)）：轨道设计、轨道保持、轨道预报、转移设计、稳定性分析、时空坐标转换。需要这些工具请使用 v3.2.3 或 "
-"e2m2e CLI。"
-msgstr "**Not yet wired** (shipped in the v3.2.3 PyQt UI; returning tool by tool on Tauri - see [issue #398](https://github.com/cislunarspace/transfer-orbit-design/issues/398)): orbit design, station keeping, orbit propagation, transfer design, stability analysis, spacetime transform. Use v3.2.3 or the e2m2e CLI if you need them now."
+"**轨道库浏览**：产物自动入 e2m2e 轨道库（catalog "
+"多维分类），多维过滤查询；记录多选同屏绘制，可写备注、加星标；标注、族成员提升、导出包与删除的界面入口齐备。"
+msgstr "**Catalog browsing**: products are stored automatically in the e2m2e orbit library (multi-dimensional catalog); filtered queries; records can be multi-selected for simultaneous plotting, annotated, noted and starred. Annotation, family-member promotion, package export and deletion all have UI entries."
 
-#: ../../../README.md:56 a74905bc127e414c9db3b2de119da102
+#: ../../../README.md:53 e677f6d4dd1348f69dd835afea8bb32f
+msgid ""
+"**画布**：Three.js 3D 视图，内容分结果层（当前计算产物，随计算替换）与固定层（钉住的库记录，软上限 5 条提示）双层。NASA "
+"贴图天体（真实半径比例、Phong 光照与晨昏线）、XYZ 坐标轴与网格参照层、地月空间分区图层（Rosengren Primer "
+"分区边界：Hill/SOI/Battin 等参照几何）；轨迹按 Jacobi 常数 coolwarm "
+"着色＋颜色条，无值回退颜色循环；图例逐条标注轨迹数据系（会合无量纲 / 会合物理 km / 地心惯性 "
+"km）。时间轴播放/拖动驱动画布时刻标记沿轨迹走查，机动事件（出发/到达脉冲）以 chip "
+"标注、点击跳转；图表设置（线宽/标注/坐标轴与分区图层开关/背景/量程）持久化、webm 动画导出。"
+msgstr "**Canvas**: a Three.js 3D view whose content is split into a result layer (the latest computation, replaced on each run) and a pinned layer (pinned catalog records, soft-capped at 5 with a hint). NASA-textured bodies at true radius ratio with Phong lighting and a day/night terminator; an XYZ axes-and-grid reference layer; and a cislunar partition layer (Rosengren Primer boundaries: Hill/SOI/Battin reference geometry). Trajectories are colored by Jacobi constant on the coolwarm ramp with a color bar, falling back to the color cycle when no value exists; the legend annotates each trajectory's data frame (synodic nondimensional / synodic km / geocentric-inertial km). A timeline plays or scrubs a time marker along trajectories, with maneuver events (departure/arrival pulses) shown as clickable chips; chart settings (line width, markers, axes and region toggles, background, grid range) persist, and webm animation export is built in."
+
+#: ../../../README.md:55 afa460a5e650427daf820ebd10a2021e
 msgid "数据流与产物"
 msgstr "Data Flow and Artifacts"
 
-#: ../../../README.md:58 288d398abc86493d8e2ae498614d0d65
+#: ../../../README.md:57 d9efaed946924180af08ed22e0573f3d
 msgid ""
-"一次计算的数据流：参数表单 → Rust 命令 → e2m2e sidecar（JSON 行信封 + 二进制帧，e2m2e ADR 0035）→ "
-"产物自动入轨道库 → 项目树/画布经 `catalog_query` / `catalog_get` 取用。"
-msgstr "One computation flows: parameter form → Rust command → e2m2e sidecar (JSON-line envelopes + binary frames, e2m2e ADR 0035) → product lands in the orbit library automatically → project tree / canvas fetch it via `catalog_query` / `catalog_get`."
+"画布计算的数据流：参数表单 → Rust 命令 → e2m2e sidecar（JSON 行信封 + 二进制帧，e2m2e ADR 0035）→ "
+"产物自动入轨道库 → 项目树/画布经 `catalog_query` / `catalog_get` 取用。AI 助手是并行的第二条链路：Rust"
+" agent loop → 独立 `mcp-serve` 进程（标准 MCP）调同一套工具，只读查询与画布长计算互不阻塞（ADR 0023）。"
+msgstr "Canvas computations flow: parameter form → Rust command → e2m2e sidecar (JSON-line envelopes + binary frames, e2m2e ADR 0035) → product lands in the orbit library automatically → project tree / canvas fetch it via `catalog_query` / `catalog_get`. The AI assistant is a parallel second channel: the Rust agent loop → a separate `mcp-serve` process (standard MCP) calling the same tools, so read-only queries never block a long canvas computation (ADR 0023)."
 
-#: ../../../README.md:60 820d3e4543db4f058827e5e1cf61f646
+#: ../../../README.md:59 e319119dbc364a77a8d5633f4c8fb0ef
 msgid ""
 "产物持久化在 `catalog/` 目录（开发期仓库根 `catalog/`；安装版在安装目录下）。轨道库是 e2m2e catalog "
 "格式（多维分类、谱系指针），可以直接被 e2m2e 或其他宿主打开；`output/` 仅保留转移遗留分区与脚本场景。"
-msgstr "Products persist in the `catalog/` directory (repo root in development; the install directory for the packaged app). The library is the e2m2e catalog format (multi-dimensional classification, lineage pointers) and can be opened directly by e2m2e or other hosts; `output/` only keeps the legacy transfer partition and script workflows."
+msgstr ""
+"Products persist in the `catalog/` directory (repo root in development; "
+"the install directory for the packaged app). The library is the e2m2e "
+"catalog format (multi-dimensional classification, lineage pointers) and "
+"can be opened directly by e2m2e or other hosts; `output/` only keeps the "
+"legacy transfer partition and script workflows."
 
-#: ../../../README.md:62 cffa56d4a11a4b769a684c8d65d98324
+#: ../../../README.md:61 c6972616bcb54005927d07a4d7bc60ee
 msgid "文档"
 msgstr "Documentation"
 
-#: ../../../README.md:64 97bf19c1ed3a43ce97fca1947e91dab1
+#: ../../../README.md:63 af1f14b5bc734d93b9b87f40b8028904
 msgid "在线文档：<https://cislunarspace.github.io/transfer-orbit-design/zh/>"
 msgstr "Online docs: <https://cislunarspace.github.io/transfer-orbit-design/en/>"
 
-#: ../../../README.md:66 a3da0a9dae0b43eaaef9f143c1aac671
+#: ../../../README.md:65 f5e5c8d7d7b74e99a2ed5065759dca73
 msgid "本地构建："
 msgstr "Build locally:"
 
-#: ../../../README.md:73 fa34464a53e64000a81983938bf3ee32
+#: ../../../README.md:72 8261dfa44d2f47949a26387cc79d6f72
 msgid "测试与代码规范"
 msgstr "Tests and Code Standards"
 
-#: ../../../README.md:82 4b11b0b852cd4d90aefd9fdeda02f1a5
+#: ../../../README.md:81 a472ca0ecac24c45ad81374c6645b9ea
 msgid "贡献"
 msgstr "Contributing"
 
-#: ../../../README.md:84 774c0af187b04f37a9912e4215eb7660
+#: ../../../README.md:83 c9f5f245b1a54440bb93647eab62ce50
 msgid "Fork 本仓库"
 msgstr "Fork this repository"
 
-#: ../../../README.md:85 3842fa4dd3ee4cb0ac7bf4825602505a
+#: ../../../README.md:84 a64a0ac9b6b34bd28a3a31878bff8cce
 msgid "创建功能分支 (`git checkout -b feature/amazing-feature`)"
 msgstr "Create a feature branch (`git checkout -b feature/amazing-feature`)"
 
-#: ../../../README.md:86 4ad05e4553af4b188053078ab763769b
+#: ../../../README.md:85 7e231f4dcd2745e2b60d60e174f5be5e
 msgid "提交更改 (`git commit -m 'Add amazing feature'`)"
 msgstr "Commit your changes (`git commit -m 'Add amazing feature'`)"
 
-#: ../../../README.md:87 85a6ffe5dd36454680f18ece1a22f87d
+#: ../../../README.md:86 04661e50247b4c9fb44fde284e3a863c
 msgid "推送到分支 (`git push origin feature/amazing-feature`)"
 msgstr "Push to the branch (`git push origin feature/amazing-feature`)"
 
-#: ../../../README.md:88 521a3173a72749b7ae0cff8acd777546
+#: ../../../README.md:87 039c4ff771bc47368fe93d41d9770f39
 msgid "开启 Pull Request"
 msgstr "Open a Pull Request"
 
-#: ../../../README.md:90 7a6c45488054441889a9c5107e685965
+#: ../../../README.md:89 b9f9fc82fbdb49a6bfbb721889824fc5
 msgid "License"
 msgstr "License"
 
-#: ../../../README.md:92 7d9808450a5c458890c756d8d1ff9637
+#: ../../../README.md:91 97c47d981ed944188c3287dace9cd1ff
 msgid "[Apache 2.0](LICENSE)"
 msgstr "[Apache 2.0](LICENSE)"
 
@@ -421,3 +462,72 @@ msgstr "[Apache 2.0](LICENSE)"
 
 #~ msgid "**稳定性分析**：仅 JSON，存单值矩阵、特征值、稳定性指数（nu1/nu2/nu3/Broucke）、分岔分类与数值误差。"
 #~ msgstr ""
+
+#~ msgid ""
+#~ "v4.0.0 的界面工具（轨道族生成、轨道库浏览）是纯 CR3BP 计算，不需要 SPICE"
+#~ " 内核。轨道设计、轨道保持等星历工具的界面正在回归（见 [issue "
+#~ "#398](https://github.com/cislunarspace/transfer-orbit-"
+#~ "design/issues/398)）；回归后需要行星历 `.bsp` 等内核，获取方式："
+#~ msgstr ""
+#~ "The v4.0.0 UI tools (orbit family "
+#~ "generation, catalog browsing) are pure "
+#~ "CR3BP computations and need no SPICE "
+#~ "kernels. Ephemeris tools such as orbit"
+#~ " design and station keeping are "
+#~ "returning to the UI (see [issue "
+#~ "#398](https://github.com/cislunarspace/transfer-orbit-"
+#~ "design/issues/398)); once available they need"
+#~ " the planetary ephemeris `.bsp` and "
+#~ "friends, obtainable via:"
+
+#~ msgid "左栏右上角语言切换中英界面。"
+#~ msgstr ""
+#~ "The language switcher at the top "
+#~ "of the left column toggles between "
+#~ "Chinese and English."
+
+#~ msgid "**v4.0.0 界面可用**"
+#~ msgstr "**Available in the v4.0.0 UI**"
+
+#~ msgid ""
+#~ "**轨道族生成**：八族（七族 + DRO）周期延拓/参数采样，参数表单由工具的 JSON "
+#~ "Schema 自动生成（字段裁剪、范围与默认值随 e2m2e 模型走）；进度实时显示，成员轨迹逐条渲染。"
+#~ msgstr ""
+#~ "**Orbit family generation**: eight families"
+#~ " (the seven classic ones + DRO), "
+#~ "periodic continuation or parameter sampling;"
+#~ " the parameter form is generated from"
+#~ " the tool's JSON Schema (field "
+#~ "pruning, ranges and defaults follow the"
+#~ " e2m2e models); live progress; member "
+#~ "trajectories rendered one by one."
+
+#~ msgid ""
+#~ "**画布**：Three.js 3D "
+#~ "视图，视图适配与视图保持、地月与平动点标注、图表设置（线宽/天体与平动点标注/Z 轴比例）持久化、webm "
+#~ "动画导出。"
+#~ msgstr ""
+#~ "**Canvas**: Three.js 3D view with "
+#~ "view-fit and view-preservation, Earth/Moon"
+#~ " and libration-point annotations, persisted"
+#~ " chart settings (line width, body/point "
+#~ "markers, Z-axis ratio), webm animation "
+#~ "export."
+
+#~ msgid ""
+#~ "**尚未接线**（v3.2.3 PyQt 版曾发布，Tauri 版逐工具回归中，见 "
+#~ "[issue #398](https://github.com/cislunarspace/transfer-"
+#~ "orbit-"
+#~ "design/issues/398)）：轨道设计、轨道保持、轨道预报、转移设计、稳定性分析、时空坐标转换。需要这些工具请使用 "
+#~ "v3.2.3 或 e2m2e CLI。"
+#~ msgstr ""
+#~ "**Not yet wired** (shipped in the "
+#~ "v3.2.3 PyQt UI; returning tool by "
+#~ "tool on Tauri - see [issue "
+#~ "#398](https://github.com/cislunarspace/transfer-orbit-"
+#~ "design/issues/398)): orbit design, station "
+#~ "keeping, orbit propagation, transfer design,"
+#~ " stability analysis, spacetime transform. "
+#~ "Use v3.2.3 or the e2m2e CLI if "
+#~ "you need them now."
+

@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-13 14:14+0800\n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,33 +20,44 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../source/dev/adr.rst:1 a6d2eea39ac047f983e4d26f9fee25fe
+#: ../../source/dev/adr.rst:1 0ec1ea32ebc047d2a267bf4d58d6e655
 msgid "# 架构决策记录（ADR）"
-msgstr ""
+msgstr "# Architecture Decision Records (ADR)"
 
-#: ../../source/dev/adr.rst:3 937dfc436d454cb482a77ce5503769b3
+#: ../../source/dev/adr.rst:3 69e53763060b4062bc8c1a67e85963d7
 msgid ""
 "架构决策记录（Architecture Decision Record）逐项记录项目的关键架构决策： "
 "背景、决策、后果。编号越大越新。以下列表按编号排列，全文见对应页面。"
-msgstr ""
+msgstr "Architecture Decision Records (ADRs) capture each key architectural decision — context, decision, consequences. Higher numbers are newer. The list below is ordered by number; full texts live on their own pages."
 
-#: ../../source/dev/adr.rst:23 732d1d27ab1347d5bed0f9bec8c2b51d
+#: ../../source/dev/adr.rst:36 a82e0d9763794d849ca7f84792035220
 msgid "## 阅读指引"
-msgstr ""
+msgstr "## Reading Guide"
 
-#: ../../source/dev/adr.rst:25 c2c0890f8c8449bf85458289045fe889
+#: ../../source/dev/adr.rst:38 3364c7d8552f4cd2be46c1bd4a2a908b
 msgid "**当前架构**以 :doc:`architecture` 为准；ADR 记录决策的**历史语境**， 两者不一致时以架构文档为准。"
-msgstr ""
+msgstr "The architecture document is authoritative for the **current architecture**; ADRs record the **historical context** of decisions — when the two disagree, the architecture document wins."
 
-#: ../../source/dev/adr.rst:27 753c52b7ca9d414faf8803c4ea6fe118
+#: ../../source/dev/adr.rst:40 087c6bb44d9b4a4499d4de5b09a10896
 msgid ""
 "ADR-0001 至 0005 记录旧 GUI（`tod/gui/`）时代的决策，相关机制 （ScriptEntry "
 "脚本注册、JobStatus、运行前确认弹窗）已随 ADR-0007 的 大爆炸替换废弃，仅作历史参考。"
-msgstr ""
+msgstr "ADR-0001 through 0005 record decisions from the old-GUI (`tod/gui/`) era; the mechanisms involved (ScriptEntry script registration, JobStatus, the run-confirmation dialog) were retired by the big-bang replacement of ADR-0007 and are of historical interest only."
 
-#: ../../source/dev/adr.rst:30 851c412128cc4d0081dd65005bcdd404
+#: ../../source/dev/adr.rst:43 8a80a37b9b2b48bcacdf4b5d4b6799ab
 msgid ""
 "ADR-0006 起为现行 GUI 的决策：e2m2e 前端定位（0006）、大爆炸替换 （0007）、output/ "
 "持久化（0008）、Pydantic 自动参数面板（0009）、 内嵌可视化（0010）、算法层直调（0011）、卡顿与接口边界依赖上游 "
-"（0012）、星历可视化坐标与时间约定（0013）。"
-msgstr ""
+"（0012）、星历可视化坐标与时间约定（0013）、UI 迁移到 Tauri（0014）、 UI 组件库与参数覆写层（0015）、功能补齐与 "
+"catalog 分布（0016）、 Linux 打包（0017）、桌面自动更新（0018）、sidecar 子树生命周期 "
+"（0019）、严肃语义色板视觉语言（0020）、主画布时间轴（0021， 原与 0014 同号，已改编）、AI "
+"助手定位与模型服务策略（0022）、 AI 助手架构（0023）、记录用户元数据归属 catalog 记录字段（0024）、 "
+"助手会话历史与多会话（0025）、思考等级与过程展示（0026）。"
+msgstr "ADR-0006 onward are decisions of the current GUI: e2m2e frontend positioning (0006), big-bang replacement (0007), output/ persistence (0008), Pydantic auto parameter panel (0009), embedded visualization (0010), direct algorithm-layer calls (0011), deferring GIL and facade issues upstream (0012), ephemeris visualization coordinate and time conventions (0013), UI migration to Tauri (0014), UI component library and the parameter overlay (0015), feature parity and catalog distribution (0016), Linux packaging (0017), desktop auto-update (0018), sidecar subtree lifetime (0019), the serious semantic palette visual language (0020), the main-canvas timeline (0021; originally numbered same as 0014, renumbered), AI assistant positioning and model-service strategy (0022), AI assistant architecture (0023), record user metadata owned by catalog record fields (0024), assistant session history and multi-session (0025), thinking level and process display (0026)."
+
+#~ msgid ""
+#~ "ADR-0006 起为现行 GUI 的决策：e2m2e 前端定位（0006）、大爆炸替换"
+#~ " （0007）、output/ 持久化（0008）、Pydantic 自动参数面板（0009）、 "
+#~ "内嵌可视化（0010）、算法层直调（0011）、卡顿与接口边界依赖上游 （0012）、星历可视化坐标与时间约定（0013）。"
+#~ msgstr ""
+

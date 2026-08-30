@@ -1,0 +1,101 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:2
+#: 59c70918b512492298d04a0534055320
+msgid "0020. UI 视觉语言定为严肃语义色板"
+msgstr ""
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:4
+#: f88c9672542d425ab838d9f008415ac2
+msgid "日期: 2026-08-25"
+msgstr ""
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:5
+#: 42c0260963e14e0da0195f21b144a6b0
+msgid "状态: 已接受"
+msgstr ""
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:7
+#: 037d25e2b03842d08d41d0efdf95ff33
+msgid ""
+"界面自 PyQt 重构为 Tauri + Ant Design 6（ADR-0014/0015）后，沿用了 antd 默认的圆润亮色风格（8px "
+"圆角、活泼的 `#1890ff` 主色）。为匹配轨道设计工具的严肃技术气质，我们有意偏离 antd 默认视觉："
+msgstr ""
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:9
+#: f51de028fc6740b592fb45338586afe2
+msgid "**直角**：全局 `borderRadius` 全系列（base/LG/SM/XS/Outer）统一降到 **2px**。"
+msgstr ""
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:10
+#: 627e451a2f6f45ea88c93c590963ad90
+msgid ""
+"**收敛语义色板**：整个界面只用黑/白/灰/红/蓝/绿/橙七种色相——红=错误、绿=成功、橙=警告、蓝=主色/信息，中性色沿用 antd "
+"灰阶。主色蓝从 `#1890ff` 收敛为深蓝 `#0958d9`。"
+msgstr ""
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:11
+#: c1dbda2c02594f31840befa94a5f33ac
+msgid "直接写死为主题 token 的新默认，不设用户配置项。"
+msgstr ""
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:13
+#: 683e13de50634e1192367bf51cc2bffe
+msgid "这是一处对 antd 默认风格的有意偏离。后续开发者看到直角与收敛主色时，不应将其\"修复\"回 antd 圆润默认——那不是 bug，是设计方向。"
+msgstr ""
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:15
+#: 686326932bee43218b939ec68de7af84
+msgid "后续更新（2026-08-25）：深定制做实"
+msgstr ""
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:17
+#: 0ca00ee119a1487da9a7e7d6d6b12146
+msgid ""
+"首版只动了圆角与主色两组 token，实际观感与 antd 默认几乎无差别——2px 与 6px 圆角不并排对比不可辨，`#0958d9` 本就是"
+" antd 官方 hover 深蓝。\"卡通圆润感\"的真正来源是动画、阴影、控件密度与字体，本版补齐为四项系统化定制，仍全部走主题 "
+"token，不引入用户配置："
+msgstr ""
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:19
+#: be1a7fd51ac04722b5d6cf8c17171536
+msgid "**去动画**：`motion: false`，按钮、弹窗、下拉的全部过渡缓动停用。"
+msgstr ""
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:20
+#: d8b349a0126c418195e07a6214c5cc7c
+msgid ""
+"**平面化**：`wireframe: true`，组件去渐变、阴影改边框式；浮层仅保留一层浅投影（`boxShadow` / "
+"`boxShadowSecondary`）。"
+msgstr ""
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:21
+#: 729a4b8e2aa94e6182c5a68c19d363ac
+msgid "**高密度**：控件高度 32/24/40 收紧到 26/22/30，对齐桌面工具量级。"
+msgstr ""
+
+#: ../../adr/0020-serious-semantic-ui-visual-language.md:22
+#: 9b83b49896a1400da9f7d46cc9d649d5
+msgid "**系统字体**：Segoe UI + 雅黑（`fontFamily` token 与 `index.html` 同步）。"
+msgstr ""
+

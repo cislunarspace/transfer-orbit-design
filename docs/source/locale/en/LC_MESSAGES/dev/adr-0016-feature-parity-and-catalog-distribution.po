@@ -1,0 +1,140 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) 2026, Authors
+# This file is distributed under the same license as the Transfer Orbit
+# Design package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Transfer Orbit Design \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:2
+#: 52c5f5d7ed0c450b8a7162300b6207e7
+msgid "0016. 功能补齐验收基准与 catalog 工具分布规范"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:4
+#: f8203d8686ce486cbda6449cc34f4303
+msgid "日期: 2026-08-24"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:5
+#: 015499d403324cbfb7dc6509e500440f
+msgid "状态: 已接受"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:7
+#: 95bee118149247f39ae279e1163a5420
+msgid ""
+"**现状（2026-08-30）**：决策文本写为完成时，但右栏主画布的 **惯性系视图**尚未实现（#428 推进中，ADR 0013 "
+"视图系贯通双层画布）； **参数化动画导出**实为固定时长的 webm 录制（canvasRecorder），非按轨迹 "
+"参数化的逐帧导出。验收清单中此两项与代码现状不一致，以本标注为准。"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:12
+#: 4fff8e3ac1b6414fa3e71ab5131ea609
+msgid "上下文"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:14
+#: afa0521d2a32464f9701310019a602ea
+msgid ""
+"为解决迁移后功能丢失与界面简陋的问题，需要明确补齐的验收基准，以及 e2m2e 提供的 14 个已注册工具在 Tauri GUI "
+"中的界面布局分布规范。"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:16
+#: 3293c2dfbd39419b845a7f8a22724c2d
+msgid "决策"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:18
+#: c8da9999a5634ccbb292316d396d0939
+msgid "**验收基准**："
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:19
+#: 886327c4d6c0462f904bf1cc419ed9c9
+msgid ""
+"严格以 [docs-old-pyqt-gui-inventory.md](../../docs-old-pyqt-gui-"
+"inventory.md) 记录的 24 项迁移丢失功能清单为底账。"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:20
+#: 33edd0c3ae9042fda44ae146cf36ff35
+msgid "每一项必须在 Tauri 架构中具备对等能力（交互形式可优化为现代 Web 范式，但能力不得缺失）。"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:21
+#: cec9cd6cd9644ec4b2dc99fcbc3f7e84
+msgid ""
+"5 个 e2m2e 占位符工具（`transfer_search`, `low_thrust_design`, "
+"`manifold_analysis`, `low_energy_transfer`, "
+"`relative_motion`）在上游正式实现前明确排除，不阻塞本轮验收。"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:23
+#: b6ce5c485cee44e4b8997fbdc0da45e6
+msgid "**工具界面分布规范**："
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:24
+#: b9968b7da7c644649cdfe106ddbfc8ee
+msgid ""
+"**中栏工具面板**：承载 8 个生成/计算工具——7 个核心动力学工具（`design_orbit`, "
+"`orbit_family_generation`, `control_orbit`, `orbit_propagation`, "
+"`transfer_design`, `orbit_stability`, `spacetime_transform`）+ "
+"`catalog_sweep`（参数扫描批量生成）。"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:25
+#: b531ea2172b94716a719455ab50614f6
+msgid "**左栏过滤栏**：承载 `catalog_query` 过滤表单与 `catalog_export`（教学案例包导出）按钮。"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:26
+#: dc261a750eef41a9a41462426d8022ad
+msgid ""
+"**左栏项目树与右键菜单**：承载 "
+"`catalog_get`（查看/叠加渲染）、`catalog_delete`（右键物理删除含确认框）、`orbit_stability`（右键查看稳定性）。"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:27
+#: 30ea07e3291f48ee829f18a92fc3925b
+msgid ""
+"**左栏记录详情面板**：承载 "
+"`catalog_tag`（编辑标签/笔记）、`catalog_promote`（族成员提升为独立记录）、谱系断链提示与独立轨道保持入口。"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:28
+#: 7f1185474d4347d3b22ee01a33725ecd
+msgid "**右栏主画布**：恢复四投影（3D/XY/XZ/YZ/四视图）、坐标系（会合/惯性）、绘制中心（质心/月球/L1/L2）、时间轴拨动与参数化动画导出。"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:30
+#: 67e6af62057c47f9b9ea0359c13aeba3
+msgid "结果"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:32
+#: 1be41322b4ac434c828eaf83e053bf07
+msgid "建立了完全清晰、可逐项打勾的验收清单。"
+msgstr ""
+
+#: ../../adr/0016-feature-parity-and-catalog-distribution.md:33
+#: 77868a37926444e48068880c34bb072c
+msgid "14 个 e2m2e 公开工具各司其职，完美融入三栏布局中，杜绝功能遗漏。"
+msgstr ""
+

@@ -9,7 +9,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Transfer Orbit Design \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-22 14:16+0800\n"
+"POT-Creation-Date: 2026-08-30 20:11+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language: en\n"
@@ -20,160 +20,185 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: ../../adr/0008-output-as-persistence.md:2 05214f5be7b54854ab6746cbbcad512f
+#: ../../adr/0008-output-as-persistence.md:2 047ecd187ef345dbb053647055c270c6
 msgid "ADR 0008：output/ 目录作为数据持久化源"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:4 f06e7cb44b7b476d93143323513b5d38
+#: ../../adr/0008-output-as-persistence.md:4 023a96c4d33b4aaf87ba48d523b3755b
 msgid ""
 "**状态**：已接受 **日期**：2026-08-04 "
 "**关联**：`docs/architecture/architecture.md`（第1层 数据层）"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:8 50f49514eed042739b7a8f4376afddb4
+#: ../../adr/0008-output-as-persistence.md:8 bf7257c48791473ca678b8cb44375ff9
 msgid "背景"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:10 9dd89a223b5a4ed09185614e671d56c2
+#: ../../adr/0008-output-as-persistence.md:10 0143897ff01548b6b7f9c0071d19c8c5
 msgid "GUI 需要持久化计算结果，使用户关闭并重新打开应用后不丢失工作成果。"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:12 ddfd5880a97344749ed8984034f1ca0b
+#: ../../adr/0008-output-as-persistence.md:12 dae8f1b267af48c2abe89457f6bbde71
 msgid "方案选项："
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:13 7d58aad18f0542578dd36cbe48d3b3be
+#: ../../adr/0008-output-as-persistence.md:13 f8ae67e6b88a4aeaa957f4cb876c76f4
 msgid "A. 自定义项目文件格式（.todproj JSON/binary）"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:14 5dea27947f974c05a2d6e464102f8c29
+#: ../../adr/0008-output-as-persistence.md:14 a266fb2445d34ddaa2fcaae472c309b8
 msgid "B. 以 output/ 目录为事实来源，GUI 启动时扫描重建"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:15 a8329ca17e704219b7e5142c89468ce3
+#: ../../adr/0008-output-as-persistence.md:15 f88bbaf6b9754246a47df108ee7cf5f6
 msgid "C. SQLite 数据库"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:17 e84b06ea6b794e8583e777a357918e5a
+#: ../../adr/0008-output-as-persistence.md:17 4a8d6efdf17d4324ad8fa9f56ec391f2
 msgid "决策"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:19 7c90eb26df1441279e0f0b47081d79ec
+#: ../../adr/0008-output-as-persistence.md:19 8988023a629e4c2d9471c134945a5478
 msgid ""
 "**以 `output/` 目录为事实来源**（方案 B）。每次计算结果自动写入 `output/` 对应子目录，GUI 启动时扫描并重建 "
 "Project。"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:21 4714f829a75b4cfc8d1687beff157535
+#: ../../adr/0008-output-as-persistence.md:21 d703aaaa6a4a429298da7ea06c8acf00
 msgid "文件命名约定保持与现有 output/ 结构兼容："
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:33 4022f72bbd6d43a598de6a88ccdf9c52
+#: ../../adr/0008-output-as-persistence.md:33 503080e1c1d84d26bc192549b013297d
 msgid "理由"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:35 606d38adad714932bf4ca30856283aa3
+#: ../../adr/0008-output-as-persistence.md:35 90583638a9e143fcbc79e93d21023203
 msgid ""
 "**零额外持久化层**：e2m2e 算法层已有 `write_ephemeris()` / `save_to_file()` "
 "方法，结果本来就要落盘。不需要再发明格式。"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:36 9755137f0f99435fa036ee950e8d6e2f
+#: ../../adr/0008-output-as-persistence.md:36 b2599ca695b84578a0c843a1990b2339
 msgid "**CLI 用户友好**：用户也可以直接用 e2m2e CLI 生成 output/ 文件，GUI 能自动发现。"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:37 6ecc300401284b9ebeb96b2f5b1405e6
+#: ../../adr/0008-output-as-persistence.md:37 b299c059ef984b52aae7427c3f18b268
 msgid "**无锁定**：数据以标准 JSON 格式存储，不依赖 tod 的专有格式。"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:38 6c1a80d948ab44b9b52d0597a7782594
+#: ../../adr/0008-output-as-persistence.md:38 acffc76481ca487daa4a73e22581a52b
 msgid "**现有 output/ 兼容**：用户已有的 output/ 文件自动出现在新 GUI 中。"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:40 6564a5b8637f46e9a0affc7fba7612af
+#: ../../adr/0008-output-as-persistence.md:40 ed6a717eecd14c2bb51edc416eb72f4c
 msgid "后果"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:42 3c283bd74ab547de830567750a80aa3a
+#: ../../adr/0008-output-as-persistence.md:42 c3ae735c22a447c1b682991c76c2fade
 msgid "正面"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:44 e81ac7f8d71a48b3998bd8403ae5bcb1
+#: ../../adr/0008-output-as-persistence.md:44 cfecece3960147988e9e126f6c8dcb41
 msgid "不需要实现项目文件读写"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:45 8487120048e945759245704d99bf2f7e
+#: ../../adr/0008-output-as-persistence.md:45 bdb31cc4447944e99c7427a0f4f8e950
 msgid "e2m2e CLI 和 GUI 共享同一数据目录"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:46 8d8181ce58c04cffa4ac0717b69304a3
+#: ../../adr/0008-output-as-persistence.md:46 3e76cde239d1417d8081a1ceb47bfae4
 msgid "用户可手动管理 output/（复制、备份、分享）"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:48 804b71b043c740d8a3a527e1d527363b
+#: ../../adr/0008-output-as-persistence.md:48 5518192067f244ce93a831e5c949bf70
 msgid "负面"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:50 beaada26d96b4fefbd665fbbc99f706e
+#: ../../adr/0008-output-as-persistence.md:50 36c1444905cd475ab74e4dc483a62b76
 msgid "内存中未落盘的 Artifact（正在计算中的中间结果）关窗即丢失"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:51 1915a7c436be4f98b520eac0928aece2
+#: ../../adr/0008-output-as-persistence.md:51 42ac1097b1c04e8b9aba59823d61778c
 msgid "文件命名冲突需要处理（时间戳方案已足够）"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:52 b446e60b548745589dc2ef82cb51b093
-msgid "没有\"撤销\"能力（删除是永久的）"
+#: ../../adr/0008-output-as-persistence.md:52 1473cc63cb8e4b2ea1e6607b2703f25a
+msgid "没有撤销能力（删除是永久的）"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:54 ef90affdc7ca4c829ce010f2d724fb28
+#: ../../adr/0008-output-as-persistence.md:54 fbcf8836aed343da9bd8deb884025846
 msgid "修订（2026-08-19，issue #375，关联 e2m2e ADR 0031）"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:56 a6404d08b70d46cea1f3fdd0778bad86
+#: ../../adr/0008-output-as-persistence.md:56 ededd3db5a4a41d5a3ef78425d82eae8
 msgid ""
 "e2m2e 5.8.0 落地轨道库 catalog（上游 #475 / ADR 0031）后，产物持久化的职责上收：记录格式、存储引擎与查询接口归"
 " e2m2e 数据层与接口层，本篇决策的适用面相应收窄。"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:58 9e1ee27d32664d458247e66bb8855072
+#: ../../adr/0008-output-as-persistence.md:58 48073a163a0a4dd388a406eb90eb8cf2
 msgid ""
 "**决策变更**：orbit / family / ephemeris 产物的清单与持久化改经 e2m2e Facade 的 "
 "catalog（`catalog_query` 供数、`catalog_get` 懒加载），design_orbit / "
 "orbit_family_generation / control_orbit 的产物由 Facade 自动入库；本仓 "
-"persistence.py 的手写 JSON+NPZ 落盘与 discovery.py 的「子目录名 + "
-"文件名正则」分类退役。文件命名不再承载分类语义，多维分类（族、平动点、Jacobi、振幅、段存在性）与 `source_record_id` "
-"由上游在生成时写入记录，不再依赖 GUI 内存与文件名推断；上文「文件命名约定」表移交 e2m2e ADR 0031 维护。"
+"persistence.py 的手写 JSON+NPZ 落盘与 discovery.py 的子目录名 + "
+"文件名正则分类退役。文件命名不再承载分类语义：多维分类（族、平动点、Jacobi、振幅、段存在性）与 `source_record_id` "
+"由上游在生成时写入记录，不再依赖 GUI 内存与文件名推断；上文文件命名约定表移交 e2m2e ADR 0031 维护。"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:59 3f2987337aed49838090f7b3ff53fe76
+#: ../../adr/0008-output-as-persistence.md:59 33cf6b6da3b245db9f35f47e54b7f10c
 msgid ""
-"**「文件是事实来源」不变**：catalog 的记录文件（JSON + NPZ）是唯一持久化，SQLite "
+"**文件是事实来源不变**：catalog 的记录文件（JSON + NPZ）是唯一持久化，SQLite "
 "索引是派生物，删除后可扫描记录文件全量重建。当年未选的方案 C 指以数据库为持久化层；派生索引不构成格式锁定，与理由 3（无锁定）不冲突。"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:60 6d244deee3d5427ba5c627aa8b4b5931
+#: ../../adr/0008-output-as-persistence.md:60 929782a1e2c146b4b6aee5f7307f78c7
 msgid ""
 "**库目录**：默认钉在仓库根 `catalog/`（与 output/ 平级，GUI 场景 cwd 不稳定，不能依赖上游的相对默认），可在 "
 "GUI 设置中改指其他目录（QSettings 持久化）。"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:61 c2015de57826481880c3f9101c4ee861
+#: ../../adr/0008-output-as-persistence.md:61 2b00f569183e4547bdd34d5ebdcaaa1d
 msgid ""
 "**谱系**：站保产物的 `source_record_id` 由 Facade 写入（`input_record_id` 输入），重启后经 "
 "catalog_query 重建因果链；上游记录被删时项目树显示断链降级标记，不阻止产物使用。"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:62 659de01f56cb4557b62e455c21fe2108
+#: ../../adr/0008-output-as-persistence.md:62 aac1e5495be0454495372a30b26b15d3
 msgid ""
 "**过渡**：transfer（转移轨道）等 catalog 分类体系之外的产物沿用 output/ "
 "目录扫描（仅限这些目录），待上游对相应产物入库立项后退役。"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:63 975c9c8b73fe47f9afc66d638199abb3
-msgid "**旧产物**：output/ 旧格式不迁移（上游 ADR 0031 决策 9），需要时重算，理由 4「现有 output/ 兼容」随之失效。"
+#: ../../adr/0008-output-as-persistence.md:63 66a0191e1815450d985c36d63cb08c62
+msgid "**旧产物**：output/ 旧格式不迁移（上游 ADR 0031 决策 9），需要时重算，理由 4现有 output/ 兼容随之失效。"
 msgstr ""
 
-#: ../../adr/0008-output-as-persistence.md:65 0c49de749d684e79ad1d23b0d75e6e52
+#: ../../adr/0008-output-as-persistence.md:65 f65a57f5ab0040ecb2bb1e50e970a8e1
 msgid "其余部分（Project 不做持久化、删除无撤销）不变。"
 msgstr ""
+
+#~ msgid "没有\"撤销\"能力（删除是永久的）"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "**决策变更**：orbit / family / ephemeris "
+#~ "产物的清单与持久化改经 e2m2e Facade 的 "
+#~ "catalog（`catalog_query` 供数、`catalog_get` 懒加载），design_orbit"
+#~ " / orbit_family_generation / control_orbit "
+#~ "的产物由 Facade 自动入库；本仓 persistence.py 的手写 "
+#~ "JSON+NPZ 落盘与 discovery.py 的「子目录名 + "
+#~ "文件名正则」分类退役。文件命名不再承载分类语义，多维分类（族、平动点、Jacobi、振幅、段存在性）与 "
+#~ "`source_record_id` 由上游在生成时写入记录，不再依赖 GUI "
+#~ "内存与文件名推断；上文「文件命名约定」表移交 e2m2e ADR 0031 维护。"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "**「文件是事实来源」不变**：catalog 的记录文件（JSON + "
+#~ "NPZ）是唯一持久化，SQLite 索引是派生物，删除后可扫描记录文件全量重建。当年未选的方案 C "
+#~ "指以数据库为持久化层；派生索引不构成格式锁定，与理由 3（无锁定）不冲突。"
+#~ msgstr ""
+
+#~ msgid "**旧产物**：output/ 旧格式不迁移（上游 ADR 0031 决策 9），需要时重算，理由 4「现有 output/ 兼容」随之失效。"
+#~ msgstr ""
+
