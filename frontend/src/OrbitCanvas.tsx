@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ChartSettings } from "./chartSettings";
 import { EARTH_RADIUS_DU, MOON_RADIUS_DU } from "./chartSettings";
+import { COOLWARM_STOPS, jacobiColor, jacobiNorm } from "./jacobiColormap";
 import type { RegionElement } from "./regionLayer";
 import earthTextureUrl from "./assets/earth_2048.jpg";
 import moonTextureUrl from "./assets/moon_1024.jpg";
@@ -40,6 +41,11 @@ export interface OrbitCanvasProps {
    *  terms; row-aligned); omitted entries show none. The data frame rides the
    *  data and is independent of the view frame (user's display choice) (#431). */
   frameLabels?: (string | undefined)[];
+  /** 与 trajectories 逐条对齐的 Jacobi 常数；undefined 项 = 无值，该轨迹
+   *  回退色环循环取色（#435）。归一化按有值轨迹的 min/max。 */
+  /** Jacobi constant per trajectory (row-aligned); undefined entries fall back
+   *  to the color cycle (#435). Normalization follows the min/max of valued ones. */
+  jacobi?: (number | undefined)[];
   /** 地月空间分区图层（regionLayer 解析产物；不参与视图适配） */
   /** Cislunar partition region layer (parsed by regionLayer; excluded from view fitting). */
   regions?: RegionElement[];
@@ -50,6 +56,27 @@ export interface CanvasApi {
   fitView: () => void;
   canvasElement: () => HTMLCanvasElement | null;
   setAutoRotate: (on: boolean, speed?: number) => void;
+}
+
+/** 每条轨迹的实际渲染色（hex）：有 Jacobi 值按归一化 coolwarm，无值回退
+ *  色环循环（#435）。range 是颜色条所需的实际 min/max（全无值时为 null）。
+ *  渲染 effect 与图例共用，保证图例色样如实反映线上颜色。 */
+/** The actual render color per trajectory (hex): normalized coolwarm for
+ *  Jacobi-valued ones, color cycle fallback for the rest (#435). range carries
+ *  the real min/max for the colorbar (null when no trajectory has a value).
+ *  Shared by the render effect and the legend so legend swatches mirror the lines. */
+function trajectoryColorsHex(
+  count: number,
+  jacobi: (number | undefined)[] | undefined,
+  cycle: string[],
+): { colors: string[]; range: { jmin: number; jmax: number } | null } {
+  const [jmin, jmax, jrange] = jacobiNorm(jacobi ?? []);
+  const hasValue = (jacobi ?? []).some((v) => v !== undefined);
+  const colors = Array.from({ length: count }, (_, i) => {
+    const j = jacobi?.[i];
+    return j !== undefined ? jacobiColor(j, jmin, jrange) : cycle[i % cycle.length];
+  });
+  return { colors, range: hasValue ? { jmin, jmax } : null };
 }
 
 export function OrbitCanvas({
@@ -64,6 +91,7 @@ export function OrbitCanvas({
   background,
   labels,
   frameLabels,
+  jacobi,
   regions,
   onReady,
 }: OrbitCanvasProps) {
@@ -257,9 +285,11 @@ export function OrbitCanvas({
     regionsGroup.position.set(ox, oy, oz);
 
     const lpColorNum = parseInt((settings?.lpColor ?? "#d4b106").slice(1), 16);
-    const colors = (settings?.colorCycle ?? DEFAULT_COLOR_CYCLE).map((c) =>
-      parseInt(c.slice(1), 16)
-    );
+    const colors = trajectoryColorsHex(
+      trajectories.length,
+      jacobi,
+      settings?.colorCycle ?? DEFAULT_COLOR_CYCLE,
+    ).colors.map((c) => parseInt(c.slice(1), 16));
 
     // 背景亮度决定网格与标注颜色（白底黑线，深底浅线）
     // Background brightness decides grid and annotation colors (black lines on light backgrounds, pale lines on dark).
@@ -459,7 +489,7 @@ export function OrbitCanvas({
         );
       });
     }
-  }, [trajectories, mu, libration, center, settings, background, regions]);
+  }, [trajectories, mu, libration, center, settings, background, jacobi, regions]);
 
   // 每条轨迹一个时刻标记：随轨迹数组同步创建/清理（挂 scene 根，不参与视图适配）
   // One time marker per trajectory: created/cleaned in sync with the trajectory array
@@ -539,16 +569,21 @@ export function OrbitCanvas({
     });
   }, [currentEt, trajectories, times, center, settings]);
 
-  // 图例：带标签的轨迹按渲染同款色循环显示（固定层记录与结果层命名轨迹），
+  // 图例：带标签的轨迹按各自实际渲染色显示（固定层记录与结果层命名轨迹），
   // 各轨迹附数据系标注（#431：数据系 vs 视图系措辞沿 CONTEXT.md）
-  // Legend: labeled trajectories rendered with the same color cycle as the lines
-  // (pinned-layer records and named result-layer trajectories), each carrying a
-  // data-frame annotation (#431; 数据系 vs 视图系 per CONTEXT.md).
+  // Legend: labeled trajectories shown in their actual render colors (pinned-layer
+  // records and named result-layer trajectories), each carrying a data-frame
+  // annotation (#431; 数据系 vs 视图系 per CONTEXT.md).
+  const renderColors = trajectoryColorsHex(
+    trajectories.length,
+    jacobi,
+    settings?.colorCycle ?? DEFAULT_COLOR_CYCLE,
+  );
   const legendItems = (labels ?? [])
     .map((label, i) => ({
       label,
       frame: frameLabels?.[i],
-      color: (settings?.colorCycle ?? DEFAULT_COLOR_CYCLE)[i % (settings?.colorCycle ?? DEFAULT_COLOR_CYCLE).length],
+      color: renderColors.colors[i],
     }))
     .filter((item) => !!item.label);
 
@@ -578,7 +613,7 @@ export function OrbitCanvas({
                 textShadow: "0 1px 2px rgba(0,0,0,0.6)",
               }}
             >
-              <span style={{ width: 14, height: 2, background: item.color, display: "inline-block" }} />
+              <span data-testid="legend-swatch" style={{ width: 14, height: 2, background: item.color, display: "inline-block" }} />
               {item.label}
               {item.frame && (
                 <span
@@ -595,6 +630,49 @@ export function OrbitCanvas({
               )}
             </div>
           ))}
+        </div>
+      )}
+      {/* Jacobi 颜色条（#435）：存在有值轨迹时叠加，标注归一化范围的
+          实际值区间（上端 jmax、下端 jmin），渐变按 coolwarm 采样表。 */}
+      {/* Jacobi colorbar (#435): shown whenever a valued trajectory exists,
+          labeling the real value interval of the normalization range
+          (jmax on top, jmin below); gradient follows the coolwarm stops. */}
+      {renderColors.range && (
+        <div
+          data-testid="jacobi-colorbar"
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 8,
+            display: "flex",
+            alignItems: "stretch",
+            gap: 6,
+            pointerEvents: "none",
+            fontSize: 11,
+            color: "#c9d3dd",
+            textShadow: "0 1px 2px rgba(0,0,0,0.6)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+            }}
+          >
+            <span>{renderColors.range.jmax.toFixed(3)}</span>
+            <span style={{ opacity: 0.75 }}>Jacobi</span>
+            <span>{renderColors.range.jmin.toFixed(3)}</span>
+          </div>
+          <div
+            style={{
+              width: 10,
+              minHeight: 96,
+              borderRadius: 2,
+              background: `linear-gradient(to top, ${COOLWARM_STOPS.join(", ")})`,
+            }}
+          />
         </div>
       )}
     </div>

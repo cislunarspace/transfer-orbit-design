@@ -270,6 +270,13 @@ export default function App() {
       timeBasis: layers.flatMap((l) => l.timeBasis ?? l.trajectories.map(() => "relative" as const)),
       frames: layers.flatMap((l) => l.frames ?? l.trajectories.map(() => "synodic_nd" as const)),
       labels: layers.flatMap((l) => l.labels ?? l.trajectories.map(() => "")),
+      // Jacobi 逐层拼接：未携带的层补 undefined（色环回退），归一化在画布侧
+      // 按全屏有值轨迹计算（#435）
+      // Jacobi concatenated per layer: layers without it fill undefined (color-cycle
+      // fallback); normalization happens canvas-side over all valued trajectories (#435).
+      jacobi: layers.flatMap(
+        (l) => l.jacobi ?? l.trajectories.map(() => undefined),
+      ),
     };
     const mode = timelineMode(combined);
     return {
@@ -302,7 +309,10 @@ export default function App() {
   ): TrajectoryData | null => {
     let base: TrajectoryData | null = null;
     if (data.familyMembers && data.familyMembers.length > 0) {
-      base = familyMembersToTrajectoryData(data.familyMembers, data.mu ?? EARTH_MOON_MU);
+      // 成员自带 jacobi 优先；族成员表缺值时回退记录级 jacobi（设计轨道单条通道，#435）
+      // A member's own jacobi wins; the record-level jacobi is the fallback for
+      // member tables lacking it (the single-orbit design-record channel, #435).
+      base = familyMembersToTrajectoryData(data.familyMembers, data.mu ?? EARTH_MOON_MU, data.jacobi);
     } else if (data.members && data.members.length > 0) {
       // 裸点集无时刻：每成员是 n×3 平铺数组，重排为 xyz 点列
       // Bare point sets carry no times: each member is a flat n×3 array, reshaped into xyz points.
@@ -320,6 +330,7 @@ export default function App() {
         times: pts.map(() => []),
         timeBasis: pts.map(() => "none" as const),
         frames: pts.map(() => "synodic_nd" as const),
+        jacobi: pts.map(() => undefined),
       };
     }
     const ephTd = data.ephemeris
@@ -330,6 +341,11 @@ export default function App() {
       : null;
     if (!ephTd) return base;
     if (!base || base.trajectories.length === 0) return ephTd;
+    // 星历段与 CR3BP 段是同一条轨道：单条 base 时星历段同携该 Jacobi 值（#435）。
+    // The ephemeris segment is the same orbit as the CR3BP segment: with a single-
+    // trajectory base it carries the same Jacobi value (#435).
+    const ephJacobi =
+      base.trajectories.length === 1 ? base.jacobi?.[0] : undefined;
     return {
       trajectories: [...base.trajectories, ...ephTd.trajectories],
       times: [...base.times, ...ephTd.times],
@@ -344,6 +360,10 @@ export default function App() {
       labels: [
         ...base.trajectories.map(() => t("canvas.cr3bp_reference")),
         ...(ephTd.labels ?? []),
+      ],
+      jacobi: [
+        ...(base.jacobi ?? base.trajectories.map(() => undefined)),
+        ...ephTd.trajectories.map(() => ephJacobi),
       ],
     };
   };
@@ -684,6 +704,15 @@ export default function App() {
               ...(ephTd?.trajectories ?? []),
             ];
             if (trajectories.length > 0) {
+              // 设计响应顶层 cr3bp_jacobi 是该轨道唯一 Jacobi 值：CR3BP 段与
+              // 星历段同一轨道，两段同携（#435）
+              // The design response's top-level cr3bp_jacobi is the orbit's only
+              // Jacobi value: the CR3BP and ephemeris segments are the same orbit
+              // and carry it alike (#435).
+              const designJacobi =
+                typeof d.cr3bp_jacobi === "number" && Number.isFinite(d.cr3bp_jacobi)
+                  ? (d.cr3bp_jacobi as number)
+                  : undefined;
               applyTrajectoryData({
                 trajectories,
                 times: [...(cr3bpPts ? [relTimes ?? []] : []), ...(ephTd?.times ?? [])],
@@ -699,6 +728,7 @@ export default function App() {
                   ...(cr3bpPts ? [t("canvas.cr3bp_reference")] : []),
                   ...(ephTd?.labels ?? []),
                 ],
+                jacobi: trajectories.map(() => designJacobi),
               });
             }
           }
@@ -959,6 +989,7 @@ export default function App() {
               currentEt={currentEt}
               labels={canvasData.labels}
               frameLabels={canvasData.frames?.map((f) => t(`canvas.frame.${f}`))}
+              jacobi={canvasData.jacobi}
               regions={regionData}
               mu={EARTH_MOON_MU}
               libration={libration}

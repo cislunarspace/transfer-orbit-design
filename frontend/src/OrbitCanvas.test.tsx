@@ -657,3 +657,93 @@ describe("OrbitCanvas regions layer", () => {
     expect(dist).toBeLessThan(6);
   });
 });
+
+describe("Jacobi 常数着色（#435）", () => {
+  /** 取末次渲染场景里第 i 条轨道线的颜色（hex 小写）。 */
+  /** The color of the i-th orbit line in the last rendered scene (lowercase hex). */
+  function lineColorAt(i: number): string {
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const lines = sceneLines(instances[instances.length - 1].lastScene);
+    const line = lines[i] as unknown as { material: { color: { getHexString(): string } } };
+    return line.material.color.getHexString();
+  }
+
+  const TWO_TRAJECTORIES: number[][][] = [
+    Array.from({ length: 20 }, (_, i) => [Math.cos((i / 20) * Math.PI * 2), Math.sin((i / 20) * Math.PI * 2), 0]),
+    Array.from({ length: 20 }, (_, i) => [0.5 * Math.cos((i / 20) * Math.PI * 2), 0.5 * Math.sin((i / 20) * Math.PI * 2), 0]),
+  ];
+
+  it("有 Jacobi 值的轨迹按归一化 colormap 着色，两端分别是 coolwarm 蓝/红端", () => {
+    renderCanvas({ trajectories: TWO_TRAJECTORIES, jacobi: [2.9, 3.1] });
+    flushFrames();
+    expect(lineColorAt(0)).toBe("3b4cc0"); // jacobi 最小 → 蓝端
+    expect(lineColorAt(1)).toBe("b40426"); // jacobi 最大 → 红端
+  });
+
+  it("无 Jacobi 值的轨迹回退色环循环取色；混合时归一化只按有值轨迹", () => {
+    renderCanvas({ trajectories: TWO_TRAJECTORIES, jacobi: [undefined, 3.1] });
+    flushFrames();
+    // 第 0 条无值 → 色环第一色；第 1 条唯一有值 → 归一化固定色（蓝端）
+    // Trajectory 0 has no value → first color-cycle color; trajectory 1 is the only valued one → fixed color (blue end).
+    expect(lineColorAt(0)).toBe(DEFAULT_CHART_SETTINGS.colorCycle[0].slice(1));
+    expect(lineColorAt(1)).toBe("3b4cc0");
+  });
+
+  it("全部无 Jacobi 值时仍按色环循环（不出现颜色条）", () => {
+    const view = renderCanvas({ trajectories: TWO_TRAJECTORIES });
+    flushFrames();
+    expect(lineColorAt(0)).toBe(DEFAULT_CHART_SETTINGS.colorCycle[0].slice(1));
+    expect(lineColorAt(1)).toBe(DEFAULT_CHART_SETTINGS.colorCycle[1].slice(1));
+    expect(view.container.querySelector("[data-testid='jacobi-colorbar']")).toBeNull();
+  });
+
+  it("Jacobi 全相等时渲染不崩溃且按固定色（蓝端）处理", () => {
+    renderCanvas({ trajectories: TWO_TRAJECTORIES, jacobi: [3.0, 3.0] });
+    flushFrames();
+    expect(lineColorAt(0)).toBe("3b4cc0");
+    expect(lineColorAt(1)).toBe("3b4cc0");
+  });
+
+  it("存在有值轨迹时出现颜色条，标注实际值区间", () => {
+    const view = renderCanvas({ trajectories: TWO_TRAJECTORIES, jacobi: [2.9, 3.1] });
+    flushFrames();
+    const bar = view.container.querySelector("[data-testid='jacobi-colorbar']");
+    expect(bar).not.toBeNull();
+    expect(bar!.textContent).toContain("2.9");
+    expect(bar!.textContent).toContain("3.1");
+  });
+
+  it("jacobi 更新后颜色条随画布内容更新（钉入/移除）", () => {
+    const view = renderCanvas({ trajectories: TWO_TRAJECTORIES, jacobi: [2.9, 3.1] });
+    flushFrames();
+    view.rerender(
+      <OrbitCanvas
+        trajectories={TWO_TRAJECTORIES}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        jacobi={[3.05, 3.07]}
+        onReady={noopReady}
+      />,
+    );
+    flushFrames();
+    const bar = view.container.querySelector("[data-testid='jacobi-colorbar']");
+    expect(bar).not.toBeNull();
+    expect(bar!.textContent).toContain("3.05");
+    expect(bar!.textContent).toContain("3.07");
+  });
+
+  it("图例色样反映实际渲染色（有值轨迹用 colormap 色而非色环色）", () => {
+    const view = renderCanvas({
+      trajectories: TWO_TRAJECTORIES,
+      jacobi: [2.9, 3.1],
+      labels: ["轨道A", "轨道B"],
+    });
+    flushFrames();
+    const swatches = view.container.querySelectorAll("[data-testid='legend-swatch']");
+    expect(swatches).toHaveLength(2);
+    expect((swatches[0] as HTMLElement).style.background).toBe("rgb(59, 76, 192)"); // #3b4cc0
+    expect((swatches[1] as HTMLElement).style.background).toBe("rgb(180, 4, 38)"); // #b40426
+  });
+});

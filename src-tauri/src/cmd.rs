@@ -67,6 +67,8 @@ pub struct FamilyMember {
     pub states: Vec<f32>,
     pub times: Vec<f64>,
     pub period: Option<f64>,
+    /// 成员 Jacobi 常数（族记录 members 元数据通道，#435）；无值为 None。
+    pub jacobi: Option<f64>,
 }
 
 #[derive(Serialize)]
@@ -213,6 +215,7 @@ pub async fn generate_family(
                 states,
                 times,
                 period: orbit["period"].as_f64(),
+                jacobi: orbit["jacobi"].as_f64(),
             }
         })
         .collect();
@@ -312,6 +315,11 @@ pub struct ArtifactData {
     pub family_members: Vec<FamilyMember>,
     /// 兼容旧版：每成员提取的 xyz
     pub members: Vec<Vec<f32>>,
+    /// 单条轨道层级的 Jacobi 常数（设计轨道记录通道：catalog_get 顶层
+    /// jacobi 包络 [min, max] 单轨道时两端同值，取首元素，#435）；
+    /// 族记录为包络下限（逐成员值在 family_members，前端成员值优先、
+    /// 缺值时回退本字段）；无 CR3BP 段记录为 None。
+    pub jacobi: Option<f64>,
     /// 星历段（设计/预报类产物；会合系原生直画，UTC 分量 → et）
     pub ephemeris: Option<EphemerisSegment>,
     pub error: Option<serde_json::Value>,
@@ -330,17 +338,24 @@ pub async fn get_artifact(
     )
     .await
     .map_err(|e| e.to_string())?;
+    Ok(artifact_from_catalog_get(record_id, result))
+}
+
+/// catalog_get 结果 → ArtifactData 的映射（纯函数，jacobi 透传等映射
+/// 逻辑的可测面；get_artifact 只剩 io）。
+fn artifact_from_catalog_get(record_id: String, result: crate::sidecar::JobResult) -> ArtifactData {
     if result.status != "ok" {
-        return Ok(ArtifactData {
+        return ArtifactData {
             record_id,
             orbit_family: String::new(),
             member_count: 0,
             mu: None,
             family_members: vec![],
             members: vec![],
+            jacobi: None,
             ephemeris: None,
             error: result.error,
-        });
+        };
     }
     // 帧序 = arrays 中 None 占位键顺序；states 键配对同序 times 键，
     let arrays = result.data["arrays"].as_object().cloned().unwrap_or_default();
@@ -363,11 +378,13 @@ pub async fn get_artifact(
         let frame = &result.frames[idx];
         if let crate::sidecar::FrameArray::F32 { data, .. } = frame {
             members.push(data.chunks_exact(6).flat_map(|s| [s[0], s[1], s[2]]).collect());
-            let period = member_meta_list.get(i).and_then(|m| m["period"].as_f64());
+            let meta = member_meta_list.get(i);
+            let period = meta.and_then(|m| m["period"].as_f64());
             family_members.push(FamilyMember {
                 states: data.clone(),
                 times: vec![],
                 period,
+                jacobi: meta.and_then(|m| m["jacobi"].as_f64()),
             });
         }
     }
@@ -409,16 +426,21 @@ pub async fn get_artifact(
             second,
         })
     })();
-    Ok(ArtifactData {
+    ArtifactData {
         record_id: result.data["record_id"].as_str().unwrap_or("").to_string(),
         orbit_family: result.data["orbit_family"].as_str().unwrap_or("").to_string(),
         member_count: result.data["member_count"].as_u64().unwrap_or(0),
         mu,
         family_members,
         members,
+        // 顶层 jacobi 是记录包络 [min, max]（catalog 分类字段）：单轨道记录
+        // 两端同值，取首元素即该轨道 Jacobi；族记录此处是包络下限，前端
+        // 逐成员值优先、成员缺值时回退本值（#435）
+        jacobi: result.data["jacobi"].as_array()
+            .and_then(|v| v.first()).and_then(|v| v.as_f64()),
         ephemeris,
         error: None,
-    })
+    }
 }
 
 #[tauri::command]
@@ -480,4 +502,101 @@ pub async fn register_artifact(
         record_id: Some(record_id),
         created_at: unix_seconds_now(),
     }).await)
+}
+/// get_artifact 的 catalog_get 映射（artifact_from_catalog_get）：帧序配对
+/// 之外的元数据透传——本模块覆盖 #435 的 jacobi 双通道（族成员逐条 /
+/// 单条轨道记录级）。
+#[cfg(test)]
+mod get_artifact_tests {
+    use super::*;
+    use crate::sidecar::{FrameArray, JobResult};
+
+    fn f32_frame(shape: &[u32], data: &[f32]) -> FrameArray {
+        FrameArray::F32 { shape: shape.to_vec(), data: data.to_vec() }
+    }
+
+    /// 族记录响应：两成员（states 帧 + members 元数据），成员 1 带 jacobi、
+    /// 成员 2 不带；顶层 jacobi 包络 [2.9, 3.1]。
+    fn family_record_result() -> JobResult {
+        JobResult {
+            status: "ok".into(),
+            data: serde_json::json!({
+                "record_id": "fam-1",
+                "orbit_family": "lyapunov",
+                "member_count": 2,
+                "scalars": {"mu": 0.0121505856},
+                "jacobi": [2.9, 3.1],
+                "members": [
+                    {"index": 0, "period": 2.16, "jacobi": 3.1},
+                    {"index": 1, "period": 2.30}
+                ],
+                "arrays": {
+                    "cr3bp/members/0000/states": null,
+                    "cr3bp/members/0000/times": [0.0, 1.0],
+                    "cr3bp/members/0001/states": null
+                }
+            }),
+            error: None,
+            frames: vec![
+                f32_frame(&[1, 6], &[0.5, 0.8, 0.0, -0.8, 0.5, 0.0]),
+                f32_frame(&[1, 6], &[0.6, 0.9, 0.0, -0.9, 0.6, 0.0]),
+            ],
+        }
+    }
+
+    #[test]
+    fn family_member_jacobi_passed_through_per_member() {
+        let artifact = artifact_from_catalog_get("fam-1".into(), family_record_result());
+        assert_eq!(artifact.family_members.len(), 2);
+        assert_eq!(artifact.family_members[0].jacobi, Some(3.1));
+        assert_eq!(artifact.family_members[1].jacobi, None);
+    }
+
+    #[test]
+    fn family_record_carries_envelope_floor_as_record_jacobi() {
+        let artifact = artifact_from_catalog_get("fam-1".into(), family_record_result());
+        // 顶层包络下限原样透传；族记录逐成员值优先，成员缺值时回退本值
+        assert_eq!(artifact.jacobi, Some(2.9));
+    }
+
+    /// 设计轨道记录响应：members 空（非族），顶层 jacobi 包络单轨道两端同值。
+    fn design_record_result() -> JobResult {
+        JobResult {
+            status: "ok".into(),
+            data: serde_json::json!({
+                "record_id": "design-1",
+                "orbit_family": "halo",
+                "member_count": 1,
+                "scalars": {"mu": 0.0121505856},
+                "jacobi": [3.006, 3.006],
+                "members": [],
+                "arrays": {
+                    "cr3bp/states": null,
+                    "cr3bp/times": [0.0, 1.0, 2.0]
+                }
+            }),
+            error: None,
+            frames: vec![f32_frame(
+                &[3, 6],
+                &[0.5, 0.8, 0.0, -0.8, 0.5, 0.0, 0.6, 0.9, 0.1, -0.9, 0.6, 0.1, 0.5, 0.8, 0.0, -0.8, 0.5, 0.0],
+            )],
+        }
+    }
+
+    #[test]
+    fn design_orbit_record_jacobi_at_record_level() {
+        let artifact = artifact_from_catalog_get("design-1".into(), design_record_result());
+        assert_eq!(artifact.jacobi, Some(3.006));
+        // 单条记录没有成员元数据表：成员级 jacobi 为 None，由记录级兜底
+        assert_eq!(artifact.family_members.len(), 1);
+        assert_eq!(artifact.family_members[0].jacobi, None);
+    }
+
+    #[test]
+    fn record_without_jacobi_is_none() {
+        let mut result = design_record_result();
+        result.data["jacobi"] = serde_json::Value::Null;
+        let artifact = artifact_from_catalog_get("design-1".into(), result);
+        assert_eq!(artifact.jacobi, None);
+    }
 }

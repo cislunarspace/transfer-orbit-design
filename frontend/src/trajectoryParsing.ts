@@ -57,6 +57,11 @@ export interface TrajectoryData {
   /** 与 trajectories 逐条对齐的图例标签；缺省不进图例 */
   /** Legend label per trajectory; omitted entries stay out of the legend. */
   labels?: string[];
+  /** 与 trajectories 逐条对齐的 Jacobi 常数；undefined 项 = 该轨迹无
+   *  Jacobi 值（转移弧等），渲染时回退色环（#435）。 */
+  /** Jacobi constant aligned row-by-row; undefined entries = no Jacobi
+   *  value (transfer arcs etc.), falling back to the color cycle (#435). */
+  jacobi?: (number | undefined)[];
 }
 
 /** 传播步数：与轨迹点数联动（点数 = 步数 + 1），时刻按 period/步数均匀合成 */
@@ -79,6 +84,12 @@ function rowIndexTimes(points: number): number[] {
   return Array.from({ length: points }, (_, i) => i);
 }
 
+/** 有限数值才收：NaN/Infinity/非 number 一律视为无 Jacobi 值。 */
+/** Accept only finite numbers: NaN/Infinity/non-numbers all count as no Jacobi value. */
+function finiteOrUndefined(v: unknown): number | undefined {
+  return typeof v === "number" && Number.isFinite(v) ? v : undefined;
+}
+
 /** 通用工具响应帧 → 轨迹 + 时刻。data 提供 mu / orbits[i].period / period / epochs。 */
 /** Generic tool response frame → trajectories + times. data provides mu / orbits[i].period / period / epochs. */
 export function framesToTrajectoryData(
@@ -86,7 +97,13 @@ export function framesToTrajectoryData(
   data: Record<string, unknown>,
   defaultMu: number,
 ): TrajectoryData {
-  const d = data as { mu?: unknown; orbits?: unknown[]; period?: unknown; epochs?: unknown };
+  const d = data as {
+    mu?: unknown;
+    orbits?: unknown[];
+    period?: unknown;
+    epochs?: unknown;
+    cr3bp_jacobi?: unknown;
+  };
   const mu = typeof d.mu === "number" ? d.mu : defaultMu;
   const orbits = Array.isArray(d.orbits) ? d.orbits : [];
   const epochs = Array.isArray(d.epochs) ? (d.epochs as unknown[]).map(Number) : null;
@@ -94,14 +111,17 @@ export function framesToTrajectoryData(
   const times: number[][] = [];
   const timeBasis: TimeBasis[] = [];
   const frameTags: DataFrameTag[] = [];
+  const jacobi: (number | undefined)[] = [];
 
   frames.forEach((frame, i) => {
     const f = frame.data as number[];
     const rows = frame.shape[0] ?? 0;
     const cols = frame.shape[1] ?? 0;
+    const orbit = orbits[i] as { period?: unknown; jacobi?: unknown } | undefined;
     const period =
-      Number((orbits[i] as { period?: unknown } | undefined)?.period) ||
+      Number(orbit?.period) ||
       (typeof d.period === "number" ? d.period : null);
+    const orbitJacobi = finiteOrUndefined(orbit?.jacobi);
 
     if (rows === 1 && f.length === 6) {
       // 周期轨道初态：有 period 才能传播；缺则跳过
@@ -116,6 +136,7 @@ export function framesToTrajectoryData(
         times.push(linspaceByPeriod(period, pts.length));
         timeBasis.push("relative");
         frameTags.push("synodic_nd");
+        jacobi.push(orbitJacobi);
       }
     } else if (cols === 6 || cols === 3) {
       const pts = chunksOf(f, cols, 3);
@@ -123,21 +144,32 @@ export function framesToTrajectoryData(
       times.push(matchingTimes(epochs, pts.length));
       timeBasis.push("relative");
       frameTags.push("synodic_nd");
+      jacobi.push(orbitJacobi);
     } else if (frame.shape.length === 0 && f.length > 6 && f.length % 6 === 0) {
       const pts = chunksOf(f, 6, 3);
       trajectories.push(pts);
       times.push(matchingTimes(epochs, pts.length));
       timeBasis.push("relative");
       frameTags.push("synodic_nd");
+      jacobi.push(orbitJacobi);
     } else if (frame.shape.length === 0 && f.length % 3 === 0) {
       const pts = chunksOf(f, 3, 3);
       trajectories.push(pts);
       times.push(matchingTimes(epochs, pts.length));
       timeBasis.push("relative");
       frameTags.push("synodic_nd");
+      jacobi.push(orbitJacobi);
     }
   });
-  return { trajectories, times, timeBasis, frames: frameTags };
+  // 设计直出（DesignOrbitResponse）的顶层 cr3bp_jacobi 是单条轨道的值，
+  // 只有本次恰产出一条轨迹时才能归属，多条时归属不明则不填。
+  // A design response's top-level cr3bp_jacobi (DesignOrbitResponse) belongs to a
+  // single orbit: it applies only when exactly one trajectory came out this round.
+  const topJacobi = finiteOrUndefined(d.cr3bp_jacobi);
+  if (topJacobi !== undefined && jacobi.length === 1 && jacobi[0] === undefined) {
+    jacobi[0] = topJacobi;
+  }
+  return { trajectories, times, timeBasis, frames: frameTags, jacobi };
 }
 
 /** epochs 行数匹配则用之，否则回退行序时刻；period 路径已单独合成。 */
@@ -277,14 +309,26 @@ export function designEphemerisToCanvasData(
   };
 }
 
-/** 库记录的 familyMembers（(1,6) 初态或 (n,6) 状态）→ 轨迹 + 时刻。 */
-/** A catalog record's familyMembers ((1,6) initial states or (n,6) states) → trajectories + times. */
-export function familyMembersToTrajectoryData(members: FamilyMember[], mu: number): TrajectoryData {
+/** 库记录的 familyMembers（(1,6) 初态或 (n,6) 状态）→ 轨迹 + 时刻。
+ *  recordJacobi 是记录级 Jacobi（设计轨道等单条记录），成员未自带
+ *  jacobi 时兜底；成员值优先（族记录逐成员各异，CONTEXT.md 族记录）。 */
+/** A catalog record's familyMembers ((1,6) initial states or (n,6) states) →
+ *  trajectories + times. recordJacobi is the record-level Jacobi (single-orbit
+ *  design records), falling back only when a member carries none; a member's
+ *  own value wins (family records differ member-by-member). */
+export function familyMembersToTrajectoryData(
+  members: FamilyMember[],
+  mu: number,
+  recordJacobi?: number | null,
+): TrajectoryData {
   const trajectories: number[][][] = [];
   const times: number[][] = [];
   const timeBasis: TimeBasis[] = [];
   const frameTags: DataFrameTag[] = [];
+  const jacobi: (number | undefined)[] = [];
+  const fallback = finiteOrUndefined(recordJacobi);
   for (const [i, m] of members.entries()) {
+    const memberJacobi = finiteOrUndefined(m.jacobi) ?? fallback;
     if (m.states.length === 6) {
       if (m.period) {
         const pts = propagate(
@@ -296,6 +340,7 @@ export function familyMembersToTrajectoryData(members: FamilyMember[], mu: numbe
         times.push(linspaceByPeriod(m.period, pts.length));
         timeBasis.push("relative");
         frameTags.push("synodic_nd");
+        jacobi.push(memberJacobi);
       }
     } else if (m.states.length > 6 && m.states.length % 6 === 0) {
       const pts = chunksOf(m.states, 6, 3);
@@ -303,15 +348,17 @@ export function familyMembersToTrajectoryData(members: FamilyMember[], mu: numbe
       times.push(matchingTimes(m.times.map(Number), pts.length));
       timeBasis.push("relative");
       frameTags.push("synodic_nd");
+      jacobi.push(memberJacobi);
     } else if (m.states.length % 3 === 0) {
       const pts = chunksOf(m.states, 3, 3);
       trajectories.push(pts);
       times.push(matchingTimes(m.times.map(Number), pts.length));
       timeBasis.push("relative");
       frameTags.push("synodic_nd");
+      jacobi.push(memberJacobi);
     }
   }
-  return { trajectories, times, timeBasis, frames: frameTags };
+  return { trajectories, times, timeBasis, frames: frameTags, jacobi };
 }
 
 /** 全局时刻范围（多条轨迹取端点）；空则 null，时间轴保持禁用。 */
