@@ -370,7 +370,16 @@ impl AssistantState {
             return tool_message(&tc.id, &format!("调用被验证链拒绝：{reason}"));
         }
 
-        let outcome = call_tool_with_retry(mcp, &tc.name, args).await;
+        // 进度订阅：call_tool 带 progressToken（e2m2e 5.8.10+ 发
+        // notifications/progress），转发为 tool_progress 事件——工具卡片
+        // 由"只转圈"升级为真进度（分数 + 可读消息）。
+        let progress_call_id = tc.id.clone();
+        let progress_sink: crate::mcp::ProgressSink =
+            std::sync::Arc::new(move |fraction, message| {
+                emit(json!({"kind": "tool_progress", "callId": progress_call_id,
+                            "progress": fraction, "message": message}));
+            });
+        let outcome = call_tool_with_retry(mcp, &tc.name, args, Some(progress_sink)).await;
         let (ok, text) = match outcome {
             Ok(out) => (!out.is_error, out.text),
             Err(e) => (false, format!("工具调用失败：{e}")),
@@ -410,7 +419,7 @@ impl AssistantState {
     /// 轨道库摘要（态势层素材）：catalog_query 取最近记录，投影为紧凑
     /// 清单。失败时返回说明文字——对话不应因摘要不可用而中断。
     async fn catalog_summary(&self, mcp: &McpState) -> String {
-        let outcome = call_tool_with_retry(mcp, "catalog_query", json!({})).await;
+        let outcome = call_tool_with_retry(mcp, "catalog_query", json!({}), None).await;
         match outcome {
             Ok(out) if !out.is_error => {
                 let projected = summary::project_for_llm(&out.text);

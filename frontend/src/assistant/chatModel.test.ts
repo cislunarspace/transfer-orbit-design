@@ -124,6 +124,17 @@ describe("foldEvent", () => {
     expect(card.kind === "tool" && card.card.summary?.recordId).toBe("rec-1");
   });
 
+  it("updates the running card with progress fractions and keeps the card state", () => {
+    let items: ChatItem[] = [];
+    items = foldEvent(items, { kind: "tool_proposed", callId: "c", tool: "design_orbit", arguments: {} });
+    items = foldEvent(items, { kind: "tool_started", callId: "c", tool: "design_orbit", arguments: {} });
+    items = foldEvent(items, { kind: "tool_progress", callId: "c", progress: 0.42, message: "designing" });
+    const card = items[0];
+    expect(card.kind === "tool" && card.card.status).toBe("running");
+    expect(card.kind === "tool" && card.card.progress).toBe(0.42);
+    expect(card.kind === "tool" && card.card.progressMessage).toBe("designing");
+  });
+
   it("starts a new assistant bubble after a tool card", () => {
     let items: ChatItem[] = [];
     items = foldEvent(items, { kind: "tool_proposed", callId: "c", tool: "t", arguments: {} });

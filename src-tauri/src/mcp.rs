@@ -2,8 +2,9 @@
 //!
 //! 协议：MCP（JSON-RPC 2.0，stdio 传输，换行分隔 JSON 消息）。只实现
 //! agent loop 需要的最小子集：initialize 握手、tools/list、tools/call；
-//! server notifications 一律忽略（e2m2e 当前不发进度/取消通知，见
-//! ADR 0023 已知限制）。
+//! tools/call 支持 progressToken（e2m2e 5.8.10 起 server 发
+//! notifications/progress，分数制 [0,1] + 可读消息），其余 server
+//! notifications 忽略。
 //!
 //! 与 sidecar（serve-stdio，e2m2e 自有协议、串行单任务）不同：MCP 请求
 //! 按 id 多路复用，可并发在飞；e2m2e 服务端把同步计算丢线程池，因此
@@ -28,11 +29,16 @@ const PROTOCOL_VERSION: &str = "2025-06-18";
 /// 长计算可达分钟级，与 serve-stdio 链路行为一致）。
 const CONTROL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
+/// 工具调用的进度回调（notifications/progress 的路由目标）：进度分数
+/// [0, 1] 与可读消息。进度令牌复用请求 id（io_loop 据此分发）。
+pub type ProgressSink = Arc<dyn Fn(f64, Option<String>) + Send + Sync>;
+
 enum Cmd {
     Request {
         id: u64,
         method: String,
         params: Value,
+        progress: Option<ProgressSink>,
         reply: oneshot::Sender<anyhow::Result<Value>>,
     },
 }
@@ -90,15 +96,26 @@ impl McpHandle {
         })
     }
 
-    /// 发一个 JSON-RPC 请求并等响应（按 id 多路复用，可并发）。
-    async fn request(&self, method: &str, params: Value) -> anyhow::Result<Value> {
+    /// 发一个 JSON-RPC 请求并等响应（按 id 多路复用，可并发）。带
+    /// progress 时把请求 id 兼作 progressToken 写进 `_meta`，通知按其
+    /// 路由回本请求的 sink。
+    async fn request(
+        &self,
+        method: &str,
+        mut params: Value,
+        progress: Option<ProgressSink>,
+    ) -> anyhow::Result<Value> {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
+        if progress.is_some() {
+            params["_meta"] = json!({"progressToken": id});
+        }
         let (reply_tx, reply_rx) = oneshot::channel();
         self.tx
             .send(Cmd::Request {
                 id,
                 method: method.to_string(),
                 params,
+                progress,
                 reply: reply_tx,
             })
             .map_err(|_| anyhow::anyhow!("mcp-serve 读循环已退出（子进程可能已崩溃）"))?;
@@ -109,7 +126,7 @@ impl McpHandle {
 
     /// 控制面请求（initialize/tools/list）：带超时，挂死不应拖住 agent loop。
     async fn control_request(&self, method: &str, params: Value) -> anyhow::Result<Value> {
-        tokio::time::timeout(CONTROL_TIMEOUT, self.request(method, params))
+        tokio::time::timeout(CONTROL_TIMEOUT, self.request(method, params, None))
             .await
             .map_err(|_| anyhow::anyhow!("mcp-serve {method} 响应超时"))?
     }
@@ -135,6 +152,7 @@ impl McpHandle {
                 id: 0, // notification：读循环见到 id=0 只写不登记
                 method: "notifications/initialized".into(),
                 params: json!({}),
+                progress: None,
                 reply: oneshot::channel().0,
             })
             .map_err(|_| anyhow::anyhow!("mcp-serve 读循环已退出"))?;
@@ -151,10 +169,21 @@ impl McpHandle {
             .unwrap_or_default())
     }
 
-    /// 调工具（不限时）。返回服务端 CallToolResult 的文本内容与错误位。
-    pub async fn call_tool(&self, name: &str, arguments: Value) -> anyhow::Result<ToolCallOutcome> {
+    /// 调工具（不限时）。返回服务端 CallToolResult 的文本内容与错误位；
+    /// `on_progress` 提供时订阅 notifications/progress（e2m2e 分数制
+    /// [0,1] + 可读消息，服务端限流 100 ms 一条）。
+    pub async fn call_tool(
+        &self,
+        name: &str,
+        arguments: Value,
+        on_progress: Option<ProgressSink>,
+    ) -> anyhow::Result<ToolCallOutcome> {
         let result = self
-            .request("tools/call", json!({"name": name, "arguments": arguments}))
+            .request(
+                "tools/call",
+                json!({"name": name, "arguments": arguments}),
+                on_progress,
+            )
             .await?;
         let is_error = result
             .get("isError")
@@ -191,8 +220,8 @@ impl McpHandle {
 }
 
 /// IO 循环：stdout 按行解析 JSON-RPC 响应路由给等待者；stdin 串行写出。
-/// 响应乱序到达（服务端线程池并发），按 id 分发；notification（无 id 或
-/// 带 method 的 server 消息）忽略。
+/// 响应乱序到达（服务端线程池并发），按 id 分发；notifications/progress
+/// 按 progressToken（= 请求 id）转发给该请求的 sink，其余通知忽略。
 async fn io_loop(
     stdout: tokio::process::ChildStdout,
     stdin: ChildStdin,
@@ -201,17 +230,21 @@ async fn io_loop(
     let mut lines = BufReader::new(stdout).lines();
     let mut stdin = BufWriter::new(stdin);
     let mut pending: HashMap<u64, oneshot::Sender<anyhow::Result<Value>>> = HashMap::new();
+    let mut progress_sinks: HashMap<u64, ProgressSink> = HashMap::new();
 
     loop {
         tokio::select! {
             cmd = rx.recv() => {
                 match cmd {
-                    Some(Cmd::Request { id, method, params, reply }) => {
+                    Some(Cmd::Request { id, method, params, progress, reply }) => {
                         // notification（id=0）：不写 id 字段，不登记等待
                         let msg = if id == 0 {
                             json!({"jsonrpc": "2.0", "method": method, "params": params})
                         } else {
                             pending.insert(id, reply);
+                            if let Some(sink) = progress {
+                                progress_sinks.insert(id, sink);
+                            }
                             json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params})
                         };
                         let mut text = match serde_json::to_string(&msg) {
@@ -243,10 +276,34 @@ async fn io_loop(
                             Ok(v) => v,
                             Err(_) => continue, // 非 JSON 行（前向兼容/噪声）：跳过
                         };
-                        // 响应：有 id 且带 result/error；其余（server 请求或
-                        // 通知）忽略——e2m2e 当前不发，收到也无处理语义
+                        // 通知（无 id 或带 method）：notifications/progress
+                        // 按 progressToken 转发（e2m2e 5.8.10+）；其余忽略。
+                        if v.get("method").is_some() {
+                            if v.get("method").and_then(Value::as_str)
+                                == Some("notifications/progress")
+                            {
+                                let params = v.get("params").cloned().unwrap_or(Value::Null);
+                                if let Some(token) =
+                                    params.get("progressToken").and_then(Value::as_u64)
+                                {
+                                    if let Some(sink) = progress_sinks.get(&token) {
+                                        let frac = params
+                                            .get("progress")
+                                            .and_then(Value::as_f64)
+                                            .unwrap_or(0.0);
+                                        let message = params
+                                            .get("message")
+                                            .and_then(Value::as_str)
+                                            .map(String::from);
+                                        sink(frac, message);
+                                    }
+                                }
+                            }
+                            continue;
+                        }
+                        // 响应：有 id 且带 result/error
                         let Some(id) = v.get("id").and_then(Value::as_u64) else { continue };
-                        if v.get("method").is_some() { continue; }
+                        progress_sinks.remove(&id);
                         if let Some(tx) = pending.remove(&id) {
                             if let Some(err) = v.get("error") {
                                 let message = err.get("message").and_then(Value::as_str).unwrap_or("未知 MCP 错误");
@@ -320,19 +377,21 @@ impl McpState {
 }
 
 /// 工具调用 + 崩溃自愈重试一次（与 sidecar 的 request_with_retry 同策略：
-/// 死句柄/进程退出先 reset 再重拉；再失败上抛）。
+/// 死句柄/进程退出先 reset 再重拉；再失败上抛）。`on_progress` 透传给
+/// 两次尝试（重试期间进度照发）。
 pub async fn call_tool_with_retry(
     state: &McpState,
     name: &str,
     arguments: Value,
+    on_progress: Option<ProgressSink>,
 ) -> anyhow::Result<ToolCallOutcome> {
     let handle = state.get_or_spawn().await?;
-    match handle.call_tool(name, arguments.clone()).await {
+    match handle.call_tool(name, arguments.clone(), on_progress.clone()).await {
         Ok(out) => Ok(out),
         Err(e) => {
             state.reset().await;
             let handle = state.get_or_spawn().await?;
-            handle.call_tool(name, arguments).await.map_err(|_| e)
+            handle.call_tool(name, arguments, on_progress).await.map_err(|_| e)
         }
     }
 }
@@ -366,5 +425,24 @@ mod tests {
         // notification：无 id，不入路由
         let note: Value = serde_json::from_str(r#"{"jsonrpc":"2.0","method":"notifications/message","params":{}}"#).unwrap();
         assert!(note.get("id").is_none());
+    }
+
+    /// notifications/progress 携带 progressToken/progress/message——io_loop
+    /// 按 token（= 请求 id）路由、取分数与消息的解析依据。
+    #[test]
+    fn progress_notification_carries_token_fraction_message() {
+        let note: Value = serde_json::from_str(
+            r#"{"jsonrpc":"2.0","method":"notifications/progress",
+                "params":{"progressToken":7,"progress":0.42,"total":1.0,"message":"designing"}}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            note.get("method").and_then(Value::as_str),
+            Some("notifications/progress")
+        );
+        let params = note.get("params").unwrap();
+        assert_eq!(params.get("progressToken").and_then(Value::as_u64), Some(7));
+        assert!((params.get("progress").and_then(Value::as_f64).unwrap() - 0.42).abs() < 1e-9);
+        assert_eq!(params.get("message").and_then(Value::as_str), Some("designing"));
     }
 }

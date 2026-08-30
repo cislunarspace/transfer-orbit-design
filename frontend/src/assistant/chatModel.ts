@@ -148,6 +148,14 @@ export function foldEvent(items: ChatItem[], ev: AssistantEventPayload): ChatIte
         status: "running",
         startedAt: Date.now(),
       }));
+    case "tool_progress":
+      // 真进度（progressToken 通知）：刷新运行中卡片的分数与消息；
+      // 事件不持久化，回放时卡片回到不定态耗时显示
+      return updateCard(items, ev.callId, (c) => ({
+        ...c,
+        progress: ev.progress,
+        progressMessage: ev.message ?? undefined,
+      }));
     case "tool_done":
       return updateCard(items, ev.callId, (c) => ({
         ...c,

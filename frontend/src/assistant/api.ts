@@ -55,6 +55,13 @@ export type AssistantEventPayload =
   | { kind: "tool_proposed"; callId: string; tool: string; arguments: unknown }
   | { kind: "tool_started"; callId: string; tool: string; arguments: unknown }
   | {
+      kind: "tool_progress";
+      callId: string;
+      /** 进度分数 [0,1]（e2m2e progressToken 通知，total 恒为 1） */
+      progress: number;
+      message: string | null;
+    }
+  | {
       kind: "tool_done";
       callId: string;
       tool: string;
