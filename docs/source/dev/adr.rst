@@ -6,6 +6,8 @@
 .. toctree::
    :maxdepth: 1
 
+   adr-0026-assistant-thinking-level
+   adr-0025-assistant-session-history
    adr-0024-record-user-metadata-in-catalog
    adr-0023-ai-assistant-architecture
    adr-0022-ai-assistant-llm-mcp
@@ -46,4 +48,5 @@
   Linux 打包（0017）、桌面自动更新（0018）、sidecar 子树生命周期
   （0019）、严肃语义色板视觉语言（0020）、主画布时间轴（0021，
   原与 0014 同号，已改编）、AI 助手定位与模型服务策略（0022）、
-  AI 助手架构（0023）、记录用户元数据归属 catalog 记录字段（0024）。
+  AI 助手架构（0023）、记录用户元数据归属 catalog 记录字段（0024）、
+  助手会话历史与多会话（0025）、思考等级与过程展示（0026）。
