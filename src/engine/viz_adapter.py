@@ -3,7 +3,7 @@
 职责：
 - 构造 CR3BP_System（从 mu 提取，地月质量比）并解算平动点
 - 会合系（质心归一，无量纲）→ GCRS 惯性系 km 的坐标转换
-- 自绘 matplotlib 地月 / L1-L5 标注与月球 GCRS 轨迹线（不依赖 src/commons/viz）
+- 自绘 matplotlib 地月 / L1-L5 标注与月球 GCRS 轨迹线
 
 GUI 画布在前端 Three.js（frontend/src/OrbitCanvas.tsx），不经本模块；
 模块内绘制函数仅服务脚本出图与测试。e2m2e 延迟 import，保证本模块被
@@ -15,7 +15,7 @@ Responsibilities: build a CR3BP_System (from mu, the Earth-Moon mass
 ratio) and solve libration points; convert the rotating frame
 (barycenter-normalized, dimensionless) to GCRS inertial km; draw
 matplotlib Earth-Moon / L1-L5 annotations and the lunar GCRS trajectory
-by hand (no dependency on src/commons/viz). The GUI canvas lives in the
+by hand. The GUI canvas lives in the
 frontend Three.js (frontend/src/OrbitCanvas.tsx) and bypasses this
 module; the drawing functions here serve only script figures and tests.
 e2m2e is imported lazily so importing this module never triggers the

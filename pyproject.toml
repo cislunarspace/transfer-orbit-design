@@ -46,7 +46,7 @@ Repository = "https://github.com/cislunarspace/transfer-orbit-design"
 pythonVersion = "3.13"
 reportMissingImports = "none"
 include = ["src"]
-exclude = ["tests", "src/commons/viz"]  # viz 为收编的第三方代码（原 e2m2e tools/viz），不承担本仓类型标准
+exclude = ["tests"]
 # 显式指定 venv：pyright 的 venv 自动探测在部分环境失效（会退回系统 python，
 # 导致解析不到 venv 内的 e2m2e/matplotlib 而误报 0 错误），钉死 .venv 与 CI 对齐。
 venvPath = "."
