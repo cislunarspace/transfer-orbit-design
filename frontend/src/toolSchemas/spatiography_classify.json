@@ -1,0 +1,49 @@
+{
+  "additionalProperties": false,
+  "description": "分区区域分类输入。",
+  "properties": {
+    "states": {
+      "description": "状态列表，每项 [x,y,z,vx,vy,vz]；坐标系与单位由 frame 声明",
+      "items": {
+        "items": {
+          "type": "number"
+        },
+        "type": "array"
+      },
+      "minItems": 1,
+      "title": "States",
+      "type": "array"
+    },
+    "frame": {
+      "description": "状态的数据系标签（ADR 0040 state_frame 词汇，本工具首批启用 synodic_barycentric_nd）：synodic_barycentric_km = 地月会合旋转系、质心原点、物理单位 km/km/s；synodic_barycentric_nd = 同系无量纲（长度 a☾、速度 a☾·n，Primer 常数口径）",
+      "enum": [
+        "synodic_barycentric_km",
+        "synodic_barycentric_nd"
+      ],
+      "title": "Frame",
+      "type": "string"
+    },
+    "reference": {
+      "default": "table1",
+      "description": "分区口径：table1 = 论文 Table 1 五省语义；table4 = 附录 B 六制图带（deliberate-overlap，相邻区端部有意重叠）",
+      "enum": [
+        "table1",
+        "table4"
+      ],
+      "title": "Reference",
+      "type": "string"
+    },
+    "include_overlaps": {
+      "default": true,
+      "description": "重叠带返回多标签（False 时按优先序取主标签）",
+      "title": "Include Overlaps",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "states",
+    "frame"
+  ],
+  "title": "SpatiographyClassifyRequest",
+  "type": "object"
+}
