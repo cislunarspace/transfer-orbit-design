@@ -165,12 +165,3 @@ export function ephemerisSpanDays(res: CatalogGetResult): number | null {
   const span = Math.max(...times) - Math.min(...times);
   return unitDays ? span : span / SECONDS_PER_DAY;
 }
-
-export async function computeStability(recordId: string): Promise<Record<string, unknown>> {
-  const resp = await invoke<{ data: Record<string, unknown>; status: string }>("run_tool", {
-    tool: "orbit_stability",
-    arguments: { orbit: recordId },
-    binaryDtype: null,
-  });
-  return resp.data;
-}
