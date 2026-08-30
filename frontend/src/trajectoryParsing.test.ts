@@ -38,6 +38,18 @@ describe("framesToTrajectoryData 轨迹解析", () => {
     expect(got.trajectories[0][0]).toEqual([0, 10, 20]);
   });
 
+  it("CR3BP 帧产物逐条标注数据系 synodic_nd（#431）", () => {
+    const got = framesToTrajectoryData(
+      [
+        { dtype: "f32", shape: [2, 3], data: [0, 1, 2, 3, 4, 5] },
+        { dtype: "f32", shape: [2, 3], data: [6, 7, 8, 9, 10, 11] },
+      ],
+      {},
+      MU,
+    );
+    expect(got.frames).toEqual(["synodic_nd", "synodic_nd"]);
+  });
+
   it("(1,6) 初态帧有 period 时传播整条轨迹，时刻按 period 均匀合成", () => {
     const got = framesToTrajectoryData(
       [{ dtype: "f32", shape: [1, 6], data: [...SEED.state] }],
@@ -205,6 +217,10 @@ describe("transferTrajectoryToCanvasData 转移轨迹解析", () => {
     expect(transferTrajectoryToCanvasData(TRAJ, null).labels).toEqual(["转移弧"]);
     expect(transferTrajectoryToCanvasData(TRAJ, null, undefined, "arc").labels).toEqual(["arc"]);
   });
+
+  it("转移弧标注数据系 synodic_km（会合系物理 km，ADR 0040 契约）", () => {
+    expect(transferTrajectoryToCanvasData(TRAJ, null).frames).toEqual(["synodic_km"]);
+  });
 });
 
 describe("propagationToCanvasData 轨道预报解析（#421）", () => {
@@ -219,6 +235,7 @@ describe("propagationToCanvasData 轨道预报解析（#421）", () => {
     expect(got!.timeBasis).toEqual(["et"]);
     expect(got!.times[0][0]).toBeCloseTo(etFromJdTdb(2460800.5), 6);
     expect(got!.labels).toEqual(["prop"]);
+    expect(got!.frames).toEqual(["inertial_km"]);
   });
 
   it("输入非法时返回 null（回退通用分支）", () => {
@@ -257,6 +274,7 @@ describe("designEphemerisToCanvasData 星历段解析", () => {
       trajectories: [[[0, 0, 0]]],
       times: [[]],
       timeBasis: ["none"],
+      frames: ["synodic_nd"],
       labels: ["星历段（会合系）"],
     });
     const misaligned = { ...EPH, year: [2024] };
@@ -268,6 +286,10 @@ describe("designEphemerisToCanvasData 星历段解析", () => {
     expect(designEphemerisToCanvasData({})).toBeNull();
     expect(designEphemerisToCanvasData({ synodic_position: [] })).toBeNull();
     expect(designEphemerisToCanvasData({ synodic_position: [1, 2, 3] })).toBeNull();
+  });
+
+  it("星历段标注数据系 synodic_nd（会合系无量纲直画）", () => {
+    expect(designEphemerisToCanvasData(EPH)!.frames).toEqual(["synodic_nd"]);
   });
 });
 

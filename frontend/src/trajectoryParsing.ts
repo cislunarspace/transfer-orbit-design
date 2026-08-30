@@ -32,6 +32,15 @@ export interface TrajectoryFrame {
 /** Per-trajectory time basis: et = true epoch seconds; relative = relative time; none = untimed. */
 export type TimeBasis = "et" | "relative" | "none";
 
+/** 单条轨迹的数据系标签（CONTEXT.md「数据系」枚举的画布子集；视图系是
+ *  用户显示选择，不随数据走，故不在此列）。与 e2m2e state_frame 词表的
+ *  对应：synodic_nd ≈ synodic_barycentric_nd、synodic_km ≈
+ *  synodic_barycentric_km、inertial_km ≈ 地心惯性 km（GCRS）。
+ *  A trajectory's data-frame tag (the canvas subset of CONTEXT.md's
+ *  数据系 enum; the view frame is a display choice and never rides the
+ *  data). Maps onto e2m2e's state_frame vocabulary as noted. */
+export type DataFrameTag = "synodic_nd" | "synodic_km" | "inertial_km";
+
 export interface TrajectoryData {
   trajectories: number[][][];
   /** 与 trajectories 逐条对齐的时刻数组（秒；无时刻为空数组） */
@@ -40,6 +49,11 @@ export interface TrajectoryData {
   /** 与 trajectories 逐条对齐的时刻基准；缺省按 relative 解释（兼容旧调用） */
   /** Time basis aligned row-by-row; defaults to relative for legacy callers. */
   timeBasis?: TimeBasis[];
+  /** 与 trajectories 逐条对齐的数据系标签；缺省按 synodic_nd 解释
+   *  （画布既有轨迹全部是会合系无量纲，惯性系轨迹自带标签） */
+  /** Data-frame tag aligned row-by-row; defaults to synodic_nd (every legacy
+   *  canvas trajectory is synodic dimensionless; inertial ones self-tag). */
+  frames?: DataFrameTag[];
   /** 与 trajectories 逐条对齐的图例标签；缺省不进图例 */
   /** Legend label per trajectory; omitted entries stay out of the legend. */
   labels?: string[];
@@ -79,6 +93,7 @@ export function framesToTrajectoryData(
   const trajectories: number[][][] = [];
   const times: number[][] = [];
   const timeBasis: TimeBasis[] = [];
+  const frameTags: DataFrameTag[] = [];
 
   frames.forEach((frame, i) => {
     const f = frame.data as number[];
@@ -100,25 +115,29 @@ export function framesToTrajectoryData(
         trajectories.push(pts);
         times.push(linspaceByPeriod(period, pts.length));
         timeBasis.push("relative");
+        frameTags.push("synodic_nd");
       }
     } else if (cols === 6 || cols === 3) {
       const pts = chunksOf(f, cols, 3);
       trajectories.push(pts);
       times.push(matchingTimes(epochs, pts.length));
       timeBasis.push("relative");
+      frameTags.push("synodic_nd");
     } else if (frame.shape.length === 0 && f.length > 6 && f.length % 6 === 0) {
       const pts = chunksOf(f, 6, 3);
       trajectories.push(pts);
       times.push(matchingTimes(epochs, pts.length));
       timeBasis.push("relative");
+      frameTags.push("synodic_nd");
     } else if (frame.shape.length === 0 && f.length % 3 === 0) {
       const pts = chunksOf(f, 3, 3);
       trajectories.push(pts);
       times.push(matchingTimes(epochs, pts.length));
       timeBasis.push("relative");
+      frameTags.push("synodic_nd");
     }
   });
-  return { trajectories, times, timeBasis };
+  return { trajectories, times, timeBasis, frames: frameTags };
 }
 
 /** epochs 行数匹配则用之，否则回退行序时刻；period 路径已单独合成。 */
@@ -161,6 +180,7 @@ export function transferTrajectoryToCanvasData(
     trajectories: [pts],
     times: etTimes ? [etTimes] : aligned ? [aligned] : [],
     timeBasis: [etTimes ? "et" : aligned ? "relative" : "none"],
+    frames: ["synodic_km"],
     labels: [label],
   };
 }
@@ -197,6 +217,7 @@ export function propagationToCanvasData(
     trajectories: [pts],
     times: etTimes ? [etTimes] : [],
     timeBasis: [etTimes ? "et" : "none"],
+    frames: ["inertial_km"],
     labels: [label],
   };
 }
@@ -251,6 +272,7 @@ export function designEphemerisToCanvasData(
     trajectories: [pts],
     times: [etTimes ?? []],
     timeBasis: [etTimes ? "et" : "none"],
+    frames: ["synodic_nd"],
     labels: [label],
   };
 }
@@ -261,6 +283,7 @@ export function familyMembersToTrajectoryData(members: FamilyMember[], mu: numbe
   const trajectories: number[][][] = [];
   const times: number[][] = [];
   const timeBasis: TimeBasis[] = [];
+  const frameTags: DataFrameTag[] = [];
   for (const [i, m] of members.entries()) {
     if (m.states.length === 6) {
       if (m.period) {
@@ -272,20 +295,23 @@ export function familyMembersToTrajectoryData(members: FamilyMember[], mu: numbe
         trajectories.push(pts);
         times.push(linspaceByPeriod(m.period, pts.length));
         timeBasis.push("relative");
+        frameTags.push("synodic_nd");
       }
     } else if (m.states.length > 6 && m.states.length % 6 === 0) {
       const pts = chunksOf(m.states, 6, 3);
       trajectories.push(pts);
       times.push(matchingTimes(m.times.map(Number), pts.length));
       timeBasis.push("relative");
+      frameTags.push("synodic_nd");
     } else if (m.states.length % 3 === 0) {
       const pts = chunksOf(m.states, 3, 3);
       trajectories.push(pts);
       times.push(matchingTimes(m.times.map(Number), pts.length));
       timeBasis.push("relative");
+      frameTags.push("synodic_nd");
     }
   }
-  return { trajectories, times, timeBasis };
+  return { trajectories, times, timeBasis, frames: frameTags };
 }
 
 /** 全局时刻范围（多条轨迹取端点）；空则 null，时间轴保持禁用。 */
