@@ -258,10 +258,13 @@ export function propagationToCanvasData(
 }
 
 /** EphemerisTable 的 UTC 分量（year..second 各 (n,)）→ et 秒数组；分量缺失、
- *  行数与 n 不齐或含非有限值 → null（该轨迹保持无时刻基准）。 */
+ *  行数与 n 不齐或含非有限值 → null（该轨迹保持无时刻基准）。导出供
+ *  catalogApi 复用（catalog_get 记录的 eph/ 段与 EphemerisTable 同形）。 */
 /** EphemerisTable's UTC components (year..second, each (n,)) → et seconds;
- *  null when components are missing, misaligned with n, or non-finite. */
-function ephemerisUtcToEt(ephemeris: Record<string, unknown>, n: number): number[] | null {
+ *  null when components are missing, misaligned with n, or non-finite.
+ *  Exported for catalogApi (the catalog_get record's eph/ segment shares
+ *  EphemerisTable's shape). */
+export function ephemerisUtcToEt(ephemeris: Record<string, unknown>, n: number): number[] | null {
   const parts = ["year", "month", "day", "hour", "minute", "second"].map(
     (k) => ephemeris[k],
   ) as unknown[][];

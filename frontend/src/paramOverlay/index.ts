@@ -431,9 +431,6 @@ export function getFieldApplicability(toolName: string, orbitType: string): stri
 /** 当前工具+轨道类型下可见（参与表单渲染与校验）的字段列表，表单与提交校验同源 */
 /** Fields visible under the current tool + orbit type (driving both rendering and validation); form and submit checks share this source. */
 export function getActiveFields(toolName: string, schema: ToolSchema, orbitType: string): string[] {
-  if (toolName === "orbit_stability") {
-    return ["orbit_record_id", "dynamics_model"];
-  }
   const applicability = getFieldApplicability(toolName, orbitType);
   if (applicability.length > 0) {
     return applicability.filter((f) => schema.properties[f]);

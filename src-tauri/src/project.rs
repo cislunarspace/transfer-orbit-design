@@ -3,7 +3,6 @@
 //! Artifact 摘要进内存（轻量）；大数组（帧）不入容器，由画布按需
 //! 取用，族生成结果缓存在 command 返回前直接交付前端。
 
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde::{Deserialize, Serialize};
@@ -51,13 +50,4 @@ impl ProjectState {
         guard.retain(|a| a.artifact_id != artifact_id);
         len_before != guard.len()
     }
-}
-
-/// 摘要按 artifact_type 分组（项目树的分组序）。
-pub fn group_by_type(artifacts: &[ArtifactSummary]) -> HashMap<String, Vec<ArtifactSummary>> {
-    let mut groups: HashMap<String, Vec<ArtifactSummary>> = HashMap::new();
-    for a in artifacts {
-        groups.entry(a.artifact_type.clone()).or_default().push(a.clone());
-    }
-    groups
 }

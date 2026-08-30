@@ -124,7 +124,6 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             cmd::run_tool,
-            cmd::generate_family,
             cmd::list_artifacts,
             cmd::remove_artifact,
             cmd::get_artifact,

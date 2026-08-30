@@ -1,5 +1,5 @@
-// sidecar 族生成的前端封装：Tauri command 调用 + 类型。
-// Frontend wrapper for sidecar family generation: Tauri command calls plus types.
+// sidecar 前端封装：Tauri command 调用 + 类型。
+// Frontend wrappers for the sidecar: Tauri command calls plus types.
 
 export interface FamilyMember {
   states: number[]; // n×6 状态（初态帧时 n=1）
@@ -8,20 +8,6 @@ export interface FamilyMember {
   /** 该成员的 Jacobi 常数（族记录通道，#435）；无值为 null */
   /** The member's Jacobi constant (family-record channel, #435); null when absent. */
   jacobi?: number | null;
-}
-
-export interface FamilyResponse {
-  recordId: string;
-  familyType: string;
-  generatedMembers: number;
-  mu: number | null;
-  members: FamilyMember[];
-  error: { code: string; message: string } | null;
-}
-
-export async function generateFamily(arguments_: Record<string, unknown>): Promise<FamilyResponse> {
-  const { invoke } = await import("@tauri-apps/api/core");
-  return invoke("generate_family", { arguments: arguments_ });
 }
 
 /** 记录的星历段（eph/ 前缀数组）：会合系无量纲位置 (n,3) 平铺 + UTC 分量；

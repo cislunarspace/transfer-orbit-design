@@ -143,13 +143,11 @@ class TransferDesignResultData:
 class PropagationResultData:
     """轨道预报结果 DTO。纯数据类，不含 e2m2e 对象引用。
 
-    轨道预报产物不入轨道库（e2m2e 未提供该工具的入库），落盘走
-    ``persistence.save_propagation_result``（output/propagation/）。
+    轨道预报产物不入轨道库（e2m2e 未提供该工具的入库）。
 
     Orbit-propagation result DTO. Pure data class holding no e2m2e object
     references. Propagation products are not ingested into the orbit catalog
-    (e2m2e provides no ingestion for this tool); persistence goes through
-    ``persistence.save_propagation_result`` (output/propagation/).
+    (e2m2e provides no ingestion for this tool).
     """
 
     epoch_utc: str  # 起始历元 ISO（epoch 为列表时由桥接层格式化）
@@ -1047,16 +1045,14 @@ class FacadeBridge:
 
         换算与接缝：前端 duration 标准单位年 → e2m2e 秒；force_config 为
         None 时剔除（走模型默认三体），dict 由调用方解析 JSON。会合系位置
-        由 GCRS km 经 ``gcrs_to_synodic`` 转换（产物不入轨道库，落盘走
-        persistence）。
+        由 GCRS km 经 ``gcrs_to_synodic`` 转换（产物不入轨道库）。
 
         English: call orbit_propagation through the Facade and return a
         pure-data DTO. Conversions and seams: frontend duration
         canonical unit years -> e2m2e seconds; force_config is dropped
         when None (model-default three-body); a dict is JSON-parsed by the
         caller. Rotating-frame positions are converted from GCRS km via
-        ``gcrs_to_synodic`` (products do not enter the orbit catalog;
-        persistence goes through persistence).
+        ``gcrs_to_synodic`` (products do not enter the orbit catalog).
         """
         from e2m2e.data.templates import ConvergenceState
         from e2m2e.data.templates.seed import EARTH_MOON_MU

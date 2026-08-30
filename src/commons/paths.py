@@ -29,9 +29,7 @@ __all__ = [
     "detect_kernel_dir",
     "ensure_output_dir",
     "find_project_root",
-    "load_configured_kernel_dir",
     "safe_resolve_within",
-    "save_configured_kernel_dir",
     "user_config_dir",
 ]
 
@@ -105,8 +103,12 @@ def ensure_output_dir(output_dir: str = "output") -> None:
 def user_config_dir() -> Path:
     """用户配置目录（Windows ``%APPDATA%``，其余平台 XDG 配置目录）。
 
-    User configuration directory (Windows ``%APPDATA%``; XDG config directory
-    elsewhere).
+    Rust 侧 assistant store 沿用同一路径约定（src-tauri/src/assistant/
+    store.rs，ADR 0023）。
+
+    User configuration directory (Windows ``%APPDATA%``; XDG config
+    directory elsewhere). The Rust assistant store follows the same path
+    convention (src-tauri/src/assistant/store.rs, ADR 0023).
     """
     if os.name == "nt":
         base = os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming"
@@ -115,41 +117,14 @@ def user_config_dir() -> Path:
     return Path(base) / "transfer-orbit-design"
 
 
-def load_configured_kernel_dir() -> str:
-    """读用户上次显式选择/下载的内核目录（配置文件中记录的路径）。
-
-    文件缺失或指向不存在的目录时返回空串。
-
-    Read the kernel directory the user last explicitly chose or
-    downloaded (the path recorded in the config file). Returns an empty
-    string when the file is missing or points at a nonexistent
-    directory.
-    """
-    p = user_config_dir() / "kernels_dir.txt"
-    if p.is_file():
-        v = p.read_text(encoding="utf-8").strip()
-        if v and Path(v).is_dir():
-            return v
-    return ""
-
-
-def save_configured_kernel_dir(path: str | Path) -> None:
-    """把用户显式选择/下载的内核目录写入配置文件，供下次启动探测。
-
-    Write the user's explicitly chosen/downloaded kernel directory into the config
-    file for the next startup to probe.
-    """
-    d = user_config_dir()
-    d.mkdir(parents=True, exist_ok=True)
-    (d / "kernels_dir.txt").write_text(str(Path(path).resolve()), encoding="utf-8")
-
-
 def detect_kernel_dir() -> str:
     """探测 SPICE 内核目录。
 
-    优先级：``$SPICE_KERNEL_DIR`` -> 配置文件记录（用户上次选择/下载） ->
-    ``<repo>/kernels/`` -> 用户数据目录默认位置 -> ``<repo>/../e2m2e/kernels/``；
-    找不到返回空串。
+    优先级：``$SPICE_KERNEL_DIR`` -> ``<repo>/kernels/`` -> 用户数据目录
+    默认位置 -> ``<repo>/../e2m2e/kernels/``；找不到返回空串。
+
+    （配置文件层 kernels_dir.txt 已随 #415 删除：生产由 Rust 壳在
+    import e2m2e 前钉死环境变量，硬契约见 #414 第 5 条。）
 
     注意：本函数只判断目录存在，不校验内核完整性；完整性判断见
     ``src.commons.kernels.kernel_dir_usable``。
@@ -161,11 +136,12 @@ def detect_kernel_dir() -> str:
     ``src-tauri/src/lib.rs`` 与 ``tests/conftest.py``。
 
     English: detect the SPICE kernel directory. Priority:
-    ``$SPICE_KERNEL_DIR`` -> config-file record (user's last
-    choice/download) -> ``<repo>/kernels/`` -> user-data default
+    ``$SPICE_KERNEL_DIR`` -> ``<repo>/kernels/`` -> user-data default
     location -> ``<repo>/../e2m2e/kernels/``; returns an empty string
-    when nothing is found. Note: this function only checks directory
-    existence, not kernel completeness — see
+    when nothing is found. (The kernels_dir.txt config layer was removed
+    with #415: production pins the env var in the Rust shell before
+    importing e2m2e — hard contract, #414 item 5.) Note: this function
+    only checks directory existence, not kernel completeness — see
     ``src.commons.kernels.kernel_dir_usable`` for that. After e2m2e
     moved to a pip install, its internal leap-second kernel (``.tls``)
     auto-search path computes the parent directory per the source-repo
@@ -179,10 +155,6 @@ def detect_kernel_dir() -> str:
     env_val = os.environ.get("SPICE_KERNEL_DIR", "")
     if env_val and Path(env_val).is_dir():
         return env_val
-
-    configured = load_configured_kernel_dir()
-    if configured:
-        return configured
 
     # 本项目自带 kernels/（小内核入库，.bsp 由 scripts/download_kernels.py 补）
     # This project ships its own kernels/ (small kernels checked in; .bsp fetched by

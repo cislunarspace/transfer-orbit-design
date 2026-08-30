@@ -1,14 +1,13 @@
 // 项目树组件：基于 Ant Design Tree 与 Dropdown 实现右键菜单、勾选多选（绘制所选）、
-// 星标与备注编辑、删除确认与稳定性分析
+// 星标与备注编辑、删除确认
 // Project tree: an Ant Design Tree + Dropdown component with context menu, check-based multi-select
-// (plot selected), star/note editing, delete confirmation, and stability analysis.
+// (plot selected), star/note editing, and delete confirmation.
 
 import { useState, type Key } from "react";
 import { Tree, Dropdown, Modal, Typography, message, Button, Input, Tooltip } from "antd";
 import type { MenuProps } from "antd";
 import {
   RocketOutlined,
-  LineChartOutlined,
   DeleteOutlined,
   EditOutlined,
   StarFilled,
@@ -17,7 +16,7 @@ import {
   PushpinOutlined,
 } from "@ant-design/icons";
 import type { ArtifactSummary } from "./projectApi";
-import { catalogDelete, catalogTag, catalogQuery, computeStability, STAR_TAG } from "./catalogApi";
+import { catalogDelete, catalogTag, catalogQuery, STAR_TAG } from "./catalogApi";
 import { useTranslation } from "./i18n";
 
 const { Text } = Typography;
@@ -67,8 +66,6 @@ export function ProjectTree({
   onTogglePin,
 }: ProjectTreeProps) {
   const { t } = useTranslation();
-  const [stabilityResult, setStabilityResult] = useState<Record<string, unknown> | null>(null);
-  const [stabilityModalOpen, setStabilityModalOpen] = useState(false);
   // 勾选多选（父子联动）：与单击选中互不干扰
   // Check-based multi-select (parent-child cascade): never interferes with single-click selection.
   const [checkedKeys, setCheckedKeys] = useState<Key[]>([]);
@@ -148,7 +145,6 @@ export function ProjectTree({
   });
 
   const handleRightClick = (item: ArtifactSummary): MenuProps["items"] => {
-    const isOrbitOrFamily = item.artifactType === "orbit" || item.artifactType === "family";
     const hasEphemeris = item.artifactType === "ephemeris" || (item as any).hasEphemeris;
 
     return [
@@ -158,21 +154,6 @@ export function ProjectTree({
         label: "轨道保持...",
         disabled: !hasEphemeris,
         onClick: () => onOpenStationKeeping?.(item),
-      },
-      {
-        key: "stability",
-        icon: <LineChartOutlined />,
-        label: "查看轨道稳定性",
-        disabled: !isOrbitOrFamily,
-        onClick: async () => {
-          try {
-            const data = await computeStability(item.recordId || item.artifactId);
-            setStabilityResult(data);
-            setStabilityModalOpen(true);
-          } catch (e) {
-            message.error(`计算稳定性失败: ${String(e)}`);
-          }
-        },
       },
       {
         key: "edit_note",
@@ -325,22 +306,6 @@ export function ProjectTree({
           placeholder={t("tree.note_placeholder")}
           onChange={(e) => setNoteDraft(e.target.value)}
         />
-      </Modal>
-
-      <Modal
-        title="轨道稳定性分析结果"
-        open={stabilityModalOpen}
-        footer={null}
-        onCancel={() => setStabilityModalOpen(false)}
-        width={600}
-      >
-        {stabilityResult ? (
-          <pre style={{ maxHeight: 400, overflow: "auto", fontSize: 12, background: "#1f1f1f", padding: 12, borderRadius: 2 }}>
-            {JSON.stringify(stabilityResult, null, 2)}
-          </pre>
-        ) : (
-          <Text>正在加载稳定性数据...</Text>
-        )}
       </Modal>
     </div>
   );

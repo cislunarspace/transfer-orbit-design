@@ -11,7 +11,6 @@ import type { ArtifactSummary } from "./projectApi";
 
 export interface CatalogFilterBarProps {
   onResults: (artifacts: ArtifactSummary[], count: number, message: string) => void;
-  onSelectRecord?: (record: any) => void;
 }
 
 export function CatalogFilterBar({ onResults }: CatalogFilterBarProps) {

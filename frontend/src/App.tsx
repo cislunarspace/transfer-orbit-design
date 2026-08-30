@@ -1057,10 +1057,7 @@ export default function App() {
           {/* 列表/过滤内容 */}
           <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
             {leftTab === "catalog" && (
-              <CatalogFilterBar
-                onResults={(arts) => setArtifacts(arts)}
-                onSelectRecord={(rec) => setSelectedRecordDetail(rec)}
-              />
+              <CatalogFilterBar onResults={(arts) => setArtifacts(arts)} />
             )}
             <ProjectTree
               artifacts={artifacts}

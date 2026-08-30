@@ -266,32 +266,6 @@ export function ParamsPanel({ toolName, schema, values, onChange, fieldErrors }:
     );
   };
 
-  if (toolName === "orbit_stability") {
-    return (
-      <Form layout="vertical" size="small" style={{ marginTop: 8 }}>
-        <Form.Item
-          validateStatus={fieldErrors?.["orbit_record_id"] ? "error" : undefined}
-          help={fieldErrors?.["orbit_record_id"] || undefined}
-          label={
-            <Space orientation="horizontal" size={4}>
-              <Text strong style={{ fontSize: 12 }}>目标轨道 (Orbit Record ID)</Text>
-              <Tooltip title="输入或从左侧项目树选中的轨道 Record ID 或 JSON 工件">
-                <InfoCircleOutlined style={{ color: "#0958d9", fontSize: 11 }} />
-              </Tooltip>
-            </Space>
-          }
-        >
-          <Input
-            size="small"
-            placeholder="从项目树选中轨道自动填入，或手动填入 record_id"
-            value={values["orbit"] as string || ""}
-            onChange={(e) => handleFieldChange("orbit", e.target.value)}
-          />
-        </Form.Item>
-      </Form>
-    );
-  }
-
   return (
     <Form layout="vertical" size="small" style={{ marginTop: 8 }}>
       {activeFields.map((f) => {
