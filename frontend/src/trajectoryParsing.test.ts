@@ -3,9 +3,13 @@ import {
   framesToTrajectoryData,
   familyMembersToTrajectoryData,
   trajectoryTimeRange,
-  mergeTrajectoryData,
   transferTrajectoryToCanvasData,
+  propagationToCanvasData,
+  timelineMode,
+  timesForMode,
+  type TimeBasis,
 } from "./trajectoryParsing";
+import { etFromEpoch, etFromJdTdb } from "./timeBasis";
 
 const MU = 0.01215058560962404;
 
@@ -175,23 +179,85 @@ describe("transferTrajectoryToCanvasData 转移轨迹解析", () => {
     expect(got.trajectories).toEqual([[]]);
     expect(got.times).toEqual([[]]);
   });
-});
 
-describe("mergeTrajectoryData 叠加/替换", () => {
-  const prev = { trajectories: [[[0, 0, 0]]], times: [[0]] };
-  const next = { trajectories: [[[1, 1, 1]], [[2, 2, 2]]], times: [[5], [6]] };
-
-  it("overlay=true 追加不清空（轨迹与时刻按序拼接）", () => {
-    const got = mergeTrajectoryData(prev, next, true);
-    expect(got.trajectories).toHaveLength(3);
-    expect(got.times).toHaveLength(3);
-    expect(got.trajectories[0]).toEqual(prev.trajectories[0]);
-    expect(got.trajectories[2]).toEqual(next.trajectories[1]);
+  it("给 tli_epoch（JD_TDB 数）时时刻平移到 et 绝对基准", () => {
+    const jd = 2460800.5;
+    const got = transferTrajectoryToCanvasData(TRAJ, [0, 100, 200], jd);
+    expect(got.timeBasis).toEqual(["et"]);
+    expect(got.times[0][0]).toBeCloseTo(etFromEpoch(jd), 6);
+    expect(got.times[0][2]).toBeCloseTo(etFromEpoch(jd) + 200, 6);
   });
 
-  it("overlay=false 整体替换（默认手感）", () => {
-    const got = mergeTrajectoryData(prev, next, false);
-    expect(got.trajectories).toBe(next.trajectories);
-    expect(got.times).toBe(next.times);
+  it("给 tli_epoch（ISO UTC 字符串）时同样得到 et 基准", () => {
+    const got = transferTrajectoryToCanvasData(TRAJ, [0, 100, 200], "2025-06-21T11:00:00");
+    expect(got.timeBasis).toEqual(["et"]);
+    expect(got.times[0][0]).toBeCloseTo(etFromEpoch("2025-06-21T11:00:00"), 6);
+  });
+
+  it("tli_epoch 缺失时保持 TLI 起算相对秒", () => {
+    const got = transferTrajectoryToCanvasData(TRAJ, [0, 100, 200]);
+    expect(got.timeBasis).toEqual(["relative"]);
+    expect(got.times[0]).toEqual([0, 100, 200]);
+  });
+
+  it("图例标签可定制（缺省「转移弧」）", () => {
+    expect(transferTrajectoryToCanvasData(TRAJ, null).labels).toEqual(["转移弧"]);
+    expect(transferTrajectoryToCanvasData(TRAJ, null, undefined, "arc").labels).toEqual(["arc"]);
+  });
+});
+
+describe("propagationToCanvasData 轨道预报解析（#421）", () => {
+  it("position_km（GCRS km）÷DU_KM 缩放，times_jd_tdb → et 基准", () => {
+    const got = propagationToCanvasData(
+      [[384400.0, 0.0, 0.0], [0.0, 384400.0, 0.0]],
+      [2460800.5, 2460801.5],
+      "prop"
+    );
+    expect(got).not.toBeNull();
+    expect(got!.trajectories[0][0]).toEqual([1, 0, 0]);
+    expect(got!.timeBasis).toEqual(["et"]);
+    expect(got!.times[0][0]).toBeCloseTo(etFromJdTdb(2460800.5), 6);
+    expect(got!.labels).toEqual(["prop"]);
+  });
+
+  it("输入非法时返回 null（回退通用分支）", () => {
+    expect(propagationToCanvasData(null, null)).toBeNull();
+    expect(propagationToCanvasData([], [])).toBeNull();
+    expect(propagationToCanvasData([384400.0], [2460800.5])).toBeNull();
+  });
+});
+
+describe("timelineMode / timesForMode 两级时刻基准（ADR 0021 修订）", () => {
+  const etData = {
+    trajectories: [[[0, 0, 0]], [[1, 1, 1]]],
+    times: [[100, 200], [0, 1]],
+    timeBasis: ["et", "relative"] as TimeBasis[],
+  };
+
+  it("任一 et 产物在屏 → 全局 et 模式", () => {
+    expect(timelineMode(etData)).toBe("et");
+  });
+
+  it("全部无 et 但有相对时刻 → 相对模式", () => {
+    expect(timelineMode({ trajectories: [[], []], times: [[], [0, 1]], timeBasis: ["none", "relative"] })).toBe("relative");
+  });
+
+  it("全部无时刻 → null（时间轴禁用）", () => {
+    expect(timelineMode({ trajectories: [[], []], times: [[], []], timeBasis: ["none", "none"] })).toBeNull();
+  });
+
+  it("et 模式下相对轨迹时刻置空（marker 隐藏），et 轨迹保留", () => {
+    expect(timesForMode(etData, "et")).toEqual([[100, 200], []]);
+  });
+
+  it("相对模式保留全部时刻（旧行为）", () => {
+    expect(timesForMode(etData, "relative")).toEqual(etData.times);
+  });
+
+  it("timeBasis 缺省按 relative 解释（兼容旧数据；et 模式下置空）", () => {
+    const legacy = { trajectories: [[[0, 0, 0]]], times: [[0, 1]] };
+    expect(timelineMode(legacy)).toBe("relative");
+    expect(timesForMode(legacy, "relative")).toEqual([[0, 1]]);
+    expect(timesForMode(legacy, "et")).toEqual([[]]);
   });
 });

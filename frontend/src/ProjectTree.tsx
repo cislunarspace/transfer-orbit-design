@@ -13,6 +13,8 @@ import {
   EditOutlined,
   StarFilled,
   StarOutlined,
+  PushpinFilled,
+  PushpinOutlined,
 } from "@ant-design/icons";
 import type { ArtifactSummary } from "./projectApi";
 import { catalogDelete, catalogTag, catalogQuery, computeStability, STAR_TAG } from "./catalogApi";
@@ -44,6 +46,12 @@ export interface ProjectTreeProps {
   /** 星标/备注保存成功后回传，供调用方同步树行数据 */
   /** Called back after a successful star/note save so the caller can sync the tree row. */
   onMetaChange?: (recordId: string, tags: string[], note?: string) => void;
+  /** 已钉住（固定层）记录的 recordId 集合，行内图钉高亮 */
+  /** recordIds currently pinned to the canvas's pinned layer; highlights the row pushpin. */
+  pinnedRecordIds?: string[];
+  /** 图钉切换：钉住 = 固定层持续显示；取消 = 移出固定层 */
+  /** Pushpin toggle: pinning keeps the record on the pinned layer; unpinning removes it. */
+  onTogglePin?: (a: ArtifactSummary) => void;
 }
 
 export function ProjectTree({
@@ -55,6 +63,8 @@ export function ProjectTree({
   onRefresh,
   onPlotSelected,
   onMetaChange,
+  pinnedRecordIds,
+  onTogglePin,
 }: ProjectTreeProps) {
   const { t } = useTranslation();
   const [stabilityResult, setStabilityResult] = useState<Record<string, unknown> | null>(null);
@@ -241,10 +251,30 @@ export function ProjectTree({
           }
           const item = node.data as ArtifactSummary;
           const starred = isStarred(item);
+          const pinned = !!item.recordId && (pinnedRecordIds ?? []).includes(item.recordId);
           const labelSpan = <span title={item.label}>{item.label}</span>;
           return (
             <Dropdown menu={{ items: handleRightClick(item) }} trigger={["contextMenu"]}>
               <div style={{ display: "inline-flex", alignItems: "center", width: "100%", gap: 2 }}>
+                {/* 图钉切换：钉住/取消固定层，点击不改选中，不冒泡触发树选中 */}
+                {/* Pushpin toggle: pin/unpin the fixed layer; clicking neither selects nor bubbles. */}
+                <span
+                  role="button"
+                  aria-label={t("tree.pin_toggle")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onTogglePin?.(item);
+                  }}
+                  style={{
+                    cursor: "pointer",
+                    color: pinned ? "#0958d9" : "#bfbfbf",
+                    fontSize: 11,
+                    lineHeight: 1,
+                    display: "inline-flex",
+                  }}
+                >
+                  {pinned ? <PushpinFilled /> : <PushpinOutlined />}
+                </span>
                 {/* 星标切换：点击不改选中，不冒泡触发树选中 */}
                 {/* Star toggle: clicking neither selects nor bubbles into a tree selection. */}
                 <span
