@@ -6,6 +6,7 @@ import {
   ENUM_OPTIONS,
   formatRangePrompt,
   getFieldApplicability,
+  TU_SECONDS,
 } from "./index";
 
 describe("参数覆写层 (paramOverlay)", () => {
@@ -34,6 +35,19 @@ describe("参数覆写层 (paramOverlay)", () => {
     expect(convertValue("duration", 1.0, "年", "月")).toBeCloseTo(12.0, 4);
     expect(convertValue("duration", 1.0, "月", "年")).toBeCloseTo(1 / 12, 6);
     expect(convertValue("duration", 365.25, "日", "年")).toBeCloseTo(1.0, 4);
+  });
+
+  it("TU 换算锚定 TU_SECONDS 常量（#438）：output_step 1 TU = TU_SECONDS 秒", () => {
+    // TU 秒值收敛为单一常量 TU_SECONDS（对齐 commons.units.TU_SECONDS）；
+    // output_step 标准单位为秒，1 TU 应换算为该常量秒数。
+    // The TU-in-seconds value lives in the single constant TU_SECONDS (aligned with
+    // commons.units.TU_SECONDS); output_step's standard unit is seconds, so 1 TU must
+    // convert to exactly that many seconds.
+    expect(convertValue("output_step", 1.0, "TU", "秒")).toBeCloseTo(TU_SECONDS, 6);
+    expect(convertValue("output_step", TU_SECONDS, "秒", "TU")).toBeCloseTo(1.0, 6);
+    // control_interval 标准单位为天，1 TU = TU_SECONDS / 86400 天
+    // control_interval's standard unit is days: 1 TU = TU_SECONDS / 86400 days.
+    expect(convertValue("control_interval", 1.0, "TU", "天")).toBeCloseTo(TU_SECONDS / 86400, 8);
   });
 
   it("相位单位换算正确：周期份额 <-> 度 <-> 弧度", () => {
