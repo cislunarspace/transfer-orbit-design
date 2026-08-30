@@ -18,6 +18,7 @@ const OMITTED_KEYS: &[&str] = &[
     "arrays",
     "position_km",
     "trajectory",
+    "trajectory_times",
     "trajectories",
     "members",
     "orbits",
@@ -140,5 +141,26 @@ mod tests {
         assert_eq!(s["status"], "ok");
         assert_eq!(s["recordId"], "r-9");
         assert!(s.get("data").is_none(), "卡片摘要不带大字段");
+    }
+
+    #[test]
+    fn transfer_contract_keeps_state_frame_but_omits_trajectory_arrays() {
+        // e2m2e 5.8.9+/5.9.0 转移契约（ADR 0040）：trajectory/trajectory_times
+        // 是大数组，省略；state_frame 是小标注，透传供模型解读数据系。
+        let envelope = json!({
+            "status": "ok",
+            "data": {
+                "record_id": "t-1",
+                "transfer_type": "hmn",
+                "state_frame": "synodic_barycentric_km",
+                "trajectory": vec![vec![1.0; 6]; 200],
+                "trajectory_times": vec![0.0f64; 200],
+            }
+        });
+        let p = project_for_llm(&envelope.to_string());
+        assert_eq!(p["data"]["trajectory"]["_omitted"], true);
+        assert_eq!(p["data"]["trajectory_times"]["_omitted"], true);
+        assert_eq!(p["data"]["state_frame"], "synodic_barycentric_km");
+        assert_eq!(p["data"]["transfer_type"], "hmn");
     }
 }

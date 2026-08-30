@@ -1,0 +1,23 @@
+{
+  "additionalProperties": false,
+  "description": "分区解析尺度计算输入（spatiography，ADR 0041）。",
+  "properties": {
+    "system": {
+      "const": "earth_moon",
+      "default": "earth_moon",
+      "description": "天体系统；当前仅支持地月（Primer §5 口径，Simon 1994 月根数）",
+      "title": "System",
+      "type": "string"
+    },
+    "elements": {
+      "description": "要计算的量（scales 键名）子集；空 = 全部。含 laplace_radius_geolunar、hill_radius_moon、soi_laplace_moon、battin_moon_earthward_km 等",
+      "items": {
+        "type": "string"
+      },
+      "title": "Elements",
+      "type": "array"
+    }
+  },
+  "title": "SpatiographyScalesRequest",
+  "type": "object"
+}
