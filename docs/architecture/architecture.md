@@ -35,7 +35,7 @@ React 前端（frontend/） ←Tauri IPC→ Rust 壳（src-tauri/）
 
 **关键机制**：
 
-- **schema 驱动表单**：工具入参 schema 构建期导出（`tools/export_tool_schemas.py` → `frontend/src/toolSchemas/`），参数面板自动生成；升级 e2m2e 后重跑导出。
+- **schema 驱动表单**：工具入参 schema 构建期导出（`tools/export_tool_schemas.py` → `frontend/src/toolSchemas/`），参数面板自动生成；升级 e2m2e 后重跑导出。`toolSchemas/*.json` 由上游导出管线生成，其中提及的 ADR 编号均指 **e2m2e 侧编号空间**，与本仓 `docs/adr/` 编号无关（不改导出产物，改了会被下次导出覆盖）。
 - **帧即渲染**：sidecar 二进制帧由 Rust 壳转成 JSON 数字数组过 IPC，前端重建为
   `Float32Array` 直进 Three.js `BufferAttribute`，无中间文件格式；族成员初态 +
   period 由前端 CR3BP 传播器重采样整条轨迹（方程对齐 e2m2e，有回归测试）。
