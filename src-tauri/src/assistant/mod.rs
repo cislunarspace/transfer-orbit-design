@@ -1,14 +1,23 @@
-//! AI 助手 agent loop：LLM 对话循环与工具调用编排（本仓 ADR 0022/0023）。
+//! AI 助手 agent loop：LLM 对话循环与工具调用编排（本仓 ADR 0022/0023，
+//! 多会话与思考等级 ADR 0025/0026）。
 //!
 //! 一轮发送的流程：
 //! 1. 组装三层系统提示（角色边界 / 工具使用规则 / 现取的轨道库摘要与当前
-//!    选择），连同持久化的会话历史一起发给 LLM（SSE 流式，增量推前端）；
+//!    选择），连同当前会话的历史一起发给 LLM（SSE 流式，增量推前端；
+//!    思考增量单列一种事件）；
 //! 2. LLM 提议工具调用时：只读工具（白名单 [`READ_ONLY_TOOLS`]）直接执行；
 //!    其余工具发出 `tool_proposed` 事件并挂起，等用户经
 //!    `assistant_confirm_tool` 确认/改参/拒绝（ADR 0022 决策 4）；
 //! 3. 工具结果经 [`summary`] 投影后进上下文（大轨迹数据不进，只带
 //!    record_id 与诊断摘要），错误原文回灌供模型自纠（决策 8）；
 //! 4. 最多 [`MAX_ROUNDS`] 轮后收尾（防失控循环）。
+//!
+//! 多会话（ADR 0025）：内存只保持当前会话的 history/pending，切换/新建/
+//! 删除当前会话受 [`AssistantState::busy`] 门禁——有进行中回复或未决确认
+//! 时拒绝（mcp-serve 不可取消，装死只会留假状态）。
+//!
+//! 思考块（ADR 0026）：SSE 思考增量实时推前端；段落结束时作为带 kind
+//! 标记的行落盘（展示层存全量），构造 API 请求时剥除（回放净化，决策 5）。
 //!
 //! 验证链挂点（ADR 0023 决策 4）：[`check_call`] / [`check_result`] 是
 //! 可插拔检查链的两个钩子，模式三场景层的物理可行性验证器将来挂在这里。
@@ -34,6 +43,12 @@ pub const ASSISTANT_EVENT: &str = "assistant-event";
 
 /// 一轮发送最多允许的 LLM 往返轮数（含工具自纠），防失控循环。
 const MAX_ROUNDS: usize = 10;
+
+/// 会话结构操作被门禁拦下时的提示（ADR 0025 决策 5）。
+const BUSY_MSG: &str = "有回复进行中或工具确认未决，请等待完成后再切换会话";
+
+/// 启动时无任何会话记录使用的缺省会话 id（ADR 0023 决策 7 的 v1 约定）。
+const DEFAULT_SESSION: &str = "default";
 
 /// 只读工具白名单（ADR 0022 决策 4）：免确认直接执行。
 /// 来源：e2m2e facade 工具清单（5.8.x）中不运行数值计算、不改变状态的
@@ -61,9 +76,11 @@ pub struct ConfirmDecision {
     pub arguments: Option<Value>,
 }
 
-/// 助手状态：会话历史（与持久化同源）、工具清单缓存、待确认调用、
-/// 单并发门禁。
+/// 助手状态：当前会话 id 与其历史（与持久化同源）、工具清单缓存、
+/// 待确认调用、单并发门禁。
 pub struct AssistantState {
+    /// 当前会话（None = 尚未解析，首次访问取最近活动的会话）。
+    session_id: std::sync::Mutex<Option<String>>,
     history: std::sync::Mutex<Vec<Value>>,
     tools_cache: std::sync::Mutex<Option<Vec<Value>>>,
     pending: Mutex<HashMap<String, tokio::sync::oneshot::Sender<ConfirmDecision>>>,
@@ -73,6 +90,7 @@ pub struct AssistantState {
 impl AssistantState {
     pub fn new() -> Self {
         Self {
+            session_id: Mutex::new(None),
             history: Mutex::new(Vec::new()),
             tools_cache: Mutex::new(None),
             pending: Mutex::new(HashMap::new()),
@@ -80,19 +98,116 @@ impl AssistantState {
         }
     }
 
-    /// 当前会话历史（assistant_get_state 的数据源；懒加载落盘文件）。
-    pub fn history(&self) -> Vec<Value> {
-        let mut guard = self.history.lock().expect("history lock");
-        if guard.is_empty() {
-            *guard = store::load_session();
+    /// 当前会话 id（懒解析：首次访问取最近活动的会话，无则 default——
+    /// 与旧单会话用户的 default.jsonl 迁移衔接）。
+    pub fn current_session(&self) -> String {
+        let mut slot = self.session_id.lock().expect("session lock");
+        if let Some(id) = slot.as_deref() {
+            return id.to_string();
         }
-        guard.clone()
+        let id = store::load_sessions()
+            .first()
+            .map(|m| m.id.clone())
+            .unwrap_or_else(|| DEFAULT_SESSION.to_string());
+        *slot = Some(id.clone());
+        id
     }
 
-    /// 清空会话（内存 + 落盘）。
+    /// 当前会话历史（assistant_get_state 的数据源；懒加载落盘文件，
+    /// 含消息行与思考行）。
+    pub fn history(&self) -> Vec<Value> {
+        self.ensure_history_loaded();
+        self.history.lock().expect("history lock").clone()
+    }
+
+    fn ensure_history_loaded(&self) {
+        let mut guard = self.history.lock().expect("history lock");
+        if guard.is_empty() {
+            let id = self.current_session();
+            *guard = store::load_session_rows(&id);
+        }
+    }
+
+    /// 门禁判定（ADR 0025 决策 5）：有进行中的回复轮次或未决确认时，
+    /// 禁止切换/新建/删除会话。
+    fn busy(&self) -> bool {
+        self.running.load(Ordering::SeqCst)
+            || !self.pending.lock().expect("pending lock").is_empty()
+    }
+
+    /// 切换会话：显式载入目标会话的落盘历史（回放净化的思考行随行载入，
+    /// 展示用；进 API 上下文前再剥除）。
+    pub fn switch_session(&self, session_id: &str) -> anyhow::Result<()> {
+        if self.busy() {
+            anyhow::bail!(BUSY_MSG);
+        }
+        if !store::load_sessions().iter().any(|m| m.id == session_id) {
+            anyhow::bail!("会话不存在：{session_id}");
+        }
+        *self.session_id.lock().expect("session lock") = Some(session_id.to_string());
+        *self.history.lock().expect("history lock") = store::load_session_rows(session_id);
+        Ok(())
+    }
+
+    /// 新建会话（思考等级继承全局默认，ADR 0026 决策 1）并切换过去。
+    pub fn new_session(&self) -> anyhow::Result<String> {
+        if self.busy() {
+            anyhow::bail!(BUSY_MSG);
+        }
+        let default_level =
+            llm::ThinkingLevel::parse(&store::load_model_config().thinking_level)
+                .as_str()
+                .to_string();
+        let meta = store::create_session_entry(&default_level)
+            .ok_or_else(|| anyhow::anyhow!("无用户配置目录，无法新建会话"))?;
+        *self.session_id.lock().expect("session lock") = Some(meta.id.clone());
+        self.history.lock().expect("history lock").clear();
+        Ok(meta.id)
+    }
+
+    /// 删除会话。删当前会话受门禁；删后回到"未选"态，下次访问懒解析为
+    /// 最近会话（无则 default）。
+    pub fn delete_session(&self, session_id: &str) -> anyhow::Result<()> {
+        let current = self.current_session();
+        if session_id == current && self.busy() {
+            anyhow::bail!(BUSY_MSG);
+        }
+        store::delete_session_entry(session_id);
+        if session_id == current {
+            *self.session_id.lock().expect("session lock") = None;
+            self.history.lock().expect("history lock").clear();
+        }
+        Ok(())
+    }
+
+    pub fn rename_session(&self, session_id: &str, title: &str) -> anyhow::Result<()> {
+        store::rename_session_entry(session_id, title)
+    }
+
+    /// 设当前会话的思考等级（严格校验，ADR 0026 决策 1：档位随会话记住）。
+    pub fn set_thinking_level(&self, level: &str) -> anyhow::Result<()> {
+        let parsed = llm::ThinkingLevel::try_parse(level)
+            .ok_or_else(|| anyhow::anyhow!("未知思考等级：{level}"))?;
+        store::set_session_thinking_level(&self.current_session(), parsed.as_str())
+    }
+
+    /// 当前会话生效的思考等级：会话自己的档位优先，空则继承全局默认。
+    fn effective_level(&self) -> llm::ThinkingLevel {
+        let id = self.current_session();
+        let raw = store::load_sessions()
+            .into_iter()
+            .find(|m| m.id == id)
+            .map(|m| m.thinking_level)
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| store::load_model_config().thinking_level);
+        llm::ThinkingLevel::parse(&raw)
+    }
+
+    /// 清空当前会话（"清空重开"按钮）：内存 + 落盘文件一起清，保留会话本身。
     pub fn clear(&self) {
         self.history.lock().expect("history lock").clear();
-        store::clear_session();
+        let id = self.current_session();
+        store::clear_session_rows(&id);
     }
 
     /// 是否已配置可用（设置面板与空态引导的判定）。
@@ -160,14 +275,27 @@ impl AssistantState {
         let system = prompt::system_prompt(lang, &catalog_summary, selection_text.as_deref(), &now_utc);
 
         let user_msg = json!({"role": "user", "content": message});
+        self.ensure_history_loaded();
         self.push_history(user_msg.clone());
         let mut messages = self.context_messages(system, user_msg);
+        let level = self.effective_level();
 
         for _round in 0..MAX_ROUNDS {
-            let reply = llm::chat_stream(&llm_cfg, &messages, &tools, |delta| {
-                emit(json!({"kind": "delta", "text": delta}));
+            // 思考增量：实时推前端；段落结束时由 sink 落盘（Drop 兜底：
+            // 流中途出错也不丢已收到的思考段）
+            let mut think = ThinkingSink { state: self, buf: String::new(), saw_content: false };
+            let reply = llm::chat_stream(&llm_cfg, &messages, &tools, level, |delta| match delta {
+                llm::StreamDelta::Content(t) => {
+                    think.saw_content = true;
+                    emit(json!({"kind": "delta", "text": t}));
+                }
+                llm::StreamDelta::Thinking(t) => {
+                    think.accept(t);
+                    emit(json!({"kind": "thinking", "text": t}));
+                }
             })
             .await?;
+            think.flush();
 
             // 助手消息入历史（OpenAI 形状：content + 可选 tool_calls）
             let mut assistant_msg = json!({"role": "assistant", "content": reply.text});
@@ -295,19 +423,68 @@ impl AssistantState {
 
     fn push_history(&self, msg: Value) {
         self.history.lock().expect("history lock").push(msg.clone());
-        store::append_session(&msg);
+        let id = self.current_session();
+        store::append_session_row(&id, &msg);
+    }
+
+    /// 思考段入历史与落盘（带 kind 标记的行，ADR 0025 决策 3 / 0026 决策 5）。
+    fn push_thinking(&self, text: &str) {
+        let row = json!({"kind": "thinking", "content": text});
+        self.history.lock().expect("history lock").push(row.clone());
+        let id = self.current_session();
+        store::append_session_row(&id, &row);
     }
 
     /// 组装本次请求的完整上下文：系统提示 + 截断后的历史（对齐到 user
     /// 边界，不拆散 assistant tool_calls 与其 tool 结果的配对）。
+    /// 回放净化（ADR 0025 决策 1 / 0026 决策 5）：思考行剥除——多数
+    /// provider 协议明确要求思考块不回放；tool 消息本身已是写时投影摘要，
+    /// 悬空 record_id 由此天然降级，不依赖 catalog 现状。
     fn context_messages(&self, system: String, user_msg: Value) -> Vec<Value> {
         let history = self.history();
         // user_msg 刚 push 进 history，末位即是；历史截断时保留它
         let keep_from = truncate_index(&history, 50);
         let mut messages = vec![json!({"role": "system", "content": system})];
-        messages.extend(history[keep_from..].iter().cloned());
+        messages.extend(history[keep_from..].iter().filter(|r| !is_thinking_row(r)).cloned());
         debug_assert_eq!(messages.last(), Some(&user_msg));
         messages
+    }
+}
+
+/// 思考行判定：会话文件里带 kind:"thinking" 标记的行（消息行无 kind）。
+fn is_thinking_row(row: &Value) -> bool {
+    row.get("kind").and_then(Value::as_str) == Some("thinking")
+}
+
+/// 思考增量汇聚器：正文出现后再来的思考增量开新块；块结束时整段作为
+/// 一行思考记录落盘（展示层存全量，回放由 context 过滤，ADR 0026 决策 3/5）。
+struct ThinkingSink<'a> {
+    state: &'a AssistantState,
+    buf: String,
+    saw_content: bool,
+}
+
+impl ThinkingSink<'_> {
+    fn accept(&mut self, t: &str) {
+        if self.saw_content {
+            self.flush(); // 正文之后再来的思考：结束上一段、开新块
+            self.saw_content = false;
+        }
+        self.buf.push_str(t);
+    }
+
+    fn flush(&mut self) {
+        if self.buf.is_empty() {
+            return;
+        }
+        let text = std::mem::take(&mut self.buf);
+        self.state.push_thinking(&text);
+    }
+}
+
+impl Drop for ThinkingSink<'_> {
+    fn drop(&mut self) {
+        self.flush();
     }
 }
 
@@ -394,5 +571,40 @@ mod tests {
     fn short_history_is_not_truncated() {
         let history = vec![json!({"role": "user", "content": "hi"})];
         assert_eq!(truncate_index(&history, 50), 0);
+    }
+
+    #[test]
+    fn replay_strips_thinking_rows_but_keeps_pairing() {
+        // 回放净化：思考行剥除；夹在 assistant(tool_calls) 与 tool 结果
+        // 之间的思考行不影响配对完整
+        let history = vec![
+            json!({"role": "user", "content": "q"}),
+            json!({"kind": "thinking", "content": "想一想"}),
+            json!({"role": "assistant", "content": "", "tool_calls": [{"id": "c1", "type": "function", "function": {"name": "t", "arguments": "{}"}}]}),
+            json!({"kind": "thinking", "content": "看结果"}),
+            json!({"role": "tool", "tool_call_id": "c1", "content": "{}"}),
+            json!({"role": "assistant", "content": "答"}),
+        ];
+        let stripped: Vec<Value> = history.iter().filter(|r| !is_thinking_row(r)).cloned().collect();
+        assert_eq!(stripped.len(), 4);
+        assert!(stripped.iter().all(|r| !is_thinking_row(r)));
+        // 配对完整：截断点从 stripped 上对齐 user 边界后，tool_calls 与 tool 仍在同窗
+        let idx = truncate_index(&stripped, 50);
+        assert_eq!(idx, 0);
+        let roles: Vec<&str> = stripped[idx..].iter().filter_map(|r| r.get("role").and_then(Value::as_str)).collect();
+        assert_eq!(roles, vec!["user", "assistant", "tool", "assistant"]);
+    }
+
+    #[test]
+    fn truncation_skips_thinking_rows_to_find_user_boundary() {
+        let mut history: Vec<Value> = vec![];
+        for i in 0..30 {
+            history.push(json!({"role": "user", "content": format!("m{i}")}));
+            history.push(json!({"kind": "thinking", "content": "t"}));
+            history.push(json!({"role": "assistant", "content": "a"}));
+        }
+        let idx = truncate_index(&history, 50);
+        assert_eq!(history[idx].get("role").and_then(Value::as_str), Some("user"), "截断点必须落在 user 消息上，思考行不能充当边界");
+        assert!(history.len() - idx <= 50);
     }
 }

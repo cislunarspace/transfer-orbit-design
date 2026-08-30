@@ -6,6 +6,8 @@
 import { useEffect, useState } from "react";
 import { Button, Modal, Typography, Input, Tag } from "antd";
 import {
+  CaretDownOutlined,
+  CaretRightOutlined,
   CheckOutlined,
   CloseOutlined,
   EditOutlined,
@@ -53,6 +55,12 @@ export function ToolCardView({
 
   const argsText = JSON.stringify(card.args, null, 2);
 
+  // 完成态折叠为单行摘要（工具名 + 状态 + record_id），点击展开参数与
+  // 结果摘要（ADR 0026 决策 4）；待确认/运行中保持全文展示供审阅。
+  const collapsible = card.status === "done" || card.status === "error" || card.status === "rejected";
+  const [expanded, setExpanded] = useState(false);
+  const showDetail = !collapsible || expanded;
+
   const statusTag = {
     proposed: <Tag color="gold">{t("assistant.card.proposed")}</Tag>,
     running: (
@@ -76,28 +84,42 @@ export function ToolCardView({
         background: "var(--tod-card-bg, rgba(128,128,128,0.06))",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <RocketOutlined />
+      <div
+        style={{ display: "flex", alignItems: "center", gap: 6, cursor: collapsible ? "pointer" : undefined }}
+        onClick={collapsible ? () => setExpanded((e) => !e) : undefined}
+      >
+        {collapsible ? (
+          expanded ? <CaretDownOutlined /> : <CaretRightOutlined />
+        ) : (
+          <RocketOutlined />
+        )}
         <Text code style={{ fontSize: 12 }}>{card.tool}</Text>
         {statusTag}
+        {!showDetail && card.summary?.recordId && (
+          <Text type="secondary" style={{ fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {card.summary.recordId}
+          </Text>
+        )}
       </div>
 
       {/* 参数摘要：确认前完整展示供审阅（ADR 0022 决策 4） */}
-      <pre
-        style={{
-          margin: "6px 0 0",
-          padding: 6,
-          fontSize: 11,
-          maxHeight: 160,
-          overflow: "auto",
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-all",
-          background: "var(--tod-code-bg, rgba(128,128,128,0.1))",
-          borderRadius: 4,
-        }}
-      >
-        {argsText}
-      </pre>
+      {showDetail && (
+        <pre
+          style={{
+            margin: "6px 0 0",
+            padding: 6,
+            fontSize: 11,
+            maxHeight: 160,
+            overflow: "auto",
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-all",
+            background: "var(--tod-code-bg, rgba(128,128,128,0.1))",
+            borderRadius: 4,
+          }}
+        >
+          {argsText}
+        </pre>
+      )}
 
       {card.status === "proposed" && (
         <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
@@ -141,7 +163,7 @@ export function ToolCardView({
           {t("assistant.card.view_artifact")}（{card.summary.recordId}）
         </Button>
       )}
-      {card.status === "error" && card.summary?.error?.message && (
+      {card.status === "error" && showDetail && card.summary?.error?.message && (
         <Text type="danger" style={{ fontSize: 11, display: "block", marginTop: 4 }}>
           {card.summary.error.message}
         </Text>

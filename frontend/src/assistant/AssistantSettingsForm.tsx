@@ -10,8 +10,13 @@
 // decision 6).
 
 import { useEffect, useState } from "react";
-import { Button, Form, Input, Select, Typography, message } from "antd";
-import { assistantGetState, assistantSetConfig, assistantTestConfig } from "./api";
+import { Button, Form, Input, Segmented, Select, Typography, message } from "antd";
+import {
+  assistantGetState,
+  assistantSetConfig,
+  assistantTestConfig,
+  type ThinkingLevel,
+} from "./api";
 import { useTranslation } from "../i18n";
 
 const { Text } = Typography;
@@ -34,6 +39,7 @@ export function AssistantSettingsForm() {
   const [model, setModel] = useState("");
   const [apiKey, setApiKey] = useState("");
   const [hasKey, setHasKey] = useState(false);
+  const [defaultLevel, setDefaultLevel] = useState<ThinkingLevel>("standard");
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
@@ -45,6 +51,7 @@ export function AssistantSettingsForm() {
         setBaseUrl(info.baseUrl);
         setModel(info.model);
         setHasKey(info.hasKey);
+        setDefaultLevel(info.defaultThinkingLevel);
       })
       .catch(() => {});
   }, []);
@@ -54,7 +61,7 @@ export function AssistantSettingsForm() {
     try {
       // 空 key = 保留已存 key（后端 assistant_set_config 的语义）
       // Empty key = keep the stored key (the semantics of backend assistant_set_config).
-      await assistantSetConfig(baseUrl.trim(), model.trim(), apiKey.trim() || undefined);
+      await assistantSetConfig(baseUrl.trim(), model.trim(), apiKey.trim() || undefined, defaultLevel);
       setHasKey(hasKey || !!apiKey.trim());
       setApiKey("");
       message.success(t("assistant.settings.saved"));
@@ -119,6 +126,18 @@ export function AssistantSettingsForm() {
         <Text type="secondary" style={{ fontSize: 11 }}>
           {t("assistant.settings.key_hint")}
         </Text>
+      </Form.Item>
+      <Form.Item label={t("assistant.settings.thinking_default")}>
+        <Segmented
+          size="small"
+          value={defaultLevel}
+          onChange={(v) => setDefaultLevel(v as ThinkingLevel)}
+          options={[
+            { label: t("assistant.level.off"), value: "off" },
+            { label: t("assistant.level.standard"), value: "standard" },
+            { label: t("assistant.level.deep"), value: "deep" },
+          ]}
+        />
       </Form.Item>
       <div style={{ display: "flex", gap: 8 }}>
         <Button size="small" type="primary" loading={saving} onClick={save}>

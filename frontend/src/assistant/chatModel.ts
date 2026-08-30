@@ -10,6 +10,7 @@ import type { ToolCardData } from "./ToolCardView";
 export type ChatItem =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string }
+  | { kind: "thinking"; text: string }
   | { kind: "error"; text: string }
   | { kind: "tool"; card: ToolCardData };
 
@@ -28,13 +29,20 @@ function parseArgs(raw: string): unknown {
   }
 }
 
-/** 重启恢复：持久化历史 → 气泡与工具卡片序列。 */
-/** Restore after restart: persisted history → sequence of bubbles and tool cards. */
+/** 重启恢复：持久化历史 → 气泡、思考块与工具卡片序列。 */
+/** Restore after restart: persisted history → sequence of bubbles, thinking blocks and tool cards. */
 export function restoreItems(history: RawMessage[]): ChatItem[] {
   const items: ChatItem[] = [];
   const cardByCallId = new Map<string, ToolCardData>();
 
   for (const msg of history) {
+    // 思考行（ADR 0025 决策 3 存储混入）：按原位重建思考块（默认折叠由视图层管）
+    if ("kind" in msg) {
+      if (msg.kind === "thinking") {
+        items.push({ kind: "thinking", text: msg.content ?? "" });
+      }
+      continue;
+    }
     if (msg.role === "user") {
       items.push({ kind: "user", text: msg.content ?? "" });
     } else if (msg.role === "assistant") {
@@ -111,6 +119,18 @@ export function foldEvent(items: ChatItem[], ev: AssistantEventPayload): ChatIte
         next[next.length - 1] = { kind: "assistant", text: last.text + ev.text };
       } else {
         next.push({ kind: "assistant", text: ev.text });
+      }
+      return next;
+    }
+    case "thinking": {
+      // 思考增量归并进末尾思考块；前面有正文/工具事件时开新块
+      // （后端按段落切分，这里只做同块归并，ADR 0026 决策 3/4）
+      const next = items.slice();
+      const last = next[next.length - 1];
+      if (last && last.kind === "thinking") {
+        next[next.length - 1] = { kind: "thinking", text: last.text + ev.text };
+      } else {
+        next.push({ kind: "thinking", text: ev.text });
       }
       return next;
     }

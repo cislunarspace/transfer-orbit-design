@@ -18,6 +18,20 @@ describe("restoreItems", () => {
     ]);
   });
 
+  it("restores thinking rows in place as thinking blocks", () => {
+    const history: RawMessage[] = [
+      { role: "user", content: "设计一条转移轨道" },
+      { kind: "thinking", content: "先分析转移类型" },
+      { role: "assistant", content: "好的" },
+    ];
+    const items = restoreItems(history);
+    expect(items).toEqual([
+      { kind: "user", text: "设计一条转移轨道" },
+      { kind: "thinking", text: "先分析转移类型" },
+      { kind: "assistant", text: "好的" },
+    ]);
+  });
+
   it("pairs tool_calls with tool messages into a done card with recordId", () => {
     const history: RawMessage[] = [
       { role: "user", content: "生成一个 halo 轨道" },
@@ -78,6 +92,23 @@ describe("foldEvent", () => {
       { kind: "user", text: "q" },
       { kind: "assistant", text: "你好" },
     ]);
+  });
+
+  it("merges thinking deltas into one block, split by content and tool events", () => {
+    let items: ChatItem[] = [];
+    items = foldEvent(items, { kind: "thinking", text: "先想" });
+    items = foldEvent(items, { kind: "thinking", text: "一步" });
+    expect(items).toEqual([{ kind: "thinking", text: "先想一步" }]);
+    // 正文开新气泡
+    items = foldEvent(items, { kind: "delta", text: "结论" });
+    expect(items[1]).toEqual({ kind: "assistant", text: "结论" });
+    // 正文之后的思考开新块（第二轮）
+    items = foldEvent(items, { kind: "thinking", text: "第二轮" });
+    expect(items[2]).toEqual({ kind: "thinking", text: "第二轮" });
+    // 工具事件后的思考同样开新块
+    items = foldEvent(items, { kind: "tool_proposed", callId: "c", tool: "t", arguments: {} });
+    items = foldEvent(items, { kind: "thinking", text: "第三轮" });
+    expect(items[4]).toEqual({ kind: "thinking", text: "第三轮" });
   });
 
   it("runs a tool card through proposed → running → done", () => {

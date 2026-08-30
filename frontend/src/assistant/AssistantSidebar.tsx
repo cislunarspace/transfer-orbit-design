@@ -9,7 +9,7 @@
 // decision 1); this only renders and forwards interaction.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Input, Spin, Tooltip, Typography, message } from "antd";
+import { Button, Input, Segmented, Spin, Tooltip, Typography, message } from "antd";
 import {
   ClearOutlined,
   DoubleRightOutlined,
@@ -19,13 +19,21 @@ import {
 } from "@ant-design/icons";
 import {
   assistantClearHistory,
+  assistantDeleteSession,
   assistantGetState,
+  assistantNewSession,
+  assistantRenameSession,
   assistantSend,
+  assistantSetThinkingLevel,
+  assistantSwitchSession,
   onAssistantEvent,
   type SelectionContext,
+  type SessionMeta,
+  type ThinkingLevel,
 } from "./api";
 import { foldEvent, restoreItems, type ChatItem } from "./chatModel";
 import { ChatView } from "./ChatView";
+import { SessionSwitcher } from "./SessionSwitcher";
 import { useTranslation } from "../i18n";
 
 const { Text } = Typography;
@@ -64,6 +72,9 @@ export function AssistantSidebar({
   const [items, setItems] = useState<ChatItem[]>([]);
   const [draft, setDraft] = useState("");
   const [running, setRunning] = useState(false);
+  const [sessions, setSessions] = useState<SessionMeta[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState("default");
+  const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>("standard");
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
   // 最新回调经 ref 持有：事件订阅只建一次，回调随渲染更新
   // Latest callback held via a ref: the event subscription is created once while
@@ -71,13 +82,16 @@ export function AssistantSidebar({
   const producedRef = useRef(onArtifactProduced);
   producedRef.current = onArtifactProduced;
 
-  // 初始载入：配置状态 + 持久化会话恢复
-  // Initial load: config state plus restore of the persisted session.
+  // 初始载入：配置状态 + 当前会话历史 + 会话列表
+  // Initial load: config state, current session restore, and the session list.
   const loadState = useCallback(async () => {
     try {
       const info = await assistantGetState();
       setConfigured(info.configured);
       setItems(restoreItems(info.history));
+      setSessions(info.sessions);
+      setCurrentSessionId(info.currentSessionId);
+      setThinkingLevel(info.thinkingLevel);
     } catch {
       setConfigured(false);
     }
@@ -180,7 +194,35 @@ export function AssistantSidebar({
     try {
       await assistantClearHistory();
       setItems([]);
+      loadState(); // 刷新会话元数据（消息数清零）
     } catch (e) {
+      message.error(String(e));
+    }
+  };
+
+  // 会话结构操作统一走「操作 → 重载状态」：后端是唯一事实源，
+  // 列表/当前 id/历史一并刷新。操作失败（门禁拦截等）提示等待。
+  const withReload = async (action: () => Promise<unknown>) => {
+    try {
+      await action();
+      await loadState();
+    } catch (e) {
+      message.error(String(e));
+    }
+  };
+
+  // 切换门禁的前端对应（ADR 0025 决策 5）：有进行中回复或未决确认卡片时
+  // 禁用切换器；后端 busy 门禁是兑底。
+  const switchBusy =
+    running || items.some((i) => i.kind === "tool" && i.card.status === "proposed");
+
+  const handleLevel = async (level: ThinkingLevel) => {
+    const prev = thinkingLevel;
+    setThinkingLevel(level); // 乐观更新，失败回滚
+    try {
+      await assistantSetThinkingLevel(level);
+    } catch (e) {
+      setThinkingLevel(prev);
       message.error(String(e));
     }
   };
@@ -253,7 +295,7 @@ export function AssistantSidebar({
         }}
       />
 
-      {/* 头部：标题 + 清空 + 折叠 */}
+      {/* 头部：标题 + 会话切换器 + 清空 + 折叠 */}
       <div
         style={{
           display: "flex",
@@ -264,9 +306,20 @@ export function AssistantSidebar({
         }}
       >
         <RobotOutlined />
-        <Text strong style={{ fontSize: 13, flex: 1 }}>
+        <Text strong style={{ fontSize: 13, flexShrink: 0 }}>
           {t("assistant.title")}
         </Text>
+        {configured && (
+          <SessionSwitcher
+            sessions={sessions}
+            currentId={currentSessionId}
+            disabled={switchBusy}
+            onSwitch={(id) => withReload(() => assistantSwitchSession(id))}
+            onNew={() => withReload(() => assistantNewSession())}
+            onRename={(id, title) => withReload(() => assistantRenameSession(id, title))}
+            onDelete={(id) => withReload(() => assistantDeleteSession(id))}
+          />
+        )}
         <Tooltip title={t("assistant.clear")}>
           <Button type="text" size="small" icon={<ClearOutlined />} onClick={handleClear} />
         </Tooltip>
@@ -313,35 +366,49 @@ export function AssistantSidebar({
       ) : (
         <>
           <ChatView items={items} running={running} onOpenRecord={onOpenRecord} />
-          {/* 输入区：运行中禁用（后端单并发门禁的对应 UI） */}
+          {/* 输入区：思考等级三档单选（随会话记住，ADR 0026 决策 1）+
+              运行中禁用输入（后端单并发门禁的对应 UI） */}
           <div
             style={{
-              display: "flex",
-              gap: 6,
               padding: 8,
               borderTop: "1px solid var(--tod-border, #e8e8e8)",
             }}
           >
-            <Input.TextArea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder={t("assistant.input_placeholder")}
-              autoSize={{ minRows: 1, maxRows: 5 }}
-              disabled={running}
-              onPressEnter={(e) => {
-                if (!e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-            />
-            <Button
-              type="primary"
-              icon={<SendOutlined />}
-              loading={running}
-              onClick={handleSend}
-              disabled={!draft.trim()}
-            />
+            <Tooltip title={t("assistant.level.label")}>
+              <Segmented
+                size="small"
+                value={thinkingLevel}
+                disabled={running}
+                onChange={(v) => handleLevel(v as ThinkingLevel)}
+                options={[
+                  { label: t("assistant.level.off"), value: "off" },
+                  { label: t("assistant.level.standard"), value: "standard" },
+                  { label: t("assistant.level.deep"), value: "deep" },
+                ]}
+              />
+            </Tooltip>
+            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+              <Input.TextArea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder={t("assistant.input_placeholder")}
+                autoSize={{ minRows: 1, maxRows: 5 }}
+                disabled={running}
+                onPressEnter={(e) => {
+                  if (!e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+              />
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                loading={running}
+                onClick={handleSend}
+                disabled={!draft.trim()}
+              />
+            </div>
           </div>
         </>
       )}

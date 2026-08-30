@@ -4,14 +4,52 @@
 // bubbles render markdown), tool cards inserted in place, with auto-scroll
 // following the latest message.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Typography } from "antd";
+import { Button, Typography } from "antd";
+import { BulbOutlined } from "@ant-design/icons";
 import type { ChatItem } from "./chatModel";
 import { ToolCardView } from "./ToolCardView";
+import { useTranslation } from "../i18n";
 
 const { Text } = Typography;
+
+/// 思考块（CONTEXT.md 术语）：流式接收、默认折叠，点击展开全文
+/// （ADR 0026 决策 4：与工具卡片同一条时间线，不分设侧面板）。
+function ThinkingBlock({ text }: { text: string }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ margin: "4px 0", maxWidth: "92%" }}>
+      <Button
+        type="text"
+        size="small"
+        icon={<BulbOutlined />}
+        onClick={() => setOpen((o) => !o)}
+        style={{ padding: "0 4px", fontSize: 12, color: "var(--tod-text-secondary, #8c8c8c)" }}
+      >
+        {t("assistant.thinking.title")}
+      </Button>
+      {open && (
+        <div
+          style={{
+            margin: "2px 0 4px 6px",
+            padding: "2px 0 2px 8px",
+            borderLeft: "2px solid rgba(128,128,128,0.35)",
+            color: "var(--tod-text-secondary, #8c8c8c)",
+            fontSize: 12,
+            lineHeight: 1.55,
+            whiteSpace: "pre-wrap",
+            wordBreak: "break-word",
+          }}
+        >
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // 本仓无全局样式表（全内联 + antd），markdown 元素经 components 映射内联样式。
 // remark-gfm 启用 GFM 扩展（表格/删除线/任务列表）——助手输出的参数对比表
@@ -157,6 +195,9 @@ export function ChatView({
               </div>
             </div>
           );
+        }
+        if (item.kind === "thinking") {
+          return <ThinkingBlock key={idx} text={item.text} />;
         }
         if (item.kind === "error") {
           return (
