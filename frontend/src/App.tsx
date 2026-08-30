@@ -57,6 +57,7 @@ import {
   propagationToCanvasData,
   type TrajectoryData,
   type TimeBasis,
+  type DataFrameTag,
 } from "./trajectoryParsing";
 import type { TimelineEvent } from "./TimelineBar";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
@@ -267,6 +268,7 @@ export default function App() {
       trajectories: layers.flatMap((l) => l.trajectories),
       times: layers.flatMap((l) => l.times),
       timeBasis: layers.flatMap((l) => l.timeBasis ?? l.trajectories.map(() => "relative" as const)),
+      frames: layers.flatMap((l) => l.frames ?? l.trajectories.map(() => "synodic_nd" as const)),
       labels: layers.flatMap((l) => l.labels ?? l.trajectories.map(() => "")),
     };
     const mode = timelineMode(combined);
@@ -317,6 +319,7 @@ export default function App() {
         trajectories: pts,
         times: pts.map(() => []),
         timeBasis: pts.map(() => "none" as const),
+        frames: pts.map(() => "synodic_nd" as const),
       };
     }
     const ephTd = data.ephemeris
@@ -333,6 +336,10 @@ export default function App() {
       timeBasis: [
         ...(base.timeBasis ?? base.trajectories.map(() => "relative" as const)),
         ...(ephTd.timeBasis ?? ephTd.trajectories.map(() => "none" as const)),
+      ],
+      frames: [
+        ...(base.frames ?? base.trajectories.map(() => "synodic_nd" as const)),
+        ...(ephTd.frames ?? ephTd.trajectories.map(() => "synodic_nd" as const)),
       ],
       labels: [
         ...base.trajectories.map(() => t("canvas.cr3bp_reference")),
@@ -466,6 +473,7 @@ export default function App() {
     const trajParts: number[][][] = [];
     const timeParts: number[][] = [];
     const basisParts: TimeBasis[] = [];
+    const frameParts: DataFrameTag[] = [];
     const labelParts: string[] = [];
     for (const item of items) {
       if (!item.recordId) continue;
@@ -476,6 +484,7 @@ export default function App() {
           trajParts.push(...td.trajectories);
           timeParts.push(...td.times);
           basisParts.push(...(td.timeBasis ?? td.trajectories.map(() => "relative" as const)));
+          frameParts.push(...(td.frames ?? td.trajectories.map(() => "synodic_nd" as const)));
           labelParts.push(
             ...(td.labels && td.labels.length === td.trajectories.length
               ? td.labels.map((l) => `${item.label}·${l}`)
@@ -491,6 +500,7 @@ export default function App() {
         trajectories: trajParts,
         times: timeParts,
         timeBasis: basisParts,
+        frames: frameParts,
         labels: labelParts,
       });
     }
@@ -680,6 +690,10 @@ export default function App() {
                 timeBasis: [
                   ...(cr3bpPts ? [(relTimes ? "relative" : "none") as TimeBasis] : []),
                   ...(ephTd?.timeBasis ?? []),
+                ],
+                frames: [
+                  ...(cr3bpPts ? ["synodic_nd" as DataFrameTag] : []),
+                  ...(ephTd?.frames ?? []),
                 ],
                 labels: [
                   ...(cr3bpPts ? [t("canvas.cr3bp_reference")] : []),
@@ -944,6 +958,7 @@ export default function App() {
               times={canvasData.displayTimes}
               currentEt={currentEt}
               labels={canvasData.labels}
+              frameLabels={canvasData.frames?.map((f) => t(`canvas.frame.${f}`))}
               regions={regionData}
               mu={EARTH_MOON_MU}
               libration={libration}

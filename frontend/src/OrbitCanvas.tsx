@@ -33,6 +33,13 @@ export interface OrbitCanvasProps {
   /** 与 trajectories 逐条对齐的图例标签；缺省项不进图例 */
   /** Legend label per trajectory (row-aligned); omitted entries stay out of the legend. */
   labels?: string[];
+  /** 与 trajectories 逐条对齐的数据系标注（已本地化，CONTEXT.md「数据系」
+   *  措辞）；缺省项不显示标注。数据系随数据走，与视图系（用户显示选择）
+   *  无关（#431） */
+  /** Data-frame annotation per trajectory (pre-localized, CONTEXT.md 数据系
+   *  terms; row-aligned); omitted entries show none. The data frame rides the
+   *  data and is independent of the view frame (user's display choice) (#431). */
+  frameLabels?: (string | undefined)[];
   /** 地月空间分区图层（regionLayer 解析产物；不参与视图适配） */
   /** Cislunar partition region layer (parsed by regionLayer; excluded from view fitting). */
   regions?: RegionElement[];
@@ -56,6 +63,7 @@ export function OrbitCanvas({
   settings,
   background,
   labels,
+  frameLabels,
   regions,
   onReady,
 }: OrbitCanvasProps) {
@@ -531,11 +539,17 @@ export function OrbitCanvas({
     });
   }, [currentEt, trajectories, times, center, settings]);
 
-  // 图例：带标签的轨迹按渲染同款色循环显示（固定层记录与结果层命名轨迹）
+  // 图例：带标签的轨迹按渲染同款色循环显示（固定层记录与结果层命名轨迹），
+  // 各轨迹附数据系标注（#431：数据系 vs 视图系措辞沿 CONTEXT.md）
   // Legend: labeled trajectories rendered with the same color cycle as the lines
-  // (pinned-layer records and named result-layer trajectories).
+  // (pinned-layer records and named result-layer trajectories), each carrying a
+  // data-frame annotation (#431; 数据系 vs 视图系 per CONTEXT.md).
   const legendItems = (labels ?? [])
-    .map((label, i) => ({ label, color: (settings?.colorCycle ?? DEFAULT_COLOR_CYCLE)[i % (settings?.colorCycle ?? DEFAULT_COLOR_CYCLE).length] }))
+    .map((label, i) => ({
+      label,
+      frame: frameLabels?.[i],
+      color: (settings?.colorCycle ?? DEFAULT_COLOR_CYCLE)[i % (settings?.colorCycle ?? DEFAULT_COLOR_CYCLE).length],
+    }))
     .filter((item) => !!item.label);
 
   return (
@@ -566,6 +580,19 @@ export function OrbitCanvas({
             >
               <span style={{ width: 14, height: 2, background: item.color, display: "inline-block" }} />
               {item.label}
+              {item.frame && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    opacity: 0.75,
+                    border: "1px solid rgba(201,211,221,0.35)",
+                    borderRadius: 3,
+                    padding: "0 3px",
+                  }}
+                >
+                  {item.frame}
+                </span>
+              )}
             </div>
           ))}
         </div>
