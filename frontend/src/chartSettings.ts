@@ -21,6 +21,9 @@ export interface ChartSettings {
   /** 坐标轴与网格图层（matplotlib 式参照系） */
   /** Axes and grid layer (a matplotlib-style reference frame). */
   axesVisible: boolean;
+  /** 地月空间分区图层（Primer 分区边界：Hill/SOI/Battin/r_L 圆族与平动点） */
+  /** Cislunar partition region layer (Primer boundaries: Hill/SOI/Battin/r_L circles and libration points). */
+  regionsVisible: boolean;
   /** 画布背景色；null = 跟随应用主题（浅色白底、夜间深灰） */
   /** Canvas background; null = follow the app theme (white in light mode, dark gray at night). */
   bgColor: string | null;
@@ -46,6 +49,7 @@ export const DEFAULT_CHART_SETTINGS: ChartSettings = {
   labelFontsize: 12,
   zRatio: 0.5,
   axesVisible: true,
+  regionsVisible: true,
   bgColor: null,
   gridRange: 1.3,
 };

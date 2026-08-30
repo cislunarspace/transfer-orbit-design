@@ -1,0 +1,42 @@
+{
+  "additionalProperties": false,
+  "description": "分区边界几何输入（可视化数据层）。",
+  "properties": {
+    "kind": {
+      "default": "synodic_planar",
+      "description": "synodic_planar = 地月会合旋转系（质心原点、z=0 平面）边界圆族与 Battin 非对称曲线、L1–L5；ae_curves = 地心 osculating (a,e) 根数平面走廊曲线族（掠地线/Hill 远点线/月 Hill 相遇走廊/GEO 穿越线/共振竖线/Tisserand 等值线；crossing diagnostics 而非物理面）",
+      "enum": [
+        "synodic_planar",
+        "ae_curves"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "boundary_set": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "元素/曲线族名子集；空 = 全部（名称见 kind 对应支持清单）",
+      "title": "Boundary Set"
+    },
+    "resolution": {
+      "default": 720,
+      "description": "曲线离散点数（synodic_planar 为闭合曲线点数；ae_curves 为每条曲线采样点数）",
+      "maximum": 4096,
+      "minimum": 8,
+      "title": "Resolution",
+      "type": "integer"
+    }
+  },
+  "title": "SpatiographyBoundariesRequest",
+  "type": "object"
+}

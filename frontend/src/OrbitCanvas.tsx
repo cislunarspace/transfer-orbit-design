@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ChartSettings } from "./chartSettings";
 import { EARTH_RADIUS_DU, MOON_RADIUS_DU } from "./chartSettings";
+import type { RegionElement } from "./regionLayer";
 import earthTextureUrl from "./assets/earth_2048.jpg";
 import moonTextureUrl from "./assets/moon_1024.jpg";
 
@@ -32,6 +33,9 @@ export interface OrbitCanvasProps {
   /** 与 trajectories 逐条对齐的图例标签；缺省项不进图例 */
   /** Legend label per trajectory (row-aligned); omitted entries stay out of the legend. */
   labels?: string[];
+  /** 地月空间分区图层（regionLayer 解析产物；不参与视图适配） */
+  /** Cislunar partition region layer (parsed by regionLayer; excluded from view fitting). */
+  regions?: RegionElement[];
   onReady?: (api: CanvasApi) => void;
 }
 
@@ -52,11 +56,13 @@ export function OrbitCanvas({
   settings,
   background,
   labels,
+  regions,
   onReady,
 }: OrbitCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<THREE.Group | null>(null);
   const annotationsRef = useRef<THREE.Group | null>(null);
+  const regionsRef = useRef<THREE.Group | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
@@ -114,6 +120,13 @@ export function OrbitCanvas({
     annotations.name = "annotations";
     annotationsRef.current = annotations;
     scene.add(annotations);
+
+    // 分区组（地月空间分区边界）：与 annotations 同偏移、同样不参与视图适配
+    // Region group (cislunar partition boundaries): same offset as annotations, also excluded from view fitting.
+    const regionsGroup = new THREE.Group();
+    regionsGroup.name = "regions";
+    regionsRef.current = regionsGroup;
+    scene.add(regionsGroup);
 
     const resize = () => {
       if (!mount) return;
@@ -218,17 +231,22 @@ export function OrbitCanvas({
   useEffect(() => {
     const content = contentRef.current;
     const annotations = annotationsRef.current;
-    if (!content || !annotations) return;
+    const regionsGroup = regionsRef.current;
+    if (!content || !annotations || !regionsGroup) return;
     while (content.children.length) {
       content.remove(content.children[0]);
     }
     while (annotations.children.length) {
       annotations.remove(annotations.children[0]);
     }
+    while (regionsGroup.children.length) {
+      regionsGroup.remove(regionsGroup.children[0]);
+    }
 
     const [ox, oy, oz] = getCenterOffset();
     content.position.set(ox, oy, oz);
     annotations.position.set(ox, oy, oz);
+    regionsGroup.position.set(ox, oy, oz);
 
     const lpColorNum = parseInt((settings?.lpColor ?? "#d4b106").slice(1), 16);
     const colors = (settings?.colorCycle ?? DEFAULT_COLOR_CYCLE).map((c) =>
@@ -382,7 +400,58 @@ export function OrbitCanvas({
       }
       annotations.add(axes);
     }
-  }, [trajectories, mu, libration, center, settings, background]);
+
+    // 地月空间分区图层（Primer 分区边界：圆族 / Battin 非对称曲线 / 平动点）：
+    // 与 content 同偏移、不参与视图适配（数据已由 regionLayer 归一到 DU，
+    // z=0 平面），随 settings.regionsVisible 开关；配色按中心天体——地心系
+    // 蓝、月心系琥珀、点标记沿用平动点金。
+    // Region layer (Primer partition boundaries: circles / Battin asymmetric curve / libration
+    // points): same offset as content, excluded from view fitting (data is DU-normalized by
+    // regionLayer, z=0 plane); toggled by settings.regionsVisible. Colors by central body —
+    // Earth-centered blue, Moon-centered amber, point markers reuse the libration gold.
+    if ((settings?.regionsVisible ?? true) && regions && regions.length > 0) {
+      const regionColor = (el: RegionElement): number => {
+        const hex =
+          el.kind === "point"
+            ? (settings?.lpColor ?? "#d4b106")
+            : el.centerDU[0] > 0.5
+              ? "#e8a24c"
+              : "#4c9be8";
+        return parseInt(hex.slice(1), 16);
+      };
+      regions.forEach((el) => {
+        const color = regionColor(el);
+        if (el.kind === "point") {
+          const marker = new THREE.Mesh(
+            new THREE.SphereGeometry(s?.lpSize ?? 0.003, 16, 16),
+            new THREE.MeshBasicMaterial({ color })
+          );
+          marker.name = "region-marker";
+          marker.position.set(el.centerDU[0], el.centerDU[1], el.centerDU[2]);
+          regionsGroup.add(marker);
+          const sprite = makeLabelSprite(el.label);
+          sprite.position.set(el.centerDU[0] + 0.02, el.centerDU[1], el.centerDU[2]);
+          regionsGroup.add(sprite);
+          return;
+        }
+        if (!el.pointsDU || el.pointsDU.length < 2) return;
+        const positions = new Float32Array(el.pointsDU.length * 3);
+        el.pointsDU.forEach((p, j) => {
+          positions[j * 3] = p[0];
+          positions[j * 3 + 1] = p[1];
+          positions[j * 3 + 2] = p[2];
+        });
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        regionsGroup.add(
+          new THREE.Line(
+            geom,
+            new THREE.LineBasicMaterial({ color, linewidth: settings?.orbitLinewidth ?? 1.0 })
+          )
+        );
+      });
+    }
+  }, [trajectories, mu, libration, center, settings, background, regions]);
 
   // 每条轨迹一个时刻标记：随轨迹数组同步创建/清理（挂 scene 根，不参与视图适配）
   // One time marker per trajectory: created/cleaned in sync with the trajectory array
