@@ -1,5 +1,7 @@
 # ADR-0005: 脚本注册前后端合并
 
+> **历史参考**：本篇记录旧 GUI（`tod/gui/`）时代的决策，已被 [ADR-0007](0007-big-bang-gui-replacement.md)（大爆炸替换）与 [ADR-0014](0014-migrate-ui-to-tauri.md)（UI 迁移到 Tauri）取代，仅作历史参考，不再指导现行实现。
+
 ## 状态
 
 已接受

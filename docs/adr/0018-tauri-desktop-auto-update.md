@@ -4,6 +4,10 @@
 **日期**：2026-08-24
 **关联**：ADR 0014（UI 迁移到 Tauri）、ADR 0017（Linux 打包）
 
+> **现状（2026-08-30）**：macOS 自动更新未落地。`.github/workflows/release.yml`
+> 仅产出 windows / linux 清单（`latest.json` 只含 `windows-x86_64` 与
+> `linux-x86_64`），无 macOS 构建 job。macOS 端更新能力待补。
+
 为桌面端（Windows / Linux / macOS）提供无缝、可信且安全的版本更新能力。我们决定采用 `@tauri-apps/plugin-updater` 官方更新插件，基于 GitHub Releases 托管安装包与更新清单（`latest.json`），并在 CI/CD 发布工作流中生成 Ed25519 签名与清单。
 
 ## Considered Options
