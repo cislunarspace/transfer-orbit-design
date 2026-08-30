@@ -23,6 +23,9 @@ tokio = { version = "1", features = ["macros", "sync", "rt-multi-thread", "proce
 anyhow = "1"
 tauri-plugin-updater = "2.10.1"
 tauri-plugin-process = "2.3.1"
+# 情景保存/打开的文件对话框（#429）：官方插件，与 updater/process 同模式
+# The file dialog for scenario save/open (#429): official plugin, same pattern as updater/process.
+tauri-plugin-dialog = "2"
 # AI 助手（ADR 0023）：LLM SSE 流式调用走 rustls（避开 Windows OpenSSL 现场编译）；
 # API key 存 OS keychain（linux 用内核 keyutils 后端，不拉 D-Bus/secret-service 编译链）
 reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls"] }

@@ -8,6 +8,8 @@ import {
   CompressOutlined,
   VideoCameraOutlined,
   SettingOutlined,
+  SaveOutlined,
+  FolderOpenOutlined,
 } from "@ant-design/icons";
 import type { ProjectionMode, CenterMode, FrameMode } from "./OrbitCanvas";
 
@@ -24,6 +26,10 @@ export interface CanvasToolbarProps {
   onFitView: () => void;
   onExportAnimation: () => void;
   onOpenSettings: () => void;
+  /** 情景保存/打开（#429）：固定层记录集 + 参考历元 + 播放配置 */
+  /** Scenario save/open (#429): pinned-layer record set + reference epoch + playback config. */
+  onSaveScenario?: () => void;
+  onOpenScenario?: () => void;
 }
 
 export function CanvasToolbar({
@@ -37,6 +43,8 @@ export function CanvasToolbar({
   onFitView,
   onExportAnimation,
   onOpenSettings,
+  onSaveScenario,
+  onOpenScenario,
 }: CanvasToolbarProps) {
   const inertial = frame === "inertial";
   return (
@@ -99,6 +107,22 @@ export function CanvasToolbar({
 
       <div style={{ flex: 1 }} />
 
+      {onSaveScenario && (
+        <Button
+          size="small"
+          icon={<SaveOutlined />}
+          onClick={onSaveScenario}
+          title="保存情景（固定层记录集 + 参考历元 + 播放配置）"
+        />
+      )}
+      {onOpenScenario && (
+        <Button
+          size="small"
+          icon={<FolderOpenOutlined />}
+          onClick={onOpenScenario}
+          title="打开情景：重建固定层并校准时间轴"
+        />
+      )}
       <Button
         size="small"
         icon={<CompressOutlined />}

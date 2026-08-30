@@ -1,17 +1,36 @@
 // 画布时间轴（时刻选择滑块组件）。时刻模式两级（ADR 0021 修订）：
 // et = 全局绝对钟（UTC 显示），relative = 相对时刻（T+天），null = 禁用。
 // 机动事件旗标（出发/到达脉冲）以芯片展示，点击跳到该时刻。
+// 播放配置（#429 情景）：rate = 物理秒/真实秒（档位 1时/1天/1周每秒），
+// loop = 循环开关；配置归 App 持有（情景保存/打开的素材），本组件只
+// 上报变更。
 // Canvas timeline (the time-moment slider). Two-tier time mode (ADR 0021
 // revision): et = global absolute clock (UTC label), relative = relative time
 // (T+ days), null = disabled. Maneuver events (departure/arrival pulses) show
 // as chips; clicking one jumps to that moment.
+// Playback config (#429 scenarios): rate = physical seconds per wall second
+// (steps of 1 hour / 1 day / 1 week per second), loop = the looping switch;
+// App owns the config (the material scenario save/open persists) — this
+// component only reports changes.
 
 import { useState, useEffect, useRef } from "react";
-import { Slider, Typography, Space, Button, Tooltip } from "antd";
-import { PlayCircleOutlined, PauseCircleOutlined, FieldTimeOutlined } from "@ant-design/icons";
+import { Slider, Typography, Space, Button, Tooltip, Select } from "antd";
+import { PlayCircleOutlined, PauseCircleOutlined, FieldTimeOutlined, RetweetOutlined } from "@ant-design/icons";
 import { etToUtcLabel } from "./timeBasis";
 
 const { Text } = Typography;
+
+/** 播放速率档位（物理秒/真实秒） */
+/** Playback rate steps (physical seconds per wall second). */
+const RATE_OPTIONS = [
+  { label: "1时/秒", value: 3600 },
+  { label: "1天/秒", value: 86400 },
+  { label: "1周/秒", value: 604800 },
+];
+
+/** 播放 tick 周期（毫秒）：步长 = rate × tick / 1000 */
+/** The playback tick period (ms): step = rate × tick / 1000. */
+const PLAY_TICK_MS = 50;
 
 /** 时间轴机动事件：et 为该事件的全局时刻；dv 文案缺省时不显示量值 */
 /** A timeline maneuver event: et is its global moment; the Δv text is optional. */
@@ -31,11 +50,36 @@ export interface TimelineBarProps {
   /** 机动事件旗标（et 模式下才有意义；越出量程的不显示） */
   /** Maneuver-event flags (meaningful in et mode; out-of-range ones hidden). */
   events?: TimelineEvent[];
+  /** 播放速率（物理秒/真实秒，#429 情景配置）；缺省 86400（1天/秒） */
+  /** The playback rate (physical seconds per wall second, the #429 scenario
+   *  config); defaults to 86400 (one day per second). */
+  playbackRate?: number;
+  /** 循环播放开关（#429 情景配置）；缺省开（既有行为） */
+  /** The looping switch (#429 scenario config); defaults to on (legacy behavior). */
+  loop?: boolean;
+  /** 播放配置变更上报（App 持有配置，情景保存时读取） */
+  /** Reports playback-config changes (App owns the config; scenario save reads it). */
+  onPlaybackConfigChange?: (config: { rate: number; loop: boolean }) => void;
 }
 
-export function TimelineBar({ timeRange, currentEt, onTimeChange, mode, events }: TimelineBarProps) {
+export function TimelineBar({
+  timeRange,
+  currentEt,
+  onTimeChange,
+  mode,
+  events,
+  playbackRate,
+  loop,
+  onPlaybackConfigChange,
+}: TimelineBarProps) {
   const [playing, setPlaying] = useState(false);
   const playTimerRef = useRef<number | null>(null);
+
+  const rate = playbackRate ?? 86400;
+  const doLoop = loop ?? true;
+  const setConfig = (patch: { rate?: number; loop?: boolean }) => {
+    onPlaybackConfigChange?.({ rate: patch.rate ?? rate, loop: patch.loop ?? doLoop });
+  };
 
   const disabled = !timeRange || timeRange[0] >= timeRange[1];
   const minEt = timeRange ? timeRange[0] : 0;
@@ -57,18 +101,28 @@ export function TimelineBar({ timeRange, currentEt, onTimeChange, mode, events }
   useEffect(() => {
     if (playing && !disabled) {
       playTimerRef.current = window.setInterval(() => {
-        const step = (maxEt - minEt) / 200;
+        // 步长 = 速率 × tick：速率是物理秒/真实秒，与量程解耦（#429）
+        // Step = rate × tick: the rate is physical seconds per wall second,
+        // decoupled from the range (#429).
+        const step = (rate * PLAY_TICK_MS) / 1000;
         let next = val + step;
-        if (next > maxEt) next = minEt;
+        if (next > maxEt) {
+          if (!doLoop) {
+            onTimeChange(maxEt);
+            setPlaying(false);
+            return;
+          }
+          next = minEt;
+        }
         onTimeChange(next);
-      }, 50);
+      }, PLAY_TICK_MS);
     } else {
       if (playTimerRef.current) clearInterval(playTimerRef.current);
     }
     return () => {
       if (playTimerRef.current) clearInterval(playTimerRef.current);
     };
-  }, [playing, disabled, minEt, maxEt, val, onTimeChange]);
+  }, [playing, disabled, minEt, maxEt, val, onTimeChange, rate, doLoop]);
 
   return (
     <div
@@ -84,9 +138,33 @@ export function TimelineBar({ timeRange, currentEt, onTimeChange, mode, events }
       <Button
         type="text"
         size="small"
+        title={playing ? "暂停" : "播放"}
         disabled={disabled}
         icon={playing ? <PauseCircleOutlined style={{ fontSize: 16 }} /> : <PlayCircleOutlined style={{ fontSize: 16 }} />}
         onClick={() => setPlaying(!playing)}
+      />
+      {/* 播放配置（#429 情景素材）：速率档位 + 循环开关 */}
+      {/* Playback config (#429 scenario material): rate steps + looping switch. */}
+      <Select
+        size="small"
+        variant="borderless"
+        value={RATE_OPTIONS.some((o) => o.value === rate) ? rate : 86400}
+        options={RATE_OPTIONS}
+        disabled={disabled}
+        onChange={(v) => setConfig({ rate: v })}
+        style={{ width: 92 }}
+        title="播放速率"
+      />
+      <Button
+        size="small"
+        disabled={disabled}
+        icon={
+          <RetweetOutlined
+            style={{ fontSize: 14, color: doLoop ? undefined : "#595959" }}
+          />
+        }
+        onClick={() => setConfig({ loop: !doLoop })}
+        title={doLoop ? "循环播放（点击关闭）" : "单程播放（点击开启循环）"}
       />
       <Space orientation="horizontal" style={{ flex: 1 }} size={8}>
         <FieldTimeOutlined style={{ color: disabled ? "#595959" : "#0958d9" }} />
