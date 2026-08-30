@@ -11,6 +11,7 @@ import transferSchema from "./toolSchemas/transfer_design.json";
 import stabilitySchema from "./toolSchemas/orbit_stability.json";
 import transformSchema from "./toolSchemas/spacetime_transform.json";
 import sweepSchema from "./toolSchemas/catalog_sweep.json";
+import spatiographyBoundariesSchema from "./toolSchemas/spatiography_boundaries.json";
 
 export interface SchemaProperty {
   type?: string;
@@ -55,6 +56,9 @@ export const TOOL_REGISTRY: ToolEntry[] = [
   { name: "transfer_design", title: "转移轨道设计", schema: transferSchema as ToolSchema, artifactType: "transfer", hasTrajectory: true },
   { name: "orbit_stability", title: "轨道稳定性", schema: stabilitySchema as ToolSchema, artifactType: "orbit" },
   { name: "spacetime_transform", title: "时空坐标转换", schema: transformSchema as ToolSchema, artifactType: "orbit", hasTrajectory: true },
+  // 分区边界：产出进区域图层（regionLayer），非轨迹、不入库
+  // Spatiography boundaries: feeds the region layer (regionLayer) — not trajectories, not cataloged.
+  { name: "spatiography_boundaries", title: "分区边界", schema: spatiographyBoundariesSchema as ToolSchema, hasTrajectory: false },
 ];
 
 export function toolEntry(name: string): ToolEntry {

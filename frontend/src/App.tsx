@@ -45,6 +45,7 @@ import { AssistantSettingsForm } from "./assistant/AssistantSettingsForm";
 import type { SelectionContext } from "./assistant/api";
 import { DU_KM, TU_SECONDS, librationPoint } from "./cr3bp";
 import { etFromEpoch } from "./timeBasis";
+import { boundariesResponseToRegionLayer, type BoundaryElementPayload, type RegionElement } from "./regionLayer";
 import {
   familyMembersToTrajectoryData,
   framesToTrajectoryData,
@@ -146,6 +147,11 @@ export default function App() {
   const [pinned, setPinned] = useState<PinnedRecord[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [currentEt, setCurrentEt] = useState<number | null>(null);
+  // 分区图层（地月空间分区边界，spatiography_boundaries 产物；固定参照物，
+  // 不随结果层替换而消失，受图表设置 regionsVisible 开关控制）
+  // Region layer (cislunar partition boundaries from spatiography_boundaries; fixed reference
+  // geometry that survives result-layer replacement, toggled by the regionsVisible chart setting).
+  const [regionData, setRegionData] = useState<RegionElement[]>([]);
 
   const [projection, setProjection] = useState<ProjectionMode>("3d");
   const [center, setCenter] = useState<CenterMode>("barycenter");
@@ -536,6 +542,17 @@ export default function App() {
       message.success("计算完成！");
       await refreshArtifacts();
 
+      // 分区边界（spatiography_boundaries）：元素进区域图层（regionLayer），
+      // 不进结果层——固定参照物语义，结果层/时间轴链路全部旁路。
+      // Spatiography boundaries: elements go to the region layer (regionLayer), not the
+      // result layer — fixed-reference semantics, bypassing the result/timeline chain entirely.
+      if (selectedTool === "spatiography_boundaries" && resp.data) {
+        const d = resp.data as { elements?: BoundaryElementPayload[] };
+        setRegionData(boundariesResponseToRegionLayer(d, EARTH_MOON_MU));
+        message.info(`分区图层已更新（${d.elements?.length ?? 0} 个元素）`);
+        return;
+      }
+
       // 若有轨迹数据，装配到画布（解析逻辑见 trajectoryParsing）
       // If trajectory data is present, assemble it onto the canvas (parsing logic in trajectoryParsing).
       if (resp.frames && resp.frames.length > 0) {
@@ -855,6 +872,7 @@ export default function App() {
               times={canvasData.displayTimes}
               currentEt={currentEt}
               labels={canvasData.labels}
+              regions={regionData}
               mu={EARTH_MOON_MU}
               libration={libration}
               projection={projection}
@@ -936,6 +954,13 @@ export default function App() {
                 size="small"
                 checked={chart.axesVisible}
                 onChange={(v) => setChart({ ...chart, axesVisible: v })}
+              />
+            </Form.Item>
+            <Form.Item label="分区图层（地月空间分区边界）">
+              <Switch
+                size="small"
+                checked={chart.regionsVisible}
+                onChange={(v) => setChart({ ...chart, regionsVisible: v })}
               />
             </Form.Item>
             <Form.Item label="画布背景">

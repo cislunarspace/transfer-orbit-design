@@ -11,8 +11,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render } from "@testing-library/react";
 import { Line, ArrowHelper } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { OrbitCanvas, type CenterMode } from "./OrbitCanvas";
+import { OrbitCanvas, type CenterMode, type CanvasApi } from "./OrbitCanvas";
 import { DEFAULT_CHART_SETTINGS } from "./chartSettings";
+import type { RegionElement } from "./regionLayer";
 
 // jsdom 无 WebGL：只替换 WebGLRenderer，其余 three 类保持真实实现。
 // jsdom has no WebGL: only WebGLRenderer is replaced; all other three classes stay real.
@@ -78,6 +79,12 @@ function sceneLines(scene: unknown): Line[] {
 
 function annotationsOf(scene: unknown): import("three").Group {
   const g = (scene as import("three").Scene).getObjectByName("annotations");
+  expect(g).toBeDefined();
+  return g as import("three").Group;
+}
+
+function regionsOf(scene: unknown): import("three").Group {
+  const g = (scene as import("three").Scene).getObjectByName("regions");
   expect(g).toBeDefined();
   return g as import("three").Group;
 }
@@ -519,5 +526,134 @@ describe("坐标轴图层", () => {
       maxX = Math.max(maxX, pos.getX(i));
     }
     expect(maxX - minX).toBeCloseTo(4, 3);
+  });
+});
+
+// —— 分区图层（regionLayer 产物 → regions 组）——
+// Region layer (regionLayer output → the regions group).
+
+const REGIONS: RegionElement[] = [
+  {
+    kind: "circle",
+    label: "Moon Hill sphere rho_H",
+    centerDU: [1 - MU, 0, 0],
+    radiusDU: 0.16,
+    pointsDU: Array.from({ length: 37 }, (_, i) => {
+      const a = (i / 36) * Math.PI * 2;
+      return [1 - MU + 0.16 * Math.cos(a), 0.16 * Math.sin(a), 0] as [number, number, number];
+    }),
+  },
+  { kind: "point", label: "L3", centerDU: [-1.198, 0, 0] },
+];
+
+describe("OrbitCanvas regions layer", () => {
+  it("传入 regions 时渲染 regions 组：圆族折线 + 点标记 + 标注 sprite", () => {
+    render(
+      <OrbitCanvas
+        trajectories={TRAJECTORIES}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        regions={REGIONS}
+        onReady={() => {}}
+      />,
+    );
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const scene = instances[instances.length - 1].lastScene as import("three").Scene;
+    const regions = regionsOf(scene);
+    // 圆折线 1 条 + 点球 1 个 + 标注 sprite 1 个
+    // One circle polyline + one point sphere + one label sprite.
+    const lines = regions.children.filter((c) => (c as Line).isLine);
+    expect(lines).toHaveLength(1);
+    expect(regions.children.filter((c) => (c as import("three").Mesh).isMesh)).toHaveLength(1);
+    expect(
+      regions.children.filter((c) => (c as unknown as { isSprite?: boolean }).isSprite),
+    ).toHaveLength(1);
+    // 分区折线不算轨道线（sceneLines 只数 orbits 组）
+    // Region polylines are not orbit lines (sceneLines counts the orbits group only).
+    expect(sceneLines(scene)).toHaveLength(1);
+  });
+
+  it("regionsVisible=false 时 regions 组为空", () => {
+    render(
+      <OrbitCanvas
+        trajectories={TRAJECTORIES}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        regions={REGIONS}
+        settings={{ ...DEFAULT_CHART_SETTINGS, regionsVisible: false }}
+        onReady={() => {}}
+      />,
+    );
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const scene = instances[instances.length - 1].lastScene as import("three").Scene;
+    expect(regionsOf(scene).children).toHaveLength(0);
+  });
+
+  it("未传 regions 时 regions 组存在但为空", () => {
+    render(
+      <OrbitCanvas
+        trajectories={TRAJECTORIES}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        onReady={() => {}}
+      />,
+    );
+    flushFrames();
+    const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
+    const scene = instances[instances.length - 1].lastScene as import("three").Scene;
+    expect(regionsOf(scene).children).toHaveLength(0);
+  });
+
+  it("大半径分区圆不参与视图适配：fitView 仍按小轨迹取景", () => {
+    let api: CanvasApi | null = null;
+    render(
+      <OrbitCanvas
+        trajectories={TRAJECTORIES}
+        mu={MU}
+        libration={LIBRATION}
+        projection="3d"
+        center="barycenter"
+        regions={[
+          {
+            kind: "circle",
+            label: "Earth Hill sphere r_H",
+            centerDU: [0, 0, 0],
+            radiusDU: 3.9,
+            pointsDU: Array.from({ length: 37 }, (_, i) => {
+              const a = (i / 36) * Math.PI * 2;
+              return [3.9 * Math.cos(a), 3.9 * Math.sin(a), 0] as [number, number, number];
+            }),
+          },
+        ]}
+        onReady={(a) => {
+          api = a;
+        }}
+      />,
+    );
+    flushFrames();
+    expect(api).not.toBeNull();
+    api!.fitView();
+    // 轨迹是单位圆：适配后相机距离应在个位数 DU；若 3.9 DU 的大圆参与
+    // 适配，距离会数倍于该值。
+    // The trajectory is a unit circle: after fitting, the camera distance is a few DU; a 3.9-DU
+    // circle participating in fitting would multiply it several times over.
+    const controls = OrbitControls as unknown as {
+      instances: { target: import("three").Vector3 }[];
+    };
+    const target = controls.instances[controls.instances.length - 1].target;
+    const instances = (WebGLRenderer as unknown as {
+      instances: (FakeRendererInstance & { lastCamera: unknown })[];
+    }).instances;
+    const cam = instances[instances.length - 1].lastCamera as import("three").PerspectiveCamera;
+    const dist = cam.position.distanceTo(target);
+    expect(dist).toBeLessThan(6);
   });
 });
