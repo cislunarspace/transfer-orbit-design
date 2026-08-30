@@ -9,7 +9,6 @@
 // an unknown version is refused with a clear message, never silently.
 
 import { etFromEpoch } from "./timeBasis";
-import type { TrajectoryData } from "./trajectoryParsing";
 
 /** 文件格式标识与版本（顶层 format/version 字段）。 */
 /** The file format tag and version (top-level format/version fields). */
@@ -134,14 +133,11 @@ export function parseScenario(text: string): ParsedScenario {
   };
 }
 
-/** 固定层条目（App 的 PinnedRecord 同构，避免 scenario 反向依赖 App）。 */
-/** A pinned-layer entry (structurally identical to App's PinnedRecord,
- * keeping scenario from depending back on App). */
-export interface ScenarioPinnedRecord {
-  recordId: string;
-  label: string;
-  data: TrajectoryData;
-}
+/** 固定层条目的解析结果形状由调用方给出（App 的 PinnedRecord），
+ *  resolveScenarioRecords 以泛型承载，scenario 不反向依赖 App。 */
+/** The resolved pinned-entry shape comes from the caller (App's
+ *  PinnedRecord): resolveScenarioRecords carries it generically so scenario
+ *  never depends back on App. */
 
 export interface ScenarioRecordResolution<T> {
   resolved: T[];

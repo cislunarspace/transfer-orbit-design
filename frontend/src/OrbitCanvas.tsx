@@ -437,14 +437,13 @@ export function OrbitCanvas({
     // 地月：NASA 公有领域贴图（Blue Marble / LROC）+ Phong 光照，
     // 半径取真实比例（chartSettings 常量）。位置随视图系：会合系下地月在
     // x 轴固定（-mu / 1-mu）；惯性系下地球居原点，月球沿 moonTrack 的
-    // 当前时刻位置（下方 addInertialMoon 摆放，无轨迹则隐藏——ADR 0013
-    // 离线降级）。
+    // 当前时刻位置（下方月轨块摆放，无轨迹则隐藏——ADR 0013 离线降级）。
     // Earth and Moon: NASA public-domain textures (Blue Marble / LROC) with
     // Phong lighting, radii at true proportions (chartSettings constants).
     // Placement follows the view frame: fixed on the x axis (-mu / 1-mu) in
     // the synodic frame; Earth at the origin in the inertial frame, with the
-    // Moon at its current-moment position along moonTrack (placed by
-    // addInertialMoon below; hidden without a track — the ADR 0013 offline
+    // Moon at its current-moment position along moonTrack (placed by the
+    // moon-track block below; hidden without a track — the ADR 0013 offline
     // degradation).
     const texLoader = new THREE.TextureLoader();
     const addTexturedBody = (

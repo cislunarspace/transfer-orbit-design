@@ -312,13 +312,16 @@ mod scenario_io_tests {
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("s.json");
         let content = "{\"format\":\"tod-scenario\",\"version\":1}";
-        futures_block_save_open(path.to_string_lossy().into_owned(), content.into()).unwrap();
+        drive_save_open(path.to_string_lossy().into_owned(), content.into()).unwrap();
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// 直接驱动命令体（跳过 tauri runtime）：同一函数体，避免测试里
-    /// 复制实现导致漂移。
-    fn futures_block_save_open(path: String, content: String) -> Result<(), String> {
+    /// 在临时 tokio runtime 上直接驱动命令体（跳过 tauri runtime），同一
+    /// 函数体，避免测试里复制实现导致漂移。
+    /// Drives the command bodies directly on a throwaway tokio runtime
+    /// (bypassing the tauri runtime) — same bodies, so the test never drifts
+    /// from the implementation by copying it.
+    fn drive_save_open(path: String, content: String) -> Result<(), String> {
         let rt = tokio::runtime::Builder::new_current_thread()
             .build()
             .unwrap();
