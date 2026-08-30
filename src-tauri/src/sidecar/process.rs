@@ -118,11 +118,6 @@ impl SidecarHandle {
             .map_err(|_| anyhow::anyhow!("sidecar 读循环已退出（子进程可能已崩溃）"))
     }
 
-    /// 读循环是否仍在运行（探活：死句柄判定）。
-    pub fn is_alive(&self) -> bool {
-        !self.tx.is_closed()
-    }
-
     /// 订阅进度行（可丢弃事件）。每次调用替换订阅者。
     pub fn subscribe_progress(&self, tx: mpsc::UnboundedSender<Value>) {
         let _ = self.tx.send(Cmd::Progress { tx });
