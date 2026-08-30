@@ -21,6 +21,19 @@ export async function generateFamily(arguments_: Record<string, unknown>): Promi
   return invoke("generate_family", { arguments: arguments_ });
 }
 
+/** 记录的星历段（eph/ 前缀数组）：会合系无量纲位置 (n,3) 平铺 + UTC 分量；
+ *  键名与 e2m2e EphemerisTable 一致（snake_case，与设计响应 ephemeris 同形），
+ *  解析走 trajectoryParsing.designEphemerisToCanvasData。 */
+export interface EphemerisSegment {
+  synodic_position: number[];
+  year: number[];
+  month: number[];
+  day: number[];
+  hour: number[];
+  minute: number[];
+  second: number[];
+}
+
 export interface ArtifactData {
   recordId: string;
   orbitFamily: string;
@@ -28,6 +41,7 @@ export interface ArtifactData {
   mu?: number | null;
   familyMembers?: FamilyMember[];
   members: number[][]; // 每成员 n×3 xyz
+  ephemeris?: EphemerisSegment | null;
   error: { code: string; message: string } | null;
 }
 
