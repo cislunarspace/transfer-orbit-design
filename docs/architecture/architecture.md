@@ -249,7 +249,8 @@ resource 根，e2m2e Config 的 `kernels/`、`catalog/` 按 cwd 相对解析（�
 `@tauri-apps/plugin-updater` 基于 GitHub Releases 的 latest.json（ADR 0018）。
 发布管线见 `.github/workflows/release.yml`（tag `v*` 触发：lint → 测试 →
 Windows NSIS 与 Linux AppImage/deb 构建 → publish-updater 生成签名更新清单
-latest.json → 直传 GitHub Release）。
+latest.json → 直传 GitHub Release）。版本 bump 时 `src-tauri/tauri.conf.json`（
+单一来源，AboutModal 读运行时版本）与 `frontend/package.json` 两处同步修改。
 
 ## 依赖
 
