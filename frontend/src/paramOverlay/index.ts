@@ -12,6 +12,24 @@ export interface UnitOption {
   step: number;
 }
 
+/**
+ * TU 秒值（paramOverlay 时间单位，BCR4BP 27.32 天周期口径）：≈ 375676.97 s。
+ * 与 `cr3bp.ts` 的 TU_SECONDS（375190.26，CR3BP 特征时间口径）是两个不同
+ * 坐标系约定，勿混用（见 cr3bp.ts 注释）。
+ * 来源：Python 侧单一来源 `commons.units.TU_SECONDS`（由 templates.seed 导出，
+ * 定义为 `CHAR_PERIOD_SEC / (2π)`）。前端无法直接复用 Python 侧常量，需手工
+ * 同步——收敛到本常量的意义：改动时只改此处，而不是散落的 5 处字面量。
+ */
+/** TU in seconds for paramOverlay's time units (BCR4BP 27.32-day period
+ *  convention): ≈ 375676.97 s. Distinct from `cr3bp.ts`'s TU_SECONDS
+ *  (375190.26, the CR3BP characteristic-time convention) — the two are different
+ *  frame conventions, do not mix (see cr3bp.ts).
+ *  Single source on the Python side is `commons.units.TU_SECONDS` (exported by
+ *  templates.seed as `CHAR_PERIOD_SEC / (2π)`); the frontend cannot import it and
+ *  must be kept in sync by hand — hence this one named constant instead of five
+ *  scattered literals. */
+export const TU_SECONDS = 375676.97;
+
 /** 可切换单位字段定义（首项为标准单位，toStandard 恒为 1.0） */
 /** Switchable-unit field definitions (first entry is the standard unit; toStandard is always 1.0). */
 export const UNIT_DEFINITIONS: Record<string, UnitOption[]> = {
@@ -105,28 +123,28 @@ export const UNIT_DEFINITIONS: Record<string, UnitOption[]> = {
     { label: "日", toStandard: 1 / 365.25, decimals: 1, step: 1 },
     { label: "时", toStandard: 1 / (365.25 * 24), decimals: 1, step: 24 },
     { label: "秒", toStandard: 1 / (365.25 * 86400), decimals: 0, step: 86400 },
-    { label: "TU", toStandard: 375676.97 / (365.25 * 86400), decimals: 4, step: 0.1 },
+    { label: "TU", toStandard: TU_SECONDS / (365.25 * 86400), decimals: 4, step: 0.1 },
   ],
   output_step: [
     { label: "秒", toStandard: 1.0, decimals: 0, step: 60 },
     { label: "时", toStandard: 3600, decimals: 2, step: 0.5 },
     { label: "日", toStandard: 86400, decimals: 4, step: 0.1 },
-    { label: "TU", toStandard: 375676.97, decimals: 4, step: 0.01 },
+    { label: "TU", toStandard: TU_SECONDS, decimals: 4, step: 0.01 },
   ],
   control_interval: [
     { label: "天", toStandard: 1.0, decimals: 3, step: 0.1 },
     { label: "秒", toStandard: 1 / 86400, decimals: 0, step: 3600 },
-    { label: "TU", toStandard: 375676.97 / 86400, decimals: 4, step: 0.05 },
+    { label: "TU", toStandard: TU_SECONDS / 86400, decimals: 4, step: 0.05 },
   ],
   feedback_arc: [
     { label: "天", toStandard: 1.0, decimals: 3, step: 0.1 },
     { label: "秒", toStandard: 1 / 86400, decimals: 0, step: 3600 },
-    { label: "TU", toStandard: 375676.97 / 86400, decimals: 4, step: 0.05 },
+    { label: "TU", toStandard: TU_SECONDS / 86400, decimals: 4, step: 0.05 },
   ],
   momentum_interval: [
     { label: "天", toStandard: 1.0, decimals: 3, step: 0.5 },
     { label: "秒", toStandard: 1 / 86400, decimals: 0, step: 3600 },
-    { label: "TU", toStandard: 375676.97 / 86400, decimals: 4, step: 0.05 },
+    { label: "TU", toStandard: TU_SECONDS / 86400, decimals: 4, step: 0.05 },
   ],
 };
 

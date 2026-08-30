@@ -18,6 +18,24 @@ interface RecordDetailPanelProps {
 
 export function RecordDetailPanel({ record, onRefresh, onOpenStationKeeping }: RecordDetailPanelProps) {
   const { t } = useTranslation();
+
+  // hooks 规则（#437）：无论 record 是否为 null，每次渲染调用相同数量、
+  // 相同顺序的 hooks；空态早返回必须在所有 hooks 之后。
+  // Hooks rule (#437): the same hooks run in the same order regardless of
+  // record being null; the empty-state early return must follow all hooks.
+  const [tagsInput, setTagsInput] = useState<string>("");
+  const [noteInput, setNoteInput] = useState<string>("");
+  const [promoteIdx, setPromoteIdx] = useState<number>(0);
+  const [savingTag, setSavingTag] = useState<boolean>(false);
+  const [promoting, setPromoting] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!record) return;
+    setTagsInput((record.tags || []).join(", "));
+    setNoteInput(record.note || "");
+    setPromoteIdx(0);
+  }, [record?.record_id]);
+
   if (!record) {
     return (
       <Card size="small" title="记录详情" style={{ marginTop: 8 }}>
@@ -25,18 +43,6 @@ export function RecordDetailPanel({ record, onRefresh, onOpenStationKeeping }: R
       </Card>
     );
   }
-
-  const [tagsInput, setTagsInput] = useState<string>((record.tags || []).join(", "));
-  const [noteInput, setNoteInput] = useState<string>(record.note || "");
-  const [promoteIdx, setPromoteIdx] = useState<number>(0);
-  const [savingTag, setSavingTag] = useState<boolean>(false);
-  const [promoting, setPromoting] = useState<boolean>(false);
-
-  useEffect(() => {
-    setTagsInput((record.tags || []).join(", "));
-    setNoteInput(record.note || "");
-    setPromoteIdx(0);
-  }, [record.record_id]);
 
   const handleSaveAnnotation = async () => {
     setSavingTag(true);
