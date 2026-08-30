@@ -53,22 +53,20 @@ transfer-orbit-design/
 │   ├── src/cmd.rs         # Tauri command（族生成/目录查询/项目状态）
 │   └── tests/             # 协议夹具测试 + 真实子进程集成测试
 ├── src/                   # Python 领域层（纯 Python，无 Qt）
-│   ├── model/             # Project/Artifact/discovery（数据类）
-│   ├── engine/            # facade_bridge / catalog_service / persistence / viz_adapter
+│   ├── model/             # Project/Artifact（数据类）
+│   ├── engine/            # facade_bridge / catalog_service / viz_adapter
 │   ├── commons/           # 跨层常量与共享工具
 │   │   ├── constants.py   # DU/TU/物理常量
 │   │   ├── units.py       # 单位换算（年/月/日/TU、km/DU）
 │   │   ├── kernels.py     # 内核下载/可用性判断（CLI 与 GUI 共用）
-│   │   ├── paths.py       # 内核/库目录探测与配置持久化
-│   │   ├── orbits.py      # GEO/LEO 轨道几何
-│   │   └── viz/           # 收编自 e2m2e tools/viz 的绘图组件（自维护）
+│   │   └── paths.py       # 内核/库目录探测
 │   └── __init__.py
 ├── docs/                  # 文档
 │   ├── adr/               # 架构决策记录
 │   ├── architecture/      # 架构说明
 │   └── source/            # Sphinx 源（docs/README.md 说明维护流程）
 ├── tests/                 # Python 领域层测试（commons/engine/model 分层）
-├── scripts/               # 独立工具脚本（download_kernels.py；scan_transfer* 为一次性验证留档）
+├── scripts/               # 独立工具脚本（download_kernels.py）
 ├── catalog/               # 轨道库（e2m2e catalog，产物持久化源；设置可改指）
 └── pyproject.toml
 ```
@@ -82,7 +80,8 @@ transfer-orbit-design/
 | `tod/transfers/` | 被 e2m2e Facade API 直调替代 |
 | `tod/scripting/` | SCRIPT_ENTRY 机制废弃 |
 | `tod/commons/e2m2e_compat.py` | 不再需要旧路径兼容 |
-| `plot/`（顶层） | v3.2.1 起 e2m2e 删除 `tools/viz`，绘图组件收编为 `src/commons/viz/` 由本项目自维护 |
+| `plot/`（顶层） | v3.2.1 起 e2m2e 删除 `tools/viz`；本仓曾收编为 `src/commons/viz/` 自维护，随 #415 删除（包外零使用零覆盖） |
+| `src/engine/persistence.py` + `src/model/discovery.py` | catalog 之外的产物落盘/扫描链路，只被测试消费（#415） |
 
 ## 第1层 数据层 `src/model/`
 
@@ -101,7 +100,7 @@ class Artifact:
     record_id: str | None   # 轨道库记录 id（e2m2e catalog，issue #375）
     state_data: ndarray     # 状态矩阵 (n, 6)，用于可视化（catalog_get 懒加载填充）
     times: ndarray          # 时间向量 (n,)
-    output_path: Path | None # 仅 transfer 遗留分区使用（指向 output/ JSON）
+    output_path: Path | None # 遗留字段（transfer 遗留分区扫描使用，扫描已随 #415 删除）
     extra: dict             # 元数据（分类、谱系指针、tags/note、星历四件套等）
     created_at: datetime    # 创建时间
 ```
@@ -124,15 +123,9 @@ class Project:
     def has_broken_lineage(artifact) -> bool        # 上游已删（断链降级标记）
 ```
 
-### Discovery（遗留分区扫描）
+### Discovery（遗留分区扫描，已删）
 
-转移轨道是 catalog 分类体系之外的产物（上游入库另行立项），过渡期沿用 `output/transfer/` 目录扫描；轨道 / 族 / 星历的文件名分类正则已随 catalog 接入删除（ADR 0008 修订 2026-08-19）。
-
-```python
-def discover_artifacts(output_dir: Path) -> list[Artifact]:
-    """扫描 output/transfer/ 下的 JSON（corrected_transfer_* / optimization_*），
-    构建 transfer Artifact 列表。"""
-```
+转移轨道是 catalog 分类体系之外的产物（上游入库另行立项），曾过渡期沿用 `output/transfer/` 目录扫描（`engine.persistence` 落盘 + `model.discovery` 恢复）；链路只被测试消费、facade 未接线，已随 #415 删除，复活场景的正确载体是上游 record 化（e2m2e#574）。轨道 / 族 / 星历的文件名分类正则更早已随 catalog 接入删除（ADR 0008 修订 2026-08-19）。
 
 ## 第2层 执行层 `src/engine/`
 
@@ -180,6 +173,9 @@ sidecar 子进程完成，线程管理由 Rust tokio 承担。）
 OrbitCanvas Three.js 画布、CatalogFilterBar、i18n、chartSettings）与
 `src-tauri/src/`（sidecar 模块、cmd.rs、state.rs、project.rs）。
 
+i18n 机制保留、覆盖随缘——新 UI 文案不强制过 `t()`（双语覆盖面拍板见
+#415：不承诺组件文案全量双语）。
+
 ## 依赖方向规则
 
 界面链路（单向，无环）：
@@ -190,7 +186,8 @@ src-tauri/   →  tokio 子进程 + stdio 协议 # Rust 壳只做编排，不做
 sidecar      →  e2m2e Facade              # 算法只进 sidecar
 ```
 
-Python 领域层（供脚本与测试使用，不在界面链路上）：
+Python 领域层（供脚本与测试使用，不在界面链路上；唯一例外：
+`scripts/download_kernels.py` 使用 commons.kernels）：
 
 ```
 src/engine/  →  src/model/（仅 Artifact/Project 类型）+ src/commons/ + e2m2e
@@ -202,9 +199,7 @@ src/commons/ → 无内部依赖（commons 是叶子，只被上层引用）
 
 1. `src/model/` 不 import `src/engine/`。
 2. `src/engine/` 不 import 任何 GUI 框架（Qt 依赖已随 PyQt UI 移除）。
-3. `src/commons/` 是叶子：只被上层引用，自身不引用 `src/model/`、`src/engine/`；
-   其中 `src/commons/viz/` 为收编自 e2m2e 的第三方绘图组件（仅依赖 e2m2e 数据
-   类型，类型标准豁免见 `pyproject.toml` 的 pyright exclude）。
+3. `src/commons/` 是叶子：只被上层引用，自身不引用 `src/model/`、`src/engine/`。
 4. 前端与 Rust 壳不 import e2m2e 或 `src/`：界面要算的东西一律走 sidecar 协议。
 
 ## 可视化架构
@@ -234,11 +229,11 @@ WebGLRenderer + OrbitControls（旋转/缩放/平移）
 
 产物间的因果关系经轨道库谱系指针持久化（重启不断）：下游产物记录
 `source_record_id`，重启后由 `catalog_query` + `catalog_get` 恢复清单与轨迹。
-全部 7 个计算工具的界面已接通（issue #398 已关闭）：族生成 → 入库 → 浏览叠加的链路可用，选中产物 → 发起下游工具的输入引用经谱系记录衔接。
+全部任务工具的界面已接通（issue #398 已关闭；轨道稳定性后因上游 placeholder 状态移出注册表，#416）：族生成 → 入库 → 浏览叠加的链路可用，选中产物 → 发起下游工具的输入引用经谱系记录衔接。
 
 ## 工具范围（当前）
 
-中栏工具面板接通 8 个工具：轨道族生成、任务轨道设计、参数空间扫描（catalog_sweep）、轨道保持、轨道预报、转移轨道设计、轨道稳定性、时空坐标转换（前端 `TOOL_REGISTRY` 注册，经通用 `run_tool` 通道下发）。14 个工具 schema（含 7 个 catalog 操作）已全部导出，catalog 操作的界面分布：query/get 服务目录浏览与轨迹叠加，sweep 在工具面板，delete 在项目树右键菜单，export 在筛选栏「导出包」，promote/tag 在记录详情面板。
+中栏工具面板接通 7 个工具：轨道族生成、任务轨道设计、参数空间扫描（catalog_sweep）、轨道保持、轨道预报、转移轨道设计、时空坐标转换（前端 `TOOL_REGISTRY` 注册，经通用 `run_tool` 通道下发；轨道稳定性因上游 placeholder 状态暂不接入，#416）。14 个工具 schema（含 7 个 catalog 操作）已全部导出，catalog 操作的界面分布：query/get 服务目录浏览与轨迹叠加，sweep 在工具面板，delete 在项目树右键菜单，export 在筛选栏「导出包」，promote/tag 在记录详情面板。
 原则不变：不承诺 GUI 承载 e2m2e 全部算法能力，需要脚本化工作流时直接使用
 [e2m2e CLI](https://github.com/cislunarspace/e2m2e)。
 
