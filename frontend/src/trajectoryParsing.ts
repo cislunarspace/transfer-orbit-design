@@ -201,6 +201,60 @@ export function propagationToCanvasData(
   };
 }
 
+/** EphemerisTable 的 UTC 分量（year..second 各 (n,)）→ et 秒数组；分量缺失、
+ *  行数与 n 不齐或含非有限值 → null（该轨迹保持无时刻基准）。 */
+/** EphemerisTable's UTC components (year..second, each (n,)) → et seconds;
+ *  null when components are missing, misaligned with n, or non-finite. */
+function ephemerisUtcToEt(ephemeris: Record<string, unknown>, n: number): number[] | null {
+  const parts = ["year", "month", "day", "hour", "minute", "second"].map(
+    (k) => ephemeris[k],
+  ) as unknown[][];
+  if (parts.some((p) => !Array.isArray(p) || p.length !== n)) return null;
+  const p2 = (v: unknown) => String(Math.trunc(Number(v))).padStart(2, "0");
+  const out = (parts[0] as unknown[]).map((_, i) =>
+    etFromEpoch(
+      `${p2(parts[0][i])}-${p2(parts[1][i])}-${p2(parts[2][i])}T` +
+        `${p2(parts[3][i])}:${p2(parts[4][i])}:${p2(parts[5][i])}`,
+    ),
+  );
+  return out.every(Number.isFinite) ? out : null;
+}
+
+/** 设计响应 / 库记录的星历段 → 画布轨迹（修"画布只见周期曲线"）。
+ *  synodic_position 是地月会合系无量纲 (n,3)——画布原生系，直画不缩放；
+ *  UTC 分量行数对齐则逐行合成 et 绝对基准（ADR 0021）。GCRS position_km
+ *  不在此画（惯性几何，预报链路 propagationToCanvasData 已管）。
+ *  入参与 e2m2e EphemerisTable 字段同名（设计响应 ephemeris dict 与库记录
+ *  eph/ 段同形）。 */
+/** A design response / catalog record's ephemeris segment → canvas data
+ *  (fixes "canvas shows only the periodic curve"). synodic_position is the
+ *  Earth-Moon synodic-frame dimensionless (n,3) — the canvas' native frame,
+ *  drawn as-is without scaling; row-aligned UTC components compose the et
+ *  absolute basis (ADR 0021). GCRS position_km is not drawn here (inertial
+ *  geometry belongs to the propagation path). Field names match e2m2e's
+ *  EphemerisTable (the design response ephemeris dict and the record eph/
+ *  segment share the shape). */
+export function designEphemerisToCanvasData(
+  ephemeris: Record<string, unknown> | null | undefined,
+  label = "星历段（会合系）",
+): TrajectoryData | null {
+  const rows = ephemeris?.synodic_position;
+  if (!Array.isArray(rows) || rows.length === 0 || !Array.isArray(rows[0])) {
+    return null;
+  }
+  const pts = (rows as unknown[]).map((p) => {
+    const r = p as number[];
+    return [Number(r[0]), Number(r[1]), Number(r[2])];
+  });
+  const etTimes = ephemerisUtcToEt(ephemeris as Record<string, unknown>, pts.length);
+  return {
+    trajectories: [pts],
+    times: [etTimes ?? []],
+    timeBasis: [etTimes ? "et" : "none"],
+    labels: [label],
+  };
+}
+
 /** 库记录的 familyMembers（(1,6) 初态或 (n,6) 状态）→ 轨迹 + 时刻。 */
 /** A catalog record's familyMembers ((1,6) initial states or (n,6) states) → trajectories + times. */
 export function familyMembersToTrajectoryData(members: FamilyMember[], mu: number): TrajectoryData {

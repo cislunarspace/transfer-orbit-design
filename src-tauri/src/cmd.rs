@@ -283,6 +283,20 @@ fn unix_seconds_now() -> String {
         .unwrap_or_default()
 }
 
+/// 记录的星历段（eph/ 前缀数组）：会合系无量纲位置 (n,3) 平铺 + UTC 时间
+/// 分量（各 (n,)）。键名与 e2m2e EphemerisTable 字段一致（不加 camelCase
+/// 改名，与设计响应的 ephemeris dict 同形，前端共用同一解析函数）。
+#[derive(Serialize)]
+pub struct EphemerisSegment {
+    pub synodic_position: Vec<f32>,
+    pub year: Vec<f32>,
+    pub month: Vec<f32>,
+    pub day: Vec<f32>,
+    pub hour: Vec<f32>,
+    pub minute: Vec<f32>,
+    pub second: Vec<f32>,
+}
+
 /// 项目树选中 → 画布联动：按 record_id 从 catalog 拉取产物。
 ///
 /// 帧序 = `data.arrays` 里 None 占位键的顺序（e2m2e ADR 0035）；族记录
@@ -298,6 +312,8 @@ pub struct ArtifactData {
     pub family_members: Vec<FamilyMember>,
     /// 兼容旧版：每成员提取的 xyz
     pub members: Vec<Vec<f32>>,
+    /// 星历段（设计/预报类产物；会合系原生直画，UTC 分量 → et）
+    pub ephemeris: Option<EphemerisSegment>,
     pub error: Option<serde_json::Value>,
 }
 
@@ -322,6 +338,7 @@ pub async fn get_artifact(
             mu: None,
             family_members: vec![],
             members: vec![],
+            ephemeris: None,
             error: result.error,
         });
     }
@@ -354,6 +371,44 @@ pub async fn get_artifact(
             });
         }
     }
+    // 星历段：eph/ 前缀键（会合系位置 + UTC 分量，dtype 契约同为 f32）。
+    // 七键齐全且长度对齐才携带——半截数据宁可不上（前端按无星历段处理）。
+    let eph_frame = |key: &str| -> Option<Vec<f32>> {
+        let idx = none_keys.iter().position(|k| k.as_str() == key)?;
+        match result.frames.get(idx) {
+            Some(crate::sidecar::FrameArray::F32 { data, .. }) => Some(data.clone()),
+            _ => None,
+        }
+    };
+    let ephemeris = (|| {
+        let year = eph_frame("eph/year")?;
+        let month = eph_frame("eph/month")?;
+        let day = eph_frame("eph/day")?;
+        let hour = eph_frame("eph/hour")?;
+        let minute = eph_frame("eph/minute")?;
+        let second = eph_frame("eph/second")?;
+        let synodic_position = eph_frame("eph/synodic_position")?;
+        let n = year.len();
+        if n == 0
+            || synodic_position.len() != 3 * n
+            || month.len() != n
+            || day.len() != n
+            || hour.len() != n
+            || minute.len() != n
+            || second.len() != n
+        {
+            return None;
+        }
+        Some(EphemerisSegment {
+            synodic_position,
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+        })
+    })();
     Ok(ArtifactData {
         record_id: result.data["record_id"].as_str().unwrap_or("").to_string(),
         orbit_family: result.data["orbit_family"].as_str().unwrap_or("").to_string(),
@@ -361,6 +416,7 @@ pub async fn get_artifact(
         mu,
         family_members,
         members,
+        ephemeris,
         error: None,
     })
 }

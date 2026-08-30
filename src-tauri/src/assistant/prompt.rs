@@ -53,7 +53,9 @@ fn task_layer(lang: &str) -> &'static str {
 4. Be honest about gaps: if the available tools cannot cover what the user wants (e.g. pursuit-evasion reachable-set analysis), say so plainly instead of improvising.
 5. Self-correct on errors: if a tool returns an error (validation failure, orbit error), read the message, fix the arguments, and retry at most 3 times; if still failing, report the failure and its cause to the user.
 6. Units and epochs: CR3BP quantities are nondimensional (DU = 384400 km, TU ≈ 3.7517 d, VU = DU/TU); epochs are UTC unless stated otherwise. Keep units and epochs explicit whenever you cite numbers.
-7. Always make propagation spans explicit: for tools with a duration field (design_orbit, orbit_propagation, orbit_family_generation, ...), pass duration and output_step (both in seconds) explicitly on every call — omitting duration falls back to a very long default (CR3BP defaults to one full year, which is prohibitive in compute and output size). For a first-shot design use hours-to-days spans (e.g. 86400 = 1 day, 2592000 = 30 days); the catalog stores the corrected orbit, and longer spans can be produced later on demand."#
+7. Always make propagation spans explicit: for tools with a duration field (design_orbit, orbit_propagation, orbit_family_generation, ...), pass duration and output_step (both in seconds) explicitly on every call — omitting duration falls back to a very long default (CR3BP defaults to one full year, which is prohibitive in compute and output size). For a first-shot design use hours-to-days spans (e.g. 86400 = 1 day, 2592000 = 30 days); the catalog stores the corrected orbit, and longer spans can be produced later on demand.
+8. Ephemeris-segment semantics: a design_orbit response's `ephemeris` field is the full nominal ephemeris table — `synodic_position` is the Earth-Moon synodic-frame dimensionless (n,3) position arc, alongside GCRS `position_km`/`velocity_mps` and UTC calendar components. Large arrays are truncated to `_omitted` in your context, but the full arc is drawn on the canvas and stored in the record. The canvas draws BOTH the CR3BP reference closed curve (`states`) and the ephemeris arc: when describing "the designed orbit" to the user, describe the ephemeris arc — a quasi-periodic arc under the ephemeris model with per-revolution drift, NOT a closed periodic orbit; `states` is only the CR3BP reference. In catalog records the ephemeris segment lives in the `eph/`-prefixed arrays. Also: `correction_iterations = 0` may merely mean the segmented-correction path left the accounting object unfilled — it does NOT mean no correction ran; judge success by `data.status` and the message, never report "iterations=0" as "uncorrected".
+9. Ephemeris correction is parameter- and epoch-sensitive (e2m2e verified recipes — never scale duration blindly): NRHO: 8-day arc (duration=691200, output_step=7200, phase=0.5); HALO: 36.5-day arc (duration=3155760, output_step=3600); DRO: pick amplitude near a baseline-catalog member (amplitude=10000 stalls the initial-guess correction — query catalog_query(orbit_family=\"dro\") first). Year-scale arcs do not converge, and the same parameters may converge at one epoch but fail at another. When the user asks for a longer arc, converge with a recipe first, then evaluate extending — and state the risk explicitly."#
     } else {
         r#"工具使用规则（结构化工作流：先探索、再规划、后执行）：
 1. 先探索后承诺：提议任何计算类工具之前，先用只读工具（catalog_query、catalog_get——立即执行、无需用户确认）查看轨道库中已有的产物。
@@ -62,7 +64,9 @@ fn task_layer(lang: &str) -> &'static str {
 4. 缺项诚实：现有工具覆盖不了用户需求时（例如追逃博弈的可达域分析），直接说明，不要硬凑。
 5. 错误自纠：工具返回错误（参数校验失败、轨道计算错误等）时，读懂错误信息、修正参数后重试，最多 3 次；仍失败则向用户报告失败及原因。
 6. 单位与历元：CR3BP 量为无量纲（DU = 384400 km，TU ≈ 3.7517 天，VU = DU/TU）；历元为 UTC。引用数值时保持量纲与历元显式。
-7. 传播时长必须显式：design_orbit、orbit_propagation、orbit_family_generation 等带 duration 的工具，每次调用都必须显式给出 duration 与 output_step（均为秒）——不传 duration 会落进超长默认（CR3BP 默认整整一年，计算量与输出量都不可接受）。首次设计用小时～天级时长（如 86400=1 天、2592000=30 天）；修正后的轨道已入库，更长弧段可按需再算。"#
+7. 传播时长必须显式：design_orbit、orbit_propagation、orbit_family_generation 等带 duration 的工具，每次调用都必须显式给出 duration 与 output_step（均为秒）——不传 duration 会落进超长默认（CR3BP 默认整整一年，计算量与输出量都不可接受）。首次设计用小时～天级时长（如 86400=1 天、2592000=30 天）；修正后的轨道已入库，更长弧段可按需再算。
+8. 星历段语义：design_orbit 响应的 ephemeris 字段是完整标称星历表——synodic_position 是地月会合系无量纲 (n,3) 位置弧，另有 GCRS position_km/velocity_mps 与 UTC 年月日时分秒分量。大数组在你的上下文里被截断为 _omitted，但完整弧已上画布并入库。画布同时画 CR3BP 参考闭曲线（states）与星历段：向用户描述"设计出的轨道"时以星历段为准——它是星历模型下的拟周期弧，逐圈有漂移，不是闭合周期轨道；states 只是 CR3BP 参考。库记录中星历段在 eph/ 前缀数组里。另外：correction_iterations=0 可能只是分段修正路径未填记账对象，不代表没有修正；成败看 data.status 与消息，绝不要把"iterations=0"当"未修正"复述给用户。
+9. 星历修正对参数与历元敏感（e2m2e 验证配方——绝不要盲目缩放时长）：NRHO 用 8 天弧（duration=691200、output_step=7200、phase=0.5）；HALO 用 36.5 天弧（duration=3155760、output_step=3600）；DRO 的 amplitude 取靠近基线族成员的值（amplitude=10000 会卡死初猜修正——先 catalog_query(orbit_family=\"dro\") 查）。年级弧段不收敛；同一组参数换个历元收敛性可能不同。用户要更长弧段时，先按配方收敛、再评估加长，并向用户明说风险。"#
     }
 }
 
@@ -111,6 +115,11 @@ mod tests {
         assert!(p.contains("用户确认后才运行"), "分级确认语义");
         assert!(p.contains("缺项诚实"), "缺项诚实");
         assert!(p.contains("传播时长必须显式"), "显式时长规则");
+        assert!(p.contains("星历段语义"), "星历段字段语义规则");
+        assert!(p.contains("不是闭合周期轨道"), "星历段与 CR3BP 参考之辨");
+        assert!(p.contains("iterations=0"), "修正记账语义澄清");
+        assert!(p.contains("验证配方"), "参数敏感与验证配方规则");
+        assert!(p.contains("3155760"), "HALO 36.5 天验证配方数值");
         assert!(p.contains("当前态势"), "态势层");
         assert!(p.contains("没有选中"), "无选择的明示");
     }
@@ -120,6 +129,8 @@ mod tests {
         let p = system_prompt("en", "2 records", Some("NRHO 族（rec-001）"), "2026-08-29T00:00:00Z");
         assert!(p.contains("orbit design assistant"));
         assert!(p.contains("explore first, then plan, then execute"));
+        assert!(p.contains("Ephemeris-segment semantics"), "ephemeris field semantics rule");
+        assert!(p.contains("verified recipes"), "parameter cookbook rule");
         assert!(p.contains("NRHO 族（rec-001）"));
         assert!(p.contains("Reply in English"));
     }

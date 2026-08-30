@@ -17,31 +17,63 @@ pub struct AssistantInfo {
     pub model: String,
     pub has_key: bool,
     pub history: Vec<Value>,
+    /// 当前会话 id（ADR 0025）
+    pub current_session_id: String,
+    /// 会话列表（最近活动倒序，ADR 0025 决策 3）
+    pub sessions: Vec<store::SessionMeta>,
+    /// 当前会话生效的思考等级（off/standard/deep，ADR 0026 决策 1）
+    pub thinking_level: String,
+    /// 全局默认思考等级（设置面板；新会话继承）
+    pub default_thinking_level: String,
 }
 
 #[tauri::command]
 pub async fn assistant_get_state(state: State<'_, AssistantState>) -> Result<AssistantInfo, String> {
     let cfg = store::load_model_config();
+    let sessions = store::load_sessions();
+    let current = state.current_session();
+    let default_thinking_level = llm::ThinkingLevel::parse(&cfg.thinking_level)
+        .as_str()
+        .to_string();
+    let thinking_level = sessions
+        .iter()
+        .find(|m| m.id == current)
+        .map(|m| m.thinking_level.clone())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| default_thinking_level.clone());
     Ok(AssistantInfo {
         configured: state.configured(),
         base_url: cfg.base_url,
         model: cfg.model,
         has_key: store::load_api_key().is_some(),
         history: state.history(),
+        current_session_id: current,
+        sessions,
+        thinking_level,
+        default_thinking_level,
     })
 }
 
-/// 保存模型服务配置。api_key 传 None/空串表示不动现有 key。
+/// 保存模型服务配置。api_key 传 None/空串表示不动现有 key；
+/// thinking_level 传 None 表示不动全局默认思考等级。
 #[tauri::command]
 pub async fn assistant_set_config(
     base_url: String,
     model: String,
     api_key: Option<String>,
+    thinking_level: Option<String>,
 ) -> Result<(), String> {
-    let cfg = store::ModelConfig {
+    let old = store::load_model_config();
+    let mut cfg = store::ModelConfig {
         base_url: base_url.trim().to_string(),
         model: model.trim().to_string(),
+        thinking_level: old.thinking_level,
     };
+    if let Some(level) = thinking_level {
+        let parsed = llm::ThinkingLevel::try_parse(&level)
+            .ok_or_else(|| format!("未知思考等级：{level}"))?;
+        cfg.thinking_level = parsed.as_str().to_string();
+    }
     store::save_model_config(&cfg).map_err(|e| e.to_string())?;
     if let Some(key) = api_key {
         if !key.trim().is_empty() {
@@ -97,9 +129,54 @@ pub async fn assistant_confirm_tool(
     Ok(state.resolve_confirm(&call_id, ConfirmDecision { approved, arguments }))
 }
 
-/// 清空会话（"清空重开"）：内存历史 + 落盘文件一起清。
+/// 清空当前会话（"清空重开"）：内存历史 + 落盘文件一起清，保留会话本身。
 #[tauri::command]
 pub async fn assistant_clear_history(state: State<'_, AssistantState>) -> Result<(), String> {
     state.clear();
     Ok(())
+}
+
+/// 新建会话并切换过去（受切换门禁，ADR 0025 决策 5）。返回新会话 id。
+#[tauri::command]
+pub async fn assistant_new_session(state: State<'_, AssistantState>) -> Result<String, String> {
+    state.new_session().map_err(|e| e.to_string())
+}
+
+/// 切换当前会话（受切换门禁；目标会话的落盘历史随切换载入）。
+#[tauri::command]
+pub async fn assistant_switch_session(
+    state: State<'_, AssistantState>,
+    session_id: String,
+) -> Result<(), String> {
+    state.switch_session(&session_id).map_err(|e| e.to_string())
+}
+
+/// 重命名会话（下拉项悬浮操作，ADR 0025 决策 4）。
+#[tauri::command]
+pub async fn assistant_rename_session(
+    state: State<'_, AssistantState>,
+    session_id: String,
+    title: String,
+) -> Result<(), String> {
+    state
+        .rename_session(&session_id, &title)
+        .map_err(|e| e.to_string())
+}
+
+/// 删除会话（二次确认在前端；删当前会话受切换门禁）。
+#[tauri::command]
+pub async fn assistant_delete_session(
+    state: State<'_, AssistantState>,
+    session_id: String,
+) -> Result<(), String> {
+    state.delete_session(&session_id).map_err(|e| e.to_string())
+}
+
+/// 设当前会话的思考等级（输入区旁三档单选，ADR 0026 决策 1）。
+#[tauri::command]
+pub async fn assistant_set_thinking_level(
+    state: State<'_, AssistantState>,
+    level: String,
+) -> Result<(), String> {
+    state.set_thinking_level(&level).map_err(|e| e.to_string())
 }

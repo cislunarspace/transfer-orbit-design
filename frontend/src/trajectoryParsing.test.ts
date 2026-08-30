@@ -5,6 +5,7 @@ import {
   trajectoryTimeRange,
   transferTrajectoryToCanvasData,
   propagationToCanvasData,
+  designEphemerisToCanvasData,
   timelineMode,
   timesForMode,
   type TimeBasis,
@@ -224,6 +225,49 @@ describe("propagationToCanvasData 轨道预报解析（#421）", () => {
     expect(propagationToCanvasData(null, null)).toBeNull();
     expect(propagationToCanvasData([], [])).toBeNull();
     expect(propagationToCanvasData([384400.0], [2460800.5])).toBeNull();
+  });
+});
+
+describe("designEphemerisToCanvasData 星历段解析", () => {
+  // EphemerisTable 形状的星历段：会合无量纲位置 + UTC 分量
+  const EPH = {
+    synodic_position: [[1.1, 0.2, -0.3], [1.2, 0.3, -0.4]],
+    year: [2024, 2024],
+    month: [1, 1],
+    day: [1, 1],
+    hour: [0, 1],
+    minute: [0, 0],
+    second: [0, 0],
+  };
+
+  it("会合系无量纲直画（不缩放），UTC 分量 → et 基准", () => {
+    const got = designEphemerisToCanvasData(EPH, "eph");
+    expect(got).not.toBeNull();
+    expect(got!.trajectories[0]).toEqual([[1.1, 0.2, -0.3], [1.2, 0.3, -0.4]]);
+    expect(got!.timeBasis).toEqual(["et"]);
+    expect(got!.times[0]).toHaveLength(2);
+    // 相邻行差 1 小时（3600 s）
+    expect(got!.times[0][1] - got!.times[0][0]).toBeCloseTo(3600, 3);
+    expect(got!.labels).toEqual(["eph"]);
+  });
+
+  it("UTC 分量缺失/行数不齐 → 无时刻基准（轨迹仍上画布）", () => {
+    const missing = { synodic_position: [[0, 0, 0]] };
+    expect(designEphemerisToCanvasData(missing)).toEqual({
+      trajectories: [[[0, 0, 0]]],
+      times: [[]],
+      timeBasis: ["none"],
+      labels: ["星历段（会合系）"],
+    });
+    const misaligned = { ...EPH, year: [2024] };
+    expect(designEphemerisToCanvasData(misaligned)!.timeBasis).toEqual(["none"]);
+  });
+
+  it("synodic_position 非法时返回 null", () => {
+    expect(designEphemerisToCanvasData(null)).toBeNull();
+    expect(designEphemerisToCanvasData({})).toBeNull();
+    expect(designEphemerisToCanvasData({ synodic_position: [] })).toBeNull();
+    expect(designEphemerisToCanvasData({ synodic_position: [1, 2, 3] })).toBeNull();
   });
 });
 

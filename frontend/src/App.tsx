@@ -47,6 +47,7 @@ import { DU_KM, TU_SECONDS, librationPoint } from "./cr3bp";
 import { etFromEpoch } from "./timeBasis";
 import { boundariesResponseToRegionLayer, type BoundaryElementPayload, type RegionElement } from "./regionLayer";
 import {
+  designEphemerisToCanvasData,
   familyMembersToTrajectoryData,
   framesToTrajectoryData,
   trajectoryTimeRange,
@@ -287,14 +288,20 @@ export default function App() {
   }, [pinned.length, api]);
 
   // 库记录工件 → 画布轨迹（选中查看 / 绘制所选 / 钉住共用）。
+  // 记录可含 CR3BP 段与星历段（双段并存，CONTEXT.md）：CR3BP 闭曲线之外，
+  // eph/ 星历段（会合系无量纲 + UTC 分量 → et）同样入画——修"设计产物
+  // 只画周期曲线、星历弧不可见"（会话诊断 2026-08-30）。
   // An orbit artifact record → canvas data (shared by select / plot-selected / pin).
+  // A record may hold both the CR3BP segment and the ephemeris segment
+  // (CONTEXT.md): beyond the closed CR3BP curve, the eph/ segment (dimensionless
+  // synodic + UTC components → et) is drawn too.
   const parseArtifactToTrajectoryData = (
     data: Awaited<ReturnType<typeof getArtifact>>,
   ): TrajectoryData | null => {
+    let base: TrajectoryData | null = null;
     if (data.familyMembers && data.familyMembers.length > 0) {
-      return familyMembersToTrajectoryData(data.familyMembers, data.mu ?? EARTH_MOON_MU);
-    }
-    if (data.members && data.members.length > 0) {
+      base = familyMembersToTrajectoryData(data.familyMembers, data.mu ?? EARTH_MOON_MU);
+    } else if (data.members && data.members.length > 0) {
       // 裸点集无时刻：每成员是 n×3 平铺数组，重排为 xyz 点列
       // Bare point sets carry no times: each member is a flat n×3 array, reshaped into xyz points.
       const pts = data.members
@@ -306,13 +313,32 @@ export default function App() {
           return rows;
         })
         .filter((rows) => rows.length > 0);
-      return {
+      base = {
         trajectories: pts,
         times: pts.map(() => []),
         timeBasis: pts.map(() => "none" as const),
       };
     }
-    return null;
+    const ephTd = data.ephemeris
+      ? designEphemerisToCanvasData(
+          data.ephemeris as unknown as Record<string, unknown>,
+          t("canvas.design_ephemeris"),
+        )
+      : null;
+    if (!ephTd) return base;
+    if (!base || base.trajectories.length === 0) return ephTd;
+    return {
+      trajectories: [...base.trajectories, ...ephTd.trajectories],
+      times: [...base.times, ...ephTd.times],
+      timeBasis: [
+        ...(base.timeBasis ?? base.trajectories.map(() => "relative" as const)),
+        ...(ephTd.timeBasis ?? ephTd.trajectories.map(() => "none" as const)),
+      ],
+      labels: [
+        ...base.trajectories.map(() => t("canvas.cr3bp_reference")),
+        ...(ephTd.labels ?? []),
+      ],
+    };
   };
 
   // 图钉切换：钉住 = 拉取记录解析进固定层（软上限提示）；取消 = 移出。
@@ -336,11 +362,17 @@ export default function App() {
         message.warning(t("tree.pin_load_failed"));
         return;
       }
-      // 图例显示记录名（Q8 决策）：每条轨迹一个记录名标签
-      // Legend shows the record name (Q8 decision): one label per trajectory.
+      // 图例显示记录名（Q8 决策）：每条轨迹一个标签；双段记录带段名
+      // （记录名·CR3BP 参考 / 记录名·星历段）。
+      // Legend shows the record name (Q8 decision): one label per trajectory;
+      // dual-segment records carry a segment tag.
+      const segLabels =
+        td.labels && td.labels.length === td.trajectories.length
+          ? td.labels.map((l) => `${item.label}·${l}`)
+          : td.trajectories.map(() => item.label);
       const labeled: TrajectoryData = {
         ...td,
-        labels: td.trajectories.map(() => item.label),
+        labels: segLabels,
       };
       setPinned((prev) => [...prev, { recordId: rid, label: item.label, data: labeled }]);
     } catch {
@@ -434,6 +466,7 @@ export default function App() {
     const trajParts: number[][][] = [];
     const timeParts: number[][] = [];
     const basisParts: TimeBasis[] = [];
+    const labelParts: string[] = [];
     for (const item of items) {
       if (!item.recordId) continue;
       try {
@@ -443,13 +476,23 @@ export default function App() {
           trajParts.push(...td.trajectories);
           timeParts.push(...td.times);
           basisParts.push(...(td.timeBasis ?? td.trajectories.map(() => "relative" as const)));
+          labelParts.push(
+            ...(td.labels && td.labels.length === td.trajectories.length
+              ? td.labels.map((l) => `${item.label}·${l}`)
+              : td.trajectories.map(() => item.label)),
+          );
         }
       } catch (e) {
         message.warning(`${t("tree.plot_skip_failed")}: ${item.label}`);
       }
     }
     if (trajParts.length > 0) {
-      applyTrajectoryData({ trajectories: trajParts, times: timeParts, timeBasis: basisParts });
+      applyTrajectoryData({
+        trajectories: trajParts,
+        times: timeParts,
+        timeBasis: basisParts,
+        labels: labelParts,
+      });
     }
   };
 
@@ -597,22 +640,51 @@ export default function App() {
           if (prop) {
             applyTrajectoryData(prop);
           } else {
-            // 通用回退：design_orbit 的 states（会合无量纲）直画；
-            // d.times（CR3BP 无量纲）行对齐则作相对时刻。
-            // Generic fallback: design_orbit states (dimensionless synodic)
-            // draw directly; row-aligned d.times (CR3BP nondimensional) serve
-            // as relative times.
+            // 通用回退：任务轨道设计双段并存（CONTEXT.md：记录可含 CR3BP 段
+            // 与星历段）——CR3BP 参考闭曲线（states，会合无量纲）＋ 星历段
+            //（ephemeris.synodic_position 会合无量纲 (n,3)，UTC 分量 → et）。
+            // 修"画布只见周期曲线"：设计响应本就携带完整星历表，此前无
+            // 渲染路径（会话诊断 2026-08-30）。
+            // Generic fallback: mission-orbit design dual segments (a record
+            // may hold both the CR3BP segment and the ephemeris segment) —
+            // the CR3BP reference closed curve (states, dimensionless
+            // synodic) plus the ephemeris arc (ephemeris.synodic_position,
+            // dimensionless synodic (n,3); UTC components → et). The design
+            // response always carried the full ephemeris table — it just had
+            // no render path (session diagnosis 2026-08-30).
+            const ephTd = designEphemerisToCanvasData(
+              d.ephemeris as Record<string, unknown> | null | undefined,
+              t("canvas.design_ephemeris")
+            );
             const rawStates = d.states;
-            if (Array.isArray(rawStates) && rawStates.length > 0 && Array.isArray(rawStates[0])) {
-              const pts = rawStates.map((s: number[]) => [Number(s[0]), Number(s[1]), Number(s[2])]);
-              const relTimes =
-                Array.isArray(d.times) && d.times.length === pts.length
-                  ? (d.times as unknown[]).map(Number)
-                  : null;
+            const cr3bpPts =
+              Array.isArray(rawStates) && rawStates.length > 0 && Array.isArray(rawStates[0])
+                ? (rawStates as number[][]).map((s: number[]) => [
+                    Number(s[0]),
+                    Number(s[1]),
+                    Number(s[2]),
+                  ])
+                : null;
+            const relTimes =
+              cr3bpPts && Array.isArray(d.times) && d.times.length === cr3bpPts.length
+                ? (d.times as unknown[]).map(Number)
+                : null;
+            const trajectories = [
+              ...(cr3bpPts ? [cr3bpPts] : []),
+              ...(ephTd?.trajectories ?? []),
+            ];
+            if (trajectories.length > 0) {
               applyTrajectoryData({
-                trajectories: [pts],
-                times: relTimes ? [relTimes] : [],
-                timeBasis: [relTimes ? "relative" : "none"],
+                trajectories,
+                times: [...(cr3bpPts ? [relTimes ?? []] : []), ...(ephTd?.times ?? [])],
+                timeBasis: [
+                  ...(cr3bpPts ? [(relTimes ? "relative" : "none") as TimeBasis] : []),
+                  ...(ephTd?.timeBasis ?? []),
+                ],
+                labels: [
+                  ...(cr3bpPts ? [t("canvas.cr3bp_reference")] : []),
+                  ...(ephTd?.labels ?? []),
+                ],
               });
             }
           }
