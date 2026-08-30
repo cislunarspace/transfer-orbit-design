@@ -29,6 +29,11 @@ class TestOutputDir:
 
 
 class TestDetectKernelDir:
+    """三段解析链（#415 收窄：配置文件层已删）：env → 仓库 kernels/ →
+    用户数据目录，末尾附开发机历史布局回退。"""
+    """The three-segment chain (narrowed by #415: config layer removed):
+    env -> repo kernels/ -> user-data dir, plus the dev-layout fallback."""
+
     def test_env_priority(self, monkeypatch, tmp_path):
         # SPICE_KERNEL_DIR 指向有效目录时优先返回它
         # Returns SPICE_KERNEL_DIR first when it points at a valid directory
@@ -45,6 +50,16 @@ class TestDetectKernelDir:
         monkeypatch.setattr(paths_module, "_REPO_ROOT", tmp_path / "repo")
         assert detect_kernel_dir() == ""
 
+    def test_repo_kernels_beats_user_data_dir(self, monkeypatch, tmp_path):
+        # 仓库根 kernels/ 优先于用户数据目录（第二段）
+        # Repo-root kernels/ wins over the user-data directory (second segment)
+        monkeypatch.delenv("SPICE_KERNEL_DIR", raising=False)
+        repo = tmp_path / "repo"
+        (repo / "kernels").mkdir(parents=True)
+        (tmp_path / "user-kernels").mkdir()
+        monkeypatch.setattr(paths_module, "_REPO_ROOT", repo)
+        assert detect_kernel_dir() == str(repo / "kernels")
+
     def test_default_when_env_unset(self, monkeypatch, tmp_path):
         # env 未设时回退到 <repo>/../e2m2e/kernels
         # Falls back to <repo>/../e2m2e/kernels when the env var is unset
@@ -53,19 +68,6 @@ class TestDetectKernelDir:
         default.mkdir(parents=True)
         monkeypatch.setattr(paths_module, "_REPO_ROOT", tmp_path / "repo")
         assert detect_kernel_dir() == str(default)
-
-    def test_configured_dir_beats_repo_kernels(self, monkeypatch, tmp_path):
-        # 配置文件记录的用户目录优先于仓库根 kernels/
-        # The user directory recorded in the config takes precedence over repo-root kernels/
-        monkeypatch.delenv("SPICE_KERNEL_DIR", raising=False)
-        configured = tmp_path / "config" / "kernels_dir.txt"
-        configured.parent.mkdir(parents=True)
-        chosen = tmp_path / "my-kernels"
-        chosen.mkdir()
-        configured.write_text(str(chosen), encoding="utf-8")
-        monkeypatch.setattr(paths_module, "_REPO_ROOT", tmp_path / "repo")
-        (tmp_path / "repo" / "kernels").mkdir(parents=True)
-        assert detect_kernel_dir() == str(chosen)
 
     def test_user_data_dir_found(self, monkeypatch, tmp_path):
         # 用户数据目录（GUI 下载落点）可被探测到
@@ -76,29 +78,17 @@ class TestDetectKernelDir:
         monkeypatch.setattr(paths_module, "_REPO_ROOT", tmp_path / "repo")
         assert detect_kernel_dir() == str(user_dir)
 
-    def test_stale_configured_dir_ignored(self, monkeypatch, tmp_path):
-        # 配置指向已删除目录时忽略，继续回退
-        # A config pointing at a deleted directory is ignored; fallback continues
+    def test_stale_kernels_dir_txt_ignored(self, monkeypatch, tmp_path):
+        # 残留的旧 kernels_dir.txt（配置层已删）不参与解析：存在与否不影响结果
+        # A leftover kernels_dir.txt (config layer removed) never joins the
+        # resolution: its presence changes nothing
         monkeypatch.delenv("SPICE_KERNEL_DIR", raising=False)
-        configured = tmp_path / "config" / "kernels_dir.txt"
-        configured.parent.mkdir(parents=True)
-        configured.write_text(str(tmp_path / "gone"), encoding="utf-8")
+        stale = tmp_path / "config" / "kernels_dir.txt"
+        stale.parent.mkdir(parents=True)
+        chosen = tmp_path / "my-kernels"
+        chosen.mkdir()
+        stale.write_text(str(chosen), encoding="utf-8")
+        monkeypatch.setattr(paths_module, "_REPO_ROOT", tmp_path / "repo")
         default = tmp_path / "e2m2e" / "kernels"
         default.mkdir(parents=True)
-        monkeypatch.setattr(paths_module, "_REPO_ROOT", tmp_path / "repo")
         assert detect_kernel_dir() == str(default)
-
-
-class TestConfiguredKernelDir:
-    def test_roundtrip(self, tmp_path):
-        target = tmp_path / "chosen" / "kernels"
-        target.mkdir(parents=True)
-        paths_module.save_configured_kernel_dir(target)
-        assert paths_module.load_configured_kernel_dir() == str(target.resolve())
-
-    def test_missing_returns_empty(self):
-        assert paths_module.load_configured_kernel_dir() == ""
-
-    def test_stale_path_returns_empty(self, tmp_path):
-        paths_module.save_configured_kernel_dir(tmp_path / "gone")
-        assert paths_module.load_configured_kernel_dir() == ""
