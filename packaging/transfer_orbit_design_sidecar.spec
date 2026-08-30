@@ -36,10 +36,16 @@ hiddenimports = [
     "mcp",
     "anyio",
 ]
+# mcp.cli 依赖 typer（mcp[cli] extra，构建环境 --group build 不装）；
+# serve-stdio 不经过 CLI（e2m2e api/mcp 只用 mcp.server / mcp.types），
+# 收集时排除 mcp.cli，否则 collect_submodules 导入即炸。
+# mcp.cli needs typer (mcp[cli] extra, absent from the --group build env);
+# serve-stdio never goes through the CLI (e2m2e api/mcp only uses
+# mcp.server / mcp.types), so exclude mcp.cli from collection.
 hiddenimports += (
     collect_submodules("e2m2e")
     + collect_submodules("r2s2")
-    + collect_submodules("mcp")
+    + collect_submodules("mcp", filter=lambda name: not name.startswith("mcp.cli"))
     + collect_submodules("anyio")
 )
 
