@@ -75,11 +75,13 @@ export function restoreItems(history: RawMessage[]): ChatItem[] {
         const parsed = tryParse(content);
         const status = parsed?.status;
         const recordId = parsed?.data?.record_id ?? parsed?.record_id;
+        const scenarioFile = parsed?.data?.scenario_file;
         const errMsg = parsed?.error?.message;
         card.status = status === "ok" ? "done" : "error";
         card.summary = {
           status: typeof status === "string" ? status : undefined,
           recordId: typeof recordId === "string" ? recordId : undefined,
+          scenarioFile: typeof scenarioFile === "string" ? scenarioFile : undefined,
           error: errMsg ? { message: errMsg } : undefined,
         };
       }

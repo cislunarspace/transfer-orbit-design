@@ -49,6 +49,7 @@ export function AssistantSidebar({
   selection,
   onArtifactProduced,
   onOpenRecord,
+  onApplyScenario,
   onOpenSettings,
 }: {
   lang: string;
@@ -57,6 +58,10 @@ export function AssistantSidebar({
   onArtifactProduced: (recordId: string, tool: string) => void;
   /** 工具卡片"查看产物"按钮：画布绘图（复用 getArtifact 通道） */
   onOpenRecord: (recordId: string, tool: string) => void;
+  /** 工具卡片"应用情景"按钮（ADR 0027）：App 按路径打开情景 */
+  /** The tool card's "apply scenario" button (ADR 0027): App opens the
+   *  scenario by path. */
+  onApplyScenario?: (path: string) => void;
   /** 打开设置弹窗（空态"去设置"按钮的落点） */
   onOpenSettings: () => void;
 }) {
@@ -365,7 +370,7 @@ export function AssistantSidebar({
         </div>
       ) : (
         <>
-          <ChatView items={items} running={running} onOpenRecord={onOpenRecord} />
+          <ChatView items={items} running={running} onOpenRecord={onOpenRecord} onApplyScenario={onApplyScenario} />
           {/* 输入区：思考等级三档单选（随会话记住，ADR 0026 决策 1）+
               运行中禁用输入（后端单并发门禁的对应 UI） */}
           <div

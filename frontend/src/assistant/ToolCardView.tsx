@@ -24,8 +24,8 @@ export interface ToolCardData {
   tool: string;
   args: unknown;
   status: "proposed" | "running" | "done" | "error" | "rejected";
-  /** tool_done 的摘要：status / recordId / error.message */
-  summary?: { status?: string; recordId?: string; error?: { message?: string } };
+  /** tool_done 的摘要：status / recordId / scenarioFile / error.message */
+  summary?: { status?: string; recordId?: string; scenarioFile?: string; error?: { message?: string } };
   /** 运行起始时间戳（ms），用于耗时显示 */
   startedAt?: number;
   /** 真进度分数 [0,1]（progressToken 通知；仅 live 运行中存在） */
@@ -37,9 +37,14 @@ export interface ToolCardData {
 export function ToolCardView({
   card,
   onOpenRecord,
+  onApplyScenario,
 }: {
   card: ToolCardData;
   onOpenRecord: (recordId: string, tool: string) => void;
+  /** 应用情景（ADR 0027）：scenario_write 完成后的同语义跳转入口 */
+  /** Apply scenario (ADR 0027): the same-semantics jump entry after a
+   *  completed scenario_write. */
+  onApplyScenario?: (path: string) => void;
 }) {
   const { t } = useTranslation();
   const [editOpen, setEditOpen] = useState(false);
@@ -183,6 +188,16 @@ export function ToolCardView({
           onClick={() => onOpenRecord(card.summary!.recordId!, card.tool)}
         >
           {t("assistant.card.view_artifact")}（{card.summary.recordId}）
+        </Button>
+      )}
+      {card.status === "done" && card.tool === "scenario_write" && card.summary?.scenarioFile && (
+        <Button
+          size="small"
+          type="link"
+          style={{ padding: 0, marginTop: 4 }}
+          onClick={() => onApplyScenario?.(card.summary!.scenarioFile!)}
+        >
+          {t("assistant.card.apply_scenario")}（{card.summary.scenarioFile.split(/[\\/]/).pop()}）
         </Button>
       )}
       {card.status === "error" && showDetail && card.summary?.error?.message && (

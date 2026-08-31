@@ -197,6 +197,16 @@ fn unix_seconds_now() -> String {
         .unwrap_or_default()
 }
 
+/// 情景固定目录（ADR 0027）：助手 scenario_write 的落盘目录，也供手动
+/// 「打开情景」对话框默认定位。目录可能尚不存在（首个情景写入时创建）。
+/// The fixed scenarios directory (ADR 0027): the assistant scenario_write
+/// target, also the default location of the manual open-scenario dialog. The
+/// directory may not exist yet (created on the first scenario write).
+#[tauri::command]
+pub fn scenarios_dir() -> Option<String> {
+    crate::assistant::host_tools::scenarios_dir().map(|p| p.to_string_lossy().into_owned())
+}
+
 /// 情景文件写盘（#429）：前端经 dialog 插件取路径，本命令只负责落盘
 /// （路径由对话框来，不做额外校验；内容是前端序列化好的 JSON 文本）。
 #[tauri::command]

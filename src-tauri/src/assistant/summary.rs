@@ -39,7 +39,11 @@ pub fn project_for_llm(envelope_text: &str) -> Value {
     }
 }
 
-/// 供前端工具卡片展示的短摘要（状态 + 关键标量，供"已入轨道库"链接）。
+/// 供前端工具卡片展示的短摘要（状态 + 关键标量，供"已入轨道库"链接；
+/// 宿主情景工具的 scenario_file 同样透传供「应用情景」按钮）。
+/// A short summary for the frontend tool card (status + key scalars for the
+/// "in catalog" link; the host scenario tools' scenario_file likewise passes
+/// through for the apply-scenario button).
 pub fn card_summary(envelope_text: &str) -> Value {
     let Ok(v) = serde_json::from_str::<Value>(envelope_text) else {
         return json!({"status": "unknown"});
@@ -47,10 +51,14 @@ pub fn card_summary(envelope_text: &str) -> Value {
     let status = v.get("status").cloned().unwrap_or(json!("unknown"));
     let data = v.get("data").cloned().unwrap_or(Value::Null);
     let record_id = data.get("record_id").cloned();
+    let scenario_file = data.get("scenario_file").cloned();
     let error = v.get("error").cloned();
     let mut out = json!({ "status": status });
     if let Some(r) = record_id {
         out["recordId"] = r;
+    }
+    if let Some(s) = scenario_file {
+        out["scenarioFile"] = s;
     }
     if let Some(e) = error {
         out["error"] = e;

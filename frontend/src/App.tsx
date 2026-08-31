@@ -687,21 +687,16 @@ export default function App() {
 
   // 打开情景：逐 record_id 解析重建固定层（缺失跳过并列出、超上限截
   // 断，均提示不静默）；时间轴校准到参考历元（含播放起点偏移）；应用
-  // 播放配置。结果层不动（情景只描述固定层）。
+  // 播放配置。结果层不动（情景只描述固定层）。对话框与助手「应用情景」
+  // 共用同一条解析路径（ADR 0027）。
   // Open a scenario: resolve record ids one by one to rebuild the pinned layer
   // (missing ones skipped and listed, over-cap references truncated — both
   // hinted, never silent); calibrate the timeline onto the reference epoch
   // (with the playback start offset); apply the playback config. The result
-  // layer stays untouched (a scenario describes only the pinned layer).
-  const handleOpenScenario = async () => {
-    let text: string | null;
-    try {
-      text = await openScenarioFile();
-    } catch (e) {
-      message.error(`${t("scenario.open_failed")}: ${String(e)}`);
-      return;
-    }
-    if (text === null) return;
+  // layer stays untouched (a scenario describes only the pinned layer). The
+  // dialog and the assistant's "apply scenario" share this one parse path
+  // (ADR 0027).
+  const applyScenarioText = async (text: string) => {
     const parsed = parseScenario(text);
     if ("error" in parsed) {
       message.error(parsed.error);
@@ -758,6 +753,35 @@ export default function App() {
         t("scenario.opened").replace("{count}", String(resolution.resolved.length)),
       );
     }
+  };
+
+  const handleOpenScenario = async () => {
+    let text: string | null;
+    try {
+      text = await openScenarioFile();
+    } catch (e) {
+      message.error(`${t("scenario.open_failed")}: ${String(e)}`);
+      return;
+    }
+    if (text === null) return;
+    await applyScenarioText(text);
+  };
+
+  // 助手「应用情景」（ADR 0027）：scenario_write 完成卡片的同语义跳转——
+  // 按路径直读（不经对话框），复用手动打开的解析/软失败路径。
+  // The assistant's "apply scenario" (ADR 0027): the same-semantics jump from
+  // a completed scenario_write card — read by path (no dialog) and reuse the
+  // manual-open parse/soft-failure path.
+  const handleApplyScenario = async (path: string) => {
+    let text: string;
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      text = await invoke<string>("open_scenario", { path });
+    } catch (e) {
+      message.error(`${t("scenario.open_failed")}: ${String(e)}`);
+      return;
+    }
+    await applyScenarioText(text);
   };
 
   // 星标/备注保存成功后同步树行数据（本地更新，不重查整表）
@@ -1365,6 +1389,7 @@ export default function App() {
           selection={assistantSelection}
           onArtifactProduced={handleAssistantArtifact}
           onOpenRecord={(recordId) => handleAssistantOpenRecord(recordId)}
+          onApplyScenario={handleApplyScenario}
           onOpenSettings={() => setChartModalOpen(true)}
         />
 

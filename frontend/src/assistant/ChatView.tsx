@@ -137,11 +137,16 @@ export function ChatView({
   items,
   running,
   onOpenRecord,
+  onApplyScenario,
 }: {
   items: ChatItem[];
   /** 整轮对话进行中（输入禁用 + 顶部"运行中"提示） */
   running: boolean;
   onOpenRecord: (recordId: string, tool: string) => void;
+  /** 应用情景（ADR 0027）：scenario_write 完成卡片 → App 打开该情景文件 */
+  /** Apply scenario (ADR 0027): a completed scenario_write card → App opens
+   *  that scenario file. */
+  onApplyScenario?: (path: string) => void;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -220,7 +225,7 @@ export function ChatView({
           );
         }
         return (
-          <ToolCardView key={item.card.callId} card={item.card} onOpenRecord={onOpenRecord} />
+          <ToolCardView key={item.card.callId} card={item.card} onOpenRecord={onOpenRecord} onApplyScenario={onApplyScenario} />
         );
       })}
       {running && (
