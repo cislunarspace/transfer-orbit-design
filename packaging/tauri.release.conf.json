@@ -9,6 +9,7 @@
       "appimage",
       "deb"
     ],
+    "createUpdaterArtifacts": true,
     "resources": {
       "../kernels": "kernels",
       "binaries/*": "binaries/"
