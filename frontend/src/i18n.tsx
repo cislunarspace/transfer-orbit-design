@@ -1,7 +1,15 @@
 // i18n：中英双语，localStorage 持久化，默认中文。
+// 语言是全应用共享状态（#447）：根部挂 I18nProvider，切换按钮改写共享
+// state，所有已挂载组件立即以新语言重渲染；无 Provider 的裸渲染（组件
+// 单测直接挂载）退回组件本地 state，读写同一 localStorage 键。
 // i18n: Chinese/English bilingual, persisted in localStorage, Chinese by default.
+// The language is app-wide shared state (#447): the root mounts an
+// I18nProvider, the toggle button writes the shared state, and every mounted
+// component re-renders in the new language; bare renders without a Provider
+// (component tests mounting directly) fall back to component-local state
+// reading/writing the same localStorage key.
 
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 const LANG_KEY = "tod-lang";
 
@@ -218,7 +226,20 @@ const translations: Record<string, Record<string, string>> = {
   },
 };
 
-export function useTranslation() {
+interface I18n {
+  lang: string;
+  setLang: (code: string) => void;
+  t: (key: string) => string;
+}
+
+const I18nContext = createContext<I18n | null>(null);
+
+/** lang 状态的实现体：初始化读 localStorage、切换写回、<html lang> 同步。
+ *  Provider 与无 Provider 退路共用，保证两条路径行为一致。 */
+/** The lang-state implementation: initializes from localStorage, persists on
+ *  switch, syncs <html lang>. Shared by the Provider and the no-Provider
+ *  fallback so both paths behave identically. */
+function useLangState(): I18n {
   const [lang, setLangState] = useState<string>(
     () => localStorage.getItem(LANG_KEY) || "zh",
   );
@@ -235,4 +256,23 @@ export function useTranslation() {
   const t = (key: string): string => translations[lang]?.[key] ?? translations["zh"]?.[key] ?? key;
 
   return { lang, setLang, t };
+}
+
+/** 应用根部的语言 Provider（main.tsx）：承载共享 lang 状态与上述副作用。 */
+/** The app-root language Provider (main.tsx): holds the shared lang state and the side effects above. */
+export function I18nProvider({ children }: { children: ReactNode }) {
+  return <I18nContext.Provider value={useLangState()}>{children}</I18nContext.Provider>;
+}
+
+export function useTranslation(): I18n {
+  const shared = useContext(I18nContext);
+  if (shared) return shared;
+
+  // 无 Provider 的退路（组件单测裸渲染）：与共享路径同一实现，仅作用域
+  // 是组件本地。同一实例生命周期内 Provider 有无不变化，hook 序稳定。
+  // The no-Provider fallback (bare-rendered component tests): same
+  // implementation as the shared path, scoped to the component only. Whether
+  // a Provider exists never changes within one instance's lifetime, so the
+  // hook order is stable.
+  return useLangState();
 }
