@@ -10,6 +10,12 @@ stdin/stdout 管道不受影响。
 小内核，cwd 由 Tauri 壳指向 resource 根（e2m2e Config 按 cwd 相对解析），
 .bsp 星历内核沿用 scripts/download_kernels.py 按需获取。
 
+注意：依赖包自带的 data 文件必须逐包收编——collect_data_files 只收单个
+包。R2S2 的 lte440.bsp/lte440.tpc（轮子内置月球精密星历）在包 import 时
+经 CalcephBin.open 打开，漏收则 design_orbit 等星历链路工具全部报
+"No ephemeris files are opened"（4.6.0 及之前版本的实际缺陷，发布流水线
+的 sidecar 冒烟步骤即为此守卫）。
+
 构建：uv run pyinstaller packaging/transfer_orbit_design_sidecar.spec --noconfirm
 产物：dist/transfer-orbit-design-sidecar(.exe)，随后复制到 src-tauri/binaries/ 供 tauri 打包。
 """
@@ -21,7 +27,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 # SPECPATH 是 spec 所在目录（packaging/）
 spec_dir = Path(SPECPATH).resolve()
 
-datas = collect_data_files("e2m2e")
+datas = collect_data_files("e2m2e") + collect_data_files("R2S2")
 binaries = []
 hiddenimports = [
     # calcephpy（e2m2e→r2s2 传递依赖）为 C 扩展包，可能经懒加载躲过静态分析

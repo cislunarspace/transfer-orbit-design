@@ -5,6 +5,7 @@
 ### 修复
 
 - **语言切换按钮失效（#447）**：`useTranslation()` 在每个调用组件内各自持有独立的 `lang` state，顶栏切换只改所在组件，其余已挂载区域（项目树、参数面板、助手边栏等）钉死旧语言。改为应用根部挂 `I18nProvider` 共享语言状态（localStorage 持久化与 `<html lang>` 同步副作用随迁）；`useTranslation()` 返回形状不变，约 11 个调用方零改动。
+- **安装版 design_orbit 报 "No ephemeris files are opened"（sidecar 打包漏收 R2S2 包数据）**：PyInstaller spec 只收集 e2m2e 的 data 文件，R2S2 轮子自带的月球精密星历 lte440.bsp/lte440.tpc 未进包；design_orbit 等星历链路工具懒加载 R2S2 时在模块导入期 CalcephBin.open 打不到文件而全数失败（报错文案来自 CALCEPH，与 SPICE 内核无关，SPICE_KERNEL_DIR 配置无涉）；轨道库查询等纯 CR3BP 链路不触发该 import，故仅星历类工具异常。修复：spec 补 collect_data_files("R2S2")；发布流水线（Windows/Linux）在 sidecar 构建后新增真调用冒烟（scripts/smoke_mcp_serve.py 参数化），拦截坏包。
 
 ### 文档
 

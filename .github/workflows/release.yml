@@ -78,6 +78,10 @@ jobs:
       - run: uv sync --group build --frozen
       - name: Build sidecar (PyInstaller onefile)
         run: uv run --no-sync pyinstaller packaging/transfer_orbit_design_sidecar.spec --noconfirm
+      # 打包冒烟闸：design_orbit 真调用走完整星历链（R2S2 包内 lte440 打开、
+      # SPICE 内核加载、修正收敛），漏带依赖/数据的坏包在此变红，不进安装包
+      - name: Smoke sidecar (design_orbit real call)
+        run: uv run --no-sync python scripts/smoke_mcp_serve.py --exe dist/transfer-orbit-design-sidecar.exe --cwd . --kernels kernels
       - name: Stage sidecar into tauri resources
         shell: pwsh
         run: |
@@ -162,6 +166,9 @@ jobs:
       - run: uv sync --group build --frozen
       - name: Build sidecar (PyInstaller onefile)
         run: uv run --no-sync pyinstaller packaging/transfer_orbit_design_sidecar.spec --noconfirm
+      # 打包冒烟闸：同 Windows 作业，design_orbit 真调用守卫坏包
+      - name: Smoke sidecar (design_orbit real call)
+        run: uv run --no-sync python scripts/smoke_mcp_serve.py --exe dist/transfer-orbit-design-sidecar --cwd . --kernels kernels
       - name: Stage sidecar into tauri resources
         run: |
           mkdir -p src-tauri/binaries
