@@ -58,4 +58,68 @@ describe("UpdateModal component", () => {
       expect(screen.getByRole("button", { name: /立即重启|Restart Now/i })).toBeDefined();
     });
   });
+
+  it("shows downloaded size and percent during download", async () => {
+    const downloadAndInstall = vi.fn().mockImplementation(async (cb) => {
+      cb({ event: "Started", data: { contentLength: 100 } });
+      cb({ event: "Progress", data: { chunkLength: 40 } });
+      cb({ event: "Finished" });
+    });
+
+    const info: UpdateInfo = {
+      ...mockUpdateInfo,
+      rawUpdate: {
+        ...mockUpdateInfo.rawUpdate,
+        downloadAndInstall,
+      } as any,
+    };
+
+    render(
+      <UpdateModal
+        open={true}
+        updateInfo={info}
+        onClose={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /立即更新|Update Now/i }));
+
+    await waitFor(() => {
+      // 已下载 40 B / 总量 100 B（瞬时回调无时间差，速度显示占位符 —）
+      expect(screen.getByText(/40 B \/ 100 B/)).toBeDefined();
+    });
+  });
+
+  it("falls back to received-only stats when contentLength is missing", async () => {
+    const downloadAndInstall = vi.fn().mockImplementation(async (cb) => {
+      cb({ event: "Started", data: {} });
+      cb({ event: "Progress", data: { chunkLength: 40 } });
+      cb({ event: "Finished" });
+    });
+
+    const info: UpdateInfo = {
+      ...mockUpdateInfo,
+      rawUpdate: {
+        ...mockUpdateInfo.rawUpdate,
+        downloadAndInstall,
+      } as any,
+    };
+
+    render(
+      <UpdateModal
+        open={true}
+        updateInfo={info}
+        onClose={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /立即更新|Update Now/i }));
+
+    await waitFor(() => {
+      // 无总量：只显示已下载，不出现 “x / y” 形式
+      expect(
+        screen.getByText((c) => c.includes("40 B") && !c.includes(" / "))
+      ).toBeDefined();
+    });
+  });
 });

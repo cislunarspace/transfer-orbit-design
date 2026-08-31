@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Modal, Progress, Typography, Button, Space } from "antd";
 import type { UpdateInfo } from "./updater";
-import { downloadAndApplyUpdate } from "./updater";
+import { downloadAndApplyUpdate, formatBytes, createSpeedTracker } from "./updater";
 import { useTranslation } from "./i18n";
 
 const { Text, Paragraph } = Typography;
@@ -23,6 +23,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
   const [percent, setPercent] = useState<number>(0);
+  const [totalBytes, setTotalBytes] = useState<number>(0);
+  const [receivedBytes, setReceivedBytes] = useState<number>(0);
+  const [speedBps, setSpeedBps] = useState<number>(0);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   if (!updateInfo) return null;
@@ -32,14 +35,20 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
     setErrorMsg(null);
     let totalLength = 0;
     let downloadedLength = 0;
+    const tracker = createSpeedTracker();
 
     try {
       await downloadAndApplyUpdate(updateInfo, (evt) => {
         if (evt.event === "Started") {
           totalLength = evt.data.contentLength || 0;
+          setTotalBytes(totalLength);
+          setReceivedBytes(0);
+          setSpeedBps(0);
           setPercent(0);
         } else if (evt.event === "Progress") {
           downloadedLength += evt.data.chunkLength;
+          setReceivedBytes(downloadedLength);
+          setSpeedBps(tracker(Date.now(), evt.data.chunkLength));
           if (totalLength > 0) {
             setPercent(Math.min(100, Math.round((downloadedLength / totalLength) * 100)));
           }
@@ -127,6 +136,16 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
               <div style={{ marginTop: 16 }}>
                 <Text>{t("updater.downloading")}</Text>
                 <Progress percent={percent} status={errorMsg ? "exception" : "active"} />
+                <Text type="secondary">
+                  {totalBytes > 0
+                    ? t("updater.download_stats")
+                        .replace("{received}", formatBytes(receivedBytes))
+                        .replace("{total}", formatBytes(totalBytes))
+                        .replace("{speed}", speedBps > 0 ? formatBytes(speedBps) : "—")
+                    : t("updater.download_stats_no_total")
+                        .replace("{received}", formatBytes(receivedBytes))
+                        .replace("{speed}", speedBps > 0 ? formatBytes(speedBps) : "—")}
+                </Text>
               </div>
             )}
             {errorMsg && (

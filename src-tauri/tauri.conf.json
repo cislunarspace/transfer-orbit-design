@@ -39,7 +39,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEE3Qjc0ODQ4QjBBRDI3QzIKUldUbWlWb0V0b0tIbnJ5cklyY1p3N093SXV4T1Z3cE1VOHBvS1hQcFlqYit5b0Z6OGp3QW1hRWUK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk1RDE4QzJCQUQxOTVGNDEKUldSQlh4bXRLNHpSbFkrNFNJL0JXR0FmWkwrOEQ5SkRhcUc2c1oyY0piNldNMjdLeU1ZZisyVDAK",
       "endpoints": [
         "https://github.com/cislunarspace/transfer-orbit-design/releases/latest/download/latest.json"
       ]

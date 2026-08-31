@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   checkForAppUpdates,
+  formatBytes,
+  createSpeedTracker,
   type UpdateInfo,
 } from "./updater";
 
@@ -66,5 +68,49 @@ describe("updater module", () => {
     expect(events[0]).toEqual({ event: "Started", data: { contentLength: 1000 } });
     expect(events[1]).toEqual({ event: "Progress", data: { chunkLength: 500 } });
     expect(events[2]).toEqual({ event: "Finished" });
+  });
+
+  describe("formatBytes", () => {
+    it("formats bytes below 1024 as integer B", () => {
+      expect(formatBytes(0)).toBe("0 B");
+      expect(formatBytes(512)).toBe("512 B");
+      expect(formatBytes(1023)).toBe("1023 B");
+    });
+
+    it("formats larger units with one decimal", () => {
+      expect(formatBytes(1024)).toBe("1.0 KB");
+      expect(formatBytes(1536)).toBe("1.5 KB");
+      expect(formatBytes(1024 * 1024)).toBe("1.0 MB");
+      expect(formatBytes(1024 * 1024 * 1024)).toBe("1.0 GB");
+      // 超出单位表不再进位，停留在 GB
+      expect(formatBytes(1024 * 1024 * 1024 * 1024)).toBe("1024.0 GB");
+    });
+
+    it("treats invalid input as 0 B", () => {
+      expect(formatBytes(-1)).toBe("0 B");
+      expect(formatBytes(Number.NaN)).toBe("0 B");
+      expect(formatBytes(Number.POSITIVE_INFINITY)).toBe("0 B");
+    });
+  });
+
+  describe("createSpeedTracker", () => {
+    it("returns 0 for the first chunk (no time delta yet)", () => {
+      const track = createSpeedTracker();
+      expect(track(1000, 5000)).toBe(0);
+    });
+
+    it("computes smoothed speed from chunk deltas", () => {
+      const track = createSpeedTracker();
+      track(1000, 5000); // 首块只记时间
+      expect(track(2000, 1000)).toBe(1000); // 1000 B / 1s
+      // 瞬时 10000 B/s（1000 B / 0.1s），EMA：1000*0.7 + 10000*0.3 = 3700
+      expect(track(2100, 1000)).toBe(3700);
+    });
+
+    it("ignores zero/negative time deltas", () => {
+      const track = createSpeedTracker();
+      track(1000, 5000);
+      expect(track(1000, 1000)).toBe(0); // 同时刻：无速度，不崩
+    });
   });
 });

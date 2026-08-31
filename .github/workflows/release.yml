@@ -87,6 +87,31 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path src-tauri/binaries
           Copy-Item dist/transfer-orbit-design-sidecar.exe src-tauri/binaries/transfer-orbit-design-sidecar.exe
+      # 增量更新第一步：瘦身包（不含 kernels/ 星历，约省 170MB）——应用内更新
+      # 通道专用。装机端 kernels/ 已存在且 NSIS 覆盖安装不动既有文件，星历不
+      # 随每次更新重下；全量包仅供新装用户，仍含完整星历
+      - name: Build slim NSIS installer (updater channel)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.slim.conf.json --bundles nsis
+      - name: Assert slim NSIS updater signature exists
+        shell: pwsh
+        run: |
+          if (-not (Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe.sig -ErrorAction SilentlyContinue)) {
+            throw "瘦身 NSIS 安装包没有 .sig：TAURI_SIGNING_PRIVATE_KEY 未生效"
+          }
+      # 重命名为 *-setup-slim.* 并移出 bundle 目录，避免与随后的全量包同名互覆
+      - name: Stage slim artifacts with -slim suffix
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path src-tauri/bundle-slim | Out-Null
+          Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe, `
+                        src-tauri/target/release/bundle/nsis/*-setup.exe.sig | ForEach-Object {
+            $newName = $_.Name -replace '-setup(\.exe)(\.sig)?$', '-setup-slim$1$2'
+            Move-Item $_.FullName (Join-Path src-tauri/bundle-slim $newName)
+          }
+          Get-ChildItem src-tauri/bundle-slim
       - name: Build NSIS installer
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -129,6 +154,8 @@ jobs:
           files: |
             src-tauri/target/release/bundle/nsis/*-setup.exe
             src-tauri/target/release/bundle/nsis/*-setup.exe.sig
+            src-tauri/bundle-slim/*-setup-slim.exe
+            src-tauri/bundle-slim/*-setup-slim.exe.sig
           generate_release_notes: true
 
   build-linux:
@@ -183,6 +210,26 @@ jobs:
           mkdir -p src-tauri/binaries
           cp dist/transfer-orbit-design-sidecar src-tauri/binaries/transfer-orbit-design-sidecar
           chmod +x src-tauri/binaries/transfer-orbit-design-sidecar
+      # 增量更新第一步：瘦身 AppImage（不含 kernels/），同 Windows 作业
+      - name: Build slim AppImage (updater channel)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.slim.conf.json --bundles appimage
+      - name: Assert slim AppImage signature exists
+        run: |
+          ls src-tauri/target/release/bundle/appimage/*.AppImage.sig > /dev/null
+      - name: Stage slim artifacts with -slim suffix
+        run: |
+          mkdir -p src-tauri/bundle-slim
+          cd src-tauri/target/release/bundle/appimage
+          for f in *.AppImage; do
+            mv "$f" "../../../../bundle-slim/${f%.AppImage}-slim.AppImage"
+          done
+          for f in *.AppImage.sig; do
+            mv "$f" "../../../../bundle-slim/${f%.AppImage.sig}-slim.AppImage.sig"
+          done
+          ls -la ../../../../bundle-slim
       - name: Build AppImage and DEB bundle
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
@@ -201,6 +248,8 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage.sig
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/deb/*.deb.sig
+            src-tauri/bundle-slim/*-slim.AppImage
+            src-tauri/bundle-slim/*-slim.AppImage.sig
 
   publish-updater:
     needs: [build-windows, build-linux]
@@ -220,17 +269,20 @@ jobs:
           VERSION="${TAG_NAME#v}"
           PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-          WIN_SIG=$(cat release-assets/*.exe.sig 2>/dev/null || echo "")
-          APPIMAGE_SIG=$(cat release-assets/*.AppImage.sig 2>/dev/null || echo "")
+          # 增量更新：更新通道取瘦身包（不含 kernels/，约省 170MB）；全量包
+          # 仅新装用户手装。注意 glob 必须精确到 -slim 后缀——全量包的 .sig
+          # 同在资产列表，cat 多文件会把两份签名拼成废串
+          WIN_SIG=$(cat release-assets/*-setup-slim.exe.sig 2>/dev/null || echo "")
+          APPIMAGE_SIG=$(cat release-assets/*-slim.AppImage.sig 2>/dev/null || echo "")
           # 空签名是坏包：tauri updater 带公钥验签，空签名应用内更新必败
           if [ -z "$WIN_SIG" ] || [ -z "$APPIMAGE_SIG" ]; then
-            echo "::error::Release 资产缺 .sig（WIN_SIG/APPIMAGE_SIG 为空），拒绝发布空签名 latest.json"
+            echo "::error::Release 资产缺瘦身包 .sig（WIN_SIG/APPIMAGE_SIG 为空），拒绝发布空签名 latest.json"
             exit 1
           fi
 
-          # 获取 release 资产的下载链接
-          WIN_URL=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json assets -q '.assets[] | select(.name | endswith("-setup.exe")) | .url')
-          APPIMAGE_URL=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json assets -q '.assets[] | select(.name | endswith(".AppImage")) | .url')
+          # 获取 release 资产的下载链接（更新通道 → 瘦身包）
+          WIN_URL=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json assets -q '.assets[] | select(.name | endswith("-setup-slim.exe")) | .url')
+          APPIMAGE_URL=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json assets -q '.assets[] | select(.name | endswith("-slim.AppImage")) | .url')
 
           cat <<EOF > latest.json
           {
