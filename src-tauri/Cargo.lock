@@ -4269,7 +4269,7 @@ dependencies = [
 
 [[package]]
 name = "transfer-orbit-design"
-version = "4.6.0"
+version = "4.6.1"
 dependencies = [
  "anyhow",
  "keyring",
