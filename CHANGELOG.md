@@ -2,6 +2,10 @@
 
 ## 未发布
 
+### 功能
+
+- **发布多平台安装包**：Linux 增加 arm64（原生 arm runner 现场构建 sidecar 与 AppImage/deb/rpm，PyInstaller 不支持交叉编译）与 rpm 格式；Windows 增加 MSI 安装包（更新通道仍走 NSIS 瘦身包）。发布流水线对齐 altgo/freetex 的闸口设计：打 tag 先校验四处版本（pyproject/Cargo/tauri.conf/frontend）与 CHANGELOG 小节一致；Release 正文改由 CHANGELOG 对应小节生成；收尾作业核对各平台产物数量、生成 `checksums.txt`、合成含 windows-x86_64 与 linux-x86_64/linux-aarch64 三平台的 `latest.json`。Windows 不发 arm64：sidecar 的原生依赖（e2m2e/spiceypy/calcephpy）均无 win_arm64 轮子。
+
 ## 4.7.0 (2026-08-31)
 
 ### 功能

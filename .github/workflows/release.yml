@@ -13,7 +13,18 @@ permissions:
   contents: read
 
 jobs:
+  validate:
+    name: 校验发布元数据
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: 校验 Tag 与版本
+        run: bash packaging/scripts/validate-release.sh
+
   lint:
+    needs: validate
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -49,7 +60,7 @@ jobs:
         run: uv run --frozen --no-sync pytest tests/ -v -m "not spice"
 
   build-windows:
-    needs: test
+    needs: [validate, test]
     runs-on: windows-2025
     permissions:
       contents: write
@@ -112,55 +123,56 @@ jobs:
             Move-Item $_.FullName (Join-Path src-tauri/bundle-slim $newName)
           }
           Get-ChildItem src-tauri/bundle-slim
-      - name: Build NSIS installer
+      # 全量 NSIS 走应用内更新通道；MSI 仅供偏好该格式的新装用户手装
+      # （企业管理部署等），不进 latest.json
+      - name: Build NSIS installer and MSI
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.conf.json --bundles nsis
+        run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.conf.json --bundles nsis,msi
       # 签名闸：TAURI_SIGNING_PRIVATE_KEY 未生效时 tauri build 静默跳过签名，
       # 坏包带空签名混进 Release → 应用内更新验签必败（4.6.0/4.6.1 实际缺陷），
-      # 在此拦截而不是等 publish-updater 或用户更新时才炸
+      # 在此拦截而不是等收尾作业或用户更新时才炸
       - name: Assert NSIS updater signature exists
         shell: pwsh
         run: |
           if (-not (Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe.sig -ErrorAction SilentlyContinue)) {
             throw "NSIS 安装包没有 .sig：TAURI_SIGNING_PRIVATE_KEY 未生效，检查仓库 Secrets 与密钥对配置"
           }
-      - name: Generate changelog
-        id: changelog
+      - name: Extract release notes from CHANGELOG
         shell: bash
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" "$PREV_TAG"..HEAD)
-          else
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" HEAD)
-          fi
-          {
-            echo "changelog<<EOF"
-            echo "$CHANGELOG"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: bash packaging/scripts/extract-release-notes.sh release_notes.md
       # 直传 Release，不经 actions artifact 中转（artifact 存储配额有限，
       # 历史上 300MB 级安装包很快打满；Release 资产不计入该配额）
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
-          body: |
-            ## Changes
-
-            ${{ steps.changelog.outputs.changelog }}
+          body_path: release_notes.md
           files: |
             src-tauri/target/release/bundle/nsis/*-setup.exe
             src-tauri/target/release/bundle/nsis/*-setup.exe.sig
+            src-tauri/target/release/bundle/msi/*.msi
             src-tauri/bundle-slim/*-setup-slim.exe
             src-tauri/bundle-slim/*-setup-slim.exe.sig
           generate_release_notes: true
 
   build-linux:
-    needs: test
-    runs-on: ubuntu-22.04
+    needs: [validate, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # GitHub 免费臂：arm64 由原生 arm runner 构建（PyInstaller 不支持
+          # 交叉编译，sidecar 必须在目标架构上现场打包）
+          - arch: amd64
+            runs-on: ubuntu-22.04
+          - arch: aarch64
+            runs-on: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runs-on }}
     permissions:
       contents: write
     steps:
@@ -183,7 +195,10 @@ jobs:
             libssl-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
-            libegl1
+            libegl1 \
+            patchelf \
+            rpm \
+            cmake
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -192,6 +207,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
         with:
+          key: ${{ matrix.arch }}
           workspaces: src-tauri
       - uses: astral-sh/setup-uv@v7
         with:
@@ -199,6 +215,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - run: npm ci --prefix frontend
       - run: npm --prefix frontend run build
+      # calcephpy 在非 Windows 平台回落 sdist 现场编译，cmake 已在上方显式安装
       - run: uv sync --group build --frozen
       - name: Build sidecar (PyInstaller onefile)
         run: uv run --no-sync pyinstaller packaging/transfer_orbit_design_sidecar.spec --noconfirm
@@ -215,6 +232,7 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPIMAGE_EXTRACT_AND_RUN: "1"
         run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.slim.conf.json --bundles appimage
       - name: Assert slim AppImage signature exists
         run: |
@@ -230,15 +248,18 @@ jobs:
             mv "$f" "../../../../bundle-slim/${f%.AppImage.sig}-slim.AppImage.sig"
           done
           ls -la ../../../../bundle-slim
-      - name: Build AppImage and DEB bundle
+      - name: Build AppImage, DEB and RPM bundles
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.conf.json --bundles appimage,deb
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+        run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.conf.json --bundles appimage,deb,rpm
       # 签名闸：同 Windows 作业
       - name: Assert Linux updater signatures exist
         run: |
-          ls src-tauri/target/release/bundle/appimage/*.AppImage.sig src-tauri/target/release/bundle/deb/*.deb.sig > /dev/null
+          ls src-tauri/target/release/bundle/appimage/*.AppImage.sig \
+             src-tauri/target/release/bundle/deb/*.deb.sig \
+             src-tauri/target/release/bundle/rpm/*.rpm.sig > /dev/null
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -248,17 +269,30 @@ jobs:
             src-tauri/target/release/bundle/appimage/*.AppImage.sig
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/deb/*.deb.sig
+            src-tauri/target/release/bundle/rpm/*.rpm
+            src-tauri/target/release/bundle/rpm/*.rpm.sig
             src-tauri/bundle-slim/*-slim.AppImage
             src-tauri/bundle-slim/*-slim.AppImage.sig
 
-  publish-updater:
+  # 收尾：汇总各平台直传的资产，核对产物齐全，生成 checksums.txt 与更新元
+  # 清单 latest.json（增量更新通道 → 各平台瘦身包）并回传 Release
+  release:
+    name: 生成 checksums 与更新元清单
     needs: [build-windows, build-linux]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - name: Download release assets and generate latest.json
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Extract release notes from CHANGELOG
+        env:
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: bash packaging/scripts/extract-release-notes.sh release_notes.md
+      - name: Download release assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ github.ref_name }}
@@ -266,41 +300,42 @@ jobs:
           mkdir -p release-assets
           gh release download "$TAG_NAME" --dir release-assets --repo "${{ github.repository }}"
 
-          VERSION="${TAG_NAME#v}"
-          PUB_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-          # 增量更新：更新通道取瘦身包（不含 kernels/，约省 170MB）；全量包
-          # 仅新装用户手装。注意 glob 必须精确到 -slim 后缀——全量包的 .sig
-          # 同在资产列表，cat 多文件会把两份签名拼成废串
-          WIN_SIG=$(cat release-assets/*-setup-slim.exe.sig 2>/dev/null || echo "")
-          APPIMAGE_SIG=$(cat release-assets/*-slim.AppImage.sig 2>/dev/null || echo "")
-          # 空签名是坏包：tauri updater 带公钥验签，空签名应用内更新必败
-          if [ -z "$WIN_SIG" ] || [ -z "$APPIMAGE_SIG" ]; then
-            echo "::error::Release 资产缺瘦身包 .sig（WIN_SIG/APPIMAGE_SIG 为空），拒绝发布空签名 latest.json"
+      - name: 校验发布产物
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          mapfile -t slim_exes < <(find release-assets -type f -name '*-setup-slim.exe' | sort)
+          mapfile -t exes < <(find release-assets -type f -name '*-setup.exe' | sort)
+          mapfile -t msis < <(find release-assets -type f -name '*.msi' | sort)
+          mapfile -t slim_appimages < <(find release-assets -type f -name '*-slim.AppImage' | sort)
+          mapfile -t appimages < <(find release-assets -type f -name '*.AppImage' ! -name '*-slim.AppImage' | sort)
+          mapfile -t debs < <(find release-assets -type f -name '*.deb' | sort)
+          mapfile -t rpms < <(find release-assets -type f -name '*.rpm' | sort)
+          if [[ "${#slim_exes[@]}" -ne 1 || "${#exes[@]}" -ne 1 || "${#msis[@]}" -ne 1 \
+             || "${#slim_appimages[@]}" -ne 2 || "${#appimages[@]}" -ne 2 \
+             || "${#debs[@]}" -ne 2 || "${#rpms[@]}" -ne 2 ]]; then
+            echo "错误：预期各 1 份瘦身/全量 exe、1 份 msi（Windows 仅 x64），各 2 份瘦身/全量 AppImage、deb、rpm（Linux amd64+aarch64），实际为 ${#slim_exes[@]} 瘦身 exe、${#exes[@]} 全量 exe、${#msis[@]} msi、${#slim_appimages[@]} 瘦身 AppImage、${#appimages[@]} 全量 AppImage、${#debs[@]} deb、${#rpms[@]} rpm" >&2
+            find release-assets -type f | sort >&2
             exit 1
           fi
+          printf '发布产物（%s）：\n%s\n' "${TAG_NAME}" "$(find release-assets -type f | sort)"
 
-          # 获取 release 资产的下载链接（更新通道 → 瘦身包）
-          WIN_URL=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json assets -q '.assets[] | select(.name | endswith("-setup-slim.exe")) | .url')
-          APPIMAGE_URL=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json assets -q '.assets[] | select(.name | endswith("-slim.AppImage")) | .url')
+      - name: Generate checksums
+        run: |
+          cd release-assets
+          find . -type f \( -name '*.exe' -o -name '*.msi' -o -name '*.AppImage' -o -name '*.deb' -o -name '*.rpm' \) -print0 | sort -z | xargs -0 sha256sum > ../checksums.txt
+          cd ..
+          cat checksums.txt
 
-          cat <<EOF > latest.json
-          {
-            "version": "$VERSION",
-            "notes": "Release $TAG_NAME",
-            "pub_date": "$PUB_DATE",
-            "platforms": {
-              "windows-x86_64": {
-                "signature": "$WIN_SIG",
-                "url": "$WIN_URL"
-              },
-              "linux-x86_64": {
-                "signature": "$APPIMAGE_SIG",
-                "url": "$APPIMAGE_URL"
-              }
-            }
-          }
-          EOF
+      - name: 合并各平台 Updater 签名并生成 latest.json
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          bash packaging/scripts/merge-updater-json.sh release-assets release-assets/latest.json "${VERSION}" release_notes.md
 
-          gh release upload "$TAG_NAME" latest.json --clobber --repo "${{ github.repository }}"
-
+      - name: Upload latest.json and checksums
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: gh release upload "$TAG_NAME" release-assets/latest.json checksums.txt --clobber --repo "${{ github.repository }}"

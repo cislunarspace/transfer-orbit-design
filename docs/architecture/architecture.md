@@ -265,7 +265,8 @@ WebGLRenderer + OrbitControls（旋转/缩放/平移）
 
 ## 分发
 
-发行版为 Windows NSIS 安装器（currentUser 免管理员）与 Linux AppImage/deb：
+发行版为 Windows NSIS 安装器（currentUser 免管理员）与 MSI，以及 Linux
+（amd64/aarch64）AppImage/deb/rpm：
 Tauri 主程序 + `transfer-orbit-design-sidecar`（PyInstaller onefile 打包的
 e2m2e serve-stdio，`packaging/transfer_orbit_design_sidecar.spec`）+ SPICE
 内核（含行星历，随 Git LFS 入库），三者经 resources 映射进安装目录。分发期
@@ -273,10 +274,13 @@ Rust 壳从 resource 目录拉起 sidecar（`packaged_sidecar_command`），cwd 
 resource 根，e2m2e Config 的 `kernels/`、`catalog/` 按 cwd 相对解析（可用
 `SPICE_KERNEL_DIR` / `E2M2E_CATALOG_DIR` 环境变量覆盖）。桌面端自动更新经
 `@tauri-apps/plugin-updater` 基于 GitHub Releases 的 latest.json（ADR 0018）。
-发布管线见 `.github/workflows/release.yml`（tag `v*` 触发：lint → 测试 →
-Windows NSIS 与 Linux AppImage/deb 构建 → publish-updater 生成签名更新清单
-latest.json → 直传 GitHub Release）。版本 bump 时 `src-tauri/tauri.conf.json`（
-单一来源，AboutModal 读运行时版本）与 `frontend/package.json` 两处同步修改。
+发布管线见 `.github/workflows/release.yml`（tag `v*` 触发：元数据校验 →
+lint → 测试 → Windows NSIS+MSI 与 Linux（amd64/aarch64）AppImage/deb/rpm
+构建，各构建作业直传 GitHub Release → 收尾作业核对产物数量、生成
+`checksums.txt` 与签名更新清单 latest.json 后回传）。版本 bump 时
+`pyproject.toml`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`（
+AboutModal 读运行时版本）与 `frontend/package.json` 四处及 CHANGELOG 小节
+同步修改，`packaging/scripts/validate-release.sh` 在发布期把关一致。
 
 ## 依赖
 
