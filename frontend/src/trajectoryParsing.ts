@@ -62,6 +62,17 @@ export interface TrajectoryData {
   /** Jacobi constant aligned row-by-row; undefined entries = no Jacobi
    *  value (transfer arcs etc.), falling back to the color cycle (#435). */
   jacobi?: (number | undefined)[];
+  /** 与 trajectories 逐条对齐的惯性几何（DU 归一）：转移弧的 gcrs 段
+   *  （#428 第二步，e2m2e 5.9.1 trajectory_gcrs_km）——同一物理弧的第二
+   *  份数据，惯性视图下改用它绘制；缺位（null / 无字段）按无惯性段处理
+   *  （降级灰显）。视图系是显示选择，不随数据走，故不占 frames 槽位。 */
+  /** Inertial geometry row-aligned with trajectories (DU-normalized): the
+   *  transfer arc's gcrs segment (#428 step 2, e2m2e 5.9.1
+   *  trajectory_gcrs_km) — a second copy of the same physical arc, drawn in
+   *  the inertial view; a missing entry (null / absent field) counts as no
+   *  inertial segment (degraded graying). The view frame is a display choice
+   *  and never rides the data, hence no frames slot. */
+  inertialGeometries?: (number[][] | null)[];
 }
 
 /** 传播步数：与轨迹点数联动（点数 = 步数 + 1），时刻按 period/步数均匀合成 */
@@ -195,12 +206,26 @@ export function transferTrajectoryToCanvasData(
   times: unknown,
   tliEpoch?: string | number,
   label = "转移弧",
+  gcrsTrajectory?: number[][] | null,
 ): TrajectoryData {
   const pts = trajectory.map((row) => [
     Number(row[0]) / DU_KM,
     Number(row[1]) / DU_KM,
     Number(row[2]) / DU_KM,
   ]);
+  // 惯性段（#428 第二步）：与主几何逐行对齐才携带（时刻共享
+  // trajectory_times，不双份）；行数不齐或缺位为 null——降级灰显口径。
+  // The inertial segment (#428 step 2): carried only when row-aligned with the
+  // primary geometry (times are shared with trajectory_times, never
+  // duplicated); misaligned or absent is null — the degraded-graying case.
+  const gcrsPts =
+    gcrsTrajectory && gcrsTrajectory.length === trajectory.length
+      ? gcrsTrajectory.map((row) => [
+          Number(row[0]) / DU_KM,
+          Number(row[1]) / DU_KM,
+          Number(row[2]) / DU_KM,
+        ])
+      : null;
   const aligned =
     Array.isArray(times) && times.length === trajectory.length
       ? (times as unknown[]).map(Number)
@@ -214,6 +239,12 @@ export function transferTrajectoryToCanvasData(
     timeBasis: [etTimes ? "et" : aligned ? "relative" : "none"],
     frames: ["synodic_km"],
     labels: [label],
+    // 未传 gcrs 段（low_thrust/旧响应）不携带字段；传了但行数不齐为 null
+    // No gcrs param (low_thrust / legacy responses) leaves the field absent;
+    // a provided-but-misaligned one is null.
+    ...(gcrsTrajectory !== undefined && gcrsTrajectory !== null
+      ? { inertialGeometries: [gcrsPts] as (number[][] | null)[] }
+      : {}),
   };
 }
 

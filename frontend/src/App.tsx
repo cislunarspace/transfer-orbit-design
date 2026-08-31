@@ -302,6 +302,16 @@ export default function App() {
       jacobi: layers.flatMap(
         (l) => l.jacobi ?? l.trajectories.map(() => undefined),
       ),
+      // 惯性几何逐层拼接（#428 第二步）：未携带的层补 null（无惯性段，
+      // 惯性视图下照灰显口径处理）。
+      // Inertial geometry concatenated per layer (#428 step 2): layers without
+      // it fill null (no inertial segment — the degraded-graying case in the
+      // inertial view).
+      inertialGeometries: layers.flatMap(
+        (l) =>
+          l.inertialGeometries ??
+          l.trajectories.map(() => null as number[][] | null),
+      ),
     };
     const mode = timelineMode(combined);
     return {
@@ -383,6 +393,22 @@ export default function App() {
     data: Awaited<ReturnType<typeof getArtifact>>,
   ): TrajectoryData | null => {
     let base: TrajectoryData | null = null;
+    // 转移记录（#428 第二步）：transfer/ 段与 live 响应共用同一解析函数
+    // （位置 ÷DU_KM 归一、tli_epoch → et 基准、gcrs 惯性段随行携带）；
+    // 转移记录无 CR3BP/星历段，早返回不走下面的双段合并。
+    // A transfer record (#428 step 2): the transfer/ segment goes through the
+    // same parse as the live response (positions ÷DU_KM, tli_epoch → the et
+    // basis, the gcrs inertial segment riding along); transfer records carry
+    // no CR3BP/ephemeris segments, so the dual-segment merge below is skipped.
+    if (data.transfer && data.transfer.states.length > 0) {
+      return transferTrajectoryToCanvasData(
+        data.transfer.states,
+        data.transfer.times,
+        data.transfer.tliEpoch ?? undefined,
+        t("canvas.transfer_arc"),
+        data.transfer.gcrsStates ?? null,
+      );
+    }
     if (data.familyMembers && data.familyMembers.length > 0) {
       // 成员自带 jacobi 优先；族成员表缺值时回退记录级 jacobi（设计轨道单条通道，#435）
       // A member's own jacobi wins; the record-level jacobi is the fallback for
@@ -839,7 +865,13 @@ export default function App() {
             d.trajectory,
             d.trajectory_times,
             tliEpoch,
-            t("canvas.transfer_arc")
+            t("canvas.transfer_arc"),
+            // 惯性段（#428 第二步，e2m2e 5.9.1 trajectory_gcrs_km）：low_thrust
+            // 与零结果为 null，解析层自行降级
+            // The inertial segment (#428 step 2, e2m2e 5.9.1
+            // trajectory_gcrs_km): null for low_thrust and zero results — the
+            // parsing layer degrades on its own.
+            (d.trajectory_gcrs_km as number[][] | null | undefined) ?? null,
           );
           applyTrajectoryData(td, transferEventsFromDetails(d.details, tliEpoch, t));
         } else {
@@ -1178,11 +1210,22 @@ export default function App() {
               times={canvasData.displayTimes}
               currentEt={currentEt}
               labels={canvasData.labels}
-              frameLabels={canvasData.frames?.map((f) => t(`canvas.frame.${f}`))}
+              frameLabels={canvasData.frames?.map((f, i) =>
+                // 惯性视图下带 gcrs 段的转移弧实际画的是惯性几何，标注跟着
+                // 换成地心惯性 km（#428 第二步）；其余情形标注随数据系。
+                // In the inertial view a gcrs-carrying transfer arc actually
+                // draws its inertial geometry, so the note switches to
+                // geocentric inertial km (#428 step 2); otherwise the note
+                // follows the data frame.
+                frame === "inertial" && canvasData.inertialGeometries?.[i]
+                  ? t("canvas.frame.inertial_km")
+                  : t(`canvas.frame.${f}`)
+              )}
               jacobi={canvasData.jacobi}
               regions={regionData}
               frame={frame}
               dataFrames={canvasData.frames}
+              inertialGeometries={canvasData.inertialGeometries}
               moonTrack={frame === "inertial" ? moonTrack : null}
               synodicUnavailableNote={t("canvas.frame.synodic_unavailable")}
               mu={EARTH_MOON_MU}

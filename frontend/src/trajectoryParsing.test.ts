@@ -317,6 +317,35 @@ describe("transferTrajectoryToCanvasData 转移轨迹解析", () => {
   it("转移弧标注数据系 synodic_km（会合系物理 km，ADR 0040 契约）", () => {
     expect(transferTrajectoryToCanvasData(TRAJ, null).frames).toEqual(["synodic_km"]);
   });
+
+  // —— 双几何段（#428 第二步，e2m2e 5.9.1 trajectory_gcrs_km）——
+  // Dual-geometry segment (#428 step 2, e2m2e 5.9.1 trajectory_gcrs_km).
+  const GCRS: number[][] = [
+    [7000.0, 0.0, 100.0, 0.0, 7.0, 1.0],
+    [0.0, 200000.0, 0.0, -1.0, 3.0, 0.0],
+    [-384400.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+  ];
+
+  it("gcrs 段同行对齐时携带惯性几何（位置 ÷DU_KM），主几何与时刻不变", () => {
+    const got = transferTrajectoryToCanvasData(TRAJ, [0, 100, 200], undefined, "转移弧", GCRS);
+    expect(got.inertialGeometries).toHaveLength(1);
+    expect(got.inertialGeometries![0]![0]).toEqual([7000.0 / 384400, 0, 100.0 / 384400]);
+    expect(got.inertialGeometries![0]![2]).toEqual([-1, 0, 0]);
+    // 主几何仍是会合系段（会合视图逐项不变）；时刻共享 trajectory_times
+    // The primary geometry stays the synodic segment (synodic view unchanged item
+    // for item); times are shared with trajectory_times.
+    expect(got.trajectories[0][2][0]).toBeCloseTo(380000 / 384400, 12);
+    expect(got.times[0]).toEqual([0, 100, 200]);
+    expect(got.frames).toEqual(["synodic_km"]);
+  });
+
+  it("gcrs 段行数不齐或缺位时惯性几何为 null/缺省（降级灰显口径）", () => {
+    const misaligned = transferTrajectoryToCanvasData(TRAJ, null, undefined, "转移弧", GCRS.slice(0, 2));
+    expect(misaligned.inertialGeometries![0]).toBeNull();
+    // 未传参（low_thrust/旧响应）不带 inertialGeometries 字段
+    // No param (low_thrust / legacy responses) leaves inertialGeometries absent.
+    expect(transferTrajectoryToCanvasData(TRAJ, null).inertialGeometries).toBeUndefined();
+  });
 });
 
 describe("propagationToCanvasData 轨道预报解析（#421）", () => {

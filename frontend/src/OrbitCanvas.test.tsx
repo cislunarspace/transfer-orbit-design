@@ -954,3 +954,96 @@ describe("惯性视图（#428）", () => {
     expect((swatches[0] as HTMLElement).style.background).toBe(expectedRgb);
   });
 });
+
+describe("惯性视图转移弧 gcrs 段（#428 第二步）", () => {
+  // 双几何：主几何（会合系）与 gcrs 段（惯性）显著不同，断言可分辨
+  // Dual geometry: the primary (synodic) and gcrs (inertial) segments differ
+  // visibly so assertions can tell them apart.
+  const SYNODIC_ARC: number[][] = [
+    [0.1, 0, 0],
+    [0.2, 0, 0],
+    [0.3, 0, 0],
+  ];
+  const GCRS_ARC: number[][] = [
+    [0, 0.1, 0],
+    [0, 0.2, 0],
+    [0, 0.3, 0],
+  ];
+
+  function arcLines(): Line[] {
+    const lines = sceneLines(sceneOf());
+    expect(lines).toHaveLength(1);
+    return lines;
+  }
+
+  function firstPointOf(line: Line): number[] {
+    const attr = line.geometry.getAttribute("position") as import("three").BufferAttribute;
+    return [attr.getX(0), attr.getY(0), attr.getZ(0)];
+  }
+
+  it("惯性视图：带 gcrs 段的转移弧改用惯性几何绘制，不灰显、无不可画注记", () => {
+    const view = renderCanvas({
+      frame: "inertial",
+      trajectories: [SYNODIC_ARC],
+      dataFrames: ["synodic_km"],
+      inertialGeometries: [GCRS_ARC],
+      labels: ["转移弧"],
+      synodicUnavailableNote: "会合系几何，惯性视图下不可画",
+    });
+    flushFrames();
+    const [line] = arcLines();
+    expect(firstPointOf(line)[0]).toBeCloseTo(0, 10); // gcrs 几何，非会合段
+    expect(firstPointOf(line)[1]).toBeCloseTo(0.1, 6);
+    const hex = (line.material as unknown as { color: { getHexString(): string } }).color.getHexString();
+    expect(hex).toBe(DEFAULT_CHART_SETTINGS.colorCycle[0].slice(1)); // 原色，未去饱和
+    expect(view.container.querySelectorAll("[data-testid='legend-unavailable']")).toHaveLength(0);
+  });
+
+  it("会合视图：不消费 gcrs 段，逐项不变", () => {
+    renderCanvas({
+      frame: "synodic",
+      trajectories: [SYNODIC_ARC],
+      dataFrames: ["synodic_km"],
+      inertialGeometries: [GCRS_ARC],
+    });
+    flushFrames();
+    const p = firstPointOf(arcLines()[0]);
+    expect(p[0]).toBeCloseTo(0.1, 6);
+    expect(p[1]).toBeCloseTo(0, 10);
+    expect(p[2]).toBeCloseTo(0, 10);
+  });
+
+  it("惯性视图下时刻标记沿 gcrs 几何插值（与所画弧同源）", () => {
+    renderCanvas({
+      frame: "inertial",
+      trajectories: [SYNODIC_ARC],
+      inertialGeometries: [GCRS_ARC],
+      times: [[0, 100, 200]],
+      currentEt: 100,
+    });
+    flushFrames();
+    const marker = sceneOf().children.find((o) => o.name === "time-marker") as import("three").Mesh;
+    expect(marker.visible).toBe(true);
+    // et=100 → gcrs 几何中点 (0, 0.2, 0)；若误用会合段则是 (0.2, 0, 0)
+    // et=100 → the gcrs midpoint (0, 0.2, 0); the synodic segment would give (0.2, 0, 0).
+    expect(marker.position.x).toBeCloseTo(0, 10);
+    expect(marker.position.y).toBeCloseTo(0.2, 10);
+  });
+
+  it("gcrs 段为 null（旧记录/low_thrust）时降级：仍画会合段并灰显＋注记", () => {
+    const view = renderCanvas({
+      frame: "inertial",
+      trajectories: [SYNODIC_ARC],
+      dataFrames: ["synodic_km"],
+      inertialGeometries: [null],
+      labels: ["转移弧"],
+      synodicUnavailableNote: "会合系几何，惯性视图下不可画",
+    });
+    flushFrames();
+    const [line] = arcLines();
+    expect(firstPointOf(line)[0]).toBeCloseTo(0.1, 6); // 会合段照画（灰显口径）
+    const hex = (line.material as unknown as { color: { getHexString(): string } }).color.getHexString();
+    expect(hex).toBe(desaturate(DEFAULT_CHART_SETTINGS.colorCycle[0]).slice(1));
+    expect(view.container.querySelectorAll("[data-testid='legend-unavailable']")).toHaveLength(1);
+  });
+});

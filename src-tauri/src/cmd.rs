@@ -268,6 +268,25 @@ pub struct EphemerisSegment {
     pub second: Vec<f32>,
 }
 
+/// 记录的转移段（transfer/ 前缀数组，e2m2e #574/#584）：states 为会合系
+/// 物理 km/km/s (n,6)、times 为 TLI 起算秒 (n,)；states_gcrs_km 为惯性段
+/// （#428 第二步，缺位不落键）。行形状（每行 6 元）保留，前端与 live
+/// 响应共用同一解析函数（位置 ÷DU_KM 归一）。scalars 携带 tli_epoch
+/// （UTC 字符串或 JD_TDB 浮点，原样透传）与 delta_v_km_s/transfer_type。
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TransferSegment {
+    pub states: Vec<Vec<f32>>,
+    pub times: Vec<f32>,
+    /// 惯性段 (n,6)：与 states 同行才携带（否则 None，降级口径）
+    /// The inertial segment (n,6): carried only when row-aligned with states
+    /// (else None — the degraded case).
+    pub gcrs_states: Option<Vec<Vec<f32>>>,
+    pub tli_epoch: Option<serde_json::Value>,
+    pub transfer_type: Option<String>,
+    pub delta_v_km_s: Option<f64>,
+}
+
 /// 项目树选中 → 画布联动：按 record_id 从 catalog 拉取产物。
 ///
 /// 帧序 = `data.arrays` 里 None 占位键的顺序（e2m2e ADR 0035）；族记录
@@ -290,6 +309,11 @@ pub struct ArtifactData {
     pub jacobi: Option<f64>,
     /// 星历段（设计/预报类产物；会合系原生直画，UTC 分量 → et）
     pub ephemeris: Option<EphemerisSegment>,
+    /// 转移段（#428 第二步）：states/times/gcrs_states + scalars 元数据；
+    /// 非转移记录为 None
+    /// The transfer segment (#428 step 2): states/times/gcrs_states plus
+    /// scalars metadata; None for non-transfer records.
+    pub transfer: Option<TransferSegment>,
     pub error: Option<serde_json::Value>,
 }
 
@@ -322,14 +346,19 @@ fn artifact_from_catalog_get(record_id: String, result: crate::sidecar::JobResul
             members: vec![],
             jacobi: None,
             ephemeris: None,
+            transfer: None,
             error: result.error,
         };
     }
     // 帧序 = arrays 中 None 占位键顺序；states 键配对同序 times 键，
+    // transfer/ 前缀除外（走下方转移段通道，不进族成员路径）。
+    // Frame order = the None-placeholder key order in arrays; states keys pair
+    // with same-order times keys — except the transfer/ prefix, which goes
+    // through the transfer-segment channel below, never the family-member path.
     let arrays = result.data["arrays"].as_object().cloned().unwrap_or_default();
     let state_keys: Vec<&String> = arrays
         .iter()
-        .filter(|(k, v)| v.is_null() && k.ends_with("/states"))
+        .filter(|(k, v)| v.is_null() && k.ends_with("/states") && !k.starts_with("transfer/"))
         .map(|(k, _)| k)
         .collect();
     let member_meta_list = result.data["members"].as_array().cloned().unwrap_or_default();
@@ -394,6 +423,36 @@ fn artifact_from_catalog_get(record_id: String, result: crate::sidecar::JobResul
             second,
         })
     })();
+    // 转移段（#428 第二步）：states/times 行齐才上；gcrs 惯性段同行才携
+    // 带（#584 之前旧记录缺键 → None，前端惯性视图降级灰显）。
+    // The transfer segment (#428 step 2): carried only when states/times rows
+    // align; the gcrs inertial segment only when row-aligned too (legacy
+    // pre-#584 records lack the key → None, the frontend's degraded graying).
+    let rows6 = |flat: &[f32]| -> Vec<Vec<f32>> {
+        flat.chunks_exact(6).map(<[f32]>::to_vec).collect()
+    };
+    let transfer = (|| {
+        let states = eph_frame("transfer/states")?;
+        let times = eph_frame("transfer/times")?;
+        if states.is_empty() || states.len() != 6 * times.len() {
+            return None;
+        }
+        let gcrs_states = eph_frame("transfer/states_gcrs_km")
+            .filter(|g| g.len() == states.len())
+            .map(|g| rows6(&g));
+        let scalars = &result.data["scalars"];
+        Some(TransferSegment {
+            states: rows6(&states),
+            times,
+            gcrs_states,
+            tli_epoch: scalars
+                .get("tli_epoch")
+                .cloned()
+                .filter(|v| !v.is_null()),
+            transfer_type: scalars["transfer_type"].as_str().map(String::from),
+            delta_v_km_s: scalars["delta_v_km_s"].as_f64(),
+        })
+    })();
     ArtifactData {
         record_id: result.data["record_id"].as_str().unwrap_or("").to_string(),
         orbit_family: result.data["orbit_family"].as_str().unwrap_or("").to_string(),
@@ -407,6 +466,7 @@ fn artifact_from_catalog_get(record_id: String, result: crate::sidecar::JobResul
         jacobi: result.data["jacobi"].as_array()
             .and_then(|v| v.first()).and_then(|v| v.as_f64()),
         ephemeris,
+        transfer,
         error: None,
     }
 }
@@ -566,5 +626,96 @@ mod get_artifact_tests {
         result.data["jacobi"] = serde_json::Value::Null;
         let artifact = artifact_from_catalog_get("design-1".into(), result);
         assert_eq!(artifact.jacobi, None);
+    }
+
+    /// 转移记录响应（e2m2e #574/#584）：transfer/ 段 + scalars 元数据。
+    /// A transfer-record response (e2m2e #574/#584): the transfer/ segments
+    /// plus scalars metadata.
+    fn transfer_record_result() -> JobResult {
+        JobResult {
+            status: "ok".into(),
+            data: serde_json::json!({
+                "record_id": "tr-1",
+                "orbit_family": null,
+                "member_count": 0,
+                "scalars": {
+                    "transfer_type": "HMN",
+                    "delta_v_km_s": 3.95,
+                    "tli_epoch": "2026-09-01T00:00:00",
+                    "state_frame": "synodic_barycentric_km"
+                },
+                "members": [],
+                "arrays": {
+                    "transfer/states": null,
+                    "transfer/times": null,
+                    "transfer/states_gcrs_km": null
+                }
+            }),
+            error: None,
+            frames: vec![
+                // (2,6) 会合系物理 km/km/s：两行足够分辨行序
+                // (2,6) rotating-frame physical km/km/s: two rows suffice to
+                // tell the row order apart.
+                f32_frame(&[2, 6], &[
+                    -4670.9, 6578.0, 0.0, 0.0, 7.8, 0.0,
+                    380000.0, 0.0, 0.0, 0.0, 0.5, 0.0,
+                ]),
+                f32_frame(&[2], &[0.0, 200.0]),
+                f32_frame(&[2, 6], &[
+                    7000.0, 0.0, 100.0, 0.0, 7.0, 1.0,
+                    -384400.0, 0.0, 0.0, 0.0, 1.0, 0.0,
+                ]),
+            ],
+        }
+    }
+
+    #[test]
+    fn transfer_record_maps_to_transfer_segment_not_family_members() {
+        let artifact = artifact_from_catalog_get("tr-1".into(), transfer_record_result());
+        // transfer/ 段不进族成员通道（曾是误画：km 值不归一直当无量纲画）
+        // transfer/ segments never enter the family-member channel (the old
+        // misdraw: raw km values drawn as if dimensionless).
+        assert!(artifact.family_members.is_empty());
+        assert!(artifact.members.is_empty());
+        let seg = artifact.transfer.as_ref().expect("转移段应存在");
+        assert_eq!(seg.states.len(), 2);
+        assert_eq!(seg.states[0], vec![-4670.9, 6578.0, 0.0, 0.0, 7.8, 0.0]);
+        assert_eq!(seg.states[1][0], 380000.0);
+        assert_eq!(seg.times, vec![0.0, 200.0]);
+        assert_eq!(
+            seg.gcrs_states.as_ref().expect("gcrs 段应存在")[1],
+            vec![-384400.0, 0.0, 0.0, 0.0, 1.0, 0.0]
+        );
+        assert_eq!(seg.transfer_type.as_deref(), Some("HMN"));
+        assert_eq!(seg.delta_v_km_s, Some(3.95));
+        assert_eq!(
+            seg.tli_epoch.as_ref().and_then(|v| v.as_str()),
+            Some("2026-09-01T00:00:00")
+        );
+    }
+
+    #[test]
+    fn transfer_record_without_gcrs_segment_degrades_to_none() {
+        let mut result = transfer_record_result();
+        // 旧记录（#584 之前）：states_gcrs_km 键不落
+        // Legacy records (pre-#584): no states_gcrs_km key.
+        result.data["arrays"].as_object_mut().unwrap().remove("transfer/states_gcrs_km");
+        result.frames.truncate(2);
+        let artifact = artifact_from_catalog_get("tr-1".into(), result);
+        let seg = artifact.transfer.as_ref().expect("转移段应存在");
+        assert_eq!(seg.gcrs_states, None);
+        assert_eq!(seg.states.len(), 2);
+    }
+
+    #[test]
+    fn transfer_states_times_mismatch_drops_segment() {
+        let mut result = transfer_record_result();
+        result.data["arrays"]["transfer/states_gcrs_km"] = serde_json::Value::Null;
+        // times 只有 1 行：与 states 2 行不齐，整段不上（宁缺毋错）
+        // times holds 1 row against states' 2: misaligned — the whole segment
+        // stays off (better absent than wrong).
+        result.frames[1] = f32_frame(&[1], &[0.0]);
+        let artifact = artifact_from_catalog_get("tr-1".into(), result);
+        assert!(artifact.transfer.is_none());
     }
 }

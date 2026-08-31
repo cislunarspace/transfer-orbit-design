@@ -18,7 +18,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+serde_json = { version = "1", features = ["preserve_order"] }  # 键序保留：sidecar 契约「帧序 = arrays 占位键顺序」依赖 JSON 文本序（BTreeMap 字母序曾致 eph/transfer 段帧配对错位）
 tokio = { version = "1", features = ["macros", "sync", "rt-multi-thread", "process", "io-util", "time"] }
 anyhow = "1"
 tauri-plugin-updater = "2.10.1"

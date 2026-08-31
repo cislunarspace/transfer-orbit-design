@@ -84,6 +84,16 @@ export interface OrbitCanvasProps {
   /** The legend note for grayed items in the inertial view (a pre-localized
    *  sentence, e.g. "synodic geometry, not drawable in the inertial view"). */
   synodicUnavailableNote?: string;
+  /** 与 trajectories 逐条对齐的惯性几何（DU 归一）：转移弧的 gcrs 段
+   *  （#428 第二步）——同一物理弧的第二份数据，惯性视图下改用它绘制
+   *  （线、标记、视图适配同源），灰显判定豁免；null/缺项 = 无惯性段
+   *  （降级灰显）。会合视图不消费。 */
+  /** Inertial geometry row-aligned with trajectories (DU-normalized): the
+   *  transfer arc's gcrs segment (#428 step 2) — a second copy of the same
+   *  physical arc, drawn from it in the inertial view (lines, markers, and
+   *  view fitting all share it), exempt from graying; null / a missing entry
+   *  = no inertial segment (degraded graying). Unused in the synodic view. */
+  inertialGeometries?: (number[][] | null)[];
   onReady?: (api: CanvasApi) => void;
 }
 
@@ -147,6 +157,7 @@ export function OrbitCanvas({
   dataFrames,
   moonTrack,
   synodicUnavailableNote,
+  inertialGeometries,
   onReady,
 }: OrbitCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -346,13 +357,27 @@ export function OrbitCanvas({
 
     const lpColorNum = parseInt((settings?.lpColor ?? "#d4b106").slice(1), 16);
     const inertial = frame === "inertial";
+    // 绘制几何（#428 第二步）：惯性视图下携带 gcrs 惯性段的轨迹改用它
+    // 绘制（会合视图不消费）；灰显判定同步豁免——弧在两个视图系下都以
+    // 各自的几何如实呈现。
+    // Drawn geometry (#428 step 2): in the inertial view a trajectory carrying
+    // a gcrs inertial segment draws from it instead (the synodic view never
+    // consumes it); graying is exempted in step — the arc renders honestly in
+    // both frames with its own geometry.
+    const drawn = inertial
+      ? trajectories.map((pts, i) => inertialGeometries?.[i] ?? pts)
+      : trajectories;
     // 灰显判定（#428）：惯性视图下会合系数据系产物去饱和；缺省标签按
-    // synodic_nd 解释（与 TrajectoryData.frames 的缺省口径一致）。
+    // synodic_nd 解释（与 TrajectoryData.frames 的缺省口径一致）；携带
+    // 惯性段（gcrs_km）者豁免。
     // Graying decision (#428): synodic data-frame products desaturate in the
     // inertial view; an omitted tag reads as synodic_nd (same default as
-    // TrajectoryData.frames).
+    // TrajectoryData.frames); an inertial (gcrs) segment exempts.
     const grayed = trajectories.map(
-      (_, i) => inertial && (dataFrames?.[i] ?? "synodic_nd") !== "inertial_km",
+      (_, i) =>
+        inertial &&
+        (dataFrames?.[i] ?? "synodic_nd") !== "inertial_km" &&
+        !inertialGeometries?.[i],
     );
     const colors = trajectoryColorsHex(
       trajectories.length,
@@ -373,9 +398,12 @@ export function OrbitCanvas({
     const gridMajor = isLightBg ? 0xbdbdbd : 0x33415c;
     const gridMinor = isLightBg ? 0xe0e0e0 : 0x1d2634;
 
-    // 轨道线独占 content 组：视图适配只按可见轨道范围（标注不参与）
-    // Orbit lines live exclusively in the content group: view fitting considers only visible orbit extents (annotations excluded).
-    trajectories.forEach((pts, i) => {
+    // 轨道线独占 content 组：视图适配只按可见轨道范围（标注不参与）。
+    // 线几何取 drawn（惯性视图下 gcrs 段接管，#428 第二步）。
+    // Orbit lines live exclusively in the content group: view fitting considers only visible orbit extents
+    // (annotations excluded). Line geometry uses `drawn` (the gcrs segment takes over in the inertial view,
+    // #428 step 2).
+    drawn.forEach((pts, i) => {
       const positions = new Float32Array(pts.length * 3);
       pts.forEach((p, j) => {
         positions[j * 3] = p[0];
@@ -613,7 +641,7 @@ export function OrbitCanvas({
         );
       });
     }
-  }, [trajectories, mu, libration, center, settings, background, jacobi, regions, frame, moonTrack, dataFrames]);
+  }, [trajectories, mu, libration, center, settings, background, jacobi, regions, frame, moonTrack, dataFrames, inertialGeometries]);
 
   // 每条轨迹一个时刻标记：随轨迹数组同步创建/清理（挂 scene 根，不参与视图适配）
   // One time marker per trajectory: created/cleaned in sync with the trajectory array
@@ -668,7 +696,13 @@ export function OrbitCanvas({
     const markers = markersRef.current;
     const [ox, oy, oz] = getCenterOffset();
     markers.forEach((marker, i) => {
-      const pts = trajectories[i];
+      // 惯性视图下带 gcrs 段的轨迹标记沿惯性几何走（与所画弧同源，
+      // #428 第二步）；时刻数组仍是共享的 trajectory_times。
+      // In the inertial view a marker on a gcrs-carrying trajectory walks the
+      // inertial geometry (same source as the drawn arc, #428 step 2); the
+      // times stay the shared trajectory_times.
+      const pts =
+        frame === "inertial" ? inertialGeometries?.[i] ?? trajectories[i] : trajectories[i];
       const tList = times?.[i];
       const et = currentEt;
       if (
@@ -704,7 +738,7 @@ export function OrbitCanvas({
         moon.position.set(p[0], p[1], p[2] * (settings?.zRatio ?? 1.0));
       }
     }
-  }, [currentEt, trajectories, times, center, settings, frame, moonTrack, mu, libration]);
+  }, [currentEt, trajectories, times, center, settings, frame, moonTrack, mu, libration, inertialGeometries]);
 
   // 图例：带标签的轨迹按各自实际渲染色显示（固定层记录与结果层命名轨迹），
   // 各轨迹附数据系标注（#431：数据系 vs 视图系措辞沿 CONTEXT.md）；惯性
@@ -715,7 +749,10 @@ export function OrbitCanvas({
   // "synodic geometry not drawable" note in the inertial view (#428).
   const inertial = frame === "inertial";
   const grayed = trajectories.map(
-    (_, i) => inertial && (dataFrames?.[i] ?? "synodic_nd") !== "inertial_km",
+    (_, i) =>
+      inertial &&
+      (dataFrames?.[i] ?? "synodic_nd") !== "inertial_km" &&
+      !inertialGeometries?.[i],
   );
   const renderColors = trajectoryColorsHex(
     trajectories.length,
