@@ -23,9 +23,11 @@ import {
   getBranchDefaults,
   getActiveFields,
   ENUM_OPTIONS,
+  BRANCH_TYPE_OPTIONS,
   FIELD_TOOLTIPS,
   formatRangePrompt,
   getFieldApplicability,
+  withParamDefaults,
 } from "./paramOverlay";
 
 const { Text } = Typography;
@@ -59,23 +61,11 @@ export function ParamsPanel({ toolName, schema, values, onChange, fieldErrors }:
     return getActiveFields(toolName, schema, branchType);
   }, [toolName, schema, branchType]);
 
-  // 当工具或分支类型改变时，填入分支默认值
-  // Fill branch defaults when the tool or branch type changes.
+  // 当工具或分支类型改变时，填入模型默认值（schema default）与分支默认值
+  // Fill model defaults (schema `default`) plus branch defaults when the tool or branch type changes.
   useEffect(() => {
-    const branchDefs = getBranchDefaults(toolName, branchType);
-    if (Object.keys(branchDefs).length > 0) {
-      const next: Record<string, unknown> = { ...values, [branchKey]: branchType };
-      let changed = false;
-      for (const [k, defVal] of Object.entries(branchDefs)) {
-        if (next[k] === undefined || next[k] === null) {
-          next[k] = defVal;
-          changed = true;
-        }
-      }
-      if (changed) {
-        onChange(next);
-      }
-    }
+    const next = withParamDefaults(toolName, schema, values, branchKey, branchType);
+    if (next) onChange(next);
   }, [toolName, branchType]);
 
   // 处理单个字段值变更
@@ -127,6 +117,20 @@ export function ParamsPanel({ toolName, schema, values, onChange, fieldErrors }:
     const displayVal = typeof rawStandardVal === "number" && currentUnit
       ? fromStandardValue(fieldName, rawStandardVal, currentUnit)
       : rawStandardVal;
+
+    // 分支键类型（orbit_type 等）优先用预置下拉；transfer_type 走 ENUM_OPTIONS
+    // Branch-key types (orbit_type etc.) use the preset dropdown first; transfer_type goes through ENUM_OPTIONS.
+    if (fieldName === branchKey && BRANCH_TYPE_OPTIONS[toolName]) {
+      return (
+        <Select
+          size="small"
+          style={{ width: "100%" }}
+          value={rawStandardVal as string}
+          options={BRANCH_TYPE_OPTIONS[toolName]}
+          onChange={(v) => handleFieldChange(fieldName, v)}
+        />
+      );
+    }
 
     if (ENUM_OPTIONS[fieldName]) {
       return (

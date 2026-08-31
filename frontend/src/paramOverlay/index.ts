@@ -236,6 +236,81 @@ export function getBranchDefaults(toolName: string, branchType: string): Record<
   return BRANCH_DEFAULTS[toolName]?.[branchType] ?? {};
 }
 
+/** 分支键类型预置下拉（键 = 工具名，字段为 orbit_type）；transfer_design 的
+ *  transfer_type 走 ENUM_OPTIONS，不在此列。 */
+/** Branch-key type preset dropdowns (keyed by tool name, field orbit_type);
+ *  transfer_design's transfer_type goes through ENUM_OPTIONS and is not listed here. */
+export const BRANCH_TYPE_OPTIONS: Record<string, { label: string; value: string }[]> = {
+  design_orbit: [
+    { label: "HALO 晕轨道", value: "HALO" },
+    { label: "NRHO 近直线晕轨道", value: "NRHO" },
+    { label: "DRO 远程逆行轨道", value: "DRO" },
+    { label: "DPO 直接顺行轨道", value: "DPO" },
+    { label: "LISSAJOUS 利萨如轨道", value: "LISSAJOUS" },
+    { label: "AXIAL 轴向轨道", value: "AXIAL" },
+    { label: "L4 三角平动点轨道 (L4)", value: "L4" },
+    { label: "L5 三角平动点轨道 (L5)", value: "L5" },
+    { label: "L4_SPO 短周期轨道 (L4)", value: "L4_SPO" },
+    { label: "L5_SPO 短周期轨道 (L5)", value: "L5_SPO" },
+    { label: "L4_LPO 长周期轨道 (L4)", value: "L4_LPO" },
+    { label: "L5_LPO 长周期轨道 (L5)", value: "L5_LPO" },
+    { label: "L4_HORSESHOE 马蹄形轨道 (L4)", value: "L4_HORSESHOE" },
+    { label: "L5_HORSESHOE 马蹄形轨道 (L5)", value: "L5_HORSESHOE" },
+    { label: "ELFO 冻结轨道", value: "ELFO" },
+  ],
+  orbit_family_generation: [
+    { label: "HALO 晕轨道族", value: "HALO" },
+    { label: "NRHO 近直线晕轨道族", value: "NRHO" },
+    { label: "AXIAL 轴向轨道族", value: "AXIAL" },
+    { label: "LISSAJOUS 利萨如轨道族", value: "LISSAJOUS" },
+    { label: "SPO 短周期轨道族", value: "SPO" },
+    { label: "LPO 长周期轨道族", value: "LPO" },
+    { label: "HORSESHOE 马蹄形轨道族", value: "HORSESHOE" },
+    { label: "DRO 远程逆行轨道族", value: "DRO" },
+  ],
+};
+
+/** 模型默认值（schema `default`）+ 分支默认值合并进当前参数：只填空位，不覆盖
+ *  已填值；无可填项时返回 null，调用方据此跳过 setState。分支键仅当它是活动
+ *  字段时才注入——control_orbit 等工具没有 orbit_type 且 additionalProperties:
+ *  false，误塞会被上游拒收。 */
+/** Merges model defaults (schema `default`) plus branch defaults into the current
+ *  params: fills empty slots only, never overwrites entered values; returns null
+ *  when nothing changed so callers can skip the setState. The branch key is
+ *  injected only when it is an active field — tools without orbit_type
+ *  (additionalProperties: false) must not receive a stray value. */
+export function withParamDefaults(
+  toolName: string,
+  schema: ToolSchema,
+  values: Record<string, unknown>,
+  branchKey: string,
+  branchType: string,
+): Record<string, unknown> | null {
+  const next: Record<string, unknown> = { ...values };
+  let changed = false;
+  const fill = (field: string, defVal: unknown) => {
+    if (defVal === undefined || defVal === null) return;
+    const cur = next[field];
+    if (cur === undefined || cur === null) {
+      next[field] = defVal;
+      changed = true;
+    }
+  };
+
+  const active = getActiveFields(toolName, schema, branchType);
+  if (active.includes(branchKey) && next[branchKey] === undefined) {
+    next[branchKey] = branchType;
+    changed = true;
+  }
+  for (const field of active) {
+    fill(field, schema.properties[field]?.default);
+  }
+  for (const [field, defVal] of Object.entries(getBranchDefaults(toolName, branchType))) {
+    fill(field, defVal);
+  }
+  return changed ? next : null;
+}
+
 /** 整数枚举中文/英文标签映射 */
 /** Chinese/English label maps for integer enums. */
 export const ENUM_OPTIONS: Record<string, { label: string; value: number | string }[]> = {

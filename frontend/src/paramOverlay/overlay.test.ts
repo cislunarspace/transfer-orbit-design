@@ -4,10 +4,15 @@ import {
   convertValue,
   getBranchDefaults,
   ENUM_OPTIONS,
+  BRANCH_TYPE_OPTIONS,
+  DESIGN_ORBIT_BRANCH_DEFAULTS,
+  FAMILY_BRANCH_DEFAULTS,
   formatRangePrompt,
   getFieldApplicability,
+  withParamDefaults,
   TU_SECONDS,
 } from "./index";
+import type { ToolSchema } from "../schema";
 
 describe("参数覆写层 (paramOverlay)", () => {
   it("17 个单位字段正确注册且首项为标准单位 (toStandard = 1.0)", () => {
@@ -115,6 +120,64 @@ describe("参数覆写层 (paramOverlay)", () => {
     expect(elfoFields).toContain("semi_major_axis");
     expect(elfoFields).toContain("inclination");
     expect(elfoFields).toContain("arg_of_pericenter");
+  });
+
+  it("分支键类型预置下拉与分支默认值一一对应：design_orbit 15 项、轨道族生成 8 项", () => {
+    // 顺序是展示顺序，不与默认值表键序绑定；只约束覆盖一致
+    // Dropdown order is presentation-only; assert coverage, not order.
+    expect([...BRANCH_TYPE_OPTIONS["design_orbit"]].map((o) => o.value).sort()).toEqual(
+      Object.keys(DESIGN_ORBIT_BRANCH_DEFAULTS).sort()
+    );
+    expect([...BRANCH_TYPE_OPTIONS["orbit_family_generation"]].map((o) => o.value).sort()).toEqual(
+      Object.keys(FAMILY_BRANCH_DEFAULTS).sort()
+    );
+    // transfer_design 不在列：transfer_type 已有 ENUM_OPTIONS 下拉
+    // transfer_design is not listed: its transfer_type already has an ENUM_OPTIONS dropdown.
+    expect(BRANCH_TYPE_OPTIONS["transfer_design"]).toBeUndefined();
+  });
+
+  it("withParamDefaults 填模型默认值与分支默认值，不覆盖已填值", () => {
+    const schema = {
+      properties: {
+        orbit_type: { type: "string" },
+        epoch: { default: [2024, 1, 1, 0, 0, 0.0] },
+        output_step: { default: 3600.0 },
+        duration: { default: null },
+        amplitude: { type: "number" },
+      },
+      required: ["orbit_type"],
+    } as unknown as ToolSchema;
+
+    const filled = withParamDefaults("design_orbit", schema, {}, "orbit_type", "HALO")!;
+    expect(filled.orbit_type).toBe("HALO");
+    // 模型默认值（schema default）
+    // Model defaults (schema `default`).
+    expect(filled.epoch).toEqual([2024, 1, 1, 0, 0, 0.0]);
+    expect(filled.output_step).toBe(3600.0);
+    // 分支默认值
+    // Branch defaults.
+    expect(filled.amplitude).toBe(30000);
+    expect(filled.phase).toBe(0.0);
+    // null 默认不填，留给上游按轨道类型补
+    // A null default is not filled; upstream fills it per orbit type.
+    expect("duration" in filled).toBe(false);
+
+    // 已填值不被覆盖
+    // Entered values are never overwritten.
+    const kept = withParamDefaults("design_orbit", schema, { amplitude: 12345 }, "orbit_type", "HALO")!;
+    expect(kept.amplitude).toBe(12345);
+
+    // 无可填项时返回 null
+    // Returns null when nothing changed.
+    expect(withParamDefaults("design_orbit", schema, filled, "orbit_type", "HALO")).toBeNull();
+  });
+
+  it("withParamDefaults 不给无 orbit_type 的工具塞分支键，但仍填模型默认值", () => {
+    const schema = {
+      properties: { num_monte_carlo: { default: 5 } },
+    } as unknown as ToolSchema;
+    const filled = withParamDefaults("control_orbit", schema, {}, "orbit_type", "HALO")!;
+    expect(filled).toEqual({ num_monte_carlo: 5 });
   });
 });
 describe("转移设计类型联动 (transfer_design)", () => {
