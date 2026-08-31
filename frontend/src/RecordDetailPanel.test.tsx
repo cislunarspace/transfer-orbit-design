@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { RecordDetailPanel } from "./RecordDetailPanel";
+import { RecordDetailPanel, type TransferCandidateView } from "./RecordDetailPanel";
 import type { CatalogRecord } from "./catalogApi";
 
 // jsdom 无 matchMedia / ResizeObserver，antd Descriptions 与 TextArea 需要
@@ -91,6 +91,35 @@ describe("RecordDetailPanel hooks 规则（#437）", () => {
     expect(() => {
       view.rerender(<RecordDetailPanel record={null} />);
     }).not.toThrow();
+    expect(screen.getByText(/请在上方项目树或轨道库中选中一条记录查看详情/)).toBeDefined();
+  });
+});
+
+describe("RecordDetailPanel 可行解对比段（#430）", () => {
+  const CANDIDATES: TransferCandidateView[] = [
+    { key: "cand-1", rank: 1, deltaVKmS: 3.95, tliEpochText: "2026-09-01T00:00", tofSecText: "4.5 天", selected: true, refined: true, hasTrajectory: true },
+    { key: "cand-2", rank: 2, deltaVKmS: 4.12, tliEpochText: "2026-09-01T06:00", tofSecText: "5.0 天", selected: false, refined: false, hasTrajectory: true },
+    { key: "cand-3", rank: 3, deltaVKmS: 4.44, tliEpochText: "—", tofSecText: "—", selected: false, refined: false, hasTrajectory: false },
+  ];
+
+  it("并列各候选 Δv/TLI/TOF，标出选中解、refined 口径与无轨迹降级", () => {
+    render(<RecordDetailPanel record={null} transferCandidates={CANDIDATES} />);
+    expect(screen.getByText(/可行解对比/)).toBeDefined();
+    expect(screen.getByText(/3\.950/)).toBeDefined();
+    expect(screen.getByText(/4\.120/)).toBeDefined();
+    expect(screen.getByText(/2026-09-01T00:00/)).toBeDefined();
+    // 选中解标记（金色 Tag）+ 混合口径自述 + 无轨迹注记
+    // The selected mark (gold tag) + mixed-caliber self-notes + the trackless note.
+    expect(document.querySelector(".ant-tag-gold")?.textContent).toBe("选中");
+    expect(screen.getByText(/打靶精化/)).toBeDefined();
+    expect(screen.getAllByText(/网格估计/).length).toBe(2);
+    expect(screen.getByText(/无轨迹/)).toBeDefined();
+  });
+
+  it("未携带候选时不渲染对比段（单解现状，不出现空壳）", () => {
+    render(<RecordDetailPanel record={null} />);
+    expect(screen.queryByText(/可行解对比/)).toBeNull();
+    // 空态提示照旧
     expect(screen.getByText(/请在上方项目树或轨道库中选中一条记录查看详情/)).toBeDefined();
   });
 });

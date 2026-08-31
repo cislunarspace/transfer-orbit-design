@@ -248,6 +248,53 @@ export function transferTrajectoryToCanvasData(
   };
 }
 
+/** top-N 可行解候选（非选中）的输入形状（e2m2e 5.9.1 TransferCandidate
+ *  的画布相关子集；tli_epoch 可为 UTC 字符串、JD_TDB 浮点或 null）。 */
+/** The input shape of a (non-selected) top-N feasible-solution candidate
+ *  (the canvas-relevant subset of e2m2e 5.9.1's TransferCandidate; tli_epoch
+ *  may be a UTC string, a JD_TDB float, or null). */
+export interface TransferCandidateInput {
+  trajectory?: unknown;
+  trajectory_times?: unknown;
+  tli_epoch?: unknown;
+}
+
+/** top-N 候选（非选中）→ 画布弧 + TLI 时刻（#430）：会合系段照常归一上画
+ *  （候选无 gcrs 惯性段，惯性视图走灰显口径）；自带 tli_epoch 可解析时
+ *  时刻平移到 et 绝对基准并给出 chip 时刻，否则相对时刻、chip 为 null。
+ *  无轨迹快照（降级传播失败）返回 null，调用方计数提示、面板仍列参数。 */
+/** A (non-selected) top-N candidate → a canvas arc + its TLI moment (#430):
+ *  the synodic segment is normalized onto the canvas as usual (candidates
+ *  carry no gcrs inertial segment — the inertial view grays them); a parseable
+ *  tli_epoch shifts times onto the et absolute basis and yields the chip
+ *  moment, otherwise times stay relative and the chip is null. No trajectory
+ *  snapshot (a failed degraded propagation) returns null — the caller counts
+ *  it for the hint while the panel still lists its parameters. */
+export function transferCandidateToArcData(
+  candidate: TransferCandidateInput,
+  label: string,
+): { data: TrajectoryData; tliEt: number | null } | null {
+  const trajectory = candidate.trajectory;
+  if (!Array.isArray(trajectory) || trajectory.length === 0) return null;
+  // 候选自带历元原样透传（字符串＝UTC、数＝JD_TDB，与 live 路径同口径），
+  // chip 时刻在此单独换算到 et 秒。
+  // The candidate's own epoch passes through as-is (string = UTC, number =
+  // JD_TDB — the same convention as the live path); the chip moment converts
+  // to et seconds separately here.
+  const rawEpoch =
+    typeof candidate.tli_epoch === "string" || typeof candidate.tli_epoch === "number"
+      ? candidate.tli_epoch
+      : undefined;
+  const tliEt = rawEpoch !== undefined ? etFromEpoch(rawEpoch) : NaN;
+  const data = transferTrajectoryToCanvasData(
+    trajectory as number[][],
+    candidate.trajectory_times,
+    rawEpoch,
+    label,
+  );
+  return { data, tliEt: Number.isFinite(tliEt) ? tliEt : null };
+}
+
 /** 轨道预报响应 → 画布轨迹（#421 修复，#428 更新）。position_km 是
  *  GCRS 惯性 km，÷DU_KM 缩放后按惯性系几何如实绘制；times_jd_tdb →
  *  et 绝对基准。数据系标签 inertial_km 驱动视图系分流（#431/#428）：

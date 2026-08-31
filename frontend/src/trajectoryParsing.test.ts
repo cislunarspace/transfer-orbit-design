@@ -4,6 +4,7 @@ import {
   familyMembersToTrajectoryData,
   trajectoryTimeRange,
   transferTrajectoryToCanvasData,
+  transferCandidateToArcData,
   propagationToCanvasData,
   designEphemerisToCanvasData,
   timelineMode,
@@ -345,6 +346,43 @@ describe("transferTrajectoryToCanvasData 转移轨迹解析", () => {
     // 未传参（low_thrust/旧响应）不带 inertialGeometries 字段
     // No param (low_thrust / legacy responses) leaves inertialGeometries absent.
     expect(transferTrajectoryToCanvasData(TRAJ, null).inertialGeometries).toBeUndefined();
+  });
+});
+
+describe("transferCandidateToArcData top-N 候选弧（#430）", () => {
+  const CAND = {
+    trajectory: [
+      [-4670.9, 6578.0, 0.0, 0.0, 7.8, 0.0],
+      [380000.0, 0.0, 0.0, 0.0, 0.5, 0.0],
+    ],
+    trajectory_times: [0, 200],
+    tli_epoch: "2026-09-01T00:00:00",
+  };
+
+  it("自带 tli_epoch 可解析：时刻平移到 et 基准并给出 chip 时刻", () => {
+    const got = transferCandidateToArcData(CAND, "候选 2");
+    expect(got).not.toBeNull();
+    expect(got!.data.timeBasis).toEqual(["et"]);
+    expect(got!.data.times[0][0]).toBeCloseTo(etFromEpoch("2026-09-01T00:00:00"), 6);
+    expect(got!.tliEt).toBeCloseTo(etFromEpoch("2026-09-01T00:00:00"), 6);
+    expect(got!.data.labels).toEqual(["候选 2"]);
+    // 候选无 gcrs 惯性段：惯性视图走灰显口径
+    // Candidates carry no gcrs segment: the inertial view grays them.
+    expect(got!.data.inertialGeometries).toBeUndefined();
+  });
+
+  it("tli_epoch 缺失：相对时刻、chip 为 null，弧照画", () => {
+    const got = transferCandidateToArcData(
+      { trajectory: CAND.trajectory, trajectory_times: CAND.trajectory_times },
+      "候选 3",
+    );
+    expect(got!.data.timeBasis).toEqual(["relative"]);
+    expect(got!.tliEt).toBeNull();
+  });
+
+  it("无轨迹快照（降级传播失败）返回 null", () => {
+    expect(transferCandidateToArcData({ tli_epoch: "2026-09-01T00:00:00" }, "候选 4")).toBeNull();
+    expect(transferCandidateToArcData({ trajectory: [] }, "候选 4")).toBeNull();
   });
 });
 

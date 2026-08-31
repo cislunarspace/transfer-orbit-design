@@ -27,7 +27,7 @@ import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode, type
 import { TimelineBar } from "./TimelineBar";
 import { ParamsPanel } from "./ParamsPanel";
 import { ProjectTree } from "./ProjectTree";
-import { RecordDetailPanel } from "./RecordDetailPanel";
+import { RecordDetailPanel, type TransferCandidateView } from "./RecordDetailPanel";
 import { StationKeepingModal } from "./StationKeepingModal";
 import { CatalogFilterBar } from "./CatalogFilterBar";
 import { UpdateModal } from "./UpdateModal";
@@ -63,6 +63,7 @@ import {
   timelineMode,
   timesForMode,
   transferTrajectoryToCanvasData,
+  transferCandidateToArcData,
   propagationToCanvasData,
   type TrajectoryData,
   type TimeBasis,
@@ -156,6 +157,15 @@ export default function App() {
     times: [],
   });
   const [pinned, setPinned] = useState<PinnedRecord[]>([]);
+  // top-N 候选会话层（#430）：非选中候选的弧，随每次转移运行整体替换
+  // （非用户钉住，不进情景保存与项目树）；候选展示模型同步持有（无轨迹
+  // 降级的候选也在面板列参数）。
+  // The top-N candidate session layer (#430): non-selected candidate arcs,
+  // wholesale-replaced on each transfer run (not user pins — never entering
+  // scenario saves or the project tree); the display models ride along
+  // (trackless degraded candidates still list parameters in the panel).
+  const [candidateLayer, setCandidateLayer] = useState<PinnedRecord[]>([]);
+  const [candidateViews, setCandidateViews] = useState<TransferCandidateView[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [currentEt, setCurrentEt] = useState<number | null>(null);
   // 分区图层（地月空间分区边界，spatiography_boundaries 产物；固定参照物，
@@ -288,7 +298,16 @@ export default function App() {
   // screen switches to the global et clock, relative/untimed trajectories get
   // blanked times (markers hide), and relative never mixes with absolute.
   const canvasData = useMemo(() => {
-    const layers = [...pinned.map((p) => p.data), resultData];
+    // 固定层 = 用户钉住的记录 + 本轮候选弧（#430）：候选排在钉住记录之后，
+    // 钉住记录的色环序跨运行稳定。
+    // The fixed layer = user-pinned records plus this run's candidate arcs
+    // (#430): candidates trail the pins so the pins' color-cycle indices stay
+    // stable across runs.
+    const layers = [
+      ...pinned.map((p) => p.data),
+      ...candidateLayer.map((c) => c.data),
+      resultData,
+    ];
     const combined: TrajectoryData = {
       trajectories: layers.flatMap((l) => l.trajectories),
       times: layers.flatMap((l) => l.times),
@@ -320,7 +339,7 @@ export default function App() {
       mode,
       timeRange: trajectoryTimeRange(timesForMode(combined, mode)),
     };
-  }, [pinned, resultData]);
+  }, [pinned, candidateLayer, resultData]);
 
   // 自动视图适配（#438 确认式，不再用固定时长 setTimeout）：canvasData 提交后
   // 适配一次。React 保证子组件（OrbitCanvas）的几何重建 effect 先于本父组件
@@ -830,6 +849,14 @@ export default function App() {
       message.success("计算完成！");
       await refreshArtifacts();
 
+      // 新一轮计算开始：上一轮的候选会话层整体清空（#430）——候选集属于
+      // 产生它的那次转移运行；转移分支随后重建。
+      // A new run begins: the previous candidate session layer clears wholesale
+      // (#430) — the candidate set belongs to the transfer run that produced
+      // it; the transfer branch rebuilds it right after.
+      setCandidateLayer([]);
+      setCandidateViews([]);
+
       // 分区边界（spatiography_boundaries）：元素进区域图层（regionLayer），
       // 不进结果层——固定参照物语义，结果层/时间轴链路全部旁路。
       // Spatiography boundaries: elements go to the region layer (regionLayer), not the
@@ -873,7 +900,84 @@ export default function App() {
             // parsing layer degrades on its own.
             (d.trajectory_gcrs_km as number[][] | null | undefined) ?? null,
           );
-          applyTrajectoryData(td, transferEventsFromDetails(d.details, tliEpoch, t));
+          // —— top-N 可行解（#430，e2m2e 5.9.1 candidates）：恰一候选
+          //（low_thrust/HMN 或未开启）退化为单解现状；多候选时非选中解入
+          // 候选会话层（受固定层上限约束），面板并列参数，TLI 时刻加 chip。 ——
+          // —— top-N feasible solutions (#430, e2m2e 5.9.1 candidates): a
+          // single candidate (low_thrust/HMN, or top_n off) degrades to the
+          // single-solution status quo; with several, non-selected ones enter
+          // the candidate session layer (bounded by the pinned-layer cap),
+          // the panel lists parameters side by side, and TLI moments get chips. ——
+          const rawCandidates = Array.isArray(d.candidates) ? (d.candidates as Record<string, unknown>[]) : null;
+          let events = transferEventsFromDetails(d.details, tliEpoch, t);
+          if (rawCandidates && rawCandidates.length > 1) {
+            const views: TransferCandidateView[] = [];
+            const arcs: PinnedRecord[] = [];
+            const chips: TimelineEvent[] = [];
+            const trackless: number[] = [];
+            const headroom = Math.max(0, PINNED_LIMIT - pinned.length);
+            let truncated = false;
+            rawCandidates.forEach((c, i) => {
+              const rank = i + 1;
+              const hasTrajectory = Array.isArray(c.trajectory) && c.trajectory.length > 0;
+              views.push({
+                key: `cand-${rank}`,
+                rank,
+                deltaVKmS: Number(c.delta_v_km_s),
+                tliEpochText:
+                  c.tli_epoch === undefined || c.tli_epoch === null
+                    ? t("panel.cand_no_epoch")
+                    : String(c.tli_epoch),
+                tofSecText:
+                  c.tof_sec === undefined || c.tof_sec === null
+                    ? t("panel.cand_no_epoch")
+                    : `${(Number(c.tof_sec) / 86400).toFixed(1)} ${t("unit.days")}`,
+                selected: c.selected === true,
+                refined: c.refined === true,
+                hasTrajectory,
+              });
+              if (c.selected === true || !hasTrajectory) {
+                if (!hasTrajectory) trackless.push(rank);
+                return;
+              }
+              if (arcs.length >= headroom) {
+                truncated = true;
+                return;
+              }
+              const arc = transferCandidateToArcData(
+                {
+                  trajectory: c.trajectory,
+                  trajectory_times: c.trajectory_times,
+                  tli_epoch: c.tli_epoch,
+                },
+                t("canvas.transfer_candidate")
+                  .replace("{k}", String(rank))
+                  .replace("{dv}", Number(c.delta_v_km_s).toFixed(2)),
+              );
+              if (!arc) {
+                trackless.push(rank);
+                return;
+              }
+              arcs.push({ recordId: `cand-${rank}`, label: `#${rank}`, data: arc.data });
+              if (arc.tliEt !== null) {
+                chips.push({
+                  et: arc.tliEt,
+                  label: t("event.candidate_pulse").replace("{k}", String(rank)),
+                  dv: `${Number(c.delta_v_km_s).toFixed(2)} km/s`,
+                });
+              }
+            });
+            setCandidateLayer(arcs);
+            setCandidateViews(views);
+            if (truncated) {
+              message.warning(t("transfer.candidates_truncated").replace("{n}", String(headroom)));
+            }
+            if (trackless.length > 0) {
+              message.warning(t("transfer.candidates_trackless").replace("{ks}", trackless.map((k) => `#${k}`).join("、")));
+            }
+            events = [...events, ...chips];
+          }
+          applyTrajectoryData(td, events);
         } else {
           // 轨道预报（#421 修复）：position_km 是 GCRS 惯性 km，÷DU_KM 后按
           // 惯性系几何如实绘制并图例标注（惯性视图落地前），times_jd_tdb →
@@ -1115,6 +1219,7 @@ export default function App() {
           <div style={{ maxHeight: 280, overflowY: "auto", borderTop: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8" }}>
             <RecordDetailPanel
               record={selectedRecordDetail}
+              transferCandidates={candidateViews}
               onRefresh={refreshArtifacts}
               onOpenStationKeeping={() => setStationKeepingOpen(true)}
             />
