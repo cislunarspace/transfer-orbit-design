@@ -48,7 +48,9 @@ function renderDesignOrbit(onChange = vi.fn()) {
 /** 取 Orbit Type 字段所在表单项内的下拉控件 */
 /** Locate the Select control inside the Orbit Type form item. */
 function orbitTypeCombo(): HTMLElement {
-  const item = screen.getByText("Orbit Type").closest(".ant-form-item")!;
+  // closest 泛型收窄到 HTMLElement：within() 不收 Element
+  // Narrow closest to HTMLElement: within() does not accept Element.
+  const item = screen.getByText("Orbit Type").closest<HTMLElement>(".ant-form-item")!;
   return within(item).getByRole("combobox");
 }
 
@@ -56,7 +58,7 @@ describe("ParamsPanel 任务轨道设计预置参数", () => {
   it("orbit_type 是预置下拉而非手填文本框：展开含全部 15 种轨道类型", async () => {
     renderDesignOrbit();
     const combo = await waitFor(orbitTypeCombo);
-    const item = combo.closest(".ant-form-item")!;
+    const item = combo.closest<HTMLElement>(".ant-form-item")!;
     expect(within(item).queryByRole("textbox")).toBeNull();
 
     // rc-select 的展开事件挂在 .ant-select 根节点上（combobox 是其内部搜索输入）
