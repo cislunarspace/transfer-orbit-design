@@ -92,6 +92,15 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.conf.json --bundles nsis
+      # 签名闸：TAURI_SIGNING_PRIVATE_KEY 未生效时 tauri build 静默跳过签名，
+      # 坏包带空签名混进 Release → 应用内更新验签必败（4.6.0/4.6.1 实际缺陷），
+      # 在此拦截而不是等 publish-updater 或用户更新时才炸
+      - name: Assert NSIS updater signature exists
+        shell: pwsh
+        run: |
+          if (-not (Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe.sig -ErrorAction SilentlyContinue)) {
+            throw "NSIS 安装包没有 .sig：TAURI_SIGNING_PRIVATE_KEY 未生效，检查仓库 Secrets 与密钥对配置"
+          }
       - name: Generate changelog
         id: changelog
         shell: bash
@@ -179,6 +188,10 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: npm --prefix frontend exec -- tauri build --config packaging/tauri.release.conf.json --bundles appimage,deb
+      # 签名闸：同 Windows 作业
+      - name: Assert Linux updater signatures exist
+        run: |
+          ls src-tauri/target/release/bundle/appimage/*.AppImage.sig src-tauri/target/release/bundle/deb/*.deb.sig > /dev/null
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -209,6 +222,11 @@ jobs:
 
           WIN_SIG=$(cat release-assets/*.exe.sig 2>/dev/null || echo "")
           APPIMAGE_SIG=$(cat release-assets/*.AppImage.sig 2>/dev/null || echo "")
+          # 空签名是坏包：tauri updater 带公钥验签，空签名应用内更新必败
+          if [ -z "$WIN_SIG" ] || [ -z "$APPIMAGE_SIG" ]; then
+            echo "::error::Release 资产缺 .sig（WIN_SIG/APPIMAGE_SIG 为空），拒绝发布空签名 latest.json"
+            exit 1
+          fi
 
           # 获取 release 资产的下载链接
           WIN_URL=$(gh release view "$TAG_NAME" --repo "${{ github.repository }}" --json assets -q '.assets[] | select(.name | endswith("-setup.exe")) | .url')
