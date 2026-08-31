@@ -37,7 +37,22 @@ export interface ArtifactData {
    *  own value wins, this fills in when missing); null without a CR3BP segment. */
   jacobi?: number | null;
   ephemeris?: EphemerisSegment | null;
+  /** 转移段（#428 第二步）：states/times 会合系物理 km/km/s 与 TLI 起算秒，
+   *  gcrsStates 惯性段（旧记录缺位为 null）；非转移记录为 null */
+  /** The transfer segment (#428 step 2): states/times in rotating-frame physical
+   *  km/km/s and seconds since TLI, plus gcrsStates (the inertial segment, null
+   *  for legacy records); null for non-transfer records. */
+  transfer?: TransferSegment | null;
   error: { code: string; message: string } | null;
+}
+
+export interface TransferSegment {
+  states: number[][]; // (n,6) 行
+  times: number[]; // TLI 起算秒（秒，seconds since TLI）
+  gcrsStates?: number[][] | null;
+  tliEpoch?: string | number | null; // UTC 字符串或 JD_TDB 浮点，原样透传（UTC string or JD_TDB float, passed through as-is）
+  transferType?: string | null;
+  deltaVKmS?: number | null;
 }
 
 export async function getArtifact(recordId: string): Promise<ArtifactData> {

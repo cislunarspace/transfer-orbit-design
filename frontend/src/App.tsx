@@ -27,7 +27,7 @@ import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode, type
 import { TimelineBar } from "./TimelineBar";
 import { ParamsPanel } from "./ParamsPanel";
 import { ProjectTree } from "./ProjectTree";
-import { RecordDetailPanel } from "./RecordDetailPanel";
+import { RecordDetailPanel, type TransferCandidateView } from "./RecordDetailPanel";
 import { StationKeepingModal } from "./StationKeepingModal";
 import { CatalogFilterBar } from "./CatalogFilterBar";
 import { UpdateModal } from "./UpdateModal";
@@ -63,6 +63,7 @@ import {
   timelineMode,
   timesForMode,
   transferTrajectoryToCanvasData,
+  transferCandidateToArcData,
   propagationToCanvasData,
   type TrajectoryData,
   type TimeBasis,
@@ -156,6 +157,15 @@ export default function App() {
     times: [],
   });
   const [pinned, setPinned] = useState<PinnedRecord[]>([]);
+  // top-N 候选会话层（#430）：非选中候选的弧，随每次转移运行整体替换
+  // （非用户钉住，不进情景保存与项目树）；候选展示模型同步持有（无轨迹
+  // 降级的候选也在面板列参数）。
+  // The top-N candidate session layer (#430): non-selected candidate arcs,
+  // wholesale-replaced on each transfer run (not user pins — never entering
+  // scenario saves or the project tree); the display models ride along
+  // (trackless degraded candidates still list parameters in the panel).
+  const [candidateLayer, setCandidateLayer] = useState<PinnedRecord[]>([]);
+  const [candidateViews, setCandidateViews] = useState<TransferCandidateView[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [currentEt, setCurrentEt] = useState<number | null>(null);
   // 分区图层（地月空间分区边界，spatiography_boundaries 产物；固定参照物，
@@ -288,7 +298,16 @@ export default function App() {
   // screen switches to the global et clock, relative/untimed trajectories get
   // blanked times (markers hide), and relative never mixes with absolute.
   const canvasData = useMemo(() => {
-    const layers = [...pinned.map((p) => p.data), resultData];
+    // 固定层 = 用户钉住的记录 + 本轮候选弧（#430）：候选排在钉住记录之后，
+    // 钉住记录的色环序跨运行稳定。
+    // The fixed layer = user-pinned records plus this run's candidate arcs
+    // (#430): candidates trail the pins so the pins' color-cycle indices stay
+    // stable across runs.
+    const layers = [
+      ...pinned.map((p) => p.data),
+      ...candidateLayer.map((c) => c.data),
+      resultData,
+    ];
     const combined: TrajectoryData = {
       trajectories: layers.flatMap((l) => l.trajectories),
       times: layers.flatMap((l) => l.times),
@@ -302,6 +321,16 @@ export default function App() {
       jacobi: layers.flatMap(
         (l) => l.jacobi ?? l.trajectories.map(() => undefined),
       ),
+      // 惯性几何逐层拼接（#428 第二步）：未携带的层补 null（无惯性段，
+      // 惯性视图下照灰显口径处理）。
+      // Inertial geometry concatenated per layer (#428 step 2): layers without
+      // it fill null (no inertial segment — the degraded-graying case in the
+      // inertial view).
+      inertialGeometries: layers.flatMap(
+        (l) =>
+          l.inertialGeometries ??
+          l.trajectories.map(() => null as number[][] | null),
+      ),
     };
     const mode = timelineMode(combined);
     return {
@@ -310,7 +339,7 @@ export default function App() {
       mode,
       timeRange: trajectoryTimeRange(timesForMode(combined, mode)),
     };
-  }, [pinned, resultData]);
+  }, [pinned, candidateLayer, resultData]);
 
   // 自动视图适配（#438 确认式，不再用固定时长 setTimeout）：canvasData 提交后
   // 适配一次。React 保证子组件（OrbitCanvas）的几何重建 effect 先于本父组件
@@ -383,6 +412,22 @@ export default function App() {
     data: Awaited<ReturnType<typeof getArtifact>>,
   ): TrajectoryData | null => {
     let base: TrajectoryData | null = null;
+    // 转移记录（#428 第二步）：transfer/ 段与 live 响应共用同一解析函数
+    // （位置 ÷DU_KM 归一、tli_epoch → et 基准、gcrs 惯性段随行携带）；
+    // 转移记录无 CR3BP/星历段，早返回不走下面的双段合并。
+    // A transfer record (#428 step 2): the transfer/ segment goes through the
+    // same parse as the live response (positions ÷DU_KM, tli_epoch → the et
+    // basis, the gcrs inertial segment riding along); transfer records carry
+    // no CR3BP/ephemeris segments, so the dual-segment merge below is skipped.
+    if (data.transfer && data.transfer.states.length > 0) {
+      return transferTrajectoryToCanvasData(
+        data.transfer.states,
+        data.transfer.times,
+        data.transfer.tliEpoch ?? undefined,
+        t("canvas.transfer_arc"),
+        data.transfer.gcrsStates ?? null,
+      );
+    }
     if (data.familyMembers && data.familyMembers.length > 0) {
       // 成员自带 jacobi 优先；族成员表缺值时回退记录级 jacobi（设计轨道单条通道，#435）
       // A member's own jacobi wins; the record-level jacobi is the fallback for
@@ -642,21 +687,16 @@ export default function App() {
 
   // 打开情景：逐 record_id 解析重建固定层（缺失跳过并列出、超上限截
   // 断，均提示不静默）；时间轴校准到参考历元（含播放起点偏移）；应用
-  // 播放配置。结果层不动（情景只描述固定层）。
+  // 播放配置。结果层不动（情景只描述固定层）。对话框与助手「应用情景」
+  // 共用同一条解析路径（ADR 0027）。
   // Open a scenario: resolve record ids one by one to rebuild the pinned layer
   // (missing ones skipped and listed, over-cap references truncated — both
   // hinted, never silent); calibrate the timeline onto the reference epoch
   // (with the playback start offset); apply the playback config. The result
-  // layer stays untouched (a scenario describes only the pinned layer).
-  const handleOpenScenario = async () => {
-    let text: string | null;
-    try {
-      text = await openScenarioFile();
-    } catch (e) {
-      message.error(`${t("scenario.open_failed")}: ${String(e)}`);
-      return;
-    }
-    if (text === null) return;
+  // layer stays untouched (a scenario describes only the pinned layer). The
+  // dialog and the assistant's "apply scenario" share this one parse path
+  // (ADR 0027).
+  const applyScenarioText = async (text: string) => {
     const parsed = parseScenario(text);
     if ("error" in parsed) {
       message.error(parsed.error);
@@ -713,6 +753,35 @@ export default function App() {
         t("scenario.opened").replace("{count}", String(resolution.resolved.length)),
       );
     }
+  };
+
+  const handleOpenScenario = async () => {
+    let text: string | null;
+    try {
+      text = await openScenarioFile();
+    } catch (e) {
+      message.error(`${t("scenario.open_failed")}: ${String(e)}`);
+      return;
+    }
+    if (text === null) return;
+    await applyScenarioText(text);
+  };
+
+  // 助手「应用情景」（ADR 0027）：scenario_write 完成卡片的同语义跳转——
+  // 按路径直读（不经对话框），复用手动打开的解析/软失败路径。
+  // The assistant's "apply scenario" (ADR 0027): the same-semantics jump from
+  // a completed scenario_write card — read by path (no dialog) and reuse the
+  // manual-open parse/soft-failure path.
+  const handleApplyScenario = async (path: string) => {
+    let text: string;
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      text = await invoke<string>("open_scenario", { path });
+    } catch (e) {
+      message.error(`${t("scenario.open_failed")}: ${String(e)}`);
+      return;
+    }
+    await applyScenarioText(text);
   };
 
   // 星标/备注保存成功后同步树行数据（本地更新，不重查整表）
@@ -804,6 +873,14 @@ export default function App() {
       message.success("计算完成！");
       await refreshArtifacts();
 
+      // 新一轮计算开始：上一轮的候选会话层整体清空（#430）——候选集属于
+      // 产生它的那次转移运行；转移分支随后重建。
+      // A new run begins: the previous candidate session layer clears wholesale
+      // (#430) — the candidate set belongs to the transfer run that produced
+      // it; the transfer branch rebuilds it right after.
+      setCandidateLayer([]);
+      setCandidateViews([]);
+
       // 分区边界（spatiography_boundaries）：元素进区域图层（regionLayer），
       // 不进结果层——固定参照物语义，结果层/时间轴链路全部旁路。
       // Spatiography boundaries: elements go to the region layer (regionLayer), not the
@@ -839,9 +916,92 @@ export default function App() {
             d.trajectory,
             d.trajectory_times,
             tliEpoch,
-            t("canvas.transfer_arc")
+            t("canvas.transfer_arc"),
+            // 惯性段（#428 第二步，e2m2e 5.9.1 trajectory_gcrs_km）：low_thrust
+            // 与零结果为 null，解析层自行降级
+            // The inertial segment (#428 step 2, e2m2e 5.9.1
+            // trajectory_gcrs_km): null for low_thrust and zero results — the
+            // parsing layer degrades on its own.
+            (d.trajectory_gcrs_km as number[][] | null | undefined) ?? null,
           );
-          applyTrajectoryData(td, transferEventsFromDetails(d.details, tliEpoch, t));
+          // —— top-N 可行解（#430，e2m2e 5.9.1 candidates）：恰一候选
+          //（low_thrust/HMN 或未开启）退化为单解现状；多候选时非选中解入
+          // 候选会话层（受固定层上限约束），面板并列参数，TLI 时刻加 chip。 ——
+          // —— top-N feasible solutions (#430, e2m2e 5.9.1 candidates): a
+          // single candidate (low_thrust/HMN, or top_n off) degrades to the
+          // single-solution status quo; with several, non-selected ones enter
+          // the candidate session layer (bounded by the pinned-layer cap),
+          // the panel lists parameters side by side, and TLI moments get chips. ——
+          const rawCandidates = Array.isArray(d.candidates) ? (d.candidates as Record<string, unknown>[]) : null;
+          let events = transferEventsFromDetails(d.details, tliEpoch, t);
+          if (rawCandidates && rawCandidates.length > 1) {
+            const views: TransferCandidateView[] = [];
+            const arcs: PinnedRecord[] = [];
+            const chips: TimelineEvent[] = [];
+            const trackless: number[] = [];
+            const headroom = Math.max(0, PINNED_LIMIT - pinned.length);
+            let truncated = false;
+            rawCandidates.forEach((c, i) => {
+              const rank = i + 1;
+              const hasTrajectory = Array.isArray(c.trajectory) && c.trajectory.length > 0;
+              views.push({
+                key: `cand-${rank}`,
+                rank,
+                deltaVKmS: Number(c.delta_v_km_s),
+                tliEpochText:
+                  c.tli_epoch === undefined || c.tli_epoch === null
+                    ? t("panel.cand_no_epoch")
+                    : String(c.tli_epoch),
+                tofSecText:
+                  c.tof_sec === undefined || c.tof_sec === null
+                    ? t("panel.cand_no_epoch")
+                    : `${(Number(c.tof_sec) / 86400).toFixed(1)} ${t("unit.days")}`,
+                selected: c.selected === true,
+                refined: c.refined === true,
+                hasTrajectory,
+              });
+              if (c.selected === true || !hasTrajectory) {
+                if (!hasTrajectory) trackless.push(rank);
+                return;
+              }
+              if (arcs.length >= headroom) {
+                truncated = true;
+                return;
+              }
+              const arc = transferCandidateToArcData(
+                {
+                  trajectory: c.trajectory,
+                  trajectory_times: c.trajectory_times,
+                  tli_epoch: c.tli_epoch,
+                },
+                t("canvas.transfer_candidate")
+                  .replace("{k}", String(rank))
+                  .replace("{dv}", Number(c.delta_v_km_s).toFixed(2)),
+              );
+              if (!arc) {
+                trackless.push(rank);
+                return;
+              }
+              arcs.push({ recordId: `cand-${rank}`, label: `#${rank}`, data: arc.data });
+              if (arc.tliEt !== null) {
+                chips.push({
+                  et: arc.tliEt,
+                  label: t("event.candidate_pulse").replace("{k}", String(rank)),
+                  dv: `${Number(c.delta_v_km_s).toFixed(2)} km/s`,
+                });
+              }
+            });
+            setCandidateLayer(arcs);
+            setCandidateViews(views);
+            if (truncated) {
+              message.warning(t("transfer.candidates_truncated").replace("{n}", String(headroom)));
+            }
+            if (trackless.length > 0) {
+              message.warning(t("transfer.candidates_trackless").replace("{ks}", trackless.map((k) => `#${k}`).join("、")));
+            }
+            events = [...events, ...chips];
+          }
+          applyTrajectoryData(td, events);
         } else {
           // 轨道预报（#421 修复）：position_km 是 GCRS 惯性 km，÷DU_KM 后按
           // 惯性系几何如实绘制并图例标注（惯性视图落地前），times_jd_tdb →
@@ -1083,6 +1243,7 @@ export default function App() {
           <div style={{ maxHeight: 280, overflowY: "auto", borderTop: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8" }}>
             <RecordDetailPanel
               record={selectedRecordDetail}
+              transferCandidates={candidateViews}
               onRefresh={refreshArtifacts}
               onOpenStationKeeping={() => setStationKeepingOpen(true)}
             />
@@ -1178,11 +1339,22 @@ export default function App() {
               times={canvasData.displayTimes}
               currentEt={currentEt}
               labels={canvasData.labels}
-              frameLabels={canvasData.frames?.map((f) => t(`canvas.frame.${f}`))}
+              frameLabels={canvasData.frames?.map((f, i) =>
+                // 惯性视图下带 gcrs 段的转移弧实际画的是惯性几何，标注跟着
+                // 换成地心惯性 km（#428 第二步）；其余情形标注随数据系。
+                // In the inertial view a gcrs-carrying transfer arc actually
+                // draws its inertial geometry, so the note switches to
+                // geocentric inertial km (#428 step 2); otherwise the note
+                // follows the data frame.
+                frame === "inertial" && canvasData.inertialGeometries?.[i]
+                  ? t("canvas.frame.inertial_km")
+                  : t(`canvas.frame.${f}`)
+              )}
               jacobi={canvasData.jacobi}
               regions={regionData}
               frame={frame}
               dataFrames={canvasData.frames}
+              inertialGeometries={canvasData.inertialGeometries}
               moonTrack={frame === "inertial" ? moonTrack : null}
               synodicUnavailableNote={t("canvas.frame.synodic_unavailable")}
               mu={EARTH_MOON_MU}
@@ -1217,6 +1389,7 @@ export default function App() {
           selection={assistantSelection}
           onArtifactProduced={handleAssistantArtifact}
           onOpenRecord={(recordId) => handleAssistantOpenRecord(recordId)}
+          onApplyScenario={handleApplyScenario}
           onOpenSettings={() => setChartModalOpen(true)}
         />
 

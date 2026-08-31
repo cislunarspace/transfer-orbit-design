@@ -1,0 +1,119 @@
+{
+  "additionalProperties": false,
+  "description": "共振图集输入（Primer §4.2–§4.4 / §5.3，ADR 0041 Phase 3a）。",
+  "properties": {
+    "products": {
+      "description": "输出产品子集：gallardo_widths = Gallardo 半解析共振半宽包络（式 100–104，Fig. 8）；secular_loci = 拱线驻定 loci（式 75–78，Fig. 5）；vzlk_portrait = vZLK 相图（式 64–68）与时间尺度（式 69–71）",
+      "items": {
+        "type": "string"
+      },
+      "title": "Products",
+      "type": "array"
+    },
+    "resonance_pairs": {
+      "anyOf": [
+        {
+          "items": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Gallardo 包络的 [k, k_body] 互素对（k 为卫星侧整数）；None = Table 1 内月 9 条 + 1:1 + 外月 9 条",
+      "title": "Resonance Pairs"
+    },
+    "e_min": {
+      "default": 0.0,
+      "description": "包络偏心率下限",
+      "exclusiveMaximum": 1.0,
+      "minimum": 0.0,
+      "title": "E Min",
+      "type": "number"
+    },
+    "e_max": {
+      "default": 0.9,
+      "description": "包络偏心率上限",
+      "exclusiveMaximum": 1.0,
+      "exclusiveMinimum": 0.0,
+      "title": "E Max",
+      "type": "number"
+    },
+    "n_e": {
+      "default": 19,
+      "description": "包络偏心率切片数",
+      "maximum": 201,
+      "minimum": 3,
+      "title": "N E",
+      "type": "integer"
+    },
+    "varpi_offset_deg": {
+      "default": 180.0,
+      "description": "卫星近日点黄经相对月球近日点黄经的夹角（缺省 180° 反平行，与 §7.3 制图切片同约定）",
+      "title": "Varpi Offset Deg",
+      "type": "number"
+    },
+    "n_sigma": {
+      "default": 72,
+      "description": "共振角采样点数",
+      "maximum": 720,
+      "minimum": 12,
+      "title": "N Sigma",
+      "type": "integer"
+    },
+    "n_lambda": {
+      "default": 180,
+      "description": "λ☾ 每 2π 的采样数",
+      "maximum": 1440,
+      "minimum": 24,
+      "title": "N Lambda",
+      "type": "integer"
+    },
+    "locus_e_slices": {
+      "description": "secular loci 的偏心率切片",
+      "items": {
+        "type": "number"
+      },
+      "title": "Locus E Slices",
+      "type": "array"
+    },
+    "a_over_a_moon_min": {
+      "default": 1.02,
+      "description": "translunar loci 半长轴下限（a/a☾）",
+      "exclusiveMinimum": 1.0,
+      "title": "A Over A Moon Min",
+      "type": "number"
+    },
+    "a_over_a_moon_max": {
+      "default": 3.9,
+      "description": "translunar loci 半长轴上限（a/a☾，地球 Hill 界内）",
+      "exclusiveMinimum": 1.0,
+      "title": "A Over A Moon Max",
+      "type": "number"
+    },
+    "n_locus": {
+      "default": 73,
+      "description": "loci 半长轴采样数",
+      "maximum": 1001,
+      "minimum": 5,
+      "title": "N Locus",
+      "type": "integer"
+    },
+    "vzlk_c1": {
+      "default": 0.3,
+      "description": "vZLK 相图第一积分 c1 = (1−e²)cos²I（式 67）；c1 < 0.6 存在分离线",
+      "exclusiveMinimum": 0.0,
+      "maximum": 1.0,
+      "title": "Vzlk C1",
+      "type": "number"
+    }
+  },
+  "title": "SpatiographyAtlasRequest",
+  "type": "object"
+}

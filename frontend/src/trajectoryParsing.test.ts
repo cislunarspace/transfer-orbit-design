@@ -4,6 +4,7 @@ import {
   familyMembersToTrajectoryData,
   trajectoryTimeRange,
   transferTrajectoryToCanvasData,
+  transferCandidateToArcData,
   propagationToCanvasData,
   designEphemerisToCanvasData,
   timelineMode,
@@ -316,6 +317,72 @@ describe("transferTrajectoryToCanvasData 转移轨迹解析", () => {
 
   it("转移弧标注数据系 synodic_km（会合系物理 km，ADR 0040 契约）", () => {
     expect(transferTrajectoryToCanvasData(TRAJ, null).frames).toEqual(["synodic_km"]);
+  });
+
+  // —— 双几何段（#428 第二步，e2m2e 5.9.1 trajectory_gcrs_km）——
+  // Dual-geometry segment (#428 step 2, e2m2e 5.9.1 trajectory_gcrs_km).
+  const GCRS: number[][] = [
+    [7000.0, 0.0, 100.0, 0.0, 7.0, 1.0],
+    [0.0, 200000.0, 0.0, -1.0, 3.0, 0.0],
+    [-384400.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+  ];
+
+  it("gcrs 段同行对齐时携带惯性几何（位置 ÷DU_KM），主几何与时刻不变", () => {
+    const got = transferTrajectoryToCanvasData(TRAJ, [0, 100, 200], undefined, "转移弧", GCRS);
+    expect(got.inertialGeometries).toHaveLength(1);
+    expect(got.inertialGeometries![0]![0]).toEqual([7000.0 / 384400, 0, 100.0 / 384400]);
+    expect(got.inertialGeometries![0]![2]).toEqual([-1, 0, 0]);
+    // 主几何仍是会合系段（会合视图逐项不变）；时刻共享 trajectory_times
+    // The primary geometry stays the synodic segment (synodic view unchanged item
+    // for item); times are shared with trajectory_times.
+    expect(got.trajectories[0][2][0]).toBeCloseTo(380000 / 384400, 12);
+    expect(got.times[0]).toEqual([0, 100, 200]);
+    expect(got.frames).toEqual(["synodic_km"]);
+  });
+
+  it("gcrs 段行数不齐或缺位时惯性几何为 null/缺省（降级灰显口径）", () => {
+    const misaligned = transferTrajectoryToCanvasData(TRAJ, null, undefined, "转移弧", GCRS.slice(0, 2));
+    expect(misaligned.inertialGeometries![0]).toBeNull();
+    // 未传参（low_thrust/旧响应）不带 inertialGeometries 字段
+    // No param (low_thrust / legacy responses) leaves inertialGeometries absent.
+    expect(transferTrajectoryToCanvasData(TRAJ, null).inertialGeometries).toBeUndefined();
+  });
+});
+
+describe("transferCandidateToArcData top-N 候选弧（#430）", () => {
+  const CAND = {
+    trajectory: [
+      [-4670.9, 6578.0, 0.0, 0.0, 7.8, 0.0],
+      [380000.0, 0.0, 0.0, 0.0, 0.5, 0.0],
+    ],
+    trajectory_times: [0, 200],
+    tli_epoch: "2026-09-01T00:00:00",
+  };
+
+  it("自带 tli_epoch 可解析：时刻平移到 et 基准并给出 chip 时刻", () => {
+    const got = transferCandidateToArcData(CAND, "候选 2");
+    expect(got).not.toBeNull();
+    expect(got!.data.timeBasis).toEqual(["et"]);
+    expect(got!.data.times[0][0]).toBeCloseTo(etFromEpoch("2026-09-01T00:00:00"), 6);
+    expect(got!.tliEt).toBeCloseTo(etFromEpoch("2026-09-01T00:00:00"), 6);
+    expect(got!.data.labels).toEqual(["候选 2"]);
+    // 候选无 gcrs 惯性段：惯性视图走灰显口径
+    // Candidates carry no gcrs segment: the inertial view grays them.
+    expect(got!.data.inertialGeometries).toBeUndefined();
+  });
+
+  it("tli_epoch 缺失：相对时刻、chip 为 null，弧照画", () => {
+    const got = transferCandidateToArcData(
+      { trajectory: CAND.trajectory, trajectory_times: CAND.trajectory_times },
+      "候选 3",
+    );
+    expect(got!.data.timeBasis).toEqual(["relative"]);
+    expect(got!.tliEt).toBeNull();
+  });
+
+  it("无轨迹快照（降级传播失败）返回 null", () => {
+    expect(transferCandidateToArcData({ tli_epoch: "2026-09-01T00:00:00" }, "候选 4")).toBeNull();
+    expect(transferCandidateToArcData({ trajectory: [] }, "候选 4")).toBeNull();
   });
 });
 

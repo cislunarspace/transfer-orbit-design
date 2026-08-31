@@ -180,6 +180,21 @@
       "default": null,
       "description": "目标末态 [x,y,z,vx,vy,vz]（地心惯性系，km, km/s）（low_thrust 可选）",
       "title": "Target State"
+    },
+    "top_n": {
+      "anyOf": [
+        {
+          "maximum": 50,
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "top-N 可行解契约（#583，ADR 0040 增补；可选）：返回至多 N 个可行候选（按上报 Δv 升序，选中解标记），推荐值 DEFAULT_TOP_N=5。缺省 None 不开启，行为与单解契约逐字段一致",
+      "title": "Top N"
     }
   },
   "required": [

@@ -23,7 +23,7 @@ dependencies = [
     "scipy>=1.17.0",
     "matplotlib>=3.10.0",
     "tqdm>=4.66",
-    "e2m2e[mcp]>=5.9.0",  # [mcp] extra（mcp>=2.0）：AI 助手经 mcp-serve 调工具所需（本仓 ADR 0023）；5.9.0 含 state_frame 标注（5.8.10，#572）与分区解析三工具（#577）
+    "e2m2e[mcp]>=5.9.1",  # [mcp] extra（mcp>=2.0）：AI 助手经 mcp-serve 调工具所需（本仓 ADR 0023）；5.9.1 含 top-N 可行解契约（e2m2e#597，#430）与转移弧 gcrs_km 段（e2m2e#591，#428 第二步）
     "pillow>=10.0.0",  # GIF 合成；matplotlib 的既有传递依赖，显式声明本仓库使用
     "calcephpy==5.0.0",  # 经 e2m2e→r2s2 传递依赖；显式声明以使 [tool.uv.sources] 生效（uv sources 仅覆盖直接依赖）
 ]

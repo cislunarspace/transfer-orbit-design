@@ -25,6 +25,7 @@
 //! 并发：同一时刻只跑一轮对话（`running` 门禁）；MCP 调用本身可并发
 //! （mcp-serve 线程池），但串行更利于用户逐条确认，v1 保持串行。
 
+pub mod host_tools;
 pub mod llm;
 pub mod prompt;
 pub mod store;
@@ -51,9 +52,9 @@ const BUSY_MSG: &str = "有回复进行中或工具确认未决，请等待完�
 const DEFAULT_SESSION: &str = "default";
 
 /// 只读工具白名单（ADR 0022 决策 4）：免确认直接执行。
-/// 来源：e2m2e facade 工具清单（5.8.x）中不运行数值计算、不改变状态的
-/// 仅有两个 catalog 查询。fail-closed：不在名单里的一律要确认。
-const READ_ONLY_TOOLS: &[&str] = &["catalog_query", "catalog_get"];
+/// 来源：e2m2e facade 的 catalog 两查询 + 宿主内置的情景列举（ADR 0027，
+/// 纯读固定目录）。fail-closed：不在名单里的一律要确认。
+const READ_ONLY_TOOLS: &[&str] = &["catalog_query", "catalog_get", "scenario_list"];
 
 /// 事件发射器（setup 时注入 AppHandle 包装；测试注入 fake）。
 pub type AssistantEmitter = Arc<dyn Fn(&Value) + Send + Sync>;
@@ -370,18 +371,29 @@ impl AssistantState {
             return tool_message(&tc.id, &format!("调用被验证链拒绝：{reason}"));
         }
 
-        // 进度订阅：call_tool 带 progressToken（e2m2e 5.9.0+ 发
-        // notifications/progress），转发为 tool_progress 事件——工具卡片
-        // 由"只转圈"升级为真进度（分数 + 可读消息）。
-        let progress_call_id = tc.id.clone();
-        let progress_sink: crate::mcp::ProgressSink =
-            std::sync::Arc::new(move |fraction, message| {
-                emit(json!({"kind": "tool_progress", "callId": progress_call_id,
-                            "progress": fraction, "message": message}));
-            });
-        let outcome = call_tool_with_retry(mcp, &tc.name, args, Some(progress_sink)).await;
-        let (ok, text) = match outcome {
-            Ok(out) => (!out.is_error, out.text),
+        // 宿主内置工具（ADR 0027）：本地执行不走 MCP；信封形状与 MCP 结果
+        // 一致，后续摘要/投影/卡片链路共用。本地 io 快，不接进度订阅。
+        // Host-built-in tools (ADR 0027): execute locally without MCP; the
+        // envelope shape matches MCP results so the summary/projection/card
+        // chain stays shared. Local io is fast — no progress subscription.
+        let outcome_text = if host_tools::is_host_tool(&tc.name) {
+            Ok((false, host_tools::execute(&tc.name, &args)))
+        } else {
+            // 进度订阅：call_tool 带 progressToken（e2m2e 5.9.0+ 发
+            // notifications/progress），转发为 tool_progress 事件——工具卡片
+            // 由"只转圈"升级为真进度（分数 + 可读消息）。
+            let progress_call_id = tc.id.clone();
+            let progress_sink: crate::mcp::ProgressSink =
+                std::sync::Arc::new(move |fraction, message| {
+                    emit(json!({"kind": "tool_progress", "callId": progress_call_id,
+                                "progress": fraction, "message": message}));
+                });
+            call_tool_with_retry(mcp, &tc.name, args, Some(progress_sink))
+                .await
+                .map(|out| (out.is_error, out.text))
+        };
+        let (ok, text) = match outcome_text {
+            Ok((is_error, text)) => (!is_error, text),
             Err(e) => (false, format!("工具调用失败：{e}")),
         };
 
@@ -408,10 +420,15 @@ impl AssistantState {
             return Ok(tools);
         }
         let mcp_tools = list_tools_with_retry(mcp).await?;
-        let tools: Vec<Value> = mcp_tools.iter().filter_map(llm::mcp_tool_to_openai).collect();
+        let mut tools: Vec<Value> = mcp_tools.iter().filter_map(llm::mcp_tool_to_openai).collect();
         if tools.is_empty() {
             anyhow::bail!("mcp-serve 未暴露任何工具（e2m2e 工具清单为空）");
         }
+        // 宿主内置工具（ADR 0027）：情景生成/列举，注入清单尾部；对 LLM
+        // 而言与 MCP 工具无差别（同为 function）。
+        // Host-built-in tools (ADR 0027): scenario write/list, appended to the
+        // tool list; to the LLM they are indistinguishable from MCP tools.
+        tools.extend(host_tools::tool_specs());
         *self.tools_cache.lock().expect("tools lock") = Some(tools.clone());
         Ok(tools)
     }
@@ -559,6 +576,8 @@ mod tests {
     fn read_only_whitelist_is_fail_closed() {
         assert!(is_read_only("catalog_query"));
         assert!(is_read_only("catalog_get"));
+        assert!(is_read_only("scenario_list"), "宿主情景列举是纯读固定目录（ADR 0027）");
+        assert!(!is_read_only("scenario_write"), "情景写入必须走确认");
         assert!(!is_read_only("design_orbit"));
         assert!(!is_read_only("catalog_delete"));
         assert!(!is_read_only("future_unknown_tool"), "未知工具必须走确认");

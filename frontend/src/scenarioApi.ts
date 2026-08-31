@@ -20,15 +20,29 @@ export async function saveScenarioFile(content: string): Promise<boolean> {
   return true;
 }
 
-/** 打开情景：选择文件对话框 → open_scenario 命令读文本；取消返回 null。 */
-/** Opens a scenario: open dialog → the open_scenario command returns the text; null when cancelled. */
+/** 打开情景：选择文件对话框 → open_scenario 命令读文本；取消返回 null。
+ *  对话框默认定位情景固定目录（ADR 0027，scenarios_dir 命令；目录未建
+ *  时回退无默认）。 */
+/** Opens a scenario: open dialog → the open_scenario command returns the text;
+ *  null when cancelled. The dialog defaults into the fixed scenarios dir
+ *  (ADR 0027, the scenarios_dir command; no default when it doesn't exist
+ *  yet). */
 export async function openScenarioFile(): Promise<string | null> {
   const { invoke } = await import("@tauri-apps/api/core");
+  let defaultPath: string | undefined;
+  try {
+    defaultPath = (await invoke<string | null>("scenarios_dir")) ?? undefined;
+  } catch {
+    // 目录命令不可用（旧二进制/目录未建）：无默认定位，不影响选择
+    // Directory command unavailable (older binary / dir not yet created): no
+    // default location, selection still works.
+  }
   const path = await open({
     title: "打开情景",
     multiple: false,
     directory: false,
     filters: [{ name: "情景文件", extensions: ["json"] }],
+    defaultPath,
   });
   if (!path) return null;
   return invoke<string>("open_scenario", { path });

@@ -131,6 +131,7 @@ pub fn run() {
             cmd::register_artifact,
             cmd::ephemeris_status,
             cmd::save_scenario,
+            cmd::scenarios_dir,
             cmd::open_scenario,
             assistant_cmd::assistant_get_state,
             assistant_cmd::assistant_set_config,

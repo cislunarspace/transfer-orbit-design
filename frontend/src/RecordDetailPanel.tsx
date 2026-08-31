@@ -10,13 +10,38 @@ import { useTranslation } from "./i18n";
 
 const { Text } = Typography;
 
+/** top-N 可行解候选的展示模型（#430）：App 从 transfer_design 响应映射，
+ *  与画布层解耦——无轨迹降级的候选也在此列参数。 */
+/** The display model of a top-N feasible-solution candidate (#430): App maps
+ *  it from the transfer_design response, decoupled from the canvas layer —
+ *  trackless degraded candidates still list their parameters here. */
+export interface TransferCandidateView {
+  key: string;
+  /** Δv 升序名次（1 起） */
+  rank: number;
+  deltaVKmS: number;
+  /** 已格式化的 TLI 历元（未携带为占位符） */
+  tliEpochText: string;
+  /** 已格式化的飞行时间（未携带为占位符） */
+  tofSecText: string;
+  selected: boolean;
+  /** 打靶精化（True）或网格估计（False）口径 */
+  refined: boolean;
+  /** 是否携带轨迹快照（无轨迹的不上画布，仅列参数） */
+  hasTrajectory: boolean;
+}
+
 interface RecordDetailPanelProps {
   record: CatalogRecord | null;
+  /** 最近一次 top_n 转移搜索的候选集（含选中解；恰一候选时 App 不传） */
+  /** The candidate set of the latest top_n transfer search (selected included;
+   *  App omits it for a single-candidate run). */
+  transferCandidates?: TransferCandidateView[];
   onRefresh?: () => void;
   onOpenStationKeeping?: (rec: CatalogRecord) => void;
 }
 
-export function RecordDetailPanel({ record, onRefresh, onOpenStationKeeping }: RecordDetailPanelProps) {
+export function RecordDetailPanel({ record, transferCandidates, onRefresh, onOpenStationKeeping }: RecordDetailPanelProps) {
   const { t } = useTranslation();
 
   // hooks 规则（#437）：无论 record 是否为 null，每次渲染调用相同数量、
@@ -38,9 +63,14 @@ export function RecordDetailPanel({ record, onRefresh, onOpenStationKeeping }: R
 
   if (!record) {
     return (
-      <Card size="small" title="记录详情" style={{ marginTop: 8 }}>
-        <Text type="secondary" style={{ fontSize: 12 }}>请在上方项目树或轨道库中选中一条记录查看详情。</Text>
-      </Card>
+      <>
+        {transferCandidates && transferCandidates.length > 0 && (
+          <CandidateComparisonCard candidates={transferCandidates} />
+        )}
+        <Card size="small" title="记录详情" style={{ marginTop: 8 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>请在上方项目树或轨道库中选中一条记录查看详情。</Text>
+        </Card>
+      </>
     );
   }
 
@@ -83,6 +113,10 @@ export function RecordDetailPanel({ record, onRefresh, onOpenStationKeeping }: R
   const hasEphemeris = record.has_ephemeris;
 
   return (
+    <>
+    {transferCandidates && transferCandidates.length > 0 && (
+      <CandidateComparisonCard candidates={transferCandidates} />
+    )}
     <Card size="small" title="记录详情" style={{ marginTop: 8 }} bodyStyle={{ padding: "8px 12px" }}>
       <Descriptions size="small" column={1} bordered={false}>
         <Descriptions.Item label="ID">
@@ -180,6 +214,47 @@ export function RecordDetailPanel({ record, onRefresh, onOpenStationKeeping }: R
           保存标注
         </Button>
       </div>
+    </Card>
+    </>
+  );
+}
+
+/** 可行解对比卡片（#430）：并列各候选 Δv/TLI/TOF，选中解与 refined 口径
+ *  自述（混合口径共存时逐候选标注），无轨迹降级候选仅列参数。 */
+/** The feasible-solution comparison card (#430): candidate Δv/TLI/TOF side
+ *  by side, each self-describing its selected mark and refined caliber (per
+ *  candidate when mixed), trackless degraded ones listing parameters only. */
+function CandidateComparisonCard({ candidates }: { candidates: TransferCandidateView[] }) {
+  const { t } = useTranslation();
+  return (
+    <Card size="small" title={t("panel.candidates_title")} bodyStyle={{ padding: "4px 12px" }}>
+      {candidates.map((c) => (
+        <div
+          key={c.key}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            fontSize: 11,
+            padding: "3px 0",
+            borderBottom: "1px dashed rgba(128,128,128,0.25)",
+          }}
+        >
+          <Text strong style={{ fontSize: 11, minWidth: 18 }}>#{c.rank}</Text>
+          <Text code style={{ fontSize: 11 }}>Δv {c.deltaVKmS.toFixed(3)}</Text>
+          <Text style={{ fontSize: 11 }}>TLI {c.tliEpochText}</Text>
+          <Text style={{ fontSize: 11 }}>TOF {c.tofSecText}</Text>
+          {c.selected ? (
+            <Tag color="gold" style={{ marginInlineEnd: 0 }}>{t("panel.cand_selected")}</Tag>
+          ) : null}
+          <Tag style={{ marginInlineEnd: 0 }}>
+            {c.refined ? t("panel.cand_refined_true") : t("panel.cand_refined_false")}
+          </Tag>
+          {!c.hasTrajectory && (
+            <Tag color="default" style={{ marginInlineEnd: 0 }}>{t("panel.cand_no_traj")}</Tag>
+          )}
+        </div>
+      ))}
     </Card>
   );
 }

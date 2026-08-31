@@ -1,0 +1,117 @@
+{
+  "additionalProperties": false,
+  "description": "六域两层天图输入（Primer §7.3 / Table 4，ADR 0041 Phase 3c）。\n\n网格初值按命名场景（2027-08-02 日全食历元、(Ω,ω,M) 固定角、\ni = 月轨面、反 aligned 拱线）生成；逐格传播 EM/EMS 点质量模型\n（MEGNO + 命运两层）。网格分辨率与积分窗按需收缩——CI 走抽查\n小网格，全量制图走 scripts/ 手动（ADR 0037 预算口径）。",
+  "properties": {
+    "zone": {
+      "description": "制图域（Table 4 行序）：SC = secular cislunar；CR = cislunar resonant；CG = circumlunar gateway；IT/OT = 内/外 translunar；TF = translunar fringe",
+      "enum": [
+        "SC",
+        "CR",
+        "CG",
+        "IT",
+        "OT",
+        "TF"
+      ],
+      "title": "Zone",
+      "type": "string"
+    },
+    "model": {
+      "default": "em",
+      "description": "动力学模型：em = 椭圆点质量地月（星历初值后孤立演化）；ems = +太阳点质量（架构持续性检验）",
+      "enum": [
+        "em",
+        "ems"
+      ],
+      "title": "Model",
+      "type": "string"
+    },
+    "n_a": {
+      "default": 12,
+      "description": "a/a☾ 轴格点数",
+      "maximum": 400,
+      "minimum": 2,
+      "title": "N A",
+      "type": "integer"
+    },
+    "n_e": {
+      "default": 8,
+      "description": "e 轴格点数",
+      "maximum": 400,
+      "minimum": 2,
+      "title": "N E",
+      "type": "integer"
+    },
+    "e_min": {
+      "default": 0.0,
+      "description": "偏心率下限",
+      "exclusiveMaximum": 1.0,
+      "minimum": 0.0,
+      "title": "E Min",
+      "type": "number"
+    },
+    "e_max": {
+      "default": 0.9,
+      "description": "偏心率上限",
+      "exclusiveMaximum": 1.0,
+      "exclusiveMinimum": 0.0,
+      "title": "E Max",
+      "type": "number"
+    },
+    "span_years": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0.0,
+          "maximum": 60.0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "积分窗（年）；None = Table 4 区带缺省（SC/CR/CG 19、IT 38、OT/TF 57）",
+      "title": "Span Years"
+    },
+    "rtol": {
+      "default": 1e-09,
+      "description": "积分相对容差",
+      "exclusiveMaximum": 0.0001,
+      "exclusiveMinimum": 1e-14,
+      "title": "Rtol",
+      "type": "number"
+    },
+    "max_step_hours": {
+      "default": 6.0,
+      "description": "最大步长（小时；近点漏检防护）",
+      "exclusiveMinimum": 0.1,
+      "maximum": 48.0,
+      "title": "Max Step Hours",
+      "type": "number"
+    },
+    "stop_on_terminal": {
+      "default": true,
+      "description": "终端事件（再入/撞月/逃逸）早停",
+      "title": "Stop On Terminal",
+      "type": "boolean"
+    },
+    "ybar_ordered_band": {
+      "default": 0.2,
+      "description": "|Ȳ−2| ≤ 带内记 ordered（Phase 3b 定标）",
+      "exclusiveMinimum": 0.0,
+      "title": "Ybar Ordered Band",
+      "type": "number"
+    },
+    "ybar_chaotic_excess": {
+      "default": 1.0,
+      "description": "Ȳ ≥ 2+excess 记 chaotic（Phase 3b 定标）",
+      "exclusiveMinimum": 0.0,
+      "title": "Ybar Chaotic Excess",
+      "type": "number"
+    }
+  },
+  "required": [
+    "zone"
+  ],
+  "title": "SpatiographyMapRequest",
+  "type": "object"
+}

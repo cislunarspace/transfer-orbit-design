@@ -62,6 +62,17 @@ export interface TrajectoryData {
   /** Jacobi constant aligned row-by-row; undefined entries = no Jacobi
    *  value (transfer arcs etc.), falling back to the color cycle (#435). */
   jacobi?: (number | undefined)[];
+  /** 与 trajectories 逐条对齐的惯性几何（DU 归一）：转移弧的 gcrs 段
+   *  （#428 第二步，e2m2e 5.9.1 trajectory_gcrs_km）——同一物理弧的第二
+   *  份数据，惯性视图下改用它绘制；缺位（null / 无字段）按无惯性段处理
+   *  （降级灰显）。视图系是显示选择，不随数据走，故不占 frames 槽位。 */
+  /** Inertial geometry row-aligned with trajectories (DU-normalized): the
+   *  transfer arc's gcrs segment (#428 step 2, e2m2e 5.9.1
+   *  trajectory_gcrs_km) — a second copy of the same physical arc, drawn in
+   *  the inertial view; a missing entry (null / absent field) counts as no
+   *  inertial segment (degraded graying). The view frame is a display choice
+   *  and never rides the data, hence no frames slot. */
+  inertialGeometries?: (number[][] | null)[];
 }
 
 /** 传播步数：与轨迹点数联动（点数 = 步数 + 1），时刻按 period/步数均匀合成 */
@@ -195,12 +206,26 @@ export function transferTrajectoryToCanvasData(
   times: unknown,
   tliEpoch?: string | number,
   label = "转移弧",
+  gcrsTrajectory?: number[][] | null,
 ): TrajectoryData {
   const pts = trajectory.map((row) => [
     Number(row[0]) / DU_KM,
     Number(row[1]) / DU_KM,
     Number(row[2]) / DU_KM,
   ]);
+  // 惯性段（#428 第二步）：与主几何逐行对齐才携带（时刻共享
+  // trajectory_times，不双份）；行数不齐或缺位为 null——降级灰显口径。
+  // The inertial segment (#428 step 2): carried only when row-aligned with the
+  // primary geometry (times are shared with trajectory_times, never
+  // duplicated); misaligned or absent is null — the degraded-graying case.
+  const gcrsPts =
+    gcrsTrajectory && gcrsTrajectory.length === trajectory.length
+      ? gcrsTrajectory.map((row) => [
+          Number(row[0]) / DU_KM,
+          Number(row[1]) / DU_KM,
+          Number(row[2]) / DU_KM,
+        ])
+      : null;
   const aligned =
     Array.isArray(times) && times.length === trajectory.length
       ? (times as unknown[]).map(Number)
@@ -214,7 +239,60 @@ export function transferTrajectoryToCanvasData(
     timeBasis: [etTimes ? "et" : aligned ? "relative" : "none"],
     frames: ["synodic_km"],
     labels: [label],
+    // 未传 gcrs 段（low_thrust/旧响应）不携带字段；传了但行数不齐为 null
+    // No gcrs param (low_thrust / legacy responses) leaves the field absent;
+    // a provided-but-misaligned one is null.
+    ...(gcrsTrajectory !== undefined && gcrsTrajectory !== null
+      ? { inertialGeometries: [gcrsPts] as (number[][] | null)[] }
+      : {}),
   };
+}
+
+/** top-N 可行解候选（非选中）的输入形状（e2m2e 5.9.1 TransferCandidate
+ *  的画布相关子集；tli_epoch 可为 UTC 字符串、JD_TDB 浮点或 null）。 */
+/** The input shape of a (non-selected) top-N feasible-solution candidate
+ *  (the canvas-relevant subset of e2m2e 5.9.1's TransferCandidate; tli_epoch
+ *  may be a UTC string, a JD_TDB float, or null). */
+export interface TransferCandidateInput {
+  trajectory?: unknown;
+  trajectory_times?: unknown;
+  tli_epoch?: unknown;
+}
+
+/** top-N 候选（非选中）→ 画布弧 + TLI 时刻（#430）：会合系段照常归一上画
+ *  （候选无 gcrs 惯性段，惯性视图走灰显口径）；自带 tli_epoch 可解析时
+ *  时刻平移到 et 绝对基准并给出 chip 时刻，否则相对时刻、chip 为 null。
+ *  无轨迹快照（降级传播失败）返回 null，调用方计数提示、面板仍列参数。 */
+/** A (non-selected) top-N candidate → a canvas arc + its TLI moment (#430):
+ *  the synodic segment is normalized onto the canvas as usual (candidates
+ *  carry no gcrs inertial segment — the inertial view grays them); a parseable
+ *  tli_epoch shifts times onto the et absolute basis and yields the chip
+ *  moment, otherwise times stay relative and the chip is null. No trajectory
+ *  snapshot (a failed degraded propagation) returns null — the caller counts
+ *  it for the hint while the panel still lists its parameters. */
+export function transferCandidateToArcData(
+  candidate: TransferCandidateInput,
+  label: string,
+): { data: TrajectoryData; tliEt: number | null } | null {
+  const trajectory = candidate.trajectory;
+  if (!Array.isArray(trajectory) || trajectory.length === 0) return null;
+  // 候选自带历元原样透传（字符串＝UTC、数＝JD_TDB，与 live 路径同口径），
+  // chip 时刻在此单独换算到 et 秒。
+  // The candidate's own epoch passes through as-is (string = UTC, number =
+  // JD_TDB — the same convention as the live path); the chip moment converts
+  // to et seconds separately here.
+  const rawEpoch =
+    typeof candidate.tli_epoch === "string" || typeof candidate.tli_epoch === "number"
+      ? candidate.tli_epoch
+      : undefined;
+  const tliEt = rawEpoch !== undefined ? etFromEpoch(rawEpoch) : NaN;
+  const data = transferTrajectoryToCanvasData(
+    trajectory as number[][],
+    candidate.trajectory_times,
+    rawEpoch,
+    label,
+  );
+  return { data, tliEt: Number.isFinite(tliEt) ? tliEt : null };
 }
 
 /** 轨道预报响应 → 画布轨迹（#421 修复，#428 更新）。position_km 是
