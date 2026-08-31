@@ -156,8 +156,8 @@ msgid "多语言 README"
 msgstr "Multilingual README"
 
 #: ../../development.md:88 594367c87267425c89664569f8852761
-msgid "`README.md` 为中文主文档；其他语言版本命名为 `README.<lang>.md`（当前仅有 `README.en.md`）。"
-msgstr "`README.md` is the Chinese master; other language versions are named `README.<lang>.md` (currently only `README.en.md`)."
+msgid "`README.md` 为英文主文档（对齐 e2m2e 惯例）；中文版固定命名 `README.zh-CN.md`。"
+msgstr "`README.md` is the English master (following the e2m2e convention); the Chinese version is fixed at `README.zh-CN.md`."
 
 #: ../../development.md:89 c84cb842179a4b2897cd47b77f3c5458
 msgid "修改任一语言版本时，应在同一提交中同步其余版本，保持章节结构一一对应。"

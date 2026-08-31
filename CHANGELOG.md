@@ -6,6 +6,10 @@
 
 - **语言切换按钮失效（#447）**：`useTranslation()` 在每个调用组件内各自持有独立的 `lang` state，顶栏切换只改所在组件，其余已挂载区域（项目树、参数面板、助手边栏等）钉死旧语言。改为应用根部挂 `I18nProvider` 共享语言状态（localStorage 持久化与 `<html lang>` 同步副作用随迁）；`useTranslation()` 返回形状不变，约 11 个调用方零改动。
 
+### 文档
+
+- **README 主语言反转为英文（#446）**：对齐 e2m2e 惯例，`README.md` 改为英文主文档，中文版固定命名 `README.zh-CN.md`（原 `README.en.md` 退役）；两个版本顶部语言切换行同步改写（粗体标当前语言）。Sphinx 中文叙事页的 README include 改指 `README.zh-CN.md`，英文 `.po` 同步更新切换行与 `docs/development.md` 多语言 README 命名约定。两版本正文内容不变。
+
 ## 4.6.0 (2026-08-31)
 
 ### 功能
