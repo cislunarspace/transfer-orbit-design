@@ -16,6 +16,7 @@ import { AssistantSidebar } from "./AssistantSidebar";
 import {
   assistantSend,
   assistantClearHistory,
+  assistantCancel,
 } from "./api";
 
 vi.mock("./api", () => ({
@@ -28,6 +29,7 @@ vi.mock("./api", () => ({
   }),
   onAssistantEvent: vi.fn().mockResolvedValue(() => {}),
   assistantSend: vi.fn().mockResolvedValue(undefined),
+  assistantCancel: vi.fn().mockResolvedValue(true),
   assistantClearHistory: vi.fn().mockResolvedValue(undefined),
   assistantNewSession: vi.fn().mockResolvedValue("s2"),
   assistantRenameSession: vi.fn().mockResolvedValue(undefined),
@@ -134,5 +136,42 @@ describe("AssistantSidebar 清空确认（#450）", () => {
     expect(assistantClearHistory).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "清 空" }));
     await waitFor(() => expect(assistantClearHistory).toHaveBeenCalledTimes(1));
+  });
+});
+
+// —— 中断（#453）：生成中发送按钮变停止按钮，点击请求后端中断 ——
+// Interruption (#453): while generating, the send button becomes a stop
+// button that asks the backend to interrupt.
+
+describe("AssistantSidebar 中断（#453）", () => {
+  it("空闲时无停止按钮，发送中发送按钮变停止按钮", async () => {
+    let resolveSend: () => void = () => {};
+    vi.mocked(assistantSend).mockImplementationOnce(
+      () => new Promise<void>((r) => (resolveSend = r)),
+    );
+    setup();
+    await typeDraft("画一条 NRHO");
+    // 空闲：只有发送按钮
+    // Idle: only the send button.
+    expect(screen.queryByRole("button", { name: "停止生成" })).toBeNull();
+    pressEnter(false);
+    await waitFor(() => expect(screen.getByRole("button", { name: "停止生成" })).toBeDefined());
+    resolveSend();
+    await waitFor(() => expect(screen.queryByRole("button", { name: "停止生成" })).toBeNull());
+  });
+
+  it("点击停止按钮触发 assistantCancel，幂等可重复点击", async () => {
+    let resolveSend: () => void = () => {};
+    vi.mocked(assistantSend).mockImplementationOnce(
+      () => new Promise<void>((r) => (resolveSend = r)),
+    );
+    setup();
+    await typeDraft("画一条 NRHO");
+    pressEnter(false);
+    const stop = await screen.findByRole("button", { name: "停止生成" });
+    fireEvent.click(stop);
+    fireEvent.click(stop);
+    await waitFor(() => expect(assistantCancel).toHaveBeenCalledTimes(2));
+    resolveSend();
   });
 });

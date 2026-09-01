@@ -47,7 +47,14 @@ export interface MessageRow {
   tool_call_id?: string;
 }
 
-export type RawMessage = MessageRow | ThinkingRow;
+/** 中断界限行（kind 标记，#453）：仅作回放显示，不进 API 上下文 */
+/** The interrupt-boundary row (kind marker, #453): replay display only,
+ *  never enters the API context. */
+export interface InterruptedRow {
+  kind: "interrupted";
+}
+
+export type RawMessage = MessageRow | ThinkingRow | InterruptedRow;
 
 export type AssistantEventPayload =
   | { kind: "delta"; text: string }
@@ -70,6 +77,7 @@ export type AssistantEventPayload =
     }
   | { kind: "tool_rejected"; callId: string; tool: string }
   | { kind: "message_done"; usage?: { total_tokens?: number } | null }
+  | { kind: "interrupted" }
   | { kind: "error"; message: string };
 
 export async function assistantGetState(): Promise<AssistantInfo> {
@@ -120,6 +128,14 @@ export async function assistantConfirmTool(
 ): Promise<boolean> {
   const { invoke } = await import("@tauri-apps/api/core");
   return invoke("assistant_confirm_tool", { callId, approved, arguments: arguments_ ?? null });
+}
+
+/** 请求中断当前进行中的一轮对话（幂等）；返回是否有轮次在跑（#453）。 */
+/** Request an interrupt of the running turn (idempotent, #453); returns
+ *  whether a turn was active. */
+export async function assistantCancel(): Promise<boolean> {
+  const { invoke } = await import("@tauri-apps/api/core");
+  return invoke("assistant_cancel");
 }
 
 export async function assistantClearHistory(): Promise<void> {

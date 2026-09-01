@@ -137,6 +137,7 @@ pub fn run() {
             assistant_cmd::assistant_set_config,
             assistant_cmd::assistant_test_config,
             assistant_cmd::assistant_send,
+            assistant_cmd::assistant_cancel,
             assistant_cmd::assistant_confirm_tool,
             assistant_cmd::assistant_clear_history
         ])

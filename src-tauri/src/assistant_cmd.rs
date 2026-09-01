@@ -129,6 +129,14 @@ pub async fn assistant_confirm_tool(
     Ok(state.resolve_confirm(&call_id, ConfirmDecision { approved, arguments }))
 }
 
+/// 请求中断当前进行中的一轮对话（幂等，#453）：置取消标志，agent loop
+/// 在最近安全点（流事件间/轮次边界/工具排队/确认等待）停下。返回是否
+/// 有轮次在跑（false = 当前空闲，无副作用）。
+#[tauri::command]
+pub async fn assistant_cancel(state: State<'_, AssistantState>) -> Result<bool, String> {
+    Ok(state.request_cancel())
+}
+
 /// 清空当前会话（"清空重开"）：内存历史 + 落盘文件一起清，保留会话本身。
 #[tauri::command]
 pub async fn assistant_clear_history(state: State<'_, AssistantState>) -> Result<(), String> {

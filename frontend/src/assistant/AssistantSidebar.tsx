@@ -16,8 +16,10 @@ import {
   RobotOutlined,
   SendOutlined,
   SettingOutlined,
+  StopOutlined,
 } from "@ant-design/icons";
 import {
+  assistantCancel,
   assistantClearHistory,
   assistantDeleteSession,
   assistantGetState,
@@ -426,13 +428,29 @@ export function AssistantSidebar({
                   }
                 }}
               />
-              <Button
-                type="primary"
-                icon={<SendOutlined />}
-                loading={running}
-                onClick={handleSend}
-                disabled={!draft.trim()}
-              />
+              {running ? (
+                // 生成中：发送按钮变停止按钮（#453）——点击请求后端在最近
+                // 安全点中断；非运行期不渲染（规格故事 8）
+                // While generating: the send button becomes a stop button
+                // (#453) — clicking asks the backend to interrupt at the
+                // nearest safe point; never rendered when idle (story 8).
+                <Button
+                  type="primary"
+                  icon={<StopOutlined />}
+                  onClick={() => {
+                    void assistantCancel();
+                  }}
+                  aria-label={t("assistant.stop")}
+                  title={t("assistant.stop")}
+                />
+              ) : (
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  onClick={handleSend}
+                  disabled={!draft.trim()}
+                />
+              )}
             </div>
           </div>
         </>
