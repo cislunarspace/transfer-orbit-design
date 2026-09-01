@@ -18,6 +18,8 @@ import {
   message,
 } from "antd";
 import {
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
   PlayCircleOutlined,
   InfoCircleOutlined,
   MoonOutlined,
@@ -30,7 +32,7 @@ import { TimelineBar } from "./TimelineBar";
 import { ParamsPanel } from "./ParamsPanel";
 import { ProjectTree } from "./ProjectTree";
 import { RecordDetailPanel, type TransferCandidateView } from "./RecordDetailPanel";
-import { ResizeHandle, loadPanelWidth } from "./ResizeHandle";
+import { ResizeHandle, loadPanelWidth, loadPanelCollapsed } from "./ResizeHandle";
 import { StationKeepingModal } from "./StationKeepingModal";
 import { AnimationExportModal, type AnimationExportOptions } from "./AnimationExportModal";
 import { sweepMoments, SWEEP_TICK_MS } from "./animationExport";
@@ -99,6 +101,8 @@ const MID_MAX_WIDTH = 440;
 const MID_DEFAULT_WIDTH = 320;
 const LEFT_WIDTH_KEY = "tod-left-width";
 const MID_WIDTH_KEY = "tod-mid-width";
+const LEFT_COLLAPSED_KEY = "tod-left-collapsed";
+const MID_COLLAPSED_KEY = "tod-mid-collapsed";
 
 /**
  * 转移响应 details → 出发/到达脉冲事件旗标（Q6/Q9 决策：本期用 details
@@ -165,6 +169,18 @@ export default function App() {
   const [midWidth, setMidWidth] = useState(() =>
     loadPanelWidth(MID_WIDTH_KEY, MID_DEFAULT_WIDTH, MID_MIN_WIDTH, MID_MAX_WIDTH),
   );
+  // 栏折叠（#462）：折叠即面板收起、画布扩展占位；折叠态持久化，宽度
+  // 状态保留（展开还原折叠前宽度）。助手边栏另有折叠机制，不并入。
+  // Pane collapse (#462): collapsing hides the pane and lets the canvas take
+  // the space; the collapsed state persists and the width state is kept (an
+  // expanded pane restores its pre-collapse width). The assistant sidebar has
+  // its own collapse mechanism and is not merged here.
+  const [leftCollapsed, setLeftCollapsed] = useState(() => loadPanelCollapsed(LEFT_COLLAPSED_KEY));
+  const [midCollapsed, setMidCollapsed] = useState(() => loadPanelCollapsed(MID_COLLAPSED_KEY));
+  const setPaneCollapsed = (key: string, collapsed: boolean, setter: (v: boolean) => void) => {
+    setter(collapsed);
+    localStorage.setItem(key, collapsed ? "1" : "0");
+  };
   const [selectedTool, setSelectedTool] = useState<string>(TOOL_REGISTRY[0].name);
   const [toolParams, setToolParams] = useState<Record<string, unknown>>({});
   // 提交校验问题（字段名 → 原因），传给参数面板内联标红；改动参数即清
@@ -1291,7 +1307,30 @@ export default function App() {
           } as React.CSSProperties
         }
       >
-        {/* 左栏：宽度可拖（#454），手柄贴右缘 */}
+        {/* 左栏：宽度可拖（#454），可折叠（#462）——折叠为窄条展开按钮，
+            画布扩展占位；宽度状态保留，展开还原 */}
+        {leftCollapsed ? (
+          <div
+            style={{
+              width: 24,
+              borderRight: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              paddingTop: 8,
+              background: themeMode === "dark" ? "#1f1f1f" : "#fff",
+              flexShrink: 0,
+            }}
+          >
+            <Button
+              type="text"
+              size="small"
+              icon={<MenuUnfoldOutlined />}
+              onClick={() => setPaneCollapsed(LEFT_COLLAPSED_KEY, false, setLeftCollapsed)}
+              title={t("panel.expand")}
+            />
+          </div>
+        ) : (
         <div
           style={{
             width: leftWidth,
@@ -1373,6 +1412,13 @@ export default function App() {
                 onClick={() => setAboutModalOpen(true)}
                 title={t("app.about_title")}
               />
+              <Button
+                type="text"
+                size="small"
+                icon={<MenuFoldOutlined />}
+                onClick={() => setPaneCollapsed(LEFT_COLLAPSED_KEY, true, setLeftCollapsed)}
+                title={t("panel.collapse")}
+              />
             </div>
           </div>
 
@@ -1411,8 +1457,31 @@ export default function App() {
             />
           </div>
         </div>
+        )}
 
-        {/* 中栏：工具选择与参数面板，宽度可拖（#454），手柄贴右缘 */}
+        {/* 中栏：工具选择与参数面板，宽度可拖（#454），可折叠（#462） */}
+        {midCollapsed ? (
+          <div
+            style={{
+              width: 24,
+              borderRight: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              paddingTop: 8,
+              background: themeMode === "dark" ? "#1a1a1a" : "#fafafa",
+              flexShrink: 0,
+            }}
+          >
+            <Button
+              type="text"
+              size="small"
+              icon={<MenuUnfoldOutlined />}
+              onClick={() => setPaneCollapsed(MID_COLLAPSED_KEY, false, setMidCollapsed)}
+              title={t("panel.expand")}
+            />
+          </div>
+        ) : (
         <div
           style={{
             width: midWidth,
@@ -1433,9 +1502,18 @@ export default function App() {
             onResize={setMidWidth}
             onResizeEnd={(w) => localStorage.setItem(MID_WIDTH_KEY, String(w))}
           />
-          <Title level={5} style={{ margin: "0 0 8px 0" }}>
-            {t("panel.tool_title")}
-          </Title>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+            <Title level={5} style={{ margin: 0 }}>
+              {t("panel.tool_title")}
+            </Title>
+            <Button
+              type="text"
+              size="small"
+              icon={<MenuFoldOutlined />}
+              onClick={() => setPaneCollapsed(MID_COLLAPSED_KEY, true, setMidCollapsed)}
+              title={t("panel.collapse")}
+            />
+          </div>
           <Select
             size="small"
             style={{ width: "100%", marginBottom: 8 }}
@@ -1478,6 +1556,7 @@ export default function App() {
             )}
           </div>
         </div>
+        )}
 
         {/* 右栏：主画布与时间轴 */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
