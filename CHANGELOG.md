@@ -5,6 +5,32 @@
 
 ## 未发布
 
+## 4.8.2 (2026-09-01)
+
+### 功能 / Features
+
+- **画布轨迹拾取与图例联动（#452、#460）**：悬停画布轨迹或图例项即预览对应轨迹（其余淡出，预览级不锁定），点击聚焦、再点解除；聚焦态图例色样描边标记，画布与图例双向同步；拾取阈值随轨道包围盒自适应，数据替换时预览与聚焦清除。高亮用透明度而非线宽（WebGL 忽略 linewidth），不引 fat lines。
+  **Canvas trajectory picking linked with the legend (#452, #460)**: hovering a trajectory or a legend item previews it (the rest dim, preview-only), clicking focuses, clicking again releases; the focused legend swatch carries a 1px outline and canvas/legend stay in sync; the pick threshold scales with the orbit bounding box; wholesale data replacement clears preview and focus. Highlighting works through opacity, not line width (WebGL ignores linewidth) — no fat-lines dependency.
+- **AI 会话中断与续跑（#453、#461）**：回复生成中发送按钮变停止按钮，后端在最近安全点停下（流事件间、轮次边界、工具排队、确认等待）——已流出正文保留入历史、排队工具补占位结果保持 OpenAI tool_calls 成对契约、挂起确认卡按拒绝落定；中断界限落盘，重启后可回放；最后一个中断标记旁出「继续」按钮，以固定引导文本作为普通用户消息一键续跑（后端零改动，从旧断点续跑的歧义不提供）。
+  **AI assistant interrupt and continue (#453, #461)**: while generating, the send button becomes a stop button and the backend stops at the nearest safe point (between stream events, at round boundaries, queued tools, or pending confirmations) — received text is kept in history, queued tools get placeholder results preserving the OpenAI tool_calls pairing, and a pending confirmation settles as rejected; the interrupt boundary is persisted and replayed after restart; a "continue" button beside the last interrupt marker sends a fixed guided text as an ordinary user message (zero backend change; continuing from older breakpoints is intentionally not offered).
+- **栏宽拖拽与折叠（#454、#462）**：左栏（220–420px）与中栏（240–440px）右缘可拖拽调宽，实时跟手、松手持久化；两栏可各自折叠成全画布模式，原位置窄条一键还原，折叠态持久化、展开还原折叠前宽度；助手边栏拖宽逻辑收编为共享手柄，三处手感一致。折叠/展开均无过渡动画。
+  **Pane resizing and collapse (#454, #462)**: the left (220–420px) and middle (240–440px) panes resize from their right edge with live tracking and persist on release; each pane can collapse into a full-canvas mode with a slim restore strip at its original spot; the collapsed state persists and expanding restores the pre-collapse width; the assistant sidebar's resize logic is folded into a shared handle for one consistent feel. No transition animations on either toggle.
+- **动画导出增强（#455）**：导出前弹设置框选模式（视角自转/时间轴播放）与时长（2–30 秒，默认 8）；时间轴播放把时刻从量程起点匀速扫到终点，时刻标记与机动事件红点随时刻演进，录制中忽略用户时刻输入，结束恢复录制前时刻；量程不可用时时间轴模式禁用并注明原因。
+  **Animation export enhancements (#455)**: exporting now opens a settings dialog for the mode (view spin / timeline playback) and duration (2–30 s, default 8); timeline playback sweeps the moment evenly from the range start to its end — time markers and maneuver-event pips evolve with the moment — ignoring user moment input while recording and restoring the pre-recording moment afterwards; the timeline mode is disabled with a reason when no range exists.
+- **画布 PNG 静态图导出（#450）**：工具栏新增导出图片按钮，当前画布所见即所得存为 PNG 文件，直接贴进报告。
+  **PNG still-image export (#450)**: the toolbar gains an export-image button that saves the current canvas as a PNG, ready for reports.
+
+### 修复 / Fixes
+
+- **深色模式助手边栏样式（#450）**：边栏、会话视图与工具卡片引用的 `--tod-*` 主题变量全仓库只有引用没有定义，深色模式下永远落到浅色 fallback；现由 App 根容器随主题注入整套变量（边框/面板/气泡/卡片底/代码底），浅色值即既有 fallback，浅色零回归。
+  **Assistant sidebar styling in dark mode (#450)**: the `--tod-*` theme variables referenced by the sidebar, chat view and tool cards had no definition anywhere, so dark mode always rendered the light fallbacks; the app root now injects the full set per theme (border/panel/bubbles/card/code backgrounds) with light values equal to the old fallbacks — zero light-mode regression.
+- **语言切换覆盖不全（#450）**：左栏页签、工具面板标题、执行按钮、画布工具栏、时间轴与图表设置弹窗的硬编码中文全部收进词典（中文文案逐字不变），并补词典 zh/en 键对齐守卫测试。
+  **Incomplete language coverage (#450)**: hard-coded Chinese in the pane tabs, tool-panel title, run button, canvas toolbar, timeline and the chart-settings dialog now all live in the dictionary (Chinese strings unchanged verbatim), with a zh/en key-parity guard test added.
+- **AI 会话交互修正（#450）**：发送命令异常时草稿回填输入框（不覆盖等待期的新输入）；流式回复仅贴底时自动跟随，上翻看历史不再被拽回底部；清空会话需确认；中文输入法选词回车不误发送的行为补回归测试钉住。
+  **Chat interaction fixes (#450)**: a failed send restores the draft (never overwriting newer input); streaming no longer yanks scrolling users to the bottom — auto-follow only when stuck to the bottom; clearing a session asks for confirmation; the IME composition Enter behavior is pinned by a regression test.
+- **计算错误提示可读（#450）**：工具执行失败的 toast 优先取错误的 message 字段，不再把整个错误对象 JSON 序列化甩给用户。
+  **Readable computation errors (#450)**: failure toasts now prefer the error's message field instead of dumping the whole JSON-serialized object.
+
 ## 4.8.1 (2026-09-01)
 
 ### 功能 / Features
