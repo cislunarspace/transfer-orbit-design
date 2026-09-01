@@ -52,6 +52,9 @@ vi.mock("@tauri-apps/api/app", () => ({
 }));
 vi.mock("./updater", () => ({
   checkForAppUpdates: () => Promise.resolve(null),
+  checkManualAppUpdate: () => Promise.resolve(null),
+  getBundleType: () => Promise.resolve("unknown"),
+  inAppUpdateSupported: () => true,
 }));
 vi.mock("./scenarioApi", () => ({
   saveScenarioFile: () => Promise.resolve(""),

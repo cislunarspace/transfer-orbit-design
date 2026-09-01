@@ -8,6 +8,7 @@ pub mod mcp;
 pub mod project;
 pub mod sidecar;
 pub mod state;
+pub mod update;
 
 use project::ProjectState;
 use state::SidecarState;
@@ -72,6 +73,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // 开发期（cargo tauri dev，debug 构建）：仓库根下 uv 拉起；
             // 分发期（release 构建）：resources/binaries 内的打包 sidecar。
@@ -130,6 +132,10 @@ pub fn run() {
             cmd::catalog_query,
             cmd::register_artifact,
             cmd::ephemeris_status,
+            cmd::bundle_type,
+            update::update_check_latest,
+            update::update_download,
+            update::update_install,
             cmd::save_scenario,
             cmd::scenarios_dir,
             cmd::open_scenario,

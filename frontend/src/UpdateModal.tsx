@@ -1,7 +1,14 @@
 import React, { useState } from "react";
 import { Modal, Progress, Typography, Button, Space } from "antd";
-import type { UpdateInfo } from "./updater";
-import { downloadAndApplyUpdate, formatBytes, createSpeedTracker } from "./updater";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import type { UpdateInfo, DownloadEvent } from "./updater";
+import {
+  downloadAndApplyUpdate,
+  downloadAndInstallManualUpdate,
+  RELEASES_PAGE_URL,
+  formatBytes,
+  createSpeedTracker,
+} from "./updater";
 import { useTranslation } from "./i18n";
 
 const { Text, Paragraph } = Typography;
@@ -22,6 +29,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   const { t } = useTranslation();
   const [downloading, setDownloading] = useState(false);
   const [downloaded, setDownloaded] = useState(false);
+  const [installing, setInstalling] = useState(false);
   const [percent, setPercent] = useState<number>(0);
   const [totalBytes, setTotalBytes] = useState<number>(0);
   const [receivedBytes, setReceivedBytes] = useState<number>(0);
@@ -36,9 +44,17 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
     let totalLength = 0;
     let downloadedLength = 0;
     const tracker = createSpeedTracker();
+    // 双引擎：manualAsset（deb/rpm，应用内下载 + 系统包管理器安装）或
+    // updater 插件（AppImage / Windows 安装器）
+    // Two engines: manualAsset (deb/rpm: in-app download + system package
+    // manager) or the updater plugin (AppImage / Windows installers).
+    const runDownload = (cb: (evt: DownloadEvent) => void) =>
+      updateInfo.manualAsset
+        ? downloadAndInstallManualUpdate(updateInfo.manualAsset, cb)
+        : downloadAndApplyUpdate(updateInfo, cb);
 
     try {
-      await downloadAndApplyUpdate(updateInfo, (evt) => {
+      await runDownload((evt) => {
         if (evt.event === "Started") {
           totalLength = evt.data.contentLength || 0;
           setTotalBytes(totalLength);
@@ -52,6 +68,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
           if (totalLength > 0) {
             setPercent(Math.min(100, Math.round((downloadedLength / totalLength) * 100)));
           }
+        } else if (evt.event === "Installing") {
+          setInstalling(true);
         } else if (evt.event === "Finished") {
           setPercent(100);
         }
@@ -60,6 +78,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
       setDownloaded(true);
     } catch (err: any) {
       setDownloading(false);
+      setInstalling(false);
       setErrorMsg(err?.message || String(err));
     }
   };
@@ -83,7 +102,9 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
     <Modal
       title={
         downloaded
-          ? t("updater.downloaded_title")
+          ? updateInfo.manualAsset
+            ? t("updater.installed_title")
+            : t("updater.downloaded_title")
           : `${t("updater.available_title")} (v${updateInfo.version})`
       }
       open={open}
@@ -134,7 +155,11 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             )}
             {downloading && (
               <div style={{ marginTop: 16 }}>
-                <Text>{t("updater.downloading")}</Text>
+                <Text>
+                  {installing
+                    ? t("updater.installing")
+                    : t("updater.downloading")}
+                </Text>
                 <Progress percent={percent} status={errorMsg ? "exception" : "active"} />
                 <Text type="secondary">
                   {totalBytes > 0
@@ -151,11 +176,27 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             {errorMsg && (
               <div style={{ marginTop: 8 }}>
                 <Text type="danger">{`${t("updater.error")}: ${errorMsg}`}</Text>
+                {/* 手动路径失败时的自救：浏览器下载（自带断点续传） */}
+                {/* Escape hatch for the manual path: browser download
+                 *  (resumable) when the in-app engine fails. */}
+                {updateInfo.manualAsset && !downloading && (
+                  <Button
+                    size="small"
+                    style={{ marginLeft: 8 }}
+                    onClick={() => openUrl(RELEASES_PAGE_URL)}
+                  >
+                    {t("updater.open_releases")}
+                  </Button>
+                )}
               </div>
             )}
           </>
         ) : (
-          <Paragraph>{t("updater.downloaded_desc")}</Paragraph>
+          <Paragraph>
+            {updateInfo.manualAsset
+              ? t("updater.installed_desc")
+              : t("updater.downloaded_desc")}
+          </Paragraph>
         )}
       </div>
     </Modal>

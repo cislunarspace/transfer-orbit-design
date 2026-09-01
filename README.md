@@ -13,7 +13,7 @@ transfer-orbit-design is the GUI frontend of [e2m2e](https://github.com/cislunar
 
 ### Desktop application (Windows / Linux)
 
-Download the installer for your platform from [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases): Windows x64 `transfer-orbit-design_<version>_x64-setup.exe` (NSIS installer; per-user install, no administrator rights needed) or `.msi`; Linux amd64 / aarch64 as AppImage, `deb` or `rpm`. Every installer bundles the e2m2e runtime (transfer-orbit-design-sidecar) and the full SPICE kernel set including planetary ephemerides — everything works out of the box. Verify downloads against `checksums.txt`. Installed apps receive in-app updates automatically (update packages omit the kernels, which stay in place from the initial install).
+Download the installer for your platform from [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases): Windows x64 `transfer-orbit-design_<version>_x64-setup.exe` (NSIS installer; per-user install, no administrator rights needed) or `.msi`; Linux amd64 / aarch64 as AppImage, `deb` or `rpm`. Every installer bundles the e2m2e runtime (transfer-orbit-design-sidecar) and the full SPICE kernel set including planetary ephemerides — everything works out of the box. Verify downloads against `checksums.txt`. Installed apps receive in-app updates: AppImage and Windows builds are replaced directly by the updater plugin (update packages omit the kernels, which stay in place from the initial install); deb/rpm installs download the full package in-app and install it through the system package manager (an administrator password is required).
 
 ### Development environment
 

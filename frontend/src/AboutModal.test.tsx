@@ -43,6 +43,7 @@ describe("AboutModal component", () => {
       currentVersion: "4.1.2",
       rawUpdate: {} as any,
     };
+    vi.spyOn(updaterModule, "getBundleType").mockResolvedValue("appimage");
     vi.spyOn(updaterModule, "checkForAppUpdates").mockResolvedValue(mockUpdateInfo);
     const onUpdateAvailable = vi.fn();
     const onClose = vi.fn();
@@ -63,5 +64,33 @@ describe("AboutModal component", () => {
       expect(onClose).toHaveBeenCalled();
       expect(onUpdateAvailable).toHaveBeenCalledWith(mockUpdateInfo);
     });
+  });
+
+  it("deb 安装时检查走手动更新通道：新版本交给更新弹窗，不调 updater 插件", async () => {
+    vi.spyOn(updaterModule, "getBundleType").mockResolvedValue("deb");
+    vi.spyOn(updaterModule, "checkManualAppUpdate").mockResolvedValue({
+      version: "4.2.0",
+      currentVersion: "4.1.2",
+      manualAsset: { url: "https://example.com/a.deb", name: "a.deb", size: 10 },
+    });
+    // spyOn 对已 spy 的模块导出幂等返回同一 mock，清掉上一用例的调用记录再断言
+    vi.spyOn(updaterModule, "checkForAppUpdates").mockClear();
+    const onUpdateAvailable = vi.fn();
+    const onClose = vi.fn();
+
+    render(
+      <AboutModal open={true} onClose={onClose} onUpdateAvailable={onUpdateAvailable} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /检查更新|Check for Updates/i }));
+
+    await waitFor(() => {
+      expect(updaterModule.checkManualAppUpdate).toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalled();
+      expect(onUpdateAvailable).toHaveBeenCalledWith(
+        expect.objectContaining({ version: "4.2.0" })
+      );
+    });
+    expect(updaterModule.checkForAppUpdates).not.toHaveBeenCalled();
   });
 });

@@ -3,7 +3,13 @@ import { Modal, Typography, Button, Space, message } from "antd";
 import { InfoCircleOutlined, SyncOutlined } from "@ant-design/icons";
 import { getVersion } from "@tauri-apps/api/app";
 import { useTranslation } from "./i18n";
-import { checkForAppUpdates, type UpdateInfo } from "./updater";
+import {
+  checkForAppUpdates,
+  checkManualAppUpdate,
+  getBundleType,
+  inAppUpdateSupported,
+  type UpdateInfo,
+} from "./updater";
 
 const { Paragraph, Title } = Typography;
 
@@ -38,7 +44,12 @@ export const AboutModal: React.FC<AboutModalProps> = ({
   const handleCheckUpdate = async () => {
     setChecking(true);
     try {
-      const update = await checkForAppUpdates();
+      // deb/rpm 安装走 GitHub Releases 直下链路，其余走 updater 插件
+      // deb/rpm installs use the GitHub Releases channel; others the plugin.
+      const bundleType = await getBundleType().catch(() => "unknown" as const);
+      const update = inAppUpdateSupported(bundleType)
+        ? await checkForAppUpdates()
+        : await checkManualAppUpdate();
       if (update) {
         onClose();
         onUpdateAvailable(update);

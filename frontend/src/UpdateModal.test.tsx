@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { UpdateModal } from "./UpdateModal";
+import * as updaterModule from "./updater";
 import type { UpdateInfo } from "./updater";
 
 describe("UpdateModal component", () => {
@@ -120,6 +121,41 @@ describe("UpdateModal component", () => {
       expect(
         screen.getByText((c) => c.includes("40 B") && !c.includes(" / "))
       ).toBeDefined();
+    });
+  });
+
+  it("manualAsset 走应用内下载安装引擎，完成后显示安装完成与重启", async () => {
+    const manualEngine = vi
+      .spyOn(updaterModule, "downloadAndInstallManualUpdate")
+      .mockImplementation(async (_asset, cb) => {
+        cb?.({ event: "Started", data: { contentLength: 100 } });
+        cb?.({ event: "Progress", data: { chunkLength: 100 } });
+        cb?.({ event: "Installing" });
+        cb?.({ event: "Finished" });
+      });
+    const info: UpdateInfo = {
+      version: "4.2.0",
+      currentVersion: "4.1.2",
+      manualAsset: { url: "https://example.com/a.deb", name: "a.deb", size: 100 },
+    };
+
+    render(
+      <UpdateModal
+        open={true}
+        updateInfo={info}
+        onClose={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /立即更新|Update Now/i }));
+
+    await waitFor(() => {
+      expect(manualEngine).toHaveBeenCalledWith(
+        info.manualAsset,
+        expect.any(Function)
+      );
+      expect(screen.getByRole("button", { name: /立即重启|Restart Now/i })).toBeDefined();
+      expect(screen.getByText(/安装完成|Installation Complete/)).toBeDefined();
     });
   });
 });
