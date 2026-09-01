@@ -51,6 +51,11 @@ const BUSY_MSG: &str = "有回复进行中或工具确认未决，请等待完�
 /// 启动时无任何会话记录使用的缺省会话 id（ADR 0023 决策 7 的 v1 约定）。
 const DEFAULT_SESSION: &str = "default";
 
+/// 中断占位 tool 结果（#453）：排队中的工具调用因中断未执行时回灌进
+/// 历史的内容——保持 assistant.tool_calls 与 tool 消息成对（OpenAI
+/// 对孤立 tool_calls 报错），同时向模型说明中断事实。
+const INTERRUPTED_TOOL_TEXT: &str = "用户中断了本轮对话，此工具调用未执行。";
+
 /// 只读工具白名单（ADR 0022 决策 4）：免确认直接执行。
 /// 来源：e2m2e facade 的 catalog 两查询 + 宿主内置的情景列举（ADR 0027，
 /// 纯读固定目录）。fail-closed：不在名单里的一律要确认。
@@ -78,7 +83,7 @@ pub struct ConfirmDecision {
 }
 
 /// 助手状态：当前会话 id 与其历史（与持久化同源）、工具清单缓存、
-/// 待确认调用、单并发门禁。
+/// 待确认调用、单并发门禁、中断请求标志（#453）。
 pub struct AssistantState {
     /// 当前会话（None = 尚未解析，首次访问取最近活动的会话）。
     session_id: std::sync::Mutex<Option<String>>,
@@ -86,6 +91,9 @@ pub struct AssistantState {
     tools_cache: std::sync::Mutex<Option<Vec<Value>>>,
     pending: Mutex<HashMap<String, tokio::sync::oneshot::Sender<ConfirmDecision>>>,
     running: AtomicBool,
+    /// 中断请求标志（#453）：assistant_cancel 置位，agent loop 在最近
+    /// 安全点（轮次边界/流事件间/工具排队/确认等待）检查；send 起止清零。
+    cancel_requested: AtomicBool,
 }
 
 impl AssistantState {
@@ -96,7 +104,19 @@ impl AssistantState {
             tools_cache: Mutex::new(None),
             pending: Mutex::new(HashMap::new()),
             running: AtomicBool::new(false),
+            cancel_requested: AtomicBool::new(false),
         }
+    }
+
+    /// 请求中断（assistant_cancel 命令落点，幂等）：有进行中轮次时置
+    /// 取消标志，agent loop 在最近安全点停下；空闲时无副作用。
+    /// 返回是否存在进行中轮次。
+    pub fn request_cancel(&self) -> bool {
+        let running = self.running.load(Ordering::SeqCst);
+        if running {
+            self.cancel_requested.store(true, Ordering::SeqCst);
+        }
+        running
     }
 
     /// 当前会话 id（懒解析：首次访问取最近活动的会话，无则 default——
@@ -240,7 +260,13 @@ impl AssistantState {
         if self.running.swap(true, Ordering::SeqCst) {
             anyhow::bail!("上一轮对话仍在进行");
         }
+        // 新一轮开始清除上轮遗留的取消请求；结束再清一次（竞态兜底：
+        // 自然完成后才到达的停止请求不留到下一轮）
+        // Clear stale cancel requests at turn start, and again at the end
+        // (a stop arriving just after natural completion never leaks forward).
+        self.cancel_requested.store(false, Ordering::SeqCst);
         let result = self.run(mcp, message, lang, selection).await;
+        self.cancel_requested.store(false, Ordering::SeqCst);
         self.running.store(false, Ordering::SeqCst);
         if let Err(e) = &result {
             emit(json!({"kind": "error", "message": e.to_string()}));
@@ -282,21 +308,47 @@ impl AssistantState {
         let level = self.effective_level();
 
         for _round in 0..MAX_ROUNDS {
+            // 中断边界 1：进入新一轮 LLM 往返前（#453）
+            // Interrupt boundary 1: before starting a new LLM round (#453).
+            if self.cancel_requested.load(Ordering::SeqCst) {
+                self.finish_interrupted();
+                return Ok(());
+            }
             // 思考增量：实时推前端；段落结束时由 sink 落盘（Drop 兜底：
             // 流中途出错也不丢已收到的思考段）
             let mut think = ThinkingSink { state: self, buf: String::new(), saw_content: false };
-            let reply = llm::chat_stream(&llm_cfg, &messages, &tools, level, |delta| match delta {
-                llm::StreamDelta::Content(t) => {
-                    think.saw_content = true;
-                    emit(json!({"kind": "delta", "text": t}));
-                }
-                llm::StreamDelta::Thinking(t) => {
-                    think.accept(t);
-                    emit(json!({"kind": "thinking", "text": t}));
-                }
-            })
+            let reply = llm::chat_stream(
+                &llm_cfg,
+                &messages,
+                &tools,
+                level,
+                || self.cancel_requested.load(Ordering::SeqCst),
+                |delta| match delta {
+                    llm::StreamDelta::Content(t) => {
+                        think.saw_content = true;
+                        emit(json!({"kind": "delta", "text": t}));
+                    }
+                    llm::StreamDelta::Thinking(t) => {
+                        think.accept(t);
+                        emit(json!({"kind": "thinking", "text": t}));
+                    }
+                },
+            )
             .await?;
             think.flush();
+
+            // 中断边界 2：流中被取消（#453）——已流出正文保留为助手消息
+            // （空则不落空气泡），不完整的工具调用分片已由 chat_stream 丢弃
+            // Interrupt boundary 2: cancelled mid-stream (#453) — the partial
+            // text stays as an assistant message (no empty bubble); incomplete
+            // tool-call fragments were dropped by chat_stream.
+            if reply.interrupted {
+                if !reply.text.trim().is_empty() {
+                    self.push_history(json!({"role": "assistant", "content": reply.text}));
+                }
+                self.finish_interrupted();
+                return Ok(());
+            }
 
             // 助手消息入历史（OpenAI 形状：content + 可选 tool_calls）
             let mut assistant_msg = json!({"role": "assistant", "content": reply.text});
@@ -324,12 +376,33 @@ impl AssistantState {
             }
 
             for tc in &reply.tool_calls {
+                // 中断边界 3：排队中的工具调用不再执行（#453）——补"已中断"
+                // 占位 tool 结果，保持 assistant.tool_calls 与 tool 结果成对
+                // （OpenAI 对孤立 tool_calls 直接报错）
+                // Interrupt boundary 3: queued tool calls no longer execute
+                // (#453) — an interrupted placeholder tool result keeps each
+                // assistant.tool_calls paired (OpenAI rejects dangling ones).
+                if self.cancel_requested.load(Ordering::SeqCst) {
+                    self.push_history(tool_message(&tc.id, INTERRUPTED_TOOL_TEXT));
+                    continue;
+                }
                 let tool_msg = self.execute_call(mcp, tc).await;
                 self.push_history(tool_msg.clone());
                 messages.push(tool_msg);
             }
         }
         anyhow::bail!("对话轮数超过上限（{MAX_ROUNDS}），已中止；请缩小任务范围或分步提问")
+    }
+
+    /// 中断收尾（#453）：落一条中断界限行（kind 标记，回放显示用；构造
+    /// API 上下文时与思考行一并剥除），并向前端发 interrupted 事件。
+    /// 中断不是错误——不发 error 事件，send 以 Ok 返回。
+    fn finish_interrupted(&self) {
+        let row = json!({"kind": "interrupted"});
+        self.history.lock().expect("history lock").push(row.clone());
+        let id = self.current_session();
+        store::append_session_row(&id, &row);
+        emit(json!({"kind": "interrupted"}));
     }
 
     /// 执行一次工具调用：只读直接跑；其余挂起等确认。返回进上下文的
@@ -406,13 +479,31 @@ impl AssistantState {
     }
 
     async fn wait_confirm(&self, call_id: &str) -> ConfirmDecision {
-        let (tx, rx) = tokio::sync::oneshot::channel();
+        let (tx, mut rx) = tokio::sync::oneshot::channel();
         self.pending
             .lock()
             .expect("pending lock")
             .insert(call_id.to_string(), tx);
-        // 无超时：确认是用户动作，可以等任意久（app 退出时循环随之消失）
-        rx.await.unwrap_or(ConfirmDecision { approved: false, arguments: None })
+        // 无超时：确认是用户动作，可以等任意久。中断（#453）经轮询唤醒：
+        // 停止请求把挂起确认按拒绝落定（从 pending 移除），历史成对、
+        // 卡片终态与拒绝同口径。
+        // No timeout: a confirmation is a user action and may wait forever.
+        // An interrupt (#453) wakes via polling: a stop settles the pending
+        // confirmation as rejected (removed from pending) — history stays
+        // paired, card terminal state matches the reject path.
+        loop {
+            tokio::select! {
+                decision = &mut rx => {
+                    return decision.unwrap_or(ConfirmDecision { approved: false, arguments: None });
+                }
+                _ = tokio::time::sleep(std::time::Duration::from_millis(200)) => {
+                    if self.cancel_requested.load(Ordering::SeqCst) {
+                        self.pending.lock().expect("pending lock").remove(call_id);
+                        return ConfirmDecision { approved: false, arguments: None };
+                    }
+                }
+            }
+        }
     }
 
     async fn cached_tools(&self, mcp: &McpState) -> anyhow::Result<Vec<Value>> {
@@ -471,15 +562,17 @@ impl AssistantState {
         // user_msg 刚 push 进 history，末位即是；历史截断时保留它
         let keep_from = truncate_index(&history, 50);
         let mut messages = vec![json!({"role": "system", "content": system})];
-        messages.extend(history[keep_from..].iter().filter(|r| !is_thinking_row(r)).cloned());
+        messages.extend(history[keep_from..].iter().filter(|r| !is_kind_row(r)).cloned());
         debug_assert_eq!(messages.last(), Some(&user_msg));
         messages
     }
 }
 
-/// 思考行判定：会话文件里带 kind:"thinking" 标记的行（消息行无 kind）。
-fn is_thinking_row(row: &Value) -> bool {
-    row.get("kind").and_then(Value::as_str) == Some("thinking")
+/// 带 kind 标记的展示行（思考行/中断界限行，#453 起两者并存）：落盘供
+/// 回放显示，构造 API 上下文时剥除——多数 provider 不接受思考回放，
+/// 中断界限也只是展示语义。
+fn is_kind_row(row: &Value) -> bool {
+    row.get("kind").and_then(Value::as_str).is_some()
 }
 
 /// 思考增量汇聚器：正文出现后再来的思考增量开新块；块结束时整段作为
@@ -573,6 +666,38 @@ mod tests {
     use super::*;
 
     #[test]
+    fn request_cancel_is_noop_when_idle_and_sets_flag_when_running() {
+        let state = AssistantState::new();
+        // 空闲时无副作用
+        // Idle: no side effect.
+        assert!(!state.request_cancel());
+        assert!(!state.cancel_requested.load(Ordering::SeqCst));
+        state.running.store(true, Ordering::SeqCst);
+        assert!(state.request_cancel());
+        assert!(state.cancel_requested.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn context_messages_strip_kind_marker_rows() {
+        let state = AssistantState::new();
+        {
+            let mut guard = state.history.lock().expect("history lock");
+            guard.push(json!({"role": "user", "content": "画一条 NRHO"}));
+            guard.push(json!({"kind": "thinking", "content": "思考中"}));
+            guard.push(json!({"role": "assistant", "content": "部分回复"}));
+            guard.push(json!({"kind": "interrupted"}));
+            guard.push(json!({"role": "user", "content": "继续"}));
+        }
+        let last = json!({"role": "user", "content": "继续"});
+        let messages = state.context_messages("sys".into(), last.clone());
+        // 系统提示 + 剥除 kind 行后的历史（user/assistant/user）
+        // System prompt + history with kind rows stripped (user/assistant/user).
+        assert_eq!(messages.len(), 4);
+        assert!(messages.iter().all(|m| m.get("kind").is_none()));
+        assert_eq!(messages.last(), Some(&last));
+    }
+
+    #[test]
     fn read_only_whitelist_is_fail_closed() {
         assert!(is_read_only("catalog_query"));
         assert!(is_read_only("catalog_get"));
@@ -613,9 +738,9 @@ mod tests {
             json!({"role": "tool", "tool_call_id": "c1", "content": "{}"}),
             json!({"role": "assistant", "content": "答"}),
         ];
-        let stripped: Vec<Value> = history.iter().filter(|r| !is_thinking_row(r)).cloned().collect();
+        let stripped: Vec<Value> = history.iter().filter(|r| !is_kind_row(r)).cloned().collect();
         assert_eq!(stripped.len(), 4);
-        assert!(stripped.iter().all(|r| !is_thinking_row(r)));
+        assert!(stripped.iter().all(|r| !is_kind_row(r)));
         // 配对完整：截断点从 stripped 上对齐 user 边界后，tool_calls 与 tool 仍在同窗
         let idx = truncate_index(&stripped, 50);
         assert_eq!(idx, 0);

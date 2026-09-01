@@ -223,6 +223,28 @@ export function ChatView({
         if (item.kind === "thinking") {
           return <ThinkingBlock key={idx} text={item.text} />;
         }
+        if (item.kind === "interrupted") {
+          // 中断界限（#453）：居中虚线分隔 + 文案，与 error 气泡区分
+          // Interrupt boundary (#453): a centered dashed divider + label,
+          // distinct from error bubbles.
+          return (
+            <div
+              key={idx}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                margin: "8px 4px",
+                color: "var(--tod-text-secondary, #8c8c8c)",
+                fontSize: 11,
+              }}
+            >
+              <span style={{ flex: 1, borderTop: "1px dashed rgba(128, 128, 128, 0.4)" }} />
+              {t("assistant.interrupted")}
+              <span style={{ flex: 1, borderTop: "1px dashed rgba(128, 128, 128, 0.4)" }} />
+            </div>
+          );
+        }
         if (item.kind === "error") {
           return (
             <div key={idx} style={{ display: "flex", justifyContent: "flex-start", margin: "6px 0" }}>

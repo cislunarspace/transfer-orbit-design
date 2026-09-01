@@ -12,12 +12,14 @@ export type ChatItem =
   | { kind: "assistant"; text: string }
   | { kind: "thinking"; text: string }
   | { kind: "error"; text: string }
+  | { kind: "interrupted" }
   | { kind: "tool"; card: ToolCardData };
 
 // 后端 tool 消息文本的前缀约定（assistant/mod.rs），重启恢复时据此判定卡片终态。
 // Prefix conventions of the backend tool messages (assistant/mod.rs), used to
 // determine a card's terminal state when restoring after a restart.
 const REJECT_PREFIX = "用户拒绝了本次工具调用";
+const INTERRUPT_PREFIX = "用户中断了本轮对话";
 const CHECK_REFUSE_PREFIX = "调用被验证链拒绝";
 const BAD_JSON_PREFIX = "工具参数不是合法 JSON";
 
@@ -36,10 +38,13 @@ export function restoreItems(history: RawMessage[]): ChatItem[] {
   const cardByCallId = new Map<string, ToolCardData>();
 
   for (const msg of history) {
-    // 思考行（ADR 0025 决策 3 存储混入）：按原位重建思考块（默认折叠由视图层管）
+    // 思考行（ADR 0025 决策 3 存储混入）：按原位重建思考块（默认折叠由视图层管）；
+    // 中断界限行（#453）同理原位重建
     if ("kind" in msg) {
       if (msg.kind === "thinking") {
         items.push({ kind: "thinking", text: msg.content ?? "" });
+      } else if (msg.kind === "interrupted") {
+        items.push({ kind: "interrupted" });
       }
       continue;
     }
@@ -68,6 +73,12 @@ export function restoreItems(history: RawMessage[]): ChatItem[] {
       const content = msg.content ?? "";
       if (content.startsWith(REJECT_PREFIX)) {
         card.status = "rejected";
+      } else if (content.startsWith(INTERRUPT_PREFIX)) {
+        // 中断占位（#453）：工具因停止请求未执行，终态为失败并说明原因
+        // Interrupt placeholder (#453): the tool never ran because of a stop
+        // request — terminal state failed, with the reason attached.
+        card.status = "error";
+        card.summary = { error: { message: content } };
       } else if (content.startsWith(CHECK_REFUSE_PREFIX) || content.startsWith(BAD_JSON_PREFIX)) {
         card.status = "error";
         card.summary = { error: { message: content } };
@@ -171,6 +182,11 @@ export function foldEvent(items: ChatItem[], ev: AssistantEventPayload): ChatIte
       // Runtime errors stay in the conversation as a persistent bubble (more
       // context than a one-off toast).
       return [...items, { kind: "error", text: ev.message }];
+    case "interrupted":
+      // 中断不是错误（#453）：用户主动停止，界限标记留存在会话流里
+      // An interrupt is not an error (#453): the user stopped it — the
+      // boundary marker stays in the conversation.
+      return [...items, { kind: "interrupted" }];
     default:
       return items;
   }

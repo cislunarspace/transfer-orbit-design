@@ -111,6 +111,12 @@ pub struct AssistantReply {
     pub text: String,
     pub tool_calls: Vec<ToolCall>,
     pub usage: Option<Value>,
+    /// 流被取消中断（#453）：正文为已收到部分，未汇聚完成的工具调用分片
+    /// 已丢弃；调用方据此走中断收尾而非正常完成。
+    /// The stream was cancelled (#453): text carries what arrived, incomplete
+    /// tool-call fragments were dropped; callers run the interrupt epilogue
+    /// instead of normal completion.
+    pub interrupted: bool,
 }
 
 /// OpenAI 工具调用（arguments 为 JSON 文本，由服务端流式分片送达）。
@@ -147,12 +153,14 @@ pub enum StreamDelta<'a> {
 }
 
 /// 流式对话补全。`on_delta` 收正文/思考增量（用于前端流式渲染与思考行
-/// 落盘）；返回汇聚后的完整回复（含工具调用）。
+/// 落盘）；返回汇聚后的完整回复（含工具调用）。`cancelled` 在每个流事件
+/// 边界轮询（#453）：返回 true 时停止读取，返回已收部分并标记中断。
 pub async fn chat_stream(
     cfg: &LlmConfig,
     messages: &[Value],
     tools: &[Value],
     level: ThinkingLevel,
+    cancelled: impl Fn() -> bool,
     mut on_delta: impl FnMut(StreamDelta<'_>),
 ) -> anyhow::Result<AssistantReply> {
     let url = format!("{}/chat/completions", cfg.base_url.trim_end_matches('/'));
@@ -175,7 +183,7 @@ pub async fn chat_stream(
         }
     }
 
-    let resp = client
+    let mut resp = client
         .post(&url)
         .bearer_auth(&cfg.api_key)
         .json(&body)
@@ -201,9 +209,16 @@ pub async fn chat_stream(
     let mut reply = AssistantReply::default();
     let mut partial: Vec<(Option<String>, Option<String>, String)> = Vec::new(); // 按 index 汇聚工具调用分片
     let mut sse_line_buf = String::new();
+    let mut interrupted = false;
 
-    let mut resp = resp;
     loop {
+        // 取消轮询在每个 chunk 之间（#453）：停止请求在最近的事件边界生效
+        // Cancellation is polled between chunks (#453): a stop lands at the
+        // nearest event boundary.
+        if cancelled() {
+            interrupted = true;
+            break;
+        }
         let chunk = match tokio::time::timeout(IDLE_TIMEOUT, resp.chunk()).await {
             Ok(Ok(Some(bytes))) => bytes,
             Ok(Ok(None)) => break, // 流结束
@@ -218,20 +233,29 @@ pub async fn chat_stream(
             handle_sse_line(&line, &mut reply, &mut partial, &mut on_delta)?;
         }
     }
-    if !sse_line_buf.trim().is_empty() {
-        handle_sse_line(sse_line_buf.trim(), &mut reply, &mut partial, &mut on_delta)?;
-    }
 
-    reply.tool_calls = partial
-        .into_iter()
-        .filter_map(|(id, name, arguments)| {
-            Some(ToolCall {
-                id: id?,
-                name: name?,
-                arguments,
+    if interrupted {
+        // 中断（#453）：已收正文保留在 reply.text；未汇聚完成的工具调用分片
+        // 不完整、不可信，整体丢弃
+        // Interrupted (#453): received text stays; incomplete tool-call
+        // fragments are untrustworthy and dropped wholesale.
+        reply.interrupted = true;
+        partial.clear();
+    } else {
+        if !sse_line_buf.trim().is_empty() {
+            handle_sse_line(sse_line_buf.trim(), &mut reply, &mut partial, &mut on_delta)?;
+        }
+        reply.tool_calls = partial
+            .into_iter()
+            .filter_map(|(id, name, arguments)| {
+                Some(ToolCall {
+                    id: id?,
+                    name: name?,
+                    arguments,
+                })
             })
-        })
-        .collect();
+            .collect();
+    }
     Ok(reply)
 }
 
@@ -560,5 +584,78 @@ mod tests {
         handle_sse_line(": comment", &mut reply, &mut partial, &mut noop).unwrap();
         handle_sse_line("event: message", &mut reply, &mut partial, &mut noop).unwrap();
         assert!(reply.text.is_empty());
+    }
+
+    /// 伪造 SSE 服务端：本地 TCP 监听，一次性写完整 HTTP 响应后关闭。
+    /// chat_stream 的取消语义不经 mock 框架，直接对真实流验证。
+    /// A fake SSE server: a local TCP listener writing one full HTTP response
+    /// then closing. The cancel semantics of chat_stream are verified against
+    /// a real stream rather than a mock framework.
+    async fn spawn_fake_sse(body: &str) -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let owned = body.to_string();
+        tokio::spawn(async move {
+            use tokio::io::{AsyncReadExt, AsyncWriteExt};
+            let (mut sock, _) = listener.accept().await.unwrap();
+            // 先读请求（避免提前关闭触发 RST），再回完整响应并关闭
+            // Read the request first (an early close would RST), then reply and close.
+            let mut buf = [0u8; 4096];
+            let _ = sock.read(&mut buf).await;
+            let resp = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n{owned}"
+            );
+            sock.write_all(resp.as_bytes()).await.unwrap();
+            sock.shutdown().await.unwrap();
+        });
+        format!("http://{addr}")
+    }
+
+    #[tokio::test]
+    async fn chat_stream_interrupt_keeps_partial_text_and_drops_tool_calls() {
+        let url = spawn_fake_sse(concat!(
+            "data: {\"choices\":[{\"delta\":{\"content\":\"部分\"}}]}\n\n",
+            "data: {\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"function\":{\"name\":\"catalog_query\",\"arguments\":\"{}\"}}]}}]}\n\n",
+            "data: [DONE]\n\n",
+        ))
+        .await;
+        // 首次检查放行（读入第一个 chunk），此后恒为已取消
+        // First check passes (reads the first chunk); cancelled from then on.
+        let n = std::sync::atomic::AtomicUsize::new(0);
+        let cancelled = move || n.fetch_add(1, std::sync::atomic::Ordering::SeqCst) > 0;
+        let reply = chat_stream(
+            &LlmConfig { base_url: url, api_key: "k".into(), model: "m".into() },
+            &[json!({"role": "user", "content": "hi"})],
+            &[],
+            ThinkingLevel::Standard,
+            cancelled,
+            |_: StreamDelta<'_>| {},
+        )
+        .await
+        .unwrap();
+        assert!(reply.interrupted, "取消后必须标记中断");
+        assert!(reply.text.contains("部分"), "已收到的正文保留");
+        assert!(reply.tool_calls.is_empty(), "未汇聚完成的工具调用分片丢弃");
+    }
+
+    #[tokio::test]
+    async fn chat_stream_without_cancel_completes_normally() {
+        let url = spawn_fake_sse(concat!(
+            "data: {\"choices\":[{\"delta\":{\"content\":\"全文\"}}]}\n\n",
+            "data: [DONE]\n\n",
+        ))
+        .await;
+        let reply = chat_stream(
+            &LlmConfig { base_url: url, api_key: "k".into(), model: "m".into() },
+            &[json!({"role": "user", "content": "hi"})],
+            &[],
+            ThinkingLevel::Standard,
+            || false,
+            |_: StreamDelta<'_>| {},
+        )
+        .await
+        .unwrap();
+        assert!(!reply.interrupted);
+        assert_eq!(reply.text, "全文");
     }
 }

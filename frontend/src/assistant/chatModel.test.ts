@@ -149,3 +149,49 @@ describe("foldEvent", () => {
     expect(items[1]).toEqual({ kind: "error", text: "模型服务未配置" });
   });
 });
+
+// —— 中断（#453）：中断界限的折叠与恢复 ——
+// Interruption (#453): folding and restoring the interrupt boundary.
+
+describe("中断界限（#453）", () => {
+  it("foldEvent: interrupted 事件渲染为中断标记，不是 error 气泡", () => {
+    let items: ChatItem[] = [
+      { kind: "user", text: "q" },
+      { kind: "assistant", text: "部分回复" },
+    ];
+    items = foldEvent(items, { kind: "interrupted" });
+    expect(items[items.length - 1]).toEqual({ kind: "interrupted" });
+    expect(items.some((i) => i.kind === "error")).toBe(false);
+  });
+
+  it("restoreItems: kind=interrupted 行恢复为中断标记（重启后界限仍在）", () => {
+    const history: RawMessage[] = [
+      { role: "user", content: "画一条 NRHO" },
+      { role: "assistant", content: "部分回复" },
+      { kind: "interrupted" },
+    ];
+    const items = restoreItems(history);
+    expect(items).toEqual([
+      { kind: "user", text: "画一条 NRHO" },
+      { kind: "assistant", text: "部分回复" },
+      { kind: "interrupted" },
+    ]);
+  });
+
+  it("restoreItems: 中断占位 tool 消息落定卡片终态（未执行）", () => {
+    const history: RawMessage[] = [
+      { role: "user", content: "q" },
+      {
+        role: "assistant",
+        content: "",
+        tool_calls: [{ id: "c1", function: { name: "design_orbit", arguments: "{}" } }],
+      },
+      { role: "tool", tool_call_id: "c1", content: "用户中断了本轮对话，此工具调用未执行。" },
+      { kind: "interrupted" },
+    ];
+    const items = restoreItems(history);
+    const card = items.find((i) => i.kind === "tool");
+    expect(card?.kind === "tool" && card.card.status).toBe("error");
+    expect(card?.kind === "tool" && card.card.summary?.error?.message).toContain("中断");
+  });
+});

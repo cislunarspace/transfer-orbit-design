@@ -191,6 +191,8 @@ export const translations: Record<string, Record<string, string>> = {
     "assistant.clear_confirm": "清空后不可恢复，确定清空当前会话？",
     "assistant.clear_confirm_ok": "清空",
     "assistant.generating": "生成中",
+    "assistant.stop": "停止生成",
+    "assistant.interrupted": "已中断",
   },
   en: {
     "action.save": "Save",
@@ -366,6 +368,8 @@ export const translations: Record<string, Record<string, string>> = {
     "assistant.clear_confirm": "This cannot be undone — clear the current session?",
     "assistant.clear_confirm_ok": "Clear",
     "assistant.generating": "Generating",
+    "assistant.stop": "Stop generating",
+    "assistant.interrupted": "Interrupted",
   },
 };
 
