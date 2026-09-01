@@ -11,7 +11,7 @@
 // - clearing the session requires a Popconfirm before the backend call
 
 import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup, act } from "@testing-library/react";
 import { AssistantSidebar } from "./AssistantSidebar";
 import {
   assistantSend,
@@ -27,7 +27,10 @@ vi.mock("./api", () => ({
     currentSessionId: "default",
     thinkingLevel: "standard",
   }),
-  onAssistantEvent: vi.fn().mockResolvedValue(() => {}),
+  onAssistantEvent: vi.fn().mockImplementation(async (cb: (payload: { kind: string }) => void) => {
+    lastHandler = cb;
+    return () => {};
+  }),
   assistantSend: vi.fn().mockResolvedValue(undefined),
   assistantCancel: vi.fn().mockResolvedValue(true),
   assistantClearHistory: vi.fn().mockResolvedValue(undefined),
@@ -64,11 +67,17 @@ beforeAll(() => {
   window.HTMLElement.prototype.scrollIntoView = vi.fn();
 });
 
+/** 最近一次订阅的助手事件处理器（测试用它注入 live 事件）。 */
+/** The latest subscribed assistant-event handler (tests inject live events
+ *  through it). */
+let lastHandler: ((payload: { kind: string }) => void) | undefined;
+
 // 卸载组件并清掉 localStorage 残留，避免跨用例污染（语言/草稿）
 // Unmount and clear localStorage leftovers (language/draft) across cases.
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  vi.mocked(assistantSend).mockReset();
   vi.mocked(assistantSend).mockResolvedValue(undefined);
 });
 
@@ -172,6 +181,35 @@ describe("AssistantSidebar 中断（#453）", () => {
     fireEvent.click(stop);
     fireEvent.click(stop);
     await waitFor(() => expect(assistantCancel).toHaveBeenCalledTimes(2));
+    resolveSend();
+  });
+});
+
+// —— 中断续跑（#461）：中断标记旁的继续按钮以固定引导文本发送 ——
+// Interrupt continue (#461): the continue button sends a fixed guided text.
+
+describe("AssistantSidebar 中断续跑（#461）", () => {
+  it("中断事件折叠后出现继续按钮，点击以固定引导文本调用 assistantSend", async () => {
+    setup();
+    await waitFor(() => expect(lastHandler).toBeDefined());
+    act(() => lastHandler!({ kind: "interrupted" }));
+    const btn = await screen.findByRole("button", { name: "继续" });
+    fireEvent.click(btn);
+    await waitFor(() => expect(assistantSend).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(assistantSend).mock.calls[0][0]).toBe("请从刚才中断的地方继续。");
+  });
+
+  it("回复生成期间不出继续按钮（running 门禁）", async () => {
+    let resolveSend: () => void = () => {};
+    vi.mocked(assistantSend).mockImplementationOnce(
+      () => new Promise<void>((r) => (resolveSend = r)),
+    );
+    setup();
+    await typeDraft("画一条 NRHO");
+    pressEnter(false);
+    await waitFor(() => expect(screen.getByRole("button", { name: "停止生成" })).toBeDefined());
+    act(() => lastHandler?.({ kind: "interrupted" }));
+    expect(screen.queryByRole("button", { name: "继续" })).toBeNull();
     resolveSend();
   });
 });

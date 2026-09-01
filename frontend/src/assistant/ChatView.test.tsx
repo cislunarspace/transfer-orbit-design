@@ -11,7 +11,7 @@
 // covered by manual verification (as stated in the spec's testing decisions).
 
 import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
-import { render, cleanup } from "@testing-library/react";
+import { render, cleanup, screen, fireEvent } from "@testing-library/react";
 import { ChatView } from "./ChatView";
 import type { ChatItem } from "./chatModel";
 
@@ -51,5 +51,37 @@ describe("ChatView 滚动与生成中指示（#450）", () => {
     expect(document.querySelector(".ant-spin")).not.toBeNull();
     rerender(<ChatView items={USER_MSG} running={false} onOpenRecord={vi.fn()} />);
     expect(document.querySelector(".ant-spin")).toBeNull();
+  });
+});
+
+// —— 中断续跑（#461）：仅最后一项为中断标记时出继续按钮 ——
+// Interrupt continue (#461): the button shows only when the interrupt marker
+// is the last item.
+
+
+describe("ChatView 中断续跑（#461）", () => {
+  const INTERRUPTED_LAST: ChatItem[] = [
+    { kind: "user", text: "q" },
+    { kind: "assistant", text: "部分回复" },
+    { kind: "interrupted" },
+  ];
+
+  it("最后一项为中断标记且传入 onContinue：出现继续按钮，点击触发回调", () => {
+    const onContinue = vi.fn();
+    render(<ChatView items={INTERRUPTED_LAST} running={false} onOpenRecord={vi.fn()} onContinue={onContinue} />);
+    const btn = screen.getByRole("button", { name: "继续" });
+    fireEvent.click(btn);
+    expect(onContinue).toHaveBeenCalledTimes(1);
+  });
+
+  it("中断标记不是最后一项：不出按钮（旧断点不提供续跑）", () => {
+    const items: ChatItem[] = [...INTERRUPTED_LAST, { kind: "user", text: "新问题" }];
+    render(<ChatView items={items} running={false} onOpenRecord={vi.fn()} onContinue={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "继续" })).toBeNull();
+  });
+
+  it("未传 onContinue：不出按钮", () => {
+    render(<ChatView items={INTERRUPTED_LAST} running={false} onOpenRecord={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "继续" })).toBeNull();
   });
 });

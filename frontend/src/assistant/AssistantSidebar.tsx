@@ -33,12 +33,11 @@ import {
   type SessionMeta,
   type ThinkingLevel,
 } from "./api";
-import { foldEvent, restoreItems, type ChatItem } from "./chatModel";
 import { ChatView } from "./ChatView";
 import { SessionSwitcher } from "./SessionSwitcher";
 import { ResizeHandle } from "../ResizeHandle";
 import { useTranslation } from "../i18n";
-
+import { foldEvent, restoreItems, type ChatItem } from "./chatModel";
 const { Text } = Typography;
 
 const COLLAPSED_KEY = "tod-assistant-collapsed";
@@ -150,8 +149,7 @@ export function AssistantSidebar({
     if (!next) loadState();
   };
 
-  const handleSend = async () => {
-    const text = draft.trim();
+  const sendText = async (text: string) => {
     if (!text || running) return;
     setDraft("");
     setItems((prev) => [...prev, { kind: "user", text }]);
@@ -174,6 +172,17 @@ export function AssistantSidebar({
     } finally {
       setRunning(false);
     }
+  };
+
+  const handleSend = () => sendText(draft.trim());
+
+  // 中断续跑（#461）：以固定引导文本作为普通用户消息发送——架构零改动，
+  // running 门禁、草稿语义、事件流全部复用。
+  // Interrupt continue (#461): sends a fixed guided text as an ordinary user
+  // message — zero backend change; the running gate, draft semantics and the
+  // event stream are all reused.
+  const handleContinue = () => {
+    void sendText(t("assistant.continue_prompt"));
   };
 
   const handleClear = async () => {
@@ -362,7 +371,13 @@ export function AssistantSidebar({
         </div>
       ) : (
         <>
-          <ChatView items={items} running={running} onOpenRecord={onOpenRecord} onApplyScenario={onApplyScenario} />
+          <ChatView
+            items={items}
+            running={running}
+            onOpenRecord={onOpenRecord}
+            onApplyScenario={onApplyScenario}
+            onContinue={running ? undefined : handleContinue}
+          />
           {/* 输入区：思考等级三档单选（随会话记住，ADR 0026 决策 1）+
               运行中禁用输入（后端单并发门禁的对应 UI） */}
           <div
