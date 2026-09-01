@@ -651,7 +651,7 @@ export function OrbitCanvas({
     if (!scene) return;
     const markers = trajectories.map(() => {
       const m = new THREE.Mesh(
-        new THREE.SphereGeometry(0.015, 16, 16),
+        new THREE.SphereGeometry(0.006, 16, 16),
         new THREE.MeshBasicMaterial({ color: 0xff0055 })
       );
       m.name = "time-marker";
