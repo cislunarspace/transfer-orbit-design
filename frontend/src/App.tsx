@@ -23,7 +23,7 @@ import {
   MoonOutlined,
   SunOutlined,
 } from "@ant-design/icons";
-import { themeBehavior, themeTokens } from "./theme";
+import { themeBehavior, themeTokens, themeCssVars } from "./theme";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode, type FrameMode } from "./OrbitCanvas";
 import { TimelineBar } from "./TimelineBar";
@@ -49,7 +49,7 @@ import {
   type ScenarioPlayback,
 } from "./scenario";
 import { saveScenarioFile, openScenarioFile } from "./scenarioApi";
-import { runTool, getArtifact, ephemerisStatus, type EphemerisStatus } from "./sidecarApi";
+import { runTool, getArtifact, ephemerisStatus, formatToolError, type EphemerisStatus } from "./sidecarApi";
 import { AssistantSidebar } from "./assistant/AssistantSidebar";
 import { AssistantSettingsForm } from "./assistant/AssistantSettingsForm";
 import type { SelectionContext } from "./assistant/api";
@@ -624,7 +624,7 @@ export default function App() {
         applyTrajectoryData(td);
       }
     } catch (e) {
-      message.error(`加载产物失败: ${String(e)}`);
+      message.error(`${t("record.load_failed")}: ${String(e)}`);
     }
   };
 
@@ -840,7 +840,7 @@ export default function App() {
     }
 
     setBusy(true);
-    setProgressMsg("正在提交计算任务...");
+    setProgressMsg(t("run.submitting"));
     try {
       const cleaned = Object.fromEntries(
         Object.entries(toolParams).filter(([, v]) => v !== null && v !== undefined && v !== "")
@@ -861,14 +861,14 @@ export default function App() {
         (cleaned.transfer_type === "LGA" || cleaned.transfer_type === "WSB")
       ) {
         if (!selectedArtifact?.recordId) {
-          message.warning("LGA/WSB 转移需要先在项目树选中目标轨道工件");
+          message.warning(t("run.lga_needs_target"));
           return;
         }
         try {
           const art = await getArtifact(selectedArtifact.recordId);
           const s = art.familyMembers?.[0]?.states;
           if (!s || s.length < 6) {
-            message.warning("选中工件无 CR3BP 状态序列，无法注入目标");
+            message.warning(t("run.lga_no_states"));
             return;
           }
           const rows: number[][] = [];
@@ -879,7 +879,7 @@ export default function App() {
             ...last.slice(3, 6).map((v) => (v * DU_KM) / TU_SECONDS),
           ];
         } catch (e) {
-          message.error(`读取选中工件失败: ${String(e)}`);
+          message.error(`${t("run.artifact_load_failed")}: ${String(e)}`);
           return;
         }
         if (cleaned.transfer_type === "LGA" && !cleaned.lga_search_params) {
@@ -901,11 +901,13 @@ export default function App() {
       );
 
       if (resp.error) {
-        message.error(`计算错误: ${JSON.stringify(resp.error)}`);
+        // 错误优先取 message 字段以人话呈现（#450），不再整体 JSON 序列化
+        // Prefer the error message field (#450) over dumping the whole serialized object.
+        message.error(`${t("run.error_prefix")}: ${formatToolError(resp.error)}`);
         return;
       }
 
-      message.success("计算完成！");
+      message.success(t("run.complete"));
       await refreshArtifacts();
 
       // 新一轮计算开始：上一轮的候选会话层整体清空（#430）——候选集属于
@@ -923,7 +925,7 @@ export default function App() {
       if (selectedTool === "spatiography_boundaries" && resp.data) {
         const d = resp.data as { elements?: BoundaryElementPayload[] };
         setRegionData(boundariesResponseToRegionLayer(d, EARTH_MOON_MU));
-        message.info(`分区图层已更新（${d.elements?.length ?? 0} 个元素）`);
+        message.info(t("run.regions_updated").replace("{n}", String(d.elements?.length ?? 0)));
         return;
       }
 
@@ -1135,7 +1137,7 @@ export default function App() {
         }
       }
     } catch (e) {
-      message.error(`执行失败: ${String(e)}`);
+      message.error(`${t("run.failed")}: ${String(e)}`);
     } finally {
       setBusy(false);
       setProgressMsg("");
@@ -1148,7 +1150,7 @@ export default function App() {
     if (!api) return;
     const el = api.canvasElement();
     if (!el || !CanvasRecorder.supported()) {
-      message.warning("当前环境不支持录制");
+      message.warning(t("run.record_unsupported"));
       return;
     }
     setRecording(true);
@@ -1160,8 +1162,24 @@ export default function App() {
       const res = await rec.stop();
       if (res) downloadBlob(res.blob, "orbit-animation.webm");
       setRecording(false);
-      message.success("动画导出完成！");
+      message.success(t("run.record_done"));
     }, 8000);
+  };
+
+  // PNG 静态图导出（#450）：渲染器常驻 RAF 循环逐帧渲染且开启了
+  // preserveDrawingBuffer，画布 buffer 始终新鲜，toBlob 直接取当前帧
+  // 即所见即所得；文件名带时刻避免重复导出互相覆盖。
+  // PNG still-image export (#450): the renderer's continuous RAF loop plus
+  // preserveDrawingBuffer keep the drawing buffer fresh, so toBlob grabs the
+  // current frame as-seen; the timestamped filename avoids overwrite clashes.
+  const handleExportPng = () => {
+    const el = api?.canvasElement();
+    if (!el) return;
+    el.toBlob((blob) => {
+      if (blob) {
+        downloadBlob(blob, `orbit-view-${new Date().toISOString().replace(/[:.]/g, "-")}.png`);
+      }
+    }, "image/png");
   };
 
   const libration = [
@@ -1181,14 +1199,22 @@ export default function App() {
       }}
     >
       <div
-        style={{
-          display: "flex",
-          width: "100vw",
-          height: "100vh",
-          overflow: "hidden",
-          background: themeMode === "dark" ? "#141414" : "#f0f2f5",
-          color: themeMode === "dark" ? "#fff" : "#000",
-        }}
+        style={
+          {
+            display: "flex",
+            width: "100vw",
+            height: "100vh",
+            overflow: "hidden",
+            background: themeMode === "dark" ? "#141414" : "#f0f2f5",
+            color: themeMode === "dark" ? "#fff" : "#000",
+            // --tod-* 主题变量随明暗注入（#450）：助手边栏/会话视图/工具卡片
+            // 的 var(--tod-*) 引用在此获得定义，深色不再落到浅色 fallback
+            // The --tod-* theme vars injected per theme (#450): the var(--tod-*)
+            // references in the assistant sidebar/chat view/tool cards get their
+            // definition here — dark mode no longer falls back to light values.
+            ...themeCssVars(themeMode),
+          } as React.CSSProperties
+        }
       >
         {/* 左栏 */}
         <div
@@ -1213,8 +1239,8 @@ export default function App() {
           >
             {(
               [
-                ["project", "项目"],
-                ["catalog", "轨道库"],
+                ["project", t("app.tab.project")],
+                ["catalog", t("app.tab.catalog")],
               ] as const
             ).map(([key, label]) => {
               const active = leftTab === key;
@@ -1244,7 +1270,7 @@ export default function App() {
                 type="text"
                 size="small"
                 onClick={() => setLang(lang === "zh" ? "en" : "zh")}
-                title="切换语言"
+                title={t("app.lang_toggle_title")}
               >
                 {lang === "zh" ? "EN" : "中"}
               </Button>
@@ -1253,14 +1279,14 @@ export default function App() {
                 size="small"
                 icon={themeMode === "dark" ? <SunOutlined /> : <MoonOutlined />}
                 onClick={handleToggleTheme}
-                title="切换浅色/深色主题"
+                title={t("app.theme_toggle_title")}
               />
               <Button
                 type="text"
                 size="small"
                 icon={<InfoCircleOutlined />}
                 onClick={() => setAboutModalOpen(true)}
-                title="关于 tod"
+                title={t("app.about_title")}
               />
             </div>
           </div>
@@ -1313,7 +1339,7 @@ export default function App() {
           }}
         >
           <Title level={5} style={{ margin: "0 0 8px 0" }}>
-            动力学设计工具
+            {t("panel.tool_title")}
           </Title>
           <Select
             size="small"
@@ -1348,7 +1374,7 @@ export default function App() {
               onClick={handleRunTool}
               style={{ width: "100%" }}
             >
-              {busy ? "执行计算中..." : "执行"}
+              {busy ? t("run.executing") : t("run.execute")}
             </Button>
             {progressMsg && (
               <Text type="secondary" style={{ fontSize: 11, display: "block", marginTop: 4 }}>
@@ -1379,6 +1405,7 @@ export default function App() {
               onContentModeChange={setContentMode}
               onFitView={() => api?.fitView()}
               onExportAnimation={handleExportAnimation}
+              onExportPng={handleExportPng}
               onOpenSettings={() => setChartModalOpen(true)}
               onSaveScenario={handleSaveScenario}
               onOpenScenario={handleOpenScenario}
@@ -1460,7 +1487,7 @@ export default function App() {
             — sliders/switches/selects — share a row) keeps the modal compact,
             avoiding the sparse single-column look full of dead space. */}
         <Modal
-          title="图表与界面偏好设置"
+          title={t("chart.title")}
           open={chartModalOpen}
           onCancel={() => setChartModalOpen(false)}
           footer={null}
@@ -1469,7 +1496,7 @@ export default function App() {
           <Form layout="vertical" size="small">
             <Row gutter={16}>
               <Col span={12}>
-                <Form.Item label="界面基准字号">
+                <Form.Item label={t("chart.font_size")}>
                   <Slider
                     min={8}
                     max={16}
@@ -1480,7 +1507,7 @@ export default function App() {
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item label="轨道线宽">
+                <Form.Item label={t("chart.linewidth")}>
                   <Slider
                     min={0.2}
                     max={3.0}
@@ -1491,7 +1518,7 @@ export default function App() {
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item label="Z 轴缩放比例 (防压扁)">
+                <Form.Item label={t("chart.z_ratio")}>
                   <Slider
                     min={0.1}
                     max={2.0}
@@ -1502,7 +1529,7 @@ export default function App() {
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item label="量程 (DU，网格半宽)">
+                <Form.Item label={t("chart.grid_range")}>
                   <Slider
                     min={0.5}
                     max={3.0}
@@ -1514,7 +1541,7 @@ export default function App() {
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item label="坐标轴与网格">
+                <Form.Item label={t("chart.axes")}>
                   <Switch
                     size="small"
                     checked={chart.axesVisible}
@@ -1523,7 +1550,7 @@ export default function App() {
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item label="分区图层（地月空间分区边界）">
+                <Form.Item label={t("chart.regions")}>
                   <Switch
                     size="small"
                     checked={chart.regionsVisible}
@@ -1532,34 +1559,38 @@ export default function App() {
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item label="画布背景">
+                <Form.Item label={t("chart.background")}>
                   <Select
                     size="small"
                     value={chart.bgColor ?? "theme"}
                     style={{ width: "100%" }}
                     onChange={(v) => setChart({ ...chart, bgColor: v === "theme" ? null : v })}
                     options={[
-                      { label: "跟随界面主题", value: "theme" },
-                      { label: "白色", value: "#ffffff" },
-                      { label: "深灰", value: "#121212" },
-                      { label: "黑色", value: "#000000" },
+                      { label: t("chart.bg.theme"), value: "theme" },
+                      { label: t("chart.bg.white"), value: "#ffffff" },
+                      { label: t("chart.bg.dark_gray"), value: "#121212" },
+                      { label: t("chart.bg.black"), value: "#000000" },
                     ]}
                   />
                 </Form.Item>
               </Col>
               <Col span={12}>
-                <Form.Item label="星历内核（自动配置）">
+                <Form.Item label={t("chart.ephemeris")}>
                   {ephStatus === null ? (
-                    <Text type="secondary" style={{ fontSize: 12 }}>检测中...</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{t("chart.eph.checking")}</Text>
                   ) : ephStatus.usable ? (
                     <Text type="success" style={{ fontSize: 12 }}>
-                      就绪（{ephStatus.files.filter((f) => f.endsWith(".bsp")).length} 个行星历）
+                      {t("chart.eph.ready").replace(
+                        "{n}",
+                        String(ephStatus.files.filter((f) => f.endsWith(".bsp")).length),
+                      )}
                     </Text>
                   ) : (
                     <Text type="danger" style={{ fontSize: 12 }}>
-                      缺失：{!ephStatus.ephemerisReady && "行星历 .bsp "}
-                      {!ephStatus.leapsecondReady && "闰秒 .tls "}
-                      请重装或恢复 kernels/ 目录
+                      {t("chart.eph.missing").replace(
+                        "{missing}",
+                        `${!ephStatus.ephemerisReady ? t("chart.eph.missing_eph") : ""}${!ephStatus.leapsecondReady ? t("chart.eph.missing_tls") : ""}`,
+                      )}
                     </Text>
                   )}
                 </Form.Item>

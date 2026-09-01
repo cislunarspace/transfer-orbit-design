@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { themeBehavior, themeTokens } from "./theme";
+import { themeBehavior, themeCssVars, themeTokens } from "./theme";
 
 describe("themeBehavior", () => {
   it("motion 关闭——全部过渡动画停用（去卡通感）", () => {
@@ -45,5 +45,40 @@ describe("themeTokens", () => {
     expect(themeTokens.colorSuccess).toBe("#52c41a");
     expect(themeTokens.colorWarning).toBe("#faad14");
     expect(themeTokens.colorError).toBe("#ff4d4f");
+  });
+});
+
+describe("themeCssVars（--tod-* 主题变量，修复助手边栏深色缺失）", () => {
+  it("浅色值 = 各消费端 var(--tod-*, fallback) 的既有 fallback，浅色零回归", () => {
+    expect(themeCssVars("light")).toEqual({
+      "--tod-border": "#e8e8e8",
+      "--tod-panel-bg": "transparent",
+      "--tod-user-bubble": "#0958d9",
+      "--tod-assistant-bubble": "rgba(128,128,128,0.10)",
+      "--tod-text-secondary": "#8c8c8c",
+      "--tod-card-bg": "rgba(128,128,128,0.06)",
+      "--tod-code-bg": "rgba(128,128,128,0.1)",
+    });
+  });
+
+  it("深色值：边框/气泡/卡片底随主题变深，主色与次要文字保持不变", () => {
+    const dark = themeCssVars("dark");
+    const light = themeCssVars("light");
+    expect(dark["--tod-border"]).not.toBe(light["--tod-border"]);
+    expect(dark["--tod-panel-bg"]).not.toBe(light["--tod-panel-bg"]);
+    expect(dark["--tod-assistant-bubble"]).not.toBe(light["--tod-assistant-bubble"]);
+    expect(dark["--tod-card-bg"]).not.toBe(light["--tod-card-bg"]);
+    expect(dark["--tod-code-bg"]).not.toBe(light["--tod-code-bg"]);
+    // 与 App 深色界面同源：边框 #303030、面板 #1a1a1a
+    expect(dark["--tod-border"]).toBe("#303030");
+    expect(dark["--tod-panel-bg"]).toBe("#1a1a1a");
+    expect(dark["--tod-user-bubble"]).toBe("#0958d9");
+    expect(dark["--tod-text-secondary"]).toBe("#8c8c8c");
+  });
+
+  it("两种模式暴露同一组键（App 注入不因模式缺变量）", () => {
+    expect(Object.keys(themeCssVars("dark")).sort()).toEqual(
+      Object.keys(themeCssVars("light")).sort(),
+    );
   });
 });

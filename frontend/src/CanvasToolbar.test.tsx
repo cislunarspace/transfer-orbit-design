@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { CanvasToolbar } from "./CanvasToolbar";
+import { I18nProvider } from "./i18n";
 
 const baseProps = {
   projection: "3d" as const,
@@ -14,6 +15,7 @@ const baseProps = {
   onContentModeChange: vi.fn(),
   onFitView: vi.fn(),
   onExportAnimation: vi.fn(),
+  onExportPng: vi.fn(),
   onOpenSettings: vi.fn(),
 };
 
@@ -63,6 +65,49 @@ describe("CanvasToolbar component", () => {
     setup({ recording: true });
     const btn = screen.getByRole("button", { name: /导出动画/ });
     expect(btn.className).toContain("ant-btn-loading");
+  });
+});
+
+// —— 分组分隔与 PNG 导出（#450）——
+// Group separators and PNG export (#450).
+
+describe("CanvasToolbar 分组与 PNG 导出（#450）", () => {
+  afterEach(() => {
+    // 语言切换测试写 tod-lang；清掉，避免污染后续裸渲染用例的默认语言
+    // The lang test writes tod-lang; clear it so later bare-render cases keep zh.
+    localStorage.clear();
+  });
+
+  it("投影/视图系/绘制内容/中心四组之间有 3 个竖向分隔符", () => {
+    const { container } = render(<CanvasToolbar {...baseProps} />);
+    const seps = container.querySelectorAll(".ant-divider-vertical");
+    expect(seps.length).toBe(3);
+  });
+
+  it("PNG 导出按钮触发 onExportPng 回调", () => {
+    const props = setup({ onExportPng: vi.fn() });
+    fireEvent.click(screen.getByRole("button", { name: /导出图片/ }));
+    expect(props.onExportPng).toHaveBeenCalledTimes(1);
+  });
+
+  it("未传 onExportPng 时不渲染 PNG 按钮（可选能力）", () => {
+    const { onExportPng: _omit, ...rest } = baseProps;
+    render(<CanvasToolbar {...rest} />);
+    expect(screen.queryByRole("button", { name: /导出图片/ })).toBeNull();
+    cleanup();
+  });
+
+  it("英文语言下标签与提示切换为英文", () => {
+    localStorage.setItem("tod-lang", "en");
+    render(
+      <I18nProvider>
+        <CanvasToolbar {...baseProps} />
+      </I18nProvider>,
+    );
+    expect(screen.getByRole("radio", { name: "Synodic" })).toBeDefined();
+    expect(screen.getByRole("radio", { name: "Barycenter" })).toBeDefined();
+    expect(screen.getByRole("button", { name: /Fit/ })).toBeDefined();
+    expect(screen.queryByRole("radio", { name: "会合系" })).toBeNull();
   });
 });
 

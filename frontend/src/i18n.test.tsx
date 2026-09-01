@@ -6,7 +6,25 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { I18nProvider, useTranslation } from "./i18n";
+import { I18nProvider, useTranslation, translations } from "./i18n";
+
+describe("i18n 词典键对齐（#450）", () => {
+  it("zh 与 en 键集合一致：无缺译、无多余", () => {
+    const zh = Object.keys(translations.zh).sort();
+    const en = Object.keys(translations.en).sort();
+    expect(en).toEqual(zh);
+  });
+
+  it("每个词条非空字符串", () => {
+    for (const dict of [translations.zh, translations.en]) {
+      for (const [key, value] of Object.entries(dict)) {
+        expect(typeof value).toBe("string");
+        expect((value as string).length).toBeGreaterThan(0);
+        expect(key.length).toBeGreaterThan(0);
+      }
+    }
+  });
+});
 
 /** 测试桩：渲染一条双语固定文案与切换按钮，探针语义与顶栏按钮一致。 */
 function LangProbe() {

@@ -46,3 +46,28 @@ export const themeTokens = {
   colorWarning: "#faad14",
   colorError: "#ff4d4f",
 } as const;
+
+/** 主题 CSS 变量（#450）：助手边栏/会话视图/工具卡片引用 --tod-* 系列，
+ *  此前全仓库只有 var(...) 引用而无定义处，深色模式下永远落到浅色 fallback。
+ *  返回值由 App 根容器注入为内联 CSS 变量，随明暗主题切换；浅色值 = 各
+ *  消费端既有 fallback（浅色零回归），深色值与 App 深色界面同源
+ *  （边框 #303030、面板 #1a1a1a，白系叠加层对齐 antd darkAlgorithm 口径）。
+ * Theme CSS variables (#450): the assistant sidebar / chat view / tool cards
+ * reference the --tod-* series, which until now had no definition anywhere —
+ * dark mode always fell back to the light values. The map is injected as
+ * inline CSS variables on the App root and follows the theme switch; light
+ * values equal the consumers' existing fallbacks (zero light-mode regression),
+ * dark values share the app's dark surfaces (border #303030, panel #1a1a1a;
+ * white-overlay layers aligned with antd's darkAlgorithm). */
+export function themeCssVars(mode: "dark" | "light"): Record<string, string> {
+  const dark = mode === "dark";
+  return {
+    "--tod-border": dark ? "#303030" : "#e8e8e8",
+    "--tod-panel-bg": dark ? "#1a1a1a" : "transparent",
+    "--tod-user-bubble": "#0958d9",
+    "--tod-assistant-bubble": dark ? "rgba(255,255,255,0.10)" : "rgba(128,128,128,0.10)",
+    "--tod-text-secondary": "#8c8c8c",
+    "--tod-card-bg": dark ? "rgba(255,255,255,0.06)" : "rgba(128,128,128,0.06)",
+    "--tod-code-bg": dark ? "rgba(255,255,255,0.10)" : "rgba(128,128,128,0.1)",
+  };
+}

@@ -17,16 +17,14 @@ import { useState, useEffect, useRef } from "react";
 import { Slider, Typography, Space, Button, Tooltip, Select } from "antd";
 import { PlayCircleOutlined, PauseCircleOutlined, FieldTimeOutlined, RetweetOutlined } from "@ant-design/icons";
 import { etToUtcLabel } from "./timeBasis";
+import { useTranslation } from "./i18n";
 
 const { Text } = Typography;
 
-/** 播放速率档位（物理秒/真实秒） */
-/** Playback rate steps (physical seconds per wall second). */
-const RATE_OPTIONS = [
-  { label: "1时/秒", value: 3600 },
-  { label: "1天/秒", value: 86400 },
-  { label: "1周/秒", value: 604800 },
-];
+/** 播放速率档位值（物理秒/真实秒）；文案经 i18n 词典在渲染时取（#450） */
+/** Playback rate step values (physical seconds per wall second); labels come
+ *  from the i18n dictionary at render time (#450). */
+const RATE_VALUES = [3600, 86400, 604800];
 
 /** 播放 tick 周期（毫秒）：步长 = rate × tick / 1000 */
 /** The playback tick period (ms): step = rate × tick / 1000. */
@@ -72,6 +70,7 @@ export function TimelineBar({
   loop,
   onPlaybackConfigChange,
 }: TimelineBarProps) {
+  const { t } = useTranslation();
   const [playing, setPlaying] = useState(false);
   const playTimerRef = useRef<number | null>(null);
 
@@ -86,12 +85,20 @@ export function TimelineBar({
   const maxEt = timeRange ? timeRange[1] : 100;
   const val = currentEt !== null && currentEt >= minEt && currentEt <= maxEt ? currentEt : minEt;
   const isEt = mode === "et";
+  // 速率档位文案在渲染时取词典（#450）；值不变，档位识退化只看数值
+  // Rate-step labels come from the dictionary at render time (#450); values
+  // unchanged, the fallback lookup stays numeric.
+  const rateOptions = [
+    { value: 3600, key: "timeline.rate.hour" },
+    { value: 86400, key: "timeline.rate.day" },
+    { value: 604800, key: "timeline.rate.week" },
+  ].map(({ value, key }) => ({ value, label: t(key) }));
 
   const formatEt = (et: number) => {
-    if (disabled) return "无星历时间";
+    if (disabled) return t("timeline.no_ephem");
     if (isEt) return `${etToUtcLabel(et)} UTC`;
     const deltaDays = (et - minEt) / 86400;
-    return `T + ${deltaDays.toFixed(2)} 天 (ET: ${Math.round(et)})`;
+    return `T + ${deltaDays.toFixed(2)} ${t("unit.days")} (ET: ${Math.round(et)})`;
   };
 
   const visibleEvents = (events ?? []).filter(
@@ -138,7 +145,7 @@ export function TimelineBar({
       <Button
         type="text"
         size="small"
-        title={playing ? "暂停" : "播放"}
+        title={playing ? t("timeline.pause") : t("timeline.play")}
         disabled={disabled}
         icon={playing ? <PauseCircleOutlined style={{ fontSize: 16 }} /> : <PlayCircleOutlined style={{ fontSize: 16 }} />}
         onClick={() => setPlaying(!playing)}
@@ -148,12 +155,12 @@ export function TimelineBar({
       <Select
         size="small"
         variant="borderless"
-        value={RATE_OPTIONS.some((o) => o.value === rate) ? rate : 86400}
-        options={RATE_OPTIONS}
+        value={RATE_VALUES.includes(rate) ? rate : 86400}
+        options={rateOptions}
         disabled={disabled}
         onChange={(v) => setConfig({ rate: v })}
         style={{ width: 92 }}
-        title="播放速率"
+        title={t("timeline.rate_title")}
       />
       <Button
         size="small"
@@ -164,7 +171,7 @@ export function TimelineBar({
           />
         }
         onClick={() => setConfig({ loop: !doLoop })}
-        title={doLoop ? "循环播放（点击关闭）" : "单程播放（点击开启循环）"}
+        title={doLoop ? t("timeline.loop_on_title") : t("timeline.loop_off_title")}
       />
       <Space orientation="horizontal" style={{ flex: 1 }} size={8}>
         <FieldTimeOutlined style={{ color: disabled ? "#595959" : "#0958d9" }} />

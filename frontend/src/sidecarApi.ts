@@ -68,6 +68,20 @@ export async function getArtifact(recordId: string): Promise<ArtifactData> {
 export interface ToolFrame { dtype: "f32" | "f64"; shape: number[]; data: number[]; }
 export interface ToolResponse { data: Record<string, unknown>; frames: ToolFrame[]; error: { code: string; message: string } | null; }
 
+/** sidecar 错误 → 用户可读文案（#450）：优先 message，缺失回退 code，
+ *  再缺失才整体序列化。null/undefined 返回空串，由调用方拼前缀。
+ * Sidecar error → user-readable text (#450): prefer the message, fall back
+ * to the code, then whole-object serialization. null/undefined yields "" —
+ * callers append their own prefix. */
+export function formatToolError(
+  error: { code: string; message: string } | null | undefined,
+): string {
+  if (!error) return "";
+  if (typeof error.message === "string" && error.message.trim()) return error.message;
+  if (typeof error.code === "string" && error.code.trim()) return error.code;
+  return JSON.stringify(error);
+}
+
 export async function runTool(
   tool: string, arguments_: Record<string, unknown>, binaryDtype?: "f32" | "f64", artifact?: { artifactType: string; label: string; orbitType?: string },
 ): Promise<ToolResponse> {
