@@ -1,12 +1,13 @@
 // Three.js 主画布
 // The main Three.js canvas.
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ChartSettings } from "./chartSettings";
 import { EARTH_RADIUS_DU, MOON_RADIUS_DU } from "./chartSettings";
 import { COOLWARM_STOPS, jacobiColor, jacobiNorm } from "./jacobiColormap";
+import { pickNearestTrajectory, pickThresholdFromSize } from "./picking";
 import type { RegionElement } from "./regionLayer";
 import type { DataFrameTag } from "./trajectoryParsing";
 import { moonPositionAt, type MoonTrack } from "./moonEphemeris";
@@ -27,6 +28,16 @@ export type CenterMode = "barycenter" | "earth" | "moon" | "l1" | "l2";
 /** 轨迹色循环缺省值（与渲染 effect、图例共用同一循环口径） */
 /** Default trajectory color cycle (shared verbatim by the render effect and the legend). */
 export const DEFAULT_COLOR_CYCLE = ["#4c72b0", "#dd8452", "#55a868", "#c44e52", "#8172b3"];
+
+/** 聚焦淡出线的不透明度（#452）：其余轨迹降到此值，被聚焦线保持 1 */
+/** The dimmed opacity for unfocused lines (#452): the rest fade to this
+ *  value while the focused line stays at 1. */
+export const FOCUS_DIM_OPACITY = 0.15;
+
+/** 拖拽判定位移阈值（px，#452）：pointerdown/up 间超过此距离视为拖拽 */
+/** The drag-detection displacement threshold (px, #452): a pointerdown/up
+ *  pair beyond it is a drag. */
+const DRAG_THRESHOLD_PX = 5;
 
 export interface OrbitCanvasProps {
   trajectories: number[][][];
@@ -169,6 +180,20 @@ export function OrbitCanvas({
   const controlsRef = useRef<OrbitControls | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const markersRef = useRef<THREE.Mesh[]>([]);
+  // 拾取与聚焦（#452）：orbitLinesRef 是可拾取的轨迹线集合（绘制顺序与
+  // labels 对齐），pickThresholdRef 由轨迹包围盒尺寸推导（逐次重建更新），
+  // focusIdxRef 同步聚焦态供绘制 effect 与事件闭包读取。
+  // Picking & focus (#452): orbitLinesRef is the pickable line set (draw order
+  // aligned with labels), pickThresholdRef derives from the trajectory bounding
+  // box per rebuild, focusIdxRef mirrors the focus state for the draw effect
+  // and the event closures.
+  const orbitLinesRef = useRef<THREE.Line[]>([]);
+  const pickThresholdRef = useRef(0.02);
+  const focusIdxRef = useRef<number | null>(null);
+  const downPointRef = useRef<{ x: number; y: number } | null>(null);
+  const pickPendingRef = useRef(false);
+  const [focusIdx, setFocusIdx] = useState<number | null>(null);
+  const [hoverTip, setHoverTip] = useState<{ index: number; x: number; y: number } | null>(null);
   // onReady 走 ref：建场景 effect 依赖 []，调用方传内联函数（如
   // App 的 onReady={(a) => setApi(a)}）不会触发场景重建导致轨迹丢失。
   // onReady goes through a ref: the scene-building effect depends on [], so an inline callback from the caller (e.g.
@@ -176,6 +201,25 @@ export function OrbitCanvas({
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
 
+  // labels 同步走 ref：拾取事件闭包只建一次（建场景 effect），读取的
+  // 始终是最新标签（与 onReadyRef 同一模式）。
+  // labels ride a ref: the pick event closures are built once with the scene
+  // effect and always read the latest labels (same pattern as onReadyRef).
+  const labelsRef = useRef(labels);
+  labelsRef.current = labels;
+  focusIdxRef.current = focusIdx;
+
+  /** 聚焦态 → 逐线不透明度：非聚焦线淡化（透明度变更不重建几何）。 */
+  /** Focus state → per-line opacity: unfocused lines dim (opacity changes
+   *  never rebuild geometry). */
+  const applyFocusOpacity = () => {
+    const focus = focusIdxRef.current;
+    orbitLinesRef.current.forEach((line, i) => {
+      const m = line.material as THREE.LineBasicMaterial;
+      m.transparent = true;
+      m.opacity = focus === null || focus === i ? 1 : FOCUS_DIM_OPACITY;
+    });
+  };
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
@@ -246,6 +290,78 @@ export function OrbitCanvas({
     };
     animate();
 
+    // —— 轨迹拾取（#452）：监听器只建一次，读取 ref；Raycaster 阈值
+    // 由绘制 effect 按包围盒尺寸更新 ——
+    // —— Trajectory picking (#452): listeners are built once and read refs;
+    // the Raycaster threshold is updated by the draw effect from the
+    // bounding-box size ——
+    const raycaster = new THREE.Raycaster();
+    const ndc = new THREE.Vector2();
+
+    const pickAt = (e: MouseEvent): number | null => {
+      const lines = orbitLinesRef.current;
+      if (!camera || lines.length === 0) return null;
+      const rect = renderer.domElement.getBoundingClientRect();
+      ndc.set(
+        ((e.clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1,
+        -((e.clientY - rect.top) / Math.max(1, rect.height)) * 2 + 1,
+      );
+      raycaster.setFromCamera(ndc, camera);
+      raycaster.params.Line = { threshold: pickThresholdRef.current };
+      const hits = raycaster.intersectObjects(lines, false);
+      return pickNearestTrajectory(
+        hits.map((h) => ({
+          index: lines.indexOf(h.object as THREE.Line),
+          distance: h.distance,
+        })),
+      );
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      // 指针移动节流：一帧至多一次拾取判定，不拖慢渲染帧率
+      // Throttle pointer moves: at most one pick per frame.
+      if (pickPendingRef.current) return;
+      pickPendingRef.current = true;
+      requestAnimationFrame(() => {
+        pickPendingRef.current = false;
+        const idx = pickAt(e);
+        // 无标签轨迹不提示（规格故事 2）：聚焦仍可用于任何轨迹
+        // Unlabeled trajectories never show a tip (story 2); focus still
+        // applies to any trajectory.
+        setHoverTip(
+          idx !== null && labelsRef.current?.[idx]
+            ? { index: idx, x: e.offsetX, y: e.offsetY }
+            : null,
+        );
+      });
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      // 非主键（右键平移/中键）不参与拾取聚焦
+      // Non-primary buttons (right-drag pan / middle) never pick or focus.
+      if (e.button !== 0) return;
+      downPointRef.current = { x: e.clientX, y: e.clientY };
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      const down = downPointRef.current;
+      downPointRef.current = null;
+      // 拖拽（位移超阈值）不触发聚焦：视角旋转/缩放不受干扰
+      // A drag beyond the threshold never focuses: view orbiting/zooming stays undisturbed.
+      if (!down) return;
+      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > DRAG_THRESHOLD_PX) return;
+      const idx = pickAt(e);
+      setFocusIdx((prev) => (idx !== null && prev !== idx ? idx : null));
+    };
+
+    const onPointerLeave = () => setHoverTip(null);
+
+    const el = renderer.domElement;
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("pointerup", onPointerUp);
+    el.addEventListener("pointerleave", onPointerLeave);
+
     const fitView = () => {
       const box = new THREE.Box3().setFromObject(content);
       if (box.isEmpty()) return;
@@ -273,6 +389,10 @@ export function OrbitCanvas({
     return () => {
       cancelAnimationFrame(frameId);
       observer.disconnect();
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointerup", onPointerUp);
+      el.removeEventListener("pointerleave", onPointerLeave);
       renderer.dispose();
       if (mount.contains(renderer.domElement)) {
         mount.removeChild(renderer.domElement);
@@ -400,9 +520,11 @@ export function OrbitCanvas({
 
     // 轨道线独占 content 组：视图适配只按可见轨道范围（标注不参与）。
     // 线几何取 drawn（惯性视图下 gcrs 段接管，#428 第二步）。
+    // 集合同时进 orbitLinesRef（拾取范围，#452），绘制顺序与 labels 对齐。
     // Orbit lines live exclusively in the content group: view fitting considers only visible orbit extents
     // (annotations excluded). Line geometry uses `drawn` (the gcrs segment takes over in the inertial view,
-    // #428 step 2).
+    // #428 step 2). The same set feeds orbitLinesRef (the pick scope, #452), draw order aligned with labels.
+    const builtLines: THREE.Line[] = [];
     drawn.forEach((pts, i) => {
       const positions = new Float32Array(pts.length * 3);
       pts.forEach((p, j) => {
@@ -412,13 +534,23 @@ export function OrbitCanvas({
       });
       const geom = new THREE.BufferGeometry();
       geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-      content.add(
-        new THREE.Line(
-          geom,
-          new THREE.LineBasicMaterial({ color: colors[i % colors.length], linewidth: settings?.orbitLinewidth ?? 1.0 })
-        )
+      const line = new THREE.Line(
+        geom,
+        new THREE.LineBasicMaterial({ color: colors[i % colors.length], linewidth: settings?.orbitLinewidth ?? 1.0, transparent: true })
       );
+      content.add(line);
+      builtLines.push(line);
     });
+    orbitLinesRef.current = builtLines;
+
+    // 拾取阈值随本次重建的包围盒尺寸更新（#452）；聚焦态（若有）重应用到新线
+    // The pick threshold tracks this rebuild's bounding-box size (#452); any
+    // focus state re-applies onto the fresh lines.
+    const pickBox = new THREE.Box3().setFromObject(content);
+    pickThresholdRef.current = pickBox.isEmpty()
+      ? pickThresholdFromSize(NaN)
+      : pickThresholdFromSize(pickBox.getSize(new THREE.Vector3()).length());
+    applyFocusOpacity();
 
     // 文本标注 sprite（天体名/平动点/轴名共用，颜色随背景亮度）
     // Text-label sprites (shared by body names/libration points/axis names; color follows background brightness).
@@ -666,6 +798,23 @@ export function OrbitCanvas({
     };
   }, [trajectories]);
 
+  // 轨迹数据整体替换：聚焦态与悬停提示清除（#452），避免残留失效引用
+  // A wholesale trajectory replacement clears focus and the hover tip (#452),
+  // so no stale reference lingers.
+  useEffect(() => {
+    setFocusIdx(null);
+    setHoverTip(null);
+  }, [trajectories]);
+
+  // 聚焦变化 → 重应用逐线不透明度（#452）；重建后的重应用在绘制 effect 末尾。
+  // 依赖仅 focusIdx：applyFocusOpacity 只读 ref 与模块常量。
+  // Focus changes re-apply per-line opacity (#452); post-rebuild re-application
+  // happens at the end of the draw effect. Only focusIdx is a dependency:
+  // applyFocusOpacity reads refs and module constants only.
+  useEffect(() => {
+    applyFocusOpacity();
+  }, [focusIdx]);
+
   // 中心切换：所选中心点已移到世界原点，相机注视点同步移到原点（“居中”
   // 语义），保持注视方向与距离（视图保持）。不能改为按轨道盒重新适配：
   // 那样会把画面中心钉回轨道所在区域（如 L2 的 Halo 族），中心切换在
@@ -771,6 +920,31 @@ export function OrbitCanvas({
 
   return (
     <div ref={mountRef} style={{ width: "100%", height: "100%", position: "relative" }}>
+      {/* 拾取提示（#452）：直角小标签跟随光标，无标签轨迹不显示；
+          平面化风格遵循 ADR 0020 */}
+      {/* The pick tooltip (#452): a square compact label trailing the cursor,
+          hidden for unlabeled trajectories; flat style per ADR 0020. */}
+      {hoverTip !== null && labels?.[hoverTip.index] && (
+        <div
+          data-testid="pick-tooltip"
+          style={{
+            position: "absolute",
+            left: (hoverTip.x ?? 0) + 12,
+            top: (hoverTip.y ?? 0) + 12,
+            pointerEvents: "none",
+            fontSize: 11,
+            background: "rgba(20, 24, 30, 0.85)",
+            color: "#e8eef4",
+            border: "1px solid rgba(201, 211, 221, 0.35)",
+            borderRadius: 2,
+            padding: "2px 6px",
+            whiteSpace: "nowrap",
+            zIndex: 5,
+          }}
+        >
+          {labels[hoverTip.index]}
+        </div>
+      )}
       {legendItems.length > 0 && (
         <div
           style={{
