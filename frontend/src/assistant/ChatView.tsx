@@ -7,7 +7,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Button, Typography } from "antd";
+import { Button, Spin, Typography } from "antd";
 import { BulbOutlined } from "@ant-design/icons";
 import type { ChatItem } from "./chatModel";
 import { ToolCardView } from "./ToolCardView";
@@ -148,17 +148,36 @@ export function ChatView({
    *  that scenario file. */
   onApplyScenario?: (path: string) => void;
 }) {
+  const { t } = useTranslation();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // 贴底才自动跟随（#450）：用户上翻看历史时不被流式增量拽回底部；
+  // 初值 true（首屏贴底）。阈值 32px。jsdom 无布局量测（恒 0 → 恒贴底），
+  // 非贴底路径以手工验证兜底（规格测试决策注明）。
+  // Follow the stream only when stuck to the bottom (#450): streaming deltas
+  // no longer yank the user back while reading history; initial true. 32px
+  // threshold. jsdom has no layout metrics (always 0 → stuck), the not-stuck
+  // path is covered by manual verification (spec testing decisions).
+  const stickToBottomRef = useRef(true);
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 32;
+  };
 
-  // 新内容出现时滚到底部（流式增量与工具卡片都触发）
-  // Scroll to the bottom when new content appears (both streaming deltas and
-  // tool cards trigger it).
+  // 新内容出现时按贴底状态决定是否滚底；用户消息（末项）无条件滚——
+  // 自己刚说的话必须可见（#450）。
+  // Scroll to bottom on new content only when stuck; a user message (the last
+  // item) always scrolls — one's own words must be visible (#450).
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    const last = items[items.length - 1];
+    if (stickToBottomRef.current || last?.kind === "user") {
+      bottomRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+    }
   }, [items]);
 
   return (
-    <div style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "4px 2px" }}>
+    <div ref={scrollRef} onScroll={handleScroll} style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "4px 2px" }}>
       {items.map((item, idx) => {
         if (item.kind === "user") {
           return (
@@ -229,9 +248,15 @@ export function ChatView({
         );
       })}
       {running && (
-        <Text type="secondary" style={{ fontSize: 11, display: "block", margin: "2px 4px" }}>
-          …
-        </Text>
+        // 生成中指示（#450）：替代静态省略号；Spin 是平面指示器，符合 ADR 0020
+        // Generating indicator (#450): replaces the static ellipsis; Spin is a
+        // flat indicator, in line with ADR 0020.
+        <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "4px 6px" }}>
+          <Spin size="small" />
+          <Text type="secondary" style={{ fontSize: 11 }}>
+            {t("assistant.generating")}
+          </Text>
+        </div>
       )}
       <div ref={bottomRef} />
     </div>

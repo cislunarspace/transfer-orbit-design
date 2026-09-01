@@ -1,0 +1,138 @@
+// AssistantSidebar 交互回归（#450）：
+// - IME 组合中（isComposing）回车不发送——中文输入法选词回车不再发出半截话
+// - 非组合回车照常发送
+// - 发送失败（命令异常）时草稿恢复到输入框
+// - 清空会话需 Popconfirm 确认，确认后才调用后端清空
+// AssistantSidebar interaction regressions (#450):
+// - Enter during IME composition (isComposing) never sends — no more half-typed
+//   pinyin fired off by candidate confirmation
+// - Enter outside composition sends as before
+// - a failed send restores the draft into the input box
+// - clearing the session requires a Popconfirm before the backend call
+
+import { describe, it, expect, vi, beforeAll, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { AssistantSidebar } from "./AssistantSidebar";
+import {
+  assistantSend,
+  assistantClearHistory,
+} from "./api";
+
+vi.mock("./api", () => ({
+  assistantGetState: vi.fn().mockResolvedValue({
+    configured: true,
+    history: [],
+    sessions: [],
+    currentSessionId: "default",
+    thinkingLevel: "standard",
+  }),
+  onAssistantEvent: vi.fn().mockResolvedValue(() => {}),
+  assistantSend: vi.fn().mockResolvedValue(undefined),
+  assistantClearHistory: vi.fn().mockResolvedValue(undefined),
+  assistantNewSession: vi.fn().mockResolvedValue("s2"),
+  assistantRenameSession: vi.fn().mockResolvedValue(undefined),
+  assistantDeleteSession: vi.fn().mockResolvedValue(undefined),
+  assistantSwitchSession: vi.fn().mockResolvedValue(undefined),
+  assistantSetThinkingLevel: vi.fn().mockResolvedValue(undefined),
+}));
+
+beforeAll(() => {
+  const mm = (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  });
+  vi.stubGlobal("matchMedia", mm);
+  window.matchMedia = mm as unknown as typeof window.matchMedia;
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  // jsdom 不实现 scrollIntoView（ChatView 自动滚动调用）
+  // jsdom does not implement scrollIntoView (called by ChatView's auto-scroll).
+  window.HTMLElement.prototype.scrollIntoView = vi.fn();
+});
+
+// 卸载组件并清掉 localStorage 残留，避免跨用例污染（语言/草稿）
+// Unmount and clear localStorage leftovers (language/draft) across cases.
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+  vi.mocked(assistantSend).mockResolvedValue(undefined);
+});
+
+function setup() {
+  render(
+    <AssistantSidebar
+      lang="zh"
+      selection={null}
+      onArtifactProduced={vi.fn()}
+      onOpenRecord={vi.fn()}
+      onOpenSettings={vi.fn()}
+    />,
+  );
+}
+
+/** 向输入框派发带 isComposing 的 Enter keydown（React 合成事件的 nativeEvent 即它）。 */
+/** Dispatch an Enter keydown carrying isComposing (React's synthetic nativeEvent is it). */
+function pressEnter(composing: boolean) {
+  const box = screen.getByRole("textbox") as HTMLTextAreaElement;
+  const ev = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+  Object.defineProperty(ev, "isComposing", { value: composing });
+  fireEvent(box, ev);
+}
+
+async function typeDraft(text: string) {
+  await waitFor(() => expect(screen.getByRole("textbox")).toBeDefined());
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: text } });
+}
+
+describe("AssistantSidebar 发送（#450）", () => {
+  it("IME 组合中回车不发送", async () => {
+    setup();
+    await typeDraft("把NRHO家族画出来");
+    pressEnter(true);
+    expect(assistantSend).not.toHaveBeenCalled();
+  });
+
+  it("非组合回车照常发送", async () => {
+    setup();
+    await typeDraft("把NRHO家族画出来");
+    pressEnter(false);
+    await waitFor(() => expect(assistantSend).toHaveBeenCalled());
+    expect(vi.mocked(assistantSend).mock.calls[0][0]).toBe("把NRHO家族画出来");
+  });
+
+  it("发送失败时草稿恢复到输入框", async () => {
+    vi.mocked(assistantSend).mockRejectedValueOnce(new Error("backend down"));
+    setup();
+    await typeDraft("失败的草稿");
+    pressEnter(false);
+    await waitFor(() =>
+      expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe("失败的草稿"),
+    );
+  });
+});
+
+describe("AssistantSidebar 清空确认（#450）", () => {
+  it("清空按钮先出确认，确认后才调用 assistantClearHistory", async () => {
+    setup();
+    await waitFor(() => expect(screen.getByRole("textbox")).toBeDefined());
+    fireEvent.click(screen.getByRole("button", { name: "清空会话" }));
+    // 确认框文案出现，后端尚未调用
+    // The confirm copy appears; the backend has not been called yet.
+    expect(await screen.findByText("清空后不可恢复，确定清空当前会话？")).toBeDefined();
+    expect(assistantClearHistory).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "清 空" }));
+    await waitFor(() => expect(assistantClearHistory).toHaveBeenCalledTimes(1));
+  });
+});

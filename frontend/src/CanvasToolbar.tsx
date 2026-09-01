@@ -1,11 +1,15 @@
 // 画布工具栏：归拢投影/中心选择与适配/导出动画/图表设置操作，停靠于画布上方
-// （替代原先分居画布两角的悬浮层）
+// （替代原先分居画布两角的悬浮层）。四组选择控件（投影/视图系/绘制内容/中心）
+// 之间以竖向分隔符分组（#450），窄窗口整组换行不拆散。
 // Canvas toolbar: gathers projection/center selection and fit/export-animation/chart-settings actions,
 // docked above the canvas (replacing the floating layers that used to sit in opposite corners).
+// The four control groups (projection/view frame/content/center) are separated by
+// vertical dividers (#450); on narrow windows whole groups wrap without splitting.
 
-import { Button, Radio, Tooltip } from "antd";
+import { Button, Divider, Radio, Tooltip } from "antd";
 import {
   CompressOutlined,
+  FileImageOutlined,
   VideoCameraOutlined,
   SettingOutlined,
   SaveOutlined,
@@ -13,6 +17,7 @@ import {
 } from "@ant-design/icons";
 import type { ProjectionMode, CenterMode, FrameMode } from "./OrbitCanvas";
 import type { ContentMode } from "./trajectoryParsing";
+import { useTranslation } from "./i18n";
 
 export interface CanvasToolbarProps {
   projection: ProjectionMode;
@@ -30,6 +35,9 @@ export interface CanvasToolbarProps {
   onContentModeChange?: (m: ContentMode) => void;
   onFitView: () => void;
   onExportAnimation: () => void;
+  /** PNG 静态图导出（#450）：可选能力，未提供时按钮不渲染 */
+  /** PNG still-image export (#450): optional — the button renders only when provided. */
+  onExportPng?: () => void;
   onOpenSettings: () => void;
   /** 情景保存/打开（#429）：固定层记录集 + 参考历元 + 播放配置 */
   /** Scenario save/open (#429): pinned-layer record set + reference epoch + playback config. */
@@ -49,10 +57,12 @@ export function CanvasToolbar({
   onContentModeChange,
   onFitView,
   onExportAnimation,
+  onExportPng,
   onOpenSettings,
   onSaveScenario,
   onOpenScenario,
 }: CanvasToolbarProps) {
+  const { t } = useTranslation();
   const inertial = frame === "inertial";
   return (
     <div
@@ -76,6 +86,8 @@ export function CanvasToolbar({
         <Radio.Button value="yz">YZ</Radio.Button>
       </Radio.Group>
 
+      <Divider orientation="vertical" />
+
       {/* 视图系切换（#428，ADR 0013：会合系 ⇄ 惯性 GCRS）：显示选择，
           不改任何数据与时刻语义 */}
       {/* The view-frame switch (#428, ADR 0013: synodic ⇄ inertial GCRS):
@@ -86,9 +98,11 @@ export function CanvasToolbar({
         onChange={(e) => onFrameChange?.(e.target.value as FrameMode)}
         buttonStyle="solid"
       >
-        <Radio.Button value="synodic">会合系</Radio.Button>
-        <Radio.Button value="inertial">惯性 (GCRS)</Radio.Button>
+        <Radio.Button value="synodic">{t("toolbar.frame.synodic")}</Radio.Button>
+        <Radio.Button value="inertial">{t("toolbar.frame.inertial")}</Radio.Button>
       </Radio.Group>
+
+      <Divider orientation="vertical" />
 
       {/* 绘制内容切换（eph-fig）：双段并存的产物（CR3BP 参考段 + 星历段）
           画哪段；无段语义的产物（转移弧、预报、族成员）不受影响 */}
@@ -102,10 +116,12 @@ export function CanvasToolbar({
         onChange={(e) => onContentModeChange?.(e.target.value as ContentMode)}
         buttonStyle="solid"
       >
-        <Radio.Button value="all">全部</Radio.Button>
-        <Radio.Button value="cr3bp">CR3BP</Radio.Button>
-        <Radio.Button value="ephemeris">星历</Radio.Button>
+        <Radio.Button value="all">{t("toolbar.content.all")}</Radio.Button>
+        <Radio.Button value="cr3bp">{t("toolbar.content.cr3bp")}</Radio.Button>
+        <Radio.Button value="ephemeris">{t("toolbar.content.ephemeris")}</Radio.Button>
       </Radio.Group>
+
+      <Divider orientation="vertical" />
 
       <Radio.Group
         size="small"
@@ -113,15 +129,15 @@ export function CanvasToolbar({
         onChange={(e) => onCenterChange(e.target.value as CenterMode)}
         buttonStyle="solid"
       >
-        <Radio.Button value="barycenter">质心</Radio.Button>
-        <Radio.Button value="earth">地心</Radio.Button>
-        <Tooltip title={inertial ? "月心是会合系概念，惯性视图下不可用" : ""}>
-          <Radio.Button value="moon" disabled={inertial}>月心</Radio.Button>
+        <Radio.Button value="barycenter">{t("toolbar.center.barycenter")}</Radio.Button>
+        <Radio.Button value="earth">{t("toolbar.center.earth")}</Radio.Button>
+        <Tooltip title={t("toolbar.center.moon_disabled_hint")}>
+          <Radio.Button value="moon" disabled={inertial}>{t("toolbar.center.moon")}</Radio.Button>
         </Tooltip>
-        <Tooltip title={inertial ? "L1/L2 是会合系概念，惯性视图下不可用" : ""}>
+        <Tooltip title={t("toolbar.center.lp_disabled_hint")}>
           <Radio.Button value="l1" disabled={inertial}>L1</Radio.Button>
         </Tooltip>
-        <Tooltip title={inertial ? "L1/L2 是会合系概念，惯性视图下不可用" : ""}>
+        <Tooltip title={t("toolbar.center.lp_disabled_hint")}>
           <Radio.Button value="l2" disabled={inertial}>L2</Radio.Button>
         </Tooltip>
       </Radio.Group>
@@ -136,7 +152,7 @@ export function CanvasToolbar({
           size="small"
           icon={<SaveOutlined />}
           onClick={onSaveScenario}
-          title="保存情景（固定层记录集 + 参考历元 + 播放配置）"
+          title={t("toolbar.save_scenario_title")}
         />
       )}
       {onOpenScenario && (
@@ -144,31 +160,41 @@ export function CanvasToolbar({
           size="small"
           icon={<FolderOpenOutlined />}
           onClick={onOpenScenario}
-          title="打开情景：重建固定层并校准时间轴"
+          title={t("toolbar.open_scenario_title")}
         />
       )}
       <Button
         size="small"
         icon={<CompressOutlined />}
         onClick={onFitView}
-        title="按轨道包围盒自适应缩放 (适配)"
+        title={t("toolbar.fit_title")}
       >
-        适配
+        {t("toolbar.fit")}
       </Button>
       <Button
         size="small"
         icon={<VideoCameraOutlined />}
         loading={recording}
         onClick={onExportAnimation}
-        title="录制自转动画并导出 WebM"
+        title={t("toolbar.export_animation_title")}
       >
-        导出动画
+        {t("toolbar.export_animation")}
       </Button>
+      {onExportPng && (
+        <Button
+          size="small"
+          icon={<FileImageOutlined />}
+          onClick={onExportPng}
+          title={t("toolbar.export_png_title")}
+        >
+          {t("toolbar.export_png")}
+        </Button>
+      )}
       <Button
         size="small"
         icon={<SettingOutlined />}
         onClick={onOpenSettings}
-        title="图表显示设置"
+        title={t("toolbar.settings_title")}
       />
     </div>
   );

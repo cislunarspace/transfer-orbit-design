@@ -9,7 +9,7 @@
 // decision 1); this only renders and forwards interaction.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, Input, Segmented, Spin, Tooltip, Typography, message } from "antd";
+import { Button, Input, Popconfirm, Segmented, Spin, Tooltip, Typography, message } from "antd";
 import {
   ClearOutlined,
   DoubleRightOutlined,
@@ -190,6 +190,12 @@ export function AssistantSidebar({
       await assistantSend(text, lang, selection);
     } catch (e) {
       console.error("assistant send failed:", e);
+      // 命令异常（区别于运行期错误事件）：草稿回填输入框（#450）。
+      // 运行期输入框禁用必为空；守卫仅在为空时回填，不覆盖用户新输入。
+      // Command rejection (as opposed to runtime error events): restore the
+      // draft into the input (#450). The input is disabled while running so it
+      // must be empty; fill only when empty, never overwriting newer input.
+      setDraft((cur) => (cur === "" ? text : cur));
     } finally {
       setRunning(false);
     }
@@ -325,9 +331,23 @@ export function AssistantSidebar({
             onDelete={(id) => withReload(() => assistantDeleteSession(id))}
           />
         )}
-        <Tooltip title={t("assistant.clear")}>
-          <Button type="text" size="small" icon={<ClearOutlined />} onClick={handleClear} />
-        </Tooltip>
+        {/* 清空不可逆：Popconfirm 拦一道（#450） */}
+        {/* Clearing is irreversible: a Popconfirm gate (#450). */}
+        <Popconfirm
+          title={t("assistant.clear_confirm")}
+          okText={t("assistant.clear_confirm_ok")}
+          cancelText={t("action.cancel")}
+          onConfirm={handleClear}
+        >
+          <Tooltip title={t("assistant.clear")}>
+            <Button
+              type="text"
+              size="small"
+              icon={<ClearOutlined />}
+              aria-label={t("assistant.clear")}
+            />
+          </Tooltip>
+        </Popconfirm>
         <Tooltip title={t("assistant.collapse")}>
           <Button
             type="text"
