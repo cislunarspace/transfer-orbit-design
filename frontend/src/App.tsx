@@ -39,7 +39,7 @@ import { sweepMoments, SWEEP_TICK_MS } from "./animationExport";
 import { CatalogFilterBar } from "./CatalogFilterBar";
 import { UpdateModal } from "./UpdateModal";
 import { AboutModal } from "./AboutModal";
-import { checkForAppUpdates, type UpdateInfo } from "./updater";
+import { checkForAppUpdates, getBundleType, inAppUpdateSupported, type UpdateInfo } from "./updater";
 import { TOOL_REGISTRY, toolEntry } from "./schema";
 import { validateToolParams } from "./paramOverlay";
 import { useTranslation } from "./i18n";
@@ -289,6 +289,10 @@ export default function App() {
   useEffect(() => {
     const timer = setTimeout(async () => {
       try {
+        // deb/rpm 安装无应用内更新通道（清单产物只有 AppImage），静默检查跳过
+        // deb/rpm installs have no in-app update channel (the manifest artifact
+        // is AppImage-only); skip the silent check there.
+        if (!inAppUpdateSupported(await getBundleType())) return;
         const update = await checkForAppUpdates();
         if (update) {
           setUpdateInfo(update);

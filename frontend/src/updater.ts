@@ -1,4 +1,39 @@
+import { invoke } from "@tauri-apps/api/core";
 import { check, type Update } from "@tauri-apps/plugin-updater";
+
+/** GitHub Releases 页（latest 自动重定向到最新 tag），deb/rpm 安装的手动更新入口。 */
+/** GitHub Releases page (latest redirects to the newest tag): manual update
+ *  entry for deb/rpm installs. */
+export const RELEASES_PAGE_URL =
+  "https://github.com/cislunarspace/transfer-orbit-design/releases/latest";
+
+export type BundleType =
+  | "appimage"
+  | "deb"
+  | "rpm"
+  | "nsis"
+  | "msi"
+  | "app"
+  | "unknown";
+
+/** 打包形态由 tauri-build 构建期二进制补丁决定；开发态（未打包）返回 null → "unknown"。 */
+/** The bundle type is binary-patched at build time by tauri-build; dev builds
+ *  (unpackaged) report null → "unknown". */
+export async function getBundleType(): Promise<BundleType> {
+  const t = await invoke<string | null>("bundle_type");
+  return (t ?? "unknown") as BundleType;
+}
+
+/** 应用内更新仅在 AppImage 与 Windows/macOS 安装器下可用。deb/rpm 不在列：
+ *  更新清单平台键（linux-{arch}）无安装格式维度，产物只有 AppImage，
+ *  updater 在 deb/rpm 运行时按自身格式验型必败，只能引导手动下载。 */
+/** In-app updates work for AppImage and the Windows/macOS installers only.
+ *  deb/rpm are excluded: the manifest platform keys carry no bundle-format
+ *  dimension and the Linux artifact is an AppImage, so the updater's format
+ *  check fails on deb/rpm installs — manual download is the only path. */
+export function inAppUpdateSupported(t: BundleType): boolean {
+  return t !== "deb" && t !== "rpm";
+}
 
 export interface UpdateInfo {
   version: string;

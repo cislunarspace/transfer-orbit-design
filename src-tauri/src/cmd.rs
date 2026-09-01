@@ -510,6 +510,15 @@ pub async fn catalog_query(
     }))
 }
 
+/// 当前运行的打包形态（appimage/deb/rpm/msi/nsis/app；开发态未打包为 None）。
+/// 值由 tauri-build 在构建期二进制补丁决定。前端据此判定应用内更新可用性：
+/// updater 的清单平台键无安装格式维度，Linux 产物只有 AppImage，deb/rpm
+/// 运行时按自身格式验型必败，需引导手动下载。
+#[tauri::command]
+pub fn bundle_type() -> Option<String> {
+    tauri::utils::platform::bundle_type().map(|b| b.to_string())
+}
+
 /// 项目内 Artifact 摘要列表（项目树数据源）。
 #[tauri::command]
 pub async fn list_artifacts(

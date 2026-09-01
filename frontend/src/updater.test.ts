@@ -1,14 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { invoke } from "@tauri-apps/api/core";
 import {
   checkForAppUpdates,
   formatBytes,
   createSpeedTracker,
+  getBundleType,
+  inAppUpdateSupported,
   type UpdateInfo,
 } from "./updater";
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+}));
 
 describe("updater module", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("getBundleType 把后端 null（开发态未打包）映射为 unknown，走 updater 原行为", async () => {
+    vi.mocked(invoke).mockResolvedValue(null);
+    expect(await getBundleType()).toBe("unknown");
+    expect(inAppUpdateSupported("unknown")).toBe(true);
+  });
+
+  it("deb/rpm 不支持应用内更新，AppImage/unknown 支持", async () => {
+    vi.mocked(invoke).mockResolvedValue("deb");
+    expect(await getBundleType()).toBe("deb");
+    expect(inAppUpdateSupported("deb")).toBe(false);
+    expect(inAppUpdateSupported("rpm")).toBe(false);
+    expect(inAppUpdateSupported("appimage")).toBe(true);
+    expect(inAppUpdateSupported("nsis")).toBe(true);
   });
 
   it("returns null when no update is available", async () => {

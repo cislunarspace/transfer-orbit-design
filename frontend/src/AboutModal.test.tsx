@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { getVersion } from "@tauri-apps/api/app";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { AboutModal } from "./AboutModal";
 import * as updaterModule from "./updater";
 
@@ -8,8 +9,13 @@ vi.mock("@tauri-apps/api/app", () => ({
   getVersion: vi.fn().mockResolvedValue("4.9.9"),
 }));
 
+vi.mock("@tauri-apps/plugin-opener", () => ({
+  openUrl: vi.fn().mockResolvedValue(undefined),
+}));
+
 beforeEach(() => {
   vi.mocked(getVersion).mockClear();
+  vi.mocked(openUrl).mockClear();
 });
 
 describe("AboutModal component", () => {
@@ -43,6 +49,7 @@ describe("AboutModal component", () => {
       currentVersion: "4.1.2",
       rawUpdate: {} as any,
     };
+    vi.spyOn(updaterModule, "getBundleType").mockResolvedValue("appimage");
     vi.spyOn(updaterModule, "checkForAppUpdates").mockResolvedValue(mockUpdateInfo);
     const onUpdateAvailable = vi.fn();
     const onClose = vi.fn();
@@ -63,5 +70,27 @@ describe("AboutModal component", () => {
       expect(onClose).toHaveBeenCalled();
       expect(onUpdateAvailable).toHaveBeenCalledWith(mockUpdateInfo);
     });
+  });
+
+  it("deb 安装时更新按钮变为前往下载页：不调 updater，打开 Releases 页并提示", async () => {
+    vi.spyOn(updaterModule, "getBundleType").mockResolvedValue("deb");
+    // spyOn 对已 spy 的模块导出幂等返回同一 mock，清掉上一用例的调用记录再断言
+    vi.spyOn(updaterModule, "checkForAppUpdates").mockClear();
+    const onUpdateAvailable = vi.fn();
+    const onClose = vi.fn();
+
+    render(<AboutModal open={true} onClose={onClose} onUpdateAvailable={onUpdateAvailable} />);
+
+    // bundleType 解析到 deb 后按钮文案切换
+    const btn = await screen.findByRole("button", { name: /前往下载页|Open Download Page/i });
+    fireEvent.click(btn);
+
+    await waitFor(() => {
+      expect(openUrl).toHaveBeenCalledWith(updaterModule.RELEASES_PAGE_URL);
+      expect(screen.getByText(/已打开版本发布页|releases page has been opened/i)).toBeDefined();
+    });
+    expect(updaterModule.checkForAppUpdates).not.toHaveBeenCalled();
+    expect(onUpdateAvailable).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
