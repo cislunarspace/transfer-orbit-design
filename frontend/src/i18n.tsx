@@ -202,6 +202,8 @@ export const translations: Record<string, Record<string, string>> = {
     "assistant.interrupted": "已中断",
     "assistant.continue": "继续",
     "assistant.continue_prompt": "请从刚才中断的地方继续。",
+    "panel.collapse": "折叠此栏",
+    "panel.expand": "展开此栏",
   },
   en: {
     "action.save": "Save",
@@ -388,6 +390,8 @@ export const translations: Record<string, Record<string, string>> = {
     "assistant.interrupted": "Interrupted",
     "assistant.continue": "Continue",
     "assistant.continue_prompt": "Please continue from where you were interrupted.",
+    "panel.collapse": "Collapse pane",
+    "panel.expand": "Expand pane",
   },
 };
 

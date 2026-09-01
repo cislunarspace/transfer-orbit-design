@@ -79,3 +79,10 @@ export function loadPanelWidth(key: string, fallback: number, min: number, max: 
   const raw = Number(localStorage.getItem(key));
   return Number.isFinite(raw) && raw >= min && raw <= max ? raw : fallback;
 }
+
+/** 折叠态恢复：仅 "1" 视为折叠，缺失/其他值回落展开（#462）。 */
+/** Collapsed-state restore: only "1" counts as collapsed; missing or other
+ *  values fall back to expanded (#462). */
+export function loadPanelCollapsed(key: string): boolean {
+  return localStorage.getItem(key) === "1";
+}

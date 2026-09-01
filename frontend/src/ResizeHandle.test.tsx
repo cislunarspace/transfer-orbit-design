@@ -68,3 +68,30 @@ describe("ResizeHandle（#454）", () => {
     expect(onResizeEnd).toHaveBeenLastCalledWith(300);
   });
 });
+
+// —— 折叠态持久化（#462）：仅 "1" 视为折叠，缺失/其他值回落展开 ——
+// Collapsed-state persistence (#462): only "1" counts as collapsed; missing
+// or other values fall back to expanded.
+
+import { loadPanelCollapsed } from "./ResizeHandle";
+
+describe("loadPanelCollapsed（#462）", () => {
+  afterEach(() => {
+    localStorage.clear();
+  });
+
+  it("\"1\" 视为折叠", () => {
+    localStorage.setItem("tod-x-collapsed", "1");
+    expect(loadPanelCollapsed("tod-x-collapsed")).toBe(true);
+  });
+
+  it("\"0\"/缺失/非法值回落展开", () => {
+    localStorage.setItem("tod-x-collapsed", "0");
+    expect(loadPanelCollapsed("tod-x-collapsed")).toBe(false);
+    expect(loadPanelCollapsed("tod-x-collapsed")).toBe(false); // 显式展开
+    localStorage.removeItem("tod-x-collapsed");
+    expect(loadPanelCollapsed("tod-x-collapsed")).toBe(false);
+    localStorage.setItem("tod-x-collapsed", "yes");
+    expect(loadPanelCollapsed("tod-x-collapsed")).toBe(false);
+  });
+});
