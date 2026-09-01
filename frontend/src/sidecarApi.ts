@@ -11,10 +11,15 @@ export interface FamilyMember {
 }
 
 /** 记录的星历段（eph/ 前缀数组）：会合系无量纲位置 (n,3) 平铺 + UTC 分量；
+ *  position_km 是 GCRS 惯性位置 (n,3) 平铺（eph-fig，旧记录缺位为 null）。
  *  键名与 e2m2e EphemerisTable 一致（snake_case，与设计响应 ephemeris 同形），
  *  解析走 trajectoryParsing.designEphemerisToCanvasData。 */
 export interface EphemerisSegment {
   synodic_position: number[];
+  /** GCRS 惯性位置 (n,3) 平铺（eph-fig）；旧记录缺键/行数不齐为 null */
+  /** GCRS inertial positions (n,3) flattened (eph-fig); null for legacy
+   * records missing the key or misaligned. */
+  position_km?: number[] | null;
   year: number[];
   month: number[];
   day: number[];

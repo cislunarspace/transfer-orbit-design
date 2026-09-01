@@ -12,6 +12,7 @@ import {
   FolderOpenOutlined,
 } from "@ant-design/icons";
 import type { ProjectionMode, CenterMode, FrameMode } from "./OrbitCanvas";
+import type { ContentMode } from "./trajectoryParsing";
 
 export interface CanvasToolbarProps {
   projection: ProjectionMode;
@@ -19,10 +20,14 @@ export interface CanvasToolbarProps {
   /** 视图系（#428）：synodic 默认；inertial 下月心/L1/L2 居中禁用 */
   /** The view frame (#428): synodic by default; moon/L1/L2 centering disabled under inertial. */
   frame?: FrameMode;
+  /** 绘制内容（eph-fig）：双段产物画哪段；all 双段同屏 */
+  /** The content switch (eph-fig): which segment of a dual-segment product to draw; all shows both. */
+  contentMode?: ContentMode;
   recording: boolean;
   onProjectionChange: (p: ProjectionMode) => void;
   onCenterChange: (c: CenterMode) => void;
   onFrameChange?: (f: FrameMode) => void;
+  onContentModeChange?: (m: ContentMode) => void;
   onFitView: () => void;
   onExportAnimation: () => void;
   onOpenSettings: () => void;
@@ -36,10 +41,12 @@ export function CanvasToolbar({
   projection,
   center,
   frame,
+  contentMode,
   recording,
   onProjectionChange,
   onCenterChange,
   onFrameChange,
+  onContentModeChange,
   onFitView,
   onExportAnimation,
   onOpenSettings,
@@ -81,6 +88,23 @@ export function CanvasToolbar({
       >
         <Radio.Button value="synodic">会合系</Radio.Button>
         <Radio.Button value="inertial">惯性 (GCRS)</Radio.Button>
+      </Radio.Group>
+
+      {/* 绘制内容切换（eph-fig）：双段并存的产物（CR3BP 参考段 + 星历段）
+          画哪段；无段语义的产物（转移弧、预报、族成员）不受影响 */}
+      {/* The content switch (eph-fig): which segment of a dual-segment
+          product (CR3BP reference + ephemeris arc) to draw; products without
+          segment semantics (transfer arcs, propagations, family members)
+          are unaffected. */}
+      <Radio.Group
+        size="small"
+        value={contentMode ?? "all"}
+        onChange={(e) => onContentModeChange?.(e.target.value as ContentMode)}
+        buttonStyle="solid"
+      >
+        <Radio.Button value="all">全部</Radio.Button>
+        <Radio.Button value="cr3bp">CR3BP</Radio.Button>
+        <Radio.Button value="ephemeris">星历</Radio.Button>
       </Radio.Group>
 
       <Radio.Group

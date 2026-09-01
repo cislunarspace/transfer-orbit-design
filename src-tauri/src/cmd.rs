@@ -270,6 +270,13 @@ mod scenario_io_tests {
 #[derive(Serialize)]
 pub struct EphemerisSegment {
     pub synodic_position: Vec<f32>,
+    /// GCRS 惯性位置 (n,3) 平铺（eph-fig）：行数对齐才携带；旧记录缺键
+    /// 或不对齐为 None（前端惯性视图降级灰显，与 transfer gcrs 段同口径）。
+    /// The GCRS inertial positions (n,3) flattened (eph-fig): carried only
+    /// when row-aligned; a legacy record missing the key or misaligned is
+    /// None (the frontend's degraded graying, same convention as the
+    /// transfer gcrs segment).
+    pub position_km: Option<Vec<f32>>,
     pub year: Vec<f32>,
     pub month: Vec<f32>,
     pub day: Vec<f32>,
@@ -424,6 +431,10 @@ fn artifact_from_catalog_get(record_id: String, result: crate::sidecar::JobResul
             return None;
         }
         Some(EphemerisSegment {
+            // GCRS 惯性位置（eph-fig）：行数对齐才携带，缺键/不对齐 → None。
+            // The GCRS inertial positions (eph-fig): carried only when
+            // row-aligned; a missing key or misalignment is None.
+            position_km: eph_frame("eph/position_km").filter(|p| p.len() == 3 * n),
             synodic_position,
             year,
             month,
@@ -727,5 +738,80 @@ mod get_artifact_tests {
         result.frames[1] = f32_frame(&[1], &[0.0]);
         let artifact = artifact_from_catalog_get("tr-1".into(), result);
         assert!(artifact.transfer.is_none());
+    }
+
+    /// 设计轨道记录 + 星历段（eph/ 七键 + position_km，eph-fig）；帧序与
+    /// arrays 里 None 占位键序一致。frames align with the None-placeholder
+    /// key order in arrays.
+    fn ephemeris_record_result() -> JobResult {
+        JobResult {
+            status: "ok".into(),
+            data: serde_json::json!({
+                "record_id": "eph-1",
+                "orbit_family": "halo",
+                "member_count": 1,
+                "scalars": {"mu": 0.0121505856},
+                "members": [],
+                "arrays": {
+                    "cr3bp/states": null,
+                    "cr3bp/times": [0.0, 1.0],
+                    "eph/year": null,
+                    "eph/month": null,
+                    "eph/day": null,
+                    "eph/hour": null,
+                    "eph/minute": null,
+                    "eph/second": null,
+                    "eph/synodic_position": null,
+                    "eph/position_km": null
+                }
+            }),
+            error: None,
+            frames: vec![
+                f32_frame(&[2, 6], &[0.9, 0.0, 0.1, 0.0, 0.0, 0.0, 1.1, 0.0, -0.1, 0.0, 0.0, 0.0]),
+                f32_frame(&[2], &[2024.0, 2024.0]),
+                f32_frame(&[2], &[1.0, 1.0]),
+                f32_frame(&[2], &[1.0, 1.0]),
+                f32_frame(&[2], &[0.0, 1.0]),
+                f32_frame(&[2], &[0.0, 0.0]),
+                f32_frame(&[2], &[0.0, 0.0]),
+                f32_frame(&[2, 3], &[1.1, 0.2, -0.3, 1.2, 0.3, -0.4]),
+                f32_frame(&[2, 3], &[384400.0, 0.0, 0.0, 400000.0, 0.0, 0.0]),
+            ],
+        }
+    }
+
+    #[test]
+    fn ephemeris_segment_position_km_passed_through() {
+        let artifact = artifact_from_catalog_get("eph-1".into(), ephemeris_record_result());
+        let eph = artifact.ephemeris.as_ref().expect("星历段应存在");
+        assert_eq!(eph.synodic_position.len(), 6);
+        // GCRS 惯性位置 (n,3) 平铺原样透传（eph-fig）
+        assert_eq!(
+            eph.position_km.as_ref().expect("惯性位置应存在"),
+            &vec![384400.0f32, 0.0, 0.0, 400000.0, 0.0, 0.0]
+        );
+    }
+
+    #[test]
+    fn ephemeris_segment_without_position_km_degrades_to_none() {
+        let mut result = ephemeris_record_result();
+        // 旧记录：eph/position_km 键不落——星历段其余部分照常携带
+        // Legacy records: no eph/position_km key — the rest of the segment
+        // still rides along.
+        result.data["arrays"].as_object_mut().unwrap().remove("eph/position_km");
+        result.frames.pop();
+        let artifact = artifact_from_catalog_get("eph-1".into(), result);
+        let eph = artifact.ephemeris.as_ref().expect("星历段应存在");
+        assert_eq!(eph.position_km, None);
+        assert_eq!(eph.synodic_position.len(), 6);
+    }
+
+    #[test]
+    fn ephemeris_position_km_row_mismatch_carries_none() {
+        let mut result = ephemeris_record_result();
+        // position_km 只有 1 行：与 synodic_position 2 行不齐 → None
+        *result.frames.last_mut().unwrap() = f32_frame(&[1, 3], &[384400.0, 0.0, 0.0]);
+        let artifact = artifact_from_catalog_get("eph-1".into(), result);
+        assert_eq!(artifact.ephemeris.as_ref().unwrap().position_km, None);
     }
 }

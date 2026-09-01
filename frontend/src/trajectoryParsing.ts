@@ -41,6 +41,23 @@ export type TimeBasis = "et" | "relative" | "none";
  *  data). Maps onto e2m2e's state_frame vocabulary as noted. */
 export type DataFrameTag = "synodic_nd" | "synodic_km" | "inertial_km";
 
+/** 单条轨迹的段角色（eph-fig）：双段并存的产物（CR3BP 参考段 + 星历段）
+ *  逐条标注，供"绘制内容"切换按角色过滤；无双段语义的产物（转移弧、轨道
+ *  预报、族成员）不标注——任何模式下都显示。 */
+/** A trajectory's segment role (eph-fig): dual-segment products (the CR3BP
+ *  reference segment + the ephemeris segment) are tagged row-by-row so the
+ *  content switch filters by role; products without dual-segment semantics
+ *  (transfer arcs, propagations, family members) stay untagged — shown in
+ *  every mode. */
+export type SegmentRole = "cr3bp" | "ephemeris";
+
+/** 绘制内容切换（eph-fig）：all 双段同屏；cr3bp / ephemeris 只画对应段。
+ *  未标注角色的轨迹视为"无段语义"，任何模式下都保留。 */
+/** The content switch (eph-fig): all draws both segments; cr3bp / ephemeris
+ *  draw the tagged one only. Untagged trajectories carry no segment
+ *  semantics and survive every mode. */
+export type ContentMode = "all" | "cr3bp" | "ephemeris";
+
 export interface TrajectoryData {
   trajectories: number[][][];
   /** 与 trajectories 逐条对齐的时刻数组（秒；无时刻为空数组） */
@@ -73,6 +90,10 @@ export interface TrajectoryData {
    *  inertial segment (degraded graying). The view frame is a display choice
    *  and never rides the data, hence no frames slot. */
   inertialGeometries?: (number[][] | null)[];
+  /** 与 trajectories 逐条对齐的段角色（eph-fig）；缺省项 = 无段语义 */
+  /** Segment roles row-aligned with trajectories (eph-fig); omitted entries
+   *  = no segment semantics. */
+  roles?: (SegmentRole | undefined)[];
 }
 
 /** 传播步数：与轨迹点数联动（点数 = 步数 + 1），时刻按 period/步数均匀合成 */
@@ -357,23 +378,54 @@ export function ephemerisUtcToEt(ephemeris: Record<string, unknown>, n: number):
   return out.every(Number.isFinite) ? out : null;
 }
 
+/** 星历段的 GCRS 惯性位置 → DU 归一点列（eph-fig）。兼容两种来源形状：
+ *  设计响应 EphemerisTable 的 (n,3) 嵌套与记录通道的 (3n,) 平铺；行数与
+ *  会合系轨迹对齐才返回，缺位/不对齐返回 null（惯性视图降级灰显口径，
+ *  与 transfer gcrs 段一致）。 */
+/** An ephemeris segment's GCRS inertial positions → DU-normalized points
+ *  (eph-fig). Accepts both source shapes — the design response's (n,3)
+ *  nested EphemerisTable and the record channel's flattened (3n,) — and
+ *  returns only when row-aligned with the synodic trajectory; a missing or
+ *  misaligned segment is null (the inertial view's degraded graying, same
+ *  convention as the transfer gcrs segment). */
+function positionKmToDu(raw: unknown, n: number): number[][] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  let rows: number[][] | null = null;
+  if (Array.isArray(raw[0])) {
+    rows =
+      raw.length === n
+        ? raw.map((p) => [Number(p[0]), Number(p[1]), Number(p[2])])
+        : null;
+  } else if (raw.length === 3 * n) {
+    rows = Array.from({ length: n }, (_, i) => [
+      Number(raw[3 * i]),
+      Number(raw[3 * i + 1]),
+      Number(raw[3 * i + 2]),
+    ]);
+  }
+  if (!rows) return null;
+  return rows.map((p) => [p[0] / DU_KM, p[1] / DU_KM, p[2] / DU_KM]);
+}
+
 /** 设计响应 / 库记录的星历段 → 画布轨迹（修"画布只见周期曲线"）。
  *  synodic_position 是地月会合系无量纲 (n,3)——画布原生系，直画不缩放；
  *  UTC 分量行数对齐则逐行合成 et 绝对基准（ADR 0021）。GCRS position_km
- *  不在此画（惯性几何，预报链路 propagationToCanvasData 已管）。
+ *  作惯性几何随行携带（eph-fig）：惯性视图下改用它绘制并豁免灰显
+ *  （#428 inertialGeometries 通道），会合视图不消费。
  *  入参与 e2m2e EphemerisTable 字段同名（设计响应 ephemeris dict 与库记录
  *  eph/ 段同形）。 */
 /** A design response / catalog record's ephemeris segment → canvas data
  *  (fixes "canvas shows only the periodic curve"). synodic_position is the
  *  Earth-Moon synodic-frame dimensionless (n,3) — the canvas' native frame,
  *  drawn as-is without scaling; row-aligned UTC components compose the et
- *  absolute basis (ADR 0021). GCRS position_km is not drawn here (inertial
- *  geometry belongs to the propagation path). Field names match e2m2e's
- *  EphemerisTable (the design response ephemeris dict and the record eph/
- *  segment share the shape). */
+ *  absolute basis (ADR 0021). The GCRS position_km rides along as the
+ *  inertial geometry (eph-fig): the inertial view draws from it and exempts
+ *  graying (the #428 inertialGeometries channel); the synodic view never
+ *  consumes it. Field names match e2m2e's EphemerisTable (the design
+ *  response ephemeris dict and the record eph/ segment share the shape). */
 export function designEphemerisToCanvasData(
   ephemeris: Record<string, unknown> | null | undefined,
-  label = "星历段（会合系）",
+  label = "星历段",
 ): TrajectoryData | null {
   const rows = ephemeris?.synodic_position;
   if (!Array.isArray(rows) || rows.length === 0 || !Array.isArray(rows[0])) {
@@ -384,12 +436,40 @@ export function designEphemerisToCanvasData(
     return [Number(r[0]), Number(r[1]), Number(r[2])];
   });
   const etTimes = ephemerisUtcToEt(ephemeris as Record<string, unknown>, pts.length);
+  const inertialPts = positionKmToDu(ephemeris?.position_km, pts.length);
   return {
     trajectories: [pts],
     times: [etTimes ?? []],
     timeBasis: [etTimes ? "et" : "none"],
     frames: ["synodic_nd"],
     labels: [label],
+    ...(inertialPts ? { inertialGeometries: [inertialPts] } : {}),
+    roles: ["ephemeris"],
+  };
+}
+
+/** 绘制内容过滤（eph-fig）：cr3bp / ephemeris 模式下保留对应角色与未标注
+ *  轨迹，all 原样返回。所有行对齐数组同步裁剪，保持逐条对齐关系。 */
+/** Content filtering (eph-fig): cr3bp / ephemeris modes keep the matching
+ *  roles plus untagged trajectories; all returns the data untouched. Every
+ *  row-aligned array is trimmed in step so alignment survives. */
+export function filterByRole(data: TrajectoryData, mode: ContentMode): TrajectoryData {
+  if (mode === "all") return data;
+  const keep = (data.roles ?? data.trajectories.map(() => undefined)).map(
+    (r) => r === undefined || r === mode,
+  );
+  const pick = <T,>(arr: T[] | undefined): T[] | undefined =>
+    arr ? arr.filter((_, i) => keep[i]) : undefined;
+  return {
+    ...data,
+    trajectories: data.trajectories.filter((_, i) => keep[i]),
+    times: data.times.filter((_, i) => keep[i]),
+    timeBasis: pick(data.timeBasis),
+    frames: pick(data.frames),
+    labels: pick(data.labels),
+    jacobi: pick(data.jacobi),
+    inertialGeometries: pick(data.inertialGeometries),
+    roles: pick(data.roles),
   };
 }
 

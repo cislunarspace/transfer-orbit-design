@@ -6,10 +6,12 @@ const baseProps = {
   projection: "3d" as const,
   center: "barycenter" as const,
   frame: undefined as "synodic" | "inertial" | undefined,
+  contentMode: undefined as "all" | "cr3bp" | "ephemeris" | undefined,
   recording: false,
   onProjectionChange: vi.fn(),
   onCenterChange: vi.fn(),
   onFrameChange: vi.fn(),
+  onContentModeChange: vi.fn(),
   onFitView: vi.fn(),
   onExportAnimation: vi.fn(),
   onOpenSettings: vi.fn(),
@@ -61,6 +63,32 @@ describe("CanvasToolbar component", () => {
     setup({ recording: true });
     const btn = screen.getByRole("button", { name: /导出动画/ });
     expect(btn.className).toContain("ant-btn-loading");
+  });
+});
+
+// —— 绘制内容切换（eph-fig）——
+// The content switch (eph-fig).
+
+describe("CanvasToolbar 绘制内容切换", () => {
+  it("默认渲染全部/CR3BP/星历选项，缺省选中全部", () => {
+    setup();
+    expect((screen.getByRole("radio", { name: "全部" }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("radio", { name: "CR3BP" }) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByRole("radio", { name: "星历" }) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("切换绘制内容触发 onContentModeChange", () => {
+    const props = setup({ onContentModeChange: vi.fn() });
+    fireEvent.click(screen.getByRole("radio", { name: "星历" }));
+    expect(props.onContentModeChange).toHaveBeenCalledWith("ephemeris");
+    fireEvent.click(screen.getByRole("radio", { name: "CR3BP" }));
+    expect(props.onContentModeChange).toHaveBeenCalledWith("cr3bp");
+  });
+
+  it("contentMode 受控选中", () => {
+    setup({ contentMode: "ephemeris" });
+    expect((screen.getByRole("radio", { name: "星历" }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("radio", { name: "全部" }) as HTMLInputElement).checked).toBe(false);
   });
 });
 

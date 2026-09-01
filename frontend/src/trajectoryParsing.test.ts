@@ -7,10 +7,13 @@ import {
   transferCandidateToArcData,
   propagationToCanvasData,
   designEphemerisToCanvasData,
+  filterByRole,
   timelineMode,
   timesForMode,
   type TimeBasis,
+  type DataFrameTag,
 } from "./trajectoryParsing";
+import { DU_KM } from "./cr3bp";
 import { etFromEpoch, etFromJdTdb } from "./timeBasis";
 
 const MU = 0.01215058560962404;
@@ -438,7 +441,8 @@ describe("designEphemerisToCanvasData 星历段解析", () => {
       times: [[]],
       timeBasis: ["none"],
       frames: ["synodic_nd"],
-      labels: ["星历段（会合系）"],
+      labels: ["星历段"],
+      roles: ["ephemeris"],
     });
     const misaligned = { ...EPH, year: [2024] };
     expect(designEphemerisToCanvasData(misaligned)!.timeBasis).toEqual(["none"]);
@@ -453,6 +457,78 @@ describe("designEphemerisToCanvasData 星历段解析", () => {
 
   it("星历段标注数据系 synodic_nd（会合系无量纲直画）", () => {
     expect(designEphemerisToCanvasData(EPH)!.frames).toEqual(["synodic_nd"]);
+  });
+
+  it("GCRS position_km 作惯性几何随行携带（÷DU_KM，eph-fig）", () => {
+    // 设计响应 EphemerisTable 形状：(n,3) 嵌套
+    const got = designEphemerisToCanvasData({
+      ...EPH,
+      position_km: [[DU_KM, 0, 0], [2 * DU_KM, 0, -DU_KM]],
+    });
+    expect(got!.inertialGeometries).toEqual([[[1, 0, 0], [2, 0, -1]]]);
+  });
+
+  it("记录通道 (3n,) 平铺 position_km 同样归一携带", () => {
+    const got = designEphemerisToCanvasData({
+      ...EPH,
+      position_km: [DU_KM, 0, 0, 2 * DU_KM, 0, -DU_KM],
+    });
+    expect(got!.inertialGeometries).toEqual([[[1, 0, 0], [2, 0, -1]]]);
+  });
+
+  it("position_km 缺位/行数不齐 → 不携带惯性几何（惯性视图灰显口径）", () => {
+    expect(designEphemerisToCanvasData(EPH)!.inertialGeometries).toBeUndefined();
+    const misaligned = { ...EPH, position_km: [[DU_KM, 0, 0]] };
+    expect(designEphemerisToCanvasData(misaligned)!.inertialGeometries).toBeUndefined();
+    const flatMismatch = { ...EPH, position_km: [DU_KM, 0, 0] };
+    expect(designEphemerisToCanvasData(flatMismatch)!.inertialGeometries).toBeUndefined();
+  });
+
+  it("星历段标注段角色 ephemeris（eph-fig）", () => {
+    expect(designEphemerisToCanvasData(EPH)!.roles).toEqual(["ephemeris"]);
+  });
+});
+
+describe("filterByRole 绘制内容过滤（eph-fig）", () => {
+  // 双段产物（CR3BP 参考段 + 星历段）+ 一条无段语义轨迹（转移弧等）
+  const dual = {
+    trajectories: [[[0, 0, 0]], [[1, 1, 1]], [[2, 2, 2]]],
+    times: [[10, 20], [30, 40], []],
+    timeBasis: ["et", "et", "none"] as TimeBasis[],
+    frames: ["synodic_nd", "synodic_nd", "inertial_km"] as DataFrameTag[],
+    labels: ["CR3BP 参考", "星历段", "转移弧"],
+    jacobi: [3.0, 3.0, undefined],
+    inertialGeometries: [null, [[0.5, 0.5, 0.5]], [[9, 9, 9]]],
+    roles: ["cr3bp", "ephemeris", undefined] as ("cr3bp" | "ephemeris" | undefined)[],
+  };
+
+  it("all 模式原样返回（同一引用）", () => {
+    expect(filterByRole(dual, "all")).toBe(dual);
+  });
+
+  it("cr3bp 模式保留 CR3BP 段与无段语义轨迹，行对齐数组同步裁剪", () => {
+    const got = filterByRole(dual, "cr3bp");
+    expect(got.trajectories).toEqual([[[0, 0, 0]], [[2, 2, 2]]]);
+    expect(got.times).toEqual([[10, 20], []]);
+    expect(got.timeBasis).toEqual(["et", "none"]);
+    expect(got.frames).toEqual(["synodic_nd", "inertial_km"]);
+    expect(got.labels).toEqual(["CR3BP 参考", "转移弧"]);
+    expect(got.jacobi).toEqual([3.0, undefined]);
+    expect(got.inertialGeometries).toEqual([null, [[9, 9, 9]]]);
+    expect(got.roles).toEqual(["cr3bp", undefined]);
+  });
+
+  it("ephemeris 模式保留星历段与无段语义轨迹", () => {
+    const got = filterByRole(dual, "ephemeris");
+    expect(got.trajectories).toEqual([[[1, 1, 1]], [[2, 2, 2]]]);
+    expect(got.labels).toEqual(["星历段", "转移弧"]);
+    expect(got.roles).toEqual(["ephemeris", undefined]);
+  });
+
+  it("无 roles 时按全未标注解释（任何模式都保留）", () => {
+    const untagged = { trajectories: [[[0, 0, 0]]], times: [[]] };
+    expect(filterByRole(untagged, "cr3bp").trajectories).toEqual([[[0, 0, 0]]]);
+    expect(filterByRole(untagged, "ephemeris").trajectories).toEqual([[[0, 0, 0]]]);
   });
 });
 

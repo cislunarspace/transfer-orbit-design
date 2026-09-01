@@ -13,6 +13,8 @@ import {
   Slider,
   Switch,
   Divider,
+  Row,
+  Col,
   message,
 } from "antd";
 import {
@@ -65,9 +67,11 @@ import {
   transferTrajectoryToCanvasData,
   transferCandidateToArcData,
   propagationToCanvasData,
+  filterByRole,
   type TrajectoryData,
   type TimeBasis,
   type DataFrameTag,
+  type ContentMode,
 } from "./trajectoryParsing";
 import type { TimelineEvent } from "./TimelineBar";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
@@ -183,6 +187,12 @@ export default function App() {
   // data/time semantics — switching changes no currentEt, playback state, or
   // trajectory data (TimelineBar owns its playback state beyond these props).
   const [frame, setFrame] = useState<FrameMode>("synodic");
+  // 绘制内容切换（eph-fig）：双段并存的产物（CR3BP 参考段 + 星历段）画哪段；
+  // all 双段同屏。纯显示选择，不改任何数据。
+  // The content switch (eph-fig): which segment of a dual-segment product
+  // (the CR3BP reference + the ephemeris arc) to draw; all shows both. A
+  // display choice that changes no data.
+  const [contentMode, setContentMode] = useState<ContentMode>("all");
   // 惯性视图的月球 SPICE 轨迹：按时间轴跨度缓存（moonCacheKey），跨度变
   // 化失效重取；切换回会合视图不清缓存。
   // The Moon's SPICE track for the inertial view: cached by timeline span
@@ -299,14 +309,17 @@ export default function App() {
   // blanked times (markers hide), and relative never mixes with absolute.
   const canvasData = useMemo(() => {
     // 固定层 = 用户钉住的记录 + 本轮候选弧（#430）：候选排在钉住记录之后，
-    // 钉住记录的色环序跨运行稳定。
+    // 钉住记录的色环序跨运行稳定。绘制内容切换（eph-fig）逐层先过滤：
+    // cr3bp/ephemeris 模式下双段产物只保留对应段，无段语义层原样保留。
     // The fixed layer = user-pinned records plus this run's candidate arcs
     // (#430): candidates trail the pins so the pins' color-cycle indices stay
-    // stable across runs.
+    // stable across runs. The content switch (eph-fig) filters per layer
+    // first: cr3bp/ephemeris modes keep the matching segment of dual-segment
+    // products, untagged layers pass through.
     const layers = [
-      ...pinned.map((p) => p.data),
-      ...candidateLayer.map((c) => c.data),
-      resultData,
+      ...pinned.map((p) => filterByRole(p.data, contentMode)),
+      ...candidateLayer.map((c) => filterByRole(c.data, contentMode)),
+      filterByRole(resultData, contentMode),
     ];
     const combined: TrajectoryData = {
       trajectories: layers.flatMap((l) => l.trajectories),
@@ -339,7 +352,7 @@ export default function App() {
       mode,
       timeRange: trajectoryTimeRange(timesForMode(combined, mode)),
     };
-  }, [pinned, candidateLayer, resultData]);
+  }, [pinned, candidateLayer, resultData, contentMode]);
 
   // 自动视图适配（#438 确认式，不再用固定时长 setTimeout）：canvasData 提交后
   // 适配一次。React 保证子组件（OrbitCanvas）的几何重建 effect 先于本父组件
@@ -466,6 +479,13 @@ export default function App() {
     // trajectory base it carries the same Jacobi value (#435).
     const ephJacobi =
       base.trajectories.length === 1 ? base.jacobi?.[0] : undefined;
+    // 星历段惯性几何（eph-fig）：槽位与轨迹逐条对齐——base 轨迹（族成员/
+    // 裸点集，会合系）无惯性几何填 null，星历段带则追加。
+    // The ephemeris segment's inertial geometry (eph-fig): slots align with
+    // trajectories — base trajectories (family members / bare point sets,
+    // synodic) fill null, the ephemeris arc's own geometry appends when
+    // carried.
+    const ephInertial = ephTd.inertialGeometries?.[0] ?? null;
     return {
       trajectories: [...base.trajectories, ...ephTd.trajectories],
       times: [...base.times, ...ephTd.times],
@@ -484,6 +504,21 @@ export default function App() {
       jacobi: [
         ...(base.jacobi ?? base.trajectories.map(() => undefined)),
         ...ephTd.trajectories.map(() => ephJacobi),
+      ],
+      ...(ephInertial
+        ? {
+            inertialGeometries: [
+              ...base.trajectories.map(() => null),
+              ephInertial,
+            ],
+          }
+        : {}),
+      // 段角色（eph-fig）：base 是 CR3BP 参考段，星历段自带 ephemeris 标注
+      // Segment roles (eph-fig): base is the CR3BP reference segment; the
+      // ephemeris arc carries its own ephemeris tag.
+      roles: [
+        ...base.trajectories.map(() => "cr3bp" as const),
+        ...(ephTd.roles ?? ephTd.trajectories.map(() => "ephemeris" as const)),
       ],
     };
   };
@@ -1062,6 +1097,10 @@ export default function App() {
                 typeof d.cr3bp_jacobi === "number" && Number.isFinite(d.cr3bp_jacobi)
                   ? (d.cr3bp_jacobi as number)
                   : undefined;
+              // 星历段惯性几何（eph-fig）：CR3BP 参考曲线槽位填 null
+              // The ephemeris segment's inertial geometry (eph-fig): the CR3BP
+              // reference curve's slot stays null.
+              const ephInertial = ephTd?.inertialGeometries?.[0] ?? null;
               applyTrajectoryData({
                 trajectories,
                 times: [...(cr3bpPts ? [relTimes ?? []] : []), ...(ephTd?.times ?? [])],
@@ -1078,6 +1117,18 @@ export default function App() {
                   ...(ephTd?.labels ?? []),
                 ],
                 jacobi: trajectories.map(() => designJacobi),
+                ...(ephInertial
+                  ? {
+                      inertialGeometries: [
+                        ...(cr3bpPts ? [null] : []),
+                        ephInertial,
+                      ],
+                    }
+                  : {}),
+                roles: [
+                  ...(cr3bpPts ? ["cr3bp" as const] : []),
+                  ...(ephTd?.roles ?? []),
+                ],
               });
             }
           }
@@ -1320,10 +1371,12 @@ export default function App() {
               projection={projection}
               center={center}
               frame={frame}
+              contentMode={contentMode}
               recording={recording}
               onProjectionChange={setProjection}
               onCenterChange={setCenter}
               onFrameChange={setFrame}
+              onContentModeChange={setContentMode}
               onFitView={() => api?.fitView()}
               onExportAnimation={handleExportAnimation}
               onOpenSettings={() => setChartModalOpen(true)}
@@ -1401,95 +1454,117 @@ export default function App() {
           onSuccess={refreshArtifacts}
         />
 
-        {/* 独立弹窗：图表设置 */}
+        {/* 独立弹窗：图表设置。双列栅格排布（滑块/开关/下拉短控件两列），
+            弹窗更紧凑，避免单列下控件稀疏拉出大片空白。 */}
+        {/* Standalone modal: chart settings. A two-column grid (short controls
+            — sliders/switches/selects — share a row) keeps the modal compact,
+            avoiding the sparse single-column look full of dead space. */}
         <Modal
           title="图表与界面偏好设置"
           open={chartModalOpen}
           onCancel={() => setChartModalOpen(false)}
           footer={null}
-          width={450}
+          width={430}
         >
           <Form layout="vertical" size="small">
-            <Form.Item label="界面基准字号">
-              <Slider
-                min={8}
-                max={16}
-                value={fontSize}
-                onChange={handleChangeFontSize}
-                marks={{ 8: "8pt", 12: "12pt", 16: "16pt" }}
-              />
-            </Form.Item>
-            <Form.Item label="轨道线宽">
-              <Slider
-                min={0.2}
-                max={3.0}
-                step={0.1}
-                value={chart.orbitLinewidth}
-                onChange={(v) => setChart({ ...chart, orbitLinewidth: v })}
-              />
-            </Form.Item>
-            <Form.Item label="Z 轴缩放比例 (防压扁)">
-              <Slider
-                min={0.1}
-                max={2.0}
-                step={0.05}
-                value={chart.zRatio}
-                onChange={(v) => setChart({ ...chart, zRatio: v })}
-              />
-            </Form.Item>
-            <Form.Item label="坐标轴与网格">
-              <Switch
-                size="small"
-                checked={chart.axesVisible}
-                onChange={(v) => setChart({ ...chart, axesVisible: v })}
-              />
-            </Form.Item>
-            <Form.Item label="分区图层（地月空间分区边界）">
-              <Switch
-                size="small"
-                checked={chart.regionsVisible}
-                onChange={(v) => setChart({ ...chart, regionsVisible: v })}
-              />
-            </Form.Item>
-            <Form.Item label="画布背景">
-              <Select
-                size="small"
-                value={chart.bgColor ?? "theme"}
-                style={{ width: 140 }}
-                onChange={(v) => setChart({ ...chart, bgColor: v === "theme" ? null : v })}
-                options={[
-                  { label: "跟随界面主题", value: "theme" },
-                  { label: "白色", value: "#ffffff" },
-                  { label: "深灰", value: "#121212" },
-                  { label: "黑色", value: "#000000" },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item label="量程 (DU，网格半宽)">
-              <Slider
-                min={0.5}
-                max={3.0}
-                step={0.1}
-                value={chart.gridRange}
-                onChange={(v) => setChart({ ...chart, gridRange: v })}
-                marks={{ 0.5: "0.5", 1.3: "1.3", 3: "3" }}
-              />
-            </Form.Item>
-            <Form.Item label="星历内核（自动配置，随安装分发）">
-              {ephStatus === null ? (
-                <Text type="secondary" style={{ fontSize: 12 }}>检测中...</Text>
-              ) : ephStatus.usable ? (
-                <Text type="success" style={{ fontSize: 12 }}>
-                  就绪（{ephStatus.files.filter((f) => f.endsWith(".bsp")).join("、")}）
-                </Text>
-              ) : (
-                <Text type="danger" style={{ fontSize: 12 }}>
-                  缺失：{!ephStatus.ephemerisReady && "行星历 .bsp "}
-                  {!ephStatus.leapsecondReady && "闰秒 .tls "}
-                  请重装或恢复 kernels/ 目录
-                </Text>
-              )}
-            </Form.Item>
+            <Row gutter={16}>
+              <Col span={12}>
+                <Form.Item label="界面基准字号">
+                  <Slider
+                    min={8}
+                    max={16}
+                    value={fontSize}
+                    onChange={handleChangeFontSize}
+                    marks={{ 8: "8pt", 12: "12pt", 16: "16pt" }}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="轨道线宽">
+                  <Slider
+                    min={0.2}
+                    max={3.0}
+                    step={0.1}
+                    value={chart.orbitLinewidth}
+                    onChange={(v) => setChart({ ...chart, orbitLinewidth: v })}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="Z 轴缩放比例 (防压扁)">
+                  <Slider
+                    min={0.1}
+                    max={2.0}
+                    step={0.05}
+                    value={chart.zRatio}
+                    onChange={(v) => setChart({ ...chart, zRatio: v })}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="量程 (DU，网格半宽)">
+                  <Slider
+                    min={0.5}
+                    max={3.0}
+                    step={0.1}
+                    value={chart.gridRange}
+                    onChange={(v) => setChart({ ...chart, gridRange: v })}
+                    marks={{ 0.5: "0.5", 1.3: "1.3", 3: "3" }}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="坐标轴与网格">
+                  <Switch
+                    size="small"
+                    checked={chart.axesVisible}
+                    onChange={(v) => setChart({ ...chart, axesVisible: v })}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="分区图层（地月空间分区边界）">
+                  <Switch
+                    size="small"
+                    checked={chart.regionsVisible}
+                    onChange={(v) => setChart({ ...chart, regionsVisible: v })}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="画布背景">
+                  <Select
+                    size="small"
+                    value={chart.bgColor ?? "theme"}
+                    style={{ width: "100%" }}
+                    onChange={(v) => setChart({ ...chart, bgColor: v === "theme" ? null : v })}
+                    options={[
+                      { label: "跟随界面主题", value: "theme" },
+                      { label: "白色", value: "#ffffff" },
+                      { label: "深灰", value: "#121212" },
+                      { label: "黑色", value: "#000000" },
+                    ]}
+                  />
+                </Form.Item>
+              </Col>
+              <Col span={12}>
+                <Form.Item label="星历内核（自动配置）">
+                  {ephStatus === null ? (
+                    <Text type="secondary" style={{ fontSize: 12 }}>检测中...</Text>
+                  ) : ephStatus.usable ? (
+                    <Text type="success" style={{ fontSize: 12 }}>
+                      就绪（{ephStatus.files.filter((f) => f.endsWith(".bsp")).length} 个行星历）
+                    </Text>
+                  ) : (
+                    <Text type="danger" style={{ fontSize: 12 }}>
+                      缺失：{!ephStatus.ephemerisReady && "行星历 .bsp "}
+                      {!ephStatus.leapsecondReady && "闰秒 .tls "}
+                      请重装或恢复 kernels/ 目录
+                    </Text>
+                  )}
+                </Form.Item>
+              </Col>
+            </Row>
 
             {/* AI 助手分区：模型服务配置（BYOK，OpenAI 兼容协议）。key 只进
                 后端 keyring，不回读（ADR 0022 决策 5 / 0023 决策 6） */}
