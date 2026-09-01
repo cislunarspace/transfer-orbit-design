@@ -191,17 +191,6 @@ const checkTreeLeaf = (label: string) => {
   fireEvent.click(box!);
 };
 
-/** 展开项目树分组（defaultExpandAll 对异步到达的 treeData 不生效，需手动展开） */
-/** Expand a tree group (defaultExpandAll doesn't re-apply to async treeData; expand manually). */
-const expandTreeGroup = (titlePattern: RegExp) => {
-  const title = screen.getByText(titlePattern);
-  const row = title.closest(".ant-tree-treenode");
-  expect(row, `分组 ${titlePattern} 行应存在`).not.toBeNull();
-  const switcher = row!.querySelector(".ant-tree-switcher");
-  expect(switcher, `分组 ${titlePattern} 应带展开开关`).not.toBeNull();
-  fireEvent.click(switcher!);
-};
-
 const clickToolbarMode = (value: "all" | "ephemeris") => {
   // 图例/详情面板也有"星历"字样，用工具栏 Radio 的 input value 精确定位
   // The legend/detail panel also say 星历; pin the toolbar radio by input value.
@@ -215,8 +204,11 @@ const clickToolbarMode = (value: "all" | "ephemeris") => {
 describe("绘制内容切换（eph-fig）按入库记录路径", () => {
   it("单击选中：切星历只留星历段图例项", async () => {
     render(<App />);
-    await waitFor(() => expect(screen.getByText(/轨道 \(2\)/)).toBeTruthy());
-    expandTreeGroup(/轨道 \(2\)/);
+    // 分组头格式（#468）：文字 + 计数徽标；受控展开初始全展开，异步 treeData
+    // 到达即处于展开态，无需手动展开
+    // Group-header format (#468): text + count badge; controlled expansion
+    // starts fully expanded, so async treeData arrives expanded — no manual expand.
+    await waitFor(() => expect(screen.getByText("轨道")).toBeTruthy());
     await waitFor(() => expect(screen.getByText("DRO (1 成员)")).toBeTruthy());
     fireEvent.click(screen.getByText("DRO (1 成员)"));
     // 双段记录：CR3BP 参考轨道 ×1 + 星历段 ×1（(2,6) 状态平铺是一个成员
@@ -232,8 +224,7 @@ describe("绘制内容切换（eph-fig）按入库记录路径", () => {
 
   it("绘制所选：切星历只留各记录星历段图例项（roles 装配不丢）", async () => {
     render(<App />);
-    await waitFor(() => expect(screen.getByText(/轨道 \(2\)/)).toBeTruthy());
-    expandTreeGroup(/轨道 \(2\)/);
+    await waitFor(() => expect(screen.getByText("轨道")).toBeTruthy());
     await waitFor(() => expect(screen.getByText("DRO (1 成员)")).toBeTruthy());
     checkTreeLeaf("DRO (1 成员)");
     checkTreeLeaf("HALO (1 成员)");
