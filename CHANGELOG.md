@@ -1,12 +1,23 @@
 # 更新日志
 
+> 自 4.8.1 起版本小节配中英双语，先中文后英文；GitHub Release 正文由对应小节生成。
+> Since 4.8.1, version sections are bilingual — Chinese first, then English; the GitHub Release body is generated from the matching section.
+
 ## 未发布
 
-## 4.8.1 (2026-08-31)
+## 4.8.1 (2026-09-01)
 
-### 功能
+### 功能 / Features
 
 - **任务轨道设计参数面板补预置参数**：orbit_type 原为手填文本框，15 种轨道类型需手工准确输入大写英文（如 NRHO）才能联动分支参数，现改为预置下拉（中文标签，如「NRHO 近直线晕轨道」）；轨道族生成同步补上文档承诺的八族下拉。面板打开时除轨道类型分支默认值外，同时填入 schema 模型默认值——历元、输出步长、引力场阶数、修正方法、修正圈数等此前空白的公共字段直接显示内置默认，面板打开即可运行；转移设计（停泊轨道高度等）、轨道保持（蒙特卡洛样本数等）的带默认值字段一并显示。只补空位不覆盖已填值；duration 等由上游按轨道类型填充的空默认仍留白；分支键不注入没有 orbit_type 的工具，避免被 additionalProperties: false 拒收。
+  **Preset parameters in the task-orbit-design panel**: orbit_type used to be a hand-typed text box — all 15 orbit types had to be typed exactly (e.g. NRHO) to trigger the per-type parameter branches; it is now a preset dropdown with Chinese labels. Family generation gains its documented eight-family dropdown as well. On open, the panel fills schema model defaults on top of the orbit-type branch defaults: epoch, output step, gravity-field degrees, correction method and revolutions — common fields that used to be blank now show their built-in values, so the tool runs out of the box; transfer design (parking altitude etc.) and station keeping (Monte-Carlo count etc.) benefit alike. Only empty slots are filled, entered values are never overwritten; null defaults such as duration stay blank for upstream per-type filling; the branch key is not injected into tools without orbit_type, which additionalProperties: false would reject.
+- **星历轨道惯性几何上画布**：星历段 GCRS position_km 经 get_artifact 透传（行齐才携带，旧记录缺位降级灰显），÷DU_KM 归一沿 #428 inertialGeometries 通道随行——惯性视图下星历轨道以真实地心惯性几何绘制（豁免灰显、图例与标注切地心惯性、时刻标记沿惯性几何走查），会合视图行为不变。画布工具栏新增绘制内容切换（全部/CR3BP/星历）：双段并存的产物按段角色过滤，转移弧/预报/族成员等无段语义产物不受影响；图例「星历段（会合系）」改「星历段」，系归属由数据系标注表达；时刻标记缩小（0.015→0.006 DU，原为月球 3 倍余偏大）；图表设置弹窗双列栅格紧凑化（450→430px，高度约减半）。
+  **Ephemeris orbits drawn with true inertial geometry**: the ephemeris segment's GCRS position_km now flows through get_artifact (carried only when rows align; legacy records degrade to grey), normalized by DU_KM along the #428 inertialGeometries channel — in the inertial view, ephemeris orbits are drawn in true Earth-centered inertial geometry (grey-out exemption, legend and annotations switch to GCRS, the time marker walks the inertial geometry); the synodic view is unchanged. The canvas toolbar gains a draw-content switch (all / CR3BP / ephemeris) that filters dual-segment records by segment role, leaving products without segment semantics (transfer arcs, propagation, family members) untouched; the legend item "星历段（会合系）" becomes "星历段" — frame attribution is expressed by the data-frame annotation; the time marker shrinks (0.015→0.006 DU, it used to be 3× the Moon); the chart-settings dialog grid is compacted (450→430px, roughly half the height).
+
+### 工程 / Engineering
+
+- **发布流水线提速 39→18.5 分钟，并新增演练入口**：RPM 载荷压缩 gzip-6 改 zstd-3（tauri 的 rpm 打包走单线程 gzip，~400MB 星历+sidecar 在 arm 上占 26 分钟、x64 上约 12 分钟，为全流水线关键路径；zstd 需 rpm ≥ 4.14，RHEL8+/Fedora 29+/openSUSE 15+ 均支持）；lint 与 test 并行（构建仍同时以两者为闸）；clone 深度收窄到 1；apt 加重试与超时。workflow_dispatch 演练入口让任意分支即可全链路构建验证，发布步骤仅在 tag 触发时执行。
+  **Release pipeline 39 → 18.5 minutes, plus a rehearsal entry point**: RPM payload compression switches from gzip-6 to zstd-3 (tauri's rpm bundling used single-threaded gzip — ~400 MB of kernels plus sidecar took 26 minutes on arm and ~12 on x64, the critical path of the whole pipeline; zstd requires rpm ≥ 4.14, available on RHEL8+/Fedora 29+/openSUSE 15+); lint and test run in parallel (builds still gate on both); clone depth narrowed to 1; apt gains retries and timeouts. A workflow_dispatch entry lets any branch rehearse the full build chain; publishing steps run only on tag pushes.
 
 ## 4.8.0 (2026-08-31)
 
