@@ -13,7 +13,7 @@ transfer-orbit-design 是 [e2m2e](https://github.com/cislunarspace/e2m2e) 的 GU
 
 ### 桌面应用（Windows / Linux）
 
-从 [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) 下载对应平台的安装包：Windows x64 用 `transfer-orbit-design_<版本>_x64-setup.exe`（NSIS 安装器，免管理员权限，安装到当前用户目录）或 `.msi`；Linux amd64 / aarch64 用 AppImage、`deb` 或 `rpm`。所有安装包内含 e2m2e 运行时（transfer-orbit-design-sidecar）与全套 SPICE 内核（含行星历），开箱即用。下载后请对照 `checksums.txt` 校验。已安装的 AppImage 与 Windows 安装包自动接收应用内更新（更新包不含内核，首次安装的内核原地复用）；deb/rpm 安装暂不支持应用内更新，请从发布页手动下载新版本。
+从 [GitHub Releases](https://github.com/cislunarspace/transfer-orbit-design/releases) 下载对应平台的安装包：Windows x64 用 `transfer-orbit-design_<版本>_x64-setup.exe`（NSIS 安装器，免管理员权限，安装到当前用户目录）或 `.msi`；Linux amd64 / aarch64 用 AppImage、`deb` 或 `rpm`。所有安装包内含 e2m2e 运行时（transfer-orbit-design-sidecar）与全套 SPICE 内核（含行星历），开箱即用。下载后请对照 `checksums.txt` 校验。已安装的应用自动接收应用内更新：AppImage 与 Windows 安装包由更新插件直接替换（更新包不含内核，首次安装的内核原地复用）；deb/rpm 安装在应用内下载完整安装包并经系统包管理器安装（需输入管理员密码）。
 
 ### 开发环境
 

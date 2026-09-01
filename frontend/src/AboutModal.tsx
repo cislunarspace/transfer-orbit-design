@@ -1,15 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Modal, Typography, Button, Space, message } from "antd";
-import { DownloadOutlined, InfoCircleOutlined, SyncOutlined } from "@ant-design/icons";
-import { openUrl } from "@tauri-apps/plugin-opener";
+import { InfoCircleOutlined, SyncOutlined } from "@ant-design/icons";
 import { getVersion } from "@tauri-apps/api/app";
 import { useTranslation } from "./i18n";
 import {
   checkForAppUpdates,
+  checkManualAppUpdate,
   getBundleType,
   inAppUpdateSupported,
-  RELEASES_PAGE_URL,
-  type BundleType,
   type UpdateInfo,
 } from "./updater";
 
@@ -33,10 +31,6 @@ export const AboutModal: React.FC<AboutModalProps> = ({
   const { t } = useTranslation();
   const [checking, setChecking] = useState(false);
   const [runtimeVersion, setRuntimeVersion] = useState<string | null>(null);
-  // 打包形态决定更新入口行为：deb/rpm 无应用内更新，按钮变为前往下载页
-  // The bundle type decides the update entry: deb/rpm gets a download-page
-  // link instead of the in-app updater.
-  const [bundleType, setBundleType] = useState<BundleType>("unknown");
 
   useEffect(() => {
     if (currentVersion) return;
@@ -45,33 +39,17 @@ export const AboutModal: React.FC<AboutModalProps> = ({
       .catch(() => setRuntimeVersion("unknown"));
   }, [currentVersion]);
 
-  // 每次弹出时刷新（同一进程内不变，取失败回退 unknown 走 updater 原行为）
-  // Refreshed on each open; stable within a process. On failure we fall back
-  // to "unknown", which keeps the updater path.
-  useEffect(() => {
-    if (!open) return;
-    getBundleType()
-      .then(setBundleType)
-      .catch(() => setBundleType("unknown"));
-  }, [open]);
-
   const displayVersion = currentVersion ?? runtimeVersion ?? "…";
 
   const handleCheckUpdate = async () => {
-    // deb/rpm 安装没有应用内更新通道：打开 Releases 页手动下载
-    // deb/rpm installs have no in-app update channel: open the releases page.
-    if (!inAppUpdateSupported(bundleType)) {
-      try {
-        await openUrl(RELEASES_PAGE_URL);
-        message.info(t("updater.in_app_unsupported"));
-      } catch (err: any) {
-        message.error(`${t("updater.error")}: ${err?.message || String(err)}`);
-      }
-      return;
-    }
     setChecking(true);
     try {
-      const update = await checkForAppUpdates();
+      // deb/rpm 安装走 GitHub Releases 直下链路，其余走 updater 插件
+      // deb/rpm installs use the GitHub Releases channel; others the plugin.
+      const bundleType = await getBundleType().catch(() => "unknown" as const);
+      const update = inAppUpdateSupported(bundleType)
+        ? await checkForAppUpdates()
+        : await checkManualAppUpdate();
       if (update) {
         onClose();
         onUpdateAvailable(update);
@@ -98,19 +76,11 @@ export const AboutModal: React.FC<AboutModalProps> = ({
       footer={
         <Space>
           <Button
-            icon={
-              inAppUpdateSupported(bundleType) ? (
-                <SyncOutlined spin={checking} />
-              ) : (
-                <DownloadOutlined />
-              )
-            }
+            icon={<SyncOutlined spin={checking} />}
             loading={checking}
             onClick={handleCheckUpdate}
           >
-            {inAppUpdateSupported(bundleType)
-              ? t("updater.check_action")
-              : t("updater.manual_download_action")}
+            {t("updater.check_action")}
           </Button>
           <Button type="primary" onClick={onClose}>
             确定

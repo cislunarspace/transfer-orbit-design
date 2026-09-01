@@ -35,11 +35,16 @@ import { RecordDetailPanel, type TransferCandidateView } from "./RecordDetailPan
 import { ResizeHandle, loadPanelWidth, loadPanelCollapsed } from "./ResizeHandle";
 import { StationKeepingModal } from "./StationKeepingModal";
 import { AnimationExportModal, type AnimationExportOptions } from "./AnimationExportModal";
-import { sweepMoments, SWEEP_TICK_MS } from "./animationExport";
 import { CatalogFilterBar } from "./CatalogFilterBar";
 import { UpdateModal } from "./UpdateModal";
 import { AboutModal } from "./AboutModal";
-import { checkForAppUpdates, getBundleType, inAppUpdateSupported, type UpdateInfo } from "./updater";
+import {
+  checkForAppUpdates,
+  checkManualAppUpdate,
+  getBundleType,
+  inAppUpdateSupported,
+  type UpdateInfo,
+} from "./updater";
 import { TOOL_REGISTRY, toolEntry } from "./schema";
 import { validateToolParams } from "./paramOverlay";
 import { useTranslation } from "./i18n";
@@ -259,7 +264,7 @@ export default function App() {
   // the pre-recording moment is restored at the end.
   const [animModalOpen, setAnimModalOpen] = useState(false);
   const sweepingRef = useRef(false);
-  const sweepTimerRef = useRef<number | null>(null);
+  const sweepRafRef = useRef<number | null>(null);
   const [progressMsg, setProgressMsg] = useState<string>("");
   const [ephStatus, setEphStatus] = useState<EphemerisStatus | null>(null);
 
@@ -289,11 +294,14 @@ export default function App() {
   useEffect(() => {
     const timer = setTimeout(async () => {
       try {
-        // deb/rpm 安装无应用内更新通道（清单产物只有 AppImage），静默检查跳过
-        // deb/rpm installs have no in-app update channel (the manifest artifact
-        // is AppImage-only); skip the silent check there.
-        if (!inAppUpdateSupported(await getBundleType())) return;
-        const update = await checkForAppUpdates();
+        // deb/rpm 安装走 GitHub Releases 直下链路（应用内下载 + 系统包管理器
+        // 安装），其余走 updater 插件
+        // deb/rpm installs use the GitHub Releases direct-download channel
+        // (in-app download + system package manager); others use the plugin.
+        const bundleType = await getBundleType();
+        const update = inAppUpdateSupported(bundleType)
+          ? await checkForAppUpdates()
+          : await checkManualAppUpdate();
         if (update) {
           setUpdateInfo(update);
           setUpdateModalOpen(true);
@@ -1224,9 +1232,9 @@ export default function App() {
    *
    * Export animation (#455): the settings modal picks the mode and duration.
    * Spin: view autorotation (as before) with a configurable duration;
-   * timeline: App drives the moment from the range start to its end per tick,
-   * stops recording afterwards and restores the pre-recording moment. User
-   * moment input is ignored during recording (story 9).
+   * timeline: App drives the moment from the range start to its end per
+   * frame, stops recording afterwards and restores the pre-recording moment.
+   * User moment input is ignored during recording (story 9).
    */
   const handleExportAnimation = ({ mode, durationSec }: AnimationExportOptions) => {
     // 环境不支持时先留在弹窗（设置不丢），警告后由用户自行取消
@@ -1241,30 +1249,32 @@ export default function App() {
     setAnimModalOpen(false);
     const isTimeline = mode === "timeline" && canvasData.timeRange !== null;
     const prevEt = currentEt;
-    const seq = isTimeline ? sweepMoments(canvasData.timeRange!, durationSec) : [];
     setRecording(true);
     const rec = new CanvasRecorder();
     if (isTimeline) {
       sweepingRef.current = true;
-      setCurrentEt(seq[0]);
-      let i = 1;
-      sweepTimerRef.current = window.setInterval(() => {
-        if (i < seq.length) {
-          setCurrentEt(seq[i]);
-          i += 1;
-        } else if (sweepTimerRef.current !== null) {
-          window.clearInterval(sweepTimerRef.current);
-          sweepTimerRef.current = null;
-        }
-      }, SWEEP_TICK_MS);
+      const [lo, hi] = canvasData.timeRange!;
+      setCurrentEt(lo);
+      // 逐帧扫描（rAF）：时刻随显示刷新率推进，录制出的动画不再被
+      // 定时器限制在 20Hz；fracs 匀速走 [0,1]，越界截断。
+      // Per-frame sweep (rAF): the moment advances at display refresh rate so
+      // recordings no longer stutter at a timer's 20Hz; frac walks [0,1]
+      // linearly, clamped.
+      const startedAt = performance.now();
+      const sweep = (now: number) => {
+        const frac = Math.min(1, (now - startedAt) / (durationSec * 1000));
+        setCurrentEt(lo + (hi - lo) * frac);
+        sweepRafRef.current = frac < 1 ? requestAnimationFrame(sweep) : null;
+      };
+      sweepRafRef.current = requestAnimationFrame(sweep);
     } else {
       api.setAutoRotate(true);
     }
     rec.start(el, 30);
     setTimeout(async () => {
-      if (sweepTimerRef.current !== null) {
-        window.clearInterval(sweepTimerRef.current);
-        sweepTimerRef.current = null;
+      if (sweepRafRef.current !== null) {
+        cancelAnimationFrame(sweepRafRef.current);
+        sweepRafRef.current = null;
       }
       sweepingRef.current = false;
       if (isTimeline) {

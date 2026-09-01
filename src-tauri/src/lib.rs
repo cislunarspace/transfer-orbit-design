@@ -8,6 +8,7 @@ pub mod mcp;
 pub mod project;
 pub mod sidecar;
 pub mod state;
+pub mod update;
 
 use project::ProjectState;
 use state::SidecarState;
@@ -132,6 +133,9 @@ pub fn run() {
             cmd::register_artifact,
             cmd::ephemeris_status,
             cmd::bundle_type,
+            update::update_check_latest,
+            update::update_download,
+            update::update_install,
             cmd::save_scenario,
             cmd::scenarios_dir,
             cmd::open_scenario,

@@ -39,7 +39,18 @@ export interface UpdateInfo {
   version: string;
   currentVersion: string;
   body?: string;
-  rawUpdate: Update;
+  /** updater 插件路径（AppImage / Windows 安装器）*/
+  rawUpdate?: Update;
+  /** deb/rpm 手动更新路径（GitHub Releases 直下安装包）*/
+  manualAsset?: ManualAsset;
+}
+
+/** deb/rpm 手动更新资产（GitHub Releases 直下安装包）。 */
+/** A release asset for the deb/rpm manual update path. */
+export interface ManualAsset {
+  url: string;
+  name: string;
+  size?: number;
 }
 
 export type UpdateStatus =
@@ -66,20 +77,94 @@ export async function checkForAppUpdates(
   };
 }
 
+/** 后端 update_check_latest 命令的返回形状（camelCase 由 serde rename 保证）。 */
+interface LatestReleaseDto {
+  version: string;
+  currentVersion: string;
+  notes?: string;
+  assetUrl: string;
+  assetName: string;
+  assetSize?: number;
+}
+
+/** deb/rpm 安装的手动更新通道：查 GitHub 最新 Release，取与当前格式/
+ *  架构匹配的安装包。无更新/非 deb/rpm 安装返回 null。 */
+/** Manual update channel for deb/rpm installs: query the latest GitHub
+ *  release and pick the asset matching the installed format and architecture.
+ *  Returns null when up to date or not on the deb/rpm path. */
+export async function checkManualAppUpdate(): Promise<UpdateInfo | null> {
+  const rel = await invoke<LatestReleaseDto | null>("update_check_latest");
+  if (!rel) {
+    return null;
+  }
+  return {
+    version: rel.version,
+    currentVersion: rel.currentVersion,
+    body: rel.notes,
+    manualAsset: {
+      url: rel.assetUrl,
+      name: rel.assetName,
+      size: rel.assetSize,
+    },
+  };
+}
+
 export type DownloadEvent =
   | { event: "Started"; data: { contentLength?: number } }
   | { event: "Progress"; data: { chunkLength: number } }
+  /** deb/rpm 路径专用：下载完成，pkexec 拉起系统包管理器安装中 */
+  /** deb/rpm path only: download finished, system installer running via pkexec */
+  | { event: "Installing" }
   | { event: "Finished" };
 
 export async function downloadAndApplyUpdate(
   updateInfo: UpdateInfo,
   onEvent?: (event: DownloadEvent) => void
 ): Promise<void> {
+  if (!updateInfo.rawUpdate) {
+    throw new Error("缺少 updater 插件更新对象（应走 manualAsset 路径）");
+  }
   await updateInfo.rawUpdate.downloadAndInstall((event) => {
     if (onEvent) {
       onEvent(event as DownloadEvent);
     }
   });
+}
+
+/** deb/rpm 更新引擎：应用内下载安装包（进度经 update-download-progress
+ *  事件回报）→ pkexec 拉起系统包管理器安装。安装完成后磁盘二进制已替换，
+ *  由调用方 relaunch 重启加载新版本。 */
+/** deb/rpm engine: download the package in-app (progress reported via the
+ *  update-download-progress event), then install it through the system package
+ *  manager via pkexec. The on-disk binary is replaced once this resolves; the
+ *  caller relaunches to load the new version. */
+export async function downloadAndInstallManualUpdate(
+  asset: ManualAsset,
+  onEvent?: (event: DownloadEvent) => void
+): Promise<void> {
+  const { listen } = await import("@tauri-apps/api/event");
+  const unlisten = await listen<{
+    event: string;
+    contentLength?: number;
+    chunkLength?: number;
+  }>("update-download-progress", (ev) => {
+    const p = ev.payload;
+    if (p.event === "Started") {
+      onEvent?.({ event: "Started", data: { contentLength: p.contentLength } });
+    } else if (p.event === "Progress") {
+      onEvent?.({ event: "Progress", data: { chunkLength: p.chunkLength ?? 0 } });
+    }
+  });
+  try {
+    const path = await invoke<string>("update_download", {
+      url: asset.url,
+      name: asset.name,
+    });
+    onEvent?.({ event: "Installing" });
+    await invoke("update_install", { path });
+  } finally {
+    unlisten();
+  }
 }
 
 /** 字节数转人类可读（B 取整，KB 以上一位小数） */
