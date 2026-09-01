@@ -36,6 +36,7 @@ import {
 import { foldEvent, restoreItems, type ChatItem } from "./chatModel";
 import { ChatView } from "./ChatView";
 import { SessionSwitcher } from "./SessionSwitcher";
+import { ResizeHandle } from "../ResizeHandle";
 import { useTranslation } from "../i18n";
 
 const { Text } = Typography;
@@ -45,7 +46,6 @@ const WIDTH_KEY = "tod-assistant-width";
 const DEFAULT_WIDTH = 340;
 const MIN_WIDTH = 280;
 const MAX_WIDTH = 620;
-
 export function AssistantSidebar({
   lang,
   selection,
@@ -82,7 +82,6 @@ export function AssistantSidebar({
   const [sessions, setSessions] = useState<SessionMeta[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState("default");
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>("standard");
-  const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
   // 最新回调经 ref 持有：事件订阅只建一次，回调随渲染更新
   // Latest callback held via a ref: the event subscription is created once while
   // the callback stays current across renders.
@@ -149,32 +148,6 @@ export function AssistantSidebar({
     // 展开时刷新一次配置态（可能在设置弹窗里刚保存过）
     // Refresh config state on expand (it may have just been saved in the settings modal).
     if (!next) loadState();
-  };
-
-  // 拖拽调宽：右边栏，宽度 = 视口宽 − 鼠标 x。松手才持久化。
-  // Drag to resize: it's a right sidebar, so width = viewport width − mouse x.
-  // Persisted only on release.
-  const onDragStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    dragRef.current = { startX: e.clientX, startWidth: width };
-    const onMove = (ev: MouseEvent) => {
-      const start = dragRef.current;
-      if (!start) return;
-      const delta = start.startX - ev.clientX;
-      const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, start.startWidth + delta));
-      setWidth(next);
-    };
-    const onUp = () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      setWidth((w) => {
-        localStorage.setItem(WIDTH_KEY, String(w));
-        return w;
-      });
-      dragRef.current = null;
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
   };
 
   const handleSend = async () => {
@@ -294,18 +267,15 @@ export function AssistantSidebar({
         flexShrink: 0,
       }}
     >
-      {/* 左缘拖拽调宽手柄 */}
-      <div
-        onMouseDown={onDragStart}
-        style={{
-          position: "absolute",
-          left: -3,
-          top: 0,
-          bottom: 0,
-          width: 6,
-          cursor: "col-resize",
-          zIndex: 10,
-        }}
+      {/* 左缘拖拽调宽手柄（共享组件，#454） */}
+      {/* The left-edge resize handle (shared component, #454). */}
+      <ResizeHandle
+        edge="left"
+        width={width}
+        min={MIN_WIDTH}
+        max={MAX_WIDTH}
+        onResize={setWidth}
+        onResizeEnd={(w) => localStorage.setItem(WIDTH_KEY, String(w))}
       />
 
       {/* 头部：标题 + 会话切换器 + 清空 + 折叠 */}
