@@ -206,6 +206,13 @@ export function OrbitCanvas({
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
 
+  // 按需渲染的排帧器（建场景 effect 内赋值）：各绘制/标记 effect 改动
+  // 场景后调用它请求一帧；相机变化由 OrbitControls change 事件驱动。
+  // The on-demand frame scheduler (assigned in the scene effect): draw/marker
+  // effects call it after mutating the scene; camera changes ride the
+  // OrbitControls change event.
+  const invalidateRef = useRef<() => void>(() => {});
+
   // labels 同步走 ref：拾取事件闭包只建一次（建场景 effect），读取的
   // 始终是最新标签（与 onReadyRef 同一模式）。
   // labels ride a ref: the pick event closures are built once with the scene
@@ -283,17 +290,36 @@ export function OrbitCanvas({
       camera.aspect = mount.clientWidth / mount.clientHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(mount.clientWidth, mount.clientHeight);
+      invalidateRef.current();
     };
     const observer = new ResizeObserver(resize);
     observer.observe(mount);
 
-    let frameId: number;
-    const animate = () => {
-      frameId = requestAnimationFrame(animate);
-      controls.update();
-      renderer.render(scene, camera);
+    // 按需渲染：不空转。相机变化由 OrbitControls 的 change 事件排帧——
+    // 拖拽/缩放/阻尼/自转期间 update() 持续改动相机、事件持续触发，静止
+    // 即停；场景变化由各绘制/标记 effect 经 invalidateRef 显式排帧。
+    // WebView（WebKitGTK）每帧有固定管线开销，空闲重绘纯属浪费算力。
+    // On-demand rendering: no idle spinning. Camera changes schedule frames
+    // via OrbitControls' change event — update() keeps moving the camera
+    // while dragging/zooming/damping/spinning and stops when still; scene
+    // changes schedule explicitly via invalidateRef from the draw/marker
+    // effects. WebViews (WebKitGTK) pay a fixed per-frame pipeline cost, so
+    // idle redraws are pure waste.
+    let frameId = 0;
+    let renderPending = false;
+    const invalidate = () => {
+      if (renderPending) return;
+      renderPending = true;
+      frameId = requestAnimationFrame(() => {
+        renderPending = false;
+        controls.update();
+        renderer.render(scene, camera);
+      });
     };
-    animate();
+    invalidateRef.current = invalidate;
+    const onControlsChange = () => invalidate();
+    controls.addEventListener("change", onControlsChange);
+    invalidate();
 
     // —— 轨迹拾取（#452）：监听器只建一次，读取 ref；Raycaster 阈值
     // 由绘制 effect 按包围盒尺寸更新 ——
@@ -387,12 +413,20 @@ export function OrbitCanvas({
       setAutoRotate: (on, speed = 0.3) => {
         controls.autoRotate = on;
         controls.autoRotateSpeed = speed;
+        // 开启自转后 update() 才会推相机，需排一帧让 change 事件接续成帧
+        // Spinning only moves the camera inside update(), so schedule the
+        // first frame for the change events to keep streaming.
+        if (on) invalidate();
       },
-      fitView,
+      fitView: () => {
+        fitView();
+        invalidate();
+      },
     });
 
     return () => {
       cancelAnimationFrame(frameId);
+      controls.removeEventListener("change", onControlsChange);
       observer.disconnect();
       el.removeEventListener("pointermove", onPointerMove);
       el.removeEventListener("pointerdown", onPointerDown);
@@ -428,6 +462,7 @@ export function OrbitCanvas({
     }
     camera.updateProjectionMatrix();
     controls.update();
+    invalidateRef.current();
   }, [projection]);
 
   // 背景色热切换（跟随主题/手动选择）
@@ -436,6 +471,7 @@ export function OrbitCanvas({
     if (sceneRef.current && background) {
       sceneRef.current.background = new THREE.Color(background);
     }
+    invalidateRef.current();
   }, [background]);
 
   const getCenterOffset = (): [number, number, number] => {
@@ -778,6 +814,10 @@ export function OrbitCanvas({
         );
       });
     }
+
+    // 场景重建完成，排一帧呈现（按需渲染口径，见建场景 effect）
+    // Scene rebuilt — schedule a frame (on-demand rendering, see the scene effect).
+    invalidateRef.current();
   }, [trajectories, mu, libration, center, settings, background, jacobi, regions, frame, moonTrack, dataFrames, inertialGeometries]);
 
   // 每条轨迹一个时刻标记：随轨迹数组同步创建/清理（挂 scene 根，不参与视图适配）
@@ -819,6 +859,7 @@ export function OrbitCanvas({
   // are dependencies: applyDisplayOpacity reads refs and module constants only.
   useEffect(() => {
     applyDisplayOpacity();
+    invalidateRef.current();
   }, [focusIdx, previewIdx]);
 
   // 中心切换：所选中心点已移到世界原点，相机注视点同步移到原点（“居中”
@@ -837,6 +878,7 @@ export function OrbitCanvas({
     camera.position.add(delta);
     controls.target.set(0, 0, 0);
     controls.update();
+    invalidateRef.current();
   }, [center]);
 
   // 各标记沿自己的轨迹/时刻插值：currentEt 超出该轨迹范围或无效时该标记隐藏。
@@ -893,6 +935,9 @@ export function OrbitCanvas({
         moon.position.set(p[0], p[1], p[2] * (settings?.zRatio ?? 1.0));
       }
     }
+    // 标记/月球位置已变，排一帧呈现（时间轴播放时随帧流持续成帧）
+    // Markers/the Moon moved — schedule a frame (frames stream per playback tick).
+    invalidateRef.current();
   }, [currentEt, trajectories, times, center, settings, frame, moonTrack, mu, libration, inertialGeometries]);
 
   // 图例：带标签的轨迹按各自实际渲染色显示（固定层记录与结果层命名轨迹），

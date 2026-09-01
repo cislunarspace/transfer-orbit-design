@@ -26,10 +26,6 @@ const { Text } = Typography;
  *  from the i18n dictionary at render time (#450). */
 const RATE_VALUES = [3600, 86400, 604800];
 
-/** 播放 tick 周期（毫秒）：步长 = rate × tick / 1000 */
-/** The playback tick period (ms): step = rate × tick / 1000. */
-const PLAY_TICK_MS = 50;
-
 /** 时间轴机动事件：et 为该事件的全局时刻；dv 文案缺省时不显示量值 */
 /** A timeline maneuver event: et is its global moment; the Δv text is optional. */
 export interface TimelineEvent {
@@ -72,7 +68,11 @@ export function TimelineBar({
 }: TimelineBarProps) {
   const { t } = useTranslation();
   const [playing, setPlaying] = useState(false);
-  const playTimerRef = useRef<number | null>(null);
+  // 播放逐帧推进时读取的最新回调（随渲染同步，见 OrbitCanvas 同模式）
+  // Latest callback read by the per-frame playback loop (synced per render;
+  // same pattern as OrbitCanvas).
+  const onTimeChangeRef = useRef(onTimeChange);
+  onTimeChangeRef.current = onTimeChange;
 
   const rate = playbackRate ?? 86400;
   const doLoop = loop ?? true;
@@ -84,6 +84,11 @@ export function TimelineBar({
   const minEt = timeRange ? timeRange[0] : 0;
   const maxEt = timeRange ? timeRange[1] : 100;
   const val = currentEt !== null && currentEt >= minEt && currentEt <= maxEt ? currentEt : minEt;
+  // 播放循环逐步读的最新值（放在 val 之后声明并同步）
+  // The latest value the playback loop reads step by step (declared and
+  // synced after val).
+  const valRef = useRef(val);
+  valRef.current = val;
   const isEt = mode === "et";
   // 速率档位文案在渲染时取词典（#450）；值不变，档位识退化只看数值
   // Rate-step labels come from the dictionary at render time (#450); values
@@ -106,30 +111,34 @@ export function TimelineBar({
   );
 
   useEffect(() => {
-    if (playing && !disabled) {
-      playTimerRef.current = window.setInterval(() => {
-        // 步长 = 速率 × tick：速率是物理秒/真实秒，与量程解耦（#429）
-        // Step = rate × tick: the rate is physical seconds per wall second,
-        // decoupled from the range (#429).
-        const step = (rate * PLAY_TICK_MS) / 1000;
-        let next = val + step;
-        if (next > maxEt) {
-          if (!doLoop) {
-            onTimeChange(maxEt);
-            setPlaying(false);
-            return;
-          }
-          next = minEt;
+    if (!playing || disabled) return;
+    // 逐帧推进（rAF）：时刻标记随显示刷新率走查，不再被定时器限在
+    // 20Hz；步长 = 速率 × 距上一帧的墙钟时间，与量程解耦（#429），
+    // 帧率波动时步长自动补偿，播放速率仍然是物理秒/真实秒。
+    // Per-frame stepping (rAF): the moment marker walks at the display's
+    // refresh rate instead of a 20Hz timer; step = rate × wall time since
+    // the last frame, decoupled from the range (#429) — frame-rate jitter
+    // self-compensates, the rate stays physical seconds per wall second.
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const step = (rate * (now - last)) / 1000;
+      last = now;
+      let next = valRef.current + step;
+      if (next > maxEt) {
+        if (!doLoop) {
+          onTimeChangeRef.current(maxEt);
+          setPlaying(false);
+          return;
         }
-        onTimeChange(next);
-      }, PLAY_TICK_MS);
-    } else {
-      if (playTimerRef.current) clearInterval(playTimerRef.current);
-    }
-    return () => {
-      if (playTimerRef.current) clearInterval(playTimerRef.current);
+        next = minEt;
+      }
+      onTimeChangeRef.current(next);
+      raf = requestAnimationFrame(tick);
     };
-  }, [playing, disabled, minEt, maxEt, val, onTimeChange, rate, doLoop]);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [playing, disabled, minEt, maxEt, rate, doLoop]);
 
   return (
     <div
