@@ -32,6 +32,8 @@ import { ProjectTree } from "./ProjectTree";
 import { RecordDetailPanel, type TransferCandidateView } from "./RecordDetailPanel";
 import { ResizeHandle, loadPanelWidth } from "./ResizeHandle";
 import { StationKeepingModal } from "./StationKeepingModal";
+import { AnimationExportModal, type AnimationExportOptions } from "./AnimationExportModal";
+import { sweepMoments, SWEEP_TICK_MS } from "./animationExport";
 import { CatalogFilterBar } from "./CatalogFilterBar";
 import { UpdateModal } from "./UpdateModal";
 import { AboutModal } from "./AboutModal";
@@ -233,6 +235,14 @@ export default function App() {
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
   const [recording, setRecording] = useState(false);
+  // 导出动画设置弹窗与时间轴扫描状态（#455）：扫描期间用户的时刻输入被
+  // 忽略（双写同状态），结束后恢复录制前时刻
+  // The export-animation modal and the timeline sweep state (#455): user
+  // moment input is ignored during the sweep (double-writing one state) and
+  // the pre-recording moment is restored at the end.
+  const [animModalOpen, setAnimModalOpen] = useState(false);
+  const sweepingRef = useRef(false);
+  const sweepTimerRef = useRef<number | null>(null);
   const [progressMsg, setProgressMsg] = useState<string>("");
   const [ephStatus, setEphStatus] = useState<EphemerisStatus | null>(null);
 
@@ -1168,26 +1178,67 @@ export default function App() {
     }
   };
 
-  // 录制动画导出
-  // Record and export the animation.
-  const handleExportAnimation = async () => {
+  /**
+   * 导出动画（#455）：设置弹窗确认后按模式录制。
+   * 自转：视角自转（现状），时长可配；时间轴播放：App 按 tick 驱动时刻
+   * 从量程起点扫到终点，结束后停止录制并恢复录制前时刻。录制中用户时刻
+   * 输入被忽略（双写同状态，故事 9）。
+   *
+   * Export animation (#455): the settings modal picks the mode and duration.
+   * Spin: view autorotation (as before) with a configurable duration;
+   * timeline: App drives the moment from the range start to its end per tick,
+   * stops recording afterwards and restores the pre-recording moment. User
+   * moment input is ignored during recording (story 9).
+   */
+  const handleExportAnimation = ({ mode, durationSec }: AnimationExportOptions) => {
+    // 环境不支持时先留在弹窗（设置不丢），警告后由用户自行取消
+    // On unsupported environments keep the modal open (settings intact) —
+    // warn and let the user cancel.
     if (!api) return;
     const el = api.canvasElement();
     if (!el || !CanvasRecorder.supported()) {
       message.warning(t("run.record_unsupported"));
       return;
     }
+    setAnimModalOpen(false);
+    const isTimeline = mode === "timeline" && canvasData.timeRange !== null;
+    const prevEt = currentEt;
+    const seq = isTimeline ? sweepMoments(canvasData.timeRange!, durationSec) : [];
     setRecording(true);
     const rec = new CanvasRecorder();
-    api.setAutoRotate(true);
+    if (isTimeline) {
+      sweepingRef.current = true;
+      setCurrentEt(seq[0]);
+      let i = 1;
+      sweepTimerRef.current = window.setInterval(() => {
+        if (i < seq.length) {
+          setCurrentEt(seq[i]);
+          i += 1;
+        } else if (sweepTimerRef.current !== null) {
+          window.clearInterval(sweepTimerRef.current);
+          sweepTimerRef.current = null;
+        }
+      }, SWEEP_TICK_MS);
+    } else {
+      api.setAutoRotate(true);
+    }
     rec.start(el, 30);
     setTimeout(async () => {
-      api.setAutoRotate(false);
+      if (sweepTimerRef.current !== null) {
+        window.clearInterval(sweepTimerRef.current);
+        sweepTimerRef.current = null;
+      }
+      sweepingRef.current = false;
+      if (isTimeline) {
+        setCurrentEt(prevEt);
+      } else {
+        api.setAutoRotate(false);
+      }
       const res = await rec.stop();
       if (res) downloadBlob(res.blob, "orbit-animation.webm");
       setRecording(false);
       message.success(t("run.record_done"));
-    }, 8000);
+    }, durationSec * 1000);
   };
 
   // PNG 静态图导出（#450）：渲染器常驻 RAF 循环逐帧渲染且开启了
@@ -1448,7 +1499,7 @@ export default function App() {
               onFrameChange={setFrame}
               onContentModeChange={setContentMode}
               onFitView={() => api?.fitView()}
-              onExportAnimation={handleExportAnimation}
+              onExportAnimation={() => setAnimModalOpen(true)}
               onExportPng={handleExportPng}
               onOpenSettings={() => setChartModalOpen(true)}
               onSaveScenario={handleSaveScenario}
@@ -1496,7 +1547,13 @@ export default function App() {
             <TimelineBar
               timeRange={canvasData.timeRange}
               currentEt={currentEt}
-              onTimeChange={setCurrentEt}
+              onTimeChange={(et) => {
+                // 录制时间轴扫描期间忽略用户时刻输入（故事 9）：导出驱动同
+                // 一状态，双写会互相打架
+                // User moment input is ignored during a timeline sweep (story
+                // 9): the export drives the same state — double writes clash.
+                if (!sweepingRef.current) setCurrentEt(et);
+              }}
               mode={canvasData.mode}
               events={timelineEvents}
               playbackRate={playback.rate}
@@ -1515,6 +1572,14 @@ export default function App() {
           onOpenRecord={(recordId) => handleAssistantOpenRecord(recordId)}
           onApplyScenario={handleApplyScenario}
           onOpenSettings={() => setChartModalOpen(true)}
+        />
+
+        {/* 独立弹窗：导出动画设置（模式/时长，#455） */}
+        <AnimationExportModal
+          open={animModalOpen}
+          timeRange={canvasData.timeRange}
+          onClose={() => setAnimModalOpen(false)}
+          onExport={handleExportAnimation}
         />
 
         {/* 独立弹窗：轨道保持 */}
