@@ -49,8 +49,16 @@ vi.mock("three/examples/jsm/controls/OrbitControls.js", () => ({
     rotateSpeed = 1.0;
     autoRotate = false;
     autoRotateSpeed = 0.3;
+    // 画布按需渲染订阅 change 事件（真实类继承 EventDispatcher），
+    // 测试用 fireChange 手动触发。
+    // The canvas subscribes to change for on-demand rendering (the real class
+    // extends EventDispatcher); tests trigger it via fireChange.
+    listeners: Record<string, (() => void)[]> = {};
     constructor() { (this.constructor as unknown as { instances: unknown[] }).instances.push(this); }
-    update() {}
+    addEventListener(type: string, cb: () => void) { (this.listeners[type] ??= []).push(cb); }
+    removeEventListener(type: string, cb: () => void) { this.listeners[type] = (this.listeners[type] ?? []).filter((f) => f !== cb); }
+    fireChange() { (this.listeners.change ?? []).forEach((cb) => cb()); }
+    update() { return false; }
     dispose() {}
   },
 }));;
@@ -1064,6 +1072,9 @@ const TWO_LABELS = ["弧 A", "弧 B"];
 
 function pickCanvas() {
   const view = renderCanvas({ trajectories: TWO_TRAJECTORIES, labels: TWO_LABELS });
+  // 首帧也走 rAF（按需渲染），主动 pump 一帧让场景就绪
+  // The first frame also rides rAF (on-demand rendering); pump once so the scene is ready.
+  flushFrames();
   const scene = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances[
     (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances.length - 1
   ].lastScene;
@@ -1197,6 +1208,9 @@ describe("OrbitCanvas 图例联动（#460）", () => {
       trajectories: TWO_TRAJECTORIES,
       labels: TWO_LABELS,
     });
+    // 首帧也走 rAF（按需渲染），主动 pump 一帧让场景就绪
+    // The first frame also rides rAF (on-demand rendering); pump once so the scene is ready.
+    flushFrames();
     const scene = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances[
       (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances.length - 1
     ].lastScene;
