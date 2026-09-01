@@ -30,6 +30,7 @@ import { TimelineBar } from "./TimelineBar";
 import { ParamsPanel } from "./ParamsPanel";
 import { ProjectTree } from "./ProjectTree";
 import { RecordDetailPanel, type TransferCandidateView } from "./RecordDetailPanel";
+import { ResizeHandle, loadPanelWidth } from "./ResizeHandle";
 import { StationKeepingModal } from "./StationKeepingModal";
 import { CatalogFilterBar } from "./CatalogFilterBar";
 import { UpdateModal } from "./UpdateModal";
@@ -82,6 +83,20 @@ const EARTH_MOON_MU = 0.01215058560962404;
 /** 固定层软上限：超过提示但不拦截 */
 /** Soft cap of the pinned layer: warn past it without blocking. */
 const PINNED_LIMIT = 5;
+
+/** 左栏/中栏宽度范围（#454）：下限之和（220+240+助手边栏 280）保证最小
+ *  支持窗口下画布仍有可用宽度；上限防单栏吞掉整个视口。 */
+/** Left/middle pane width ranges (#454): the combined minimums (220+240 plus
+ *  the sidebar's 280) keep the canvas usable on the smallest supported window;
+ *  the maximums stop one pane from swallowing the viewport. */
+const LEFT_MIN_WIDTH = 220;
+const LEFT_MAX_WIDTH = 420;
+const LEFT_DEFAULT_WIDTH = 280;
+const MID_MIN_WIDTH = 240;
+const MID_MAX_WIDTH = 440;
+const MID_DEFAULT_WIDTH = 320;
+const LEFT_WIDTH_KEY = "tod-left-width";
+const MID_WIDTH_KEY = "tod-mid-width";
 
 /**
  * 转移响应 details → 出发/到达脉冲事件旗标（Q6/Q9 决策：本期用 details
@@ -139,6 +154,15 @@ export default function App() {
   });
 
   const [leftTab, setLeftTab] = useState<"project" | "catalog">("project");
+  // 左/中栏宽度（#454）：拖宽手柄实时跟手、松手持久化，越界回落默认宽
+  // Left/middle pane widths (#454): the handle tracks live, persists on
+  // release, and out-of-range values fall back to the defaults.
+  const [leftWidth, setLeftWidth] = useState(() =>
+    loadPanelWidth(LEFT_WIDTH_KEY, LEFT_DEFAULT_WIDTH, LEFT_MIN_WIDTH, LEFT_MAX_WIDTH),
+  );
+  const [midWidth, setMidWidth] = useState(() =>
+    loadPanelWidth(MID_WIDTH_KEY, MID_DEFAULT_WIDTH, MID_MIN_WIDTH, MID_MAX_WIDTH),
+  );
   const [selectedTool, setSelectedTool] = useState<string>(TOOL_REGISTRY[0].name);
   const [toolParams, setToolParams] = useState<Record<string, unknown>>({});
   // 提交校验问题（字段名 → 原因），传给参数面板内联标红；改动参数即清
@@ -1216,17 +1240,27 @@ export default function App() {
           } as React.CSSProperties
         }
       >
-        {/* 左栏 */}
+        {/* 左栏：宽度可拖（#454），手柄贴右缘 */}
         <div
           style={{
-            width: 280,
+            width: leftWidth,
             borderRight: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8",
             display: "flex",
             flexDirection: "column",
             background: themeMode === "dark" ? "#1f1f1f" : "#fff",
             padding: 8,
+            position: "relative",
+            flexShrink: 0,
           }}
         >
+          <ResizeHandle
+            edge="right"
+            width={leftWidth}
+            min={LEFT_MIN_WIDTH}
+            max={LEFT_MAX_WIDTH}
+            onResize={setLeftWidth}
+            onResizeEnd={(w) => localStorage.setItem(LEFT_WIDTH_KEY, String(w))}
+          />
           {/* 页签与设置栏：底边指示线页签 + 无边框工具按钮（IDE 侧栏风格） */}
           <div
             style={{
@@ -1327,17 +1361,27 @@ export default function App() {
           </div>
         </div>
 
-        {/* 中栏：工具选择与参数面板 */}
+        {/* 中栏：工具选择与参数面板，宽度可拖（#454），手柄贴右缘 */}
         <div
           style={{
-            width: 320,
+            width: midWidth,
             borderRight: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8",
             display: "flex",
             flexDirection: "column",
             background: themeMode === "dark" ? "#1a1a1a" : "#fafafa",
             padding: 10,
+            position: "relative",
+            flexShrink: 0,
           }}
         >
+          <ResizeHandle
+            edge="right"
+            width={midWidth}
+            min={MID_MIN_WIDTH}
+            max={MID_MAX_WIDTH}
+            onResize={setMidWidth}
+            onResizeEnd={(w) => localStorage.setItem(MID_WIDTH_KEY, String(w))}
+          />
           <Title level={5} style={{ margin: "0 0 8px 0" }}>
             {t("panel.tool_title")}
           </Title>
