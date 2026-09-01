@@ -5,6 +5,11 @@
 
 ## 未发布
 
+### 修复 / Fixes
+
+- **栏折叠再展开把助手边栏顶出窗口（#462 回归）**：右栏 `flex: 1` 未设 `min-width: 0`，而 WebGL 画布带着 `renderer.setSize` 写入的 px 内联宽度，恰好抬高右栏的 min-content 下限；折叠左栏时画布变宽，再展开时右栏窄不回去，整行超出窗口，且画布容器等不到变窄、ResizeObserver 不再触发，助手边栏被永久推出窗外。现右栏声明 `minWidth: 0`，宽度交回 flex 分配，画布随容器缩回；附布局收缩契约回归测试（jsdom 无布局引擎，溢出路径另用 headless Chrome 最小复现页验证）。
+  **Collapse-then-expand pushed the assistant sidebar out of the window (regression of #462)**: the right column declared `flex: 1` without `min-width: 0`, while the WebGL canvas carries the px width `renderer.setSize` wrote onto it — exactly what raised the column's min-content floor. Collapsing a pane widened the canvas; expanding again could not narrow the column below that stale width, the row overflowed the window, and since the canvas container never shrank, the ResizeObserver never fired — the sidebar stayed out of the window for good. The column now declares `minWidth: 0`, handing width back to flex so the canvas shrinks with its container; a layout shrink-contract regression test is included (jsdom has no layout engine, so the overflow path was additionally verified with a headless-Chrome minimal repro page).
+
 ## 4.8.2 (2026-09-01)
 
 ### 功能 / Features

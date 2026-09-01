@@ -1558,8 +1558,18 @@ export default function App() {
         </div>
         )}
 
-        {/* 右栏：主画布与时间轴 */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        {/* 右栏：主画布与时间轴。minWidth: 0 不可省：flex 子项默认
+            min-width: auto，而 WebGL 画布是 renderer.setSize 写上的 px 宽，会抬高
+            本栏的 min-content。折叠左栏时画布变宽，再展开时本栏就不能窄于那个
+            旧宽，整排超 100vw，助手边栏被顶出窗口且再也收不回来。
+            minWidth: 0 把本栏宽度交回 flex 分配，ResizeObserver 随后把画布缩回。
+            minWidth: 0 is required: a flex item defaults to min-width: auto, and the
+            WebGL canvas carries the px width renderer.setSize wrote onto it, which
+            raises this column's min-content. Collapse widens the canvas; expanding then
+            cannot narrow this column below that stale width, the row exceeds 100vw and the
+            assistant sidebar is pushed out of the window for good. minWidth: 0 hands the
+            width back to flex, and the ResizeObserver shrinks the canvas right after. */}
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
           {/* 画布工具栏：投影/中心选择 + 适配/导出/设置，停靠于画布上方 */}
           <div
             style={{
