@@ -7,7 +7,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ChartSettings } from "./chartSettings";
 import { EARTH_RADIUS_DU, MOON_RADIUS_DU } from "./chartSettings";
 import { COOLWARM_STOPS, jacobiColor, jacobiNorm } from "./jacobiColormap";
-import { pickNearestTrajectory, pickThresholdFromSize } from "./picking";
+import { pickNearestTrajectory, pickThresholdFromSize, lineOpacity } from "./picking";
 import type { RegionElement } from "./regionLayer";
 import type { DataFrameTag } from "./trajectoryParsing";
 import { moonPositionAt, type MoonTrack } from "./moonEphemeris";
@@ -194,6 +194,11 @@ export function OrbitCanvas({
   const pickPendingRef = useRef(false);
   const [focusIdx, setFocusIdx] = useState<number | null>(null);
   const [hoverTip, setHoverTip] = useState<{ index: number; x: number; y: number } | null>(null);
+  // 图例联动（#460）：悬停图例项的预览态，与聚焦正交（预览不改写聚焦）
+  // Legend linking (#460): the hover-preview state of legend items,
+  // orthogonal to focus (previewing never rewrites focus).
+  const [previewIdx, setPreviewIdx] = useState<number | null>(null);
+  const previewIdxRef = useRef<number | null>(null);
   // onReady 走 ref：建场景 effect 依赖 []，调用方传内联函数（如
   // App 的 onReady={(a) => setApi(a)}）不会触发场景重建导致轨迹丢失。
   // onReady goes through a ref: the scene-building effect depends on [], so an inline callback from the caller (e.g.
@@ -208,16 +213,16 @@ export function OrbitCanvas({
   const labelsRef = useRef(labels);
   labelsRef.current = labels;
   focusIdxRef.current = focusIdx;
+  previewIdxRef.current = previewIdx;
 
-  /** 聚焦态 → 逐线不透明度：非聚焦线淡化（透明度变更不重建几何）。 */
-  /** Focus state → per-line opacity: unfocused lines dim (opacity changes
-   *  never rebuild geometry). */
-  const applyFocusOpacity = () => {
-    const focus = focusIdxRef.current;
+  /** 显示态 → 逐线不透明度（#460）：预览优先于聚焦，透明度变更不重建几何。 */
+  /** Display state → per-line opacity (#460): preview wins over focus; opacity
+   *  changes never rebuild geometry. */
+  const applyDisplayOpacity = () => {
     orbitLinesRef.current.forEach((line, i) => {
       const m = line.material as THREE.LineBasicMaterial;
       m.transparent = true;
-      m.opacity = focus === null || focus === i ? 1 : FOCUS_DIM_OPACITY;
+      m.opacity = lineOpacity(i, focusIdxRef.current, previewIdxRef.current, FOCUS_DIM_OPACITY);
     });
   };
   useEffect(() => {
@@ -550,7 +555,7 @@ export function OrbitCanvas({
     pickThresholdRef.current = pickBox.isEmpty()
       ? pickThresholdFromSize(NaN)
       : pickThresholdFromSize(pickBox.getSize(new THREE.Vector3()).length());
-    applyFocusOpacity();
+    applyDisplayOpacity();
 
     // 文本标注 sprite（天体名/平动点/轴名共用，颜色随背景亮度）
     // Text-label sprites (shared by body names/libration points/axis names; color follows background brightness).
@@ -798,22 +803,23 @@ export function OrbitCanvas({
     };
   }, [trajectories]);
 
-  // 轨迹数据整体替换：聚焦态与悬停提示清除（#452），避免残留失效引用
-  // A wholesale trajectory replacement clears focus and the hover tip (#452),
-  // so no stale reference lingers.
+  // 轨迹数据整体替换：聚焦态、预览与悬停提示清除（#452/#460），避免残留失效引用
+  // A wholesale trajectory replacement clears focus, preview and the hover tip
+  // (#452/#460), so no stale reference lingers.
   useEffect(() => {
     setFocusIdx(null);
+    setPreviewIdx(null);
     setHoverTip(null);
   }, [trajectories]);
 
-  // 聚焦变化 → 重应用逐线不透明度（#452）；重建后的重应用在绘制 effect 末尾。
-  // 依赖仅 focusIdx：applyFocusOpacity 只读 ref 与模块常量。
-  // Focus changes re-apply per-line opacity (#452); post-rebuild re-application
-  // happens at the end of the draw effect. Only focusIdx is a dependency:
-  // applyFocusOpacity reads refs and module constants only.
+  // 聚焦/预览变化 → 重应用逐线不透明度（#452/#460）；重建后的重应用在绘制 effect 末尾。
+  // 依赖仅两态：applyDisplayOpacity 只读 ref 与模块常量。
+  // Focus/preview changes re-apply per-line opacity (#452/#460); post-rebuild
+  // re-application happens at the end of the draw effect. Only the two states
+  // are dependencies: applyDisplayOpacity reads refs and module constants only.
   useEffect(() => {
-    applyFocusOpacity();
-  }, [focusIdx]);
+    applyDisplayOpacity();
+  }, [focusIdx, previewIdx]);
 
   // 中心切换：所选中心点已移到世界原点，相机注视点同步移到原点（“居中”
   // 语义），保持注视方向与距离（视图保持）。不能改为按轨道盒重新适配：
@@ -891,11 +897,14 @@ export function OrbitCanvas({
 
   // 图例：带标签的轨迹按各自实际渲染色显示（固定层记录与结果层命名轨迹），
   // 各轨迹附数据系标注（#431：数据系 vs 视图系措辞沿 CONTEXT.md）；惯性
-  // 视图下灰显项附“会合系几何不可画”注记（#428）。
+  // 视图下灰显项附“会合系几何不可画”注记（#428）。图例项可交互（#460）：
+  // 悬停预览、点击聚焦；容器仍穿透，仅项本体拦截。
   // Legend: labeled trajectories shown in their actual render colors (pinned-layer
   // records and named result-layer trajectories), each carrying a data-frame
-  // annotation (#431; 数据系 vs 视图系 per CONTEXT.md); grayed items carry the
-  // "synodic geometry not drawable" note in the inertial view (#428).
+  // annotation (#431); grayed items carry the
+  // "synodic geometry not drawable" note in the inertial view (#428). Legend
+  // items are interactive (#460): hover previews, click focuses; the container
+  // still passes through — only item bodies intercept.
   const inertial = frame === "inertial";
   const grayed = trajectories.map(
     (_, i) =>
@@ -960,6 +969,11 @@ export function OrbitCanvas({
           {legendItems.map((item, i) => (
             <div
               key={`${item.label}-${i}`}
+              data-legend-item=""
+              data-focused={i === focusIdx ? "true" : "false"}
+              onMouseEnter={() => setPreviewIdx(i)}
+              onMouseLeave={() => setPreviewIdx(null)}
+              onClick={() => setFocusIdx((prev) => (prev === i ? null : i))}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -967,9 +981,22 @@ export function OrbitCanvas({
                 fontSize: 11,
                 color: "#c9d3dd",
                 textShadow: "0 1px 2px rgba(0,0,0,0.6)",
+                pointerEvents: "auto",
+                cursor: "pointer",
               }}
             >
-              <span data-testid="legend-swatch" style={{ width: 14, height: 2, background: item.color, display: "inline-block" }} />
+              <span
+                data-testid="legend-swatch"
+                style={{
+                  width: 14,
+                  height: 2,
+                  background: item.color,
+                  display: "inline-block",
+                  // 聚焦标记（#460）：色样 1px 描边（ADR 0020 平面化）
+                  // Focus marker (#460): a 1px outline on the swatch.
+                  ...(i === focusIdx ? { outline: "1px solid #e8eef4" } : {}),
+                }}
+              />
               {item.label}
               {item.frame && (
                 <span
