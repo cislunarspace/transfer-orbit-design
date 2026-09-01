@@ -35,8 +35,22 @@ fn latest_release_api_url() -> String {
 fn http_client() -> Result<reqwest::Client, String> {
     reqwest::Client::builder()
         .user_agent(concat!("transfer-orbit-design/", env!("CARGO_PKG_VERSION")))
+        // 连接/读超时：防流挂死时更新弹窗永久锁死（总超时会掐断大文件下载，不用）
+        .connect_timeout(std::time::Duration::from_secs(15))
+        .read_timeout(std::time::Duration::from_secs(60))
         .build()
         .map_err(|e| format!("构造 HTTP 客户端失败: {e}"))
+}
+
+/// 手动通道资产的唯一合法下载源前缀。update_download 凭此白名单拒绝
+/// 任意 URL：CSP 为 null 的前提下，这两条命令是「任意 URL → 提权安装」
+/// 链的最后一环，必须在此斩断。
+fn releases_download_prefix() -> String {
+    format!("https://github.com/{GITHUB_REPO}/releases/download/")
+}
+
+fn is_allowed_download_url(url: &str) -> bool {
+    url.starts_with(&releases_download_prefix())
 }
 
 /// 解析 vX.Y.Z / X.Y.Z 为三段数字;畸形返回 None(调用方保守视为无更新)。
@@ -133,6 +147,9 @@ pub async fn update_download(
     url: String,
     name: String,
 ) -> Result<String, String> {
+    if !is_allowed_download_url(&url) {
+        return Err(format!("拒绝下载非发布源地址: {url}"));
+    }
     let client = http_client()?;
     let mut resp = client
         .get(&url)
@@ -203,10 +220,18 @@ pub async fn update_download(
 /// （运行中进程持有旧 inode 不受影响，relaunch 即可）。
 #[tauri::command]
 pub async fn update_install(path: String) -> Result<(), String> {
+    // 只安装系统临时目录内的包（canonicalize 解析 ../ 与符号链接后再比较，
+    // 防组件级前缀绕过）；配合 URL 白名单，路径只能由 update_download 产出
+    let canonical = std::path::Path::new(&path)
+        .canonicalize()
+        .map_err(|e| format!("安装包不存在: {e}"))?;
+    if !canonical.starts_with(std::env::temp_dir()) {
+        return Err("拒绝安装临时目录之外的安装包".into());
+    }
     let bundle = tauri::utils::platform::bundle_type().map(|b| b.to_string());
     let (tool, args): (&str, Vec<String>) = match bundle.as_deref() {
-        Some("deb") => ("dpkg", vec!["-i".into(), path]),
-        Some("rpm") => ("rpm", vec!["-U".into(), path]),
+        Some("deb") => ("dpkg", vec!["-i".into(), canonical.to_string_lossy().into_owned()]),
+        Some("rpm") => ("rpm", vec!["-U".into(), canonical.to_string_lossy().into_owned()]),
         _ => return Err("当前安装格式不支持应用内安装".into()),
     };
     let status = tokio::process::Command::new("pkexec")
@@ -216,8 +241,10 @@ pub async fn update_install(path: String) -> Result<(), String> {
         .await
         .map_err(|e| format!("拉起安装器失败(系统缺 pkexec?): {e}"))?;
     if !status.success() {
-        return Err("安装失败或已取消,可从版本发布页手动下载安装".into());
+        return Err("安装失败或已取消，可从版本发布页手动下载安装".into());
     }
+    // 安装完成清理临时包（失败不阻断，残留由系统 tmp 清理机制兑底）
+    let _ = tokio::fs::remove_file(&canonical).await;
     Ok(())
 }
 
@@ -255,5 +282,19 @@ mod tests {
         assert!(asset_matches("transfer-orbit-design-4.8.2.aarch64.rpm", false, "aarch64"));
         assert!(!asset_matches("transfer-orbit-design-4.8.2.aarch64.rpm", false, "x86_64"));
         assert!(!asset_matches("transfer-orbit-design-4.8.2_amd64.deb", false, "x86_64"));
+    }
+
+    #[test]
+    fn download_url_whitelist_only_allows_own_releases() {
+        let ok = format!("https://github.com/{GITHUB_REPO}/releases/download/v4.8.2/app.deb");
+        assert!(is_allowed_download_url(&ok));
+        assert!(!is_allowed_download_url("https://api.github.com/repos/other/releases"));
+        assert!(!is_allowed_download_url(
+            "http://github.com/cislunarspace/transfer-orbit-design/releases/download/v4.8.2/app.deb"
+        ));
+        assert!(!is_allowed_download_url(
+            "https://github.com/cislunarspace/other-repo/releases/download/v4.8.2/app.deb"
+        ));
+        assert!(!is_allowed_download_url("file:///tmp/evil.deb"));
     }
 }
