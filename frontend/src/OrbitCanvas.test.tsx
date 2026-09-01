@@ -1047,3 +1047,142 @@ describe("惯性视图转移弧 gcrs 段（#428 第二步）", () => {
     expect(view.container.querySelectorAll("[data-testid='legend-unavailable']")).toHaveLength(1);
   });
 });
+
+// —— 轨迹拾取与聚焦（#452）——
+// Trajectory picking & focus (#452).
+
+import { Raycaster } from "three";
+import type { Intersection } from "three";
+import { Vector3 } from "three";
+import { act, screen } from "@testing-library/react";
+
+const TWO_TRAJECTORIES: number[][][] = [
+  Array.from({ length: 40 }, (_, i) => [Math.cos((i / 40) * Math.PI * 2) * 0.5, Math.sin((i / 40) * Math.PI * 2) * 0.5, 0]),
+  Array.from({ length: 40 }, (_, i) => [1 + Math.cos((i / 40) * Math.PI * 2) * 0.3, Math.sin((i / 40) * Math.PI * 2) * 0.3, 0]),
+];
+const TWO_LABELS = ["弧 A", "弧 B"];
+
+function pickCanvas() {
+  const view = renderCanvas({ trajectories: TWO_TRAJECTORIES, labels: TWO_LABELS });
+  const scene = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances[
+    (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances.length - 1
+  ].lastScene;
+  const canvas = document.querySelector("canvas")!;
+  const lines = sceneLines(scene);
+  return { view, scene, canvas, lines };
+}
+
+function pointer(canvas: Element, type: string, x = 0, y = 0) {
+  act(() => {
+    canvas.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true }));
+  });
+}
+
+function opacities(scene: unknown): number[] {
+  return sceneLines(scene).map((l) => (l.material as { opacity: number }).opacity);
+}
+
+/** 拦截 Raycaster：让 lines 中的第 hitIndex 条线成为最近命中；null = 未命中。 */
+function stubRaycast(lines: Line[], hitIndex: number | null) {
+  vi.spyOn(Raycaster.prototype, "intersectObjects").mockImplementation(() =>
+    hitIndex === null
+      ? []
+      : [
+          // Intersection 类型要求 point 字段，拾取判定不读它，给原点即可
+          // Intersection requires a point; the pick logic never reads it.
+          { object: lines[hitIndex], distance: 1, point: new Vector3() },
+          { object: lines[(hitIndex + 1) % lines.length], distance: 5, point: new Vector3() },
+        ] as unknown as Intersection[],
+  );
+}
+
+describe("OrbitCanvas 拾取与聚焦（#452）", () => {
+  it("悬停命中轨迹：提示显示该线名称（最近者）", () => {
+    const { canvas, lines } = pickCanvas();
+    stubRaycast(lines, 1);
+    pointer(canvas, "pointermove", 30, 30);
+    act(() => flushFrames());
+    expect(screen.getByTestId("pick-tooltip").textContent).toBe("弧 B");
+  });
+
+  it("指针离开画布：提示消失", () => {
+    const { canvas } = pickCanvas();
+    stubRaycast(pickCanvasLines(), 0);
+    pointer(canvas, "pointermove", 10, 10);
+    act(() => flushFrames());
+    pointer(canvas, "pointerleave");
+    expect(screen.queryByTestId("pick-tooltip")).toBeNull();
+  });
+
+  it("点击命中轨迹聚焦：被点线不透明度 1，其余淡出；再点同线恢复", () => {
+    const { canvas, lines, scene } = pickCanvas();
+    stubRaycast(lines, 1);
+    pointer(canvas, "pointerdown", 30, 30);
+    pointer(canvas, "pointerup", 30, 30);
+    let ops = opacities(scene);
+    expect(ops[1]).toBe(1);
+    expect(ops[0]).toBeLessThan(1);
+    pointer(canvas, "pointerdown", 30, 30);
+    pointer(canvas, "pointerup", 30, 30);
+    ops = opacities(scene);
+    expect(ops[0]).toBe(1);
+    expect(ops[1]).toBe(1);
+  });
+
+  it("点击空白退出聚焦", () => {
+    const { canvas, lines, scene } = pickCanvas();
+    stubRaycast(lines, 1);
+    pointer(canvas, "pointerdown", 30, 30);
+    pointer(canvas, "pointerup", 30, 30);
+    stubRaycast(lines, null);
+    pointer(canvas, "pointerdown", 60, 60);
+    pointer(canvas, "pointerup", 60, 60);
+    expect(opacities(scene)).toEqual([1, 1]);
+  });
+
+  it("拖拽（位移超阈值）不触发聚焦", () => {
+    const { canvas, lines, scene } = pickCanvas();
+    stubRaycast(lines, 1);
+    pointer(canvas, "pointerdown", 10, 10);
+    pointer(canvas, "pointerup", 60, 60);
+    expect(opacities(scene)).toEqual([1, 1]);
+  });
+
+  it("轨迹数据整体替换：聚焦与提示清除", () => {
+    const { view, canvas, lines, scene } = pickCanvas();
+    stubRaycast(lines, 1);
+    pointer(canvas, "pointermove", 30, 30);
+    act(() => flushFrames());
+    pointer(canvas, "pointerdown", 30, 30);
+    pointer(canvas, "pointerup", 30, 30);
+    expect(screen.queryByTestId("pick-tooltip")).not.toBeNull();
+
+    const other: number[][][] = [
+      Array.from({ length: 30 }, (_, i) => [Math.cos((i / 30) * Math.PI), 0, Math.sin((i / 30) * Math.PI)]),
+    ];
+    stubRaycast(lines, null);
+    act(() => {
+      view.rerender(
+        <OrbitCanvas
+          trajectories={other}
+          labels={["弧 C"]}
+          mu={MU}
+          libration={LIBRATION}
+          projection="3d"
+          center="barycenter"
+          onReady={noopReady}
+        />,
+      );
+    });
+    expect(screen.queryByTestId("pick-tooltip")).toBeNull();
+    expect(opacities(scene)).toEqual([1]);
+  });
+});
+
+/** 拾取用例的便捷二次取线（指针离开用例里避免重复解构）。 */
+function pickCanvasLines(): Line[] {
+  const scene = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances[
+    (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances.length - 1
+  ].lastScene;
+  return sceneLines(scene);
+}
