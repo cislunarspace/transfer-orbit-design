@@ -1054,7 +1054,7 @@ describe("惯性视图转移弧 gcrs 段（#428 第二步）", () => {
 import { Raycaster } from "three";
 import type { Intersection } from "three";
 import { Vector3 } from "three";
-import { act, screen } from "@testing-library/react";
+import { act, screen, fireEvent } from "@testing-library/react";
 
 const TWO_TRAJECTORIES: number[][][] = [
   Array.from({ length: 40 }, (_, i) => [Math.cos((i / 40) * Math.PI * 2) * 0.5, Math.sin((i / 40) * Math.PI * 2) * 0.5, 0]),
@@ -1186,3 +1186,86 @@ function pickCanvasLines(): Line[] {
   ].lastScene;
   return sceneLines(scene);
 }
+
+// —— 图例联动拾取（#460）：悬停预览、点击聚焦、聚焦标记 ——
+// Legend-linked picking (#460): hover preview, click focus, focus marker.
+
+
+describe("OrbitCanvas 图例联动（#460）", () => {
+  function legendCanvas() {
+    const view = renderCanvas({
+      trajectories: TWO_TRAJECTORIES,
+      labels: TWO_LABELS,
+    });
+    const scene = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances[
+      (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances.length - 1
+    ].lastScene;
+    const ops = () => opacities(scene);
+    const item = (label: string) =>
+      screen.getByText(label).closest("[data-legend-item]") as HTMLElement;
+    const lines = sceneLines(scene);
+    return { view, scene, lines, ops, item };
+  }
+
+  it("悬停图例项：对应线原色、其余淡出；离开恢复原色", () => {
+    const { ops, item } = legendCanvas();
+    act(() => fireEvent.mouseOver(item("弧 A")));
+    expect(ops()).toEqual([1, 0.15]);
+    act(() => fireEvent.mouseOut(item("弧 A")));
+    expect(ops()).toEqual([1, 1]);
+  });
+
+  it("点击图例项切换聚焦，聚焦态图例项带标记；再点解除", () => {
+    const { item, ops } = legendCanvas();
+    act(() => fireEvent.click(item("弧 B")));
+    expect(ops()).toEqual([0.15, 1]);
+    expect(item("弧 B").getAttribute("data-focused")).toBe("true");
+    expect(item("弧 A").getAttribute("data-focused")).toBe("false");
+    act(() => fireEvent.click(item("弧 B")));
+    expect(ops()).toEqual([1, 1]);
+    expect(item("弧 B").getAttribute("data-focused")).toBe("false");
+  });
+
+  it("画布点击聚焦时图例标记同步（双向一致）", () => {
+    const { ops, item, lines } = legendCanvas();
+    stubRaycast(lines, 1);
+    const canvas = document.querySelector("canvas")!;
+    pointer(canvas, "pointerdown", 30, 30);
+    pointer(canvas, "pointerup", 30, 30);
+    expect(ops()).toEqual([0.15, 1]);
+    expect(item("弧 B").getAttribute("data-focused")).toBe("true");
+  });
+
+  it("预览叠加于聚焦：离开图例恢复聚焦视图", () => {
+    const { item, ops } = legendCanvas();
+    act(() => fireEvent.click(item("弧 B"))); // 聚焦 B
+    act(() => fireEvent.mouseOver(item("弧 A"))); // 预览 A：A 原色、B 淡出
+    expect(ops()).toEqual([1, 0.15]);
+    act(() => fireEvent.mouseOut(item("弧 A"))); // 回到聚焦 B
+    expect(ops()).toEqual([0.15, 1]);
+  });
+
+  it("轨迹数据整体替换：预览与聚焦标记清除", () => {
+    const { view, item, ops } = legendCanvas();
+    act(() => fireEvent.mouseOver(item("弧 A")));
+    expect(ops()).toEqual([1, 0.15]);
+    const other: number[][][] = [
+      Array.from({ length: 30 }, (_, i) => [Math.cos((i / 30) * Math.PI), 0, Math.sin((i / 30) * Math.PI)]),
+    ];
+    act(() => {
+      view.rerender(
+        <OrbitCanvas
+          trajectories={other}
+          labels={["弧 C"]}
+          mu={MU}
+          libration={LIBRATION}
+          projection="3d"
+          center="barycenter"
+          onReady={noopReady}
+        />,
+      );
+    });
+    expect(ops()).toEqual([1]);
+    expect(screen.queryByText("弧 A")).toBeNull();
+  });
+});

@@ -31,3 +31,21 @@ export function pickThresholdFromSize(size: number): number {
   if (!Number.isFinite(size) || size <= 0) return 0.02;
   return Math.min(0.15, Math.max(0.005, size * 0.02));
 }
+
+/** 图例联动拾取（#460）的逐线不透明度：预览优先于聚焦——预览线原色、
+ *  其余淡出（含聚焦线）；预览为空回落聚焦视图；两者皆空全部原色。
+ *  预览与聚焦正交：预览永不改写聚焦状态。
+ * Per-line opacity for legend-linked picking (#460): preview takes priority
+ * over focus — the previewed line stays solid, everything else dims (focus
+ * included); no preview falls back to the focused view; both empty means all
+ * solid. Preview and focus are orthogonal: previewing never rewrites focus. */
+export function lineOpacity(
+  index: number,
+  focusIdx: number | null,
+  previewIdx: number | null,
+  dimOpacity = 0.15,
+): number {
+  const active = previewIdx ?? focusIdx;
+  if (active === null) return 1;
+  return index === active ? 1 : dimOpacity;
+}
