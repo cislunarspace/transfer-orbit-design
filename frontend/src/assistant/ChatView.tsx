@@ -138,6 +138,7 @@ export function ChatView({
   running,
   onOpenRecord,
   onApplyScenario,
+  onContinue,
 }: {
   items: ChatItem[];
   /** 整轮对话进行中（输入禁用 + 顶部"运行中"提示） */
@@ -147,6 +148,12 @@ export function ChatView({
   /** Apply scenario (ADR 0027): a completed scenario_write card → App opens
    *  that scenario file. */
   onApplyScenario?: (path: string) => void;
+  /** 中断续跑（#461）：仅当最后一项是中断标记时，标记旁出继续按钮；
+   *  未传入或 running 时不出（调用方控制）。 */
+  /** Interrupt continue (#461): the continue button shows beside the marker
+   *  only when it is the last item; absent when the prop is omitted or
+   *  running (caller decides). */
+  onContinue?: () => void;
 }) {
   const { t } = useTranslation();
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -224,9 +231,13 @@ export function ChatView({
           return <ThinkingBlock key={idx} text={item.text} />;
         }
         if (item.kind === "interrupted") {
-          // 中断界限（#453）：居中虚线分隔 + 文案，与 error 气泡区分
-          // Interrupt boundary (#453): a centered dashed divider + label,
-          // distinct from error bubbles.
+          // 中断界限（#453/#461）：居中虚线分隔 + 文案，与 error 气泡区分；
+          // 仅当标记是最后一项时附继续按钮（从旧断点续跑有歧义，不提供）
+          // Interrupt boundary (#453/#461): a centered dashed divider + label,
+          // distinct from error bubbles; the continue button rides only when
+          // the marker is the last item (continuing from an old breakpoint is
+          // ambiguous and not offered).
+          const canContinue = onContinue !== undefined && idx === items.length - 1;
           return (
             <div
               key={idx}
@@ -241,6 +252,16 @@ export function ChatView({
             >
               <span style={{ flex: 1, borderTop: "1px dashed rgba(128, 128, 128, 0.4)" }} />
               {t("assistant.interrupted")}
+              {canContinue && (
+                <Button
+                  type="link"
+                  size="small"
+                  style={{ padding: 0, height: "auto", fontSize: 11 }}
+                  onClick={onContinue}
+                >
+                  {t("assistant.continue")}
+                </Button>
+              )}
               <span style={{ flex: 1, borderTop: "1px dashed rgba(128, 128, 128, 0.4)" }} />
             </div>
           );

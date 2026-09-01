@@ -200,6 +200,8 @@ export const translations: Record<string, Record<string, string>> = {
     "assistant.generating": "生成中",
     "assistant.stop": "停止生成",
     "assistant.interrupted": "已中断",
+    "assistant.continue": "继续",
+    "assistant.continue_prompt": "请从刚才中断的地方继续。",
   },
   en: {
     "action.save": "Save",
@@ -384,6 +386,8 @@ export const translations: Record<string, Record<string, string>> = {
     "assistant.generating": "Generating",
     "assistant.stop": "Stop generating",
     "assistant.interrupted": "Interrupted",
+    "assistant.continue": "Continue",
+    "assistant.continue_prompt": "Please continue from where you were interrupted.",
   },
 };
 
