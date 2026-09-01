@@ -378,6 +378,29 @@ export function ephemerisUtcToEt(ephemeris: Record<string, unknown>, n: number):
   return out.every(Number.isFinite) ? out : null;
 }
 
+/** (n,3) 嵌套或 (3n,) 平铺 → (n,3) 行；行数不对齐返回 null。不做任何
+ *  缩放——synodic_position 已是画布原生无量纲，position_km 的 ÷DU_KM 在
+ *  调用侧补。 */
+/** (n,3) nested or (3n,) flattened → (n,3) rows; misaligned row count is
+ *  null. No scaling here — synodic_position is already the canvas-native
+ *  dimensionless; position_km's ÷DU_KM happens at the call site. */
+function rows3(raw: unknown, n: number): number[][] | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  if (Array.isArray(raw[0])) {
+    return raw.length === n
+      ? raw.map((p) => [Number((p as number[])[0]), Number((p as number[])[1]), Number((p as number[])[2])])
+      : null;
+  }
+  if (raw.length === 3 * n) {
+    return Array.from({ length: n }, (_, i) => [
+      Number(raw[3 * i]),
+      Number(raw[3 * i + 1]),
+      Number(raw[3 * i + 2]),
+    ]);
+  }
+  return null;
+}
+
 /** 星历段的 GCRS 惯性位置 → DU 归一点列（eph-fig）。兼容两种来源形状：
  *  设计响应 EphemerisTable 的 (n,3) 嵌套与记录通道的 (3n,) 平铺；行数与
  *  会合系轨迹对齐才返回，缺位/不对齐返回 null（惯性视图降级灰显口径，
@@ -389,26 +412,14 @@ export function ephemerisUtcToEt(ephemeris: Record<string, unknown>, n: number):
  *  misaligned segment is null (the inertial view's degraded graying, same
  *  convention as the transfer gcrs segment). */
 function positionKmToDu(raw: unknown, n: number): number[][] | null {
-  if (!Array.isArray(raw) || raw.length === 0) return null;
-  let rows: number[][] | null = null;
-  if (Array.isArray(raw[0])) {
-    rows =
-      raw.length === n
-        ? raw.map((p) => [Number(p[0]), Number(p[1]), Number(p[2])])
-        : null;
-  } else if (raw.length === 3 * n) {
-    rows = Array.from({ length: n }, (_, i) => [
-      Number(raw[3 * i]),
-      Number(raw[3 * i + 1]),
-      Number(raw[3 * i + 2]),
-    ]);
-  }
-  if (!rows) return null;
-  return rows.map((p) => [p[0] / DU_KM, p[1] / DU_KM, p[2] / DU_KM]);
+  const rows = rows3(raw, n);
+  return rows ? rows.map((p) => [p[0] / DU_KM, p[1] / DU_KM, p[2] / DU_KM]) : null;
 }
 
 /** 设计响应 / 库记录的星历段 → 画布轨迹（修"画布只见周期曲线"）。
- *  synodic_position 是地月会合系无量纲 (n,3)——画布原生系，直画不缩放；
+ *  synodic_position 是地月会合系无量纲——画布原生系，直画不缩放；形状兼容
+ *  设计响应 EphemerisTable 的 (n,3) 嵌套与库记录通道（get_artifact
+ *  Vec<f32>）的 (3n,) 平铺，行数不齐整段不上（与 position_km 同口径）。
  *  UTC 分量行数对齐则逐行合成 et 绝对基准（ADR 0021）。GCRS position_km
  *  作惯性几何随行携带（eph-fig）：惯性视图下改用它绘制并豁免灰显
  *  （#428 inertialGeometries 通道），会合视图不消费。
@@ -416,27 +427,47 @@ function positionKmToDu(raw: unknown, n: number): number[][] | null {
  *  eph/ 段同形）。 */
 /** A design response / catalog record's ephemeris segment → canvas data
  *  (fixes "canvas shows only the periodic curve"). synodic_position is the
- *  Earth-Moon synodic-frame dimensionless (n,3) — the canvas' native frame,
- *  drawn as-is without scaling; row-aligned UTC components compose the et
- *  absolute basis (ADR 0021). The GCRS position_km rides along as the
- *  inertial geometry (eph-fig): the inertial view draws from it and exempts
- *  graying (the #428 inertialGeometries channel); the synodic view never
- *  consumes it. Field names match e2m2e's EphemerisTable (the design
- *  response ephemeris dict and the record eph/ segment share the shape). */
+ *  Earth-Moon synodic-frame dimensionless — the canvas' native frame, drawn
+ *  as-is without scaling; shapes accepted: the design response's (n,3)
+ *  nested EphemerisTable and the record channel's flattened (3n,) (get_artifact's
+ *  Vec<f32>), misaligned rows drop the whole segment (same convention as
+ *  position_km). Row-aligned UTC components compose the et absolute basis
+ *  (ADR 0021). The GCRS position_km rides along as the inertial geometry
+ *  (eph-fig): the inertial view draws from it and exempts graying (the #428
+ *  inertialGeometries channel); the synodic view never consumes it. Field
+ *  names match e2m2e's EphemerisTable (the design response ephemeris dict and
+ *  the record eph/ segment share the shape). */
 export function designEphemerisToCanvasData(
   ephemeris: Record<string, unknown> | null | undefined,
   label = "星历段",
 ): TrajectoryData | null {
-  const rows = ephemeris?.synodic_position;
-  if (!Array.isArray(rows) || rows.length === 0 || !Array.isArray(rows[0])) {
-    return null;
-  }
-  const pts = (rows as unknown[]).map((p) => {
-    const r = p as number[];
-    return [Number(r[0]), Number(r[1]), Number(r[2])];
-  });
-  const etTimes = ephemerisUtcToEt(ephemeris as Record<string, unknown>, pts.length);
-  const inertialPts = positionKmToDu(ephemeris?.position_km, pts.length);
+  const rawRows = ephemeris?.synodic_position;
+  if (!Array.isArray(rawRows) || rawRows.length === 0) return null;
+  // 行数：UTC 分量齐且等长时以分量为准（时间与位置同源，缺一行都是半截
+  // 数据）；嵌套形状回退行数（设计响应通道旧行为：无分量的段仍可画，只是
+  // 无时刻基准）。平铺形状必须伴随齐整分量——记录通道的 (3n,) 半截数据
+  // 宁可不上（与 Rust 七键齐全才携带、ephemerisSpanDays 同口径）。
+  // Row count: the aligned UTC components win when complete (times and
+  // positions share one source; half-segments stay off); nested shapes fall
+  // back to their row count (the design channel's old behavior: a segment
+  // without components still draws, just untimed). Flattened shapes require
+  // aligned components — a truncated (3n,) record-channel payload stays off
+  // (same convention as Rust shipping all seven keys, and ephemerisSpanDays).
+  const utc = ["year", "month", "day", "hour", "minute", "second"].map(
+    (k) => ephemeris?.[k],
+  );
+  const byComponents =
+    utc.every((p) => Array.isArray(p)) &&
+    new Set(utc.map((p) => (p as unknown[]).length)).size === 1
+      ? (utc[0] as unknown[]).length
+      : null;
+  const nested = Array.isArray(rawRows[0]);
+  const n = byComponents ?? (nested ? rawRows.length : 0);
+  if (!n) return null;
+  const pts = rows3(rawRows, n);
+  if (!pts) return null;
+  const etTimes = ephemerisUtcToEt(ephemeris as Record<string, unknown>, n);
+  const inertialPts = positionKmToDu(ephemeris?.position_km, n);
   return {
     trajectories: [pts],
     times: [etTimes ?? []],

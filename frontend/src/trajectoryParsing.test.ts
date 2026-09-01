@@ -455,6 +455,23 @@ describe("designEphemerisToCanvasData 星历段解析", () => {
     expect(designEphemerisToCanvasData({ synodic_position: [1, 2, 3] })).toBeNull();
   });
 
+  it("库记录通道的 (3n,) 平铺 synodic_position 同样收（get_artifact Vec<f32>）；行数与分量不齐不上", () => {
+    // 平铺 + 分量齐整：记录通道真实形状（曾因只认嵌套被静默丢弃，
+    // 修"星历轨道画不出来"——2026-09-01）
+    const flat = designEphemerisToCanvasData({
+      ...EPH,
+      synodic_position: [1.1, 0.2, -0.3, 1.2, 0.3, -0.4],
+    });
+    expect(flat).not.toBeNull();
+    expect(flat!.trajectories[0]).toEqual([[1.1, 0.2, -0.3], [1.2, 0.3, -0.4]]);
+    expect(flat!.roles).toEqual(["ephemeris"]);
+    // 平铺但分量缺失：半截数据不上（与 Rust 七键齐全才携带同口径）
+    expect(designEphemerisToCanvasData({ synodic_position: [1.1, 0.2, -0.3] })).toBeNull();
+    // 行数互不齐整：整段不上
+    const ragged = { ...EPH, synodic_position: [1.1, 0.2, -0.3, 1.2] };
+    expect(designEphemerisToCanvasData(ragged)).toBeNull();
+  });
+
   it("星历段标注数据系 synodic_nd（会合系无量纲直画）", () => {
     expect(designEphemerisToCanvasData(EPH)!.frames).toEqual(["synodic_nd"]);
   });

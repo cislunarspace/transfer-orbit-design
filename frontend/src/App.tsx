@@ -77,6 +77,7 @@ import {
   type TimeBasis,
   type DataFrameTag,
   type ContentMode,
+  type SegmentRole,
 } from "./trajectoryParsing";
 import type { TimelineEvent } from "./TimelineBar";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
@@ -700,6 +701,15 @@ export default function App() {
     const basisParts: TimeBasis[] = [];
     const frameParts: DataFrameTag[] = [];
     const labelParts: string[] = [];
+    // 段角色/Jacobi/惯性几何逐层拼接（eph-fig/#435/#428）：roles 缺了，
+    // 绘制内容切换（全部/CR3BP/星历）就把双段产物当"无段语义"全保留，
+    // 点击切换画布毫无变化。
+    // Roles/jacobi/inertial geometries concatenate per layer (eph-fig/#435/#428):
+    // dropping roles makes the content switch treat dual-segment products as
+    // untagged — every mode draws the same thing, the switch does nothing.
+    const roleParts: (SegmentRole | undefined)[] = [];
+    const jacobiParts: (number | undefined)[] = [];
+    const inertialParts: (number[][] | null)[] = [];
     for (const item of items) {
       if (!item.recordId) continue;
       try {
@@ -715,6 +725,11 @@ export default function App() {
               ? td.labels.map((l) => `${item.label}·${l}`)
               : td.trajectories.map(() => item.label)),
           );
+          roleParts.push(...(td.roles ?? td.trajectories.map(() => undefined)));
+          jacobiParts.push(...(td.jacobi ?? td.trajectories.map(() => undefined)));
+          inertialParts.push(
+            ...(td.inertialGeometries ?? td.trajectories.map(() => null as number[][] | null)),
+          );
         }
       } catch (e) {
         message.warning(`${t("tree.plot_skip_failed")}: ${item.label}`);
@@ -727,6 +742,9 @@ export default function App() {
         timeBasis: basisParts,
         frames: frameParts,
         labels: labelParts,
+        roles: roleParts,
+        jacobi: jacobiParts,
+        inertialGeometries: inertialParts,
       });
     }
   };
