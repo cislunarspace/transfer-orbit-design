@@ -37,11 +37,15 @@ interface RecordDetailPanelProps {
   /** The candidate set of the latest top_n transfer search (selected included;
    *  App omits it for a single-candidate run). */
   transferCandidates?: TransferCandidateView[];
+  /** 树选中行的 label，标题联动回显（#468）；缺省保持原标题 */
+  /** The selected tree row's label, echoed in the title (#468); the title
+   *  stays plain when absent. */
+  selectedLabel?: string | null;
   onRefresh?: () => void;
   onOpenStationKeeping?: (rec: CatalogRecord) => void;
 }
 
-export function RecordDetailPanel({ record, transferCandidates, onRefresh, onOpenStationKeeping }: RecordDetailPanelProps) {
+export function RecordDetailPanel({ record, transferCandidates, selectedLabel, onRefresh, onOpenStationKeeping }: RecordDetailPanelProps) {
   const { t } = useTranslation();
 
   // hooks 规则（#437）：无论 record 是否为 null，每次渲染调用相同数量、
@@ -61,13 +65,18 @@ export function RecordDetailPanel({ record, transferCandidates, onRefresh, onOpe
     setPromoteIdx(0);
   }, [record?.record_id]);
 
+  // 标题联动（#468）：带上树选中行的 label，空态与有记录态共用
+  // Title linkage (#468): carries the selected tree row's label, shared by
+  // both the empty and the populated states.
+  const detailTitle = selectedLabel ? `记录详情 · ${selectedLabel}` : "记录详情";
+
   if (!record) {
     return (
       <>
         {transferCandidates && transferCandidates.length > 0 && (
           <CandidateComparisonCard candidates={transferCandidates} />
         )}
-        <Card size="small" title="记录详情" style={{ marginTop: 8 }}>
+        <Card size="small" title={detailTitle} style={{ marginTop: 8 }}>
           <Text type="secondary" style={{ fontSize: 12 }}>请在上方项目树或轨道库中选中一条记录查看详情。</Text>
         </Card>
       </>
@@ -117,7 +126,7 @@ export function RecordDetailPanel({ record, transferCandidates, onRefresh, onOpe
     {transferCandidates && transferCandidates.length > 0 && (
       <CandidateComparisonCard candidates={transferCandidates} />
     )}
-    <Card size="small" title="记录详情" style={{ marginTop: 8 }} bodyStyle={{ padding: "8px 12px" }}>
+    <Card size="small" title={detailTitle} style={{ marginTop: 8 }} bodyStyle={{ padding: "8px 12px" }}>
       <Descriptions size="small" column={1} bordered={false}>
         <Descriptions.Item label="ID">
           <Text copyable style={{ fontSize: 11 }}>{record.record_id}</Text>

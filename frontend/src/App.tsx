@@ -635,17 +635,25 @@ export default function App() {
       return;
     }
 
+    // 会话产物（无 recordId）无详情可查：清空面板，避免残留上一条记录
+    // 与树选中行脱节（#468）
+    // Session artifacts (no recordId) have no detail to fetch: clear the panel
+    // so it never lingers on the previous record, detached from the selected
+    // row (#468).
+    if (!a.recordId) {
+      setSelectedRecordDetail(null);
+      return;
+    }
+
     try {
-      if (a.recordId) {
-        const queryResp = await catalogQuery({ record_id: a.recordId });
-        if (queryResp.records && queryResp.records.length > 0) {
-          setSelectedRecordDetail(queryResp.records[0]);
-        }
-        const data = await getArtifact(a.recordId);
-        const td = parseArtifactToTrajectoryData(data);
-        if (td && td.trajectories.length > 0) {
-          applyTrajectoryData(td);
-        }
+      const queryResp = await catalogQuery({ record_id: a.recordId });
+      if (queryResp.records && queryResp.records.length > 0) {
+        setSelectedRecordDetail(queryResp.records[0]);
+      }
+      const data = await getArtifact(a.recordId);
+      const td = parseArtifactToTrajectoryData(data);
+      if (td && td.trajectories.length > 0) {
+        applyTrajectoryData(td);
       }
     } catch (e) {
       console.error("加载记录失败", e);
@@ -1454,8 +1462,10 @@ export default function App() {
             </div>
           </div>
 
-          {/* 列表/过滤内容 */}
-          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+          {/* 列表/过滤内容：纵向 flex，树占剩余高度（虚拟滚动由 Tree 内部接管，#468） */}
+          {/* List/filter content: a vertical flex column, the tree takes the
+              remaining height (virtual scrolling lives inside the Tree, #468). */}
+          <div style={{ flex: 1, overflowY: "auto", minHeight: 0, display: "flex", flexDirection: "column" }}>
             {leftTab === "catalog" && (
               <CatalogFilterBar onResults={(arts) => setArtifacts(arts)} />
             )}
@@ -1484,6 +1494,7 @@ export default function App() {
             <RecordDetailPanel
               record={selectedRecordDetail}
               transferCandidates={candidateViews}
+              selectedLabel={selectedArtifact?.label ?? null}
               onRefresh={refreshArtifacts}
               onOpenStationKeeping={() => setStationKeepingOpen(true)}
             />
