@@ -140,3 +140,83 @@ describe("ProjectTree 备注", () => {
     await waitFor(() => expect(props.onMetaChange).toHaveBeenCalledWith("r1", ["demo"], "新备注"));
   });
 });
+
+describe("ProjectTree 分组头与结构化摘要（#468）", () => {
+  it("分组头为文字 + 计数徽标，无 emoji；空组徽标置灰", () => {
+    setup();
+    // 四个分组按固定顺序渲染，emoji 全部消失
+    expect(screen.getByText("轨道")).toBeDefined();
+    expect(screen.queryByText(/🪐|🌀|🚀|📡/)).toBeNull();
+
+    const badges = Array.from(document.querySelectorAll(".ant-badge-count")) as HTMLElement[];
+    expect(badges.length).toBe(4);
+    // 组序 orbit/family/transfer/ephemeris：orbit 3 条蓝徽标，family 0 条灰徽标
+    expect(badges[0].textContent).toBe("3");
+    expect(badges[0].style.backgroundColor).not.toBe("");
+    expect(badges[1].textContent).toBe("0");
+    expect(badges[1].style.backgroundColor).not.toBe(badges[0].style.backgroundColor);
+  });
+
+  it("叶子第二行挂结构化摘要：成员数 / L 点 / Jacobi；缺字段不渲染第二行", () => {
+    const items: ArtifactSummary[] = [
+      {
+        artifactId: "a1", artifactType: "family", label: "HALO 家族", orbitType: "HALO",
+        sourceTool: "", recordId: "r1", createdAt: "",
+        memberCount: 12, librationPoint: 2, jacobi: 3.1536,
+      },
+      ...ITEMS.slice(0, 1),
+    ];
+    setup(items);
+    expect(screen.getByText("12 成员 · L2 · C 3.154")).toBeDefined();
+    // 无富化字段的行（Halo A）不渲染第二行：全文只此一处成员摘要
+    // The row without enrichment (Halo A) renders no second line: exactly one member summary overall.
+    expect(screen.getAllByText(/成员/).length).toBe(1);
+  });
+
+  it("受控展开：初始全展开，点分组头折叠后子行消失", () => {
+    // Tree 本体已按 ADR 0020 传 motion={false}，jsdom 里无收起动画卡滞
+    // The Tree itself passes motion={false} per ADR 0020, so jsdom has no
+    // stuck collapse motion.
+    const props = {
+      artifacts: ITEMS,
+      selectedId: null,
+      onSelect: vi.fn(),
+      onRemove: vi.fn(),
+      onPlotSelected: vi.fn(),
+      onMetaChange: vi.fn(),
+    };
+    render(<ProjectTree {...props} />);
+    expect(screen.getByText("Halo A")).toBeDefined();
+
+    const groupState = () =>
+      screen.getByText("轨道").closest(".ant-tree-treenode") as HTMLElement;
+    const switcherOf = () =>
+      groupState().querySelector(".ant-tree-switcher") as HTMLElement;
+
+    expect(groupState().getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(switcherOf());
+    expect(groupState().getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(switcherOf());
+    expect(groupState().getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("容器量得高度后 Tree 启用虚拟滚动（height 传入）", () => {
+    // RO stub：observe 即给元素定高，模拟真实浏览器量高回调路径
+    // RO stub: observe marks the element measured, mimicking the real browser measure path.
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe(el: Element) {
+          Object.defineProperty(el, "clientHeight", { configurable: true, value: 400 });
+        }
+        disconnect() {}
+        unobserve() {}
+      },
+    );
+    const { view } = setup();
+    const holder = view.container.querySelector(".ant-tree-list-holder") as HTMLElement | null;
+    expect(holder).not.toBeNull();
+    expect(holder!.getAttribute("style")).toContain("400px");
+  });
+});

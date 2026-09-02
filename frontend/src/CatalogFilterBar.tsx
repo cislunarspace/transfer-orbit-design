@@ -2,12 +2,18 @@
 // The catalog filter bar.
 
 import { useEffect, useRef, useState } from "react";
-import { Form, Select, InputNumber, Button, Space, message, Modal, Input, Switch } from "antd";
+import { Form, Select, InputNumber, Button, Space, message, Modal, Input, Switch, Tag, Typography } from "antd";
 import { SearchOutlined, DownloadOutlined, RedoOutlined } from "@ant-design/icons";
 import { catalogQuery, catalogExport, STAR_TAG } from "./catalogApi";
 import type { CatalogRecord } from "./catalogApi";
 import { useTranslation } from "./i18n";
 import type { ArtifactSummary } from "./projectApi";
+
+const { Text } = Typography;
+
+// 状态行条件 Tag 的统一小号样式（#468）
+// The shared compact style of the status-line condition tags (#468).
+const STATUS_TAG_STYLE = { marginInlineEnd: 0, fontSize: 11, lineHeight: "16px" } as const;
 
 export interface CatalogFilterBarProps {
   onResults: (artifacts: ArtifactSummary[], count: number, message: string) => void;
@@ -23,19 +29,26 @@ export function CatalogFilterBar({ onResults }: CatalogFilterBarProps) {
   // 仅看星标：纯前端过滤最近一次查询结果，不重发请求
   // Starred-only: a pure front-end filter over the latest query results; no request is re-sent.
   const [starOnly, setStarOnly] = useState(false);
+  // 最近一次结果条数（含仅星标过滤后），驱动状态行回显（#468）
+  // The latest result count (after the starred-only filter), driving the status echo (#468).
+  const [resultCount, setResultCount] = useState<number | null>(null);
   const lastRecordsRef = useRef<CatalogRecord[]>([]);
 
-  // 查询结果 → 树数据源（星标过滤 + tags/note 透传给树行）
-  // Query results → tree data source (star filtering + tags/note passthrough into tree rows).
+  // 查询结果 → 树数据源（星标过滤 + 富化字段透传给树行第二行摘要；
+  // label 只留族名，成员数等结构化信息由第二行承载，#468）
+  // Query results → tree data source (star filtering + enrichment passthrough
+  // for the tree row's second line; the label keeps only the family name —
+  // structured details live on the second line, #468).
   const publish = (records: CatalogRecord[], fallbackMessage?: string) => {
     const visible = starOnly
       ? records.filter((r) => (r.tags ?? []).includes(STAR_TAG))
       : records;
+    setResultCount(visible.length);
     onResults(
       visible.map((r) => ({
         artifactId: String(r.record_id ?? ""),
         artifactType: r.source_tool === "orbit_family_generation" || (r.member_count ?? 0) > 1 ? "family" : "orbit",
-        label: `${String(r.orbit_family ?? "")} (${r.member_count ?? 1} 成员)`,
+        label: String(r.orbit_family ?? ""),
         orbitType: String(r.orbit_family ?? ""),
         sourceTool: String(r.source_tool ?? ""),
         recordId: (r.record_id as string) ?? null,
@@ -43,6 +56,9 @@ export function CatalogFilterBar({ onResults }: CatalogFilterBarProps) {
         hasEphemeris: Boolean(r.has_ephemeris),
         tags: r.tags ?? [],
         note: r.note ?? "",
+        librationPoint: r.libration_point,
+        jacobi: r.jacobi,
+        memberCount: r.member_count,
       })),
       visible.length,
       fallbackMessage || `查询到 ${visible.length} 条记录`,
@@ -112,7 +128,7 @@ export function CatalogFilterBar({ onResults }: CatalogFilterBarProps) {
   };
 
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div style={{ marginBottom: 12, flexShrink: 0 }}>
       <Form layout="vertical" size="small">
         <Form.Item label="轨道族类型" style={{ marginBottom: 6 }}>
           <Select
@@ -198,6 +214,35 @@ export function CatalogFilterBar({ onResults }: CatalogFilterBarProps) {
             导出包
           </Button>
         </Space>
+
+        {/* 状态行（#468）：结果计数与活动条件显式回显，仅星标状态一并上屏 */}
+        {/* Status line (#468): the result count and active filters echo explicitly,
+            the starred-only state included. */}
+        {resultCount !== null && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              flexWrap: "wrap",
+              marginTop: 2,
+            }}
+          >
+            <Text type="secondary" style={{ fontSize: 11 }}>共 {resultCount} 条</Text>
+            {starOnly && (
+              <Tag style={STATUS_TAG_STYLE}>{t("catalog.star_only")}</Tag>
+            )}
+            {family && <Tag style={STATUS_TAG_STYLE}>{family}</Tag>}
+            {libration && <Tag style={STATUS_TAG_STYLE}>L{libration}</Tag>}
+            {(jacobiMin !== undefined || jacobiMax !== undefined) && (
+              <Tag style={STATUS_TAG_STYLE}>
+                {`C ∈ [${jacobiMin !== undefined ? String(jacobiMin) : "-∞"}, ${
+                  jacobiMax !== undefined ? String(jacobiMax) : "+∞"
+                }]`}
+              </Tag>
+            )}
+          </div>
+        )}
       </Form>
 
       <Modal

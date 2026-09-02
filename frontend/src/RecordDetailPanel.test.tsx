@@ -123,3 +123,15 @@ describe("RecordDetailPanel 可行解对比段（#430）", () => {
     expect(screen.getByText(/请在上方项目树或轨道库中选中一条记录查看详情/)).toBeDefined();
   });
 });
+
+describe("RecordDetailPanel 标题联动（#468）", () => {
+  it("传入选中行 label 时标题带上它", () => {
+    render(<RecordDetailPanel record={RECORD_A} selectedLabel="HALO 家族" />);
+    expect(screen.getByText("记录详情 · HALO 家族")).toBeDefined();
+  });
+
+  it("未传 label 时保持原标题", () => {
+    render(<RecordDetailPanel record={RECORD_A} />);
+    expect(screen.getAllByText("记录详情").length).toBeGreaterThan(0);
+  });
+});
