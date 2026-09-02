@@ -55,19 +55,20 @@ const toDU = (p: number[]): [number, number, number] => [p[0] / DU_KM, p[1] / DU
  *
  * (a,e) 根数空间元素（curve_ae/vertical_ae）不进三维画布，跳过。圆/曲线的
  * 圆心吸附：后端以 Primer 物理常数（a☾=383397.7725 km）给绝对 km，而画布
- * 天体固定在地心归一的 (0,0)/(1,0)（DU=384400 口径，ADR 0028）——把圆心
- * 吸附到最近天体的规范位置，避免 ~0.26% 的中心错位（与 ÷DU_KM 既有容差
- * 同源）；点标记（平动点）为绝对位置，不吸附。
+ * 天体固定在 (0,0)/(1−mu,0)（DU=384400 口径）——把圆心吸附到最近天体的
+ * 规范位置，避免 ~0.26% 的中心错位（与 ÷DU_KM 既有容差同源）；点标记
+ * （平动点）为绝对位置，不吸附。
  * Element-space entries (curve_ae/vertical_ae) are skipped — they are not 3D-canvas geometry.
  * Center snapping for circles/curves: the backend emits absolute km with Primer constants
- * (a☾=383397.7725 km) while canvas bodies sit at the geocentric (0,0)/(1,0) (DU=384400, ADR 0028) —
- * snap each center to the nearest body's canonical position to avoid a ~0.26% offset (same tolerance
- * class as the established ÷DU_KM convention); point markers (libration points) are absolute and never snapped.
+ * (a☾=383397.7725 km) while canvas bodies sit at (0,0)/(1−mu,0) (DU=384400) — snap each center
+ * to the nearest body's canonical position to avoid a ~0.26% offset (same tolerance class as the
+ * established ÷DU_KM convention); point markers (libration points) are absolute and never snapped.
  */
 export function boundariesResponseToRegionLayer(
   payload: { elements?: BoundaryElementPayload[] },
+  mu: number,
 ): RegionElement[] {
-  const moonX = 1; // 地心归一下月球在 +1（ADR 0028）
+  const moonX = 1 - mu;
   const out: RegionElement[] = [];
   for (const el of payload.elements ?? []) {
     if (el.kind !== "circle" && el.kind !== "polyline" && el.kind !== "point") continue;
@@ -79,8 +80,8 @@ export function boundariesResponseToRegionLayer(
       continue;
     }
     if (el.radius_km == null || !el.points_km || el.points_km.length < 3) continue;
-    // 吸附到最近天体（地心 x=0 / 月心 x=1），平移点列保持几何
-    // Snap to the nearest body (Earth x=0 / Moon x=1) and translate the point list.
+    // 吸附到最近天体（地心 x=0 / 月心 x=1−mu），平移点列保持几何
+    // Snap to the nearest body (Earth x=0 / Moon x=1−mu) and translate the point list.
     const centerDU: [number, number, number] =
       Math.abs(rawCenter[0] - moonX) <= Math.abs(rawCenter[0]) ? [moonX, 0, 0] : [0, 0, 0];
     const dx = centerDU[0] - rawCenter[0];
