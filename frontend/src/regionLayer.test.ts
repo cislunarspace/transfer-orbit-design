@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import { boundariesResponseToRegionLayer } from "./regionLayer";
 import { DU_KM } from "./cr3bp";
 
-const MU = 0.01215058560962404;
 const MOON_X_KM = (1 - 0.012150585350562453) * 383397.7725; // 后端 Primer 口径月心
 
 describe("boundariesResponseToRegionLayer", () => {
@@ -30,14 +29,13 @@ describe("boundariesResponseToRegionLayer", () => {
           },
         ],
       },
-      MU,
     );
     expect(region).toHaveLength(1);
     expect(region[0].kind).toBe("circle");
-    expect(region[0].centerDU[0]).toBeCloseTo(1 - MU, 12); // 吸附到画布月球
+    expect(region[0].centerDU[0]).toBeCloseTo(1, 12); // 吸附到画布月球（地心归一 +1）
     expect(region[0].radiusDU).toBeCloseTo(radiusKm / DU_KM, 12);
     // 点列随圆心平移：首点 = 吸附圆心 + 半径（+x 方向）
-    expect(region[0].pointsDU![0][0]).toBeCloseTo(1 - MU + radiusKm / DU_KM, 12);
+    expect(region[0].pointsDU![0][0]).toBeCloseTo(1 + radiusKm / DU_KM, 12);
     expect(region[0].formulaId).toBe("Eq.110");
   });
 
@@ -58,7 +56,6 @@ describe("boundariesResponseToRegionLayer", () => {
           },
         ],
       },
-      MU,
     );
     expect(region[0].centerDU).toEqual([0, 0, 0]);
   });
@@ -81,12 +78,11 @@ describe("boundariesResponseToRegionLayer", () => {
           },
         ],
       },
-      MU,
     );
     expect(region[0].kind).toBe("polyline");
     // 背地最远点平移后仍距画布月球最远
     const first = region[0].pointsDU![0];
-    expect(first[0] - (1 - MU)).toBeCloseTo(64201.3 / DU_KM, 12);
+    expect(first[0] - 1).toBeCloseTo(64201.3 / DU_KM, 12);
   });
 
   it("点标记（平动点）保持绝对位置不吸附", () => {
@@ -98,7 +94,6 @@ describe("boundariesResponseToRegionLayer", () => {
           { kind: "point", label: "L4", center_km: [MOON_X_KM / 2, 0, 0] },
         ],
       },
-      MU,
     );
     expect(region).toHaveLength(2);
     expect(region[0].centerDU[0]).toBeCloseTo(-1.198, 12); // 不吸附到任何天体
@@ -114,12 +109,11 @@ describe("boundariesResponseToRegionLayer", () => {
           { kind: "circle", label: "broken", radius_km: 1 },
         ],
       },
-      MU,
     );
     expect(region).toHaveLength(0);
   });
 
   it("空响应返回空图层", () => {
-    expect(boundariesResponseToRegionLayer({}, MU)).toEqual([]);
+    expect(boundariesResponseToRegionLayer({})).toEqual([]);
   });
 });

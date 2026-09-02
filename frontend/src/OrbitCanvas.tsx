@@ -445,19 +445,22 @@ export function OrbitCanvas({
     // with it (mu·DU apart — invisible on screen); moon/L1/L2 are synodic
     // concepts (toolbar disables them), defensively collapsed to the origin.
     if (frame === "inertial") return [0, 0, 0];
-    // 会合系原点是地月质心：地球在 -mu、月球在 1-mu。居中偏移 = -(天体 x)。
-    // The rotating frame's origin is the Earth-Moon barycenter: Earth at -mu, Moon at 1-mu; centering offset = -(body x).
-    if (center === "earth") return [mu, 0, 0];
-    if (center === "moon") return [-(1 - mu), 0, 0];
+    // 会合视图地心归一（ADR 0028）：地球在原点(0)、月球在 +1、质心在 +μ。
+    // 居中偏移 = -(天体 x)。
+    // The synodic view is geocentric (ADR 0028): Earth at 0, Moon at +1, barycenter at +μ; centering offset = -(body x).
+    if (center === "earth") return [0, 0, 0];
+    if (center === "moon") return [-1, 0, 0];
     if (center === "l1") {
       const l1 = libration.find((l) => l.label === "L1");
-      return [-(l1?.x ?? (1 - mu - 0.15)), 0, 0];
+      return [-((l1?.x ?? (1 - mu - 0.15)) + mu), 0, 0];
     }
     if (center === "l2") {
       const l2 = libration.find((l) => l.label === "L2");
-      return [-(l2?.x ?? (1 - mu + 0.15)), 0, 0];
+      return [-((l2?.x ?? (1 - mu + 0.15)) + mu), 0, 0];
     }
-    return [0, 0, 0];
+    // 质心在地心归一下位于 +μ，居中它需要 −μ 偏移。
+    // The barycenter sits at +μ in geocentric normalization; centering it needs a −μ offset.
+    return [-mu, 0, 0];
   };
 
   useEffect(() => {
@@ -482,6 +485,13 @@ export function OrbitCanvas({
 
     const lpColorNum = parseInt((settings?.lpColor ?? "#d4b106").slice(1), 16);
     const inertial = frame === "inertial";
+    // 会合视图地心归一显示平移（ADR 0028）：数据系仍质心归一（Earth@−μ），
+    // 显示层 +μ 使地球居原点、月球在 +1；惯性视图本就地心，不消费此平移。
+    // Geocentric display shift for the synodic view (ADR 0028): the data frame
+    // stays barycentric (Earth@−μ); the display layer shifts +μ so Earth sits
+    // at the origin and the Moon at +1. The inertial view (already geocentric)
+    // does not consume it.
+    const geoShiftX = inertial ? 0 : mu;
     // 绘制几何（#428 第二步）：惯性视图下携带 gcrs 惯性段的轨迹改用它
     // 绘制（会合视图不消费）；灰显判定同步豁免——弧在两个视图系下都以
     // 各自的几何如实呈现。
@@ -533,7 +543,7 @@ export function OrbitCanvas({
     drawn.forEach((pts, i) => {
       const positions = new Float32Array(pts.length * 3);
       pts.forEach((p, j) => {
-        positions[j * 3] = p[0];
+        positions[j * 3] = p[0] + geoShiftX;
         positions[j * 3 + 1] = p[1];
         positions[j * 3 + 2] = p[2] * (settings?.zRatio ?? 1.0);
       });
@@ -600,13 +610,14 @@ export function OrbitCanvas({
 
     const s = settings;
     // 地月：NASA 公有领域贴图（Blue Marble / LROC）+ Phong 光照，
-    // 半径取真实比例（chartSettings 常量）。位置随视图系：会合系下地月在
-    // x 轴固定（-mu / 1-mu）；惯性系下地球居原点，月球沿 moonTrack 的
-    // 当前时刻位置（下方月轨块摆放，无轨迹则隐藏——ADR 0013 离线降级）。
+    // 半径取真实比例（chartSettings 常量）。位置随视图系：会合系地心归一
+    // 下地月在 x 轴固定（0 / 1，ADR 0028）；惯性系下地球居原点，月球沿
+    // moonTrack 的当前时刻位置（下方月轨块摆放，无轨迹则隐藏——ADR 0013
+    // 离线降级）。
     // Earth and Moon: NASA public-domain textures (Blue Marble / LROC) with
     // Phong lighting, radii at true proportions (chartSettings constants).
-    // Placement follows the view frame: fixed on the x axis (-mu / 1-mu) in
-    // the synodic frame; Earth at the origin in the inertial frame, with the
+    // Placement follows the view frame: fixed on the x axis (0 / 1) in the
+    // geocentric synodic frame (ADR 0028); Earth at the origin in the inertial frame, with the
     // Moon at its current-moment position along moonTrack (placed by the
     // moon-track block below; hidden without a track — the ADR 0013 offline
     // degradation).
@@ -636,8 +647,8 @@ export function OrbitCanvas({
     if (inertial) {
       addTexturedBody("earth", "地球", [0, 0, 0], s?.earthSize ?? EARTH_RADIUS_DU, earthTextureUrl, 0x2a2a2a, 14);
     } else {
-      addTexturedBody("earth", "地球", [-mu, 0, 0], s?.earthSize ?? EARTH_RADIUS_DU, earthTextureUrl, 0x2a2a2a, 14);
-      addTexturedBody("moon", "月球", [1 - mu, 0, 0], s?.moonSize ?? MOON_RADIUS_DU, moonTextureUrl, 0x111111, 4);
+      addTexturedBody("earth", "地球", [0, 0, 0], s?.earthSize ?? EARTH_RADIUS_DU, earthTextureUrl, 0x2a2a2a, 14);
+      addTexturedBody("moon", "月球", [1, 0, 0], s?.moonSize ?? MOON_RADIUS_DU, moonTextureUrl, 0x111111, 4);
     }
 
     // 惯性视图的月球（#428，ADR 0013 决策 4）：整条 SPICE 真实轨迹（灰白
@@ -684,7 +695,7 @@ export function OrbitCanvas({
     // 平动点是会合系概念（ADR 0013 决策 3）：惯性视图不画。
     // Libration points are synodic concepts (ADR 0013 decision 3): not drawn
     // in the inertial view.
-    if (!inertial) libration.forEach((lp) => addSphere(lp.x, 0, 0, lpColorNum, s?.lpSize ?? 0.003, lp.label));
+    if (!inertial) libration.forEach((lp) => addSphere(lp.x + mu, 0, 0, lpColorNum, s?.lpSize ?? 0.003, lp.label));
 
     // 坐标轴图层（matplotlib 式三轴 + 轨道面网格 + 量程刻度），随中心偏移，可开关
     // Axes layer (matplotlib-style three axes + orbit-plane grid + range ticks), offset with the center, toggleable.
@@ -850,6 +861,9 @@ export function OrbitCanvas({
   useEffect(() => {
     const markers = markersRef.current;
     const [ox, oy, oz] = getCenterOffset();
+    // 与绘制 effect 同一地心平移口径（ADR 0028）：会合系轨迹标记随几何 +μ。
+    // The same geocentric shift as the draw effect (ADR 0028): synodic markers ride the +μ geometry.
+    const geoShiftX = frame === "inertial" ? 0 : mu;
     markers.forEach((marker, i) => {
       // 惯性视图下带 gcrs 段的轨迹标记沿惯性几何走（与所画弧同源，
       // #428 第二步）；时刻数组仍是共享的 trajectory_times。
@@ -879,7 +893,7 @@ export function OrbitCanvas({
       const p1 = pts[idx] || pts[0];
 
       marker.position.set(
-        (p0[0] + (p1[0] - p0[0]) * alpha) + ox,
+        (p0[0] + (p1[0] - p0[0]) * alpha) + ox + geoShiftX,
         (p0[1] + (p1[1] - p0[1]) * alpha) + oy,
         (p0[2] + (p1[2] - p0[2]) * alpha) * (settings?.zRatio ?? 1.0) + oz
       );

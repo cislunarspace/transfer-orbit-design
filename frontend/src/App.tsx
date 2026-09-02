@@ -992,7 +992,7 @@ export default function App() {
       // result layer — fixed-reference semantics, bypassing the result/timeline chain entirely.
       if (selectedTool === "spatiography_boundaries" && resp.data) {
         const d = resp.data as { elements?: BoundaryElementPayload[] };
-        setRegionData(boundariesResponseToRegionLayer(d, EARTH_MOON_MU));
+        setRegionData(boundariesResponseToRegionLayer(d));
         message.info(t("run.regions_updated").replace("{n}", String(d.elements?.length ?? 0)));
         return;
       }

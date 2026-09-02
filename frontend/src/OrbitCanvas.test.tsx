@@ -196,18 +196,19 @@ describe("OrbitCanvas 轨迹渲染", () => {
     const instances = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
     const scene = instances[instances.length - 1].lastScene as { children: import("three").Group[] };
 
-    // annotations 组的位置必须是居中偏移（barycenter → 原点），
-    // 不能被天体坐标覆盖；天体按各自坐标摆放。
-    // The annotations group's position must be the centering offset (barycenter → origin) and must not be
-    // overwritten by body coordinates; bodies sit at their own coordinates.
+    // annotations 组的位置必须是居中偏移（质心居中 → −μ，地心归一下质心在 +μ，
+    // ADR 0028），不能被天体坐标覆盖；天体按各自坐标摆放。
+    // The annotations group's position must be the centering offset (barycenter → −μ, since the
+    // barycenter sits at +μ under geocentric normalization, ADR 0028) and must not be overwritten by
+    // body coordinates; bodies sit at their own coordinates.
     const annotations = annotationsOf(scene);
-    expect(annotations.position.x).toBeCloseTo(0, 10);
+    expect(annotations.position.x).toBeCloseTo(-MU, 10);
 
-    // 地球 mesh 应位于 (-mu, 0, 0)，带真实表面贴图与 Phong 光照
-    // The Earth mesh must sit at (-mu, 0, 0) with a real surface texture and Phong lighting.
+    // 地球 mesh 应位于 (0, 0, 0)（地心归一，ADR 0028），带真实表面贴图与 Phong 光照
+    // The Earth mesh must sit at (0, 0, 0) (geocentric normalization, ADR 0028) with a real surface texture and Phong lighting.
     const earth = annotations.getObjectByName("earth") as import("three").Mesh;
     expect(earth).toBeDefined();
-    expect(earth.position.x).toBeCloseTo(-MU, 10);
+    expect(earth.position.x).toBeCloseTo(0, 10);
     const material = earth.material as import("three").MeshPhongMaterial;
     expect(material.map).toBeDefined();
     expect(material.isMeshPhongMaterial).toBe(true);
@@ -331,10 +332,10 @@ describe("中心点居中几何", () => {
   // 选定中心后，该天体/平动点的世界坐标应为原点（相机 target 默认 0,0,0）
   // After a center is selected, that body/libration point's world coordinate should be the origin (camera target defaults to 0,0,0).
   const CASES: { name: string; center: CenterMode; bodyLocalX: number }[] = [
-    { name: "地心居中", center: "earth", bodyLocalX: -MU },
-    { name: "月心居中", center: "moon", bodyLocalX: 1 - MU },
-    { name: "L1 居中", center: "l1", bodyLocalX: LIBRATION[0].x },
-    { name: "L2 居中", center: "l2", bodyLocalX: LIBRATION[1].x },
+    { name: "地心居中", center: "earth", bodyLocalX: 0 },
+    { name: "月心居中", center: "moon", bodyLocalX: 1 },
+    { name: "L1 居中", center: "l1", bodyLocalX: LIBRATION[0].x + MU },
+    { name: "L2 居中", center: "l2", bodyLocalX: LIBRATION[1].x + MU },
   ];
 
   it.each(CASES)("$name：中心天体世界坐标在原点", async ({ center, bodyLocalX }) => {
@@ -414,11 +415,12 @@ describe("中心切换的相机注视点", () => {
     flushFrames();
 
     const after = stateOf();
-    // center 状态确实传到了画布：质心居中时 annotations 偏移归零（区分假设 2）
-    // The center state really reached the canvas: the annotations offset zeroes out under barycenter centering (distinguishes hypothesis 2).
+    // center 状态确实传到了画布：质心居中时 annotations 偏移为 −μ（地心归一下质心在 +μ，区分假设 2）
+    // The center state really reached the canvas: the annotations offset is −μ under barycenter centering
+    // (the barycenter sits at +μ under geocentric normalization; distinguishes hypothesis 2).
     const scene = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances;
     const s = scene[scene.length - 1].lastScene as import("three").Scene;
-    expect(annotationsOf(s).position.x).toBeCloseTo(0, 10);
+    expect(annotationsOf(s).position.x).toBeCloseTo(-MU, 10);
     // 质心居中：注视点应为世界原点，而不是轨道盒中心（当前实现变红处）
     // Barycenter-centered: the gaze should be the world origin, not the orbit-box center (where the current implementation goes red).
     expect(after.target.x).toBeCloseTo(0, 6);
@@ -853,7 +855,7 @@ describe("惯性视图（#428）", () => {
     const annotations = annotationsOf(sceneOf());
     expect(annotations.getObjectByName("moon-track")).toBeUndefined();
     const moon = annotations.getObjectByName("moon") as import("three").Mesh;
-    expect(moon.position.x).toBeCloseTo(1 - MU, 10);
+    expect(moon.position.x).toBeCloseTo(1, 10);
   });
 
   it("synodic 数据系轨迹灰显（去饱和），inertial_km 轨迹原色", () => {
@@ -1008,7 +1010,9 @@ describe("惯性视图转移弧 gcrs 段（#428 第二步）", () => {
     });
     flushFrames();
     const p = firstPointOf(arcLines()[0]);
-    expect(p[0]).toBeCloseTo(0.1, 6);
+    // 会合视图地心归一（ADR 0028）：会合系弧整体 +μ 平移，仍不消费 gcrs 段。
+    // The synodic arc shifts +μ under geocentric normalization (ADR 0028); it still does not consume the gcrs segment.
+    expect(p[0]).toBeCloseTo(0.1 + MU, 6);
     expect(p[1]).toBeCloseTo(0, 10);
     expect(p[2]).toBeCloseTo(0, 10);
   });
