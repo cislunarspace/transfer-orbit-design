@@ -18,6 +18,10 @@ export interface CatalogRecord {
   member_count?: number;
   has_cr3bp?: boolean;
   has_ephemeris?: boolean;
+  /** 转移类型（HMN/LGA/WSB/low_thrust）；非 transfer 记录缺省（ADR 0042，#470） */
+  transfer_type?: string | null;
+  /** 分类学规范标签串（ADR 0042；未打标为 null），首个标签决定子分组 */
+  taxonomy_labels?: string[] | null;
   source_tool?: string;
   source_record_id?: string;
   created_at?: string;
@@ -34,6 +38,59 @@ export interface CatalogQueryResponse {
 /** 保留标签值：出现即视为星标（星形切换 / 仅看星标过滤共用）。 */
 /** The reserved tag value: its presence marks a starred record (shared by the star toggle / starred-only filter). */
 export const STAR_TAG = "★";
+
+// 分组判别的兜底 tool 映射（结构化字段不足时才用）；主口径是下面的结构化字段
+// Fallback tool mapping for grouping (used only when structured fields are
+// inconclusive); the primary rule reads the structured fields below.
+const ARTIFACT_TYPE_BY_TOOL: Record<string, string> = {
+  design_orbit: "orbit",
+  catalog_promote: "orbit",
+  orbit_family_generation: "family",
+  control_orbit: "ephemeris",
+};
+
+/** catalog 记录 → 项目树分组的判别（#470 唯一事实的前端镜像；规范实现是后端
+ *  src/engine/catalog_service.py::record_to_artifact，改动需两侧同步）：
+ *  member_count > 1 → family；transfer_type 非空 → transfer；
+ *  有星历段且无 CR3BP 段（纯星历记录）→ ephemeris；皆不命中回退 tool 映射，
+ *  未知工具兜底 orbit。 */
+/** Record -> tree-group classification (#470 frontend mirror of the single
+ *  source of truth; the canonical implementation is the backend
+ *  src/engine/catalog_service.py::record_to_artifact — keep both in sync):
+ *  member_count > 1 -> family; non-empty transfer_type -> transfer; ephemeris
+ *  segment without a CR3BP segment -> ephemeris; otherwise the tool mapping,
+ *  with unknown tools defaulting to orbit. */
+export function classifyArtifactType(r: CatalogRecord): string {
+  if ((r.member_count ?? 0) > 1) return "family";
+  if (r.transfer_type) return "transfer";
+  if (Boolean(r.has_ephemeris) && !r.has_cr3bp) return "ephemeris";
+  return ARTIFACT_TYPE_BY_TOOL[r.source_tool ?? ""] ?? "orbit";
+}
+
+// ADR 0042 一级类别判别：resonant 统一 resonant_ 前缀；moon_centered 仅 4 个
+// 规范标签；其余规范标签皆共线平动点类（42 标签词汇表随 e2m2e 版本走，升级时核对）
+// ADR 0042 top-category inference: resonant shares the resonant_ prefix;
+// moon_centered is exactly these 4 canonical labels; every other canonical
+// label is a collinear libration-point one (the 42-label vocabulary tracks
+// the pinned e2m2e version — re-check on upgrades).
+const MOON_CENTERED_LABELS = new Set([
+  "distant_retrograde",
+  "distant_prograde",
+  "low_prograde_eastern",
+  "low_prograde_western",
+]);
+
+export type TaxonomyCategory = "libration_point" | "moon_centered" | "resonant";
+
+/** 记录 taxonomy 标签的一级类别（取首个标签；未打标返回 null → 「未分类」）。 */
+/** The record's taxonomy top category (first label wins; null when unlabeled
+ *  -> the "unclassified" subgroup). */
+export function taxonomyCategoryOf(labels?: string[] | null): TaxonomyCategory | null {
+  const first = labels?.[0];
+  if (!first) return null;
+  if (first.startsWith("resonant_")) return "resonant";
+  return MOON_CENTERED_LABELS.has(first) ? "moon_centered" : "libration_point";
+}
 
 export async function catalogQuery(filters: Record<string, unknown>): Promise<CatalogQueryResponse> {
   return invoke<CatalogQueryResponse>("catalog_query", { arguments: filters });

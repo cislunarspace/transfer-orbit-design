@@ -11,10 +11,13 @@ import { CatalogFilterBar } from "./CatalogFilterBar";
 import { catalogQuery } from "./catalogApi";
 import type { ArtifactSummary } from "./projectApi";
 
-vi.mock("./catalogApi", () => ({
+// 只桩网络出口；分组判别等纯函数走真实实现（#470）
+// Only the network egress is stubbed; pure helpers like the grouping
+// classifier run for real (#470).
+vi.mock("./catalogApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./catalogApi")>()),
   catalogQuery: vi.fn(),
   catalogExport: vi.fn(),
-  STAR_TAG: "★",
 }));
 
 // jsdom 无 matchMedia / ResizeObserver，antd Select/Switch 需要
@@ -98,8 +101,32 @@ describe("CatalogFilterBar 查询映射（#468）", () => {
   });
 });
 
-describe("CatalogFilterBar 状态回显（#468）", () => {
-  it("查询后回显结果计数与活动条件（族 / L 点 / Jacobi 区间）", async () => {
+describe("CatalogFilterBar 分组判别（#470）", () => {
+  // 结构化字段优先：transfer_type / has_ephemeris&&!has_cr3bp / member_count，
+  // source_tool 仅兜底（旧内联口径只出 orbit/family 两类，已删）
+  it("结构化字段优先，source_tool 仅兜底；taxonomy_labels 透传给子分组", async () => {
+    vi.mocked(catalogQuery).mockResolvedValue({
+      records: [
+        // 纯星历记录（control_orbit）：旧口径误归「轨道」，现归 ephemeris
+        { record_id: "c1", orbit_family: "HALO", member_count: 0, has_ephemeris: true, has_cr3bp: false, source_tool: "control_orbit", tags: [] },
+        // 转移记录：transfer_type 命中 → transfer（旧 tool 映射里没有它）
+        { record_id: "t1", orbit_family: "", member_count: 0, has_ephemeris: false, has_cr3bp: false, transfer_type: "HMN", source_tool: "transfer_design", tags: [] },
+        // 单成员族：结构化不命中，回退 tool 映射仍归 family
+        { record_id: "f1", orbit_family: "NRHO", member_count: 1, has_ephemeris: false, has_cr3bp: true, source_tool: "orbit_family_generation", tags: [], taxonomy_labels: ["halo_l1_southern"] },
+      ],
+      message: "",
+    });
+    const { onResults } = resultsSink();
+    render(<CatalogFilterBar onResults={onResults} />);
+
+    await waitFor(() => expect(onResults).toHaveBeenCalled());
+    const arts = onResults.mock.calls[0][0] as ArtifactSummary[];
+    expect(arts.map((a) => a.artifactType)).toEqual(["ephemeris", "transfer", "family"]);
+    expect(arts[2].taxonomyLabels).toEqual(["halo_l1_southern"]);
+  });
+});
+
+describe("CatalogFilterBar 状态回显（#468）", () => {  it("查询后回显结果计数与活动条件（族 / L 点 / Jacobi 区间）", async () => {
     render(<CatalogFilterBar onResults={vi.fn()} />);
     await waitFor(() => expect(screen.getByText("共 2 条")).toBeDefined());
     // 无条件时不回显任何条件 Tag

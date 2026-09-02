@@ -19,4 +19,10 @@ export interface ArtifactSummary {
   jacobi?: number;
   memberCount?: number;
   hasEphemeris?: boolean;
+  /** taxonomy 规范标签串（catalog 查询路径带回；会话产物行缺省）——
+   *  轨道/轨道族组的一级类别子分组依据（#470），缺省不参与分层 */
+  /** Canonical taxonomy labels (returned by the catalog-query path; absent on
+   *  session-artifact rows) — drives the top-category subgrouping inside the
+   *  orbit/family groups (#470); rows without labels stay ungrouped. */
+  taxonomyLabels?: string[] | null;
 }

@@ -26,6 +26,7 @@ def _summary(
     has_cr3bp: bool = True,
     has_ephemeris: bool = True,
     member_count: int = 1,
+    transfer_type: str | None = None,
     tags: list | None = None,
     note: str = "",
 ) -> SimpleNamespace:
@@ -42,6 +43,7 @@ def _summary(
         amplitude=amplitude,
         has_cr3bp=has_cr3bp,
         has_ephemeris=has_ephemeris,
+        transfer_type=transfer_type,
         status=ConvergenceState.CONVERGED,
         cause=FailureCause.NONE,
         message="",
@@ -139,6 +141,67 @@ class TestRecordToArtifact:
         )
         assert art.artifact_type == "orbit"
         assert art.source_tool == "catalog_promote"
+
+
+class TestClassifyArtifactType:
+    """结构化判别（#470）：member_count / transfer_type / has_* 优先，source_tool 兜底。
+
+    Structured classification (#470): member_count / transfer_type / has_* fields
+    take precedence; the source_tool mapping is only the fallback.
+    """
+
+    def test_transfer_type_wins_over_tool_mapping(self):
+        # transfer_design 不在旧 tool 映射里：旧口径会误归 orbit
+        # transfer_design is absent from the legacy tool mapping: the old rule misfiled it as orbit.
+        art = record_to_artifact(
+            _summary(
+                record_id="rec-t",
+                source_tool="transfer_design",
+                orbit_family=None,
+                libration_point=None,
+                has_cr3bp=False,
+                has_ephemeris=False,
+                member_count=0,
+                transfer_type="HMN",
+            )
+        )
+        assert art.artifact_type == "transfer"
+        assert art.label == "转移轨道（HMN）"
+        assert art.extra["transfer_type"] == "HMN"
+
+    def test_ephemeris_only_record_classified_without_tool_knowledge(self):
+        # 未知工具 + 纯星历（有星历段、无 CR3BP 段）→ ephemeris，不靠 tool 映射
+        # Unknown tool + ephemeris-only (ephemeris segment, no CR3BP segment)
+        # -> ephemeris, without consulting the tool mapping.
+        art = record_to_artifact(
+            _summary(
+                record_id="rec-x",
+                source_tool="some_future_tool",
+                has_cr3bp=False,
+                has_ephemeris=True,
+                member_count=0,
+            )
+        )
+        assert art.artifact_type == "ephemeris"
+
+    def test_multi_member_classified_family_regardless_of_tool(self):
+        art = record_to_artifact(
+            _summary(record_id="rec-m", source_tool="catalog_sweep", member_count=30)
+        )
+        assert art.artifact_type == "family"
+
+    def test_single_member_family_falls_back_to_tool_mapping(self):
+        # 单成员族（member_count=1）结构化字段不命中，回退 tool 映射仍为 family
+        # A single-member family (member_count=1) misses the structured checks
+        # and stays family via the tool-mapping fallback.
+        art = record_to_artifact(
+            _summary(record_id="rec-s", source_tool="orbit_family_generation", member_count=1)
+        )
+        assert art.artifact_type == "family"
+
+    def test_unknown_tool_defaults_to_orbit(self):
+        art = record_to_artifact(_summary(record_id="rec-u", source_tool="mystery"))
+        assert art.artifact_type == "orbit"
 
 
 class TestQueryArtifacts:

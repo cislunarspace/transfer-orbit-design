@@ -42,14 +42,45 @@ from src.engine.facade_bridge import (
 )
 from src.model.artifact import Artifact
 
-#: catalog source_tool -> GUI artifact_type（未知的按 orbit 兜底）。
-#: catalog source_tool -> GUI artifact_type (unknown tools fall back to "orbit").
+#: catalog source_tool -> GUI artifact_type 兜底映射（未知的按 orbit）。
+#: 仅在结构化字段无法判别时使用；主口径见 ``_classify_artifact_type``（#470）。
+#: catalog source_tool -> GUI artifact_type fallback mapping (unknown tools fall
+#: back to "orbit"). Used only when the structured fields are inconclusive; the
+#: primary rule lives in ``_classify_artifact_type`` (#470).
 _ARTIFACT_TYPE_BY_TOOL = {
     "design_orbit": "orbit",
     "catalog_promote": "orbit",
     "orbit_family_generation": "family",
     "control_orbit": "ephemeris",
 }
+
+
+def _classify_artifact_type(summary: Any) -> str:
+    """记录 → 项目树分组的判别唯一事实（issue #470）。
+
+    依据 e2m2e 5.9.1 起 ``CatalogRecordSummary`` 的结构化字段（ADR 0042）：
+    ``member_count > 1`` → ``family``；``transfer_type`` 非空 → ``transfer``；
+    ``has_ephemeris and not has_cr3bp``（纯星历记录，如 control_orbit 产物）→
+    ``ephemeris``；皆不命中时回退 ``_ARTIFACT_TYPE_BY_TOOL``，未知工具兜底
+    ``orbit``。前端 catalogApi.classifyArtifactType 是本规则的镜像实现，
+    改动需两侧同步。
+
+    The single source of truth for record -> project-tree grouping (issue
+    #470), based on the structured ``CatalogRecordSummary`` fields available
+    since e2m2e 5.9.1 (ADR 0042): ``member_count > 1`` -> ``family``;
+    non-empty ``transfer_type`` -> ``transfer``; ``has_ephemeris and not
+    has_cr3bp`` (ephemeris-only records, e.g. control_orbit products) ->
+    ``ephemeris``; otherwise falls back to ``_ARTIFACT_TYPE_BY_TOOL`` with
+    unknown tools defaulting to ``orbit``. The frontend
+    catalogApi.classifyArtifactType mirrors this rule — keep both in sync.
+    """
+    if (summary.member_count or 0) > 1:
+        return "family"
+    if getattr(summary, "transfer_type", None):
+        return "transfer"
+    if summary.has_ephemeris and not summary.has_cr3bp:
+        return "ephemeris"
+    return _ARTIFACT_TYPE_BY_TOOL.get(summary.source_tool, "orbit")
 
 
 def _parse_created_at(text: str) -> datetime:
@@ -79,7 +110,7 @@ def record_to_artifact(summary: Any) -> Artifact:
     family = summary.orbit_family or ""
     display = _FAMILY_DISPLAY_NAMES.get(family, family)
     tool = summary.source_tool
-    atype = _ARTIFACT_TYPE_BY_TOOL.get(tool, "orbit")
+    atype = _classify_artifact_type(summary)
     lp = summary.libration_point
     lp_txt = f"L{lp}" if lp else ""
     if atype == "family":
@@ -88,6 +119,9 @@ def record_to_artifact(summary: Any) -> Artifact:
     elif atype == "ephemeris":
         scope = f"{display} {lp_txt}" if family and lp_txt else (family or "")
         label = f"受控星历（{scope}）" if scope else "受控星历"
+    elif atype == "transfer":
+        ttype = getattr(summary, "transfer_type", None)
+        label = f"转移轨道（{ttype}）" if ttype else "转移轨道"
     else:
         prefix = f"{lp_txt}, " if lp_txt else ""
         jacobi = summary.jacobi[0] if summary.jacobi else None
@@ -112,6 +146,8 @@ def record_to_artifact(summary: Any) -> Artifact:
             "has_cr3bp": summary.has_cr3bp,
             "has_ephemeris": summary.has_ephemeris,
             "member_count": summary.member_count,
+            "transfer_type": getattr(summary, "transfer_type", None),
+            "taxonomy_labels": list(getattr(summary, "taxonomy_labels", None) or []),
             "status": getattr(summary.status, "value", str(summary.status)),
             "tags": list(summary.tags),
             "note": summary.note,

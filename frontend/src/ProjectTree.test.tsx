@@ -9,11 +9,14 @@ import { ProjectTree } from "./ProjectTree";
 import { catalogTag, catalogQuery } from "./catalogApi";
 import type { ArtifactSummary } from "./projectApi";
 
-vi.mock("./catalogApi", () => ({
+// 只桩网络出口；taxonomy 判别等纯函数走真实实现（#470）
+// Only the network egress is stubbed; pure helpers like the taxonomy
+// classifier run for real (#470).
+vi.mock("./catalogApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./catalogApi")>()),
   catalogDelete: vi.fn(),
   catalogQuery: vi.fn(),
   catalogTag: vi.fn().mockResolvedValue(true),
-  STAR_TAG: "★",
 }));
 
 // 三条 orbit 叶子：a1 行数据带 tags/note；a2 缺 tags（走详情查询分支）
@@ -218,5 +221,54 @@ describe("ProjectTree 分组头与结构化摘要（#468）", () => {
     const holder = view.container.querySelector(".ant-tree-list-holder") as HTMLElement | null;
     expect(holder).not.toBeNull();
     expect(holder!.getAttribute("style")).toContain("400px");
+  });
+});
+
+describe("ProjectTree taxonomy 子分组（#470）", () => {
+  const labeled = (over: Partial<ArtifactSummary>): ArtifactSummary => ({
+    artifactId: "x", artifactType: "orbit", label: "X", orbitType: "",
+    sourceTool: "", recordId: "rx", createdAt: "", ...over,
+  });
+
+  it("轨道组内有已打标记录时按一级类别分层，未打标归「未分类」", () => {
+    setup([
+      labeled({ artifactId: "a1", label: "Halo A", taxonomyLabels: ["halo_l2_northern"] }),
+      labeled({ artifactId: "a2", label: "DRO B", taxonomyLabels: ["distant_retrograde"] }),
+      labeled({ artifactId: "a3", label: "Res C", taxonomyLabels: ["resonant_3_1"] }),
+      labeled({ artifactId: "a4", label: "Liss D", taxonomyLabels: null }),
+    ]);
+    // 三个类别子组 + 未分类子组（空类别不渲染）
+    for (const g of ["平动点", "月心", "共振", "未分类"]) {
+      expect(screen.getByText(g)).toBeDefined();
+    }
+    // rc-tree 行是扁平 DOM（层级只体现在视觉缩进），用行序断言归位：
+    // 每个子组头之后紧跟该类叶子
+    const rows = Array.from(document.querySelectorAll(".ant-tree-treenode")).map(
+      (n) => n.textContent ?? "",
+    );
+    const order = rows.map((t) => {
+      const hit = ["平动点", "月心", "共振", "未分类", "Halo A", "DRO B", "Res C", "Liss D"].find(
+        (s) => t.includes(s),
+      );
+      return hit ?? "";
+    }).filter(Boolean);
+    expect(order).toEqual(["平动点", "Halo A", "月心", "DRO B", "共振", "Res C", "未分类", "Liss D"]);
+  });
+
+  it("全组未打标（会话产物）保持平铺，不多一层", () => {
+    setup();
+    expect(screen.queryByText("平动点")).toBeNull();
+    expect(screen.queryByText("未分类")).toBeNull();
+    // 叶子仍直接挂在「轨道」组下
+    expect(screen.getByText("Halo A")).toBeDefined();
+  });
+
+  it("转移/星历组不分层（taxonomy 子分组只属轨道/轨道族）", () => {
+    setup([
+      labeled({ artifactId: "t1", artifactType: "transfer", label: "TLI", taxonomyLabels: ["halo_l1_northern"] }),
+    ]);
+    expect(screen.getByText("转移")).toBeDefined();
+    expect(screen.queryByText("平动点")).toBeNull();
+    expect(screen.getByText("TLI")).toBeDefined();
   });
 });

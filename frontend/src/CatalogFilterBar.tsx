@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Form, Select, InputNumber, Button, Space, message, Modal, Input, Switch, Tag, Typography } from "antd";
 import { SearchOutlined, DownloadOutlined, RedoOutlined } from "@ant-design/icons";
-import { catalogQuery, catalogExport, STAR_TAG } from "./catalogApi";
+import { catalogQuery, catalogExport, classifyArtifactType, STAR_TAG } from "./catalogApi";
 import type { CatalogRecord } from "./catalogApi";
 import { useTranslation } from "./i18n";
 import type { ArtifactSummary } from "./projectApi";
@@ -47,7 +47,8 @@ export function CatalogFilterBar({ onResults }: CatalogFilterBarProps) {
     onResults(
       visible.map((r) => ({
         artifactId: String(r.record_id ?? ""),
-        artifactType: r.source_tool === "orbit_family_generation" || (r.member_count ?? 0) > 1 ? "family" : "orbit",
+        // 分组判别收拢到 classifyArtifactType 一处（#470），不再内联推断
+        artifactType: classifyArtifactType(r),
         label: String(r.orbit_family ?? ""),
         orbitType: String(r.orbit_family ?? ""),
         sourceTool: String(r.source_tool ?? ""),
@@ -59,6 +60,7 @@ export function CatalogFilterBar({ onResults }: CatalogFilterBarProps) {
         librationPoint: r.libration_point,
         jacobi: r.jacobi,
         memberCount: r.member_count,
+        taxonomyLabels: r.taxonomy_labels ?? null,
       })),
       visible.length,
       fallbackMessage || `查询到 ${visible.length} 条记录`,

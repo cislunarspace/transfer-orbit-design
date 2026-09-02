@@ -19,7 +19,7 @@ import {
   PushpinOutlined,
 } from "@ant-design/icons";
 import type { ArtifactSummary } from "./projectApi";
-import { catalogDelete, catalogTag, catalogQuery, STAR_TAG } from "./catalogApi";
+import { catalogDelete, catalogTag, catalogQuery, taxonomyCategoryOf, STAR_TAG } from "./catalogApi";
 import { useTranslation } from "./i18n";
 
 const { Text } = Typography;
@@ -37,9 +37,26 @@ const GROUP_LABELS: Record<string, string> = {
   ephemeris: "星历",
 };
 
-// 受控展开初值：四个分组全部展开（去掉 defaultExpandAll，#468）
-// Controlled-expansion initial value: all four groups expanded (defaultExpandAll removed, #468).
-const GROUP_KEYS: Key[] = Object.keys(GROUP_LABELS).map((k) => `group_${k}`);
+// taxonomy 一级类别子分组（#470）：仅轨道/轨道族组内细分；unclassified 兜未打标记录
+// Taxonomy top-category subgroups (#470): only inside the orbit/family groups;
+// "unclassified" catches unlabeled records.
+const TAXONOMY_SUBGROUP_LABELS: Record<string, string> = {
+  libration_point: "平动点",
+  moon_centered: "月心",
+  resonant: "共振",
+  unclassified: "未分类",
+};
+const TAXONOMY_GROUP_TYPES = new Set(["orbit", "family"]);
+
+// 受控展开初值：四个分组及全部子分组展开（去掉 defaultExpandAll，#468）
+// Controlled-expansion initial value: all groups and subgroups expanded
+// (defaultExpandAll removed, #468).
+const GROUP_KEYS: Key[] = [
+  ...Object.keys(GROUP_LABELS).map((k) => `group_${k}`),
+  ...[...TAXONOMY_GROUP_TYPES].flatMap((t) =>
+    Object.keys(TAXONOMY_SUBGROUP_LABELS).map((c) => `group_${t}/tax_${c}`),
+  ),
+];
 
 export interface ProjectTreeProps {
   artifacts: ArtifactSummary[];
@@ -160,17 +177,43 @@ export function ProjectTree({
 
   const treeData = Object.entries(GROUP_LABELS).map(([typeKey, label]) => {
     const items = artifacts.filter((a) => a.artifactType === typeKey);
+    const leafNode = (item: ArtifactSummary) => ({
+      title: item.label,
+      key: item.artifactId,
+      isLeaf: true,
+      data: item,
+    });
+    // taxonomy 子分组（#470）：组内有已打标记录才按一级类别分层，未打标记录
+    // 归「未分类」；全组未打标（如会话产物行）保持平铺不多一层
+    // Taxonomy subgrouping (#470): kicks in only when at least one row in the
+    // group is labeled — unlabeled rows then fall into "unclassified"; a fully
+    // unlabeled group (e.g. session artifacts) stays flat, no extra level.
+    const subgrouped =
+      TAXONOMY_GROUP_TYPES.has(typeKey) &&
+      items.some((a) => taxonomyCategoryOf(a.taxonomyLabels) !== null);
+    const children = subgrouped
+      ? Object.keys(TAXONOMY_SUBGROUP_LABELS).flatMap((cat) => {
+          const sub = items.filter(
+            (a) => (taxonomyCategoryOf(a.taxonomyLabels) ?? "unclassified") === cat,
+          );
+          if (sub.length === 0) return [];
+          return [
+            {
+              title: TAXONOMY_SUBGROUP_LABELS[cat],
+              key: `group_${typeKey}/tax_${cat}`,
+              count: sub.length,
+              selectable: false,
+              children: sub.map(leafNode),
+            },
+          ];
+        })
+      : items.map(leafNode);
     return {
       title: label,
       key: `group_${typeKey}`,
       count: items.length,
       selectable: false,
-      children: items.map((item) => ({
-        title: item.label,
-        key: item.artifactId,
-        isLeaf: true,
-        data: item,
-      })),
+      children,
     };
   });
 
