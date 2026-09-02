@@ -741,19 +741,6 @@ describe("Jacobi 常数着色（#435）", () => {
     expect(bar!.textContent).toContain("3.05");
     expect(bar!.textContent).toContain("3.07");
   });
-
-  it("图例色样反映实际渲染色（有值轨迹用 colormap 色而非色环色）", () => {
-    const view = renderCanvas({
-      trajectories: TWO_TRAJECTORIES,
-      jacobi: [2.9, 3.1],
-      labels: ["轨道A", "轨道B"],
-    });
-    flushFrames();
-    const swatches = view.container.querySelectorAll("[data-testid='legend-swatch']");
-    expect(swatches).toHaveLength(2);
-    expect((swatches[0] as HTMLElement).style.background).toBe("rgb(59, 76, 192)"); // #3b4cc0
-    expect((swatches[1] as HTMLElement).style.background).toBe("rgb(180, 4, 38)"); // #b40426
-  });
 });
 
 // —— 惯性视图（#428 第一步）：视图系贯通——灰显、月球 SPICE 轨迹、
@@ -944,22 +931,13 @@ describe("惯性视图（#428）", () => {
       trajectories: [TRAJECTORIES[0], TRAJECTORIES[0]],
       jacobi: [2.9, 3.1],
       labels: ["轨道A", "轨道B"],
-      synodicUnavailableNote: "会合系几何，惯性视图下不可画",
     });
     flushFrames();
     expect(view.container.querySelector("[data-testid='jacobi-colorbar']")).toBeNull();
-    // 灰显项图例附不可画注记
-    // Grayed legend items carry the not-drawable note.
-    const notes = view.container.querySelectorAll("[data-testid='legend-unavailable']");
-    expect(notes).toHaveLength(2);
-    // 灰显 swatch 反映灰显色（CSS 十六进制→rgb 直读，不经 THREE 的
-    // linear-sRGB 转换）
-    // Grayed swatches mirror the grayed color (hex→rgb read directly,
-    // bypassing THREE's linear-sRGB conversion).
-    const grayedHex = desaturate("#3b4cc0").slice(1); // 轨迹 0 有 Jacobi 值：原色是 coolwarm 蓝端
-    const expectedRgb = `rgb(${parseInt(grayedHex.slice(0, 2), 16)}, ${parseInt(grayedHex.slice(2, 4), 16)}, ${parseInt(grayedHex.slice(4, 6), 16)})`;
-    const swatches = view.container.querySelectorAll("[data-testid='legend-swatch']");
-    expect((swatches[0] as HTMLElement).style.background).toBe(expectedRgb);
+    // 灰显线的颜色本身（去饱和）由下方惯性视图用例覆盖；清单注记迁到
+    // CanvasOrbitList.test（#469）。
+    // The grayed line color itself (desaturated) is covered by the inertial-view
+    // cases below; the list note moved to CanvasOrbitList.test (#469).
   });
 });
 
@@ -989,14 +967,13 @@ describe("惯性视图转移弧 gcrs 段（#428 第二步）", () => {
     return [attr.getX(0), attr.getY(0), attr.getZ(0)];
   }
 
-  it("惯性视图：带 gcrs 段的转移弧改用惯性几何绘制，不灰显、无不可画注记", () => {
-    const view = renderCanvas({
+  it("惯性视图：带 gcrs 段的转移弧改用惯性几何绘制，不灰显", () => {
+    renderCanvas({
       frame: "inertial",
       trajectories: [SYNODIC_ARC],
       dataFrames: ["synodic_km"],
       inertialGeometries: [GCRS_ARC],
       labels: ["转移弧"],
-      synodicUnavailableNote: "会合系几何，惯性视图下不可画",
     });
     flushFrames();
     const [line] = arcLines();
@@ -1004,7 +981,6 @@ describe("惯性视图转移弧 gcrs 段（#428 第二步）", () => {
     expect(firstPointOf(line)[1]).toBeCloseTo(0.1, 6);
     const hex = (line.material as unknown as { color: { getHexString(): string } }).color.getHexString();
     expect(hex).toBe(DEFAULT_CHART_SETTINGS.colorCycle[0].slice(1)); // 原色，未去饱和
-    expect(view.container.querySelectorAll("[data-testid='legend-unavailable']")).toHaveLength(0);
   });
 
   it("会合视图：不消费 gcrs 段，逐项不变", () => {
@@ -1038,21 +1014,19 @@ describe("惯性视图转移弧 gcrs 段（#428 第二步）", () => {
     expect(marker.position.y).toBeCloseTo(0.2, 10);
   });
 
-  it("gcrs 段为 null（旧记录/low_thrust）时降级：仍画会合段并灰显＋注记", () => {
-    const view = renderCanvas({
+  it("gcrs 段为 null（旧记录/low_thrust）时降级：仍画会合段并灰显", () => {
+    renderCanvas({
       frame: "inertial",
       trajectories: [SYNODIC_ARC],
       dataFrames: ["synodic_km"],
       inertialGeometries: [null],
       labels: ["转移弧"],
-      synodicUnavailableNote: "会合系几何，惯性视图下不可画",
     });
     flushFrames();
     const [line] = arcLines();
     expect(firstPointOf(line)[0]).toBeCloseTo(0.1, 6); // 会合段照画（灰显口径）
     const hex = (line.material as unknown as { color: { getHexString(): string } }).color.getHexString();
     expect(hex).toBe(desaturate(DEFAULT_CHART_SETTINGS.colorCycle[0]).slice(1));
-    expect(view.container.querySelectorAll("[data-testid='legend-unavailable']")).toHaveLength(1);
   });
 });
 
@@ -1062,7 +1036,7 @@ describe("惯性视图转移弧 gcrs 段（#428 第二步）", () => {
 import { Raycaster } from "three";
 import type { Intersection } from "three";
 import { Vector3 } from "three";
-import { act, screen, fireEvent } from "@testing-library/react";
+import { act, screen } from "@testing-library/react";
 
 const TWO_TRAJECTORIES: number[][][] = [
   Array.from({ length: 40 }, (_, i) => [Math.cos((i / 40) * Math.PI * 2) * 0.5, Math.sin((i / 40) * Math.PI * 2) * 0.5, 0]),
@@ -1198,88 +1172,124 @@ function pickCanvasLines(): Line[] {
   return sceneLines(scene);
 }
 
-// —— 图例联动拾取（#460）：悬停预览、点击聚焦、聚焦标记 ——
-// Legend-linked picking (#460): hover preview, click focus, focus marker.
+// —— 聚焦/预览受控态（#460/#469）：图注迁到左侧轨道清单后，画布态由
+// App 经 props 驱动；清单交互用例在 CanvasOrbitList.test ——
+// Controlled focus/preview state (#460/#469): with the legend moved into the
+// sidebar orbit list, the canvas state is driven by App through props; the
+// list-interaction cases live in CanvasOrbitList.test.
 
-
-describe("OrbitCanvas 图例联动（#460）", () => {
-  function legendCanvas() {
+describe("OrbitCanvas 聚焦/预览受控态（#460/#469）", () => {
+  function controlledCanvas(
+    onFocus: (i: number | null) => void = () => {},
+    onPreview: (i: number | null) => void = () => {},
+  ) {
     const view = renderCanvas({
       trajectories: TWO_TRAJECTORIES,
       labels: TWO_LABELS,
+      focusIndex: null,
+      previewIndex: null,
+      onFocusIndexChange: onFocus,
+      onPreviewIndexChange: onPreview,
     });
-    // 首帧也走 rAF（按需渲染），主动 pump 一帧让场景就绪
-    // The first frame also rides rAF (on-demand rendering); pump once so the scene is ready.
     flushFrames();
     const scene = (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances[
       (WebGLRenderer as unknown as { instances: FakeRendererInstance[] }).instances.length - 1
     ].lastScene;
     const ops = () => opacities(scene);
-    const item = (label: string) =>
-      screen.getByText(label).closest("[data-legend-item]") as HTMLElement;
     const lines = sceneLines(scene);
-    return { view, scene, lines, ops, item };
+    return { view, scene, lines, ops };
   }
 
-  it("悬停图例项：对应线原色、其余淡出；离开恢复原色", () => {
-    const { ops, item } = legendCanvas();
-    act(() => fireEvent.mouseOver(item("弧 A")));
-    expect(ops()).toEqual([1, 0.15]);
-    act(() => fireEvent.mouseOut(item("弧 A")));
-    expect(ops()).toEqual([1, 1]);
-  });
-
-  it("点击图例项切换聚焦，聚焦态图例项带标记；再点解除", () => {
-    const { item, ops } = legendCanvas();
-    act(() => fireEvent.click(item("弧 B")));
-    expect(ops()).toEqual([0.15, 1]);
-    expect(item("弧 B").getAttribute("data-focused")).toBe("true");
-    expect(item("弧 A").getAttribute("data-focused")).toBe("false");
-    act(() => fireEvent.click(item("弧 B")));
-    expect(ops()).toEqual([1, 1]);
-    expect(item("弧 B").getAttribute("data-focused")).toBe("false");
-  });
-
-  it("画布点击聚焦时图例标记同步（双向一致）", () => {
-    const { ops, item, lines } = legendCanvas();
-    stubRaycast(lines, 1);
-    const canvas = document.querySelector("canvas")!;
-    pointer(canvas, "pointerdown", 30, 30);
-    pointer(canvas, "pointerup", 30, 30);
-    expect(ops()).toEqual([0.15, 1]);
-    expect(item("弧 B").getAttribute("data-focused")).toBe("true");
-  });
-
-  it("预览叠加于聚焦：离开图例恢复聚焦视图", () => {
-    const { item, ops } = legendCanvas();
-    act(() => fireEvent.click(item("弧 B"))); // 聚焦 B
-    act(() => fireEvent.mouseOver(item("弧 A"))); // 预览 A：A 原色、B 淡出
-    expect(ops()).toEqual([1, 0.15]);
-    act(() => fireEvent.mouseOut(item("弧 A"))); // 回到聚焦 B
-    expect(ops()).toEqual([0.15, 1]);
-  });
-
-  it("轨迹数据整体替换：预览与聚焦标记清除", () => {
-    const { view, item, ops } = legendCanvas();
-    act(() => fireEvent.mouseOver(item("弧 A")));
-    expect(ops()).toEqual([1, 0.15]);
-    const other: number[][][] = [
-      Array.from({ length: 30 }, (_, i) => [Math.cos((i / 30) * Math.PI), 0, Math.sin((i / 30) * Math.PI)]),
-    ];
+  // 受控重渲染：与 App 同源地组装 props（聚焦/预览 + 必填项）；传同一
+  // trajectories 引用，几何不重建，只有不透明度变化。
+  // Controlled rerender: assembles props from the same source as App
+  // (focus/preview plus the required ones); the same trajectories reference
+  // keeps the geometry intact — only opacity changes.
+  function controlledRerender(
+    view: ReturnType<typeof renderCanvas>,
+    focus: number | null,
+    preview: number | null,
+    onFocus: (i: number | null) => void = () => {},
+    trajectories: number[][][] = TWO_TRAJECTORIES,
+    labels: string[] = TWO_LABELS,
+    onPreview: (i: number | null) => void = () => {},
+  ) {
     act(() => {
       view.rerender(
         <OrbitCanvas
-          trajectories={other}
-          labels={["弧 C"]}
+          trajectories={trajectories}
+          labels={labels}
           mu={MU}
           libration={LIBRATION}
           projection="3d"
           center="barycenter"
           onReady={noopReady}
+          focusIndex={focus}
+          previewIndex={preview}
+          onFocusIndexChange={onFocus}
+          onPreviewIndexChange={onPreview}
         />,
       );
     });
-    expect(ops()).toEqual([1]);
-    expect(screen.queryByText("弧 A")).toBeNull();
+    flushFrames();
+  }
+
+  it("聚焦态（受控）：聚焦线原色、其余淡出；解除恢复", () => {
+    const { view, ops } = controlledCanvas();
+    expect(ops()).toEqual([1, 1]);
+    controlledRerender(view, 1, null);
+    expect(ops()).toEqual([0.15, 1]);
+    controlledRerender(view, null, null);
+    expect(ops()).toEqual([1, 1]);
+  });
+
+  it("预览态（受控）：预览线原色、其余淡出；离开恢复", () => {
+    const { view, ops } = controlledCanvas();
+    controlledRerender(view, null, 0);
+    expect(ops()).toEqual([1, 0.15]);
+    controlledRerender(view, null, null);
+    expect(ops()).toEqual([1, 1]);
+  });
+
+  it("预览叠加于聚焦：离开预览恢复聚焦视图", () => {
+    const { view, ops } = controlledCanvas();
+    controlledRerender(view, 1, null); // 聚焦 B
+    expect(ops()).toEqual([0.15, 1]);
+    controlledRerender(view, 1, 0); // 预览 A：A 原色、B 淡出
+    expect(ops()).toEqual([1, 0.15]);
+    controlledRerender(view, 1, null); // 回到聚焦 B
+    expect(ops()).toEqual([0.15, 1]);
+  });
+
+  it("画布点击聚焦经 onFocusIndexChange 上报，清单状态同源（双向一致）", () => {
+    const onFocus = vi.fn();
+    const { view, lines, ops } = controlledCanvas(onFocus);
+    onFocus.mockClear(); // 挂载时的替换重置也会回调一次
+    stubRaycast(lines, 1);
+    const canvas = document.querySelector("canvas")!;
+    pointer(canvas, "pointerdown", 30, 30);
+    pointer(canvas, "pointerup", 30, 30);
+    expect(onFocus).toHaveBeenCalledWith(1);
+    // App 收到回调后回写受控态，画布淡出其余线
+    // App writes the controlled state back upon the callback; the canvas
+    // dims the other lines.
+    controlledRerender(view, 1, null, onFocus);
+    expect(ops()).toEqual([0.15, 1]);
+  });
+
+  it("轨迹数据整体替换：聚焦/预览经回调清零（#452/#460）", () => {
+    const onFocus = vi.fn();
+    const onPreview = vi.fn();
+    const { view, ops } = controlledCanvas(onFocus, onPreview);
+    controlledRerender(view, 1, null, onFocus, TWO_TRAJECTORIES, TWO_LABELS, onPreview);
+    expect(ops()).toEqual([0.15, 1]);
+    onFocus.mockClear();
+    onPreview.mockClear();
+    const other: number[][][] = [
+      Array.from({ length: 30 }, (_, i) => [Math.cos((i / 30) * Math.PI), 0, Math.sin((i / 30) * Math.PI)]),
+    ];
+    controlledRerender(view, 1, null, onFocus, other, ["弧 C"], onPreview);
+    expect(onFocus).toHaveBeenCalledWith(null);
+    expect(onPreview).toHaveBeenCalledWith(null);
   });
 });

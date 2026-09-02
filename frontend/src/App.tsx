@@ -28,6 +28,8 @@ import {
 import { themeBehavior, themeTokens, themeCssVars } from "./theme";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode, type FrameMode } from "./OrbitCanvas";
+import { CanvasOrbitList } from "./CanvasOrbitList";
+import { buildOrbitListItems } from "./orbitListItems";
 import { TimelineBar } from "./TimelineBar";
 import { ParamsPanel } from "./ParamsPanel";
 import { ProjectTree } from "./ProjectTree";
@@ -250,6 +252,13 @@ export default function App() {
   const moonCacheKeyRef = useRef("");
 
   const [api, setApi] = useState<CanvasApi | null>(null);
+  // 轨道清单的聚焦/预览态（#469）：图注迁到左侧边栏后由 App 持有，清单
+  // 交互与画布拾取写同一状态、双向一致。
+  // The orbit list's focus/preview state (#469): owned by App since the
+  // legend moved into the sidebar, so list interactions and canvas picking
+  // write the same state and stay consistent both ways.
+  const [canvasFocusIdx, setCanvasFocusIdx] = useState<number | null>(null);
+  const [canvasPreviewIdx, setCanvasPreviewIdx] = useState<number | null>(null);
   const [chart, setChart] = useChartSettings();
   const [chartModalOpen, setChartModalOpen] = useState(false);
   const [stationKeepingOpen, setStationKeepingOpen] = useState(false);
@@ -416,6 +425,37 @@ export default function App() {
       timeRange: trajectoryTimeRange(timesForMode(combined, mode)),
     };
   }, [pinned, candidateLayer, resultData, contentMode]);
+
+  // 轨道清单数据（#469）：frameLabels 装配与 OrbitCanvas 属性同源（惯性
+  // 视图下带惯性段的转移弧标注换成地心惯性 km，#428），清单行色样/灰显
+  // 与画布渲染共用 buildOrbitListItems 口径。
+  // Orbit-list data (#469): frameLabels assembly shares the OrbitCanvas prop
+  // mapping (a gcrs-carrying transfer arc's tag switches to geocentric
+  // inertial km in the inertial view, #428); row swatches/graying share the
+  // canvas render rule via buildOrbitListItems.
+  const canvasFrameLabels = useMemo(
+    () =>
+      canvasData.frames?.map((f, i) =>
+        frame === "inertial" && canvasData.inertialGeometries?.[i]
+          ? t("canvas.frame.inertial_km")
+          : t(`canvas.frame.${f}`),
+      ),
+    [canvasData.frames, canvasData.inertialGeometries, frame, t],
+  );
+  const orbitItems = useMemo(
+    () =>
+      buildOrbitListItems({
+        count: canvasData.trajectories.length,
+        labels: canvasData.labels,
+        frameLabels: canvasFrameLabels,
+        jacobi: canvasData.jacobi,
+        colorCycle: chart.colorCycle,
+        frame,
+        dataFrames: canvasData.frames,
+        inertialGeometries: canvasData.inertialGeometries,
+      }),
+    [canvasData, canvasFrameLabels, chart.colorCycle, frame],
+  );
 
   // 自动视图适配（#438 确认式，不再用固定时长 setTimeout）：canvasData 提交后
   // 适配一次。React 保证子组件（OrbitCanvas）的几何重建 effect 先于本父组件
@@ -1489,6 +1529,21 @@ export default function App() {
             />
           </div>
 
+          {/* 画布轨道清单（#469）：常驻左栏，替代画布内图注；与画布拾取
+              共用聚焦/预览态（#460 双向一致） */}
+          {/* Canvas orbit list (#469): persistent in the left pane, replacing
+              the in-canvas legend; shares focus/preview state with canvas
+              picking (bidirectional, #460). */}
+          <div style={{ borderTop: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8", maxHeight: 160, overflowY: "auto" }}>
+            <CanvasOrbitList
+              items={orbitItems}
+              focusIndex={canvasFocusIdx}
+              unavailableNote={t("canvas.frame.synodic_unavailable")}
+              onFocusChange={setCanvasFocusIdx}
+              onPreviewChange={setCanvasPreviewIdx}
+            />
+          </div>
+
           {/* 详情面板 */}
           <div style={{ maxHeight: 280, overflowY: "auto", borderTop: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8" }}>
             <RecordDetailPanel
@@ -1646,30 +1701,22 @@ export default function App() {
               times={canvasData.displayTimes}
               currentEt={currentEt}
               labels={canvasData.labels}
-              frameLabels={canvasData.frames?.map((f, i) =>
-                // 惯性视图下带 gcrs 段的转移弧实际画的是惯性几何，标注跟着
-                // 换成地心惯性 km（#428 第二步）；其余情形标注随数据系。
-                // In the inertial view a gcrs-carrying transfer arc actually
-                // draws its inertial geometry, so the note switches to
-                // geocentric inertial km (#428 step 2); otherwise the note
-                // follows the data frame.
-                frame === "inertial" && canvasData.inertialGeometries?.[i]
-                  ? t("canvas.frame.inertial_km")
-                  : t(`canvas.frame.${f}`)
-              )}
               jacobi={canvasData.jacobi}
               regions={regionData}
               frame={frame}
               dataFrames={canvasData.frames}
               inertialGeometries={canvasData.inertialGeometries}
               moonTrack={frame === "inertial" ? moonTrack : null}
-              synodicUnavailableNote={t("canvas.frame.synodic_unavailable")}
               mu={EARTH_MOON_MU}
               libration={libration}
               projection={projection}
               center={center}
               settings={chart}
               background={chart.bgColor ?? (themeMode === "dark" ? "#121212" : "#ffffff")}
+              focusIndex={canvasFocusIdx}
+              previewIndex={canvasPreviewIdx}
+              onFocusIndexChange={setCanvasFocusIdx}
+              onPreviewIndexChange={setCanvasPreviewIdx}
               onReady={(a) => setApi(a)}
             />
           </div>

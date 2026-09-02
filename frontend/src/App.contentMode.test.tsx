@@ -168,12 +168,13 @@ vi.mock("three", async (importOriginal) => {
   return { ...actual, WebGLRenderer: FakeRenderer };
 });
 
-/** 图例容器内的可见条目（无标签轨迹不进图例，条目文本即标签） */
-/** Visible legend items (unlabeled trajectories stay out; item text is the label). */
+/** 轨道清单内的可见条目（无标签轨迹不进清单，条目文本即标签；#469 起清单位于左侧边栏） */
+/** Visible orbit-list items (unlabeled trajectories stay out; item text is the
+ *  label; the list lives in the left sidebar since #469). */
 const legendItemTexts = (): string[] => {
-  const container = screen.queryAllByTestId("legend-swatch")[0]?.parentElement?.parentElement;
+  const container = screen.queryByTestId("canvas-orbit-list");
   if (!container) return [];
-  return Array.from(container.querySelectorAll("[data-legend-item]")).map(
+  return Array.from(container.querySelectorAll("[data-orbit-item]")).map(
     (el) => el.textContent ?? "",
   );
 };
