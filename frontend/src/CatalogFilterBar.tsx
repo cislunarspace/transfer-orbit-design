@@ -58,7 +58,9 @@ export function CatalogFilterBar({ onResults }: CatalogFilterBarProps) {
         tags: r.tags ?? [],
         note: r.note ?? "",
         librationPoint: r.libration_point,
-        jacobi: r.jacobi,
+        // jacobi 线上是包络数组 [min, max]：取下界（与后端 record_to_artifact 同口径），
+        // 直接透传会被摘要行 Number() 成 NaN
+        jacobi: Array.isArray(r.jacobi) ? r.jacobi[0] : r.jacobi,
         memberCount: r.member_count,
         taxonomyLabels: r.taxonomy_labels ?? null,
       })),

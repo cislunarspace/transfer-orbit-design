@@ -89,7 +89,7 @@ import {
   type SegmentRole,
 } from "./trajectoryParsing";
 import type { TimelineEvent } from "./TimelineBar";
-import { type CatalogRecord, catalogQuery } from "./catalogApi";
+import { type CatalogRecord, catalogQuerySummaryById } from "./catalogApi";
 
 const { Text } = Typography;
 const EARTH_MOON_MU = 0.01215058560962404;
@@ -900,9 +900,10 @@ export default function App() {
     }
 
     try {
-      const queryResp = await catalogQuery({ record_id: a.recordId });
-      if (queryResp.records && queryResp.records.length > 0) {
-        setSelectedRecordDetail(queryResp.records[0]);
+      // 单条点查走 catalogQuerySummaryById（5.9.2 起 catalog_query 无 record_id 过滤）
+      const rec = await catalogQuerySummaryById(a.recordId);
+      if (rec) {
+        setSelectedRecordDetail(rec);
       }
       const data = await getArtifact(a.recordId);
       const td = parseArtifactToTrajectoryData(data);
@@ -1087,9 +1088,8 @@ export default function App() {
         // synthesizes from the catalog record, independent of the tree.
         let label = rid;
         try {
-          const resp = await catalogQuery({ record_id: rid });
-          const family = resp.records?.[0]?.orbit_family;
-          if (family) label = `${family}·${rid.slice(0, 8)}`;
+          const rec = await catalogQuerySummaryById(rid);
+          if (rec?.orbit_family) label = `${rec.orbit_family}·${rid.slice(0, 8)}`;
         } catch {
           // label 合成失败不阻塞轨迹解析，退回 rid
           // A failed label synthesis never blocks trajectory resolution; fall

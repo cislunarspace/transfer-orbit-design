@@ -135,8 +135,12 @@ export function RecordDetailPanel({ record, transferCandidates, selectedLabel, o
           <Tag color="blue">{record.orbit_family || "未指定"}</Tag>
           {record.libration_point && <Tag color="cyan">L{record.libration_point}</Tag>}
         </Descriptions.Item>
+        {/* jacobi 线上为包络数组 [min, max]：取下界渲染（与后端 record_to_artifact
+            同口径），直接 Number(数组) 会得 NaN */}
         {record.jacobi !== undefined && (
-          <Descriptions.Item label="Jacobi">{Number(record.jacobi).toFixed(4)}</Descriptions.Item>
+          <Descriptions.Item label="Jacobi">
+            {Number(Array.isArray(record.jacobi) ? record.jacobi[0] : record.jacobi).toFixed(4)}
+          </Descriptions.Item>
         )}
         {record.member_count !== undefined && (
           <Descriptions.Item label="成员数">{record.member_count}</Descriptions.Item>

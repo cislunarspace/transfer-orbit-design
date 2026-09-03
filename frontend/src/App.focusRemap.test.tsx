@@ -70,6 +70,8 @@ const treeRecords = [
     record_id: "rid-a",
     orbit_family: "DRO",
     member_count: 1,
+    // #470 结构化分类：带 CR3BP 段的双段记录归「轨道」，缺省会被判成纯星历
+    has_cr3bp: true,
     has_ephemeris: true,
     source_tool: "design_orbit",
     tags: [],
@@ -86,10 +88,15 @@ const treeRecords = [
   },
 ];
 
-vi.mock("./catalogApi", () => ({
+// catalogQuerySummaryById 需显式桩：ESM 模块内函数互调不经过 mock 注册表，
+// 否则真身绕过 catalogQuery 桩直连 invoke 抛错（同 App.contentMode.test.tsx）;
+// 纯函数（classifyArtifactType/taxonomyCategoryOf）走 importOriginal 真身。
+vi.mock("./catalogApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./catalogApi")>()),
   catalogQuery: () => Promise.resolve({ records: treeRecords, message: "mock" }),
+  catalogQuerySummaryById: (rid: string) =>
+    Promise.resolve(treeRecords.find((r) => r.record_id === rid) ?? null),
   catalogTag: () => Promise.resolve(true),
-  STAR_TAG: "★",
 }));
 vi.mock("./projectApi", () => ({
   listArtifacts: () =>

@@ -9,7 +9,8 @@ export interface CatalogRecord {
   record_id: string;
   orbit_family: string;
   libration_point?: number;
-  jacobi?: number;
+  /** Jacobi 包络 [min, max]（线上为数组）；消费方取下界或按区间处理 */
+  jacobi?: number | number[];
   jacobi_min?: number;
   jacobi_max?: number;
   amplitude_km?: number;
@@ -94,6 +95,20 @@ export function taxonomyCategoryOf(labels?: string[] | null): TaxonomyCategory |
 
 export async function catalogQuery(filters: Record<string, unknown>): Promise<CatalogQueryResponse> {
   return invoke<CatalogQueryResponse>("catalog_query", { arguments: filters });
+}
+
+/** 按 record_id 取单条摘要（详情面板、星标/备注编辑取当前 tags 用）。
+ *  e2m2e 5.9.2 起 CatalogQueryRequest 移除 record_id 过滤字段（传了会被
+ *  pydantic 以 extra_forbidden 拒为 INVALID_PARAMS），单条点查只能全量查询
+ *  后客户端按 id 找；查不到（并发删除等）返回 null。 */
+/** Fetch one record's summary by record_id (detail panel; current tags for
+ *  star/note editing). Since e2m2e 5.9.2 CatalogQueryRequest dropped the
+ *  record_id filter (passing it is rejected as INVALID_PARAMS extra_forbidden),
+ *  a point lookup has to query unfiltered and find client-side; null when the
+ *  record is gone (concurrent deletion etc.). */
+export async function catalogQuerySummaryById(recordId: string): Promise<CatalogRecord | null> {
+  const resp = await catalogQuery({});
+  return resp.records.find((r) => r.record_id === recordId) ?? null;
 }
 
 export async function catalogTag(recordId: string, tags: string[], note?: string): Promise<boolean> {

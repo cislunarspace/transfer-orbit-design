@@ -6,16 +6,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { ProjectTree } from "./ProjectTree";
-import { catalogTag, catalogQuery } from "./catalogApi";
+import { catalogTag, catalogQuerySummaryById } from "./catalogApi";
 import type { ArtifactSummary } from "./projectApi";
 
-// 只桩网络出口；taxonomy 判别等纯函数走真实实现（#470）
+// 只桩网络出口；taxonomy 判别等纯函数走真实实现（#470）。
+// 注意 catalogQuerySummaryById 也必须显式桩：ESM 模块内函数互调不经过 mock 注册表。
 // Only the network egress is stubbed; pure helpers like the taxonomy
-// classifier run for real (#470).
+// classifier run for real (#470). catalogQuerySummaryById must be stubbed
+// explicitly too: intra-module calls bypass the mock registry.
 vi.mock("./catalogApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./catalogApi")>()),
   catalogDelete: vi.fn(),
   catalogQuery: vi.fn(),
+  catalogQuerySummaryById: vi.fn(),
   catalogTag: vi.fn().mockResolvedValue(true),
 }));
 
@@ -62,10 +65,9 @@ beforeEach(() => {
       unobserve() {}
     },
   );
-  vi.mocked(catalogQuery).mockResolvedValue({
-    records: [{ record_id: "r2", orbit_family: "", tags: ["t2"] }],
-    message: "",
-  });
+  vi.mocked(catalogQuerySummaryById).mockImplementation(async (rid: string) =>
+    rid === "r2" ? ({ record_id: "r2", orbit_family: "", tags: ["t2"] } as never) : null,
+  );
 });
 
 afterEach(() => {
@@ -102,7 +104,8 @@ describe("ProjectTree 星标切换", () => {
   it("行缺 tags 时先查详情再追加 ★（catalog_tag 整体替换，note 不动）", async () => {
     const { props } = setup();
     fireEvent.click(screen.getAllByRole("button", { name: "星标" })[1]); // NRHO B
-    await waitFor(() => expect(catalogQuery).toHaveBeenCalledWith({ record_id: "r2" }));
+    // 点查走 catalogQuerySummaryById（5.9.2 起 catalog_query 无 record_id 过滤）
+    await waitFor(() => expect(catalogQuerySummaryById).toHaveBeenCalledWith("r2"));
     await waitFor(() => expect(catalogTag).toHaveBeenCalledWith("r2", ["t2", "★"]));
     await waitFor(() => expect(props.onMetaChange).toHaveBeenCalledWith("r2", ["t2", "★"]));
   });
@@ -114,7 +117,7 @@ describe("ProjectTree 星标切换", () => {
     const { props } = setup(starred);
     fireEvent.click(screen.getAllByRole("button", { name: "星标" })[0]); // Halo A
     await waitFor(() => expect(catalogTag).toHaveBeenCalledWith("r1", ["demo"]));
-    expect(catalogQuery).not.toHaveBeenCalled();
+    expect(catalogQuerySummaryById).not.toHaveBeenCalled();
     await waitFor(() => expect(props.onMetaChange).toHaveBeenCalledWith("r1", ["demo"]));
   });
 });
@@ -253,6 +256,39 @@ describe("ProjectTree taxonomy 子分组（#470）", () => {
       return hit ?? "";
     }).filter(Boolean);
     expect(order).toEqual(["平动点", "Halo A", "月心", "DRO B", "共振", "Res C", "未分类", "Liss D"]);
+  });
+
+  it("平动点子分组内按 L 点编号再分层；缺 L 字段的记录留子分组直属", () => {
+    setup([
+      labeled({ artifactId: "a1", label: "Halo L1", taxonomyLabels: ["halo_l1_northern"], librationPoint: 1 }),
+      labeled({ artifactId: "a2", label: "Halo L2a", taxonomyLabels: ["halo_l2_northern"], librationPoint: 2 }),
+      labeled({ artifactId: "a3", label: "Halo L2b", taxonomyLabels: ["halo_l2_southern"], librationPoint: 2 }),
+      labeled({ artifactId: "a4", label: "Lya L4", taxonomyLabels: ["lyapunov_l4"], librationPoint: 4 }),
+      // 缺 librationPoint 字段：仍归平动点子分组，但不进任何 L 层（不丢行）
+      // Missing librationPoint: still in the libration-point subgroup, but no L level.
+      labeled({ artifactId: "a5", label: "No L", taxonomyLabels: ["halo_l1_northern"] }),
+      labeled({ artifactId: "a6", label: "DRO B", taxonomyLabels: ["distant_retrograde"] }),
+    ]);
+    // 无记录的 L3/L5 层不渲染（叶子的摘要行只含各自的 L1/L2/L4，不会撞名）
+    expect(screen.queryByText("L3")).toBeNull();
+    expect(screen.queryByText("L5")).toBeNull();
+    // 行序断言（rc-tree 扁平 DOM）：平动点 → L1/L2/L4 层各带叶子 → 直属的
+    // No L → 月心子组（月心不分 L 层）
+    const rows = Array.from(document.querySelectorAll(".ant-tree-treenode")).map(
+      (n) => n.textContent ?? "",
+    );
+    // 叶子 label 排在层名之前：叶子行文本同时含 label 与摘要 "L1"，先中 label
+    const NAMES = [
+      "Halo L1", "Halo L2a", "Halo L2b", "Lya L4", "No L", "DRO B",
+      "平动点", "月心", "L1", "L2", "L4",
+    ];
+    const order = rows
+      .map((t) => NAMES.find((s) => t.includes(s)) ?? "")
+      .filter(Boolean);
+    expect(order).toEqual([
+      "平动点", "L1", "Halo L1", "L2", "Halo L2a", "Halo L2b", "L4", "Lya L4", "No L",
+      "月心", "DRO B",
+    ]);
   });
 
   it("全组未打标（会话产物）保持平铺，不多一层", () => {

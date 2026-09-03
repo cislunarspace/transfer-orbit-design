@@ -50,7 +50,7 @@ const RECORDS = [
     record_id: "r1",
     orbit_family: "HALO",
     libration_point: 2,
-    jacobi: 3.1536,
+    jacobi: [3.10, 3.1536], // 线上为包络数组 [min, max]，publish 透传时取下界
     member_count: 12,
     has_ephemeris: true,
     tags: ["★"],
@@ -90,7 +90,7 @@ describe("CatalogFilterBar 查询映射（#468）", () => {
       label: "HALO",
       memberCount: 12,
       librationPoint: 2,
-      jacobi: 3.1536,
+      jacobi: 3.10, // 包络 [3.10, 3.1536] 取下界（与后端 record_to_artifact 同口径）
       hasEphemeris: true,
     });
     // 未携带富化字段的记录：字段缺省而非脏值

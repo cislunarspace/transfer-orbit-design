@@ -19,7 +19,7 @@ import {
   PushpinOutlined,
 } from "@ant-design/icons";
 import type { ArtifactSummary } from "./projectApi";
-import { catalogDelete, catalogTag, catalogQuery, taxonomyCategoryOf, STAR_TAG } from "./catalogApi";
+import { catalogDelete, catalogTag, catalogQuerySummaryById, taxonomyCategoryOf, STAR_TAG } from "./catalogApi";
 import { useTranslation } from "./i18n";
 
 const { Text } = Typography;
@@ -48,6 +48,13 @@ const TAXONOMY_SUBGROUP_LABELS: Record<string, string> = {
 };
 const TAXONOMY_GROUP_TYPES = new Set(["orbit", "family"]);
 
+// 平动点子分组内按 L 点编号再分一层：只渲染有记录的 L 层；缺 librationPoint
+// 字段的记录留在子分组直属，保证任何记录都不丢
+// A second level by L-point number inside the libration-point subgroup: only
+// levels with records render; rows lacking librationPoint stay direct children
+// of the subgroup so no record can drop out.
+const LIBRATION_LEVELS = [1, 2, 3, 4, 5];
+
 // 受控展开初值：四个分组及全部子分组展开（去掉 defaultExpandAll，#468）
 // Controlled-expansion initial value: all groups and subgroups expanded
 // (defaultExpandAll removed, #468).
@@ -55,6 +62,9 @@ const GROUP_KEYS: Key[] = [
   ...Object.keys(GROUP_LABELS).map((k) => `group_${k}`),
   ...[...TAXONOMY_GROUP_TYPES].flatMap((t) =>
     Object.keys(TAXONOMY_SUBGROUP_LABELS).map((c) => `group_${t}/tax_${c}`),
+  ),
+  ...[...TAXONOMY_GROUP_TYPES].flatMap((t) =>
+    LIBRATION_LEVELS.map((n) => `group_${t}/tax_libration_point/L${n}`),
   ),
 ];
 
@@ -131,8 +141,8 @@ export function ProjectTree({
   const currentTagsOf = async (a: ArtifactSummary): Promise<string[]> => {
     if (a.tags) return a.tags;
     if (!a.recordId) return [];
-    const resp = await catalogQuery({ record_id: a.recordId });
-    return (resp.records[0]?.tags as string[] | undefined) ?? [];
+    const rec = await catalogQuerySummaryById(a.recordId);
+    return (rec?.tags as string[] | undefined) ?? [];
   };
 
   // 星标切换：tags 含 ★ 则移除、不含则加入（note 不传 = 保留原注释）
@@ -197,13 +207,40 @@ export function ProjectTree({
             (a) => (taxonomyCategoryOf(a.taxonomyLabels) ?? "unclassified") === cat,
           );
           if (sub.length === 0) return [];
+          // 平动点子分组内再按 L 点编号分层：L1–L5 只出有记录的层，缺字段
+          // （或越界值）的记录留在子分组直属——不硬凑一层，也保证不丢行
+          // The libration-point subgroup splits once more by L number: only
+          // L1–L5 levels with records render; rows missing the field (or with
+          // an out-of-range value) stay direct children — nothing forced,
+          // nothing lost.
+          const catChildren =
+            cat === "libration_point"
+              ? [
+                  ...LIBRATION_LEVELS.flatMap((n) => {
+                    const atL = sub.filter((a) => a.librationPoint === n);
+                    if (atL.length === 0) return [];
+                    return [
+                      {
+                        title: `L${n}`,
+                        key: `group_${typeKey}/tax_${cat}/L${n}`,
+                        count: atL.length,
+                        selectable: false,
+                        children: atL.map(leafNode),
+                      },
+                    ];
+                  }),
+                  ...sub
+                    .filter((a) => !LIBRATION_LEVELS.includes(a.librationPoint ?? -1))
+                    .map(leafNode),
+                ]
+              : sub.map(leafNode);
           return [
             {
               title: TAXONOMY_SUBGROUP_LABELS[cat],
               key: `group_${typeKey}/tax_${cat}`,
               count: sub.length,
               selectable: false,
-              children: sub.map(leafNode),
+              children: catChildren,
             },
           ];
         })
@@ -301,9 +338,12 @@ export function ProjectTree({
           onSelect={(keys, info: any) => {
             if (keys.length > 0 && info.node?.data) {
               onSelect(info.node.data as ArtifactSummary);
-            } else {
-              onSelect(null);
             }
+            // keys 为空 = 重复点击已选中行触发的反选：忽略、保持当前选中与详情
+            // 面板（双击习惯会把两次 click 落在同一行，反选清空面板看着像 bug）
+            // Empty keys = deselect from re-clicking the selected row: ignored so
+            // the current selection and detail panel stay (a habitual double-click
+            // lands two clicks on the same row; the clearing reads as a bug).
           }}
           titleRender={(node: any) => {
             if (!node.data) {

@@ -84,11 +84,14 @@ const treeRecords = [
   },
 ];
 
-// 只桩网络出口；分组/taxonomy 判别纯函数走真实实现（#470）
-// Only the network egress is stubbed; the pure grouping/taxonomy classifiers run for real (#470).
+// 只桩网络出口；分组/taxonomy 判别纯函数走真实实现（#470）。
+// catalogQuerySummaryById 需显式桩：ESM 模块内函数互调不经过 mock 注册表，
+// 否则真身会绕过 catalogQuery 桩直连 invoke 抛错，连带选中处理整体失败。
 vi.mock("./catalogApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./catalogApi")>()),
   catalogQuery: () => Promise.resolve({ records: treeRecords, message: "mock" }),
+  catalogQuerySummaryById: (rid: string) =>
+    Promise.resolve(treeRecords.find((r) => r.record_id === rid) ?? null),
   catalogTag: () => Promise.resolve(true),
 }));
 vi.mock("./projectApi", () => ({
@@ -242,5 +245,40 @@ describe("绘制内容切换（eph-fig）按入库记录路径", () => {
       expect(items.length).toBe(2);
       expect(items.every((s) => s.includes("星历段"))).toBe(true);
     });
+  });
+});
+
+describe("记录详情点查与选中保持（5.9.2 record_id 过滤移除 + 反选忽略）", () => {
+  // e2m2e 5.9.2 的 CatalogQueryRequest 删掉 record_id 字段（传了被 pydantic
+  // extra_forbidden 拒为 INVALID_PARAMS）：详情点查改全量查询 + 客户端按 id 找。
+  // Since e2m2e 5.9.2 dropped record_id from CatalogQueryRequest (passing it is
+  // rejected INVALID_PARAMS extra_forbidden), the detail point-lookup queries
+  // unfiltered and finds client-side.
+  it("连点两条记录：详情面板逐条切换（点查不再依赖 record_id 过滤）", async () => {
+    render(<App />);
+    await waitFor(() => expect(screen.getByText("DRO (1 成员)")).toBeTruthy());
+    fireEvent.click(screen.getByText("DRO (1 成员)"));
+    await waitFor(() => expect(screen.getByText("rid-a")).toBeTruthy());
+
+    fireEvent.click(screen.getByText("HALO (1 成员)"));
+    await waitFor(() => expect(screen.getByText("rid-b")).toBeTruthy());
+    expect(screen.queryByText("rid-a")).toBeNull();
+  });
+
+  it("双击同一记录（两次 click 落同一行）：反选被忽略，面板保持", async () => {
+    render(<App />);
+    await waitFor(() => expect(screen.getByText("DRO (1 成员)")).toBeTruthy());
+    fireEvent.click(screen.getByText("DRO (1 成员)"));
+    await waitFor(() => expect(screen.getByText("rid-a")).toBeTruthy());
+
+    // 习惯性双击的第二次 click 触发 antd 反选语义；忽略后选中与面板不动
+    // The second click of a habitual double-click fires antd's deselect; once
+    // ignored, the selection and panel stay put.
+    fireEvent.click(screen.getByText("DRO (1 成员)"));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.getByText("rid-a")).toBeTruthy();
+    expect(
+      screen.queryByText(/请在上方项目树或轨道库中选中一条记录查看详情/),
+    ).toBeNull();
   });
 });

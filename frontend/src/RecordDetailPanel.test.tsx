@@ -38,7 +38,7 @@ const RECORD_A: CatalogRecord = {
   record_id: "rec-a",
   orbit_family: "HALO",
   libration_point: 2,
-  jacobi: 3.15,
+  jacobi: [3.10, 3.15], // 线上为包络数组 [min, max]，详情行取下界
   member_count: 1,
   has_cr3bp: true,
   has_ephemeris: true,
@@ -121,6 +121,19 @@ describe("RecordDetailPanel 可行解对比段（#430）", () => {
     expect(screen.queryByText(/可行解对比/)).toBeNull();
     // 空态提示照旧
     expect(screen.getByText(/请在上方项目树或轨道库中选中一条记录查看详情/)).toBeDefined();
+  });
+});
+
+describe("RecordDetailPanel jacobi 包络显示", () => {
+  it("包络数组取下界显示（不再 Number(数组) 出 NaN）；标量原样显示", () => {
+    const view = render(<RecordDetailPanel record={RECORD_A} />);
+    // 下界 3.10 → toFixed(4)；整页不出现 NaN
+    expect(screen.getByText("3.1000")).toBeDefined();
+    expect(screen.queryByText("NaN")).toBeNull();
+
+    // 标量口径（单值/旧数据）原样渲染
+    view.rerender(<RecordDetailPanel record={RECORD_B} />);
+    expect(screen.getByText("3.0100")).toBeDefined();
   });
 });
 
