@@ -8,14 +8,21 @@ import { jacobiColor, jacobiNorm } from "./jacobiColormap";
 import type { DataFrameTag } from "./trajectoryParsing";
 import type { FrameMode } from "./OrbitCanvas";
 
-/** 清单行：色样（实际渲染色，灰显已套用）+ 标签 + 数据系标注 + 灰显标记。 */
+/** 清单行：色样（实际渲染色，灰显已套用）+ 标签 + 数据系标注 + 灰显标记。
+ *  trajIndex 回指 TrajectoryData 行号——清单过滤无标签行后行序与数据
+ *  不再对齐，聚焦/预览/详情全部以 trajIndex 为准（#476，与画布拾取
+ *  同一索引空间）。 */
 /** One list row: swatch (the actual render color, graying applied), label,
- *  data-frame tag, and the grayed flag. */
+ *  data-frame tag, and the grayed flag. trajIndex points back at the
+ *  TrajectoryData row — after unlabeled rows are filtered out, list order
+ *  no longer matches data order, so focus/preview/details all key on
+ *  trajIndex (#476, the same index space canvas picking uses). */
 export interface OrbitListItem {
   label: string;
   frame?: string;
   color: string;
   grayed: boolean;
+  trajIndex: number;
 }
 
 /** 惯性视图灰显判定（#428）：会合系数据系产物且无惯性段的轨迹灰显。
@@ -64,6 +71,7 @@ export function buildOrbitListItems(args: {
       frame: args.frameLabels?.[i],
       color: grayed[i] ? desaturateHex(colors[i]) : colors[i],
       grayed: grayed[i],
+      trajIndex: i,
     }))
     .filter((item) => !!item.label);
 }
@@ -102,4 +110,89 @@ export function desaturateHex(hex: string): string {
   c.getHSL(hsl);
   c.setHSL(hsl.h, hsl.s * 0.18, hsl.l);
   return `#${c.getHexString()}`;
+}
+
+/* ------------------------------------------------------------------ */
+/* 轨道详情装配（#476）：点击清单项 → 中栏「轨道信息」页签展示。数据全部
+ * 来自行对齐的 canvasData 数组 + 画布装配时记下的来源标注，不发后端请求。 */
+/* Orbit-details assembly (#476): clicking a list row shows the orbit in the
+ * mid pane's "orbit info" tab. All data comes from the row-aligned canvasData
+ * arrays plus the source tags recorded during canvas assembly — no backend
+ * calls. */
+
+/** 轨迹来源（画布装配时逐层记下，行对齐）：固定层库记录 / 转移候选弧 /
+ *  本次运行产物。id 与 label 供详情页展示（固定层 = 库记录 id）。 */
+/** Per-row trajectory provenance recorded during canvas assembly: a pinned
+ *  catalog record / a transfer candidate arc / the latest run product. id and
+ *  label feed the details view (pinned → the catalog record id). */
+export interface OrbitSource {
+  layer: "pinned" | "candidate" | "result";
+  id: string;
+  label: string;
+}
+
+/** 轨道信息页签的展示模型：字段值均已本地化/格式化，面板只管渲染。 */
+/** The orbit-info tab's display model: every field arrives localized and
+ *  formatted, the panel only renders. */
+export interface OrbitInfoView {
+  label: string;
+  /** 产物类型（段角色）：cr3bp 参考段 / 星历段；无段语义时缺省 */
+  kind?: string;
+  /** 数据系标签（本地化，与清单行标注同一句） */
+  frame?: string;
+  jacobi?: number;
+  points: number;
+  /** 时间跨度（已格式化）；无时刻轨迹缺省 */
+  timeSpan?: string;
+  source: string;
+}
+
+/** 时间跨度格式化（秒 → 紧凑读数）：<2 min 按秒，<2 d 按小时，其余按天。 */
+/** Time-span formatting (seconds → compact readout): seconds under 2 min,
+ *  hours under 2 d, days beyond. */
+export function formatTimeSpan(seconds: number): string {
+  if (seconds < 120) return `${Math.round(seconds)} s`;
+  if (seconds < 172800) return `${(seconds / 3600).toFixed(1)} h`;
+  return `${(seconds / 86400).toFixed(1)} d`;
+}
+
+/** 装配一条轨迹的详情：item 来自清单（携 trajIndex/标签/数据系标注），
+ *  data 是 canvasData 在 trajIndex 处的行切片，source 来自画布装配的
+ *  来源标注（行对齐）。 */
+/** Assemble one trajectory's details: item comes from the list (carrying
+ *  trajIndex/label/frame tag), data is the canvasData row slice at trajIndex,
+ *  source is the row-aligned provenance from canvas assembly. */
+export function buildOrbitInfo(args: {
+  item: Pick<OrbitListItem, "label" | "frame">;
+  data: {
+    points: number;
+    times: number[];
+    jacobi?: number;
+    role?: "cr3bp" | "ephemeris";
+  };
+  source?: OrbitSource;
+  t: (key: string) => string;
+}): OrbitInfoView {
+  const { item, data, source, t } = args;
+  const span =
+    data.times.length >= 2
+      ? formatTimeSpan(Math.abs(data.times[data.times.length - 1] - data.times[0]))
+      : undefined;
+  return {
+    label: item.label,
+    kind: data.role
+      ? t(data.role === "cr3bp" ? "canvas.cr3bp_reference" : "canvas.design_ephemeris")
+      : undefined,
+    frame: item.frame,
+    jacobi: data.jacobi,
+    points: data.points,
+    timeSpan: span,
+    source: !source
+      ? t("orbit_info.source.result")
+      : source.layer === "pinned"
+        ? `${t("orbit_info.source.pinned")} ${source.id}`
+        : source.layer === "candidate"
+          ? `${t("orbit_info.source.candidate")} ${source.label || source.id}`
+          : t("orbit_info.source.result"),
+  };
 }

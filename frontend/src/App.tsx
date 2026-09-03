@@ -29,7 +29,8 @@ import { themeBehavior, themeTokens, themeCssVars } from "./theme";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode, type FrameMode } from "./OrbitCanvas";
 import { CanvasOrbitList } from "./CanvasOrbitList";
-import { buildOrbitListItems } from "./orbitListItems";
+import { OrbitInfoPanel } from "./OrbitInfoPanel";
+import { buildOrbitInfo, buildOrbitListItems, type OrbitSource } from "./orbitListItems";
 import { TimelineBar } from "./TimelineBar";
 import { ParamsPanel } from "./ParamsPanel";
 import { ProjectTree } from "./ProjectTree";
@@ -80,6 +81,7 @@ import {
   transferCandidateToArcData,
   propagationToCanvasData,
   filterByRole,
+  roleKeepMask,
   type TrajectoryData,
   type TimeBasis,
   type DataFrameTag,
@@ -89,7 +91,7 @@ import {
 import type { TimelineEvent } from "./TimelineBar";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const EARTH_MOON_MU = 0.01215058560962404;
 
 /** 固定层软上限：超过提示但不拦截 */
@@ -168,6 +170,12 @@ export default function App() {
   });
 
   const [leftTab, setLeftTab] = useState<"project" | "catalog">("project");
+  // 中栏页签（#476）：设计工具与轨道信息并列；点清单/拾取轨道自动切到
+  // 轨道信息页（聚焦 + 打开详情是一个动作，见 issue 待细化决议）。
+  // Mid-pane tab (#476): design tool and orbit info side by side; clicking a
+  // list row / picking an orbit auto-switches to orbit info (focus + open
+  // details is one action, per the issue's resolution).
+  const [midTab, setMidTab] = useState<"tool" | "orbitInfo">("tool");
   // 左/中栏宽度（#454）：拖宽手柄实时跟手、松手持久化，越界回落默认宽
   // Left/middle pane widths (#454): the handle tracks live, persists on
   // release, and out-of-range values fall back to the defaults.
@@ -259,6 +267,21 @@ export default function App() {
   // write the same state and stay consistent both ways.
   const [canvasFocusIdx, setCanvasFocusIdx] = useState<number | null>(null);
   const [canvasPreviewIdx, setCanvasPreviewIdx] = useState<number | null>(null);
+  // 轨道聚焦入口（#476）：清单点击与画布拾取共用。聚焦非空 = 「聚焦 +
+  // 打开详情」一个动作——切中栏到轨道信息页签（中栏折叠时顺手展开）；
+  // 取消聚焦（点空白/再点聚焦项/轨迹替换重置）只清聚焦，页签不弹回。
+  // The orbit-focus entry (#476): shared by list clicks and canvas picking. A
+  // non-null focus is one action, "focus + open details" — switch the mid
+  // pane to the orbit-info tab (expanding it when collapsed); unfocusing
+  // (empty-space click / re-click / trajectory-replacement reset) only
+  // clears the focus and never snaps the tab back.
+  const handleOrbitFocus = (i: number | null) => {
+    setCanvasFocusIdx(i);
+    if (i !== null) {
+      setMidTab("orbitInfo");
+      setPaneCollapsed(MID_COLLAPSED_KEY, false, setMidCollapsed);
+    }
+  };
   const [chart, setChart] = useChartSettings();
   const [chartModalOpen, setChartModalOpen] = useState(false);
   const [stationKeepingOpen, setStationKeepingOpen] = useState(false);
@@ -393,6 +416,25 @@ export default function App() {
       ...candidateLayer.map((c) => filterByRole(c.data, contentMode)),
       filterByRole(resultData, contentMode),
     ];
+    // 来源标注逐层拼接（#476）：轨道信息页签的「来源」字段。与 filterByRole
+    // 共用 roleKeepMask 过滤，保持与 combined 各行严格对齐。
+    // Source tags concatenated per layer (#476): the orbit-info tab's "source"
+    // field. Filtered with the same roleKeepMask filterByRole uses, keeping
+    // strict row alignment with combined.
+    const sources: OrbitSource[] = [
+      ...pinned.map((p) => ({
+        data: p.data,
+        src: { layer: "pinned", id: p.recordId, label: p.label } as OrbitSource,
+      })),
+      ...candidateLayer.map((c) => ({
+        data: c.data,
+        src: { layer: "candidate", id: c.recordId, label: c.label } as OrbitSource,
+      })),
+      { data: resultData, src: { layer: "result", id: "", label: "" } as OrbitSource },
+    ].flatMap(({ data, src }) => {
+      const keep = roleKeepMask(data, contentMode);
+      return data.trajectories.map(() => src).filter((_, i) => keep[i]);
+    });
     const combined: TrajectoryData = {
       trajectories: layers.flatMap((l) => l.trajectories),
       times: layers.flatMap((l) => l.times),
@@ -416,10 +458,19 @@ export default function App() {
           l.inertialGeometries ??
           l.trajectories.map(() => null as number[][] | null),
       ),
+      // 段角色逐层拼接（#476）：轨道信息页签的「类型」字段（cr3bp 参考段/
+      // 星历段）取自这里——丢了它，详情永远分不出双段产物的两段。
+      // Segment roles concatenated per layer (#476): the orbit-info tab's
+      // "type" field (cr3bp reference / ephemeris segment) reads from here —
+      // dropping it leaves the details unable to tell the two segments apart.
+      roles: layers.flatMap(
+        (l) => l.roles ?? l.trajectories.map(() => undefined),
+      ),
     };
     const mode = timelineMode(combined);
     return {
       ...combined,
+      sources,
       displayTimes: timesForMode(combined, mode),
       mode,
       timeRange: trajectoryTimeRange(timesForMode(combined, mode)),
@@ -456,6 +507,34 @@ export default function App() {
       }),
     [canvasData, canvasFrameLabels, chart.colorCycle, frame],
   );
+
+  // 轨道信息页签的详情装配（#476）：聚焦索引即 canvasData 行号
+  // （trajIndex），清单过滤无标签行后仍对齐；聚焦行无标签（不在清单）时
+  // 同样可查——画布拾取允许聚焦无标签轨迹。
+  // Orbit-info tab assembly (#476): the focus index IS the canvasData row
+  // number (trajIndex), staying aligned after the list filters unlabeled
+  // rows; a focused unlabeled row (not in the list) resolves too — canvas
+  // picking may focus any trajectory.
+  const orbitInfo = useMemo(() => {
+    if (canvasFocusIdx === null || canvasFocusIdx >= canvasData.trajectories.length) {
+      return null;
+    }
+    const j = canvasFocusIdx;
+    const item = orbitItems.find((it) => it.trajIndex === j);
+    const label = item?.label ?? canvasData.labels?.[j] ?? "";
+    if (!label) return null;
+    return buildOrbitInfo({
+      item: { label, frame: item?.frame ?? canvasFrameLabels?.[j] },
+      data: {
+        points: canvasData.trajectories[j].length,
+        times: canvasData.times[j] ?? [],
+        jacobi: canvasData.jacobi?.[j],
+        role: canvasData.roles?.[j],
+      },
+      source: canvasData.sources[j],
+      t,
+    });
+  }, [canvasFocusIdx, canvasData, orbitItems, canvasFrameLabels, t]);
 
   // 自动视图适配（#438 确认式，不再用固定时长 setTimeout）：canvasData 提交后
   // 适配一次。React 保证子组件（OrbitCanvas）的几何重建 effect 先于本父组件
@@ -1539,7 +1618,7 @@ export default function App() {
               items={orbitItems}
               focusIndex={canvasFocusIdx}
               unavailableNote={t("canvas.frame.synodic_unavailable")}
-              onFocusChange={setCanvasFocusIdx}
+              onFocusChange={handleOrbitFocus}
               onPreviewChange={setCanvasPreviewIdx}
             />
           </div>
@@ -1600,18 +1679,61 @@ export default function App() {
             onResize={setMidWidth}
             onResizeEnd={(w) => localStorage.setItem(MID_WIDTH_KEY, String(w))}
           />
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <Title level={5} style={{ margin: 0 }}>
-              {t("panel.tool_title")}
-            </Title>
-            <Button
-              type="text"
-              size="small"
-              icon={<MenuFoldOutlined />}
-              onClick={() => setPaneCollapsed(MID_COLLAPSED_KEY, true, setMidCollapsed)}
-              title={t("panel.collapse")}
-            />
+          {/* 页签条（#476）：设计工具 | 轨道信息，沿用左栏底边指示线页签
+              样式；点清单/拾取轨道经 handleOrbitFocus 自动切到轨道信息页 */}
+          {/* Tab strip (#476): design tool | orbit info, following the left
+              pane's underline-tab idiom; list clicks / canvas picks switch to
+              the orbit-info tab via handleOrbitFocus. */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              gap: 10,
+              borderBottom: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8",
+              marginBottom: 8,
+            }}
+          >
+            {(
+              [
+                ["tool", t("panel.tool_title")],
+                ["orbitInfo", t("panel.tab.orbit_info")],
+              ] as const
+            ).map(([key, label]) => {
+              const active = midTab === key;
+              return (
+                <Button
+                  key={key}
+                  type="text"
+                  size="small"
+                  data-testid={`mid-tab-${key}`}
+                  onClick={() => setMidTab(key)}
+                  style={{
+                    padding: "1px 2px 5px",
+                    borderRadius: 0,
+                    marginBottom: -1,
+                    borderBottom: active
+                      ? `2px solid ${themeMode === "dark" ? "#4096ff" : "#0958d9"}`
+                      : "2px solid transparent",
+                    color: active ? (themeMode === "dark" ? "#fff" : "#0958d9") : "inherit",
+                    fontWeight: active ? 500 : 400,
+                  }}
+                >
+                  {label}
+                </Button>
+              );
+            })}
+            <div style={{ marginLeft: "auto", paddingBottom: 3 }}>
+              <Button
+                type="text"
+                size="small"
+                icon={<MenuFoldOutlined />}
+                onClick={() => setPaneCollapsed(MID_COLLAPSED_KEY, true, setMidCollapsed)}
+                title={t("panel.collapse")}
+              />
+            </div>
           </div>
+          {midTab === "tool" ? (
+          <>
           <Select
             size="small"
             style={{ width: "100%", marginBottom: 8 }}
@@ -1653,6 +1775,12 @@ export default function App() {
               </Text>
             )}
           </div>
+          </>
+          ) : (
+          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+            <OrbitInfoPanel info={orbitInfo} />
+          </div>
+          )}
         </div>
         )}
 
@@ -1715,7 +1843,7 @@ export default function App() {
               background={chart.bgColor ?? (themeMode === "dark" ? "#121212" : "#ffffff")}
               focusIndex={canvasFocusIdx}
               previewIndex={canvasPreviewIdx}
-              onFocusIndexChange={setCanvasFocusIdx}
+              onFocusIndexChange={handleOrbitFocus}
               onPreviewIndexChange={setCanvasPreviewIdx}
               onReady={(a) => setApi(a)}
             />

@@ -351,8 +351,8 @@ pub async fn get_artifact(
 }
 
 /// catalog_get 结果 → ArtifactData 的映射（纯函数，jacobi 透传等映射
-/// 逻辑的可测面；get_artifact 只剩 io）。
-fn artifact_from_catalog_get(record_id: String, result: crate::sidecar::JobResult) -> ArtifactData {
+/// 逻辑的可测面；get_artifact 只剩 io）。集成测试（tests/）直接调用。
+pub fn artifact_from_catalog_get(record_id: String, result: crate::sidecar::JobResult) -> ArtifactData {
     if result.status != "ok" {
         return ArtifactData {
             record_id,

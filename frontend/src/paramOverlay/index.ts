@@ -115,15 +115,20 @@ export const UNIT_DEFINITIONS: Record<string, UnitOption[]> = {
     { label: "度", toStandard: 1.0, decimals: 2, step: 1 },
     { label: "rad", toStandard: 180 / Math.PI, decimals: 4, step: 0.01 },
   ],
-  // 时间类（标准单位：年 或 秒）
-  // Time fields (standard unit: years or seconds).
+  // 时间类（标准单位 = API 提交单位：design/orbit_propagation 的 duration
+  // 为秒，control_* 为天；schema 描述即契约）
+  // Time fields (standard unit = the API submit unit: seconds for design/
+  // orbit_propagation duration, days for control_*; the schema description is
+  // the contract).
   duration: [
-    { label: "年", toStandard: 1.0, decimals: 4, step: 0.05 },
-    { label: "月", toStandard: 1 / 12, decimals: 2, step: 0.5 },
-    { label: "日", toStandard: 1 / 365.25, decimals: 1, step: 1 },
-    { label: "时", toStandard: 1 / (365.25 * 24), decimals: 1, step: 24 },
-    { label: "秒", toStandard: 1 / (365.25 * 86400), decimals: 0, step: 86400 },
-    { label: "TU", toStandard: TU_SECONDS / (365.25 * 86400), decimals: 4, step: 0.1 },
+    { label: "秒", toStandard: 1.0, decimals: 0, step: 3600 },
+    { label: "时", toStandard: 3600, decimals: 1, step: 24 },
+    { label: "日", toStandard: 86400, decimals: 1, step: 1 },
+    // 月 = 1/12 年（365.25 天口径），与“日→年 = 1/365.25”同一基准
+    // Month = 1/12 year (365.25-day basis), same anchor as day→year = 1/365.25.
+    { label: "月", toStandard: (365.25 * 86400) / 12, decimals: 2, step: 0.5 },
+    { label: "年", toStandard: 365.25 * 86400, decimals: 4, step: 0.05 },
+    { label: "TU", toStandard: TU_SECONDS, decimals: 4, step: 0.1 },
   ],
   output_step: [
     { label: "秒", toStandard: 1.0, decimals: 0, step: 60 },
