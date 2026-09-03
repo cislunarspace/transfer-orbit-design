@@ -27,6 +27,7 @@ def _summary(
     has_ephemeris: bool = True,
     member_count: int = 1,
     transfer_type: str | None = None,
+    taxonomy_labels: list | None = None,
     tags: list | None = None,
     note: str = "",
 ) -> SimpleNamespace:
@@ -44,6 +45,7 @@ def _summary(
         has_cr3bp=has_cr3bp,
         has_ephemeris=has_ephemeris,
         transfer_type=transfer_type,
+        taxonomy_labels=taxonomy_labels,
         status=ConvergenceState.CONVERGED,
         cause=FailureCause.NONE,
         message="",

@@ -126,7 +126,8 @@ describe("CatalogFilterBar 分组判别（#470）", () => {
   });
 });
 
-describe("CatalogFilterBar 状态回显（#468）", () => {  it("查询后回显结果计数与活动条件（族 / L 点 / Jacobi 区间）", async () => {
+describe("CatalogFilterBar 状态回显（#468）", () => {
+  it("查询后回显结果计数与活动条件（族 / L 点 / Jacobi 区间）", async () => {
     render(<CatalogFilterBar onResults={vi.fn()} />);
     await waitFor(() => expect(screen.getByText("共 2 条")).toBeDefined());
     // 无条件时不回显任何条件 Tag

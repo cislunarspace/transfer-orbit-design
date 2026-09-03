@@ -76,7 +76,7 @@ def _classify_artifact_type(summary: Any) -> str:
     """
     if (summary.member_count or 0) > 1:
         return "family"
-    if getattr(summary, "transfer_type", None):
+    if summary.transfer_type:
         return "transfer"
     if summary.has_ephemeris and not summary.has_cr3bp:
         return "ephemeris"
@@ -120,7 +120,7 @@ def record_to_artifact(summary: Any) -> Artifact:
         scope = f"{display} {lp_txt}" if family and lp_txt else (family or "")
         label = f"受控星历（{scope}）" if scope else "受控星历"
     elif atype == "transfer":
-        ttype = getattr(summary, "transfer_type", None)
+        ttype = summary.transfer_type
         label = f"转移轨道（{ttype}）" if ttype else "转移轨道"
     else:
         prefix = f"{lp_txt}, " if lp_txt else ""
@@ -146,8 +146,8 @@ def record_to_artifact(summary: Any) -> Artifact:
             "has_cr3bp": summary.has_cr3bp,
             "has_ephemeris": summary.has_ephemeris,
             "member_count": summary.member_count,
-            "transfer_type": getattr(summary, "transfer_type", None),
-            "taxonomy_labels": list(getattr(summary, "taxonomy_labels", None) or []),
+            "transfer_type": summary.transfer_type,
+            "taxonomy_labels": list(summary.taxonomy_labels or []),
             "status": getattr(summary.status, "value", str(summary.status)),
             "tags": list(summary.tags),
             "note": summary.note,

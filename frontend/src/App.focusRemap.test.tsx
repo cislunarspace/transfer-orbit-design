@@ -70,6 +70,7 @@ const treeRecords = [
     record_id: "rid-a",
     orbit_family: "DRO",
     member_count: 1,
+    has_cr3bp: true,
     has_ephemeris: true,
     source_tool: "design_orbit",
     tags: [],
@@ -80,16 +81,19 @@ const treeRecords = [
     orbit_family: "LGA",
     member_count: 1,
     has_ephemeris: false,
+    transfer_type: "LGA",
     source_tool: "transfer_lga",
     tags: [],
     note: "",
   },
 ];
 
-vi.mock("./catalogApi", () => ({
+// 只桩网络出口；分组/taxonomy 判别纯函数走真实实现（#470）
+// Only the network egress is stubbed; the pure grouping/taxonomy classifiers run for real (#470).
+vi.mock("./catalogApi", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./catalogApi")>()),
   catalogQuery: () => Promise.resolve({ records: treeRecords, message: "mock" }),
   catalogTag: () => Promise.resolve(true),
-  STAR_TAG: "★",
 }));
 vi.mock("./projectApi", () => ({
   listArtifacts: () =>
