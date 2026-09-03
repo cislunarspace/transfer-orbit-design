@@ -17,7 +17,12 @@ interface StationKeepingModalProps {
   open: boolean;
   sourceRecord: CatalogRecord | ArtifactSummary | null;
   onClose: () => void;
-  onSuccess: () => void;
+  /** 成功回调（#477）：携响应 data（含 controlled_ephemeris 等），由 App
+   *  解析受控星历上画布；无 data 的旧调用方忽略参数即可。 */
+  /** Success callback (#477): carries the response data (controlled_ephemeris
+   *  etc.) for App to parse the controlled ephemeris onto the canvas; callers
+   *  not using the data simply ignore the argument. */
+  onSuccess: (data?: unknown) => void;
 }
 
 export function StationKeepingModal({
@@ -104,7 +109,7 @@ export function StationKeepingModal({
 
       if (resp.status === "ok") {
         message.success("轨道保持仿真计算完成，产物已入库！");
-        onSuccess();
+        onSuccess(resp.data);
         onClose();
       } else {
         message.error(`计算失败: ${JSON.stringify(resp)}`);

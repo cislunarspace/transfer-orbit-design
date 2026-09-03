@@ -25,12 +25,17 @@ import { etToJd } from "./timeBasis";
  *  self-consistent with the transform chain. */
 export const E2M2E_MU = 0.0121506683;
 
-/** 惯性视图的月球轨迹：DU 单位 xyz 点列，均匀采样覆盖 etRange（含端点）。 */
+/** 惯性视图的月球轨迹：DU 单位 xyz 点列，均匀采样覆盖 etRange（含端点）。
+ *  idealized = true 标记 relative 钟下的理想化圆月（#477），渲染端据此
+ *  标注「月球（理想化）」。 */
 /** The Moon's track for the inertial view: xyz points in DU, uniformly
- *  sampled over etRange (endpoints included). */
+ *  sampled over etRange (endpoints included). idealized = true marks the
+ *  idealized circular Moon under the relative clock (#477); the renderer
+ *  labels it "Moon (idealized)" accordingly. */
 export interface MoonTrack {
   points: number[][];
   etRange: [number, number];
+  idealized?: boolean;
 }
 
 /** 采样数：每 0.02 TU（≈1.8 h）一点，下限 64、上限 400。0.02 TU 粒度上
@@ -41,6 +46,32 @@ export interface MoonTrack {
 export function moonSampleCount(etRange: [number, number]): number {
   const spanTu = (etRange[1] - etRange[0]) / TU_SECONDS;
   return Math.min(400, Math.max(64, Math.ceil(spanTu / 0.02) + 1));
+}
+
+/** relative 钟惯性视图的理想化圆月（#477）：地心 1 DU 圆轨道，θ = t
+ * （时间轴数值即 TU 无量纲时刻，CR3BP ω=1），θ₀=0——与同屏理想化惯性段
+ * （族轨道旋转 / 转移 gcrs 段）严格同约定。时间轴只有 et 钟产物时走
+ * SPICE 真月轨迹，不用本函数。退化跨度（hi ≤ lo）返回 null。
+ * 采样复用 moonSampleCount 的粒度口径。 */
+/** The idealized circular Moon for the inertial view under the relative
+ *  clock (#477): a 1 DU geocentric circle with θ = t (the timeline values
+ *  ARE the TU dimensionless times, CR3BP ω=1), θ₀=0 — strictly the same
+ *  convention as the on-screen idealized inertial segments (the family
+ *  rotation / transfer gcrs segments). With any et-clock product on screen
+ * the SPICE real track applies instead, never this function. A degenerate
+ *  span (hi ≤ lo) returns null. Sampling reuses moonSampleCount's
+ *  granularity. */
+export function idealizedMoonTrack(range: [number, number]): MoonTrack | null {
+  const [lo, hi] = range;
+  if (!(hi > lo) || !Number.isFinite(lo) || !Number.isFinite(hi)) return null;
+  // range 的数值即 TU，moonSampleCount 以 TU 计跨度，直接沿用
+  // range values are TU; moonSampleCount already spans in TU — reuse as-is
+  const n = moonSampleCount([lo, hi]);
+  const points = Array.from({ length: n }, (_, i) => {
+    const t = lo + ((hi - lo) * i) / (n - 1);
+    return [Math.cos(t), Math.sin(t), 0];
+  });
+  return { points, etRange: [lo, hi], idealized: true };
 }
 
 /** synodic_to_j2000 请求参数：states 是月球会合系固定点（速度恒零），

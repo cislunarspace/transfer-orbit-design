@@ -90,6 +90,16 @@ export interface TrajectoryData {
    *  inertial segment (degraded graying). The view frame is a display choice
    *  and never rides the data, hence no frames slot. */
   inertialGeometries?: (number[][] | null)[];
+  /** 与 inertialGeometries 逐条对齐的来源标记（#477）：true = 理想化相位
+   *  旋转（θ=ωt、θ₀=0，转移 gcrs 段与族轨道前端旋转都属此类），false =
+   *  真星历 position_km（设计/预报/受控星历）。清单/图例据此区分两种
+   *  「地心惯性 km」。缺省全按真星历。 */
+  /** Source flag aligned with inertialGeometries (#477): true = idealized-phase
+   *  rotation (θ=ωt, θ₀=0 — transfer gcrs segments and the frontend family
+   *  rotation both qualify), false = real-ephemeris position_km (design /
+   *  propagation / controlled). The list/legend distinguishes the two
+   *  "geocentric inertial km" sources by it. Defaults to real-ephemeris. */
+  inertialIdealized?: boolean[];
   /** 与 trajectories 逐条对齐的段角色（eph-fig）；缺省项 = 无段语义 */
   /** Segment roles row-aligned with trajectories (eph-fig); omitted entries
    *  = no segment semantics. */
@@ -122,6 +132,33 @@ function finiteOrUndefined(v: unknown): number | undefined {
   return typeof v === "number" && Number.isFinite(v) ? v : undefined;
 }
 
+/** 理想化会合系→地心惯性位置旋转（#477）：θ = t（timesTu 为 TU 无量纲
+ *  时刻，CR3BP ω=1，θ₀=0 于弧起点），Rz(+θ)·(p_syn + (μ,0,0))——与
+ *  e2m2e _synodic_to_gcrs（transfer gcrs 段约定）及后端 viz_adapter.
+ *  synodic_to_gcrs_km 完全同口径。时刻行数不齐或含非有限值 → null，
+ *  调用方按灰显口径回退。 */
+/** Idealized synodic→geocentric-inertial position rotation (#477): θ = t
+ *  (timesTu are TU dimensionless times, CR3BP ω=1, θ₀=0 at arc start),
+ *  Rz(+θ)·(p_syn + (μ,0,0)) — exactly the convention of e2m2e's
+ *  _synodic_to_gcrs (the transfer gcrs segment) and the backend
+ *  viz_adapter.synodic_to_gcrs_km. Misaligned or non-finite times → null;
+ *  callers fall back to the graying convention. */
+export function idealizedInertialGeometry(
+  pts: number[][],
+  timesTu: number[],
+  mu: number,
+): number[][] | null {
+  if (timesTu.length !== pts.length) return null;
+  if (timesTu.some((t) => !Number.isFinite(t))) return null;
+  return pts.map((p, i) => {
+    const c = Math.cos(timesTu[i]);
+    const s = Math.sin(timesTu[i]);
+    const x = p[0] + mu;
+    const y = p[1];
+    return [c * x - s * y, s * x + c * y, p[2]];
+  });
+}
+
 /** 通用工具响应帧 → 轨迹 + 时刻。data 提供 mu / orbits[i].period / period / epochs。 */
 /** Generic tool response frame → trajectories + times. data provides mu / orbits[i].period / period / epochs. */
 export function framesToTrajectoryData(
@@ -144,54 +181,65 @@ export function framesToTrajectoryData(
   const timeBasis: TimeBasis[] = [];
   const frameTags: DataFrameTag[] = [];
   const jacobi: (number | undefined)[] = [];
+  // 理想化惯性几何（#477）：逐条与轨迹对齐；无可旋转时刻的行为 null
+  // （惯性视图灰显回退）。
+  // Idealized inertial geometries (#477): row-aligned with trajectories;
+  // rows without rotatable times are null (the inertial-view gray fallback).
+  const inertialGeometries: (number[][] | null)[] = [];
+  const inertialIdealized: boolean[] = [];
 
   frames.forEach((frame, i) => {
     const f = frame.data as number[];
     const rows = frame.shape[0] ?? 0;
     const cols = frame.shape[1] ?? 0;
-    const orbit = orbits[i] as { period?: unknown; jacobi?: unknown } | undefined;
+    const orbit = orbits[i] as { period?: unknown; jacobi?: unknown; times?: unknown } | undefined;
     const period =
       Number(orbit?.period) ||
       (typeof d.period === "number" ? d.period : null);
     const orbitJacobi = finiteOrUndefined(orbit?.jacobi);
+    // 成员自带无量纲时刻（TU，#477）：行对齐才是真时刻源
+    // The member's own dimensionless times (TU, #477): row-aligned counts as genuine
+    const orbitTimes = Array.isArray(orbit?.times) ? (orbit!.times as unknown[]).map(Number) : null;
 
+    let pts: number[][] | null = null;
+    // period 路径的合成时刻（TU，linspaceByPeriod），非空即真时刻源
+    // The period path's synthesized times (TU, linspaceByPeriod); non-null = genuine
+    let synthTimes: number[] | null = null;
     if (rows === 1 && f.length === 6) {
       // 周期轨道初态：有 period 才能传播；缺则跳过
       // Periodic-orbit initial state: propagatable only with a period; skipped when absent.
       if (period) {
-        const pts = propagate(
+        pts = propagate(
           mu,
           { orbitId: `orbit-${i}`, mu, period, state: f.slice(0, 6) as [number, number, number, number, number, number] },
           PROPAGATION_STEPS,
         );
-        trajectories.push(pts);
-        times.push(linspaceByPeriod(period, pts.length));
-        timeBasis.push("relative");
-        frameTags.push("synodic_nd");
-        jacobi.push(orbitJacobi);
+        synthTimes = linspaceByPeriod(period, pts.length);
       }
     } else if (cols === 6 || cols === 3) {
-      const pts = chunksOf(f, cols, 3);
-      trajectories.push(pts);
-      times.push(matchingTimes(epochs, pts.length));
-      timeBasis.push("relative");
-      frameTags.push("synodic_nd");
-      jacobi.push(orbitJacobi);
+      pts = chunksOf(f, cols, 3);
     } else if (frame.shape.length === 0 && f.length > 6 && f.length % 6 === 0) {
-      const pts = chunksOf(f, 6, 3);
-      trajectories.push(pts);
-      times.push(matchingTimes(epochs, pts.length));
-      timeBasis.push("relative");
-      frameTags.push("synodic_nd");
-      jacobi.push(orbitJacobi);
+      pts = chunksOf(f, 6, 3);
     } else if (frame.shape.length === 0 && f.length % 3 === 0) {
-      const pts = chunksOf(f, 3, 3);
-      trajectories.push(pts);
-      times.push(matchingTimes(epochs, pts.length));
-      timeBasis.push("relative");
-      frameTags.push("synodic_nd");
-      jacobi.push(orbitJacobi);
+      pts = chunksOf(f, 3, 3);
     }
+    if (!pts) return;
+
+    // 时刻源优先级（#477）：period 合成 / 成员自带 TU 时刻 > epochs/行序
+    // 回退。回退时刻不是物理相位，不可作旋转角。
+    // Time-source precedence (#477): period-synthesized / member TU times
+    // over the epochs/row-index fallbacks. Fallback times are not physical
+    // phases and cannot serve as rotation angles.
+    const genuine = orbitTimes && orbitTimes.length === pts.length ? orbitTimes : null;
+    const t = synthTimes ?? genuine ?? matchingTimes(epochs, pts.length);
+    trajectories.push(pts);
+    times.push(t);
+    timeBasis.push("relative");
+    frameTags.push("synodic_nd");
+    jacobi.push(orbitJacobi);
+    const geo = synthTimes || genuine ? idealizedInertialGeometry(pts, t, mu) : null;
+    inertialGeometries.push(geo);
+    inertialIdealized.push(geo !== null);
   });
   // 设计直出（DesignOrbitResponse）的顶层 cr3bp_jacobi 是单条轨道的值，
   // 只有本次恰产出一条轨迹时才能归属，多条时归属不明则不填。
@@ -201,7 +249,7 @@ export function framesToTrajectoryData(
   if (topJacobi !== undefined && jacobi.length === 1 && jacobi[0] === undefined) {
     jacobi[0] = topJacobi;
   }
-  return { trajectories, times, timeBasis, frames: frameTags, jacobi };
+  return { trajectories, times, timeBasis, frames: frameTags, jacobi, inertialGeometries, inertialIdealized };
 }
 
 /** epochs 行数匹配则用之，否则回退行序时刻；period 路径已单独合成。 */
@@ -264,7 +312,15 @@ export function transferTrajectoryToCanvasData(
     // No gcrs param (low_thrust / legacy responses) leaves the field absent;
     // a provided-but-misaligned one is null.
     ...(gcrsTrajectory !== undefined && gcrsTrajectory !== null
-      ? { inertialGeometries: [gcrsPts] as (number[][] | null)[] }
+      ? {
+          inertialGeometries: [gcrsPts] as (number[][] | null)[],
+          // 转移 gcrs 段是理想化相位约定（θ=ωt、θ₀=0@TLI，e2m2e
+          // _synodic_to_gcrs），来源标记随几何有无（行数不齐为 false）
+          // The transfer gcrs segment follows the idealized-phase convention
+          // (θ=ωt, θ₀=0@TLI, e2m2e _synodic_to_gcrs); the source flag rides
+          // on geometry presence (misaligned rows → false)
+          inertialIdealized: [gcrsPts !== null],
+        }
       : {}),
   };
 }
@@ -278,19 +334,28 @@ export interface TransferCandidateInput {
   trajectory?: unknown;
   trajectory_times?: unknown;
   tli_epoch?: unknown;
+  /** 候选弧 gcrs 惯性段（#477 前端接线）：e2m2e 侧补字段前缺省——
+   *  候选弧在惯性视图保持灰显回退；到位后与主弧同一透传路径。 */
+  /** The candidate arc's gcrs inertial segment (#477 frontend wiring):
+   *  absent until the e2m2e side ships the field — candidate arcs keep the
+   *  inertial-view gray fallback; once present they ride the same passthrough
+   *  as the main arc. */
+  trajectory_gcrs_km?: unknown;
 }
 
-/** top-N 候选（非选中）→ 画布弧 + TLI 时刻（#430）：会合系段照常归一上画
- *  （候选无 gcrs 惯性段，惯性视图走灰显口径）；自带 tli_epoch 可解析时
- *  时刻平移到 et 绝对基准并给出 chip 时刻，否则相对时刻、chip 为 null。
+/** top-N 候选（非选中）→ 画布弧 + TLI 时刻（#430）：会合系段照常归一上画；
+ *  候选自带 trajectory_gcrs_km（#477 接线，e2m2e 侧补字段后）时惯性段随行
+ *  携带，缺省保持惯性视图灰显口径；自带 tli_epoch 可解析时时刻平移到
+ *  et 绝对基准并给出 chip 时刻，否则相对时刻、chip 为 null。
  *  无轨迹快照（降级传播失败）返回 null，调用方计数提示、面板仍列参数。 */
 /** A (non-selected) top-N candidate → a canvas arc + its TLI moment (#430):
- *  the synodic segment is normalized onto the canvas as usual (candidates
- *  carry no gcrs inertial segment — the inertial view grays them); a parseable
- *  tli_epoch shifts times onto the et absolute basis and yields the chip
- *  moment, otherwise times stay relative and the chip is null. No trajectory
- *  snapshot (a failed degraded propagation) returns null — the caller counts
- *  it for the hint while the panel still lists its parameters. */
+ * the synodic segment is normalized onto the canvas as usual; a candidate's
+ * own trajectory_gcrs_km (the #477 wiring, once the e2m2e side ships it)
+ * rides along as the inertial segment, absent staying the inertial-view gray
+ * convention; a parseable tli_epoch shifts times onto the et absolute basis
+ * and yields the chip moment, otherwise times stay relative and the chip is
+ * null. No trajectory snapshot (a failed degraded propagation) returns null —
+ * the caller counts it for the hint while the panel still lists parameters. */
 export function transferCandidateToArcData(
   candidate: TransferCandidateInput,
   label: string,
@@ -312,6 +377,9 @@ export function transferCandidateToArcData(
     candidate.trajectory_times,
     rawEpoch,
     label,
+    Array.isArray(candidate.trajectory_gcrs_km)
+      ? (candidate.trajectory_gcrs_km as number[][])
+      : undefined,
   );
   return { data, tliEt: Number.isFinite(tliEt) ? tliEt : null };
 }
@@ -320,19 +388,22 @@ export function transferCandidateToArcData(
  *  GCRS 惯性 km，÷DU_KM 缩放后按惯性系几何如实绘制；times_jd_tdb →
  *  et 绝对基准。数据系标签 inertial_km 驱动视图系分流（#431/#428）：
  *  惯性视图下正常呈现，会合视图下保持既有混画（图例数据系标注已区分）。
- *  state_frame 契约（e2m2e ADR 0040 增补）到位后按标签替换此硬编码。 */
+ *  stateFrame（e2m2e ADR 0040 词表）可解析时按标签映射数据系，缺省/未知
+ *  回退 inertial_km 硬编码（#477 前端接线，等 e2m2e 扩展该字段）。 */
 /** Orbit-propagation response → canvas data (#421 fix, updated by #428).
  *  position_km is GCRS inertial km: after ÷DU_KM scaling it draws honestly
  *  as inertial-frame geometry; times_jd_tdb → the et absolute basis. The
  *  inertial_km data-frame tag drives view-frame routing (#431/#428): proper
  *  rendering in the inertial view, legacy co-drawing in the synodic view
- *  (the data-frame legend note already distinguishes them). Replace this
- *  hardcode by the state_frame label once that contract (e2m2e ADR 0040
- *  amendment) ships. */
+ *  (the data-frame legend note already distinguishes them). A parseable
+ *  stateFrame (the e2m2e ADR 0040 vocabulary) maps the frame tag; absent or
+ *  unknown falls back to the inertial_km hardcode (#477 frontend wiring,
+ *  pending the e2m2e-side field). */
 export function propagationToCanvasData(
   positionKm: unknown,
   timesJdTdb: unknown,
   label = "轨道预报",
+  stateFrame?: unknown,
 ): TrajectoryData | null {
   if (!Array.isArray(positionKm) || positionKm.length === 0 || !Array.isArray(positionKm[0])) {
     return null;
@@ -351,9 +422,23 @@ export function propagationToCanvasData(
     trajectories: [pts],
     times: etTimes ? [etTimes] : [],
     timeBasis: [etTimes ? "et" : "none"],
-    frames: ["inertial_km"],
+    frames: [stateFrameToDataFrameTag(stateFrame) ?? "inertial_km"],
     labels: [label],
   };
+}
+
+/** e2m2e state_frame 标签（ADR 0040 词表）→ 数据系标签映射；未知值/缺省
+ *  返回 null（调用方回退硬编码）。#477 前端接线：e2m2e 侧把 state_frame
+ *  扩展到 orbit_propagation 响应前，propagation 数据系仍是硬编码。 */
+/** An e2m2e state_frame label (the ADR 0040 vocabulary) → a data-frame tag;
+ *  unknown/absent returns null (callers fall back to the hardcode). The #477
+ *  frontend wiring: until e2m2e extends state_frame to orbit_propagation
+ *  responses, the propagation frame stays hardcoded. */
+function stateFrameToDataFrameTag(stateFrame: unknown): DataFrameTag | null {
+  if (typeof stateFrame !== "string") return null;
+  if (stateFrame === "gcrs_km" || stateFrame === "force_model_state") return "inertial_km";
+  if (stateFrame === "synodic_barycentric_km") return "synodic_km";
+  return null;
 }
 
 /** EphemerisTable 的 UTC 分量（year..second 各 (n,)）→ et 秒数组；分量缺失、
