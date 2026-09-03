@@ -16,8 +16,12 @@ const { Text } = Typography;
 
 export interface CanvasOrbitListProps {
   items: OrbitListItem[];
-  /** 当前聚焦项（画布拾取或清单点击设置）；null = 无聚焦 */
-  /** The focused item (set by canvas picking or a list click); null = none. */
+  /** 当前聚焦轨迹（画布拾取或清单点击设置），取值为 trajIndex（#476 起
+   *  聚焦索引统一为 TrajectoryData 行号，清单过滤无标签行后仍对齐）；
+   *  null = 无聚焦 */
+  /** The focused trajectory (set by canvas picking or a list click), as a
+   *  trajIndex (since #476 the focus index is the TrajectoryData row number,
+   *  staying aligned after unlabeled rows are filtered out); null = none. */
   focusIndex: number | null;
   /** 惯性视图灰显项的注记（已本地化整句，如"会合系几何，惯性视图下不可画"） */
   /** The note for grayed items in the inertial view (a pre-localized sentence). */
@@ -45,10 +49,10 @@ export function CanvasOrbitList({
           <div
             key={`${item.label}-${i}`}
             data-orbit-item=""
-            data-focused={i === focusIndex ? "true" : "false"}
-            onMouseEnter={() => onPreviewChange(i)}
+            data-focused={item.trajIndex === focusIndex ? "true" : "false"}
+            onMouseEnter={() => onPreviewChange(item.trajIndex)}
             onMouseLeave={() => onPreviewChange(null)}
-            onClick={() => onFocusChange(i === focusIndex ? null : i)}
+            onClick={() => onFocusChange(item.trajIndex === focusIndex ? null : item.trajIndex)}
             style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer" }}
           >
             <span
@@ -60,7 +64,7 @@ export function CanvasOrbitList({
                 display: "inline-block",
                 // 聚焦标记（#460）：色样 1px 描边（ADR 0020 平面化）
                 // Focus marker (#460): a 1px outline on the swatch (flat style per ADR 0020).
-                ...(i === focusIndex ? { outline: "1px solid currentColor" } : {}),
+                ...(item.trajIndex === focusIndex ? { outline: "1px solid currentColor" } : {}),
               }}
             />
             <Text style={{ fontSize: 12 }}>{item.label}</Text>

@@ -28,6 +28,19 @@ describe("buildOrbitListItems", () => {
     expect(items[1].color).toBe(CYCLE[2]);
   });
 
+  it("无标签行过滤后 trajIndex 回指原行号（#476 聚焦/详情索引空间）", () => {
+    const items = buildOrbitListItems({
+      count: 3,
+      labels: ["甲轨道", "", "乙轨道"],
+      colorCycle: CYCLE,
+    });
+    // 清单第 2 行（乙轨道）回指数据第 3 行；聚焦/预览/详情都以 trajIndex
+    // 与画布拾取对齐
+    // List row 2 (乙轨道) points back at data row 3; focus/preview/details
+    // all align with canvas picking via trajIndex.
+    expect(items.map((it) => it.trajIndex)).toEqual([0, 2]);
+  });
+
   it("有 Jacobi 值的轨迹用 colormap 色而非色环色（#435）", () => {
     const items = buildOrbitListItems({
       count: 2,
@@ -104,6 +117,22 @@ describe("CanvasOrbitList", () => {
     expect(onPreview).toHaveBeenCalledWith(null);
     fireEvent.click(row);
     expect(onFocus).toHaveBeenCalledWith(0);
+  });
+
+  it("交互回调携带 trajIndex 而非清单行序（#476）：含无标签行时间隙", () => {
+    const gapItems = buildOrbitListItems({
+      count: 3,
+      labels: ["甲轨道", "", "乙轨道"],
+      colorCycle: CYCLE,
+    });
+    const onFocus = vi.fn();
+    const onPreview = vi.fn();
+    render(<CanvasOrbitList items={gapItems} focusIndex={null} onFocusChange={onFocus} onPreviewChange={onPreview} />);
+    const row = screen.getByText("乙轨道").closest("[data-orbit-item]") as HTMLElement;
+    fireEvent.mouseEnter(row);
+    expect(onPreview).toHaveBeenCalledWith(2);
+    fireEvent.click(row);
+    expect(onFocus).toHaveBeenCalledWith(2);
   });
 
   it("聚焦项色样带描边标记；点击聚焦项解除聚焦", () => {

@@ -479,6 +479,20 @@ export function designEphemerisToCanvasData(
   };
 }
 
+/** 绘制内容过滤的保留掩码（eph-fig）：all 全保留；其余模式保留无段语义
+ *  或匹配角色的行。filterByRole 与画布装配处的并行数组（来源标注等，
+ *  #476）共用同一掩码，防口径漂移。 */
+/** The keep-mask behind content filtering (eph-fig): all keeps every row;
+ *  other modes keep untagged rows and rows with the matching role. Shared by
+ *  filterByRole and the parallel arrays assembled canvas-side (source tags
+ *  etc., #476) so the rule cannot drift. */
+export function roleKeepMask(data: TrajectoryData, mode: ContentMode): boolean[] {
+  if (mode === "all") return data.trajectories.map(() => true);
+  return (data.roles ?? data.trajectories.map(() => undefined)).map(
+    (r) => r === undefined || r === mode,
+  );
+}
+
 /** 绘制内容过滤（eph-fig）：cr3bp / ephemeris 模式下保留对应角色与未标注
  *  轨迹，all 原样返回。所有行对齐数组同步裁剪，保持逐条对齐关系。 */
 /** Content filtering (eph-fig): cr3bp / ephemeris modes keep the matching
@@ -486,9 +500,7 @@ export function designEphemerisToCanvasData(
  *  row-aligned array is trimmed in step so alignment survives. */
 export function filterByRole(data: TrajectoryData, mode: ContentMode): TrajectoryData {
   if (mode === "all") return data;
-  const keep = (data.roles ?? data.trajectories.map(() => undefined)).map(
-    (r) => r === undefined || r === mode,
-  );
+  const keep = roleKeepMask(data, mode);
   const pick = <T,>(arr: T[] | undefined): T[] | undefined =>
     arr ? arr.filter((_, i) => keep[i]) : undefined;
   return {
