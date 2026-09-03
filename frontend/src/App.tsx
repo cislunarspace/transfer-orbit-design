@@ -68,7 +68,7 @@ import { AssistantSettingsForm } from "./assistant/AssistantSettingsForm";
 import type { SelectionContext } from "./assistant/api";
 import { DU_KM, TU_SECONDS, librationPoint } from "./cr3bp";
 import { etFromEpoch } from "./timeBasis";
-import { moonTrackFromResponse, moonTrackRequest, type MoonTrack } from "./moonEphemeris";
+import { moonTrackFromResponse, moonTrackRequest, idealizedMoonTrack, type MoonTrack } from "./moonEphemeris";
 import { boundariesResponseToRegionLayer, type BoundaryElementPayload, type RegionElement } from "./regionLayer";
 import {
   designEphemerisToCanvasData,
@@ -415,6 +415,28 @@ export default function App() {
     setCurrentEt(null);
   };
 
+  // 轨道保持成功回调（#477）：刷新项目树（产物已入库），并把响应携带的
+  // controlled_ephemeris（EphemerisTable 全字段，与设计星历段同形）解析上
+  // 画布——真星历 position_km 惯性段 + UTC→et 时刻，惯性视图如实显示
+  // （et 钟生效后 SPICE 真月轨迹随之可用）。全 Monte-Carlo 失败时该字段
+  // 缺位，只刷新不画。
+  // Station-keeping success callback (#477): refresh the project tree (the
+  // product is now cataloged) and parse the response's controlled_ephemeris
+  // (a full EphemerisTable, the same shape as the design ephemeris segment)
+  // onto the canvas — the real-ephemeris position_km inertial segment plus
+  // UTC→et times, so the inertial view renders it honestly (the SPICE real
+  // Moon track follows once the et clock engages). When every Monte-Carlo
+  // sample fails the field is absent: refresh only, nothing drawn.
+  const handleStationKeepingDone = (data: unknown) => {
+    refreshArtifacts();
+    const td = designEphemerisToCanvasData(
+      (data as { controlled_ephemeris?: Record<string, unknown> } | null | undefined)
+        ?.controlled_ephemeris,
+      t("canvas.controlled_ephemeris"),
+    );
+    if (td) applyTrajectoryData(td);
+  };
+
   // 画布装配（useMemo）：固定层在前、结果层在后拼一条数组；时间轴按
   // ADR 0021 修订的两级基准——任一 et 产物在屏即全局 et 钟，相对/无基准
   // 轨迹置空时刻（marker 自动隐藏），相对与绝对不混排。
@@ -489,14 +511,20 @@ export default function App() {
         (l) => l.jacobi ?? l.trajectories.map(() => undefined),
       ),
       // 惯性几何逐层拼接（#428 第二步）：未携带的层补 null（无惯性段，
-      // 惯性视图下照灰显口径处理）。
+      // 惯性视图下照灰显口径处理）。来源标记（#477）逐层同拼：未携带的层
+      // 补 false（按真星历口径展示），供清单/图例区分两种地心惯性来源。
       // Inertial geometry concatenated per layer (#428 step 2): layers without
       // it fill null (no inertial segment — the degraded-graying case in the
-      // inertial view).
+      // inertial view). The source flag (#477) concatenates alongside: layers
+      // without it fill false (shown as real-ephemeris), feeding the list/
+      // legend distinction between the two geocentric-inertial sources.
       inertialGeometries: layers.flatMap(
         (l) =>
           l.inertialGeometries ??
           l.trajectories.map(() => null as number[][] | null),
+      ),
+      inertialIdealized: layers.flatMap(
+        (l) => l.inertialIdealized ?? l.trajectories.map(() => false),
       ),
       // 段角色逐层拼接（#476）：轨道信息页签的「类型」字段（cr3bp 参考段/
       // 星历段）取自这里——丢了它，详情永远分不出双段产物的两段。
@@ -557,10 +585,16 @@ export default function App() {
     () =>
       canvasData.frames?.map((f, i) =>
         frame === "inertial" && canvasData.inertialGeometries?.[i]
-          ? t("canvas.frame.inertial_km")
+          ? // 两种惯性来源（#477）：理想化相位旋转（θ=ωt、θ₀=0）与真星历
+            // position_km，图例/清单区分标注
+            // Two inertial sources (#477): idealized-phase rotation (θ=ωt,
+            // θ₀=0) vs real-ephemeris position_km — distinguished in the legend/list
+            canvasData.inertialIdealized?.[i]
+              ? t("canvas.frame.inertial_km_idealized")
+              : t("canvas.frame.inertial_km")
           : t(`canvas.frame.${f}`),
       ),
-    [canvasData.frames, canvasData.inertialGeometries, frame, t],
+    [canvasData.frames, canvasData.inertialGeometries, canvasData.inertialIdealized, frame, t],
   );
   const orbitItems = useMemo(
     () =>
@@ -664,6 +698,27 @@ export default function App() {
     };
   }, [frame, canvasData.mode, canvasData.timeRange, t]);
 
+  // relative 钟惯性视图的理想化圆月（#477）：屏上无 et 钟产物时 SPICE 真月
+  // 轨迹不可取（无绝对历元），改用与同屏理想化惯性段同约定（θ=t、θ₀=0）
+  // 的 1 DU 圆月——族轨道等 relative 产物切惯性系不再"无月球参照"。
+  // 月球标注带「理想化」字样；时间轴数值即 TU，moonPositionAt 插值链路
+  // 沿用。none 钟（无时刻）无跨度，保持无月球的既有降级。
+  // The idealized circular Moon for the inertial view under the relative
+  // clock (#477): with no et-clock product on screen the SPICE real track is
+  // unfetchable (no absolute epoch), so a 1 DU circle sharing the on-screen
+  // idealized segments' convention (θ=t, θ₀=0) takes over — family and other
+  // relative products no longer lose the lunar reference in the inertial
+  // view. The Moon is labeled "idealized"; the timeline values are TU, so
+  // the moonPositionAt interpolation chain is reused. The none clock (no
+  // times) has no span and keeps the existing no-Moon degradation.
+  const idealMoonTrack = useMemo(
+    () =>
+      frame === "inertial" && canvasData.mode === "relative" && canvasData.timeRange
+        ? idealizedMoonTrack(canvasData.timeRange)
+        : null,
+    [frame, canvasData.mode, canvasData.timeRange],
+  );
+
   // 库记录工件 → 画布轨迹（选中查看 / 绘制所选 / 钉住共用）。
   // 记录可含 CR3BP 段与星历段（双段并存，CONTEXT.md）：CR3BP 闭曲线之外，
   // eph/ 星历段（会合系无量纲 + UTC 分量 → et）同样入画——修"设计产物
@@ -730,13 +785,19 @@ export default function App() {
     // trajectory base it carries the same Jacobi value (#435).
     const ephJacobi =
       base.trajectories.length === 1 ? base.jacobi?.[0] : undefined;
-    // 星历段惯性几何（eph-fig）：槽位与轨迹逐条对齐——base 轨迹（族成员/
-    // 裸点集，会合系）无惯性几何填 null，星历段带则追加。
-    // The ephemeris segment's inertial geometry (eph-fig): slots align with
-    // trajectories — base trajectories (family members / bare point sets,
-    // synodic) fill null, the ephemeris arc's own geometry appends when
-    // carried.
+    // 星历段惯性几何（eph-fig，#477 修订）：槽位与轨迹逐条对齐——base 槽位
+    // 保留族成员自带的理想化几何（framesToTrajectoryData 产出，times 到位
+    // 后点亮），不再 null 覆盖；星历段的真星历几何追加。来源标记随拼：
+    // 星历段恒真星历（false）。任一侧携带才建字段。
+    // The ephemeris segment's inertial geometry (eph-fig, revised by #477):
+    // slots align with trajectories — base slots keep the family members' own
+    // idealized geometry (produced by framesToTrajectoryData, lit once times
+    // ship) instead of a null override; the ephemeris arc's real-ephemeris
+    // geometry appends. The source flag concatenates alongside: the ephemeris
+    // segment is always real-ephemeris (false). The field is built only when
+    // either side carries geometry.
     const ephInertial = ephTd.inertialGeometries?.[0] ?? null;
+    const ephIdealized = ephTd.inertialIdealized?.[0] ?? false;
     return {
       trajectories: [...base.trajectories, ...ephTd.trajectories],
       times: [...base.times, ...ephTd.times],
@@ -756,11 +817,16 @@ export default function App() {
         ...(base.jacobi ?? base.trajectories.map(() => undefined)),
         ...ephTd.trajectories.map(() => ephJacobi),
       ],
-      ...(ephInertial
+      ...(ephInertial || base.inertialGeometries
         ? {
             inertialGeometries: [
-              ...base.trajectories.map(() => null),
+              ...(base.inertialGeometries ??
+                base.trajectories.map(() => null as number[][] | null)),
               ephInertial,
+            ],
+            inertialIdealized: [
+              ...(base.inertialIdealized ?? base.trajectories.map(() => false)),
+              ephIdealized,
             ],
           }
         : {}),
@@ -1327,7 +1393,12 @@ export default function App() {
           const prop = propagationToCanvasData(
             d.position_km,
             d.times_jd_tdb,
-            t("canvas.propagation")
+            t("canvas.propagation"),
+            // state_frame（#477 接线）：e2m2e 扩展该字段前恒缺省 → 回退
+            // inertial_km 硬编码，行为与旧版一致
+            // state_frame (#477 wiring): absent until e2m2e extends the
+            // field → falls back to the inertial_km hardcode, legacy behavior
+            d.state_frame,
           );
           if (prop) {
             applyTrajectoryData(prop);
@@ -1903,7 +1974,7 @@ export default function App() {
               frame={frame}
               dataFrames={canvasData.frames}
               inertialGeometries={canvasData.inertialGeometries}
-              moonTrack={frame === "inertial" ? moonTrack : null}
+              moonTrack={frame === "inertial" ? (canvasData.mode === "et" ? moonTrack : idealMoonTrack) : null}
               mu={EARTH_MOON_MU}
               libration={libration}
               projection={projection}
@@ -1963,7 +2034,7 @@ export default function App() {
           open={stationKeepingOpen}
           sourceRecord={selectedRecordDetail || selectedArtifact}
           onClose={() => setStationKeepingOpen(false)}
-          onSuccess={refreshArtifacts}
+          onSuccess={handleStationKeepingDone}
         />
 
         {/* 独立弹窗：图表设置。双列栅格排布（滑块/开关/下拉短控件两列），

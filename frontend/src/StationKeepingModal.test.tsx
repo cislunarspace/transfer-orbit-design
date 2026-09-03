@@ -186,4 +186,15 @@ describe("StationKeepingModal 真实跨弧阻断（#416）", () => {
     await waitFor(() => expect(props.onSuccess).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(props.onClose).toHaveBeenCalledTimes(1));
   });
+
+  it("成功响应携带 data 时透传给 onSuccess（#477：App 据此上画布受控星历）", async () => {
+    vi.mocked(catalogGet).mockResolvedValue(resultWithJdSpan(30));
+    const respData = { controlled_ephemeris: { arrays: {}, frames: [] } };
+    vi.mocked(invoke).mockResolvedValue({ status: "ok", data: respData });
+    const { props } = setup();
+    await waitFor(() => expect(screen.queryByText("正在读取源记录的星历覆盖范围...")).toBeNull());
+
+    fireEvent.click(submitButton());
+    await waitFor(() => expect(props.onSuccess).toHaveBeenCalledWith(respData));
+  });
 });

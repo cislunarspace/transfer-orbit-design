@@ -693,7 +693,19 @@ export function OrbitCanvas({
       // currentEt updates are driven by the marker effect so scrubbing never
       // rebuilds geometry.
       const p = moonPositionAt(moonTrack, null);
-      addTexturedBody("moon", "月球", [p[0], p[1], p[2] * zr], s?.moonSize ?? MOON_RADIUS_DU, moonTextureUrl, 0x111111, 4);
+      // 理想化圆月（#477）：relative 钟下的 θ=t 约定圆轨道，标注带「理想化」
+      // 与 SPICE 真月轨迹区分
+      // The idealized circular Moon (#477): the θ=t-convention circle under
+      // the relative clock, labeled "idealized" to distinguish the SPICE real track
+      addTexturedBody(
+        "moon",
+        moonTrack.idealized ? "月球（理想化）" : "月球",
+        [p[0], p[1], p[2] * zr],
+        s?.moonSize ?? MOON_RADIUS_DU,
+        moonTextureUrl,
+        0x111111,
+        4,
+      );
     }
 
     // 平动点是会合系概念（ADR 0013 决策 3）：惯性视图不画。

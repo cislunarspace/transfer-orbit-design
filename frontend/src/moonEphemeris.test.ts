@@ -13,6 +13,7 @@ import {
   moonTrackRequest,
   moonTrackFromResponse,
   moonPositionAt,
+  idealizedMoonTrack,
 } from "./moonEphemeris";
 import { DU_KM, TU_SECONDS } from "./cr3bp";
 import { JD_J2000, SECONDS_PER_DAY } from "./timeBasis";
@@ -111,5 +112,29 @@ describe("moonPositionAt", () => {
     expect(moonPositionAt(track, 0)).toEqual([0, 0, 0]);
     expect(moonPositionAt(track, 999)).toEqual([2, 4, 8]);
     expect(moonPositionAt(track, null)).toEqual([1, 2, 4]);
+  });
+});
+
+// 理想化圆月（#477）：relative 钟惯性视图的月球参照——地心 1 DU 圆轨道，
+// θ=t（时间轴数值即 TU），θ₀=0 与同屏理想化惯性段严格同约定。
+// The idealized circular Moon (#477): the lunar reference for the inertial
+// view under the relative clock — a 1 DU geocentric circle with θ=t (the
+// timeline values ARE TU), θ₀=0 exactly matching the idealized segments.
+describe("idealizedMoonTrack（#477）", () => {
+  it("θ=t 圆月：端点 (1,0,0)→(−1,0,0)，跨度即 etRange，带理想化标记", () => {
+    const track = idealizedMoonTrack([0, Math.PI])!;
+    expect(track.idealized).toBe(true);
+    expect(track.etRange).toEqual([0, Math.PI]);
+    expect(track.points[0][0]).toBeCloseTo(1, 12);
+    expect(track.points[0][1]).toBeCloseTo(0, 12);
+    expect(track.points[track.points.length - 1][0]).toBeCloseTo(-1, 12);
+    expect(track.points[track.points.length - 1][1]).toBeCloseTo(0, 12);
+    expect(track.points.every((p) => Math.abs(Math.hypot(p[0], p[1]) - 1) < 1e-9 && p[2] === 0)).toBe(true);
+  });
+
+  it("退化跨度 → null；整周采样点数足够", () => {
+    expect(idealizedMoonTrack([2, 2])).toBeNull();
+    const full = idealizedMoonTrack([0, 2 * Math.PI])!;
+    expect(full.points.length).toBeGreaterThanOrEqual(64);
   });
 });

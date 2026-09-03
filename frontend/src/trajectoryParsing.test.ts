@@ -10,6 +10,7 @@ import {
   filterByRole,
   timelineMode,
   timesForMode,
+  idealizedInertialGeometry,
   type TimeBasis,
   type DataFrameTag,
 } from "./trajectoryParsing";
@@ -581,5 +582,88 @@ describe("timelineMode / timesForMode 两级时刻基准（ADR 0021 修订）", 
     expect(timelineMode(legacy)).toBe("relative");
     expect(timesForMode(legacy, "relative")).toEqual([[0, 1]]);
     expect(timesForMode(legacy, "et")).toEqual([[]]);
+  });
+});
+
+// 理想化惯性几何（#477）：θ=ωt（TU 时刻即 θ，ω=1）、θ₀=0 于弧起点、
+// Rz(+θ)·(p_syn+(μ,0,0))——与 e2m2e _synodic_to_gcrs 及后端 viz_adapter
+// 同约定。覆盖：旋转函数本身、族轨道 times 读取接线、候选 gcrs 透传、
+// state_frame 映射。旧版 e2m2e（字段缺位）一律回退灰显，不报错。
+// Idealized inertial geometry (#477): θ=ωt (a TU time IS θ, ω=1), θ₀=0 at
+// arc start, Rz(+θ)·(p_syn+(μ,0,0)) — the same convention as e2m2e's
+// _synodic_to_gcrs and the backend viz_adapter. Covers the rotation itself,
+// the family-times wiring, candidate gcrs passthrough, and state_frame
+// mapping. Legacy e2m2e (fields absent) always falls back to graying.
+describe("理想化惯性几何（#477）", () => {
+  const MU = 0.01215058560962404;
+
+  it("idealizedInertialGeometry：θ=0 只 +μ 平移；θ=π/2 绕 z 正旋", () => {
+    const pts = [[0, 0, 0.1]];
+    expect(idealizedInertialGeometry(pts, [0], MU)).toEqual([[MU, 0, 0.1]]);
+    // θ=π/2：x'=−y, y'=x+μ → 原点 (0,0) → (0, μ)
+    // θ=π/2: x'=−y, y'=x+μ → the origin (0,0) maps to (0, μ)
+    const r = idealizedInertialGeometry(pts, [Math.PI / 2], MU)![0];
+    expect(r[0]).toBeCloseTo(0, 12);
+    expect(r[1]).toBeCloseTo(MU, 12);
+    expect(r[2]).toBeCloseTo(0.1, 12);
+  });
+
+  it("时刻行数不齐或非有限 → null（调用方回退灰显）", () => {
+    expect(idealizedInertialGeometry([[0, 0, 0]], [], MU)).toBeNull();
+    expect(idealizedInertialGeometry([[0, 0, 0]], [0, 1], MU)).toBeNull();
+    expect(idealizedInertialGeometry([[0, 0, 0]], [Number.NaN], MU)).toBeNull();
+  });
+
+  it("framesToTrajectoryData 读 orbits[i].times：行对齐作时刻源并产理想化几何与标记", () => {
+    const frames = [
+      { dtype: "f8", shape: [], data: [0.8, 0, 0.05, 0.85, 0.01, 0.05] },
+    ];
+    const td = framesToTrajectoryData(frames, { mu: MU, orbits: [{ times: [0, 1.5] }] }, MU);
+    // 行对齐的 TU 时刻优先于行序回退
+    // Row-aligned TU times win over the row-index fallback
+    expect(td.times).toEqual([[0, 1.5]]);
+    expect(td.inertialGeometries).toHaveLength(1);
+    expect(td.inertialGeometries![0]).toHaveLength(2);
+    expect(td.inertialIdealized).toEqual([true]);
+    // 首点 θ=0：几何 = 位置 + μ 平移
+    // First point at θ=0: geometry = position shifted by +μ
+    expect(td.inertialGeometries![0]![0]).toEqual([0.8 + MU, 0, 0.05]);
+  });
+
+  it("orbits[i].times 缺席 → 旧行为（行序时刻）且无惯性几何（灰显回退）", () => {
+    const frames = [
+      { dtype: "f8", shape: [], data: [0.8, 0, 0.05, 0.85, 0.01, 0.05] },
+    ];
+    const td = framesToTrajectoryData(frames, { mu: MU }, MU);
+    expect(td.times).toEqual([[0, 1]]);
+    expect(td.inertialGeometries![0]).toBeNull();
+    expect(td.inertialIdealized).toEqual([false]);
+  });
+
+  it("候选弧 gcrs 透传：有 trajectory_gcrs_km → 惯性段 + 理想化标记；缺省无字段", () => {
+    const withGcrs = transferCandidateToArcData(
+      {
+        trajectory: [[384400, 0, 0], [400000, 10000, 0]],
+        trajectory_times: [0, 3600],
+        tli_epoch: "2024-01-01T00:00:00Z",
+        trajectory_gcrs_km: [[7000, 0, 0], [8000, 1000, 0]],
+      },
+      "#1",
+    )!;
+    expect(withGcrs.data.inertialGeometries![0]).toHaveLength(2);
+    expect(withGcrs.data.inertialIdealized).toEqual([true]);
+    const without = transferCandidateToArcData(
+      { trajectory: [[384400, 0, 0]], trajectory_times: [0] },
+      "#2",
+    )!;
+    expect(without.data.inertialGeometries).toBeUndefined();
+  });
+
+  it("propagationToCanvasData：state_frame 有则映射（gcrs_km→inertial_km），缺省回退硬编码", () => {
+    const km = [[7000, 0, 0], [8000, 1000, 0]];
+    const jd = [2460310.5, 2460310.5001];
+    expect(propagationToCanvasData(km, jd, "预报", "gcrs_km")!.frames).toEqual(["inertial_km"]);
+    expect(propagationToCanvasData(km, jd, "预报", "synodic_barycentric_km")!.frames).toEqual(["synodic_km"]);
+    expect(propagationToCanvasData(km, jd, "预报")!.frames).toEqual(["inertial_km"]);
   });
 });
