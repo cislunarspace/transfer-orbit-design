@@ -9,7 +9,7 @@
 // would not exercise the real lookup).
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { catalogQuerySummaryById } from "./catalogApi";
+import { catalogQuerySummaryById, classifyArtifactType, type CatalogRecord } from "./catalogApi";
 import { invoke } from "@tauri-apps/api/core";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
@@ -34,4 +34,29 @@ describe("catalogQuerySummaryById（5.9.2 点查）", () => {
   it("查不到（并发删除等）返回 null 而不是抛错", async () => {
     await expect(catalogQuerySummaryById("ghost")).resolves.toBeNull();
   });
+});
+
+// 跨语言同步（#470 评审）：与后端 _classify_artifact_type 读同一份用例
+// tests/engine/fixtures/classify_artifact_type_cases.json——规则改动只动 JSON,
+// 任一侧实现漂移都会两侧同时红灯。record 缺省字段 = falsy 语义,与 Python 侧
+// 显式中性默认值对齐。(?raw 由 vite/client 类型声明,避免引入 node 类型)
+// Cross-language parity (#470 review): shares classify_artifact_type_cases.json
+// with the backend pytest suite — a rule change touches only the JSON, and any
+// implementation drift fails both sides at once. Missing record fields carry
+// falsy semantics, aligned with the Python side's explicit neutral defaults.
+// (The ?raw import is typed by vite/client, so no node types are needed.)
+import casesRaw from "../../tests/engine/fixtures/classify_artifact_type_cases.json?raw";
+
+const PARITY_CASES = (
+  JSON.parse(casesRaw) as {
+    cases: { name: string; record: Record<string, unknown>; expect: string }[];
+  }
+).cases;
+
+describe("classifyArtifactType 跨语言同步用例（#470）", () => {
+  for (const c of PARITY_CASES) {
+    it(`${c.name} → ${c.expect}`, () => {
+      expect(classifyArtifactType(c.record as CatalogRecord)).toBe(c.expect);
+    });
+  }
 });

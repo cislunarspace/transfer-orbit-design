@@ -7,12 +7,18 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
-from src.engine.catalog_service import CatalogService, record_to_artifact
+from src.engine.catalog_service import (
+    CatalogService,
+    _classify_artifact_type,
+    record_to_artifact,
+)
 
 
 def _summary(
@@ -27,6 +33,7 @@ def _summary(
     has_ephemeris: bool = True,
     member_count: int = 1,
     transfer_type: str | None = None,
+    taxonomy_labels: list | None = None,
     tags: list | None = None,
     note: str = "",
 ) -> SimpleNamespace:
@@ -44,6 +51,7 @@ def _summary(
         has_cr3bp=has_cr3bp,
         has_ephemeris=has_ephemeris,
         transfer_type=transfer_type,
+        taxonomy_labels=taxonomy_labels or [],
         status=ConvergenceState.CONVERGED,
         cause=FailureCause.NONE,
         message="",
@@ -202,6 +210,35 @@ class TestClassifyArtifactType:
     def test_unknown_tool_defaults_to_orbit(self):
         art = record_to_artifact(_summary(record_id="rec-u", source_tool="mystery"))
         assert art.artifact_type == "orbit"
+
+
+# 跨语言同步（#470 评审）：与前端 catalogApi.classifyArtifactType 读同一份用例
+# tests/engine/fixtures/classify_artifact_type_cases.json——规则改动只动 JSON,
+# 任一侧实现漂移都会两侧同时红灯。record 缺省字段在此补显式中性默认值,
+# 与前端 falsy 语义对齐。
+# Cross-language parity (#470 review): shares classify_artifact_type_cases.json
+# with the frontend vitest suite — a rule change touches only the JSON, and any
+# implementation drift fails both sides at once. Missing record fields get
+# explicit neutral defaults here, aligned with the frontend's falsy semantics.
+_PARITY_CASES = json.loads(
+    (Path(__file__).parent / "fixtures" / "classify_artifact_type_cases.json").read_text(
+        encoding="utf-8"
+    )
+)["cases"]
+
+
+class TestClassifyParityWithFrontend:
+    @pytest.mark.parametrize("case", _PARITY_CASES, ids=[c["name"] for c in _PARITY_CASES])
+    def test_case(self, case):
+        kwargs = {
+            "member_count": 0,
+            "transfer_type": None,
+            "has_ephemeris": False,
+            "has_cr3bp": False,
+            "source_tool": "",
+        }
+        kwargs.update(case["record"])
+        assert _classify_artifact_type(_summary(**kwargs)) == case["expect"]
 
 
 class TestQueryArtifacts:

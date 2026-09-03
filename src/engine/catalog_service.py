@@ -63,7 +63,9 @@ def _classify_artifact_type(summary: Any) -> str:
     ``has_ephemeris and not has_cr3bp``（纯星历记录，如 control_orbit 产物）→
     ``ephemeris``；皆不命中时回退 ``_ARTIFACT_TYPE_BY_TOOL``，未知工具兜底
     ``orbit``。前端 catalogApi.classifyArtifactType 是本规则的镜像实现，
-    改动需两侧同步。
+    改动需两侧同步——同步用例
+    ``tests/engine/fixtures/classify_artifact_type_cases.json``,pytest 与
+    vitest 共读，规则漂移两侧同时红灯。
 
     The single source of truth for record -> project-tree grouping (issue
     #470), based on the structured ``CatalogRecordSummary`` fields available
@@ -72,11 +74,14 @@ def _classify_artifact_type(summary: Any) -> str:
     has_cr3bp`` (ephemeris-only records, e.g. control_orbit products) ->
     ``ephemeris``; otherwise falls back to ``_ARTIFACT_TYPE_BY_TOOL`` with
     unknown tools defaulting to ``orbit``. The frontend
-    catalogApi.classifyArtifactType mirrors this rule — keep both in sync.
+    catalogApi.classifyArtifactType mirrors this rule — keep both in sync via
+    the shared cases in
+    ``tests/engine/fixtures/classify_artifact_type_cases.json`` (read by both
+    pytest and vitest; a drift fails both sides).
     """
     if (summary.member_count or 0) > 1:
         return "family"
-    if getattr(summary, "transfer_type", None):
+    if summary.transfer_type:
         return "transfer"
     if summary.has_ephemeris and not summary.has_cr3bp:
         return "ephemeris"
@@ -120,7 +125,7 @@ def record_to_artifact(summary: Any) -> Artifact:
         scope = f"{display} {lp_txt}" if family and lp_txt else (family or "")
         label = f"受控星历（{scope}）" if scope else "受控星历"
     elif atype == "transfer":
-        ttype = getattr(summary, "transfer_type", None)
+        ttype = summary.transfer_type
         label = f"转移轨道（{ttype}）" if ttype else "转移轨道"
     else:
         prefix = f"{lp_txt}, " if lp_txt else ""
@@ -146,8 +151,8 @@ def record_to_artifact(summary: Any) -> Artifact:
             "has_cr3bp": summary.has_cr3bp,
             "has_ephemeris": summary.has_ephemeris,
             "member_count": summary.member_count,
-            "transfer_type": getattr(summary, "transfer_type", None),
-            "taxonomy_labels": list(getattr(summary, "taxonomy_labels", None) or []),
+            "transfer_type": summary.transfer_type,
+            "taxonomy_labels": list(summary.taxonomy_labels or []),
             "status": getattr(summary.status, "value", str(summary.status)),
             "tags": list(summary.tags),
             "note": summary.note,

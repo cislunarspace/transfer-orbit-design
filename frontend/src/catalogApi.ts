@@ -51,13 +51,17 @@ const ARTIFACT_TYPE_BY_TOOL: Record<string, string> = {
 };
 
 /** catalog 记录 → 项目树分组的判别（#470 唯一事实的前端镜像；规范实现是后端
- *  src/engine/catalog_service.py::record_to_artifact，改动需两侧同步）：
+ *  src/engine/catalog_service.py::record_to_artifact，改动需两侧同步——同步
+ *  用例 tests/engine/fixtures/classify_artifact_type_cases.json,pytest 与
+ *  vitest 共读，规则漂移两侧同时红灯）：
  *  member_count > 1 → family；transfer_type 非空 → transfer；
  *  有星历段且无 CR3BP 段（纯星历记录）→ ephemeris；皆不命中回退 tool 映射，
- *  未知工具兜底 orbit。 */
-/** Record -> tree-group classification (#470 frontend mirror of the single
+ *  未知工具兜底 orbit。
+ *  Record -> tree-group classification (#470 frontend mirror of the single
  *  source of truth; the canonical implementation is the backend
- *  src/engine/catalog_service.py::record_to_artifact — keep both in sync):
+ *  src/engine/catalog_service.py::record_to_artifact — keep both in sync via
+ *  the shared cases in tests/engine/fixtures/classify_artifact_type_cases.json,
+ *  read by both pytest and vitest; a drift fails both sides):
  *  member_count > 1 -> family; non-empty transfer_type -> transfer; ephemeris
  *  segment without a CR3BP segment -> ephemeris; otherwise the tool mapping,
  *  with unknown tools defaulting to orbit. */
@@ -83,8 +87,8 @@ const MOON_CENTERED_LABELS = new Set([
 
 export type TaxonomyCategory = "libration_point" | "moon_centered" | "resonant";
 
-/** 记录 taxonomy 标签的一级类别（取首个标签；未打标返回 null → 「未分类」）。 */
-/** The record's taxonomy top category (first label wins; null when unlabeled
+/** 记录 taxonomy 标签的一级类别（取首个标签；未打标返回 null → 「未分类」）。
+ *  The record's taxonomy top category (first label wins; null when unlabeled
  *  -> the "unclassified" subgroup). */
 export function taxonomyCategoryOf(labels?: string[] | null): TaxonomyCategory | null {
   const first = labels?.[0];

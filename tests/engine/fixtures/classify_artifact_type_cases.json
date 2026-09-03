@@ -1,0 +1,55 @@
+{
+  "comment": "classifyArtifactType(TS, frontend/src/catalogApi.ts)/ _classify_artifact_type(PY, src/engine/catalog_service.py)跨语言同步用例(#470 评审)。规则改动必须改本文件:pytest(tests/engine/test_catalog_service.py)与 vitest(frontend/src/catalogApi.test.ts)读同一份,漂移即两侧同时红灯。record 缺省字段按 falsy 语义:member_count=0、无 transfer_type、无动力学段、source_tool 未知。",
+  "cases": [
+    {
+      "name": "multi_member_family",
+      "record": { "member_count": 12, "source_tool": "orbit_family_generation" },
+      "expect": "family"
+    },
+    {
+      "name": "family_beats_transfer_type",
+      "record": { "member_count": 3, "transfer_type": "HMN" },
+      "expect": "family"
+    },
+    {
+      "name": "transfer_type_beats_tool_fallback",
+      "record": { "member_count": 1, "transfer_type": "HMN", "source_tool": "transfer_design" },
+      "expect": "transfer"
+    },
+    {
+      "name": "ephemeris_only_control_orbit",
+      "record": { "has_ephemeris": true, "has_cr3bp": false, "source_tool": "control_orbit" },
+      "expect": "ephemeris"
+    },
+    {
+      "name": "dual_segment_is_orbit_not_ephemeris",
+      "record": { "has_ephemeris": true, "has_cr3bp": true, "source_tool": "design_orbit" },
+      "expect": "orbit"
+    },
+    {
+      "name": "single_member_family_via_tool_fallback",
+      "record": { "member_count": 1, "source_tool": "orbit_family_generation" },
+      "expect": "family"
+    },
+    {
+      "name": "tool_design_orbit",
+      "record": { "source_tool": "design_orbit" },
+      "expect": "orbit"
+    },
+    {
+      "name": "tool_catalog_promote",
+      "record": { "source_tool": "catalog_promote" },
+      "expect": "orbit"
+    },
+    {
+      "name": "tool_control_orbit_without_segments",
+      "record": { "source_tool": "control_orbit" },
+      "expect": "ephemeris"
+    },
+    {
+      "name": "unknown_tool_defaults_orbit",
+      "record": { "source_tool": "future_tool_x" },
+      "expect": "orbit"
+    }
+  ]
+}
