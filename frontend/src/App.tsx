@@ -158,6 +158,19 @@ interface PinnedRecord {
   data: TrajectoryData;
 }
 
+/** 画布行的迁移身份（#479）：层对象引用 + 层内原行号。内容切换只改 keep
+ *  掩码、层对象不变，身份稳定可追；层被整体替换时层对象必变，身份消亡。
+ *  刻意不引入轨迹稳定 id（规格 out-of-scope）。 */
+/** A canvas row's migration identity (#479): the layer object reference plus
+ *  the in-layer row number. A content switch only changes the keep mask —
+ *  layer objects survive, so identities stay trackable; a wholesale layer
+ *  replacement swaps the layer object, killing the identity. Deliberately no
+ *  stable trajectory ids (spec out-of-scope). */
+interface FocusRowId {
+  data: TrajectoryData;
+  idx: number;
+}
+
 export default function App() {
   const { lang, setLang, t } = useTranslation();
   const [themeMode, setThemeMode] = useState<"dark" | "light">(() => {
@@ -267,6 +280,13 @@ export default function App() {
   // write the same state and stay consistent both ways.
   const [canvasFocusIdx, setCanvasFocusIdx] = useState<number | null>(null);
   const [canvasPreviewIdx, setCanvasPreviewIdx] = useState<number | null>(null);
+  // 聚焦态镜像（#479）：内容切换迁移 effect 只依赖 canvasData，聚焦现值
+  // 经 ref 读取，避免把聚焦变化也拉进 effect 依赖。
+  // A focus mirror (#479): the content-switch migration effect depends on
+  // canvasData alone and reads the current focus through this ref, keeping
+  // focus changes out of the effect's dependencies.
+  const canvasFocusIdxRef = useRef<number | null>(null);
+  canvasFocusIdxRef.current = canvasFocusIdx;
   // 轨道聚焦入口（#476）：清单点击与画布拾取共用。聚焦非空 = 「聚焦 +
   // 打开详情」一个动作——切中栏到轨道信息页签（中栏折叠时顺手展开）；
   // 取消聚焦（点空白/再点聚焦项/轨迹替换重置）只清聚焦，页签不弹回。
@@ -416,12 +436,28 @@ export default function App() {
       ...candidateLayer.map((c) => filterByRole(c.data, contentMode)),
       filterByRole(resultData, contentMode),
     ];
-    // 来源标注逐层拼接（#476）：轨道信息页签的「来源」字段。与 filterByRole
-    // 共用 roleKeepMask 过滤，保持与 combined 各行严格对齐。
-    // Source tags concatenated per layer (#476): the orbit-info tab's "source"
-    // field. Filtered with the same roleKeepMask filterByRole uses, keeping
-    // strict row alignment with combined.
-    const sources: OrbitSource[] = [
+    // 来源标注 + 行身份逐层装配（#476/#479）：来源供轨道信息页签「来源」
+    // 字段；行身份 = 层对象引用 + 层内原行号，供内容切换时聚焦迁移。两者
+    // 与 filterByRole 共用 roleKeepMask 过滤，保持与 combined 严格对齐。
+    // Source tags + row identities assembled per layer (#476/#479): sources
+    // feed the orbit-info tab's "source" field; a row identity is the layer
+    // object reference plus the in-layer row number, driving focus migration
+    // across content switches. Both are filtered with the same roleKeepMask
+    // filterByRole uses, staying strictly row-aligned with combined.
+    const sources: OrbitSource[] = [];
+    // 行身份（#479）在内容切换间不变（层对象与行号都稳定，只有 keep 掩码
+    // 变），在层被整体替换（新产物/换记录/候选重算）时必变（层对象换新）。
+    // 因此身份存活 → 聚焦迁移；身份消亡 → 聚焦清除；替换场景天然走清除，
+    // 与 #452/#460 的整体替换重置口径一致。不引入轨迹稳定 id。
+    // A row identity (#479) is stable across content switches (the layer
+    // object and row number survive; only the keep mask changes) and always
+    // changes when a layer is wholesale-replaced (new product / different
+    // record / candidate recompute — a fresh layer object). Identity
+    // survives → the focus migrates; identity dies → the focus clears; the
+    // replacement case lands on clear naturally, matching the #452/#460
+    // wholesale-replacement reset. No stable trajectory ids introduced.
+    const rowIds: FocusRowId[] = [];
+    for (const { data, src } of [
       ...pinned.map((p) => ({
         data: p.data,
         src: { layer: "pinned", id: p.recordId, label: p.label } as OrbitSource,
@@ -431,10 +467,14 @@ export default function App() {
         src: { layer: "candidate", id: c.recordId, label: c.label } as OrbitSource,
       })),
       { data: resultData, src: { layer: "result", id: "", label: "" } as OrbitSource },
-    ].flatMap(({ data, src }) => {
+    ]) {
       const keep = roleKeepMask(data, contentMode);
-      return data.trajectories.map(() => src).filter((_, i) => keep[i]);
-    });
+      data.trajectories.forEach((_, i) => {
+        if (!keep[i]) return;
+        sources.push(src);
+        rowIds.push({ data, idx: i });
+      });
+    }
     const combined: TrajectoryData = {
       trajectories: layers.flatMap((l) => l.trajectories),
       times: layers.flatMap((l) => l.times),
@@ -471,11 +511,40 @@ export default function App() {
     return {
       ...combined,
       sources,
+      rowIds,
       displayTimes: timesForMode(combined, mode),
       mode,
       timeRange: trajectoryTimeRange(timesForMode(combined, mode)),
     };
   }, [pinned, candidateLayer, resultData, contentMode]);
+
+  // 内容切换聚焦迁移（#479）：canvasData 行集合变化时，聚焦行按身份（层
+  // 对象 + 层内行号）在新行集合中找回落位——仍在画布上则迁移（详情连续
+  // 显示同一条轨迹，含行号偏移），被内容过滤裁掉则明确清除（页签不弹回，
+  // #476 决议）。预览态是瞬态交互，不做迁移（规格 out-of-scope）。子组件
+  // OrbitCanvas 的整体替换重置 effect 先于本 effect 运行（React 子先父
+  // 后），本 effect 的写入在同批状态更新中最终生效。
+  // Content-switch focus migration (#479): when the canvasData row set
+  // changes, the focused row re-locates by identity (layer object + in-layer
+  // row number) — still on canvas → migrate (the details keep showing the
+  // same trajectory, index shifts included); filtered out by the content
+  // switch → explicit clear (the tab never snaps back, per #476). The
+  // preview state is transient and never migrates (spec out-of-scope).
+  // OrbitCanvas's wholesale-replacement reset effect runs before this one
+  // (React runs children first), so this effect's write wins the batch.
+  const focusRowIdsRef = useRef<FocusRowId[] | null>(null);
+  useEffect(() => {
+    const prev = focusRowIdsRef.current;
+    focusRowIdsRef.current = canvasData.rowIds;
+    if (!prev) return;
+    const cur = canvasFocusIdxRef.current;
+    if (cur === null) return;
+    const from = prev[cur];
+    const next = from
+      ? canvasData.rowIds.findIndex((r) => r.data === from.data && r.idx === from.idx)
+      : -1;
+    if (next !== cur) setCanvasFocusIdx(next >= 0 ? next : null);
+  }, [canvasData]);
 
   // 轨道清单数据（#469）：frameLabels 装配与 OrbitCanvas 属性同源（惯性
   // 视图下带惯性段的转移弧标注换成地心惯性 km，#428），清单行色样/灰显
