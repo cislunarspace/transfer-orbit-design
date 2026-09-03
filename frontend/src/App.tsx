@@ -28,6 +28,9 @@ import {
 import { themeBehavior, themeTokens, themeCssVars } from "./theme";
 import { CanvasToolbar } from "./CanvasToolbar";
 import { OrbitCanvas, type CanvasApi, type ProjectionMode, type CenterMode, type FrameMode } from "./OrbitCanvas";
+import { CanvasOrbitList } from "./CanvasOrbitList";
+import { OrbitInfoPanel } from "./OrbitInfoPanel";
+import { buildOrbitInfo, buildOrbitListItems, type OrbitSource } from "./orbitListItems";
 import { TimelineBar } from "./TimelineBar";
 import { ParamsPanel } from "./ParamsPanel";
 import { ProjectTree } from "./ProjectTree";
@@ -65,7 +68,7 @@ import { AssistantSettingsForm } from "./assistant/AssistantSettingsForm";
 import type { SelectionContext } from "./assistant/api";
 import { DU_KM, TU_SECONDS, librationPoint } from "./cr3bp";
 import { etFromEpoch } from "./timeBasis";
-import { moonTrackFromResponse, moonTrackRequest, type MoonTrack } from "./moonEphemeris";
+import { moonTrackFromResponse, moonTrackRequest, idealizedMoonTrack, type MoonTrack } from "./moonEphemeris";
 import { boundariesResponseToRegionLayer, type BoundaryElementPayload, type RegionElement } from "./regionLayer";
 import {
   designEphemerisToCanvasData,
@@ -78,6 +81,7 @@ import {
   transferCandidateToArcData,
   propagationToCanvasData,
   filterByRole,
+  roleKeepMask,
   type TrajectoryData,
   type TimeBasis,
   type DataFrameTag,
@@ -87,7 +91,7 @@ import {
 import type { TimelineEvent } from "./TimelineBar";
 import { type CatalogRecord, catalogQuery } from "./catalogApi";
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 const EARTH_MOON_MU = 0.01215058560962404;
 
 /** 固定层软上限：超过提示但不拦截 */
@@ -154,6 +158,19 @@ interface PinnedRecord {
   data: TrajectoryData;
 }
 
+/** 画布行的迁移身份（#479）：层对象引用 + 层内原行号。内容切换只改 keep
+ *  掩码、层对象不变，身份稳定可追；层被整体替换时层对象必变，身份消亡。
+ *  刻意不引入轨迹稳定 id（规格 out-of-scope）。 */
+/** A canvas row's migration identity (#479): the layer object reference plus
+ *  the in-layer row number. A content switch only changes the keep mask —
+ *  layer objects survive, so identities stay trackable; a wholesale layer
+ *  replacement swaps the layer object, killing the identity. Deliberately no
+ *  stable trajectory ids (spec out-of-scope). */
+interface FocusRowId {
+  data: TrajectoryData;
+  idx: number;
+}
+
 export default function App() {
   const { lang, setLang, t } = useTranslation();
   const [themeMode, setThemeMode] = useState<"dark" | "light">(() => {
@@ -166,6 +183,12 @@ export default function App() {
   });
 
   const [leftTab, setLeftTab] = useState<"project" | "catalog">("project");
+  // 中栏页签（#476）：设计工具与轨道信息并列；点清单/拾取轨道自动切到
+  // 轨道信息页（聚焦 + 打开详情是一个动作，见 issue 待细化决议）。
+  // Mid-pane tab (#476): design tool and orbit info side by side; clicking a
+  // list row / picking an orbit auto-switches to orbit info (focus + open
+  // details is one action, per the issue's resolution).
+  const [midTab, setMidTab] = useState<"tool" | "orbitInfo">("tool");
   // 左/中栏宽度（#454）：拖宽手柄实时跟手、松手持久化，越界回落默认宽
   // Left/middle pane widths (#454): the handle tracks live, persists on
   // release, and out-of-range values fall back to the defaults.
@@ -250,6 +273,35 @@ export default function App() {
   const moonCacheKeyRef = useRef("");
 
   const [api, setApi] = useState<CanvasApi | null>(null);
+  // 轨道清单的聚焦/预览态（#469）：图注迁到左侧边栏后由 App 持有，清单
+  // 交互与画布拾取写同一状态、双向一致。
+  // The orbit list's focus/preview state (#469): owned by App since the
+  // legend moved into the sidebar, so list interactions and canvas picking
+  // write the same state and stay consistent both ways.
+  const [canvasFocusIdx, setCanvasFocusIdx] = useState<number | null>(null);
+  const [canvasPreviewIdx, setCanvasPreviewIdx] = useState<number | null>(null);
+  // 聚焦态镜像（#479）：内容切换迁移 effect 只依赖 canvasData，聚焦现值
+  // 经 ref 读取，避免把聚焦变化也拉进 effect 依赖。
+  // A focus mirror (#479): the content-switch migration effect depends on
+  // canvasData alone and reads the current focus through this ref, keeping
+  // focus changes out of the effect's dependencies.
+  const canvasFocusIdxRef = useRef<number | null>(null);
+  canvasFocusIdxRef.current = canvasFocusIdx;
+  // 轨道聚焦入口（#476）：清单点击与画布拾取共用。聚焦非空 = 「聚焦 +
+  // 打开详情」一个动作——切中栏到轨道信息页签（中栏折叠时顺手展开）；
+  // 取消聚焦（点空白/再点聚焦项/轨迹替换重置）只清聚焦，页签不弹回。
+  // The orbit-focus entry (#476): shared by list clicks and canvas picking. A
+  // non-null focus is one action, "focus + open details" — switch the mid
+  // pane to the orbit-info tab (expanding it when collapsed); unfocusing
+  // (empty-space click / re-click / trajectory-replacement reset) only
+  // clears the focus and never snaps the tab back.
+  const handleOrbitFocus = (i: number | null) => {
+    setCanvasFocusIdx(i);
+    if (i !== null) {
+      setMidTab("orbitInfo");
+      setPaneCollapsed(MID_COLLAPSED_KEY, false, setMidCollapsed);
+    }
+  };
   const [chart, setChart] = useChartSettings();
   const [chartModalOpen, setChartModalOpen] = useState(false);
   const [stationKeepingOpen, setStationKeepingOpen] = useState(false);
@@ -363,6 +415,28 @@ export default function App() {
     setCurrentEt(null);
   };
 
+  // 轨道保持成功回调（#477）：刷新项目树（产物已入库），并把响应携带的
+  // controlled_ephemeris（EphemerisTable 全字段，与设计星历段同形）解析上
+  // 画布——真星历 position_km 惯性段 + UTC→et 时刻，惯性视图如实显示
+  // （et 钟生效后 SPICE 真月轨迹随之可用）。全 Monte-Carlo 失败时该字段
+  // 缺位，只刷新不画。
+  // Station-keeping success callback (#477): refresh the project tree (the
+  // product is now cataloged) and parse the response's controlled_ephemeris
+  // (a full EphemerisTable, the same shape as the design ephemeris segment)
+  // onto the canvas — the real-ephemeris position_km inertial segment plus
+  // UTC→et times, so the inertial view renders it honestly (the SPICE real
+  // Moon track follows once the et clock engages). When every Monte-Carlo
+  // sample fails the field is absent: refresh only, nothing drawn.
+  const handleStationKeepingDone = (data: unknown) => {
+    refreshArtifacts();
+    const td = designEphemerisToCanvasData(
+      (data as { controlled_ephemeris?: Record<string, unknown> } | null | undefined)
+        ?.controlled_ephemeris,
+      t("canvas.controlled_ephemeris"),
+    );
+    if (td) applyTrajectoryData(td);
+  };
+
   // 画布装配（useMemo）：固定层在前、结果层在后拼一条数组；时间轴按
   // ADR 0021 修订的两级基准——任一 et 产物在屏即全局 et 钟，相对/无基准
   // 轨迹置空时刻（marker 自动隐藏），相对与绝对不混排。
@@ -384,6 +458,45 @@ export default function App() {
       ...candidateLayer.map((c) => filterByRole(c.data, contentMode)),
       filterByRole(resultData, contentMode),
     ];
+    // 来源标注 + 行身份逐层装配（#476/#479）：来源供轨道信息页签「来源」
+    // 字段；行身份 = 层对象引用 + 层内原行号，供内容切换时聚焦迁移。两者
+    // 与 filterByRole 共用 roleKeepMask 过滤，保持与 combined 严格对齐。
+    // Source tags + row identities assembled per layer (#476/#479): sources
+    // feed the orbit-info tab's "source" field; a row identity is the layer
+    // object reference plus the in-layer row number, driving focus migration
+    // across content switches. Both are filtered with the same roleKeepMask
+    // filterByRole uses, staying strictly row-aligned with combined.
+    const sources: OrbitSource[] = [];
+    // 行身份（#479）在内容切换间不变（层对象与行号都稳定，只有 keep 掩码
+    // 变），在层被整体替换（新产物/换记录/候选重算）时必变（层对象换新）。
+    // 因此身份存活 → 聚焦迁移；身份消亡 → 聚焦清除；替换场景天然走清除，
+    // 与 #452/#460 的整体替换重置口径一致。不引入轨迹稳定 id。
+    // A row identity (#479) is stable across content switches (the layer
+    // object and row number survive; only the keep mask changes) and always
+    // changes when a layer is wholesale-replaced (new product / different
+    // record / candidate recompute — a fresh layer object). Identity
+    // survives → the focus migrates; identity dies → the focus clears; the
+    // replacement case lands on clear naturally, matching the #452/#460
+    // wholesale-replacement reset. No stable trajectory ids introduced.
+    const rowIds: FocusRowId[] = [];
+    for (const { data, src } of [
+      ...pinned.map((p) => ({
+        data: p.data,
+        src: { layer: "pinned", id: p.recordId, label: p.label } as OrbitSource,
+      })),
+      ...candidateLayer.map((c) => ({
+        data: c.data,
+        src: { layer: "candidate", id: c.recordId, label: c.label } as OrbitSource,
+      })),
+      { data: resultData, src: { layer: "result", id: "", label: "" } as OrbitSource },
+    ]) {
+      const keep = roleKeepMask(data, contentMode);
+      data.trajectories.forEach((_, i) => {
+        if (!keep[i]) return;
+        sources.push(src);
+        rowIds.push({ data, idx: i });
+      });
+    }
     const combined: TrajectoryData = {
       trajectories: layers.flatMap((l) => l.trajectories),
       times: layers.flatMap((l) => l.times),
@@ -398,24 +511,133 @@ export default function App() {
         (l) => l.jacobi ?? l.trajectories.map(() => undefined),
       ),
       // 惯性几何逐层拼接（#428 第二步）：未携带的层补 null（无惯性段，
-      // 惯性视图下照灰显口径处理）。
+      // 惯性视图下照灰显口径处理）。来源标记（#477）逐层同拼：未携带的层
+      // 补 false（按真星历口径展示），供清单/图例区分两种地心惯性来源。
       // Inertial geometry concatenated per layer (#428 step 2): layers without
       // it fill null (no inertial segment — the degraded-graying case in the
-      // inertial view).
+      // inertial view). The source flag (#477) concatenates alongside: layers
+      // without it fill false (shown as real-ephemeris), feeding the list/
+      // legend distinction between the two geocentric-inertial sources.
       inertialGeometries: layers.flatMap(
         (l) =>
           l.inertialGeometries ??
           l.trajectories.map(() => null as number[][] | null),
       ),
+      inertialIdealized: layers.flatMap(
+        (l) => l.inertialIdealized ?? l.trajectories.map(() => false),
+      ),
+      // 段角色逐层拼接（#476）：轨道信息页签的「类型」字段（cr3bp 参考段/
+      // 星历段）取自这里——丢了它，详情永远分不出双段产物的两段。
+      // Segment roles concatenated per layer (#476): the orbit-info tab's
+      // "type" field (cr3bp reference / ephemeris segment) reads from here —
+      // dropping it leaves the details unable to tell the two segments apart.
+      roles: layers.flatMap(
+        (l) => l.roles ?? l.trajectories.map(() => undefined),
+      ),
     };
     const mode = timelineMode(combined);
     return {
       ...combined,
+      sources,
+      rowIds,
       displayTimes: timesForMode(combined, mode),
       mode,
       timeRange: trajectoryTimeRange(timesForMode(combined, mode)),
     };
   }, [pinned, candidateLayer, resultData, contentMode]);
+
+  // 内容切换聚焦迁移（#479）：canvasData 行集合变化时，聚焦行按身份（层
+  // 对象 + 层内行号）在新行集合中找回落位——仍在画布上则迁移（详情连续
+  // 显示同一条轨迹，含行号偏移），被内容过滤裁掉则明确清除（页签不弹回，
+  // #476 决议）。预览态是瞬态交互，不做迁移（规格 out-of-scope）。子组件
+  // OrbitCanvas 的整体替换重置 effect 先于本 effect 运行（React 子先父
+  // 后），本 effect 的写入在同批状态更新中最终生效。
+  // Content-switch focus migration (#479): when the canvasData row set
+  // changes, the focused row re-locates by identity (layer object + in-layer
+  // row number) — still on canvas → migrate (the details keep showing the
+  // same trajectory, index shifts included); filtered out by the content
+  // switch → explicit clear (the tab never snaps back, per #476). The
+  // preview state is transient and never migrates (spec out-of-scope).
+  // OrbitCanvas's wholesale-replacement reset effect runs before this one
+  // (React runs children first), so this effect's write wins the batch.
+  const focusRowIdsRef = useRef<FocusRowId[] | null>(null);
+  useEffect(() => {
+    const prev = focusRowIdsRef.current;
+    focusRowIdsRef.current = canvasData.rowIds;
+    if (!prev) return;
+    const cur = canvasFocusIdxRef.current;
+    if (cur === null) return;
+    const from = prev[cur];
+    const next = from
+      ? canvasData.rowIds.findIndex((r) => r.data === from.data && r.idx === from.idx)
+      : -1;
+    if (next !== cur) setCanvasFocusIdx(next >= 0 ? next : null);
+  }, [canvasData]);
+
+  // 轨道清单数据（#469）：frameLabels 装配与 OrbitCanvas 属性同源（惯性
+  // 视图下带惯性段的转移弧标注换成地心惯性 km，#428），清单行色样/灰显
+  // 与画布渲染共用 buildOrbitListItems 口径。
+  // Orbit-list data (#469): frameLabels assembly shares the OrbitCanvas prop
+  // mapping (a gcrs-carrying transfer arc's tag switches to geocentric
+  // inertial km in the inertial view, #428); row swatches/graying share the
+  // canvas render rule via buildOrbitListItems.
+  const canvasFrameLabels = useMemo(
+    () =>
+      canvasData.frames?.map((f, i) =>
+        frame === "inertial" && canvasData.inertialGeometries?.[i]
+          ? // 两种惯性来源（#477）：理想化相位旋转（θ=ωt、θ₀=0）与真星历
+            // position_km，图例/清单区分标注
+            // Two inertial sources (#477): idealized-phase rotation (θ=ωt,
+            // θ₀=0) vs real-ephemeris position_km — distinguished in the legend/list
+            canvasData.inertialIdealized?.[i]
+              ? t("canvas.frame.inertial_km_idealized")
+              : t("canvas.frame.inertial_km")
+          : t(`canvas.frame.${f}`),
+      ),
+    [canvasData.frames, canvasData.inertialGeometries, canvasData.inertialIdealized, frame, t],
+  );
+  const orbitItems = useMemo(
+    () =>
+      buildOrbitListItems({
+        count: canvasData.trajectories.length,
+        labels: canvasData.labels,
+        frameLabels: canvasFrameLabels,
+        jacobi: canvasData.jacobi,
+        colorCycle: chart.colorCycle,
+        frame,
+        dataFrames: canvasData.frames,
+        inertialGeometries: canvasData.inertialGeometries,
+      }),
+    [canvasData, canvasFrameLabels, chart.colorCycle, frame],
+  );
+
+  // 轨道信息页签的详情装配（#476）：聚焦索引即 canvasData 行号
+  // （trajIndex），清单过滤无标签行后仍对齐；聚焦行无标签（不在清单）时
+  // 同样可查——画布拾取允许聚焦无标签轨迹。
+  // Orbit-info tab assembly (#476): the focus index IS the canvasData row
+  // number (trajIndex), staying aligned after the list filters unlabeled
+  // rows; a focused unlabeled row (not in the list) resolves too — canvas
+  // picking may focus any trajectory.
+  const orbitInfo = useMemo(() => {
+    if (canvasFocusIdx === null || canvasFocusIdx >= canvasData.trajectories.length) {
+      return null;
+    }
+    const j = canvasFocusIdx;
+    const item = orbitItems.find((it) => it.trajIndex === j);
+    const label = item?.label ?? canvasData.labels?.[j] ?? "";
+    if (!label) return null;
+    return buildOrbitInfo({
+      item: { label, frame: item?.frame ?? canvasFrameLabels?.[j] },
+      data: {
+        points: canvasData.trajectories[j].length,
+        times: canvasData.times[j] ?? [],
+        jacobi: canvasData.jacobi?.[j],
+        role: canvasData.roles?.[j],
+      },
+      source: canvasData.sources[j],
+      t,
+    });
+  }, [canvasFocusIdx, canvasData, orbitItems, canvasFrameLabels, t]);
 
   // 自动视图适配（#438 确认式，不再用固定时长 setTimeout）：canvasData 提交后
   // 适配一次。React 保证子组件（OrbitCanvas）的几何重建 effect 先于本父组件
@@ -475,6 +697,27 @@ export default function App() {
       cancelled = true;
     };
   }, [frame, canvasData.mode, canvasData.timeRange, t]);
+
+  // relative 钟惯性视图的理想化圆月（#477）：屏上无 et 钟产物时 SPICE 真月
+  // 轨迹不可取（无绝对历元），改用与同屏理想化惯性段同约定（θ=t、θ₀=0）
+  // 的 1 DU 圆月——族轨道等 relative 产物切惯性系不再"无月球参照"。
+  // 月球标注带「理想化」字样；时间轴数值即 TU，moonPositionAt 插值链路
+  // 沿用。none 钟（无时刻）无跨度，保持无月球的既有降级。
+  // The idealized circular Moon for the inertial view under the relative
+  // clock (#477): with no et-clock product on screen the SPICE real track is
+  // unfetchable (no absolute epoch), so a 1 DU circle sharing the on-screen
+  // idealized segments' convention (θ=t, θ₀=0) takes over — family and other
+  // relative products no longer lose the lunar reference in the inertial
+  // view. The Moon is labeled "idealized"; the timeline values are TU, so
+  // the moonPositionAt interpolation chain is reused. The none clock (no
+  // times) has no span and keeps the existing no-Moon degradation.
+  const idealMoonTrack = useMemo(
+    () =>
+      frame === "inertial" && canvasData.mode === "relative" && canvasData.timeRange
+        ? idealizedMoonTrack(canvasData.timeRange)
+        : null,
+    [frame, canvasData.mode, canvasData.timeRange],
+  );
 
   // 库记录工件 → 画布轨迹（选中查看 / 绘制所选 / 钉住共用）。
   // 记录可含 CR3BP 段与星历段（双段并存，CONTEXT.md）：CR3BP 闭曲线之外，
@@ -542,13 +785,19 @@ export default function App() {
     // trajectory base it carries the same Jacobi value (#435).
     const ephJacobi =
       base.trajectories.length === 1 ? base.jacobi?.[0] : undefined;
-    // 星历段惯性几何（eph-fig）：槽位与轨迹逐条对齐——base 轨迹（族成员/
-    // 裸点集，会合系）无惯性几何填 null，星历段带则追加。
-    // The ephemeris segment's inertial geometry (eph-fig): slots align with
-    // trajectories — base trajectories (family members / bare point sets,
-    // synodic) fill null, the ephemeris arc's own geometry appends when
-    // carried.
+    // 星历段惯性几何（eph-fig，#477 修订）：槽位与轨迹逐条对齐——base 槽位
+    // 保留族成员自带的理想化几何（framesToTrajectoryData 产出，times 到位
+    // 后点亮），不再 null 覆盖；星历段的真星历几何追加。来源标记随拼：
+    // 星历段恒真星历（false）。任一侧携带才建字段。
+    // The ephemeris segment's inertial geometry (eph-fig, revised by #477):
+    // slots align with trajectories — base slots keep the family members' own
+    // idealized geometry (produced by framesToTrajectoryData, lit once times
+    // ship) instead of a null override; the ephemeris arc's real-ephemeris
+    // geometry appends. The source flag concatenates alongside: the ephemeris
+    // segment is always real-ephemeris (false). The field is built only when
+    // either side carries geometry.
     const ephInertial = ephTd.inertialGeometries?.[0] ?? null;
+    const ephIdealized = ephTd.inertialIdealized?.[0] ?? false;
     return {
       trajectories: [...base.trajectories, ...ephTd.trajectories],
       times: [...base.times, ...ephTd.times],
@@ -568,11 +817,16 @@ export default function App() {
         ...(base.jacobi ?? base.trajectories.map(() => undefined)),
         ...ephTd.trajectories.map(() => ephJacobi),
       ],
-      ...(ephInertial
+      ...(ephInertial || base.inertialGeometries
         ? {
             inertialGeometries: [
-              ...base.trajectories.map(() => null),
+              ...(base.inertialGeometries ??
+                base.trajectories.map(() => null as number[][] | null)),
               ephInertial,
+            ],
+            inertialIdealized: [
+              ...(base.inertialIdealized ?? base.trajectories.map(() => false)),
+              ephIdealized,
             ],
           }
         : {}),
@@ -1139,7 +1393,12 @@ export default function App() {
           const prop = propagationToCanvasData(
             d.position_km,
             d.times_jd_tdb,
-            t("canvas.propagation")
+            t("canvas.propagation"),
+            // state_frame（#477 接线）：e2m2e 扩展该字段前恒缺省 → 回退
+            // inertial_km 硬编码，行为与旧版一致
+            // state_frame (#477 wiring): absent until e2m2e extends the
+            // field → falls back to the inertial_km hardcode, legacy behavior
+            d.state_frame,
           );
           if (prop) {
             applyTrajectoryData(prop);
@@ -1489,6 +1748,21 @@ export default function App() {
             />
           </div>
 
+          {/* 画布轨道清单（#469）：常驻左栏，替代画布内图注；与画布拾取
+              共用聚焦/预览态（#460 双向一致） */}
+          {/* Canvas orbit list (#469): persistent in the left pane, replacing
+              the in-canvas legend; shares focus/preview state with canvas
+              picking (bidirectional, #460). */}
+          <div style={{ borderTop: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8", maxHeight: 160, overflowY: "auto" }}>
+            <CanvasOrbitList
+              items={orbitItems}
+              focusIndex={canvasFocusIdx}
+              unavailableNote={t("canvas.frame.synodic_unavailable")}
+              onFocusChange={handleOrbitFocus}
+              onPreviewChange={setCanvasPreviewIdx}
+            />
+          </div>
+
           {/* 详情面板 */}
           <div style={{ maxHeight: 280, overflowY: "auto", borderTop: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8" }}>
             <RecordDetailPanel
@@ -1545,18 +1819,61 @@ export default function App() {
             onResize={setMidWidth}
             onResizeEnd={(w) => localStorage.setItem(MID_WIDTH_KEY, String(w))}
           />
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <Title level={5} style={{ margin: 0 }}>
-              {t("panel.tool_title")}
-            </Title>
-            <Button
-              type="text"
-              size="small"
-              icon={<MenuFoldOutlined />}
-              onClick={() => setPaneCollapsed(MID_COLLAPSED_KEY, true, setMidCollapsed)}
-              title={t("panel.collapse")}
-            />
+          {/* 页签条（#476）：设计工具 | 轨道信息，沿用左栏底边指示线页签
+              样式；点清单/拾取轨道经 handleOrbitFocus 自动切到轨道信息页 */}
+          {/* Tab strip (#476): design tool | orbit info, following the left
+              pane's underline-tab idiom; list clicks / canvas picks switch to
+              the orbit-info tab via handleOrbitFocus. */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              gap: 10,
+              borderBottom: themeMode === "dark" ? "1px solid #303030" : "1px solid #e8e8e8",
+              marginBottom: 8,
+            }}
+          >
+            {(
+              [
+                ["tool", t("panel.tool_title")],
+                ["orbitInfo", t("panel.tab.orbit_info")],
+              ] as const
+            ).map(([key, label]) => {
+              const active = midTab === key;
+              return (
+                <Button
+                  key={key}
+                  type="text"
+                  size="small"
+                  data-testid={`mid-tab-${key}`}
+                  onClick={() => setMidTab(key)}
+                  style={{
+                    padding: "1px 2px 5px",
+                    borderRadius: 0,
+                    marginBottom: -1,
+                    borderBottom: active
+                      ? `2px solid ${themeMode === "dark" ? "#4096ff" : "#0958d9"}`
+                      : "2px solid transparent",
+                    color: active ? (themeMode === "dark" ? "#fff" : "#0958d9") : "inherit",
+                    fontWeight: active ? 500 : 400,
+                  }}
+                >
+                  {label}
+                </Button>
+              );
+            })}
+            <div style={{ marginLeft: "auto", paddingBottom: 3 }}>
+              <Button
+                type="text"
+                size="small"
+                icon={<MenuFoldOutlined />}
+                onClick={() => setPaneCollapsed(MID_COLLAPSED_KEY, true, setMidCollapsed)}
+                title={t("panel.collapse")}
+              />
+            </div>
           </div>
+          {midTab === "tool" ? (
+          <>
           <Select
             size="small"
             style={{ width: "100%", marginBottom: 8 }}
@@ -1598,6 +1915,12 @@ export default function App() {
               </Text>
             )}
           </div>
+          </>
+          ) : (
+          <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+            <OrbitInfoPanel info={orbitInfo} />
+          </div>
+          )}
         </div>
         )}
 
@@ -1646,30 +1969,22 @@ export default function App() {
               times={canvasData.displayTimes}
               currentEt={currentEt}
               labels={canvasData.labels}
-              frameLabels={canvasData.frames?.map((f, i) =>
-                // 惯性视图下带 gcrs 段的转移弧实际画的是惯性几何，标注跟着
-                // 换成地心惯性 km（#428 第二步）；其余情形标注随数据系。
-                // In the inertial view a gcrs-carrying transfer arc actually
-                // draws its inertial geometry, so the note switches to
-                // geocentric inertial km (#428 step 2); otherwise the note
-                // follows the data frame.
-                frame === "inertial" && canvasData.inertialGeometries?.[i]
-                  ? t("canvas.frame.inertial_km")
-                  : t(`canvas.frame.${f}`)
-              )}
               jacobi={canvasData.jacobi}
               regions={regionData}
               frame={frame}
               dataFrames={canvasData.frames}
               inertialGeometries={canvasData.inertialGeometries}
-              moonTrack={frame === "inertial" ? moonTrack : null}
-              synodicUnavailableNote={t("canvas.frame.synodic_unavailable")}
+              moonTrack={frame === "inertial" ? (canvasData.mode === "et" ? moonTrack : idealMoonTrack) : null}
               mu={EARTH_MOON_MU}
               libration={libration}
               projection={projection}
               center={center}
               settings={chart}
               background={chart.bgColor ?? (themeMode === "dark" ? "#121212" : "#ffffff")}
+              focusIndex={canvasFocusIdx}
+              previewIndex={canvasPreviewIdx}
+              onFocusIndexChange={handleOrbitFocus}
+              onPreviewIndexChange={setCanvasPreviewIdx}
               onReady={(a) => setApi(a)}
             />
           </div>
@@ -1719,7 +2034,7 @@ export default function App() {
           open={stationKeepingOpen}
           sourceRecord={selectedRecordDetail || selectedArtifact}
           onClose={() => setStationKeepingOpen(false)}
-          onSuccess={refreshArtifacts}
+          onSuccess={handleStationKeepingDone}
         />
 
         {/* 独立弹窗：图表设置。双列栅格排布（滑块/开关/下拉短控件两列），

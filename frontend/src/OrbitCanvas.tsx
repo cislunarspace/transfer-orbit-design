@@ -6,7 +6,8 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { ChartSettings } from "./chartSettings";
 import { EARTH_RADIUS_DU, MOON_RADIUS_DU } from "./chartSettings";
-import { COOLWARM_STOPS, jacobiColor, jacobiNorm } from "./jacobiColormap";
+import { COOLWARM_STOPS } from "./jacobiColormap";
+import { trajectoryColorsHex, desaturateHex, grayedFlags } from "./orbitListItems";
 import { pickNearestTrajectory, pickThresholdFromSize, lineOpacity } from "./picking";
 import type { RegionElement } from "./regionLayer";
 import type { DataFrameTag } from "./trajectoryParsing";
@@ -25,8 +26,8 @@ export type ProjectionMode = "3d" | "xy" | "xz" | "yz";
 export type FrameMode = "synodic" | "inertial";
 export type CenterMode = "barycenter" | "earth" | "moon" | "l1" | "l2";
 
-/** 轨迹色循环缺省值（与渲染 effect、图例共用同一循环口径） */
-/** Default trajectory color cycle (shared verbatim by the render effect and the legend). */
+/** 轨迹色循环缺省值（与渲染 effect、轨道清单共用同一循环口径） */
+/** Default trajectory color cycle (shared verbatim by the render effect and the orbit list). */
 export const DEFAULT_COLOR_CYCLE = ["#4c72b0", "#dd8452", "#55a868", "#c44e52", "#8172b3"];
 
 /** 聚焦淡出线的不透明度（#452）：其余轨迹降到此值，被聚焦线保持 1 */
@@ -51,16 +52,11 @@ export interface OrbitCanvasProps {
   /** 画布背景色（hex）；缺省深色 */
   /** Canvas background color (hex); dark by default. */
   background?: string;
-  /** 与 trajectories 逐条对齐的图例标签；缺省项不进图例 */
-  /** Legend label per trajectory (row-aligned); omitted entries stay out of the legend. */
+  /** 与 trajectories 逐条对齐的标签；缺省项不进左侧轨道清单（#469），
+   *  拾取提示也只对有标签轨迹显示（#452） */
+  /** Row-aligned trajectory labels; omitted entries stay out of the sidebar
+   *  orbit list (#469), and the pick tooltip only shows for labeled ones (#452). */
   labels?: string[];
-  /** 与 trajectories 逐条对齐的数据系标注（已本地化，CONTEXT.md「数据系」
-   *  措辞）；缺省项不显示标注。数据系随数据走，与视图系（用户显示选择）
-   *  无关（#431） */
-  /** Data-frame annotation per trajectory (pre-localized, CONTEXT.md 数据系
-   *  terms; row-aligned); omitted entries show none. The data frame rides the
-   *  data and is independent of the view frame (user's display choice) (#431). */
-  frameLabels?: (string | undefined)[];
   /** 与 trajectories 逐条对齐的 Jacobi 常数；undefined 项 = 无值，该轨迹
    *  回退色环循环取色（#435）。归一化按有值轨迹的 min/max。 */
   /** Jacobi constant per trajectory (row-aligned); undefined entries fall back
@@ -90,11 +86,6 @@ export interface OrbitCanvasProps {
    *  null = upstream unavailable, the Moon hides (the ADR 0013 offline
    *  degradation precedent). Consumed only when frame=inertial. */
   moonTrack?: MoonTrack | null;
-  /** 惯性视图下图例对灰显项的注记（已本地化整句，如“会合系几何，惯性
-   *  视图下不可画”） */
-  /** The legend note for grayed items in the inertial view (a pre-localized
-   *  sentence, e.g. "synodic geometry, not drawable in the inertial view"). */
-  synodicUnavailableNote?: string;
   /** 与 trajectories 逐条对齐的惯性几何（DU 归一）：转移弧的 gcrs 段
    *  （#428 第二步）——同一物理弧的第二份数据，惯性视图下改用它绘制
    *  （线、标记、视图适配同源），灰显判定豁免；null/缺项 = 无惯性段
@@ -105,6 +96,17 @@ export interface OrbitCanvasProps {
    *  view fitting all share it), exempt from graying; null / a missing entry
    *  = no inertial segment (degraded graying). Unused in the synodic view. */
   inertialGeometries?: (number[][] | null)[];
+  /** 聚焦/预览态（#460，#469 起受控）：图注迁到左侧轨道清单后，状态由
+   *  App 持有，清单交互与画布拾取（#452）写同一状态、双向一致。缺省回
+   *  退组件内部 state（测试等无受控场景）。 */
+  /** Focus/preview state (#460; controlled since #469): with the legend moved
+   *  to the sidebar orbit list, App owns the state so list interactions and
+   *  canvas picking (#452) write the same state and stay consistent both ways.
+   *  Falls back to internal state when uncontrolled (tests etc.). */
+  focusIndex?: number | null;
+  previewIndex?: number | null;
+  onFocusIndexChange?: (i: number | null) => void;
+  onPreviewIndexChange?: (i: number | null) => void;
   onReady?: (api: CanvasApi) => void;
 }
 
@@ -114,41 +116,6 @@ export interface CanvasApi {
   setAutoRotate: (on: boolean, speed?: number) => void;
 }
 
-/** 每条轨迹的实际渲染色（hex）：有 Jacobi 值按归一化 coolwarm，无值回退
- *  色环循环（#435）。range 是颜色条所需的实际 min/max（全无值时为 null）。
- *  渲染 effect 与图例共用，保证图例色样如实反映线上颜色。 */
-/** The actual render color per trajectory (hex): normalized coolwarm for
- *  Jacobi-valued ones, color cycle fallback for the rest (#435). range carries
- *  the real min/max for the colorbar (null when no trajectory has a value).
- *  Shared by the render effect and the legend so legend swatches mirror the lines. */
-function trajectoryColorsHex(
-  count: number,
-  jacobi: (number | undefined)[] | undefined,
-  cycle: string[],
-): { colors: string[]; range: { jmin: number; jmax: number } | null } {
-  const [jmin, jmax, jrange] = jacobiNorm(jacobi ?? []);
-  const hasValue = (jacobi ?? []).some((v) => v !== undefined);
-  const colors = Array.from({ length: count }, (_, i) => {
-    const j = jacobi?.[i];
-    return j !== undefined ? jacobiColor(j, jmin, jrange) : cycle[i % cycle.length];
-  });
-  return { colors, range: hasValue ? { jmin, jmax } : null };
-}
-
-/** 灰显色（#359 先例：惯性视图下会合系几何不可画）：保留 18% 饱和度
- *  让用户仍能分辨原色相归属，亮度不变；与图例 swatch 共用同一函数，
- *  保证色样如实反映线上颜色。 */
-/** The graying color (#359 precedent: synodic geometry is not drawable in
- *  the inertial view): keeps 18% saturation so the original hue stays
- *  identifiable, brightness unchanged; shared with the legend swatch so the
- *  swatch mirrors the line color. */
-function desaturateHex(hex: string): string {
-  const c = new THREE.Color(hex);
-  const hsl = { h: 0, s: 0, l: 0 };
-  c.getHSL(hsl);
-  c.setHSL(hsl.h, hsl.s * 0.18, hsl.l);
-  return `#${c.getHexString()}`;
-}
 
 export function OrbitCanvas({
   trajectories,
@@ -161,14 +128,16 @@ export function OrbitCanvas({
   settings,
   background,
   labels,
-  frameLabels,
   jacobi,
   regions,
   frame,
   dataFrames,
   moonTrack,
-  synodicUnavailableNote,
   inertialGeometries,
+  focusIndex,
+  previewIndex,
+  onFocusIndexChange,
+  onPreviewIndexChange,
   onReady,
 }: OrbitCanvasProps) {
   const mountRef = useRef<HTMLDivElement>(null);
@@ -192,12 +161,21 @@ export function OrbitCanvas({
   const focusIdxRef = useRef<number | null>(null);
   const downPointRef = useRef<{ x: number; y: number } | null>(null);
   const pickPendingRef = useRef(false);
-  const [focusIdx, setFocusIdx] = useState<number | null>(null);
+  // 受控/非受控混合（#469）：App 传受控 props 时状态由 App 持有（轨道清
+  // 单与画布拾取写同一状态），否则回退内部 state。
+  // Controlled/uncontrolled hybrid (#469): when App passes the controlled
+  // props the state lives in App (the orbit list and canvas picking write the
+  // same state); otherwise fall back to internal state.
+  const [innerFocusIdx, setInnerFocusIdx] = useState<number | null>(null);
+  const focusIdx = focusIndex ?? innerFocusIdx;
+  const setFocusIdx = onFocusIndexChange ?? setInnerFocusIdx;
   const [hoverTip, setHoverTip] = useState<{ index: number; x: number; y: number } | null>(null);
-  // 图例联动（#460）：悬停图例项的预览态，与聚焦正交（预览不改写聚焦）
-  // Legend linking (#460): the hover-preview state of legend items,
+  // 轨道清单联动（#460）：悬停清单项的预览态，与聚焦正交（预览不改写聚焦）
+  // Orbit-list linking (#460): the hover-preview state of list items,
   // orthogonal to focus (previewing never rewrites focus).
-  const [previewIdx, setPreviewIdx] = useState<number | null>(null);
+  const [innerPreviewIdx, setInnerPreviewIdx] = useState<number | null>(null);
+  const previewIdx = previewIndex ?? innerPreviewIdx;
+  const setPreviewIdx = onPreviewIndexChange ?? setInnerPreviewIdx;
   const previewIdxRef = useRef<number | null>(null);
   // onReady 走 ref：建场景 effect 依赖 []，调用方传内联函数（如
   // App 的 onReady={(a) => setApi(a)}）不会触发场景重建导致轨迹丢失。
@@ -382,7 +360,11 @@ export function OrbitCanvas({
       if (!down) return;
       if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > DRAG_THRESHOLD_PX) return;
       const idx = pickAt(e);
-      setFocusIdx((prev) => (idx !== null && prev !== idx ? idx : null));
+      // 受控态（#469）下 setter 是 App 的回调，没有 updater 形参——prev 从
+      // ref 读（每次渲染同步，见 focusIdxRef 赋值处）。
+      // Under the controlled state (#469) the setter is App's callback with no
+      // updater form — read prev from the ref (synced every render).
+      setFocusIdx(idx !== null && focusIdxRef.current !== idx ? idx : null);
     };
 
     const onPointerLeave = () => setHoverTip(null);
@@ -530,16 +512,13 @@ export function OrbitCanvas({
       : trajectories;
     // 灰显判定（#428）：惯性视图下会合系数据系产物去饱和；缺省标签按
     // synodic_nd 解释（与 TrajectoryData.frames 的缺省口径一致）；携带
-    // 惯性段（gcrs_km）者豁免。
+    // 惯性段（gcrs_km）者豁免。判定与颜色条/轨道清单共用（orbitListItems
+    // 的 grayedFlags，#469）。
     // Graying decision (#428): synodic data-frame products desaturate in the
     // inertial view; an omitted tag reads as synodic_nd (same default as
-    // TrajectoryData.frames); an inertial (gcrs) segment exempts.
-    const grayed = trajectories.map(
-      (_, i) =>
-        inertial &&
-        (dataFrames?.[i] ?? "synodic_nd") !== "inertial_km" &&
-        !inertialGeometries?.[i],
-    );
+    // TrajectoryData.frames); an inertial (gcrs) segment exempts. Shared with
+    // the colorbar and the orbit list (grayedFlags in orbitListItems, #469).
+    const grayed = grayedFlags({ count: trajectories.length, frame, dataFrames, inertialGeometries });
     const colors = trajectoryColorsHex(
       trajectories.length,
       jacobi,
@@ -636,11 +615,11 @@ export function OrbitCanvas({
 
     const s = settings;
     // 地月：NASA 公有领域贴图（Blue Marble / LROC）+ Phong 光照，
-    // 半径取真实比例（chartSettings 常量）。位置随视图系：会合系下地月在
+    // 半径默认按真实比例 ×3 夸张显示（chartSettings，#469）。位置随视图系：会合系下地月在
     // x 轴固定（-mu / 1-mu）；惯性系下地球居原点，月球沿 moonTrack 的
     // 当前时刻位置（下方月轨块摆放，无轨迹则隐藏——ADR 0013 离线降级）。
     // Earth and Moon: NASA public-domain textures (Blue Marble / LROC) with
-    // Phong lighting, radii at true proportions (chartSettings constants).
+    // Phong lighting, radii at true proportions ×3 by default (chartSettings, #469).
     // Placement follows the view frame: fixed on the x axis (-mu / 1-mu) in
     // the synodic frame; Earth at the origin in the inertial frame, with the
     // Moon at its current-moment position along moonTrack (placed by the
@@ -714,7 +693,19 @@ export function OrbitCanvas({
       // currentEt updates are driven by the marker effect so scrubbing never
       // rebuilds geometry.
       const p = moonPositionAt(moonTrack, null);
-      addTexturedBody("moon", "月球", [p[0], p[1], p[2] * zr], s?.moonSize ?? MOON_RADIUS_DU, moonTextureUrl, 0x111111, 4);
+      // 理想化圆月（#477）：relative 钟下的 θ=t 约定圆轨道，标注带「理想化」
+      // 与 SPICE 真月轨迹区分
+      // The idealized circular Moon (#477): the θ=t-convention circle under
+      // the relative clock, labeled "idealized" to distinguish the SPICE real track
+      addTexturedBody(
+        "moon",
+        moonTrack.idealized ? "月球（理想化）" : "月球",
+        [p[0], p[1], p[2] * zr],
+        s?.moonSize ?? MOON_RADIUS_DU,
+        moonTextureUrl,
+        0x111111,
+        4,
+      );
     }
 
     // 平动点是会合系概念（ADR 0013 决策 3）：惯性视图不画。
@@ -741,6 +732,25 @@ export function OrbitCanvas({
         const sprite = makeLabelSprite(label, `#${color.toString(16).padStart(6, "0")}`);
         sprite.position.copy(dir.clone().multiplyScalar(LEN + 0.07));
         axes.add(sprite);
+      }
+      // 原点标注（#469）：会合系原点在地月质心（CR3BP 约定，质心在地球体
+      // 内）——小圆环 + "地月质心"文字，消除"原点即地球"的误读。深度测试
+      // 关闭，标记不被放大的地球球体遮住。惯性视图原点即地心，不标注。
+      // Origin annotation (#469): the synodic origin sits at the Earth-Moon
+      // barycenter (CR3BP convention, inside the Earth body) — a small ring
+      // plus a "地月质心" label to dispel the "origin = Earth" misreading.
+      // Depth test off so the enlarged Earth sphere never occludes the marker.
+      // The inertial view's origin IS the Earth's center — no annotation there.
+      if (!inertial) {
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(0.008, 0.011, 32),
+          new THREE.MeshBasicMaterial({ color: parseInt(labelColor.slice(1), 16), depthTest: false, side: THREE.DoubleSide, transparent: true })
+        );
+        ring.renderOrder = 10;
+        axes.add(ring);
+        const originLabel = makeLabelSprite("地月质心");
+        originLabel.position.set(0.045, 0.045, 0);
+        axes.add(originLabel);
       }
       // 网格默认在 XZ 面，转到 XY 轨道面；间距 0.1 DU，范围随量程
       // The grid defaults to the XZ plane and is rotated onto the XY orbital plane; 0.1 DU spacing, extent follows the range.
@@ -943,34 +953,17 @@ export function OrbitCanvas({
   // 图例：带标签的轨迹按各自实际渲染色显示（固定层记录与结果层命名轨迹），
   // 各轨迹附数据系标注（#431：数据系 vs 视图系措辞沿 CONTEXT.md）；惯性
   // 视图下灰显项附“会合系几何不可画”注记（#428）。图例项可交互（#460）：
-  // 悬停预览、点击聚焦；容器仍穿透，仅项本体拦截。
-  // Legend: labeled trajectories shown in their actual render colors (pinned-layer
-  // records and named result-layer trajectories), each carrying a data-frame
-  // annotation (#431); grayed items carry the
-  // "synodic geometry not drawable" note in the inertial view (#428). Legend
-  // items are interactive (#460): hover previews, click focuses; the container
-  // still passes through — only item bodies intercept.
-  const inertial = frame === "inertial";
-  const grayed = trajectories.map(
-    (_, i) =>
-      inertial &&
-      (dataFrames?.[i] ?? "synodic_nd") !== "inertial_km" &&
-      !inertialGeometries?.[i],
-  );
+  // 惯性视图灰显判定与渲染色（#428/#435）：供 Jacobi 颜色条使用；轨道清
+  // 单（原画布图注）已迁到左侧边栏（#469），色样装配见 orbitListItems。
+  // Inertial-view graying and render colors (#428/#435), feeding the Jacobi
+  // colorbar; the orbit list (formerly the in-canvas legend) moved to the
+  // left sidebar (#469) — swatch assembly lives in orbitListItems.
+  const grayed = grayedFlags({ count: trajectories.length, frame, dataFrames, inertialGeometries });
   const renderColors = trajectoryColorsHex(
     trajectories.length,
     jacobi,
     settings?.colorCycle ?? DEFAULT_COLOR_CYCLE,
   );
-  const displayColors = renderColors.colors.map((c, i) => (grayed[i] ? desaturateHex(c) : c));
-  const legendItems = (labels ?? [])
-    .map((label, i) => ({
-      label,
-      frame: frameLabels?.[i],
-      color: displayColors[i],
-      grayed: grayed[i],
-    }))
-    .filter((item) => !!item.label);
 
   return (
     <div ref={mountRef} style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -997,72 +990,6 @@ export function OrbitCanvas({
           }}
         >
           {labels[hoverTip.index]}
-        </div>
-      )}
-      {legendItems.length > 0 && (
-        <div
-          style={{
-            position: "absolute",
-            top: 8,
-            left: 8,
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-            pointerEvents: "none",
-          }}
-        >
-          {legendItems.map((item, i) => (
-            <div
-              key={`${item.label}-${i}`}
-              data-legend-item=""
-              data-focused={i === focusIdx ? "true" : "false"}
-              onMouseEnter={() => setPreviewIdx(i)}
-              onMouseLeave={() => setPreviewIdx(null)}
-              onClick={() => setFocusIdx((prev) => (prev === i ? null : i))}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 11,
-                color: "#c9d3dd",
-                textShadow: "0 1px 2px rgba(0,0,0,0.6)",
-                pointerEvents: "auto",
-                cursor: "pointer",
-              }}
-            >
-              <span
-                data-testid="legend-swatch"
-                style={{
-                  width: 14,
-                  height: 2,
-                  background: item.color,
-                  display: "inline-block",
-                  // 聚焦标记（#460）：色样 1px 描边（ADR 0020 平面化）
-                  // Focus marker (#460): a 1px outline on the swatch.
-                  ...(i === focusIdx ? { outline: "1px solid #e8eef4" } : {}),
-                }}
-              />
-              {item.label}
-              {item.frame && (
-                <span
-                  style={{
-                    fontSize: 10,
-                    opacity: 0.75,
-                    border: "1px solid rgba(201,211,221,0.35)",
-                    borderRadius: 3,
-                    padding: "0 3px",
-                  }}
-                >
-                  {item.frame}
-                </span>
-              )}
-              {item.grayed && synodicUnavailableNote && (
-                <span data-testid="legend-unavailable" style={{ fontSize: 10, opacity: 0.6 }}>
-                  {synodicUnavailableNote}
-                </span>
-              )}
-            </div>
-          ))}
         </div>
       )}
       {/* Jacobi 颜色条（#435）：存在有值轨迹时叠加，标注归一化范围的

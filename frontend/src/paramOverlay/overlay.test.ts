@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   UNIT_DEFINITIONS,
   convertValue,
+  toStandardValue,
   getBranchDefaults,
   ENUM_OPTIONS,
   BRANCH_TYPE_OPTIONS,
@@ -35,11 +36,23 @@ describe("参数覆写层 (paramOverlay)", () => {
   });
 
   it("时间单位换算正确：年 <-> 月 <-> 日 <-> 秒 <-> TU", () => {
-    // duration: 年 为 GUI 标准单位 (facade 会换算为秒)
-    // duration: years is the GUI standard unit (the facade converts to seconds).
+    // 相对换算（任意两单位互转）不受标准单位选择影响
+    // Relative conversions between any two units stay independent of the standard choice.
     expect(convertValue("duration", 1.0, "年", "月")).toBeCloseTo(12.0, 4);
     expect(convertValue("duration", 1.0, "月", "年")).toBeCloseTo(1 / 12, 6);
     expect(convertValue("duration", 365.25, "日", "年")).toBeCloseTo(1.0, 4);
+  });
+
+  it("duration 提交值单位为秒（API 契约，修 #478 手测发现的 1 点星历段）", () => {
+    // design_orbit/orbit_propagation 的 duration 契约是秒
+    // （schema：“传播时长（秒）”）。GUI 以年/月输入，提交时必须换算为秒。
+    // The design_orbit/orbit_propagation duration contract is seconds (schema:
+    // “传播时长（秒）”). GUI years/months must convert to seconds on submit.
+    expect(toStandardValue("duration", 1.0, "月")).toBeCloseTo(2629800, 0); // 365.25/12 天
+    expect(toStandardValue("duration", 30, "日")).toBeCloseTo(2592000, 0);
+    expect(toStandardValue("duration", 1.0, "年")).toBeCloseTo(365.25 * 86400, 0);
+    expect(toStandardValue("duration", 1.0, "时")).toBeCloseTo(3600, 6);
+    expect(toStandardValue("duration", 1.0, "TU")).toBeCloseTo(TU_SECONDS, 6);
   });
 
   it("TU 换算锚定 TU_SECONDS 常量（#438）：output_step 1 TU = TU_SECONDS 秒", () => {
