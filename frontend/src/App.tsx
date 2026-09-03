@@ -458,6 +458,14 @@ export default function App() {
           l.inertialGeometries ??
           l.trajectories.map(() => null as number[][] | null),
       ),
+      // 段角色逐层拼接（#476）：轨道信息页签的「类型」字段（cr3bp 参考段/
+      // 星历段）取自这里——丢了它，详情永远分不出双段产物的两段。
+      // Segment roles concatenated per layer (#476): the orbit-info tab's
+      // "type" field (cr3bp reference / ephemeris segment) reads from here —
+      // dropping it leaves the details unable to tell the two segments apart.
+      roles: layers.flatMap(
+        (l) => l.roles ?? l.trajectories.map(() => undefined),
+      ),
     };
     const mode = timelineMode(combined);
     return {

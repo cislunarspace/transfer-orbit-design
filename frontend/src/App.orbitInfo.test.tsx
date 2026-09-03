@@ -169,6 +169,12 @@ describe("轨道信息页签（#476）", () => {
       const panel = screen.getByTestId("orbit-info-panel");
       // 标题即轨道名；字段：类型 / 数据系 / Jacobi / 点数 / 来源（结果层）
       expect(panel.textContent).toContain("CR3BP 参考轨道");
+      // 类型字段（#476 规格：产物类型）：双段产物的两段各自标注角色。
+      // 曾因 canvasData 拼装丢失 roles 而断链（评审发现）。
+      // The type field (#476 spec: product type): each segment of a
+      // dual-segment product carries its role. Was broken by the canvas
+      // assembly dropping roles (found in review).
+      expect(panel.textContent).toContain("类型");
       expect(panel.textContent).toContain("会合系无量纲");
       expect(panel.textContent).toContain("3.047000");
       expect(panel.textContent).toContain("本次运行产物");
