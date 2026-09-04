@@ -1,17 +1,29 @@
 # 更新日志
 
-> 自 4.8.1 起版本小节配中英双语，先中文后英文；GitHub Release 正文由对应小节生成。
-> Since 4.8.1, version sections are bilingual — Chinese first, then English; the GitHub Release body is generated from the matching section.
+> 自 4.8.3 起版本小节纯中文；GitHub Release 正文由对应小节生成。历史小节保持写成时的双语不动。
 
-## 未发布
+## 4.8.3 (2026-09-04)
 
-### 修复 / Fixes
+### 功能
 
-- **栏折叠再展开把助手边栏顶出窗口（#462 回归）**：右栏 `flex: 1` 未设 `min-width: 0`，而 WebGL 画布带着 `renderer.setSize` 写入的 px 内联宽度，恰好抬高右栏的 min-content 下限；折叠左栏时画布变宽，再展开时右栏窄不回去，整行超出窗口，且画布容器等不到变窄、ResizeObserver 不再触发，助手边栏被永久推出窗外。现右栏声明 `minWidth: 0`，宽度交回 flex 分配，画布随容器缩回；附布局收缩契约回归测试（jsdom 无布局引擎，溢出路径另用 headless Chrome 最小复现页验证）。
-  **Collapse-then-expand pushed the assistant sidebar out of the window (regression of #462)**: the right column declared `flex: 1` without `min-width: 0`, while the WebGL canvas carries the px width `renderer.setSize` wrote onto it — exactly what raised the column's min-content floor. Collapsing a pane widened the canvas; expanding again could not narrow the column below that stale width, the row overflowed the window, and since the canvas container never shrank, the ResizeObserver never fired — the sidebar stayed out of the window for good. The column now declares `minWidth: 0`, handing width back to flex so the canvas shrinks with its container; a layout shrink-contract regression test is included (jsdom has no layout engine, so the overflow path was additionally verified with a headless-Chrome minimal repro page).
+- **项目树分组与过滤栏回显（#468）**：树按产物类型分组，分组头文字 + 计数徽标（空组徽标置灰），叶子第二行挂结构化摘要（成员序号 / 平动点 / Jacobi，缺字段不渲染），虚拟滚动受控展开，过滤栏过滤条件与仅星标状态显式回显。
+- **会合视图显示感知修复（#469，ADR 0028）**：会合视图保留质心归一原点（"地球不在原点"是 CR3BP 规范约定的显示感知问题，不做地心化平移）；原点加地月质心圆环标记，天体显示尺寸按真实半径 ×3 放大。
+- **deb/rpm 应用内更新（#471）**：deb/rpm 安装从"禁用更新、引导手动下载"改为应用内下载完整安装包并经系统包管理器安装；手动更新链路安全加固（下载 URL 白名单只认本仓 Release、版本解析与资产架构匹配校验）。
+- **画布按需渲染修帧率（#472）**：画布只在数据、视图与设置变化时重绘，时间轴播放与动画导出逐帧推进，修交互帧率低。
+- **轨道信息页签（#476）**：画布轨道清单点击联动详情，中栏设计工具 / 轨道信息并列页签；duration 提交单位改为秒（修"1 个月生成 1 点星历段"）；画布装配补回段角色。
+- **惯性视图理想化几何（#477）**：惯性视图画理想化惯性几何与理想化圆月，候选 gcrs、state_frame 与受控星历前端接线。
+- **内容切换聚焦按身份迁移（#479）**：切换绘制内容时聚焦行按身份（层对象 + 层内行号）决定去向，被裁段明确清除不静默丢。
+- **采纳 e2m2e 5.9.4（#486）**：pin 升 >=5.9.4（上游 read_raw_frame 多维帧修复随 5.9.4）；catalog 五法与族生成改经 facade().catalog（e2m2e 接口类分家）；一轨一记录——族成员各自成记，family_id / member_index 贯通 Python 引擎、Rust 壳与前端，catalog_promote 调用面全删。
 
-- **库记录的星历轨道画不出来，绘制内容切换无效**：两处断链叠加。其一，`get_artifact` 通道的星历段 `synodic_position` 是 (3n,) 平铺数组，而前端解析只认设计响应的 (n,3) 嵌套，平铺一律静默丢弃——从项目树选中或钉住带星历段的记录时星历弧永远不上画布；现解析兼容两种形状，行数以齐整的 UTC 分量为准，平铺无分量视为半截数据不上（与 Rust 侧七键齐全才携带同口径）。其二，「绘制所选」装配结果层时整体漏拼 `roles`（连带 `jacobi`、`inertialGeometries`），双段产物沦为"无段语义"，工具栏全部/CR3BP/星历切换对它毫无作用；现逐层拼齐三组行对齐数组。附两条入库路径（单击选中、勾选绘制所选）的图例级回归测试与平铺形状解析测试。
-  **Ephemeris arcs from catalog records never drew, and the content switch did nothing — two breaks stacked**: first, the `get_artifact` channel ships the ephemeris segment's `synodic_position` flattened (3n,), while the frontend parser only accepted the design response's nested (n,3) and silently dropped every flattened segment — selecting or pinning a record with an ephemeris segment never put its arc on the canvas; the parser now accepts both shapes, takes the row count from the aligned UTC components, and treats a component-less flat payload as a half-segment that stays off (same convention as Rust shipping all seven keys). Second, "Plot Selected" assembled the result layer without concatenating `roles` (nor `jacobi` / `inertialGeometries`), so dual-segment products read as "untagged" and the all/CR3BP/ephemeris switch had no effect on them; all three row-aligned arrays now concatenate per layer. Legend-level regression tests cover both record paths (single-click select, multi-check plot-selected), plus parser tests for the flattened shape.
+### 修复
+
+- **栏折叠再展开把助手边栏顶出窗口（#462 回归）**：右栏 flex: 1 未设 min-width: 0，WebGL 画布的 px 内联宽度抬高 min-content 下限，折叠再展开后右栏窄不回去、助手边栏被永久推出窗外；现声明 minWidth: 0，宽度交回 flex 分配。
+- **库记录的星历轨道画不出来、绘制内容切换无效**：get_artifact 通道的星历段 synodic_position 是 (3n,) 平铺而前端只认 (n,3) 嵌套，平铺一律静默丢弃；绘制所选装配结果层整体漏拼 roles（连带 jacobi、inertialGeometries）。现解析兼容两种形状、逐层拼齐行对齐数组。
+
+### 工程
+
+- **贡献流程（ADR 0029）**：CONTRIBUTING、五类 Issue 模板、type/kind/area 标签体系、与 e2m2e 共用的七态推进面板；AGENTS.md 立 issue / PR / 评论格式规约（含 AI 生成标识与 issue 创建入板方法）。
+- **文档全面中文化**：README 撤销双语只留中文主文档；Sphinx 英文翻译（docs/source/locale/en 与英文站构建）撤销；CHANGELOG 自本版起版本小节纯中文。
 
 ## 4.8.2 (2026-09-01)
 
