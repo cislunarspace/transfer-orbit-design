@@ -80,14 +80,12 @@ Sphinx 源文件位于 `docs/source/`，叙事文档通过 MyST Markdown 接入�
 uv run --extra docs python -m sphinx -b html docs/source docs/build/html
 ```
 
-提交前应至少确认构建无 ERROR，并尽量清理 WARNING。若新增/删除叙事页面，请在 `docs/source/index.rst` 的对应 toctree 中增删条目，并同步更新英文 `.po`（见 `docs/README.md` 的 `sphinx-intl update` 流程）。
+提交前应至少确认构建无 ERROR，并尽量清理 WARNING。若新增/删除叙事页面，请在 `docs/source/index.rst` 的对应 toctree 中增删条目。
 
-### 多语言 README
+### README
 
-- `README.md` 为英文主文档（对齐 e2m2e 惯例）；中文版固定命名 `README.zh-CN.md`。
-- 修改任一语言版本时，应在同一提交中同步其余版本，保持章节结构一一对应。
-- 代码块、命令、路径、模块名一律不翻译；标题翻译后需同步修正文内锚点链接。
-- 各语言版本顶部均应放置语言切换链接。
+- `README.md` 为中文主文档（双语机制已撤销）。
+- 代码块、命令、路径、模块名一律不翻译。
 
 ## 日志与打印
 

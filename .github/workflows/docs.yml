@@ -37,8 +37,6 @@ jobs:
         run: uv sync --extra docs --frozen
       - name: Build Chinese documentation
         run: uv run --frozen --no-sync sphinx-build -b html -D language=zh docs/source docs/build/html/zh
-      - name: Build English documentation
-        run: uv run --frozen --no-sync sphinx-build -b html -D language=en docs/source docs/build/html/en
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/build/html

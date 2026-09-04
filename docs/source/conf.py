@@ -26,9 +26,6 @@ source_suffix = {
 }
 
 language = "zh"
-locale_dirs = ["locale"]
-gettext_compact = False
-gettext_uuid = True
 
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
