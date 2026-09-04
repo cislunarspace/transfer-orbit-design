@@ -26,7 +26,7 @@ Issue 分五类，各有一套模板，按要提交的内容选择：
 
 ## 提 Pull Request
 
-Fork 并建分支，改动完成后本地跑测试（`uv run pytest`、前端与 Rust 壳按改动范围各跑各的），然后开 PR 指向 `master`。PR 标题带意图标签（见上方标题约定）并回应 Issue 标题，正文按模板五段（Summary / Motivation / Changes / Why this is safe / Test plan），`Refs #NN` 置顶（关联与关单由 Project 自动化承接）；与 Issue 方案不一致的落法单独一段交代原因，说不清对账的，Closes 改 Refs。一个 PR 只做一件事。
+Fork 并建分支，改动完成后本地跑测试（`uv run pytest`、前端与 Rust 壳按改动范围各跑各的），然后开 PR 指向 `master`。PR 标题带意图标签（见上方标题约定）并回应 Issue 标题，正文按模板五段（Summary / Motivation / Changes / Why this is safe / Test plan），`Closes #NN` 置顶（合并即自动关闭 Issue，面板随关闭流转）；与 Issue 方案不一致的落法单独一段交代原因，说不清对账的，Closes 改 Refs。一个 PR 只做一件事。
 
 ## 标签体系
 
