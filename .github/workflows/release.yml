@@ -217,7 +217,8 @@ jobs:
             libegl1 \
             patchelf \
             rpm \
-            cmake
+            cmake \
+            xdg-utils
       - uses: actions/setup-node@v4
         with:
           node-version: 22
