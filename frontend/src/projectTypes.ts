@@ -7,16 +7,13 @@ export interface ArtifactSummary {
   recordId: string | null;
   createdAt: string;
   /** 星标与备注（catalog 查询路径带回；会话产物行缺省） */
-  /** Star/note metadata (returned by the catalog-query path; absent on session-artifact rows). */
   tags?: string[];
   note?: string;
   /** 结构化摘要富化字段（catalog 查询路径带回；会话产物行缺省）——
    *  树行第二行与轨道保持入口判断消费 */
-  /** Structured summary enrichment (returned by the catalog-query path;
-   *  absent on session-artifact rows) — feeds the tree row's second line
-   *  and the station-keeping entry check. */
   librationPoint?: number;
   jacobi?: number;
-  memberCount?: number;
+  /** 族内成员序号（e2m2e 5.9.3 一轨一记录；非族成员记录缺省） */
+  memberIndex?: number;
   hasEphemeris?: boolean;
 }

@@ -1,7 +1,4 @@
 // ProjectTree 交互测试：勾选多选（绘制所选）、星标切换、备注 Tooltip 与编辑。
-//
-// ProjectTree interaction tests: check-based multi-select ("Plot Selected"), star toggling,
-// note tooltip, and note editing.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -17,7 +14,6 @@ vi.mock("./catalogApi", () => ({
 }));
 
 // 三条 orbit 叶子：a1 行数据带 tags/note；a2 缺 tags（走详情查询分支）
-// Three orbit leaves: a1 carries tags/note in row data; a2 lacks tags (the detail-query branch).
 const ITEMS: ArtifactSummary[] = [
   { artifactId: "a1", artifactType: "orbit", label: "Halo A", orbitType: "HALO", sourceTool: "", recordId: "r1", createdAt: "", tags: ["demo"], note: "N".repeat(100) },
   { artifactId: "a2", artifactType: "orbit", label: "NRHO B", orbitType: "NRHO", sourceTool: "", recordId: "r2", createdAt: "" },
@@ -133,7 +129,6 @@ describe("ProjectTree 备注", () => {
     const area = await screen.findByPlaceholderText("备注内容...");
     fireEvent.change(area, { target: { value: "新备注" } });
     // antd 两字中文按钮自动插入空格（“保 存”），用正则匹配
-    // antd auto-inserts a space in two-char Chinese buttons ("保 存"); match with a regex.
     fireEvent.click(screen.getByRole("button", { name: /保\s*存/ }));
 
     await waitFor(() => expect(catalogTag).toHaveBeenCalledWith("r1", ["demo"], "新备注"));
@@ -157,19 +152,18 @@ describe("ProjectTree 分组头与结构化摘要（#468）", () => {
     expect(badges[1].style.backgroundColor).not.toBe(badges[0].style.backgroundColor);
   });
 
-  it("叶子第二行挂结构化摘要：成员数 / L 点 / Jacobi；缺字段不渲染第二行", () => {
+  it("叶子第二行挂结构化摘要：成员序号 / L 点 / Jacobi；缺字段不渲染第二行", () => {
     const items: ArtifactSummary[] = [
       {
         artifactId: "a1", artifactType: "family", label: "HALO 家族", orbitType: "HALO",
         sourceTool: "", recordId: "r1", createdAt: "",
-        memberCount: 12, librationPoint: 2, jacobi: 3.1536,
+        memberIndex: 12, librationPoint: 2, jacobi: 3.1536,
       },
       ...ITEMS.slice(0, 1),
     ];
     setup(items);
-    expect(screen.getByText("12 成员 · L2 · C 3.154")).toBeDefined();
+    expect(screen.getByText("成员 12 · L2 · C 3.154")).toBeDefined();
     // 无富化字段的行（Halo A）不渲染第二行：全文只此一处成员摘要
-    // The row without enrichment (Halo A) renders no second line: exactly one member summary overall.
     expect(screen.getAllByText(/成员/).length).toBe(1);
   });
 
@@ -203,7 +197,6 @@ describe("ProjectTree 分组头与结构化摘要（#468）", () => {
 
   it("容器量得高度后 Tree 启用虚拟滚动（height 传入）", () => {
     // RO stub：observe 即给元素定高，模拟真实浏览器量高回调路径
-    // RO stub: observe marks the element measured, mimicking the real browser measure path.
     vi.stubGlobal(
       "ResizeObserver",
       class {

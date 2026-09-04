@@ -49,7 +49,7 @@ fn task_layer(lang: &str) -> &'static str {
         r#"Tool-use rules (structured workflow: explore first, then plan, then execute):
 1. Explore before committing: before proposing any compute tool run, use read-only tools (catalog_query, catalog_get, scenario_list — these run immediately without user confirmation) to inspect what already exists in the orbit catalog and in the scenarios directory.
 2. Plan first for multi-step tasks: reply with an explicit plan (steps + tools you will call) before executing, then proceed step by step.
-3. Compute/state-changing tools (design_orbit, control_orbit, transfer_design, orbit_propagation, orbit_family_generation, spacetime_transform, catalog_delete/tag/promote/export/sweep, scenario_write) are NOT executed immediately: your call is shown to the user with its arguments, and runs only after the user confirms (they may edit the arguments first). When you call such a tool, make sure its arguments are complete and sensible so the user can review them. Scenarios: to modify an existing scenario, first read the original with scenario_list, then rewrite the whole file with scenario_write (no patch semantics); a scenario's records are catalog record ids only — verify them with catalog_query first.
+3. Compute/state-changing tools (design_orbit, control_orbit, transfer_design, orbit_propagation, orbit_family_generation, spacetime_transform, catalog_delete/tag/export/sweep, scenario_write) are NOT executed immediately: your call is shown to the user with its arguments, and runs only after the user confirms (they may edit the arguments first). When you call such a tool, make sure its arguments are complete and sensible so the user can review them. Scenarios: to modify an existing scenario, first read the original with scenario_list, then rewrite the whole file with scenario_write (no patch semantics); a scenario's records are catalog record ids only — verify them with catalog_query first.
 4. Be honest about gaps: if the available tools cannot cover what the user wants (e.g. pursuit-evasion reachable-set analysis), say so plainly instead of improvising.
 5. Self-correct on errors: if a tool returns an error (validation failure, orbit error), read the message, fix the arguments, and retry at most 3 times; if still failing, report the failure and its cause to the user.
 6. Units and epochs: CR3BP quantities are nondimensional (DU = 384400 km, TU ≈ 3.7517 d, VU = DU/TU); epochs are UTC unless stated otherwise. Keep units and epochs explicit whenever you cite numbers.
@@ -60,7 +60,7 @@ fn task_layer(lang: &str) -> &'static str {
         r#"工具使用规则（结构化工作流：先探索、再规划、后执行）：
 1. 先探索后承诺：提议任何计算类工具之前，先用只读工具（catalog_query、catalog_get、scenario_list——立即执行、无需用户确认）查看轨道库中已有的产物与情景目录中已有的情景。
 2. 多步任务先给计划：先回复一个明确的计划（步骤＋将调用的工具），再逐步执行。
-3. 计算/改状态类工具（design_orbit、control_orbit、transfer_design、orbit_propagation、orbit_family_generation、spacetime_transform、catalog_delete/tag/promote/export/sweep、scenario_write）不会立即执行：你的调用会连参数一起展示给用户，用户确认后才运行（用户可先改参数）。调用这类工具时务必把参数填完整、合理，方便用户审阅。情景：修改已有情景先用 scenario_list 读原文、再经 scenario_write 整体重写（无增量 patch 语义）；情景的 records 只收 catalog 记录 id——先用 catalog_query 核对存在性。
+3. 计算/改状态类工具（design_orbit、control_orbit、transfer_design、orbit_propagation、orbit_family_generation、spacetime_transform、catalog_delete/tag/export/sweep、scenario_write）不会立即执行：你的调用会连参数一起展示给用户，用户确认后才运行（用户可先改参数）。调用这类工具时务必把参数填完整、合理，方便用户审阅。情景：修改已有情景先用 scenario_list 读原文、再经 scenario_write 整体重写（无增量 patch 语义）；情景的 records 只收 catalog 记录 id——先用 catalog_query 核对存在性。
 4. 缺项诚实：现有工具覆盖不了用户需求时（例如追逃博弈的可达域分析），直接说明，不要硬凑。
 5. 错误自纠：工具返回错误（参数校验失败、轨道计算错误等）时，读懂错误信息、修正参数后重试，最多 3 次；仍失败则向用户报告失败及原因。
 6. 单位与历元：CR3BP 量为无量纲（DU = 384400 km，TU ≈ 3.7517 天，VU = DU/TU）；历元为 UTC。引用数值时保持量纲与历元显式。
@@ -129,8 +129,8 @@ mod tests {
         let p = system_prompt("en", "2 records", Some("NRHO 族（rec-001）"), "2026-08-29T00:00:00Z");
         assert!(p.contains("orbit design assistant"));
         assert!(p.contains("explore first, then plan, then execute"));
-        assert!(p.contains("Ephemeris-segment semantics"), "ephemeris field semantics rule");
-        assert!(p.contains("verified recipes"), "parameter cookbook rule");
+        assert!(p.contains("Ephemeris-segment semantics"), "星历段字段语义规则");
+        assert!(p.contains("verified recipes"), "参数敏感与验证配方规则");
         assert!(p.contains("NRHO 族（rec-001）"));
         assert!(p.contains("Reply in English"));
     }

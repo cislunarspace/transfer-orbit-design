@@ -1,5 +1,4 @@
 // chatModel 单测：持久化历史的恢复与 live 事件折叠。
-// Unit tests for chatModel: restoring persisted history and folding live events.
 
 import { describe, it, expect } from "vitest";
 import { restoreItems, foldEvent, type ChatItem } from "./chatModel";
@@ -53,6 +52,29 @@ describe("restoreItems", () => {
     expect(card && card.kind === "tool" && card.card.status).toBe("done");
     expect(card && card.kind === "tool" && card.card.summary?.recordId).toBe("rec-42");
     expect(card && card.kind === "tool" && card.card.args).toEqual({ a: 1 });
+  });
+
+  it("族生成回执是 family_id：单独进 summary.familyId，不冒充 recordId", () => {
+    // e2m2e 5.9.3 一轨一记录：族生成响应携带 family_id（生成批次）而非
+    // record_id；familyId 不触发入树登记（成员才是记录，按 family_id 查询）
+    const history: RawMessage[] = [
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: [
+          { id: "call_f", function: { name: "orbit_family_generation", arguments: "{}" } },
+        ],
+      },
+      {
+        role: "tool",
+        tool_call_id: "call_f",
+        content: JSON.stringify({ status: "ok", data: { family_id: "fam-a1" } }),
+      },
+    ];
+    const items = restoreItems(history);
+    const card = items.find((i) => i.kind === "tool");
+    expect(card?.kind === "tool" && card.card.summary?.familyId).toBe("fam-a1");
+    expect(card?.kind === "tool" && card.card.summary?.recordId).toBeUndefined();
   });
 
   it("marks rejected calls from the rejection prefix", () => {
@@ -151,7 +173,6 @@ describe("foldEvent", () => {
 });
 
 // —— 中断（#453）：中断界限的折叠与恢复 ——
-// Interruption (#453): folding and restoring the interrupt boundary.
 
 describe("中断界限（#453）", () => {
   it("foldEvent: interrupted 事件渲染为中断标记，不是 error 气泡", () => {

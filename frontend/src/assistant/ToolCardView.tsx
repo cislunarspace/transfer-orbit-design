@@ -1,5 +1,4 @@
 // 工具卡片：一次工具调用在对话流中的可视记录（CONTEXT.md 术语：工具卡片）。
-// Tool card: the visible record of one tool call in the conversation flow.
 // 状态机：proposed（待确认，可改参）→ running（不定态进度，ADR 0023 已知限制）
 //        → done / error / rejected。
 
@@ -24,8 +23,15 @@ export interface ToolCardData {
   tool: string;
   args: unknown;
   status: "proposed" | "running" | "done" | "error" | "rejected";
-  /** tool_done 的摘要：status / recordId / scenarioFile / error.message */
-  summary?: { status?: string; recordId?: string; scenarioFile?: string; error?: { message?: string } };
+  /** tool_done 的摘要：status / recordId / familyId / scenarioFile / error.message */
+  summary?: {
+    status?: string;
+    recordId?: string;
+    /** 族生成回执（e2m2e 5.9.3）：生成批次标识，非单条记录 id */
+    familyId?: string;
+    scenarioFile?: string;
+    error?: { message?: string };
+  };
   /** 运行起始时间戳（ms），用于耗时显示 */
   startedAt?: number;
   /** 真进度分数 [0,1]（progressToken 通知；仅 live 运行中存在） */
@@ -42,8 +48,6 @@ export function ToolCardView({
   card: ToolCardData;
   onOpenRecord: (recordId: string, tool: string) => void;
   /** 应用情景（ADR 0027）：scenario_write 完成后的同语义跳转入口 */
-  /** Apply scenario (ADR 0027): the same-semantics jump entry after a
-   *  completed scenario_write. */
   onApplyScenario?: (path: string) => void;
 }) {
   const { t } = useTranslation();
@@ -54,8 +58,6 @@ export function ToolCardView({
 
   // 运行中每秒刷新耗时（无进度通知时是唯一的不定态指示；有真进度时
   // 进度条接管，耗时数字保留）
-  // While running, refresh elapsed time every second (the only indeterminate
-  // indicator before a progress notification arrives; kept alongside the bar).
   useEffect(() => {
     if (card.status !== "running") return;
     const base = card.startedAt ?? Date.now();
@@ -105,9 +107,9 @@ export function ToolCardView({
         )}
         <Text code style={{ fontSize: 12 }}>{card.tool}</Text>
         {statusTag}
-        {!showDetail && card.summary?.recordId && (
+        {!showDetail && (card.summary?.recordId || card.summary?.familyId) && (
           <Text type="secondary" style={{ fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {card.summary.recordId}
+            {card.summary.recordId ?? `族 ${card.summary.familyId}`}
           </Text>
         )}
       </div>
