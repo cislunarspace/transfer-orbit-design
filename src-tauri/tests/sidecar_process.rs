@@ -36,7 +36,7 @@ async fn family_generation_over_real_process() {
         assert!(matches!(f, FrameArray::F32 { .. }));
     }
     assert_eq!(result.data["generated_members"], 3);
-    assert!(result.data["record_id"].as_str().is_some());
+    assert!(result.data["family_id"].as_str().is_some());
 
     // progress 事件应已到达（任务开始行）
     let ev = progress_rx.try_recv().expect("应有 progress 事件");
@@ -50,7 +50,7 @@ async fn unknown_tool_returns_error_envelope() {
     let handle = spawn().await;
     let result = handle.request("nope", &json!({}), None).await.unwrap();
     assert_eq!(result.status, "error");
-    assert_eq!(result.error.as_ref().unwrap()["code"], "UNKNOWN_TOOL");
+    assert_eq!(result.error.as_ref().unwrap()["code"], "TOOL_NOT_FOUND");
     handle.shutdown().await.unwrap();
 }
 
