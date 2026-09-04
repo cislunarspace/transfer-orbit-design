@@ -1,9 +1,7 @@
 // 轨道库过滤栏测试（#468）：查询结果 → 树数据源的富化字段透传与 label 简化，
 // 以及结果计数 / 过滤条件 / 仅星标状态的显式回显。
-//
-// Catalog filter bar tests (#468): enrichment-field passthrough and label
-// simplification in the query-result → tree-source mapping, plus the explicit
-// echo of the result count, active filters, and the starred-only state.
+// e2m2e 5.9.3 一轨一记录：族成员记录是单条轨道（入 orbit 组），富化字段
+// 携带 member_index。
 
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -18,7 +16,6 @@ vi.mock("./catalogApi", () => ({
 }));
 
 // jsdom 无 matchMedia / ResizeObserver，antd Select/Switch 需要
-// jsdom lacks matchMedia / ResizeObserver, needed by antd Select/Switch.
 beforeAll(() => {
   const mm = (query: string) => ({
     matches: false,
@@ -48,7 +45,8 @@ const RECORDS = [
     orbit_family: "HALO",
     libration_point: 2,
     jacobi: 3.1536,
-    member_count: 12,
+    family_id: "fam-1",
+    member_index: 7,
     has_ephemeris: true,
     tags: ["★"],
     note: "",
@@ -58,7 +56,6 @@ const RECORDS = [
   {
     record_id: "r2",
     orbit_family: "NRHO",
-    member_count: 1,
     tags: [],
     source_tool: "single_orbit",
     created_at: "2026-01-02",
@@ -77,7 +74,7 @@ function resultsSink() {
 }
 
 describe("CatalogFilterBar 查询映射（#468）", () => {
-  it("富化字段透传给树行；label 只留族名，成员数移入第二行摘要", async () => {
+  it("富化字段透传给树行；label 只留族名，成员序号移入第二行摘要", async () => {
     const { onResults } = resultsSink();
     render(<CatalogFilterBar onResults={onResults} />);
 
@@ -85,16 +82,25 @@ describe("CatalogFilterBar 查询映射（#468）", () => {
     const arts = onResults.mock.calls[0][0] as ArtifactSummary[];
     expect(arts[0]).toMatchObject({
       label: "HALO",
-      memberCount: 12,
+      memberIndex: 7,
       librationPoint: 2,
       jacobi: 3.1536,
       hasEphemeris: true,
     });
     // 未携带富化字段的记录：字段缺省而非脏值
-    // Records without enrichment: fields absent rather than dirty values.
-    expect(arts[1]).toMatchObject({ label: "NRHO", memberCount: 1 });
+    expect(arts[1]).toMatchObject({ label: "NRHO" });
     expect(arts[1].librationPoint).toBeUndefined();
     expect(arts[1].jacobi).toBeUndefined();
+    expect(arts[1].memberIndex).toBeUndefined();
+  });
+
+  it("族成员记录按单条轨道入 orbit 组（5.9.3 一轨一记录）", async () => {
+    const { onResults } = resultsSink();
+    render(<CatalogFilterBar onResults={onResults} />);
+
+    await waitFor(() => expect(onResults).toHaveBeenCalled());
+    const arts = onResults.mock.calls[0][0] as ArtifactSummary[];
+    expect(arts.every((a) => a.artifactType === "orbit")).toBe(true);
   });
 });
 
@@ -106,7 +112,6 @@ describe("CatalogFilterBar 状态回显（#468）", () => {
     expect(screen.queryByText("HALO")).toBeNull();
 
     // 选族 HALO + 平动点 L2 + Jacobi 区间后查询：条件逐项上屏
-    // Set family HALO + L2 + Jacobi range, then query: each condition echoes.
     const combos = screen.getAllByRole("combobox");
     fireEvent.mouseDown(combos[0]); // 轨道族类型
     fireEvent.click(await screen.findByText("Halo"));
@@ -120,8 +125,6 @@ describe("CatalogFilterBar 状态回显（#468）", () => {
     await waitFor(() => {
       expect(screen.getByText("共 2 条")).toBeDefined();
       // 条件 Tag 逐项上屏（下拉选项残留同名文本，按 Tag 元素断言）
-      // Each condition tag echoes (dropdown options linger with the same text,
-      // so assert against the tag elements).
       const tagTexts = Array.from(document.querySelectorAll(".ant-tag")).map(
         (el) => el.textContent,
       );
@@ -130,7 +133,6 @@ describe("CatalogFilterBar 状态回显（#468）", () => {
       expect(tagTexts).toContain("C ∈ [3, 3.2]");
     });
     // 查询条件透传给后端
-    // Filters pass through to the backend.
     await waitFor(() =>
       expect(catalogQuery).toHaveBeenLastCalledWith(
         expect.objectContaining({
@@ -151,7 +153,6 @@ describe("CatalogFilterBar 状态回显（#468）", () => {
     fireEvent.click(screen.getByRole("switch"));
     await waitFor(() => expect(screen.getByText("共 1 条")).toBeDefined());
     // “仅看星标”在过滤开关 label 与状态行 Tag 两处上屏
-    // "Starred only" shows in both the switch label and the status-line tag.
     expect(screen.getAllByText("仅看星标").length).toBe(2);
     expect(vi.mocked(catalogQuery).mock.calls.length).toBe(before);
   });

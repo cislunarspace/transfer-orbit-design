@@ -1,8 +1,5 @@
 // 会话显示模型：把持久化的 OpenAI 形状历史重建为气泡 + 工具卡片，
 // 以及 live 事件流的增量归并。纯函数，便于单测。
-// Chat display model: rebuilds bubbles + tool cards from the persisted
-// OpenAI-shaped history, and folds the live event stream in incrementally.
-// Pure functions, kept unit-testable.
 
 import type { AssistantEventPayload, RawMessage } from "./api";
 import type { ToolCardData } from "./ToolCardView";
@@ -16,8 +13,6 @@ export type ChatItem =
   | { kind: "tool"; card: ToolCardData };
 
 // 后端 tool 消息文本的前缀约定（assistant/mod.rs），重启恢复时据此判定卡片终态。
-// Prefix conventions of the backend tool messages (assistant/mod.rs), used to
-// determine a card's terminal state when restoring after a restart.
 const REJECT_PREFIX = "用户拒绝了本次工具调用";
 const INTERRUPT_PREFIX = "用户中断了本轮对话";
 const CHECK_REFUSE_PREFIX = "调用被验证链拒绝";
@@ -32,7 +27,6 @@ function parseArgs(raw: string): unknown {
 }
 
 /** 重启恢复：持久化历史 → 气泡、思考块与工具卡片序列。 */
-/** Restore after restart: persisted history → sequence of bubbles, thinking blocks and tool cards. */
 export function restoreItems(history: RawMessage[]): ChatItem[] {
   const items: ChatItem[] = [];
   const cardByCallId = new Map<string, ToolCardData>();
@@ -60,8 +54,6 @@ export function restoreItems(history: RawMessage[]): ChatItem[] {
           tool: tc.function.name,
           args: parseArgs(tc.function.arguments),
           // 终态由紧随的 tool 消息落定；缺 tool 消息（异常中断）按失败显示
-          // Terminal state resolved by the following tool message; a missing one
-          // (interrupted run) shows as failed.
           status: "proposed",
         };
         cardByCallId.set(tc.id, card);
@@ -75,8 +67,6 @@ export function restoreItems(history: RawMessage[]): ChatItem[] {
         card.status = "rejected";
       } else if (content.startsWith(INTERRUPT_PREFIX)) {
         // 中断占位（#453）：工具因停止请求未执行，终态为失败并说明原因
-        // Interrupt placeholder (#453): the tool never ran because of a stop
-        // request — terminal state failed, with the reason attached.
         card.status = "error";
         card.summary = { error: { message: content } };
       } else if (content.startsWith(CHECK_REFUSE_PREFIX) || content.startsWith(BAD_JSON_PREFIX)) {
@@ -86,12 +76,16 @@ export function restoreItems(history: RawMessage[]): ChatItem[] {
         const parsed = tryParse(content);
         const status = parsed?.status;
         const recordId = parsed?.data?.record_id ?? parsed?.record_id;
+        // 族生成（e2m2e 5.9.3 一轨一记录）的回执是 family_id（生成批次），
+        // 不是单条记录 id——单独携带，不冒充 recordId 触发入树登记
+        const familyId = parsed?.data?.family_id;
         const scenarioFile = parsed?.data?.scenario_file;
         const errMsg = parsed?.error?.message;
         card.status = status === "ok" ? "done" : "error";
         card.summary = {
           status: typeof status === "string" ? status : undefined,
           recordId: typeof recordId === "string" ? recordId : undefined,
+          familyId: typeof familyId === "string" ? familyId : undefined,
           scenarioFile: typeof scenarioFile === "string" ? scenarioFile : undefined,
           error: errMsg ? { message: errMsg } : undefined,
         };
@@ -99,8 +93,6 @@ export function restoreItems(history: RawMessage[]): ChatItem[] {
     }
   }
   // 恢复后仍停在 proposed 的卡片 = 重启打断的等待确认，标记为失败以免误导
-  // Cards still stuck at proposed after restore = a confirmation interrupted by
-  // restart; mark them failed so they don't mislead.
   for (const item of items) {
     if (item.kind === "tool" && item.card.status === "proposed") {
       item.card.status = "error";
@@ -120,8 +112,6 @@ function tryParse(text: string): any {
 
 /**
  * 折叠一条 live 事件到显示序列。返回新数组（不可变更新，配合 React）。
- * Fold one live event into the display sequence. Returns a new array
- * (immutable update, for React).
  */
 export function foldEvent(items: ChatItem[], ev: AssistantEventPayload): ChatItem[] {
   switch (ev.kind) {
@@ -179,13 +169,9 @@ export function foldEvent(items: ChatItem[], ev: AssistantEventPayload): ChatIte
       return updateCard(items, ev.callId, (c) => ({ ...c, status: "rejected" }));
     case "error":
       // 运行期错误作为持久气泡留在会话流里（比一次性 toast 更有上下文）
-      // Runtime errors stay in the conversation as a persistent bubble (more
-      // context than a one-off toast).
       return [...items, { kind: "error", text: ev.message }];
     case "interrupted":
       // 中断不是错误（#453）：用户主动停止，界限标记留存在会话流里
-      // An interrupt is not an error (#453): the user stopped it — the
-      // boundary marker stays in the conversation.
       return [...items, { kind: "interrupted" }];
     default:
       return items;

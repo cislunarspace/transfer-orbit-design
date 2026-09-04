@@ -3,9 +3,6 @@
 // 复现：组件曾在全部 hooks 之前对空 record 早返回，首次选中记录时同一
 // 组件实例的 hook 数量从 0 变为 6，React 抛
 // "Rendered more hooks than during the previous render." 并带崩渲染树。
-// Regression test for RecordDetailPanel's hooks-rule violation (#437).
-// The component used to early-return before its hooks when record was null;
-// selecting the first record raised the hook count from 0 to 6, crashing the tree.
 
 import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -13,7 +10,6 @@ import { RecordDetailPanel, type TransferCandidateView } from "./RecordDetailPan
 import type { CatalogRecord } from "./catalogApi";
 
 // jsdom 无 matchMedia / ResizeObserver，antd Descriptions 与 TextArea 需要
-// jsdom lacks matchMedia / ResizeObserver, required by antd Descriptions and TextArea.
 beforeAll(() => {
   const mm = (query: string) => ({
     matches: false,
@@ -39,7 +35,6 @@ const RECORD_A: CatalogRecord = {
   orbit_family: "HALO",
   libration_point: 2,
   jacobi: 3.15,
-  member_count: 1,
   has_cr3bp: true,
   has_ephemeris: true,
   tags: ["候选", "A组"],
@@ -51,7 +46,8 @@ const RECORD_B: CatalogRecord = {
   orbit_family: "NRHO",
   libration_point: 1,
   jacobi: 3.01,
-  member_count: 3,
+  family_id: "fam-b01",
+  member_index: 2,
   has_cr3bp: true,
   has_ephemeris: false,
   tags: ["B标签"],
@@ -95,6 +91,23 @@ describe("RecordDetailPanel hooks 规则（#437）", () => {
   });
 });
 
+describe("RecordDetailPanel 族维度（e2m2e 5.9.3 一轨一记录）", () => {
+  it("族成员记录展示族内序号与所属族批次，不再渲染提升区", () => {
+    render(<RecordDetailPanel record={RECORD_B} />);
+    expect(screen.getByText("#2")).toBeDefined();
+    expect(screen.getByText("fam-b01")).toBeDefined();
+    // catalog_promote 已随 e2m2e 5.9.3 移除（一轨一记录）：提升入口不复存在
+    expect(screen.queryByText(/族成员提升/)).toBeNull();
+    expect(screen.queryByRole("button", { name: /提\s*升/ })).toBeNull();
+  });
+
+  it("非族记录不渲染族维度行", () => {
+    render(<RecordDetailPanel record={RECORD_A} />);
+    expect(screen.queryByText("族内序号")).toBeNull();
+    expect(screen.queryByText("所属族批次")).toBeNull();
+  });
+});
+
 describe("RecordDetailPanel 可行解对比段（#430）", () => {
   const CANDIDATES: TransferCandidateView[] = [
     { key: "cand-1", rank: 1, deltaVKmS: 3.95, tliEpochText: "2026-09-01T00:00", tofSecText: "4.5 天", selected: true, refined: true, hasTrajectory: true },
@@ -109,7 +122,6 @@ describe("RecordDetailPanel 可行解对比段（#430）", () => {
     expect(screen.getByText(/4\.120/)).toBeDefined();
     expect(screen.getByText(/2026-09-01T00:00/)).toBeDefined();
     // 选中解标记（金色 Tag）+ 混合口径自述 + 无轨迹注记
-    // The selected mark (gold tag) + mixed-caliber self-notes + the trackless note.
     expect(document.querySelector(".ant-tag-gold")?.textContent).toBe("选中");
     expect(screen.getByText(/打靶精化/)).toBeDefined();
     expect(screen.getAllByText(/网格估计/).length).toBe(2);
