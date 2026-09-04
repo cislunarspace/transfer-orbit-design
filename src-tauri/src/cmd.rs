@@ -59,13 +59,10 @@ use crate::state::{request_with_retry, SidecarState};
 /// 进度事件名（前端 listen 用）。
 pub const PROGRESS_EVENT: &str = "sidecar-progress";
 
-/// 生成轨道族命令已随 #415 删除（族生成统一走 run_tool/catalog_sweep 通道）；
-/// FamilyMember 保留——get_artifact 的 catalog_get 映射用它携带成员状态
-/// 与 period/jacobi 元数据。
-/// The generate_family command was removed with #415 (family generation goes
-/// through the unified run_tool/catalog_sweep channel); FamilyMember stays —
-/// get_artifact's catalog_get mapping uses it to carry member states plus
-/// period/jacobi metadata.
+/// 生成轨道族命令已随 #415 删除（族生成统一走 run_tool 通道）；FamilyMember
+/// 保留——get_artifact 的 catalog_get 映射用它携带成员状态与 period/jacobi
+/// 元数据。v1 族束记录的 period/jacobi 在 members 元数据表；5.9.3 成员记录
+/// （一轨一记录）period 在 scalars，由映射层回退读取。
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FamilyMember {
@@ -73,7 +70,7 @@ pub struct FamilyMember {
     pub states: Vec<f32>,
     pub times: Vec<f64>,
     pub period: Option<f64>,
-    /// 成员 Jacobi 常数（族记录 members 元数据通道，#435）；无值为 None。
+    /// 成员 Jacobi 常数（v1 族束 members 元数据通道，#435）；无值为 None。
     pub jacobi: Option<f64>,
 }
 
@@ -198,10 +195,7 @@ fn unix_seconds_now() -> String {
 }
 
 /// 情景固定目录（ADR 0027）：助手 scenario_write 的落盘目录，也供手动
-/// 「打开情景」对话框默认定位。目录可能尚不存在（首个情景写入时创建）。
-/// The fixed scenarios directory (ADR 0027): the assistant scenario_write
-/// target, also the default location of the manual open-scenario dialog. The
-/// directory may not exist yet (created on the first scenario write).
+/// 打开情景对话框默认定位。目录可能尚不存在（首个情景写入时创建）。
 #[tauri::command]
 pub fn scenarios_dir() -> Option<String> {
     crate::assistant::host_tools::scenarios_dir().map(|p| p.to_string_lossy().into_owned())
@@ -239,9 +233,6 @@ mod scenario_io_tests {
 
     /// 在临时 tokio runtime 上直接驱动命令体（跳过 tauri runtime），同一
     /// 函数体，避免测试里复制实现导致漂移。
-    /// Drives the command bodies directly on a throwaway tokio runtime
-    /// (bypassing the tauri runtime) — same bodies, so the test never drifts
-    /// from the implementation by copying it.
     fn drive_save_open(path: String, content: String) -> Result<(), String> {
         let rt = tokio::runtime::Builder::new_current_thread()
             .build()
@@ -272,10 +263,6 @@ pub struct EphemerisSegment {
     pub synodic_position: Vec<f32>,
     /// GCRS 惯性位置 (n,3) 平铺（eph-fig）：行数对齐才携带；旧记录缺键
     /// 或不对齐为 None（前端惯性视图降级灰显，与 transfer gcrs 段同口径）。
-    /// The GCRS inertial positions (n,3) flattened (eph-fig): carried only
-    /// when row-aligned; a legacy record missing the key or misaligned is
-    /// None (the frontend's degraded graying, same convention as the
-    /// transfer gcrs segment).
     pub position_km: Option<Vec<f32>>,
     pub year: Vec<f32>,
     pub month: Vec<f32>,
@@ -296,8 +283,6 @@ pub struct TransferSegment {
     pub states: Vec<Vec<f32>>,
     pub times: Vec<f32>,
     /// 惯性段 (n,6)：与 states 同行才携带（否则 None，降级口径）
-    /// The inertial segment (n,6): carried only when row-aligned with states
-    /// (else None — the degraded case).
     pub gcrs_states: Option<Vec<Vec<f32>>>,
     pub tli_epoch: Option<serde_json::Value>,
     pub transfer_type: Option<String>,
@@ -306,30 +291,31 @@ pub struct TransferSegment {
 
 /// 项目树选中 → 画布联动：按 record_id 从 catalog 拉取产物。
 ///
-/// 帧序 = `data.arrays` 里 None 占位键的顺序（e2m2e ADR 0035）；族记录
-/// 是 `cr3bp/members/NNNN/states|times` 交替，states 帧为 (n, 6) 或 (1, 6)。
+/// 帧序 = `data.arrays` 里 None 占位键的顺序（e2m2e ADR 0035）。5.9.3 起
+/// 一轨一记录：族成员记录的 CR3BP 段在顶层 `cr3bp/states`（单成员，周期
+/// 成员为 (1, 6) 初态 + scalars.period）；v1 族束记录仍是
+/// `cr3bp/members/NNNN/states|times` 交替（旧库数据）。
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ArtifactData {
     pub record_id: String,
     pub orbit_family: String,
+    /// v1 族束的成员数；5.9.3 成员记录无该字段（单成员，取 0）
     pub member_count: u64,
     pub mu: Option<f64>,
     /// 每成员完整的状态与元数据（包含 (1, 6) 或 (n, 6) 的 states, period 等）
     pub family_members: Vec<FamilyMember>,
     /// 兼容旧版：每成员提取的 xyz
     pub members: Vec<Vec<f32>>,
-    /// 单条轨道层级的 Jacobi 常数（设计轨道记录通道：catalog_get 顶层
-    /// jacobi 包络 [min, max] 单轨道时两端同值，取首元素，#435）；
-    /// 族记录为包络下限（逐成员值在 family_members，前端成员值优先、
-    /// 缺值时回退本字段）；无 CR3BP 段记录为 None。
+    /// 记录级 Jacobi 常数：catalog_get 顶层 jacobi 包络 [min, max] 取首元素
+    /// （单轨道/成员记录两端同值即该轨道 Jacobi，#435）；v1 族束记录为包络
+    /// 下限（逐成员值在 family_members，前端成员值优先、缺值时回退本字段）；
+    /// 无 CR3BP 段记录为 None。
     pub jacobi: Option<f64>,
     /// 星历段（设计/预报类产物；会合系原生直画，UTC 分量 → et）
     pub ephemeris: Option<EphemerisSegment>,
     /// 转移段（#428 第二步）：states/times/gcrs_states + scalars 元数据；
     /// 非转移记录为 None
-    /// The transfer segment (#428 step 2): states/times/gcrs_states plus
-    /// scalars metadata; None for non-transfer records.
     pub transfer: Option<TransferSegment>,
     pub error: Option<serde_json::Value>,
 }
@@ -369,9 +355,6 @@ pub fn artifact_from_catalog_get(record_id: String, result: crate::sidecar::JobR
     }
     // 帧序 = arrays 中 None 占位键顺序；states 键配对同序 times 键，
     // transfer/ 前缀除外（走下方转移段通道，不进族成员路径）。
-    // Frame order = the None-placeholder key order in arrays; states keys pair
-    // with same-order times keys — except the transfer/ prefix, which goes
-    // through the transfer-segment channel below, never the family-member path.
     let arrays = result.data["arrays"].as_object().cloned().unwrap_or_default();
     let state_keys: Vec<&String> = arrays
         .iter()
@@ -393,7 +376,13 @@ pub fn artifact_from_catalog_get(record_id: String, result: crate::sidecar::JobR
         if let crate::sidecar::FrameArray::F32 { data, .. } = frame {
             members.push(data.chunks_exact(6).flat_map(|s| [s[0], s[1], s[2]]).collect());
             let meta = member_meta_list.get(i);
-            let period = meta.and_then(|m| m["period"].as_f64());
+            // v1 族束：period/jacobi 随 members 元数据表；5.9.3 成员记录
+            // （一轨一记录）：无该表，period 在 scalars，记录级 jacobi 单点
+            // 两端同值（由前端回退记录级通道，#435 口径不变）
+            let scalars_period = result.data["scalars"]["period"].as_f64();
+            let period = meta
+                .and_then(|m| m["period"].as_f64())
+                .or(scalars_period);
             family_members.push(FamilyMember {
                 states: data.clone(),
                 times: vec![],
@@ -432,8 +421,6 @@ pub fn artifact_from_catalog_get(record_id: String, result: crate::sidecar::JobR
         }
         Some(EphemerisSegment {
             // GCRS 惯性位置（eph-fig）：行数对齐才携带，缺键/不对齐 → None。
-            // The GCRS inertial positions (eph-fig): carried only when
-            // row-aligned; a missing key or misalignment is None.
             position_km: eph_frame("eph/position_km").filter(|p| p.len() == 3 * n),
             synodic_position,
             year,
@@ -446,9 +433,6 @@ pub fn artifact_from_catalog_get(record_id: String, result: crate::sidecar::JobR
     })();
     // 转移段（#428 第二步）：states/times 行齐才上；gcrs 惯性段同行才携
     // 带（#584 之前旧记录缺键 → None，前端惯性视图降级灰显）。
-    // The transfer segment (#428 step 2): carried only when states/times rows
-    // align; the gcrs inertial segment only when row-aligned too (legacy
-    // pre-#584 records lack the key → None, the frontend's degraded graying).
     let rows6 = |flat: &[f32]| -> Vec<Vec<f32>> {
         flat.chunks_exact(6).map(<[f32]>::to_vec).collect()
     };
@@ -617,6 +601,40 @@ mod get_artifact_tests {
         assert_eq!(artifact.jacobi, Some(2.9));
     }
 
+    /// 成员记录响应（5.9.3 一轨一记录）：顶层 cr3bp/states（周期成员单点
+    /// 初态）+ scalars.period，无 members 元数据表——period 回退 scalars。
+    fn member_record_result() -> JobResult {
+        JobResult {
+            status: "ok".into(),
+            data: serde_json::json!({
+                "record_id": "mem-1",
+                "orbit_family": "nrho",
+                "family_id": "fam-a1",
+                "member_index": 7,
+                "scalars": {"mu": 0.0121505856, "period": 2.16},
+                "jacobi": [3.1, 3.1],
+                "members": [],
+                "arrays": {
+                    "cr3bp/states": null,
+                    "cr3bp/times": [0.0]
+                }
+            }),
+            error: None,
+            frames: vec![f32_frame(&[1, 6], &[0.9, 0.0, 0.1, 0.0, 0.0, 0.0])],
+        }
+    }
+
+    #[test]
+    fn member_record_period_falls_back_to_scalars() {
+        let artifact = artifact_from_catalog_get("mem-1".into(), member_record_result());
+        // 单成员携带 period：前端传播器才能重建整条轨迹（缺则成员被跳过）
+        assert_eq!(artifact.family_members.len(), 1);
+        assert_eq!(artifact.family_members[0].period, Some(2.16));
+        // 成员级 jacobi 无 v2 通道（回退记录级单点值，#435 口径）
+        assert_eq!(artifact.family_members[0].jacobi, None);
+        assert_eq!(artifact.jacobi, Some(3.1));
+    }
+
     /// 设计轨道记录响应：members 空（非族），顶层 jacobi 包络单轨道两端同值。
     fn design_record_result() -> JobResult {
         JobResult {
@@ -659,8 +677,6 @@ mod get_artifact_tests {
     }
 
     /// 转移记录响应（e2m2e #574/#584）：transfer/ 段 + scalars 元数据。
-    /// A transfer-record response (e2m2e #574/#584): the transfer/ segments
-    /// plus scalars metadata.
     fn transfer_record_result() -> JobResult {
         JobResult {
             status: "ok".into(),
@@ -684,8 +700,6 @@ mod get_artifact_tests {
             error: None,
             frames: vec![
                 // (2,6) 会合系物理 km/km/s：两行足够分辨行序
-                // (2,6) rotating-frame physical km/km/s: two rows suffice to
-                // tell the row order apart.
                 f32_frame(&[2, 6], &[
                     -4670.9, 6578.0, 0.0, 0.0, 7.8, 0.0,
                     380000.0, 0.0, 0.0, 0.0, 0.5, 0.0,
@@ -703,8 +717,6 @@ mod get_artifact_tests {
     fn transfer_record_maps_to_transfer_segment_not_family_members() {
         let artifact = artifact_from_catalog_get("tr-1".into(), transfer_record_result());
         // transfer/ 段不进族成员通道（曾是误画：km 值不归一直当无量纲画）
-        // transfer/ segments never enter the family-member channel (the old
-        // misdraw: raw km values drawn as if dimensionless).
         assert!(artifact.family_members.is_empty());
         assert!(artifact.members.is_empty());
         let seg = artifact.transfer.as_ref().expect("转移段应存在");
@@ -728,7 +740,6 @@ mod get_artifact_tests {
     fn transfer_record_without_gcrs_segment_degrades_to_none() {
         let mut result = transfer_record_result();
         // 旧记录（#584 之前）：states_gcrs_km 键不落
-        // Legacy records (pre-#584): no states_gcrs_km key.
         result.data["arrays"].as_object_mut().unwrap().remove("transfer/states_gcrs_km");
         result.frames.truncate(2);
         let artifact = artifact_from_catalog_get("tr-1".into(), result);
@@ -742,16 +753,13 @@ mod get_artifact_tests {
         let mut result = transfer_record_result();
         result.data["arrays"]["transfer/states_gcrs_km"] = serde_json::Value::Null;
         // times 只有 1 行：与 states 2 行不齐，整段不上（宁缺毋错）
-        // times holds 1 row against states' 2: misaligned — the whole segment
-        // stays off (better absent than wrong).
         result.frames[1] = f32_frame(&[1], &[0.0]);
         let artifact = artifact_from_catalog_get("tr-1".into(), result);
         assert!(artifact.transfer.is_none());
     }
 
     /// 设计轨道记录 + 星历段（eph/ 七键 + position_km，eph-fig）；帧序与
-    /// arrays 里 None 占位键序一致。frames align with the None-placeholder
-    /// key order in arrays.
+    /// arrays 里 None 占位键序一致。
     fn ephemeris_record_result() -> JobResult {
         JobResult {
             status: "ok".into(),
@@ -805,8 +813,6 @@ mod get_artifact_tests {
     fn ephemeris_segment_without_position_km_degrades_to_none() {
         let mut result = ephemeris_record_result();
         // 旧记录：eph/position_km 键不落——星历段其余部分照常携带
-        // Legacy records: no eph/position_km key — the rest of the segment
-        // still rides along.
         result.data["arrays"].as_object_mut().unwrap().remove("eph/position_km");
         result.frames.pop();
         let artifact = artifact_from_catalog_get("eph-1".into(), result);

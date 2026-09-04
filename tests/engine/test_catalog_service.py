@@ -1,8 +1,10 @@
 """tests for src.engine.catalog_service -- 轨道库 ↔ Artifact 模型接缝（issue #375）。
 
 用桩 bridge（duck-typed FacadeBridge 的 catalog 方法）测 GUI 语义：清单映射、
-懒加载填充、标注 / 提升 / 导出 / 删除转发。catalog 自身行为由 e2m2e #475
-测试覆盖，此处不重测上游。
+懒加载填充、标注 / 导出 / 删除转发。catalog 自身行为由 e2m2e #475 测试覆盖，
+此处不重测上游。e2m2e 5.9.3 起一轨一记录（ADR 0045）：族成员逐条入库，
+摘要携带 family_id / member_index（member_count 已移除），提升动作随
+catalog_promote 一并移除。
 """
 
 from __future__ import annotations
@@ -25,7 +27,8 @@ def _summary(
     amplitude: list | None = None,
     has_cr3bp: bool = True,
     has_ephemeris: bool = True,
-    member_count: int = 1,
+    family_id: str | None = None,
+    member_index: int | None = None,
     tags: list | None = None,
     note: str = "",
 ) -> SimpleNamespace:
@@ -45,17 +48,15 @@ def _summary(
         status=ConvergenceState.CONVERGED,
         cause=FailureCause.NONE,
         message="",
-        member_count=member_count,
+        family_id=family_id,
+        member_index=member_index,
         tags=tags or [],
         note=note,
     )
 
 
 class _StubBridge:
-    """FacadeBridge.catalog_* 方法的桩：记录调用、返回预置响应。
-
-        Stub for FacadeBridge.catalog_*
-    methods: records calls, returns preset responses."""
+    """FacadeBridge.catalog_* 方法的桩：记录调用、返回预置响应。"""
 
     def __init__(self, summaries=None, records=None) -> None:
         self.summaries = summaries or []
@@ -80,10 +81,6 @@ class _StubBridge:
     def catalog_delete(self, record_id):
         self.calls["delete"] = {"record_id": record_id}
 
-    def catalog_promote(self, record_id, member_index):
-        self.calls["promote"] = {"record_id": record_id, "member_index": member_index}
-        return "rec-promoted"
-
     def catalog_export(self, dest, **filters):
         self.calls["export"] = {"dest": dest, **filters}
         return 3
@@ -105,18 +102,23 @@ class TestRecordToArtifact:
         assert art.extra["tags"] == []
         assert art.created_at.year == 2026
 
-    def test_family_summary_maps_to_family_artifact(self):
+    def test_family_member_summary_maps_to_orbit_artifact(self):
+        """5.9.3 一轨一记录：族成员记录是单条轨道，族维度进 extra。"""
         art = record_to_artifact(
             _summary(
-                record_id="rec-f",
+                record_id="rec-m7",
                 source_tool="orbit_family_generation",
                 orbit_family="nrho",
                 libration_point=2,
-                member_count=50,
+                jacobi=[3.10, 3.10],
+                family_id="fam-a1",
+                member_index=7,
             )
         )
-        assert art.artifact_type == "family"
-        assert art.label == "NRHO 族 (L2, 50 条)"
+        assert art.artifact_type == "orbit"
+        assert "NRHO" in art.label
+        assert art.extra["family_id"] == "fam-a1"
+        assert art.extra["member_index"] == 7
 
     def test_control_summary_maps_to_ephemeris_artifact(self):
         art = record_to_artifact(
@@ -127,18 +129,10 @@ class TestRecordToArtifact:
                 orbit_family="halo",
                 has_cr3bp=False,
                 has_ephemeris=True,
-                member_count=0,
             )
         )
         assert art.artifact_type == "ephemeris"
         assert art.extra["source_record_id"] == "rec-1"
-
-    def test_promote_summary_maps_to_orbit_artifact(self):
-        art = record_to_artifact(
-            _summary(record_id="rec-p", source_tool="catalog_promote", has_ephemeris=False)
-        )
-        assert art.artifact_type == "orbit"
-        assert art.source_tool == "catalog_promote"
 
 
 class TestQueryArtifacts:
@@ -148,6 +142,12 @@ class TestQueryArtifacts:
         artifacts = service.query_artifacts({"orbit_family": "halo", "libration_point": 2})
         assert bridge.calls["query"] == {"orbit_family": "halo", "libration_point": 2}
         assert [a.record_id for a in artifacts] == ["rec-1"]
+
+    def test_query_by_family_id_forwards(self):
+        """family_id（生成批次）是整族查询句柄，原样透传。"""
+        bridge = _StubBridge()
+        CatalogService(bridge).query_artifacts({"family_id": "fam-a1"})
+        assert bridge.calls["query"] == {"family_id": "fam-a1"}
 
     def test_query_none_filters_means_empty(self):
         bridge = _StubBridge()
@@ -179,11 +179,7 @@ class TestLoadArrays:
 
     @pytest.mark.spice
     def test_design_record_ephemeris_rebuilds_times_et(self):
-        """星历段懒加载重建四槽位数据源（含 times_et，需闰秒内核）。
-
-            Lazy ephemeris-segment loading
-        rebuilds the four-slot data source (including times_et; needs the leap-second
-        kernel)."""
+        """星历段懒加载重建四槽位数据源（含 times_et，需闰秒内核）。"""
         from tests.engine.conftest import make_ephemeris_table
 
         n = 5
@@ -207,11 +203,7 @@ class TestLoadArrays:
 
     @pytest.mark.spice
     def test_control_record_subtracts_mu(self):
-        """站保记录的会合系位置减 μ 对齐画布质心归一（ADR 0013）。
-
-            Station-keeping records shift
-        rotating-frame positions by μ to align with canvas barycenter normalization
-        (ADR 0013)."""
+        """站保记录的会合系位置减 μ 对齐画布质心归一（ADR 0013）。"""
         from tests.engine.conftest import make_ephemeris_table
 
         n = 4
@@ -242,47 +234,34 @@ class TestLoadArrays:
         np.testing.assert_array_equal(artifact.state_data[:, :3], syn - mu)
         np.testing.assert_array_equal(artifact.state_data[:, 3:], np.zeros((n, 3)))
 
-    def test_family_record_stacks_members(self):
-        """族记录：成员数组堆叠 (m, n, 6)；自带完整轨迹的成员原样采用。
-
-            Family records: member arrays
-        stacked (m, n, 6); members carrying full trajectories are used as-is."""
-        m, n = 3, 7
-        arrays = {}
-        for i in range(m):
-            arrays[f"cr3bp/members/{i:04d}/states"] = np.full((n, 6), float(i))
-            arrays[f"cr3bp/members/{i:04d}/times"] = np.linspace(0, 1, n)
+    def test_family_member_record_fills_states(self):
+        """族成员记录（一轨一记录）：顶层 cr3bp/states 即该成员轨迹 (n, 6)。"""
+        n = 7
         record = SimpleNamespace(
             source_tool="orbit_family_generation",
-            arrays=arrays,
-            scalars={"mu": 0.01215},
-            members=[
-                {"index": i, "period": None, "parameters": {}} for i in range(m)
-            ],
+            arrays={
+                "cr3bp/states": np.full((n, 6), 0.5),
+                "cr3bp/times": np.linspace(0, 1, n),
+            },
+            scalars={"mu": 0.01215, "period": None, "periodicity": "periodic"},
         )
         bridge = _StubBridge(records={"rec-f": record})
         artifact = record_to_artifact(
-            _summary(record_id="rec-f", source_tool="orbit_family_generation", member_count=m)
+            _summary(record_id="rec-f", source_tool="orbit_family_generation", family_id="fam-a1")
         )
         assert CatalogService(bridge).load_arrays(artifact) is True
-        assert artifact.state_data.shape == (m, n, 6)
-        assert len(artifact.extra["member_parameters"]) == m
+        assert artifact.state_data.shape == (n, 6)
+        assert artifact.extra["family_type"] == "halo"
 
     def test_family_periodic_member_resampled(self, monkeypatch):
-        """周期成员只携带初态与周期时按周期重采样（画布渲染契约）。
-
-            Periodic members carrying only an
-        initial state and a period are resampled per period (the canvas rendering
-        contract)."""
-        arrays = {
-            "cr3bp/members/0000/states": np.array([[1.0, 0.0, 0.01, 0.0, 0.3, 0.0]]),
-            "cr3bp/members/0000/times": np.array([0.0]),
-        }
+        """周期成员记录只携带初态与 scalars.period 时按周期重采样（画布渲染契约）。"""
         record = SimpleNamespace(
             source_tool="orbit_family_generation",
-            arrays=arrays,
-            scalars={"mu": 0.01215},
-            members=[{"index": 0, "period": 3.0, "parameters": {}}],
+            arrays={
+                "cr3bp/states": np.array([[1.0, 0.0, 0.01, 0.0, 0.3, 0.0]]),
+                "cr3bp/times": np.array([0.0]),
+            },
+            scalars={"mu": 0.01215, "period": 3.0, "periodicity": "periodic"},
         )
         monkeypatch.setattr(
             "e2m2e.algorithm.dynamics.CR3BP_Dynamics",
@@ -295,11 +274,11 @@ class TestLoadArrays:
         )
         bridge = _StubBridge(records={"rec-f": record})
         artifact = record_to_artifact(
-            _summary(record_id="rec-f", source_tool="orbit_family_generation", member_count=1)
+            _summary(record_id="rec-f", source_tool="orbit_family_generation", family_id="fam-a1")
         )
         assert CatalogService(bridge).load_arrays(artifact) is True
-        assert artifact.state_data.shape == (1, 200, 6)
-        assert artifact.times[0][-1] == pytest.approx(3.0)
+        assert artifact.state_data.shape == (200, 6)
+        assert artifact.times[-1] == pytest.approx(3.0)
 
     def test_missing_record_returns_false(self):
         bridge = _StubBridge()  # catalog_get 抛 RECORD_NOT_FOUND
@@ -323,11 +302,6 @@ class TestMutators:
         bridge = _StubBridge()
         CatalogService(bridge).delete("rec-1")
         assert bridge.calls["delete"] == {"record_id": "rec-1"}
-
-    def test_promote_returns_new_id(self):
-        bridge = _StubBridge()
-        assert CatalogService(bridge).promote_member("rec-f", 2) == "rec-promoted"
-        assert bridge.calls["promote"] == {"record_id": "rec-f", "member_index": 2}
 
     def test_export_passes_filters_and_returns_count(self):
         bridge = _StubBridge()
