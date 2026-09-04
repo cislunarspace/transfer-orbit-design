@@ -69,6 +69,15 @@
 
 需要维护者拍板的点单独列出（**待拍板**），没写就视为没有。待拍板项后来在 PR 里落地的，合并前回 issue 评论拍板结果——决策记在 issue，不记在 PR 描述里，PR 会沉底。
 
+创建与入板：
+
+- 创建走 GitHub 的五类模板（Bug / Feature / Idea / Research / Task），标题前缀与 type 标签由模板预填。
+- 面板唯一自动入板规则是子 issue，普通 issue 建成后不自动入板，须手动加入：
+
+      gh project item-add 1 --owner cislunarspace --url <issue 的 URL>
+
+  入板后状态自动置为 Inbox，不用手设；Inbox 之后的推进与 Priority、Start Date 由维护者手动维护（面板结构、状态语义与自动联动的完整说明见 CONTRIBUTING.md 的 Project 流水线一节）。
+
 ### PR
 
 - 标题回应 issue 标题：解决哪个 issue，就用 issue 的那套词说同一件事，不许另起炉灶用实现手段重新命名。
