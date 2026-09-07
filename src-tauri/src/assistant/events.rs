@@ -79,6 +79,9 @@ pub struct UpdateConverter {
     /// omp toolCallId → 审批键（elicitation 请求 id），用于把后续
     /// tool_call_update 路由回已建立的卡片。
     call_links: parking_lot::Mutex<HashMap<String, String>>,
+    /// omp toolCallId → 展示工具名（tool_call 记录，tool_call_update 里
+    /// 名字不再出现，终态事件需回填供前端产物登记）。
+    tool_names: parking_lot::Mutex<HashMap<String, String>>,
 }
 
 impl UpdateConverter {
@@ -87,6 +90,7 @@ impl UpdateConverter {
             sink,
             pending: parking_lot::Mutex::new(HashMap::new()),
             call_links: parking_lot::Mutex::new(HashMap::new()),
+            tool_names: parking_lot::Mutex::new(HashMap::new()),
         }
     }
 
@@ -190,7 +194,10 @@ impl UpdateConverter {
             "user_message_chunk" => {
                 let text = chunk_text(update);
                 if !text.is_empty() {
-                    (self.sink)(&json!({"kind": "user_message", "text": text}));
+                    // omp 回放的是 prompt 全文（含领域指令与画布选择信封），
+                    // 剥出用户可见消息再进气泡（build_prompt_text 的逆）
+                    let visible = super::user_visible_message(&text).to_string();
+                    (self.sink)(&json!({"kind": "user_message", "text": visible}));
                 }
             }
             "tool_call" => self.on_tool_call(update),
@@ -206,6 +213,11 @@ impl UpdateConverter {
         let raw_input = update.get("rawInput").cloned().unwrap_or(Value::Null);
         let path = raw_input.get("path").and_then(Value::as_str).unwrap_or("");
         let args = tool_args(&raw_input);
+        let tool = display_tool_name(path);
+        // 工具名在此记录一次：后续 tool_call_update 不再携带，终态事件回填
+        self.tool_names
+            .lock()
+            .insert(call_id.to_string(), tool.clone());
         // 与挂起审批按 xd 设备路径关联（同一工具调用的审批先于 tool_call 到达）
         if let Some((key, _)) = self
             .pending
@@ -216,14 +228,12 @@ impl UpdateConverter {
         {
             self.call_links.lock().insert(call_id.to_string(), key);
             // 卡片已由 tool_proposed 建立；参数以 tool_call 的 rawInput 为准再补一次
-            let tool = display_tool_name(path);
             (self.sink)(&json!({
                 "kind": "tool_proposed", "callId": linked_id(self, call_id), "tool": tool, "arguments": args
             }));
             return;
         }
         // 免确认直跑：直接进入 running
-        let tool = display_tool_name(path);
         (self.sink)(&json!({"kind": "tool_started", "callId": call_id, "tool": tool, "arguments": args}));
     }
 
@@ -231,17 +241,25 @@ impl UpdateConverter {
         let Some(call_id) = update.get("toolCallId").and_then(Value::as_str) else { return };
         let status = update.get("status").and_then(Value::as_str).unwrap_or("");
         let card_id = linked_id(self, call_id);
+        // 终态/进度事件里 omp 不再带工具名：按 call_id 回填（产物登记与
+        // 卡片兜底需要；查不到为空串，前端保留卡片上已有的名字）
+        let tool = self
+            .tool_names
+            .lock()
+            .get(call_id)
+            .cloned()
+            .unwrap_or_default();
         match status {
             "in_progress" | "pending" => {
-                (self.sink)(&json!({"kind": "tool_started", "callId": card_id, "tool": "", "arguments": null}));
+                (self.sink)(&json!({"kind": "tool_started", "callId": card_id, "tool": tool, "arguments": null}));
             }
             "completed" => {
                 let summary = update_summary(update);
-                (self.sink)(&json!({"kind": "tool_done", "callId": card_id, "ok": true, "summary": summary}));
+                (self.sink)(&json!({"kind": "tool_done", "callId": card_id, "tool": tool, "ok": true, "summary": summary}));
             }
             "failed" => {
                 let summary = update_summary(update);
-                (self.sink)(&json!({"kind": "tool_done", "callId": card_id, "ok": false, "summary": summary}));
+                (self.sink)(&json!({"kind": "tool_done", "callId": card_id, "tool": tool, "ok": false, "summary": summary}));
             }
             _ => {}
         }
@@ -252,6 +270,7 @@ impl UpdateConverter {
     pub fn clear(&self) {
         self.pending.lock().clear();
         self.call_links.lock().clear();
+        self.tool_names.lock().clear();
     }
 }
 

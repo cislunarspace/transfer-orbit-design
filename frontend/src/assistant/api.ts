@@ -57,7 +57,6 @@ export type AssistantEventPayload =
         error?: { message?: string };
       };
     }
-  | { kind: "tool_rejected"; callId: string; tool: string }
   | { kind: "message_done"; usage?: { total_tokens?: number } | null }
   | { kind: "interrupted" }
   | { kind: "error"; message: string };

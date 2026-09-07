@@ -131,10 +131,6 @@ impl AcpConn {
         !self.tx.is_closed() && self.alive.load(Ordering::SeqCst)
     }
 
-    /// 等待读循环退出（重连/清理用）。
-    pub async fn wait_closed(&self) {
-        self.closed.notified().await;
-    }
 }
 
 async fn io_loop<R, W>(

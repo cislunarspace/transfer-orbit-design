@@ -73,8 +73,6 @@ export function foldEvent(items: ChatItem[], ev: AssistantEventPayload): ChatIte
         status: ev.ok ? "done" : "error",
         summary: ev.summary,
       }));
-    case "tool_rejected":
-      return updateCard(items, ev.callId, (c) => ({ ...c, status: "rejected" }));
     case "error":
       // 运行期错误作为持久气泡留在会话流里（比一次性 toast 更有上下文）
       return [...items, { kind: "error", text: ev.message }];

@@ -134,6 +134,16 @@ impl OmpState {
         SPAWN_CONFIG.get().map(|(_, cwd)| cwd.clone())
     }
 
+    /// setup 阶段解析并注册的 omp 命令（发布构建含资源目录内打包 omp）。
+    /// 状态面（空态判定/omp 路径展示/setup 按钮）以此为准；未注册时回落
+    /// 一次实时解析，保住设置面板"安装后刷新"的语义。
+    pub fn configured_command() -> Option<Vec<String>> {
+        SPAWN_CONFIG
+            .get()
+            .map(|(cmd, _)| cmd.clone())
+            .or_else(|| resolve_omp_command(None))
+    }
+
     /// 取活跃连接；没有或已死则重拉 omp 并完成 ACP initialize。
     /// 返回 (连接, 是否新拉)。
     pub async fn get_or_spawn(&self, handlers: Arc<dyn AcpHandlers>) -> Result<(AcpConn, bool)> {

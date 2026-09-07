@@ -131,6 +131,10 @@ async fn acp_lifecycle_over_fake_process() {
                 assert!(state_ref.resolve_confirm(ev["callId"].as_str().unwrap(), true));
                 key = Some(ev["callId"].as_str().unwrap().to_string());
             }
+            if ev["kind"] == "tool_done" {
+                // 终态事件回填工具名（产物登记契约：recordId 与 tool 配对）
+                assert_eq!(ev["tool"], "scenario_write", "终态事件应带工具名：{ev}");
+            }
             seen.push(ev);
         },
     )
@@ -187,6 +191,7 @@ async fn acp_lifecycle_over_fake_process() {
     assert!(replay_delta["text"].as_str().unwrap().contains("回放：最早的回答"));
     let replay_done = wait_kind(&mut rx, "tool_done").await;
     assert_eq!(replay_done["summary"]["recordId"], "rec-replay");
+    assert_eq!(replay_done["tool"], "catalog_query", "回放终态应带工具名");
     assert_eq!(state.current_session().as_deref(), Some("fake-77"));
 
     // --- 5b. 本进程内会话：事件日志重放（含用户气泡；不走 omp 回放） ---
@@ -195,6 +200,30 @@ async fn acp_lifecycle_over_fake_process() {
     let user = wait_kind(&mut rx, "user_message").await;
     assert_eq!(user["text"], "你好", "日志重放应含用户气泡：{user}");
     assert_eq!(state.current_session().as_deref(), Some(sid1.as_str()));
+
+    // --- 5c. 缓存重放隔离：切走再切回，别的会话事件不串入、日志不翻倍 ---
+    // 5b 的 wait_kind 只消费到第一条用户气泡，通道可能还有遗留——断言
+    // 只针对本次重放段（最后一个 reset 之后）。
+    let mut seen: Vec<Value> = Vec::new();
+    drive_with(
+        Box::pin(state.switch_session("fake-77")),
+        &mut rx,
+        |ev| seen.push(ev),
+    )
+    .await
+    .expect("二次切换 fake-77");
+    let replay_start = seen
+        .iter()
+        .rposition(|e| e["kind"] == "reset")
+        .expect("缓存重放应以 reset 开头");
+    let replay = &seen[replay_start + 1..];
+    let user_msgs: Vec<&Value> = replay.iter().filter(|e| e["kind"] == "user_message").collect();
+    assert_eq!(user_msgs.len(), 1, "缓存重放应只有一条用户气泡：{seen:?}");
+    assert_eq!(user_msgs[0]["text"], "回放：最早的问题");
+    assert!(
+        !replay.iter().any(|e| e["kind"] == "user_message" && e["text"] == "你好"),
+        "fake-1 的事件不得串入 fake-77 的重放：{seen:?}"
+    );
 
     // --- 6. 清空 = 新建（omp 无 reset 能力时的落位） ---
     let sid_before = state.current_session().unwrap();

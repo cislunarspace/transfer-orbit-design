@@ -1,5 +1,6 @@
 // 工具卡片：一次工具调用在对话流中的可视记录（CONTEXT.md 术语：工具卡片）。
-// 状态机：proposed（待确认）→ running（不定态进度）→ done / error / rejected。
+// 状态机：proposed（待确认）→ running（不定态进度）→ done / error
+//（用户拒绝走 omp 的 failed 终态，卡片呈 error 态并显示拒绝原因）。
 // omp ACP 基座：审批经 omp 审批表单（Approve/Deny），协议不携带改后参数，
 // 故无改参入口；参数全文展示供审阅。
 
@@ -22,7 +23,7 @@ export interface ToolCardData {
   callId: string;
   tool: string;
   args: unknown;
-  status: "proposed" | "running" | "done" | "error" | "rejected";
+  status: "proposed" | "running" | "done" | "error";
   /** tool_done 的摘要：status / recordId / familyId / scenarioFile / error.message */
   summary?: {
     status?: string;
@@ -60,7 +61,7 @@ export function ToolCardView({
 
   // 完成态折叠为单行摘要（工具名 + 状态 + record_id），点击展开参数与
   // 结果摘要；待确认/运行中保持全文展示供审阅。
-  const collapsible = card.status === "done" || card.status === "error" || card.status === "rejected";
+  const collapsible = card.status === "done" || card.status === "error";
   const [expanded, setExpanded] = useState(false);
   const showDetail = !collapsible || expanded;
 
@@ -73,7 +74,6 @@ export function ToolCardView({
     ),
     done: <Tag color="success">{t("assistant.card.done")}</Tag>,
     error: <Tag color="error">{t("assistant.card.failed")}</Tag>,
-    rejected: <Tag>{t("assistant.card.rejected")}</Tag>,
   }[card.status];
 
   return (

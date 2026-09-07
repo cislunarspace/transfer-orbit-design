@@ -56,6 +56,19 @@ fn build_prompt_text(message: &str, selection: Option<&Value>) -> String {
     }
 }
 
+/// build_prompt_text 的逆：从 omp 回放的 prompt 全文剥出用户可见消息
+///（去掉领域指令前缀与画布选择段；无信封特征时原样返回，兼容任意
+/// 回放文本）。实测 omp session/load 以单个 user_message_chunk 原样
+/// 回放 prompt 全文，气泡必须在此剥离。
+pub(crate) fn user_visible_message(full: &str) -> &str {
+    let rest = full.strip_prefix(DOMAIN_INSTRUCTION).unwrap_or(full);
+    let rest = rest.strip_prefix("\n\n").unwrap_or(rest);
+    match rest.find("\n\n[当前画布选择]") {
+        Some(i) => &rest[..i],
+        None => rest,
+    }
+}
+
 /// 会话事件日志上限（条）：超出截头（久远事件不再重放，全文在 omp 会话里）。
 const MAX_SESSION_LOG: usize = 5000;
 
@@ -166,9 +179,10 @@ impl AssistantState {
         self.inner.omp.current().await.is_some()
     }
 
-    /// omp 可执行文件是否可解析（空态判定：未安装/不可执行）。
+    /// omp 可执行文件是否可用（空态判定：未安装/不可执行）。以 setup
+    /// 注册的命令为准（发布构建解析过资源目录），未注册再回落实时解析。
     pub fn omp_configured(&self) -> bool {
-        omp::resolve_omp_command(None).is_some()
+        omp::OmpState::configured_command().is_some()
     }
 
     /// 确认/拒绝一次工具审批。返回 false = 该键没有挂起的等待（已取消/
@@ -381,20 +395,17 @@ impl AssistantState {
     }
 
     /// 切换会话：session/load 回放重建 UI；已打开过的会话走本地缓存重放。
-    /// 失败保持原会话不变（reset 后前端重拉状态恢复原状）。
+    /// 失败时恢复原会话的显示（有缓存则重放回原状），session id 不变。
     pub async fn switch_session(&self, session_id: &str) -> Result<()> {
         if self.busy() {
             anyhow::bail!(BUSY_MSG);
         }
         let conn = self.ensure_conn().await?;
+        let previous = self.inner.session.lock().clone();
         self.publish_reset();
         let cached = self.inner.replay_cache.lock().get(session_id).cloned();
         if let Some(log) = cached {
-            let sink = self.inner.sink.get().expect("sink 在构造时注入").clone();
-            for payload in log {
-                sink(&payload);
-            }
-            *self.inner.session.lock() = Some(session_id.to_string());
+            self.replay_cached(session_id, &log);
             self.refresh_sessions(&conn).await;
             return Ok(());
         }
@@ -420,8 +431,30 @@ impl AssistantState {
                 self.refresh_sessions(&conn).await;
                 Ok(())
             }
-            Err(e) => anyhow::bail!("切换会话失败：{e}"),
+            Err(e) => {
+                // UI 已被 reset 清空：重放缓存里的原会话日志恢复显示
+                //（原会话无缓存时保持空态，错误信息仍可见）
+                if let Some(prev) = previous {
+                    if let Some(log) = self.inner.replay_cache.lock().get(&prev).cloned() {
+                        self.replay_cached(&prev, &log);
+                    }
+                }
+                anyhow::bail!("切换会话失败：{e}")
+            }
         }
+    }
+
+    /// 重放一段已缓存的会话日志到事件流：先换会话身份，重放期间经 scratch
+    /// 捕获缓冲隔离——既不把重放事件写回该会话缓存（日志会翻倍），也不
+    /// 串进此前会话的日志。
+    fn replay_cached(&self, session_id: &str, log: &[Value]) {
+        *self.inner.session.lock() = Some(session_id.to_string());
+        *self.inner.replay_capture.lock() = Some(Vec::new());
+        let sink = self.inner.sink.get().expect("sink 在构造时注入").clone();
+        for payload in log {
+            sink(payload);
+        }
+        self.inner.replay_capture.lock().take();
     }
 
     /// 清空当前会话：omp ACP 握手未声明 reset 能力（sessionCapabilities
@@ -498,9 +531,6 @@ fn capture_config_options(inner: &Inner, result: &Value) {
 fn make_sink(weak: Weak<Inner>) -> EventSink {
     Arc::new(move |payload: &Value| {
         let Some(inner) = weak.upgrade() else { return };
-        if inner.quiet.load(Ordering::SeqCst) {
-            return;
-        }
         if inner.quiet.load(Ordering::SeqCst) {
             return;
         }
@@ -625,7 +655,7 @@ mod tests {
         assert!(!state.busy());
         state.inner.running.store(true, Ordering::SeqCst);
         assert!(state.busy());
-        state.inner.running.store(false, Ordering::SeqCst);
+
         let (tx, _rx) = oneshot::channel();
         state.inner.confirmations.lock().insert("1".into(), tx);
         assert!(state.busy());
@@ -661,5 +691,19 @@ mod tests {
         assert!(prompt_with_selection.contains("分析当前轨道"));
         assert!(prompt_with_selection.contains("[当前画布选择]"));
         assert!(prompt_with_selection.contains("\"recordId\":\"rec-123\""));
+    }
+
+    /// build_prompt_text 与 user_visible_message 互逆：回放剥离后应还原
+    /// 用户原始消息；无信封特征的回放文本原样通过。
+    #[test]
+    fn user_visible_message_round_trip() {
+        for (message, selection) in [
+            ("问", None),
+            ("多行\n消息", Some(json!({"recordId": "r1"}))),
+        ] {
+            let full = build_prompt_text(message, selection.as_ref());
+            assert_eq!(user_visible_message(&full), message);
+        }
+        assert_eq!(user_visible_message("回放：最早的问题"), "回放：最早的问题");
     }
 }

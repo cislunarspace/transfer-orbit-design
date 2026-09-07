@@ -48,7 +48,7 @@ pub async fn assistant_get_state(
         sessions: state.sessions(),
         thinking_level: state.thinking_level(),
         running: state.busy(),
-        omp_path: omp::resolve_omp_command(None).map(|c| c[0].clone()),
+        omp_path: omp::OmpState::configured_command().map(|c| c[0].clone()),
         legacy_config: crate::assistant::host_tools::config_dir()
             .map(|d| d.join("assistant.json").is_file() || d.join("assistant.key").is_file())
             .unwrap_or(false),
@@ -128,7 +128,7 @@ pub async fn assistant_set_thinking_level(
 /// 描述；失败返回 stderr/退出原因（禁止伪造成功）。
 #[tauri::command]
 pub async fn assistant_open_omp_setup() -> Result<String, String> {
-    let Some(cmd) = omp::resolve_omp_command(None) else {
+    let Some(cmd) = omp::OmpState::configured_command() else {
         return Err("未找到 omp 可执行文件（未安装或不在 PATH）".into());
     };
     let omp_path = cmd[0].clone();
@@ -136,8 +136,11 @@ pub async fn assistant_open_omp_setup() -> Result<String, String> {
 }
 
 /// 在一个终端模拟器里运行 `<omp> <args...>`；全部候选失败时报具体原因。
+/// 命令串形态（终端自解析 shell 命令行：-e/--、osascript）必须给路径加
+/// 引号，安装路径含空格才不裂；argv 形态（kitty/foot/wezterm、Windows
+/// Command 的逐参数传递）无需引号。
 fn spawn_terminal_running(omp_path: &str, args: &str) -> Result<String, String> {
-    let full = format!("{omp_path} {args}");
+    let full = format!("\"{omp_path}\" {args}");
     #[cfg(target_os = "linux")]
     {
         let mut candidates: Vec<(String, Vec<String>)> = Vec::new();
@@ -205,7 +208,10 @@ fn spawn_terminal_running(omp_path: &str, args: &str) -> Result<String, String> 
     }
     #[cfg(target_os = "macos")]
     {
-        let script = format!("tell application \"Terminal\" to do script \"{full}\"");
+        let script = format!(
+            "tell application \"Terminal\" to do script \"{}\"",
+            full.replace('\\', "\\\\").replace('"', "\\\"")
+        );
         match std::process::Command::new("osascript")
             .arg("-e")
             .arg(&script)
