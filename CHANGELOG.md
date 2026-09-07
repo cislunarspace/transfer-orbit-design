@@ -2,6 +2,19 @@
 
 > 自 4.8.3 起版本小节纯中文；GitHub Release 正文由对应小节生成。历史小节保持写成时的双语不动。
 
+## 4.9.0 (2026-09-06)
+
+### 功能
+
+- **AI 会话以 omp 为基座（ADR 0030）**：助手边栏的会话、模型调用、思考过程与 agent loop 改由随应用分发的 omp（ACP 协议）承载——模型服务与 API key 由 omp 原生配置管理，应用不再保存 base URL/model/key（旧 assistant.json/assistant.key 只检测存在并提示迁移）；多会话历史由 omp 会话目录管理（应用侧不再维护会话 JSONL）；中断为真 ACP 取消（cancelled），废除"插入普通消息续跑"假中断；思考三档固定映射 omp 原生值（off/medium/high）。
+- **工具桥接**：omp 经应用二进制的 MCP 桥接模式发现并调用 e2m2e 工具与宿主情景工具（scenario_write/scenario_list 语义不变）；只读白名单（catalog_query/catalog_get/scenario_list）免确认直跑，其余工具一律审批卡片（Approve/Deny）；审批协议不携带改后参数，改参入口随协议事实移除（参数全文展示供审阅）。
+
+### 工程
+
+- 删除自建 LLM 客户端与协议适配（SSE 解析/provider 方言/系统提示组装/结果投影/会话存储，约 1200 行），新增 ACP 客户端 + MCP 桥接 + 事件转换层（acp/omp/bridge/events 四模块）；工具卡片进度条降级为耗时指示（omp 更新流不带分数制进度）。
+- 发布流水线钉版分发 omp（资源 binaries/，不依赖用户预装）；开发构建走 TOD_OMP_BIN/PATH。scripts/smoke_omp_acp.py 为真实链路冒烟（握手/桥接/白名单/审批/取消/回放）。
+- 事件模型收敛：用户气泡与回放统一走 assistant-event 流（新增 user_message/reset），前端不再解析任何历史文件格式；回放（session/load）与实时流同一折叠路径。
+
 ## 4.8.3 (2026-09-04)
 
 ### 功能

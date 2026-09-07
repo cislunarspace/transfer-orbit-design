@@ -21,11 +21,13 @@ import {
 
 vi.mock("./api", () => ({
   assistantGetState: vi.fn().mockResolvedValue({
-    configured: true,
-    history: [],
-    sessions: [],
-    currentSessionId: "default",
+    ompConfigured: true,
+    connected: true,
+    sessionId: "s1",
+    sessions: [{ id: "s1", title: null, updatedAt: null, messageCount: null }],
     thinkingLevel: "standard",
+    running: false,
+    ompPath: "/usr/bin/omp",
   }),
   onAssistantEvent: vi.fn().mockImplementation(async (cb: (payload: { kind: string }) => void) => {
     lastHandler = cb;
@@ -33,12 +35,12 @@ vi.mock("./api", () => ({
   }),
   assistantSend: vi.fn().mockResolvedValue(undefined),
   assistantCancel: vi.fn().mockResolvedValue(true),
+  assistantConfirmTool: vi.fn().mockResolvedValue(true),
   assistantClearHistory: vi.fn().mockResolvedValue(undefined),
   assistantNewSession: vi.fn().mockResolvedValue("s2"),
-  assistantRenameSession: vi.fn().mockResolvedValue(undefined),
-  assistantDeleteSession: vi.fn().mockResolvedValue(undefined),
   assistantSwitchSession: vi.fn().mockResolvedValue(undefined),
   assistantSetThinkingLevel: vi.fn().mockResolvedValue(undefined),
+  assistantOpenOmpSetup: vi.fn().mockResolvedValue(""),
 }));
 
 beforeAll(() => {
@@ -84,7 +86,6 @@ afterEach(() => {
 function setup() {
   render(
     <AssistantSidebar
-      lang="zh"
       selection={null}
       onArtifactProduced={vi.fn()}
       onOpenRecord={vi.fn()}

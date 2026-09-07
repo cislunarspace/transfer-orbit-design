@@ -2013,7 +2013,6 @@ export default function App() {
         {/* 最右栏：AI 助手边栏（CONTEXT.md 术语：助手边栏）。可折叠、可拖宽，
             agent loop 在后端，此处仅交互转发（ADR 0022/0023） */}
         <AssistantSidebar
-          lang={lang}
           selection={assistantSelection}
           onArtifactProduced={handleAssistantArtifact}
           onOpenRecord={(recordId) => handleAssistantOpenRecord(recordId)}
@@ -2153,8 +2152,8 @@ export default function App() {
               </Col>
             </Row>
 
-            {/* AI 助手分区：模型服务配置（BYOK，OpenAI 兼容协议）。key 只进
-                后端 keyring，不回读（ADR 0022 决策 5 / 0023 决策 6） */}
+            {/* AI 助手分区：omp 会话运行时入口状态与原生配置流程（模型
+                服务与凭据由 omp 管理，本应用不收集不展示） */}
             <Divider titlePlacement="start" style={{ margin: "12px 0 8px" }}>
               <Text strong style={{ fontSize: 13 }}>
                 {t("assistant.settings.section_title")}
