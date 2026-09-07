@@ -225,6 +225,13 @@ async fn acp_lifecycle_over_fake_process() {
         "fake-1 的事件不得串入 fake-77 的重放：{seen:?}"
     );
 
+    // --- 5d. 切换失败：报错并恢复原会话显示（session id 不变） ---
+    let before_fail = state.current_session().expect("当前会话");
+    state.switch_session("fail-load").await.expect_err("损坏会话应报错");
+    assert_eq!(state.current_session().as_deref(), Some(before_fail.as_str()), "失败后 session id 不变");
+    let restored = wait_kind(&mut rx, "user_message").await;
+    assert_eq!(restored["text"], "回放：最早的问题", "失败后应重放恢复原会话显示");
+
     // --- 6. 清空 = 新建（omp 无 reset 能力时的落位） ---
     let sid_before = state.current_session().unwrap();
     state.clear_history().await.expect("清空");

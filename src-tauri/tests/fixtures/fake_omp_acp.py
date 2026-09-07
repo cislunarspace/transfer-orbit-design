@@ -272,6 +272,10 @@ def main():
                 {"sessionId": f"fake-{state['next_session']}", "configOptions": config_options()},
             )
         elif method == "session/load":
+            if params.get("sessionId") == "fail-load":
+                # 指定失败会话：测客户端失败路径（应恢复原会话显示）
+                reply_err(mid, -32000, "会话文件损坏")
+                continue
             replay(params.get("sessionId", "?"))
             reply(mid, {"configOptions": config_options()})
         elif method == "session/list":
