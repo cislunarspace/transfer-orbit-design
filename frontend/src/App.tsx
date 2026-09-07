@@ -172,7 +172,7 @@ interface FocusRowId {
 }
 
 export default function App() {
-  const { lang, setLang, t } = useTranslation();
+  const { t } = useTranslation();
   const [themeMode, setThemeMode] = useState<"dark" | "light">(() => {
     // 默认白底黑字（日间）；夜间模式经右上角按钮切换并持久化
     // Defaults to white background with black text (daytime); night mode toggles via the top-right button and persists.
@@ -1689,14 +1689,6 @@ export default function App() {
               );
             })}
             <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 2, paddingBottom: 3 }}>
-              <Button
-                type="text"
-                size="small"
-                onClick={() => setLang(lang === "zh" ? "en" : "zh")}
-                title={t("app.lang_toggle_title")}
-              >
-                {lang === "zh" ? "EN" : "中"}
-              </Button>
               <Button
                 type="text"
                 size="small"

@@ -40,6 +40,22 @@ pub const ASSISTANT_EVENT: &str = "assistant-event";
 /// 会话结构操作被门禁拦下时的提示。
 const BUSY_MSG: &str = "有回复进行中或工具确认未决，请等待完成后再操作会话";
 
+/// 发给 omp 的固定中文领域指令：角色边界、工具纪律、结果与引用规范
+///（每轮 prompt 正文前置注入；omp 侧无应用可控的系统提示词接口）。
+const DOMAIN_INSTRUCTION: &str = "你是 Transfer Orbit Design 的轨道设计助手。始终使用简体中文回答，专业名词、工具名、字段名和协议名可保留必要的英文缩写。\n你只能协助本项目的轨道库、轨道计算、轨道预报、转移设计、坐标转换、分区分析和情景管理；超出范围时明确说明，不编造结果、记录、参数或工具返回值。\n处理任务时先理解用户目标，再使用已有工具获取事实；需要查询轨道库或情景时优先查询，不凭记忆猜测记录内容。工具参数必须符合工具 schema，缺少关键参数或存在多个合理解释时先向用户说明需要补充的信息。\n只读查询用于确认事实；会改变轨道库或情景的操作必须通过工具审批后执行。工具返回错误时说明错误原因和可行的下一步，不掩盖错误，不把未完成操作说成已完成。\n涉及计算结果时给出使用的输入、关键假设、单位、适用的数据系和结果摘要；引用轨道库记录、产物或情景时优先使用真实 record_id 或 scenario_file。不要输出冗长的内部思考过程，只给出对用户有用的结论、依据和下一步。";
+
+/// 组装发给 omp 的 prompt 正文：领域指令 → 用户消息 → 可选画布选择。
+/// 选择 JSON 只进正文不进气泡事件（见 run_prompt）。
+fn build_prompt_text(message: &str, selection: Option<&Value>) -> String {
+    match selection {
+        Some(sel) if !sel.is_null() => format!(
+            "{DOMAIN_INSTRUCTION}\n\n{message}\n\n[当前画布选择]\n{}",
+            serde_json::to_string(sel).unwrap_or_default()
+        ),
+        _ => format!("{DOMAIN_INSTRUCTION}\n\n{message}"),
+    }
+}
+
 /// 会话事件日志上限（条）：超出截头（久远事件不再重放，全文在 omp 会话里）。
 const MAX_SESSION_LOG: usize = 5000;
 
@@ -267,13 +283,7 @@ impl AssistantState {
                 sid
             }
         };
-        let prompt_text = match selection {
-            Some(sel) if !sel.is_null() => format!(
-                "{message}\n\n[当前画布选择]\n{}",
-                serde_json::to_string(&sel).unwrap_or_default()
-            ),
-            _ => message.to_string(),
-        };
+        let prompt_text = build_prompt_text(message, selection.as_ref());
         // 用户气泡统一由事件流渲染（live 与回放同一路径）；选择上下文
         // 只进发给 omp 的正文，不进气泡事件
         self.publish(json!({"kind": "user_message", "text": message}));
@@ -635,4 +645,21 @@ mod tests {
         assert_eq!(state.thinking_level(), "deep");
     }
 
+    /// 验证构建发送给 ACP 的 prompt 时，包含固定的中文领域指令与用户输入。
+    #[test]
+    fn builds_prompt_with_domain_instruction() {
+        let prompt_without_selection = build_prompt_text("请生成一族 Halo 轨道", None);
+        assert!(prompt_without_selection.starts_with(DOMAIN_INSTRUCTION));
+        assert!(prompt_without_selection.contains("请生成一族 Halo 轨道"));
+        assert!(!prompt_without_selection.contains("[当前画布选择]"));
+
+        let prompt_with_selection = build_prompt_text(
+            "分析当前轨道",
+            Some(&json!({"recordId": "rec-123", "family": "Halo"})),
+        );
+        assert!(prompt_with_selection.starts_with(DOMAIN_INSTRUCTION));
+        assert!(prompt_with_selection.contains("分析当前轨道"));
+        assert!(prompt_with_selection.contains("[当前画布选择]"));
+        assert!(prompt_with_selection.contains("\"recordId\":\"rec-123\""));
+    }
 }

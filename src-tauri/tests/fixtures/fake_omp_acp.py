@@ -112,11 +112,15 @@ def handle_prompt(mid, params):
         if block.get("type") == "text":
             text += block.get("text", "")
 
-    if text.startswith("EXIT:"):
+    # 客户端正文信封：指令段与用户消息以空行分隔（见 build_prompt_text）
+    user_message = text.split("\n\n", 2)[1] if "\n\n" in text else text
+    # 客户端会在正文前注入固定领域指令，命令标记按包含匹配（真实 omp
+    # 同样不要求命令位于文本开头）
+    if "EXIT:" in text:
         # 直接退出（响应欠奉）：客户端应得到连接断开错误
         sys.exit(0)
 
-    if text.startswith("CANCEL:"):
+    if "CANCEL:" in text:
         state["cancel_requested"] = False
         notify(
             "session/update",
@@ -149,9 +153,9 @@ def handle_prompt(mid, params):
         },
     )
 
-    if text.startswith("TOOL:"):
+    if "TOOL:" in text:
         # 审批链路：tool_call(pending) → elicitation/create → 按应答出终态
-        tool = text[len("TOOL:") :].strip() or "scenario_write"
+        tool = text.split("TOOL:", 1)[1].strip().split(maxsplit=1)[0] or "scenario_write"
         notify(
             "session/update",
             {
@@ -199,7 +203,7 @@ def handle_prompt(mid, params):
             "sessionId": session_id,
             "update": {
                 "sessionUpdate": "agent_message_chunk",
-                "content": {"type": "text", "text": "收到：" + text[:20]},
+                "content": {"type": "text", "text": "收到：" + user_message[:20]},
             },
         },
     )
